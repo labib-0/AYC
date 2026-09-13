@@ -182,13 +182,20 @@ export interface OfferSheetProductInput {
 export function generateProductOfferSheetDoc(
   product: OfferSheetProductInput,
   buyerInfo?: { name?: string; company?: string; email?: string; country?: string },
-  selectedQty?: number
+  selectedQty?: number,
+  existingDoc?: jsPDF,
+  pageIndex?: number,
+  totalPages?: number
 ): jsPDF {
-  const doc = new jsPDF({
+  const doc = existingDoc || new jsPDF({
     orientation: "portrait",
     unit: "mm",
     format: "a4",
   });
+
+  if (existingDoc) {
+    doc.addPage();
+  }
 
   const pageWidth = 210;
   const margin = 14;
@@ -545,8 +552,10 @@ export function generateProductOfferSheetDoc(
   // Footer
   doc.setFontSize(6.5);
   doc.setTextColor(148, 163, 184);
+  const pgIndex = pageIndex !== undefined ? pageIndex : 1;
+  const pgTotal = totalPages !== undefined ? totalPages : 1;
   doc.text(
-    `AYAAN CLOTHING • Commercial Offer Reference: ${offerNumber} • Generated on ${new Date().toISOString().slice(0, 10)} • Page 1 of 1`,
+    `AYAAN CLOTHING • Commercial Offer Reference: ${offerNumber} • Generated on ${new Date().toISOString().slice(0, 10)} • Page ${pgIndex} of ${pgTotal}`,
     margin,
     297 - 6
   );
@@ -583,6 +592,57 @@ export async function downloadProductOfferSheetPDF(
     .slice(0, 30);
   const filename = `AYAAN_Offer_Sheet_${cleanSku}.pdf`;
   doc.save(filename);
+}
+
+/**
+ * Trigger download of a combined Offer Sheets PDF containing multiple products.
+ */
+export async function downloadCombinedProductOfferSheetsPDF(
+  order: OrderRecord,
+  buyerInfo?: { name?: string; company?: string; email?: string; country?: string }
+) {
+  if (!order.items || order.items.length === 0) return;
+
+  let doc: jsPDF | undefined;
+  const totalItems = order.items.length;
+
+  for (let i = 0; i < totalItems; i++) {
+    const item = order.items[i];
+    
+    let imgDataUrl = null;
+    const imageSource = item.product_image_url || null;
+    if (imageSource) {
+      try {
+        imgDataUrl = await loadImageAsDataUrl(imageSource);
+      } catch {
+        imgDataUrl = null;
+      }
+    }
+
+    const productInput: OfferSheetProductInput = {
+      name: item.product_name || "Garment",
+      sku: item.sku,
+      price: item.unit_price || 0,
+      moq: item.quantity,
+      imageUrl: imageSource || undefined,
+      imageDataUrl: imgDataUrl,
+      packageBreakdown: item.package_breakdown || (item as any).packageBreakdown,
+    };
+
+    doc = generateProductOfferSheetDoc(
+      productInput,
+      buyerInfo,
+      item.quantity,
+      doc,
+      i + 1,
+      totalItems
+    );
+  }
+
+  if (doc) {
+    const filename = `AYAAN_CLOTHING_Offer_Sheets_${order.order_number}.pdf`;
+    doc.save(filename);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

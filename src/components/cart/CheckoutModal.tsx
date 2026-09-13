@@ -10,7 +10,7 @@ import { getWhatsAppUrl } from "@/config/business-profile";
 import { formatPrice } from "@/lib/formatters";
 import {
   downloadProformaInvoicePDF,
-  downloadProductOfferSheetPDF,
+  downloadCombinedProductOfferSheetsPDF,
 } from "@/lib/pdf-generator";
 import {
   X,
@@ -66,6 +66,9 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const [shipmentSpecs, setShipmentSpecs] = useState<ShipmentSpecs | null>(null);
   const [aramexLoading, setAramexLoading] = useState(false);
   const [aramexError, setAramexError] = useState<string | null>(null);
+
+  const [isGeneratingOfferSheets, setIsGeneratingOfferSheets] = useState(false);
+  const [offerSheetError, setOfferSheetError] = useState<string | null>(null);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -255,6 +258,24 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   const manualShippingWhatsAppMsg = `Hello AYAAN CLOTHING,\n\nI would like to discuss shipping options for my order.\n\nItems: ${totalItemQuantity} pcs\nMerchandise value: $${subtotal.toFixed(2)} USD\nDestination: ${city || "—"}, ${country}\n\nPlease advise on shipping arrangements.`;
 
+  const handleDownloadOfferSheets = async () => {
+    if (!confirmedOrder) return;
+    setIsGeneratingOfferSheets(true);
+    setOfferSheetError(null);
+    try {
+      await downloadCombinedProductOfferSheetsPDF(confirmedOrder, {
+        name: confirmedOrder.shipping_name,
+        company: confirmedOrder.shipping_company,
+        email: confirmedOrder.email,
+        country: confirmedOrder.shipping_country_code,
+      });
+    } catch (err) {
+      setOfferSheetError("Unable to prepare the combined Offer Sheets PDF. Please try again.");
+    } finally {
+      setIsGeneratingOfferSheets(false);
+    }
+  };
+
   if (confirmedOrder) {
     const isManual =
       confirmedOrder.shipping_snapshot?.mode === "manual" ||
@@ -321,7 +342,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               <div className="space-y-3">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <FileText size={15} className="text-primary" />
-                  <span>Download Official Documents (PDF)</span>
+                  <span>Official Documents</span>
                 </h3>
 
                 <button
@@ -342,45 +363,41 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 </button>
 
                 {confirmedOrder.items && confirmedOrder.items.length > 0 && (
-                  <div className="space-y-2 pt-1">
-                    <span className="text-[11px] font-semibold text-muted-foreground block">
-                      Product Offer Sheets (Zero Shipping Info):
-                    </span>
-                    {confirmedOrder.items.map((it, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() =>
-                          downloadProductOfferSheetPDF(
-                            {
-                              name: it.product_name,
-                              sku: it.sku,
-                              price: it.unit_price,
-                              moq: it.quantity,
-                              imageUrl: it.product_image_url,
-                              packageBreakdown: it.package_breakdown,
-                            },
-                            {
-                              name: confirmedOrder.shipping_name,
-                              company: confirmedOrder.shipping_company,
-                              email: confirmedOrder.email,
-                              country: confirmedOrder.shipping_country_code,
-                            },
-                            it.quantity
-                          )
-                        }
-                        className="w-full p-3 rounded-xl border border-border bg-card hover:bg-secondary text-foreground text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <FileText size={14} className="text-primary shrink-0" />
-                          <span className="truncate">Download Offer Sheet: {it.product_name}</span>
-                        </div>
-                        <span className="text-[10px] text-primary font-bold shrink-0 font-mono ml-2 flex items-center gap-1">
-                          <Download size={11} />
-                          <span>PDF</span>
+                  <div className="space-y-2 pt-2 border-t border-border/40 mt-3">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <FileText size={14} className="text-foreground/70" />
+                      <span>Product Offer Sheets</span>
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground font-medium mb-2 leading-tight">
+                      One PDF containing offer sheets for all products in this order.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleDownloadOfferSheets}
+                      disabled={isGeneratingOfferSheets}
+                      className="w-full p-3 rounded-xl border border-border bg-secondary/30 hover:bg-secondary text-foreground text-xs font-bold flex items-center justify-between transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        {isGeneratingOfferSheets ? (
+                          <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
+                        ) : (
+                          <FileText size={14} className="text-muted-foreground shrink-0" />
+                        )}
+                        <span className="truncate">
+                          {isGeneratingOfferSheets ? "Preparing Offer Sheets..." : "DOWNLOAD ALL OFFER SHEETS (PDF)"}
                         </span>
-                      </button>
-                    ))}
+                      </div>
+                      {!isGeneratingOfferSheets && (
+                        <span className="text-[10px] text-muted-foreground font-bold shrink-0 font-mono ml-2 flex items-center gap-1">
+                          <Download size={12} />
+                        </span>
+                      )}
+                    </button>
+                    {offerSheetError && (
+                      <p className="text-[10px] text-destructive font-medium mt-1">
+                        {offerSheetError}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
