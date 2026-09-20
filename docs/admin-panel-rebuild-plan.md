@@ -466,34 +466,50 @@ Replaced monolithic `ProductForm.tsx` (2127 lines) with modular, focused compone
 
 ---
 
-## PHASE 9 — CUSTOMER MANAGEMENT
+## PHASE 9 — CUSTOMER MANAGEMENT (COMPLETED)
 
 **Goal:** Clean customer list with a dedicated detail page (not an inline modal).
 
-**Dependencies:** Phase 1, `adminCustomerService`
+**Status:** ✅ COMPLETED (2026-09-20)
 
-**Required UI:**
-- Customer list: search, role filter, table (name, email, company, role, orders count, total spent, B2B status, joined date)
-- Dedicated customer detail page: `/admin/customers/[id]`
-  - Customer info card
-  - B2B fields: approval status, payment terms, tax ID, credit limit (edit in place)
-  - Recent orders table
-  - Recent quotes table
-  - Addresses list
-- Role change with confirmation
-- Pagination
-- Loading, empty, error states
+**Dependencies:** Phase 1, `adminCustomerService`, `mockStore`, `addressService`, `orderService`
 
-**Required Backend/API:** `GET /admin/customers`, `GET /admin/customers/{id}`, `PUT` B2B fields
-
-**Priority:** MEDIUM
+**Implemented Architecture & Components:**
+- **Customer List (`/customers` & `/admin/customers`):**
+  - Search across name, email, company, phone.
+  - Multi-field filters: Role (`all`, `customer`, `b2b_buyer`, `sales`) and B2B Status (`all`, `approved`, `pending`, `rejected`, `none`).
+  - 4 Dynamic KPI metric cards: Total Customers, B2B Accounts, Approved B2B, Pending Review.
+  - Customer table with initials avatar fallback, company, role, orders count, total spend (USD), B2B status, joined date, and `[ View ]` action.
+  - Responsive mobile card stack with joined date and key commercial metrics.
+  - Pagination (20 customers/page) with full reset on filter changes.
+  - Distinct empty states (unfiltered "No customers yet" vs filtered "No customers match your current filters") and error retry state.
+- **Dedicated Customer Detail Page (`/customers/[id]` & `/admin/customers/[id]`):**
+  - Replaced legacy 417-line inline modal with a dedicated, modular route.
+  - `CustomerDetailHeader`: Breadcrumb back navigation, customer name, role & B2B badges, quick refresh, and role change action.
+  - `CustomerProfileCard`: Contact information, company, ID, joined date, and commercial stats badges.
+  - `CustomerB2BCard`: In-place editing of B2B approval status, payment terms (`net_15`, `net_30`, `net_60`, `cia`, `cod`), tax ID, and credit limit in USD with numeric validation and explicit "Save Changes" (no autosave).
+  - `CustomerRoleDialog`: Accessible custom modal dialog for role modifications with current/new role display (zero native `confirm()` or `alert()` calls).
+  - `CustomerOrdersTable`: Historical orders table linking to Phase 7 `/orders/[id]` with real status badges and amounts.
+  - `CustomerQuotesTable`: Quotation and RFQ history table.
+  - `CustomerAddressesCard`: Read-only saved delivery addresses card with default markers and contact details.
+  - 404 Customer Not Found state with "Back to Customers" safe return button.
+- **Service & Persistence Layer:**
+  - `AdminCustomerService` enriched with dynamic spend and order counts derived from `mockStore.getOrders()` and `mockStore.getRfqs()`.
+  - Realistic mock users expanded to 26 accounts matching the 25 enriched mock orders.
+  - B2B field mutations and role changes strictly persist to `mockStore.updateUser()`.
+  - Customer creation intentionally omitted (not supported by backend service).
+  - Storefront boundaries, customer address book, and checkout preserved intact.
 
 **Completion Checklist:**
-- [ ] Customer list loads and filters
-- [ ] Dedicated customer detail page (not inline modal)
-- [ ] B2B fields editable
-- [ ] Recent orders shown
-- [ ] Loading, empty, error states
+- [x] Customer list loads, searches, and filters (Role & B2B Status)
+- [x] Dedicated customer detail page `/customers/[id]` (not inline modal)
+- [x] B2B fields editable with explicit save and toast feedback
+- [x] Role change dialog with custom confirmation (zero native dialogs)
+- [x] Recent orders shown and linked to Phase 7 `/orders/[id]`
+- [x] Saved addresses displayed in read-only mode
+- [x] Dynamic spend and order count calculation without hardcoding
+- [x] Mock persistence to `mockStore` for B2B fields & roles
+- [x] Loading skeletons, filtered empty, and error retry states
 
 ---
 
@@ -654,12 +670,12 @@ Phase 14 — Settings                        [Last — future]
 | 3A | Product List | ✅ Completed | 2026-09-20 |
 | 3B | Product Create/Edit | Pending | — |
 | 4 | Brand Management | Pending | — |
-| 5 | Category Management | Pending | — |
-| 7A | Order List | Pending | — |
-| 7B | Order Detail | Pending | — |
-| 6 | Inventory | Pending | — |
+| 5 | Category Management | ✅ Completed | 2026-09-20 |
+| 7A | Order List | ✅ Completed | 2026-09-20 |
+| 7B | Order Detail | ✅ Completed | 2026-09-20 |
+| 6 | Inventory | ✅ Completed | 2026-09-20 |
 | 8 | Homepage / Banner | Pending | — |
-| 9 | Customer Management | Pending | — |
+| 9 | Customer Management | ✅ Completed | 2026-09-20 |
 | 10 | RFQ & Quotation | Pending | — |
 | 11 | Promotions & Coupons | Pending | — |
 | 13 | Document Viewer | Pending | — |

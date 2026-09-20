@@ -123,7 +123,7 @@ async function runPhase7StaticValidation() {
   );
   assert(updatedStatus.status === "confirmed", "Order status successfully updated to 'confirmed'");
   assert(
-    updatedStatus.status_events?.some((e) => e.message?.includes("Admin confirmed B2B sales contract.")),
+    Boolean(updatedStatus.status_events?.some((e) => e.message?.includes("Admin confirmed B2B sales contract."))),
     "Status event appended to order timeline"
   );
 
