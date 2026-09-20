@@ -17,7 +17,49 @@ export interface AdminOrderQueryParams {
   direction?: "asc" | "desc";
 }
 
+export interface OrderSummaryMetrics {
+  totalOrders: number;
+  pending: number;
+  confirmed: number;
+  processing: number;
+  shipped: number;
+  delivered: number;
+  cancelled: number;
+  paid: number;
+  pendingPayment: number;
+}
+
+export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
+  pending: ["confirmed", "processing", "cancelled"],
+  confirmed: ["processing", "cancelled"],
+  processing: ["shipped", "cancelled"],
+  shipped: ["delivered"],
+  delivered: ["refunded"],
+  cancelled: [],
+  refunded: [],
+};
+
 export class AdminOrderService {
+  getAllowedNextStatuses(currentStatus: string): string[] {
+    const normalized = (currentStatus || "").toLowerCase();
+    return ORDER_STATUS_TRANSITIONS[normalized] || ["processing", "shipped", "delivered", "cancelled"];
+  }
+
+  async getOrderSummary(): Promise<OrderSummaryMetrics> {
+    const list = mockStore.getOrders();
+    return {
+      totalOrders: list.length,
+      pending: list.filter((o) => o.status === "pending").length,
+      confirmed: list.filter((o) => o.status === "confirmed").length,
+      processing: list.filter((o) => o.status === "processing").length,
+      shipped: list.filter((o) => o.status === "shipped").length,
+      delivered: list.filter((o) => o.status === "delivered").length,
+      cancelled: list.filter((o) => o.status === "cancelled").length,
+      paid: list.filter((o) => o.payment_status === "paid").length,
+      pendingPayment: list.filter((o) => o.payment_status === "pending").length,
+    };
+  }
+
   async getOrders(params?: AdminOrderQueryParams): Promise<{
     data: OrderRecord[];
     current_page: number;
@@ -40,7 +82,13 @@ export class AdminOrderService {
     let list = mockStore.getOrders();
     if (params?.search) {
       const q = params.search.toLowerCase();
-      list = list.filter((o) => o.order_number.toLowerCase().includes(q) || o.shipping_name.toLowerCase().includes(q) || o.email.toLowerCase().includes(q));
+      list = list.filter((o) => 
+        o.order_number.toLowerCase().includes(q) || 
+        o.shipping_name.toLowerCase().includes(q) || 
+        (o.shipping_company && o.shipping_company.toLowerCase().includes(q)) ||
+        (o.user?.company_name && o.user.company_name.toLowerCase().includes(q)) ||
+        o.email.toLowerCase().includes(q)
+      );
     }
     if (params?.status && params.status !== "all") {
       list = list.filter((o) => o.status === params.status);

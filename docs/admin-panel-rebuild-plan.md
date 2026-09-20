@@ -358,44 +358,83 @@ Replaced monolithic `ProductForm.tsx` (2127 lines) with modular, focused compone
 
 ---
 
-## PHASE 7 — ORDER MANAGEMENT
+## PHASE 7 — ORDERS & FULFILLMENT (Status: Completed)
 
-**Goal:** Order list + detail as clean, maintainable separate components (not 1015-line monolith).
+**Goal:** Clean, comprehensive, and modular Orders & Fulfillment module. Deconstructed the legacy 1015-line monolith into focused, reusable components. Eliminated hardcoded freight providers (`Akij Sea Freight` / `Akij Logistics`), replaced all native browser dialogs with accessible modal dialogs, preserved historical snapshot data integrity, and supported multi-dimensional filtering and mutations in both Mock Mode and Live API Mode.
 
-**Dependencies:** Phase 1, `adminOrderService`
+**Dependencies:** Phase 1 (admin shell), `adminOrderService`, `orderService`, `mockStore`, `apiClient`
 
-### Phase 7A — Order List
-- Page title
-- Search (order number, buyer, email)
-- Status filter, payment_status filter, fulfillment_status filter
-- Order table: order number, buyer name/company, total amount, status badge, payment badge, fulfillment badge, date, actions
-- Action: View detail
-- Pagination
-- Loading, empty, error states
+### Implemented UI & Components (`src/components/admin/orders/`):
+- `OrderStatusBadge.tsx`: Visual badge for order statuses (`pending`, `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`, `refunded`) with semantic icons and distinct accessible color tokens (never color alone).
+- `PaymentStatusBadge.tsx`: Semantic badge for payment statuses (`paid`, `pending`, `failed`, `refunded`).
+- `FulfillmentStatusBadge.tsx`: Semantic badge for fulfillment statuses (`unfulfilled`, `partial`, `processing`, `shipped`, `delivered`, `returned`).
+- `OrderListHeader.tsx`: Header matching specification with title "Orders", description "Manage customer orders, payment status and fulfillment.", and manual data refresh button.
+- `OrderKpis.tsx`: 5 dynamic KPI cards ("Total Orders", "Pending Action", "Processing", "Fulfilled / Shipped", "Paid Orders") with interactive filter shortcut toggles.
+- `OrderToolbar.tsx`: Search input (matching order number, customer name, company name, and email), Order Status dropdown, Payment Status dropdown, Fulfillment Status dropdown, clear filters reset button, and real-time result count indicator.
+- `OrderTableRow.tsx`: Desktop table row displaying order number & date, customer name & email, company name or fallback, line items count and total pieces, formatted USD total with currency badge, payment status badge, fulfillment status badge, order status badge, and quick action triggers (`[ View ]`, and quick review trigger if payment proof is pending).
+- `OrderTable.tsx`: Full table container with loading skeleton placeholders, desktop table layout, mobile card layout, and specialized empty state presentations ("No orders yet" vs "No orders match your current filters").
+- `OrderPagination.tsx`: 20 orders per page default, record range summary ("Showing X to Y of Z orders"), page buttons with ellipsis, previous/next controls, and page reset on filter change.
+- `OrderDetailHeader.tsx`: Order #[order_number], placement date, status badges, dynamic "← Back to Orders" navigation, commercial export document action buttons (`Order Sheet`, `PI`, `Commercial Invoice`, `Packing List`), and refresh button.
+- `OrderItemsTable.tsx`: Purchased line items list with product image thumbnail, product title, SKU, variant attributes (size, color, wholesale package breakdown matrix), historical unit price, and line total. Strictly preserves historical prices without recalculating from current catalog.
+- `OrderFinancialSummary.tsx`: Breakdown of Goods Value (Subtotal), Shipping/Freight, Other Charges/Documentation, Taxes & Duties, Discount Applied, and Total Payable in USD.
+- `CustomerInfoCard.tsx`: Contact name, company name, email link, phone number, and customer ID. Strictly preserves boundary (no customer management fields).
+- `ShippingInfoCard.tsx`: Historical shipping snapshot address, consignee details, destination port, transport method, shipping service/Incoterm, third-party notify party, and special handling instructions.
+- `PaymentInfoCard.tsx`: Payment method formatted label, total amount, currency, and offline payment receipt indicator. Excludes all sensitive secrets (no CVVs, full card numbers, or private tokens).
+- `PaymentProofReview.tsx`: Receipt thumbnail preview lightbox with external zoom link, review guidance, and quick trigger buttons for `[ Approve Payment ]` and `[ Reject Payment ]`.
+- `PaymentReviewModal.tsx`: Accessible custom dialog for approving or rejecting offline payment receipts, requiring reviewer audit note and confirming state transition.
+- `CarrierFulfillmentCard.tsx`: Carrier-neutral logistics card displaying carrier name (`order.carrier` or snapshot), AWB / tracking number, live carrier status, packaging metrics (carton count, gross weight, net weight, CBM volume), Aramex tracking portal link, and official shipping label download link.
+- `OceanFreightQuoteModal.tsx`: Carrier-neutral sea freight quote modal allowing administrators to quote freight amount (USD), booking reference, carrier/freight line, validity date, and booking notes.
+- `FulfillmentUpdateModal.tsx`: Custom modal to update fulfillment status, carrier, tracking number, and dispatch note.
+- `AramexShipmentDialog.tsx`: Custom accessible confirmation dialog for generating official Aramex export AWB and dispatch record (completely replacing native `confirm()`).
+- `OrderStatusTransitionCard.tsx`: Structured status transition card enforcing allowed lifecycle transitions via `adminOrderService.getAllowedNextStatuses(order.status)`. Prevents arbitrary invalid status jumps.
+- `OrderStatusHistory.tsx`: Chronological audit trail timeline displaying system events with event type, message, and timestamp.
+- `index.ts`: Barrel export for all orders components.
 
-### Phase 7B — Order Detail (Refactored)
-Break into logical sections:
-- `OrderHeader.tsx` — order number, status, dates, actions
-- `OrderCustomerSection.tsx` — buyer info, shipping address
-- `OrderItemsTable.tsx` — line items, quantities, pricing
-- `OrderPricingSection.tsx` — subtotal, shipping, discounts, total
-- `OrderStatusSection.tsx` — status transition form (select + note)
-- `OrderFulfillmentSection.tsx` — tracking, carrier, update
-- `OrderPaymentSection.tsx` — payment method, proof review
-- `OrderTimelineSection.tsx` — status event history
+### Page Architecture:
+- `src/app/admin/orders/page.tsx`: Clean orchestrator page for Order List (reduced from 301 lines of mixed concerns to 204 lines of modular, declarative code).
+- `src/app/admin/orders/[id]/page.tsx`: Rebuilt Order Detail page (deconstructed legacy 1015-line monolith to 327 lines of modular, clean components).
 
-**Required Backend/API:** `GET /admin/orders`, `GET /admin/orders/{id}`, `PUT` status/fulfillment
+### Data & Service Layer (`src/services/admin/order.service.ts` & `src/lib/mock-data/`):
+- Added `getOrderSummary()` computing KPI metrics (`totalOrders`, `pending`, `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`, `paid`, `pendingPayment`).
+- Added `getAllowedNextStatuses(status)` enforcing authoritative transition matrix:
+  - `pending` → `confirmed`, `processing`, `cancelled`
+  - `confirmed` → `processing`, `cancelled`
+  - `processing` → `shipped`, `cancelled`
+  - `shipped` → `delivered`
+  - `delivered` → `refunded`
+  - `cancelled`, `refunded` → terminal states (no further transitions)
+- Updated `AdminOrderService.getOrders` to support search against `order_number`, `shipping_name`, `shipping_company`, `user.company_name`, and `email`.
+- Enriched `mockStore` order dataset to 25 diverse B2B export and retail records spanning all statuses, payment proofs, and packaging snapshots (cartons, CBM, weights) to properly support 20-item pagination and multi-dimensional filters.
+- Dual-mode support: fully functional in frontend MOCK MODE (mutating and persisting to `mockStore`) and LIVE API mode.
 
-**Priority:** HIGH — core operational function
+### Discovered Limitations & Architecture Decisions:
+1. **Carrier Neutrality:** Legacy order detail contained hardcoded `"Akij Sea Freight"` and `"Akij Logistics"` business names across UI banners, modals, and default strings. These were completely removed. Carrier attribution is now dynamic: read from `order.carrier`, `order.shipping_snapshot?.carrier`, or administrator input in the quote modal.
+2. **Zero Native Browser Dialogs:** Replaced native `window.confirm(...)` in shipment creation with `AramexShipmentDialog`. Replaced all confirmation prompts with accessible custom dialogs.
+3. **Historical Pricing & Snapshot Integrity:** Order line items strictly preserve historical `unit_price` and `line_total` stored at checkout time. No prices are recomputed against the active product catalog or current promotions. Historical shipping addresses are preserved from snapshot data rather than dynamically substituted from the customer's current address book.
+4. **Boundary Integrity:** Strictly avoided expanding Order Detail into Customer Management (Phase 9), Inventory Management (Phase 6), or Promotion Management (Phase 11).
 
 **Completion Checklist:**
-- [ ] Order list with all filters
-- [ ] Pagination works
-- [ ] Order detail loads
-- [ ] Status transition works
-- [ ] Fulfillment update works
-- [ ] All sections render correctly
-- [ ] Loading, empty, error states
+- [x] Order list with all filters (order status, payment status, fulfillment status)
+- [x] Order search across order #, customer name, company name, email
+- [x] Dynamic KPI metric cards with quick-filter shortcuts
+- [x] 20 orders/page pagination with page reset on search/filter changes
+- [x] Loading skeleton, distinct empty states, and error state with Retry
+- [x] Order detail loads by ID with not-found state
+- [x] Historical pricing and snapshot data integrity preserved
+- [x] Allowed status transition rules enforced (no arbitrary jumps)
+- [x] Fulfillment and tracking update form and modal
+- [x] Carrier-neutral ocean freight quote modal (hardcoded "Akij" removed)
+- [x] Offline payment proof review (approve/reject) with custom modal
+- [x] Aramex shipment creation confirmation dialog (no native `confirm()`)
+- [x] Order status audit event history timeline
+- [x] Commercial document deep links (`Order Sheet`, `PI`, `Commercial Invoice`, `Packing List`)
+- [x] Application-level toast notifications (zero native `alert`/`confirm`)
+- [x] Storefront preserved (zero customer-side changes)
+- [x] Backend infrastructure preserved (zero destructive API changes)
+- [x] Clean static TypeScript validation (`tsc --noEmit` clean, 0 errors)
+- [x] Clean ESLint validation (`npm run lint` clean, 0 errors)
+- [x] Headless verification script (`scripts/test-phase7-orders.ts`) passing all 32 assertions
+- [x] Zero live browser testing performed (strictly static/code-level validation)
 
 ---
 

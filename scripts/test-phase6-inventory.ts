@@ -133,8 +133,9 @@ async function runPhase6Tests() {
 
   // History audit check
   const history = await adminInventoryService.getInventoryItemHistory(itemToAdjust.id);
-  assert(history.length >= 3, `Audit history contains all 3 adjustments (found ${history.length})`);
-  assert(history[0].resulting_quantity === 350, "Most recent audit entry reflects latest stock");
+  assert(Boolean(history && history.length >= 3), `Audit history contains all 3 adjustments (found ${history?.length || 0})`);
+  assert(Boolean(history && history[0].resulting_quantity === 350), "Most recent audit entry reflects latest stock");
+  console.log("   Audit log verification passed.");
 
   // 6. Warehouse Management (Create & Edit)
   console.log("\n--- 6. Warehouse Management Operations ---");
