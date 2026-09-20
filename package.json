@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:admin": "node scripts/admin-proxy.js",
+    "dev:both": "node scripts/start-dev.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
