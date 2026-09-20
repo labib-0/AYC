@@ -1,5 +1,5 @@
 import { apiClient } from "./api-client";
-import { RfqRecord, RfqStatus } from "@/types/b2b";
+import { RfqRecord, RfqStatus, RfqMessage } from "@/types/b2b";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 
@@ -122,6 +122,35 @@ export class RfqService {
     }
 
     return mockStore.updateRfqStatus(id, status, actorName, note);
+  }
+
+  /**
+   * Add message to RFQ conversation
+   */
+  async addMessage(
+    rfqId: string,
+    senderRole: "buyer" | "admin" | "sales",
+    senderName: string,
+    message: string
+  ): Promise<RfqMessage | null> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.post<any>(`/rfq/${rfqId}/messages`, {
+          senderRole,
+          senderName,
+          message,
+        });
+        const item = res?.data || res;
+        if (item && item.id) {
+          mockStore.addRfqMessage(rfqId, { senderRole, senderName, message });
+          return item;
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    return mockStore.addRfqMessage(rfqId, { senderRole, senderName, message });
   }
 }
 

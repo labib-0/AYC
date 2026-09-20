@@ -5,76 +5,17 @@ import {
   CommercialDocType 
 } from "@/types/b2b";
 import { updateRfqStatus } from "./rfq";
+import { mockStore, STORAGE_KEYS } from "@/lib/mock-data/mock-store";
 import BUSINESS_PROFILE from "@/config/business-profile";
 
-const QUOTE_STORAGE_KEY = "ayaan_b2b_quotations_db";
-
-const INITIAL_DEMO_QUOTES: QuotationRecord[] = [
-  {
-    id: "qt_demo_102",
-    quotationNumber: "QT-2026-000102",
-    revisionNumber: 1,
-    rfqId: "rfq_demo_102",
-    rfqNumber: "RFQ-2026-000102",
-    buyerName: "Marcus Vance",
-    buyerEmail: "m.vance@vancestyle.co.uk",
-    buyerPhone: "+44 20 7946 0912",
-    companyName: "Vance & Co Retail Ltd",
-    destinationCountry: "United Kingdom",
-    destinationCity: "London",
-    currency: "USD",
-    currencySymbol: "$",
-    items: [
-      {
-        id: "qi_1",
-        productId: "prod_2",
-        productName: "Heritage Crewneck Sweatshirt",
-        sku: "ADI-HD-002",
-        variantTitle: "Heather Grey / L",
-        quantity: 300,
-        unitPrice: 19.50, // Negotiated B2B unit price (public was $22)
-        lineTotal: 5850.00,
-      },
-    ],
-    subtotal: 5850.00,
-    discountTotal: 0,
-    shippingFee: 450.00,
-    taxAmount: 0,
-    grandTotal: 6300.00,
-    paymentTerms: "30% Advance T/T, 70% against Bill of Lading (B/L) copy",
-    shippingTerms: "FOB Chittagong Port (Air/Sea Freight arranged upon request)",
-    incoterm: "FOB",
-    deliveryEstimate: "18-22 working days from production approval",
-    validUntil: "2026-09-30",
-    adminNotes: "Special promotional discount applied for 300+ units volume.",
-    status: "READY",
-    createdAt: "2026-08-24T12:00:00Z",
-    updatedAt: "2026-08-24T12:00:00Z",
-  },
-];
-
 export function getStoredQuotations(): QuotationRecord[] {
-  if (typeof window === "undefined") {
-    return INITIAL_DEMO_QUOTES;
-  }
-  try {
-    const saved = localStorage.getItem(QUOTE_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch {
-    // Ignore
-  }
-  return INITIAL_DEMO_QUOTES;
+  return mockStore.getQuotations();
 }
 
 function persistQuotations(quotes: QuotationRecord[]) {
   if (typeof window !== "undefined") {
     try {
-      localStorage.setItem(QUOTE_STORAGE_KEY, JSON.stringify(quotes));
+      (mockStore as any).setItem(STORAGE_KEYS.QUOTATIONS, quotes);
     } catch {
       // Ignore
     }
@@ -96,7 +37,6 @@ export function generatePiNumber(): string {
 export async function createQuotation(
   data: Omit<QuotationRecord, "id" | "quotationNumber" | "revisionNumber" | "status" | "createdAt" | "updatedAt">
 ): Promise<QuotationRecord> {
-  const all = getStoredQuotations();
   const id = `qt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const quotationNumber = generateQuotationNumber();
   const now = new Date().toISOString();
@@ -111,10 +51,14 @@ export async function createQuotation(
     updatedAt: now,
   };
 
-  const updated = [newQuote, ...all];
-  persistQuotations(updated);
+  mockStore.saveQuotation(newQuote);
 
-  // Update associated RFQ status to QUOTATION_PREPARED
+  // Link quotation to RFQ and update RFQ status to QUOTATION_PREPARED
+  const rfq = mockStore.getRfqById(data.rfqId);
+  if (rfq) {
+    rfq.quotationId = newQuote.id;
+    mockStore.saveRfq(rfq);
+  }
   await updateRfqStatus(data.rfqId, "QUOTATION_PREPARED", "Sales Admin", `Quotation ${quotationNumber} prepared.`);
 
   return newQuote;

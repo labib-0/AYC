@@ -3,7 +3,7 @@ import { CategoryModel } from "@/services/category.service";
 import { BrandModel } from "@/services/brand.service";
 import { User } from "@/types/api";
 import { OrderRecord } from "@/services/order.service";
-import { RfqRecord, RfqStatus } from "@/types/b2b";
+import { RfqRecord, RfqStatus, RfqMessage, QuotationRecord, QuotationStatus } from "@/types/b2b";
 import { InventoryRecord, Warehouse, InventoryAdjustmentPayload } from "@/services/admin/inventory.service";
 import { PromotionRecord, CouponRecord } from "@/services/admin/promotion.service";
 
@@ -13,6 +13,7 @@ import { INITIAL_MOCK_BRANDS } from "./mock-brands";
 import { INITIAL_MOCK_USERS, MockUserData } from "./mock-users";
 import { INITIAL_MOCK_ORDERS } from "./mock-orders";
 import { INITIAL_MOCK_RFQS } from "./mock-rfqs";
+import { INITIAL_MOCK_QUOTATIONS } from "./mock-quotations";
 import { INITIAL_MOCK_INVENTORY, INITIAL_MOCK_WAREHOUSES } from "./mock-inventory";
 import { INITIAL_MOCK_PROMOTIONS, INITIAL_MOCK_COUPONS } from "./mock-promotions";
 
@@ -26,6 +27,7 @@ export const STORAGE_KEYS = {
   AUTH_TOKEN: "ayaan_auth_token",
   ORDERS: "ayaan_mock_orders_v2",
   RFQS: "ayaan_mock_rfqs_v2",
+  QUOTATIONS: "ayaan_mock_quotations_v2",
   INVENTORY: "ayaan_mock_inventory_v2",
   WAREHOUSES: "ayaan_mock_warehouses_v2",
   PROMOTIONS: "ayaan_mock_promotions_v2",
@@ -399,6 +401,80 @@ class MockStore {
     return this.saveRfq(rfq);
   }
 
+  addRfqMessage(
+    rfqId: string,
+    message: {
+      senderRole: "buyer" | "admin" | "sales";
+      senderName: string;
+      message: string;
+      createdAt?: string;
+    }
+  ): RfqMessage | null {
+    const rfq = this.getRfqById(rfqId);
+    if (!rfq) return null;
+
+    const now = message.createdAt || new Date().toISOString();
+    const msgObj: RfqMessage = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      rfqId: rfq.id,
+      senderRole: message.senderRole,
+      senderName: message.senderName,
+      message: message.message,
+      createdAt: now,
+    };
+
+    if (!rfq.messages) {
+      rfq.messages = [];
+    }
+
+    rfq.messages.push(msgObj);
+    rfq.updatedAt = now;
+    this.saveRfq(rfq);
+    return msgObj;
+  }
+
+  // ==========================================
+  // QUOTATIONS
+  // ==========================================
+  getQuotations(): QuotationRecord[] {
+    return this.getItem<QuotationRecord[]>(STORAGE_KEYS.QUOTATIONS, INITIAL_MOCK_QUOTATIONS);
+  }
+
+  getQuotationById(id: string): QuotationRecord | null {
+    const quotes = this.getQuotations();
+    return quotes.find((q) => q.id === id || q.quotationNumber === id) || null;
+  }
+
+  getQuotationByRfqId(rfqId: string): QuotationRecord | null {
+    const quotes = this.getQuotations();
+    return quotes.find((q) => q.rfqId === rfqId || q.rfqNumber === rfqId) || null;
+  }
+
+  saveQuotation(quote: QuotationRecord): QuotationRecord {
+    const quotes = this.getQuotations();
+    const index = quotes.findIndex(
+      (q) => q.id === quote.id || q.quotationNumber === quote.quotationNumber
+    );
+
+    if (index >= 0) {
+      quotes[index] = quote;
+    } else {
+      quotes.unshift(quote);
+    }
+
+    this.setItem(STORAGE_KEYS.QUOTATIONS, quotes);
+    return quote;
+  }
+
+  updateQuotationStatus(id: string, status: QuotationStatus): QuotationRecord | null {
+    const quote = this.getQuotationById(id);
+    if (!quote) return null;
+
+    quote.status = status;
+    quote.updatedAt = new Date().toISOString();
+    return this.saveQuotation(quote);
+  }
+
   // ==========================================
   // INVENTORY & WAREHOUSES
   // ==========================================
@@ -591,6 +667,7 @@ class MockStore {
         localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
         localStorage.removeItem(STORAGE_KEYS.ORDERS);
         localStorage.removeItem(STORAGE_KEYS.RFQS);
+        localStorage.removeItem(STORAGE_KEYS.QUOTATIONS);
         localStorage.removeItem(STORAGE_KEYS.INVENTORY);
         localStorage.removeItem(STORAGE_KEYS.WAREHOUSES);
         localStorage.removeItem(STORAGE_KEYS.PROMOTIONS);
@@ -609,6 +686,7 @@ class MockStore {
     this.setItem(STORAGE_KEYS.USERS, INITIAL_MOCK_USERS);
     this.setItem(STORAGE_KEYS.ORDERS, INITIAL_MOCK_ORDERS);
     this.setItem(STORAGE_KEYS.RFQS, INITIAL_MOCK_RFQS);
+    this.setItem(STORAGE_KEYS.QUOTATIONS, INITIAL_MOCK_QUOTATIONS);
     this.setItem(STORAGE_KEYS.INVENTORY, INITIAL_MOCK_INVENTORY);
     this.setItem(STORAGE_KEYS.WAREHOUSES, INITIAL_MOCK_WAREHOUSES);
     this.setItem(STORAGE_KEYS.PROMOTIONS, INITIAL_MOCK_PROMOTIONS);

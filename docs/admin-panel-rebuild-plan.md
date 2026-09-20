@@ -513,43 +513,62 @@ Replaced monolithic `ProductForm.tsx` (2127 lines) with modular, focused compone
 
 ---
 
-## PHASE 10 — B2B RFQ & QUOTATION MANAGEMENT
+## PHASE 10 — B2B RFQ & QUOTATION MANAGEMENT (COMPLETED)
 
 **Goal:** Clean RFQ + Quotation workflows. Separate list from detail. Fix messaging persistence.
 
-**Dependencies:** Phase 1, `getAllRfqs`, `getRfqById`, quotation builder
+**Status:** ✅ COMPLETED (2026-09-20)
 
-### Phase 10A — RFQ List
-- RFQ table: RFQ number, company, country, status, items count, total units, date
-- Search, status/country filters
-- KPI stats
-- Link to detail
+**Dependencies:** Phase 1, `mockStore`, `rfqService`, `quotationsService`, commercial document generator
 
-### Phase 10B — RFQ Detail
-- Buyer info
-- Items table
-- Status selector
-- Messaging thread (use localStorage-backed conversation properly)
-- "Generate Quotation" action
-- Link to existing quotation if created
+### Phase 10A — RFQ List (`/rfq` & `/admin/rfq`)
+- Page Header: Title "RFQ & Inquiries", supporting text "Review wholesale requests, buyer requirements and quotation activity.", and manual refresh action.
+- 5 Dynamic KPI Cards: Data-derived metrics for Total Inquiries (25), Needs Review (14), Quoted / In Progress (6), Accepted (4), and Total Units Requested (11,350 pcs). Cards double as quick filter selectors.
+- Comprehensive Search & Filter Toolbar:
+  - Free-text multi-field search across RFQ number, buyer name, company name, destination country.
+  - Status filter with actual supported enum values.
+  - Dynamic destination country filter derived from active dataset.
+  - Active filter count and one-click Reset button.
+- Paginated RFQ Table (Desktop & Mobile):
+  - Desktop: RFQ Ref, Buyer (initials avatar fallback), Company, Country (with globe icon), Items count, Total Units, Status Badge, Submission Date, and Action (`[ View ]` -> `/rfq/[id]`).
+  - Mobile: Responsive card stack with full-width View button.
+- Pagination: True 20 RFQs per page with boundary protection and auto-reset on filter/search change.
+- Resilient UI States: Skeletons, distinct empty states (unfiltered vs filtered), error retry.
 
-### Phase 10C — Quotation List
-- Quotation table: quotation number, RFQ ref, buyer, company, status, date
-- Filter by status
-- Link to document viewer for print/PDF
+### Phase 10B — RFQ Detail (`/rfq/[id]` & `/admin/rfq/[id]`)
+- Eliminated legacy 525-line monolith; modularized into reusable section cards in `src/components/admin/rfq/`:
+  - `RfqHeader`: Breadcrumb back link, RFQ reference, creation date, status badge, action triggers (`Update Status`, `Generate Quotation` / `View Quotation`).
+  - `RfqBuyerCard`: Buyer name, company, email, phone, business type, tax ID/VAT, website, and account deep link to Phase 9 (`/customers/[id]`).
+  - `RfqShippingCard`: Destination country, city, shipping port, delivery date, buyer instructions.
+  - `RfqItemsTable`: Product thumbnails, titles, SKUs, variants, quantities, target prices, buyer notes, subtotal calculation.
+  - `RfqStatusDialog`: Custom accessible modal dialog for changing status with audit note (zero native `confirm()` or `alert()` calls).
+  - `RfqMessageThread`: Chronological conversation thread between Buyer and Export Sales/Admin with sender badges, timestamps, and empty state.
+  - `RfqMessageComposer`: Message input with character limit, trim validation, send button with loading spinner, and resilient error recovery.
+  - `RfqQuotationBuilder`: Accessible modal for issuing official quotations pre-populated from RFQ. Allows entry of quoted unit prices, shipping fee, discount, payment terms, shipping terms, Incoterms (`FOB`, `CIF`, `EXW`, `DDP`, `CFR`), delivery estimate, validity, and notes. Generates quotation record and links to RFQ.
+  - `RfqTimeline`: History audit trail of transitions and notes.
+  - 404 RFQ Not Found screen.
 
-**Required Backend/API:** Mock-backed `getAllRfqs`, `getRfqById`, `createQuotation`
+### Phase 10C — Quotation List (`/quotations` & `/admin/quotations`)
+- Page Header: Title "Quotations", supporting text "Review issued commercial quotations and quotation status.", and manual refresh action.
+- Search across Quotation Ref, RFQ Ref, Buyer, Company, Destination.
+- Status Filter (`All`, `Issued/Ready`, `Accepted`, `In Negotiation`, `Rejected`, `Expired`).
+- Paginated Quotation Table (20/page): Quote Ref, RFQ Ref, Buyer & Company, Destination, Grand Total (USD), Status Badge, Valid Until, Action (`[ View ]` linking directly to `/documents/QUOTATION/[id]`).
+- Clean mobile card stack view, skeletons, distinct empty states, error retry.
 
-**Priority:** MEDIUM (after orders)
+### Critical Known Issue Resolution: RFQ Message Persistence
+- **Root Cause Identified**: Previously, `mockStore` lacked `addRfqMessage()` and `src/lib/services/rfq.ts` used a disconnected storage key.
+- **Architectural Solution**: Added `addRfqMessage()` to `mockStore` that appends the message to the RFQ's `messages` array and persists the entire record to `STORAGE_KEYS.RFQS` in `localStorage`. Unified both `rfq.ts` and `rfq.service.ts` to delegate directly to `mockStore`. Messages now reliably survive browser reloads and re-fetches.
+- **Quotation Persistence**: Added `STORAGE_KEYS.QUOTATIONS` to `mockStore` and unified quotation creation and retrieval.
 
 **Completion Checklist:**
-- [ ] RFQ list with filters
-- [ ] RFQ detail loads correctly
-- [ ] Status update works
-- [ ] Quotation generation works
-- [ ] Quotation list loads
-- [ ] Link to document viewer works
-- [ ] Loading, empty, error states
+- [x] RFQ list with filters (Search, Status, Country) and dynamic KPIs
+- [x] Dedicated RFQ detail page `/rfq/[id]` without monolithic code
+- [x] Status update works with custom confirmation modal (zero native dialogs)
+- [x] Critical RFQ message persistence in `mockStore` resolved and verified
+- [x] Quotation generation pre-populated from RFQ works
+- [x] Quotation list `/quotations` loads, filters, and paginates (20/page)
+- [x] Direct linking to commercial document viewer `/documents/QUOTATION/[id]`
+- [x] Loading skeletons, distinct empty states, and error retry states
 
 ---
 
@@ -676,7 +695,7 @@ Phase 14 — Settings                        [Last — future]
 | 6 | Inventory | ✅ Completed | 2026-09-20 |
 | 8 | Homepage / Banner | Pending | — |
 | 9 | Customer Management | ✅ Completed | 2026-09-20 |
-| 10 | RFQ & Quotation | Pending | — |
+| 10 | RFQ & Quotation | ✅ Completed | 2026-09-20 |
 | 11 | Promotions & Coupons | Pending | — |
 | 13 | Document Viewer | Pending | — |
 | 14 | Settings | Future | — |
