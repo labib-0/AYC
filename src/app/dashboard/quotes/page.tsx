@@ -50,7 +50,7 @@ export default function BuyerQuotesPage() {
 
   return (
     <div className="w-full bg-background min-h-screen py-8 sm:py-12">
-      <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         
         {/* Header */}
         <div className="pb-6 border-b border-border/70 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

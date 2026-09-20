@@ -2,6 +2,63 @@ import { B2BProductInput } from "@/types/b2b";
 import rawProductsData from "@/data/products.json";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
 
+const AUDIENCE_CATEGORY_IDS = new Set(["c_men", "c_women", "c_boys", "c_girls", "c_unisex", "men", "women", "boys", "girls", "unisex"]);
+
+export function inferProductCategory(p: any): { id: string; name: string } {
+  const explicitName = p.categoryName || p.category_name || (typeof p.category === "string" ? p.category : p.category?.name);
+  const explicitId = p.categoryId || p.category_id || p.category?.id;
+
+  if (explicitName && explicitName !== "Apparel" && !AUDIENCE_CATEGORY_IDS.has(String(explicitName).toLowerCase())) {
+    return {
+      id: explicitId && !AUDIENCE_CATEGORY_IDS.has(String(explicitId).toLowerCase()) ? String(explicitId) : `c_${String(explicitName).toLowerCase().replace(/[^a-z0-9]+/g, "")}`,
+      name: explicitName,
+    };
+  }
+
+  const name = (p.name || "").toLowerCase();
+  const sku = (p.sku || "").toLowerCase();
+
+  if (name.includes("sweater") || name.includes("cardigan") || name.includes("knit") || name.includes("pullover") || name.includes("turtleneck") || sku.includes("-swt-")) {
+    return { id: "c_sweaters", name: "Sweaters" };
+  }
+  if (name.includes("t-shirt") || name.includes("tee") || sku.includes("-tsh-")) {
+    return { id: "c_tshirts", name: "T-Shirts" };
+  }
+  if (name.includes("hoodie") || name.includes("sweatshirt") || name.includes("fleece") || sku.includes("-hd-")) {
+    return { id: "c_hoodies", name: "Hoodies" };
+  }
+  if (name.includes("trouser") || name.includes("chino") || name.includes("jogger") || name.includes("legging") || name.includes("tights") || sku.includes("-trs-")) {
+    return { id: "c_trousers", name: "Trousers" };
+  }
+  if (name.includes("pant") || name.includes("jean") || name.includes("denim") || name.includes("overall") || sku.includes("-jns-")) {
+    return { id: "c_pants", name: "Pants" };
+  }
+  if (name.includes("short") || name.includes("trunk") || sku.includes("-sho-")) {
+    return { id: "c_shorts", name: "Shorts" };
+  }
+  if (name.includes("polo") || sku.includes("-pol-")) {
+    return { id: "c_polos", name: "Polo Shirts" };
+  }
+  if (name.includes("jacket") || name.includes("coat") || name.includes("vest") || name.includes("parka") || name.includes("bomber") || name.includes("blazer") || name.includes("windbreaker") || name.includes("anorak") || sku.includes("-jkt-")) {
+    return { id: "c_jackets", name: "Jackets" };
+  }
+  if (name.includes("shirt") || name.includes("oxford") || name.includes("flannel") || name.includes("blouse") || sku.includes("-sht-")) {
+    return { id: "c_tshirts", name: "T-Shirts" };
+  }
+  if (name.includes("sport") || name.includes("running") || name.includes("gym") || name.includes("yoga") || name.includes("active") || name.includes("compression")) {
+    return { id: "c_activewear", name: "Activewear" };
+  }
+  if (name.includes("towel") || sku.includes("-twl-")) {
+    return { id: "c_towels", name: "Towels" };
+  }
+
+  if (explicitId && !AUDIENCE_CATEGORY_IDS.has(String(explicitId).toLowerCase())) {
+    return { id: String(explicitId), name: explicitName || "Apparel" };
+  }
+
+  return { id: "c_tshirts", name: "T-Shirts" };
+}
+
 /**
  * Normalizes raw JSON product into full B2BProductInput
  */
@@ -11,12 +68,17 @@ export function normalizeProductData(p: any): B2BProductInput {
     : [p.image_url || p.image || "/placeholder.jpg"];
 
   let audienceVal: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" = "UNISEX";
-  const catId = (p.categoryId || p.category_id || (p.category?.name) || "").toLowerCase();
-  if (catId.includes("men") && !catId.includes("women")) audienceVal = "MEN";
-  else if (catId.includes("women")) audienceVal = "WOMEN";
-  else if (catId.includes("boys")) audienceVal = "BOYS";
-  else if (catId.includes("girls")) audienceVal = "GIRLS";
-  else if (p.audience) audienceVal = p.audience;
+  if (p.audience && ["MEN", "WOMEN", "BOYS", "GIRLS", "UNISEX"].includes(String(p.audience).toUpperCase())) {
+    audienceVal = String(p.audience).toUpperCase() as any;
+  } else {
+    const rawCat = (p.categoryId || p.category_id || p.category?.name || p.name || "").toLowerCase();
+    if (rawCat.includes("men") && !rawCat.includes("women")) audienceVal = "MEN";
+    else if (rawCat.includes("women")) audienceVal = "WOMEN";
+    else if (rawCat.includes("boys")) audienceVal = "BOYS";
+    else if (rawCat.includes("girls")) audienceVal = "GIRLS";
+  }
+
+  const categoryInfo = inferProductCategory(p);
 
   const wholesalePrice = p.wholesalePrice !== undefined
     ? Number(p.wholesalePrice)
@@ -53,7 +115,6 @@ export function normalizeProductData(p: any): B2BProductInput {
   const colors = Array.isArray(p.colors) && p.colors.length > 0 ? p.colors : [p.color_name || p.color || "Black"];
 
   // Default package allocation breakdown (Carton / Polybag ratio)
-  // Field MUST be `quantity` to match the PackageAllocation interface used in ProductDetailView
   const defaultColors = Array.isArray(p.colors) && p.colors.length > 0 ? p.colors : [p.color_name || p.color || "Black"];
   const piecesPerColor = Math.max(1, Math.floor(moq / defaultColors.length));
   const remainder = moq - piecesPerColor * defaultColors.length;
@@ -66,15 +127,13 @@ export function normalizeProductData(p: any): B2BProductInput {
     ["2XL", 0.05],
   ];
   const activeSizes = Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : ["S", "M", "L", "XL", "2XL"];
-  // Only include ratios for sizes that are actually on this product
   const filteredRatios = sizeRatios.filter(([s]) => activeSizes.includes(s));
-  // Re-normalise so they sum to 1.0 if some sizes are missing
   const ratioSum = filteredRatios.reduce((a, [, r]) => a + r, 0) || 1;
 
   const packageAllocations: Array<{ size: string; quantity: number; color: string; product_variant_id: number }> = p.packageAllocations || (() => {
     const result: Array<{ size: string; quantity: number; color: string; product_variant_id: number }> = [];
     defaultColors.forEach((color: string, ci: number) => {
-      const colorPcs = piecesPerColor + (ci === 0 ? remainder : 0); // assign remainder to first color
+      const colorPcs = piecesPerColor + (ci === 0 ? remainder : 0);
       let colorRunning = 0;
       filteredRatios.forEach(([size, ratio], si) => {
         const isLast = si === filteredRatios.length - 1;
@@ -87,7 +146,6 @@ export function normalizeProductData(p: any): B2BProductInput {
     });
     return result;
   })();
-
 
   // Default shipping package profiles
   const shippingPackageProfiles = p.shippingPackageProfiles || p.shipping_package_profiles || [
@@ -133,8 +191,8 @@ export function normalizeProductData(p: any): B2BProductInput {
     sku: p.sku || `AYN-${Date.now().toString(36).toUpperCase()}`,
     brand: brandName,
     brandLogo: brandLogo,
-    categoryId: p.categoryId || "c_sweaters",
-    categoryName: p.categoryName || p.category || "Apparel",
+    categoryId: categoryInfo.id,
+    categoryName: categoryInfo.name,
     audience: audienceVal,
     productType: p.productType || "Ready-Made Garments",
     collectionSeason: p.collectionSeason || "2026 Core Export Line",
@@ -157,7 +215,7 @@ export function normalizeProductData(p: any): B2BProductInput {
     msrpPrice: msrpPrice,
     moq: moq,
     stock: stock,
-    status: "published",
+    status: p.status || "published",
     isFeatured: Boolean(p.isFeatured || p.featured || p.isHot),
     isNew: Boolean(p.isNew),
     isHot: Boolean(p.isHot),

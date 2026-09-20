@@ -134,18 +134,45 @@ export function getInitialFeaturedProducts(
   );
 
   if (brands && brands.length > 0) {
-    const bLower = brands.map((b) => b.toLowerCase());
-    filtered = filtered.filter((p) => bLower.includes(p.brand.toLowerCase()));
+    filtered = filtered.filter((p) => {
+      const pBrandClean = (p.brand || "").toLowerCase().replace(/['’.\s-]/g, "");
+      const pBrandRaw = (p.brand || "").toLowerCase();
+      return brands.some((b) => {
+        const bLower = b.toLowerCase();
+        const bClean = bLower.replace(/['’.\s-]/g, "");
+        return (
+          pBrandRaw === bLower ||
+          pBrandClean === bClean ||
+          pBrandRaw.includes(bLower) ||
+          bLower.includes(pBrandRaw) ||
+          pBrandClean.includes(bClean) ||
+          bClean.includes(pBrandClean)
+        );
+      });
+    });
   }
   if (audiences && audiences.length > 0) {
     const aUpper = audiences.map((a) => a.toUpperCase());
-    filtered = filtered.filter((p) => aUpper.includes(p.audience.toUpperCase()));
+    filtered = filtered.filter((p) => {
+      const pAud = (p.audience || "").toUpperCase();
+      const pCatId = (p.categoryId || "").toUpperCase();
+      return aUpper.some((a) => pAud === a || pCatId.includes(a));
+    });
   }
   if (categories && categories.length > 0) {
-    const cLower = categories.map((c) => c.toLowerCase());
+    const cleanCats = categories.map((c) => c.toLowerCase().replace(/[^a-z0-9]/g, ""));
     filtered = filtered.filter((p) => {
-      const pCat = (p.categoryName || p.categoryId || "").toLowerCase();
-      return cLower.some((c) => pCat.includes(c));
+      const pCatName = (p.categoryName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const pCatId = (p.categoryId || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      return cleanCats.some(
+        (c) =>
+          pCatName === c ||
+          pCatId === c ||
+          pCatName.includes(c) ||
+          c.includes(pCatName) ||
+          pCatId.includes(c) ||
+          c.includes(pCatId)
+      );
     });
   }
 

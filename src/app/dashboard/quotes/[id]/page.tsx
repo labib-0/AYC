@@ -120,7 +120,7 @@ export default function BuyerRfqDetailPage({
 
   return (
     <div className="w-full bg-background min-h-screen py-8 sm:py-12">
-      <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10 space-y-8">
         
         {/* Navigation & Header */}
         <div>

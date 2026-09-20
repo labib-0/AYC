@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { CategoryCard } from "./CategoryHighlights";
 import ProductCard from "../product/ProductCard";
-import initialProductsData from "@/data/products.json";
+import { INITIAL_MOCK_PRODUCTS } from "@/lib/mock-data/mock-products";
 import { Product } from "@/types";
 import { getProducts, toStorefrontProduct } from "@/lib/services/products";
 import {
@@ -58,7 +58,9 @@ export default function HotSales() {
   const [towelColors, setTowelColors] = useState<string[]>(["ALL"]);
 
   const collectionSectionRef = useRef<HTMLDivElement>(null);
-  const [allProducts, setAllProducts] = useState<Product[]>(() => (initialProductsData as Product[]));
+  const [allProducts, setAllProducts] = useState<Product[]>(() =>
+    INITIAL_MOCK_PRODUCTS.map(toStorefrontProduct)
+  );
 
   useEffect(() => {
     async function load() {
@@ -193,7 +195,7 @@ export default function HotSales() {
 
   return (
     <section id="hot-sales" className="pb-7 sm:pb-9 bg-background">
-      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 2xl:px-12">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         
         {/* Section Heading */}
         <div className="mb-3.5 sm:mb-5 text-center md:text-left flex flex-col sm:flex-row sm:items-end justify-between gap-2">
@@ -403,7 +405,7 @@ export default function HotSales() {
 
             {/* PRODUCT GRID / EMPTY STATE */}
             {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 min-[1440px]:grid-cols-6 2xl:grid-cols-6 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}

@@ -13,20 +13,21 @@ export interface DashboardMetrics {
   revenue: number;
   low_stock_items: number;
   recent_orders: Array<{
-    id: number;
+    id: string | number;
     order_number: string;
     total_amount: number;
     status: string;
     payment_status: string;
     created_at: string;
+    company?: string;
     user?: {
-      id: number;
+      id: number | string;
       name: string;
       email: string;
     };
   }>;
   recent_rfqs: Array<{
-    id: number;
+    id: string | number;
     rfq_number: string;
     company_name: string;
     buyer_name: string;
@@ -63,21 +64,22 @@ export class AdminDashboardService {
     const lowStock = products.filter((p) => p.stock < 100).length;
 
     const recentOrders = orders.slice(0, 5).map((o, idx) => ({
-      id: idx + 1,
+      id: o.id || idx + 1,
       order_number: o.order_number,
       total_amount: o.total_amount,
       status: o.status,
       payment_status: o.payment_status,
       created_at: o.created_at,
+      company: o.shipping_company,
       user: {
         id: Number(o.user_id) || 101,
-        name: o.shipping_name || "Valued Buyer",
+        name: o.shipping_name || o.shipping_company || "Valued Buyer",
         email: o.email,
       },
     }));
 
     const recentRfqs = rfqs.slice(0, 5).map((r, idx) => ({
-      id: idx + 1,
+      id: r.id || idx + 1,
       rfq_number: r.rfqNumber,
       company_name: r.companyName || "Buyer Enterprise",
       buyer_name: r.buyerName || "Buyer",

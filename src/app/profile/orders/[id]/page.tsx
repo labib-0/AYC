@@ -790,11 +790,11 @@ export default function OrderDetailPage({ params }: Props) {
         <div className="w-full lg:w-72 xl:w-80 space-y-5 shrink-0">
 
           {/* Shipping address */}
-          <SectionCard title="Delivery Address" icon={MapPin}>
+          <SectionCard title="Delivery Address & Consignee" icon={MapPin}>
             <div className="text-xs space-y-0.5">
               <p className="font-bold text-sm text-slate-900 dark:text-white">{order.shipping_name}</p>
               {order.shipping_company && (
-                <p className="text-slate-500 dark:text-slate-400">{order.shipping_company}</p>
+                <p className="text-slate-600 dark:text-slate-300 font-medium">{order.shipping_company}</p>
               )}
               <p className="text-slate-500 dark:text-slate-400 pt-1">{order.shipping_address1}</p>
               {order.shipping_address2 && (
@@ -808,6 +808,33 @@ export default function OrderDetailPage({ params }: Props) {
                 <p className="text-slate-700 dark:text-slate-300 pt-2 font-medium">
                   {order.shipping_phone}
                 </p>
+              )}
+
+              {order.destination_port && (
+                <div className="pt-2 border-t border-slate-100 dark:border-white/[0.06] text-[11px]">
+                  <span className="text-slate-400">Destination Port: </span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                    {order.destination_port}
+                  </span>
+                </div>
+              )}
+
+              {order.special_instructions && (
+                <div className="pt-2 border-t border-slate-100 dark:border-white/[0.06] text-[11px]">
+                  <span className="text-slate-400 block font-semibold">Special Instructions:</span>
+                  <span className="text-slate-600 dark:text-slate-300 italic">
+                    {order.special_instructions}
+                  </span>
+                </div>
+              )}
+
+              {order.third_party_notify?.name && (
+                <div className="pt-2 border-t border-slate-100 dark:border-white/[0.06] text-[11px]">
+                  <span className="text-slate-400 block font-semibold">Also Notify (3rd Party):</span>
+                  <span className="text-slate-600 dark:text-slate-300">
+                    {order.third_party_notify.name} {order.third_party_notify.address ? `(${order.third_party_notify.address})` : ""}
+                  </span>
+                </div>
               )}
             </div>
           </SectionCard>

@@ -90,7 +90,11 @@ export interface UserProfile extends User {
 export interface UserAddress {
   id: string | number;
   user_id: string | number;
+  label?: string;
   name: string;
+  contact_name?: string;
+  company_name?: string;
+  email?: string;
   phone?: string;
   address_line_1: string;
   address_line_2?: string;
@@ -98,5 +102,8 @@ export interface UserAddress {
   state?: string;
   postal_code: string;
   country_code: string;
+  country?: string;
   is_default: boolean;
+  created_at?: string;
+  updated_at?: string;
 }

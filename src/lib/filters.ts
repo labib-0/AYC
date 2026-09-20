@@ -258,10 +258,17 @@ export function filterProducts({
     const audienceOk =
       audienceIds.length === 0 ||
       audienceIds.some((audId) => {
+        const aUpper = audId.toUpperCase();
+        const pAud = ((product as any).audience || "").toUpperCase();
+        const pCat = String(product.categoryId || "").toLowerCase();
         const match = AUDIENCE_CATEGORIES.find(
           (a) => a.id === audId || a.slug === audId || a.categoryId === audId
         );
-        return match ? product.categoryId === match.categoryId : false;
+        return (
+          pAud === aUpper ||
+          pCat.includes(audId.toLowerCase()) ||
+          (match ? product.categoryId === match.categoryId : false)
+        );
       });
 
     // 3. Category match (OR inside group, ALL = true)

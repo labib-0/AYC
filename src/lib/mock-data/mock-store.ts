@@ -18,7 +18,7 @@ import { INITIAL_MOCK_PROMOTIONS, INITIAL_MOCK_COUPONS } from "./mock-promotions
 
 // Storage Keys
 export const STORAGE_KEYS = {
-  PRODUCTS: "ayaan_mock_products_v2",
+  PRODUCTS: "ayaan_mock_products_v3",
   CATEGORIES: "ayaan_mock_categories_v3",
   BRANDS: "ayaan_mock_brands_v2",
   USERS: "ayaan_mock_users_v2",
@@ -78,7 +78,18 @@ class MockStore {
   // PRODUCTS
   // ==========================================
   getProducts(): B2BProductInput[] {
-    return this.getItem<B2BProductInput[]>(STORAGE_KEYS.PRODUCTS, INITIAL_MOCK_PRODUCTS);
+    const list = this.getItem<B2BProductInput[]>(STORAGE_KEYS.PRODUCTS, INITIAL_MOCK_PRODUCTS);
+    // Self-healing synchronization: If stored dataset is smaller than baseline dataset, merge missing products
+    if (Array.isArray(list) && list.length < INITIAL_MOCK_PRODUCTS.length) {
+      const existingIds = new Set(list.map((p) => String(p.id)));
+      const missing = INITIAL_MOCK_PRODUCTS.filter((p) => !existingIds.has(String(p.id)));
+      if (missing.length > 0) {
+        const merged = [...list, ...missing];
+        this.setItem(STORAGE_KEYS.PRODUCTS, merged);
+        return merged;
+      }
+    }
+    return list;
   }
 
   getProductByIdOrSlug(idOrSlug: string): B2BProductInput | null {
@@ -418,6 +429,7 @@ class MockStore {
       adjustment_amount: diff,
       resulting_quantity: result,
       reason: payload.reason,
+      notes: payload.notes,
       created_at: new Date().toISOString(),
       admin_user: {
         id: 1,
@@ -445,6 +457,37 @@ class MockStore {
     warehouses.push(newWh);
     this.setItem(STORAGE_KEYS.WAREHOUSES, warehouses);
     return newWh;
+  }
+
+  updateWarehouse(id: number, updates: Partial<Warehouse>): Warehouse | null {
+    const warehouses = this.getWarehouses();
+    const index = warehouses.findIndex((w) => w.id === id);
+    if (index === -1) return null;
+
+    warehouses[index] = {
+      ...warehouses[index],
+      ...updates,
+      id,
+    };
+    this.setItem(STORAGE_KEYS.WAREHOUSES, warehouses);
+
+    // Sync warehouse name/code across inventory items
+    if (updates.name || updates.code) {
+      const inventoryList = this.getInventory();
+      let changed = false;
+      inventoryList.forEach((inv) => {
+        if (inv.warehouse_id === id && inv.warehouse) {
+          if (updates.name) inv.warehouse.name = updates.name;
+          if (updates.code) inv.warehouse.code = updates.code;
+          changed = true;
+        }
+      });
+      if (changed) {
+        this.setItem(STORAGE_KEYS.INVENTORY, inventoryList);
+      }
+    }
+
+    return warehouses[index];
   }
 
   // ==========================================

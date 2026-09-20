@@ -40,6 +40,43 @@ export class BrandService {
     }
 
     let list = mockStore.getBrands();
+
+    // Dynamically calculate accurate product count from live product dataset
+    const products = mockStore.getProducts();
+    const countMap = new Map<string, number>();
+    for (const p of products) {
+      if (p.brand_id) {
+        const idKey = String(p.brand_id).toLowerCase().trim();
+        countMap.set(idKey, (countMap.get(idKey) || 0) + 1);
+      }
+      if (p.brand) {
+        const nameKey = p.brand.toLowerCase().trim();
+        countMap.set(nameKey, (countMap.get(nameKey) || 0) + 1);
+      }
+    }
+
+    list = list.map((b) => {
+      const idKey = String(b.id).toLowerCase().trim();
+      const nameKey = (b.name || "").toLowerCase().trim();
+      const slugKey = (b.slug || "").toLowerCase().trim();
+
+      let count = countMap.get(idKey) || 0;
+      if (count === 0 && nameKey) {
+        count = countMap.get(nameKey) || 0;
+      }
+      if (count === 0 && slugKey) {
+        count = countMap.get(slugKey) || 0;
+      }
+      if (count === 0 && (nameKey.includes("north face") || slugKey.includes("north-face"))) {
+        count = (countMap.get("the north face") || 0) + (countMap.get("north face") || 0);
+      }
+
+      return {
+        ...b,
+        products_count: count,
+      };
+    });
+
     if (!options?.isAdmin && !options?.all) {
       list = list.filter((b) => b.is_active !== false);
     }
@@ -107,6 +144,40 @@ export class BrandService {
     }
 
     return mockStore.saveBrand({ ...updates, id: String(id) });
+  }
+
+  /**
+   * Get actual product count associated with a brand
+   */
+  async getProductCount(brand: BrandModel): Promise<number> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>(`/brands/${brand.id}/products/count`);
+        if (typeof res?.count === "number") return res.count;
+      } catch {
+        // Fallback to local calculation
+      }
+    }
+
+    const products = mockStore.getProducts();
+    const idKey = String(brand.id).toLowerCase().trim();
+    const nameKey = (brand.name || "").toLowerCase().trim();
+    const slugKey = (brand.slug || "").toLowerCase().trim();
+
+    return products.filter((p) => {
+      const pBrand = (p.brand || "").toLowerCase().trim();
+      const pBrandId = p.brand_id ? String(p.brand_id).toLowerCase().trim() : "";
+      if (pBrandId && pBrandId === idKey) return true;
+      if (pBrand && pBrand === nameKey) return true;
+      if (pBrand && pBrand === slugKey) return true;
+      if (
+        (nameKey.includes("north face") || slugKey.includes("north-face")) &&
+        (pBrand === "north face" || pBrand === "the north face")
+      ) {
+        return true;
+      }
+      return false;
+    }).length;
   }
 
   /**

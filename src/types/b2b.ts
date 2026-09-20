@@ -213,6 +213,7 @@ export interface OrderShippingSnapshot {
   currency?: string;
   destination?: {
     name?: string;
+    company_name?: string;
     phone?: string;
     email?: string;
     address1?: string;
@@ -221,6 +222,13 @@ export interface OrderShippingSnapshot {
     region?: string;
     postal_code?: string;
     country_code?: string;
+  };
+  service_type?: string;
+  destination_port?: string;
+  special_instructions?: string;
+  third_party_notify?: {
+    name?: string;
+    address?: string;
   };
   package_quantity?: number;
   carton_count?: number;
@@ -309,6 +317,7 @@ export interface CommercialDocument {
     hs_code?: string;
     marks_and_numbers?: string;
     product_image_url?: string;
+    product_images?: string[];
     quantity: number;
     unitPrice: number;
     total: number;
@@ -317,6 +326,7 @@ export interface CommercialDocument {
     package_breakdown?: any;
     details?: string;
   }>;
+  product_gallery?: string[];
   packing_cartons?: Array<{
     carton_no: string;
     marks_and_numbers: string;
@@ -354,10 +364,14 @@ export interface CommercialDocument {
   bankDetails?: {
     isConfigured?: boolean;
     beneficiaryName?: string;
+    accountTitle?: string;
     bankName?: string | null;
     accountNumber?: string | null;
+    accountNo?: string | null;
     swiftCode?: string | null;
+    bankAddress?: string | null;
     branch?: string | null;
     routing_no?: string | null;
+    routingNumber?: string | null;
   };
 }

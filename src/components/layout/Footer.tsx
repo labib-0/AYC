@@ -50,7 +50,7 @@ export default function Footer() {
   return (
     <>
       <footer className="bg-[#0b1329] text-white/90 pt-14 pb-10 border-t border-white/10">
-        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 2xl:px-12">
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
           
           {/* Main 4-Column Grid (Desktop 4 cols, Tablet 2 cols, Mobile Stacked 1 col) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 pb-12 border-b border-white/10">

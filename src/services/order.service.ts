@@ -13,6 +13,7 @@ export interface OrderItemRecord {
   product_name: string;
   product_slug?: string;
   product_image_url?: string;
+  product_images?: string[];
   sku?: string;
   variant_title?: string;
   variant_summary?: string;
@@ -78,6 +79,14 @@ export interface OrderRecord {
   can_create_aramex_shipment?: boolean;
   payment_method: string;
   notes?: string;
+  transport_method?: string;
+  shipping_service_type?: string;
+  destination_port?: string;
+  special_instructions?: string;
+  third_party_notify?: {
+    name?: string;
+    address?: string;
+  };
   subtotal: number;
   subtotal_cents: number;
   shipping_cost: number;
@@ -124,6 +133,14 @@ export interface CreateOrderInput {
   otherCharges?: number;
   paymentMethod?: string;
   notes?: string;
+  transportMethod?: string;
+  shippingServiceType?: string;
+  destinationPort?: string;
+  specialInstructions?: string;
+  thirdPartyNotify?: {
+    name?: string;
+    address?: string;
+  };
   items: Array<{
     productId?: string;
     variantId?: string;
@@ -221,7 +238,34 @@ export class OrderService {
       direct_tracking_url: getWhatsAppUrl(`Track Order ${orderNumber}`),
       carrier_status: "Processing at Export Facility",
       payment_method: input.paymentMethod || "proforma_invoice",
-      shipping_snapshot: input.shippingSnapshot,
+      notes: input.notes || input.specialInstructions,
+      transport_method: input.transportMethod || (input.shippingSnapshot?.mode === "sea" ? "sea" : "air"),
+      shipping_service_type: input.shippingServiceType || "door_to_door",
+      destination_port: input.destinationPort,
+      special_instructions: input.specialInstructions || input.notes,
+      third_party_notify: input.thirdPartyNotify,
+      shipping_snapshot: input.shippingSnapshot
+        ? {
+            ...input.shippingSnapshot,
+            destination: {
+              ...input.shippingSnapshot.destination,
+              name: input.shippingName,
+              company_name: input.shippingCompany,
+              phone: input.shippingPhone,
+              email: input.email,
+              address1: input.shippingAddress,
+              address2: input.shippingAddress2,
+              city: input.shippingCity,
+              region: input.shippingRegion,
+              postal_code: input.shippingPostalCode,
+              country_code: input.shippingCountryCode,
+            },
+            service_type: input.shippingServiceType || input.shippingSnapshot.service_type || "door_to_door",
+            destination_port: input.destinationPort || input.shippingSnapshot.destination_port,
+            special_instructions: input.specialInstructions || input.notes || input.shippingSnapshot.special_instructions,
+            third_party_notify: input.thirdPartyNotify || input.shippingSnapshot.third_party_notify,
+          }
+        : undefined,
       subtotal,
       subtotal_cents: Math.round(subtotal * 100),
       shipping_cost: shipping,
@@ -450,6 +494,11 @@ export class OrderService {
       payment_method: raw.payment_method || "card",
       payment_proof_url: raw.payment_proof_url,
       notes: raw.notes,
+      transport_method: raw.transport_method || raw.shipping_snapshot?.mode,
+      shipping_service_type: raw.shipping_service_type || raw.shipping_snapshot?.service_type,
+      destination_port: raw.destination_port || raw.shipping_snapshot?.destination_port,
+      special_instructions: raw.special_instructions || raw.notes || raw.shipping_snapshot?.special_instructions,
+      third_party_notify: raw.third_party_notify || raw.shipping_snapshot?.third_party_notify,
       subtotal,
       subtotal_cents: Math.round(subtotal * 100),
       shipping_cost: shipping,

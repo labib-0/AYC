@@ -359,7 +359,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
   return (
     <div className="w-full bg-background min-h-screen py-4 sm:py-6">
-      <div className="mx-auto w-full max-w-[1320px] px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-5">
+      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10 space-y-4 sm:space-y-5">
         
         {/* Breadcrumb Navigation */}
         <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -383,7 +383,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
           
           {/* LEFT: GALLERY / MEDIA + SPECIFICATIONS (5 Cols with controlled max-width) */}
-          <div className="lg:col-span-5 space-y-3.5 max-w-[420px] xl:max-w-[440px] w-full mx-auto lg:mx-0">
+          <div className="lg:col-span-5 space-y-3.5 max-w-[420px] xl:max-w-[440px] 2xl:max-w-[480px] w-full mx-auto lg:mx-0">
             {/* Unified Media Experience (Images + Video + Lightbox) */}
             <ProductGallery
               images={product.images}
@@ -458,7 +458,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           </div>
 
           {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (7 Cols — Sticky on Desktop) */}
-          <div className="lg:col-span-7 lg:sticky lg:top-[80px] lg:self-start max-w-xl xl:max-w-2xl w-full flex flex-col">
+          <div className="lg:col-span-7 lg:sticky lg:top-[80px] lg:self-start max-w-xl xl:max-w-2xl 2xl:max-w-3xl w-full flex flex-col">
             
             {/* ========================================================= */}
             {/* 1. PRODUCT IDENTITY & METADATA HIERARCHY */}
@@ -845,7 +845,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             <h2 className="text-lg sm:text-xl font-display font-bold uppercase tracking-tight text-foreground">
               More from {product.brand}
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 min-[1440px]:grid-cols-6 2xl:grid-cols-6 gap-3 sm:gap-4">
               {relatedProducts.map((rp) => (
                 <ProductCard
                   key={rp.id}

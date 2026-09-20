@@ -99,7 +99,54 @@ export async function uploadBrandLogo(file: File): Promise<UploadResult> {
   });
 }
 
+/**
+ * Upload a category image via REST API or persistent base64 Data URL
+ */
+export async function uploadCategoryImage(file: File): Promise<UploadResult> {
+  const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"];
+  const isImage = validTypes.includes(file.type) || file.type.startsWith("image/");
 
+  if (!isImage) {
+    throw new Error("Invalid file format. Please upload a valid image file (SVG, PNG, JPG, or WebP).");
+  }
+
+  // Attempt REST API upload if available
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", "categories");
+
+    const res = await apiClient.post<any>("/upload", formData);
+    if (res?.url || res?.data?.url) {
+      return {
+        url: res.url || res.data.url,
+        key: res.key || res.data.key || file.name,
+      };
+    }
+  } catch {
+    // Graceful fallback for offline / frontend mode
+  }
+
+  // In offline / mock mode, convert to persistent base64 Data URL so it saves to localStorage
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      resolve({
+        url: dataUrl,
+        key: `cat_${Date.now()}_${file.name}`,
+      });
+    };
+    reader.onerror = () => {
+      const fallbackUrl = typeof window !== "undefined" ? URL.createObjectURL(file) : "";
+      resolve({
+        url: fallbackUrl,
+        key: `cat_${Date.now()}_${file.name}`,
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
 /**
  * Upload payment proof via Laravel REST API (/orders/:id/payment-proof)
  */

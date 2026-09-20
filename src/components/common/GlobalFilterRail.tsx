@@ -276,7 +276,7 @@ export default function GlobalFilterRail({
   return (
     <>
       {/* ── Desktop Left Rail (lg: >= 1024px): Outer Column + Inner Sticky Panel ── */}
-      <div className="filter-column hidden lg:block w-[300px] shrink-0">
+      <div className="filter-column hidden lg:block w-[280px] shrink-0">
         <aside
           className="filter-panel sticky top-[84px] w-full bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-xs font-sans"
           aria-label="Product Filters"

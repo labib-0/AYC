@@ -40,6 +40,44 @@ export class CategoryService {
     }
 
     let list = mockStore.getCategories();
+
+    // Dynamically calculate accurate product count from live product dataset
+    const products = mockStore.getProducts();
+    const countMap = new Map<string, number>();
+    for (const p of products) {
+      if (p.categoryId) {
+        const idKey = String(p.categoryId).toLowerCase().trim();
+        countMap.set(idKey, (countMap.get(idKey) || 0) + 1);
+      }
+      if (p.categoryName) {
+        const nameKey = p.categoryName.toLowerCase().trim();
+        countMap.set(nameKey, (countMap.get(nameKey) || 0) + 1);
+      }
+    }
+
+    list = list.map((c) => {
+      const idKey = String(c.id).toLowerCase().trim();
+      const nameKey = (c.name || "").toLowerCase().trim();
+      const slugKey = (c.slug || "").toLowerCase().trim();
+      const strippedId = idKey.replace(/^c_/, "");
+
+      let count = countMap.get(idKey) || 0;
+      if (count === 0 && nameKey) {
+        count = countMap.get(nameKey) || 0;
+      }
+      if (count === 0 && slugKey) {
+        count = countMap.get(slugKey) || 0;
+      }
+      if (count === 0 && strippedId) {
+        count = countMap.get(strippedId) || 0;
+      }
+
+      return {
+        ...c,
+        products_count: count,
+      };
+    });
+
     if (!options?.isAdmin && !options?.all) {
       list = list.filter((c) => c.is_active !== false);
     }
@@ -99,6 +137,34 @@ export class CategoryService {
     }
 
     return mockStore.saveCategory({ ...data, id: String(id) });
+  }
+
+  /**
+   * Get actual product count associated with a category
+   */
+  async getProductCount(category: CategoryModel): Promise<number> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>(`/categories/${category.id}/products/count`);
+        if (typeof res?.count === "number") return res.count;
+      } catch {
+        // Fallback to local calculation
+      }
+    }
+
+    const products = mockStore.getProducts();
+    const idKey = String(category.id).toLowerCase().trim();
+    const nameKey = (category.name || "").toLowerCase().trim();
+    const slugKey = (category.slug || "").toLowerCase().trim();
+    const strippedId = idKey.replace(/^c_/, "");
+
+    return products.filter((p) => {
+      const pCatId = (p.categoryId ? String(p.categoryId) : "").toLowerCase().trim();
+      const pCatName = (p.categoryName || "").toLowerCase().trim();
+      if (pCatId && (pCatId === idKey || pCatId === strippedId)) return true;
+      if (pCatName && (pCatName === nameKey || pCatName === slugKey)) return true;
+      return false;
+    }).length;
   }
 
   /**

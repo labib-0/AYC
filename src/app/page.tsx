@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Hero from "@/components/layout/Hero";
+import TopBanner from "@/components/home/TopBanner";
 import ServiceStrip from "@/components/home/ServiceStrip";
 import CategoryHighlights from "@/components/home/CategoryHighlights";
 import HotSales from "@/components/home/HotSales";
@@ -12,15 +12,15 @@ export default function Home() {
   return (
     <>
       <div className="flex flex-col gap-4 sm:gap-5">
-        <Hero />
+        <TopBanner />
         <ServiceStrip />
+        <ShopByBrand />
         <HotSales />
         <Suspense fallback={<div className="h-64 bg-background" />}>
           <FeaturedProducts />
         </Suspense>
         <CategoryHighlights />
       </div>
-      <ShopByBrand />
       <Testimonials />
       <BrandTrust />
     </>

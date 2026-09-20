@@ -1,5 +1,6 @@
 import { OrderRecord } from "@/services/order.service";
 import BUSINESS_PROFILE from "@/config/business-profile";
+import { mockStore } from "@/lib/mock-data/mock-store";
 
 export function generateMockDocument(order: OrderRecord, docType: string, isAdmin: boolean = false): any {
   const isPaid = order.payment_status === "paid" || order.payment_status === "completed";
@@ -42,7 +43,29 @@ export function generateMockDocument(order: OrderRecord, docType: string, isAdmi
   };
 
   switch (docType) {
-    case "ORDER_SHEET":
+    case "ORDER_SHEET": {
+      const orderSheetItems = items.map((i, idx) => {
+        const prodId = (i as any).product_id;
+        const prod = prodId ? mockStore.getProductByIdOrSlug(String(prodId)) : null;
+        const prodImages = (i as any).images || (i as any).product_images || prod?.images || (i.product_image_url ? [i.product_image_url] : []);
+        return {
+          serial: idx + 1,
+          description: i.product_name,
+          product_name: i.product_name,
+          sku: i.sku || `AYN-${idx + 100}`,
+          size: i.size || "Standard Assorted",
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          unitPrice: i.unit_price,
+          line_total: i.line_total,
+          total: i.line_total,
+          product_image_url: i.product_image_url || prodImages[0],
+          product_images: prodImages,
+        };
+      });
+
+      const topGallery = orderSheetItems.flatMap((it) => it.product_images || []).filter(Boolean);
+
       // Offer Sheet NEVER contains shipping information — shipping is always negotiated separately
       return {
         document_type: "ORDER_SHEET",
@@ -56,18 +79,8 @@ export function generateMockDocument(order: OrderRecord, docType: string, isAdmi
         exporter: header,
         buyer,
         currency: "USD",
-        items: items.map((i, idx) => ({
-          serial: idx + 1,
-          description: i.product_name,
-          product_name: i.product_name,
-          sku: i.sku || `AYN-${idx + 100}`,
-          size: i.size || "Standard Assorted",
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          unitPrice: i.unit_price,
-          line_total: i.line_total,
-          total: i.line_total,
-        })),
+        product_gallery: topGallery,
+        items: orderSheetItems,
         summary: {
           total_units: totalPcs,
           goods_value: order.subtotal,
@@ -88,6 +101,7 @@ export function generateMockDocument(order: OrderRecord, docType: string, isAdmi
         },
         terms: "Commercial Offer only — Not an invoice. Valid for 30 days. Production per Ayaan Clothing export standard AQL 2.5.",
       };
+    }
 
     case "PROFORMA_INVOICE": {
       // Determine if shipping was auto-quoted (Aramex) or left for manual discussion
@@ -160,11 +174,17 @@ export function generateMockDocument(order: OrderRecord, docType: string, isAdmi
           ? "Freight to be confirmed separately by AYAAN CLOTHING team."
           : undefined,
         bank_details: {
-          is_configured: false,
-          beneficiary_name: BUSINESS_PROFILE.name,
+          is_configured: true,
+          beneficiary_name: BUSINESS_PROFILE.banking.accountTitle,
+          account_title: BUSINESS_PROFILE.banking.accountTitle,
+          bank_name: BUSINESS_PROFILE.banking.bankName,
+          account_number: BUSINESS_PROFILE.banking.accountNo,
+          account_no: BUSINESS_PROFILE.banking.accountNo,
+          swift_code: BUSINESS_PROFILE.banking.swiftCode,
+          bank_address: BUSINESS_PROFILE.banking.bankAddress,
+          branch: BUSINESS_PROFILE.banking.branch,
           country: "Bangladesh",
           currency: "USD",
-          instructions: "Wire instructions countersigned upon PO approval.",
         },
       };
     }

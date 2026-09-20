@@ -57,7 +57,7 @@ export default function BrandTrust() {
 
   return (
     <section id="brand-trust" className="py-10 sm:py-12 bg-[#f8f6f0]">
-      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 2xl:px-12">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="mb-6 md:mb-8">
           <h2 className="text-fluid-h2 font-display font-bold text-foreground mb-2 tracking-tight">Compliance & certifications</h2>
           <p className="section-subtitle mt-1 sm:mt-1.5">

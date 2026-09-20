@@ -11,6 +11,7 @@ export interface Product {
   fullStockPrice?: number;
   categoryId: string;
   categoryName?: string;
+  audience?: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | string;
   images: string[];
   isNew?: boolean;
   isHot?: boolean;

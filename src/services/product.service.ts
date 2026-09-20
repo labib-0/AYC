@@ -4,6 +4,7 @@ import { B2BProductInput } from "@/types/b2b";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { findMatchingShippingProfile, calculateTotalCbm } from "@/lib/services/shipping-package";
+import { inferProductCategory } from "@/lib/mock-data/mock-products";
 
 export interface ProductQueryParams {
   page?: number;
@@ -77,12 +78,17 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     : [p.image_url || p.image || "/placeholder.jpg"];
 
   let audienceVal: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" = "UNISEX";
-  const catId = (p.categoryId || p.category_id || (p.category?.name) || "").toLowerCase();
-  if (catId.includes("men") && !catId.includes("women")) audienceVal = "MEN";
-  else if (catId.includes("women")) audienceVal = "WOMEN";
-  else if (catId.includes("boys")) audienceVal = "BOYS";
-  else if (catId.includes("girls")) audienceVal = "GIRLS";
-  else if (p.audience) audienceVal = p.audience;
+  if (p.audience && ["MEN", "WOMEN", "BOYS", "GIRLS", "UNISEX"].includes(String(p.audience).toUpperCase())) {
+    audienceVal = String(p.audience).toUpperCase() as any;
+  } else {
+    const rawCat = (p.categoryId || p.category_id || p.category?.name || p.name || "").toLowerCase();
+    if (rawCat.includes("men") && !rawCat.includes("women")) audienceVal = "MEN";
+    else if (rawCat.includes("women")) audienceVal = "WOMEN";
+    else if (rawCat.includes("boys")) audienceVal = "BOYS";
+    else if (rawCat.includes("girls")) audienceVal = "GIRLS";
+  }
+
+  const categoryInfo = inferProductCategory(p);
 
   const wholesalePrice = p.wholesalePrice !== undefined
     ? Number(p.wholesalePrice)
@@ -192,8 +198,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     brand: brandName,
     brandLogo: brandLogo,
     brand_id: p.brand_id ? String(p.brand_id) : undefined,
-    categoryId: p.categoryId || p.category_id || p.category?.id || "c_sweaters",
-    categoryName: p.categoryName || p.category_name || p.category?.name || p.category || "Apparel",
+    categoryId: categoryInfo.id,
+    categoryName: categoryInfo.name,
     audience: audienceVal,
     productType: p.productType || p.product_type || "Ready-Made Garments",
     collectionSeason: p.collectionSeason || p.collection_season || "2026 Core Collection",
@@ -255,6 +261,7 @@ export function toStorefrontProduct(p: B2BProductInput): Product {
     fullStockPrice: p.fullStockPrice,
     categoryId: p.categoryId || "c_sweaters",
     categoryName: p.categoryName,
+    audience: p.audience,
     images: p.images,
     isNew: p.isNew,
     isHot: p.isHot,
@@ -591,24 +598,64 @@ export class ProductService {
       }
       if (options?.brand && options.brand !== "all") {
         const brands = options.brand.split(",").map((b) => b.trim().toLowerCase()).filter(Boolean);
-        if (brands.length > 0 && !brands.includes(p.brand.toLowerCase())) return false;
+        if (brands.length > 0) {
+          const pBrandClean = (p.brand || "").toLowerCase().replace(/['’.\s-]/g, "");
+          const pBrandRaw = (p.brand || "").toLowerCase();
+          const match = brands.some((b) => {
+            const bClean = b.replace(/['’.\s-]/g, "");
+            return (
+              pBrandRaw === b ||
+              pBrandClean === bClean ||
+              pBrandRaw.includes(b) ||
+              b.includes(pBrandRaw) ||
+              pBrandClean.includes(bClean) ||
+              bClean.includes(pBrandClean)
+            );
+          });
+          if (!match) return false;
+        }
       }
       if (options?.audience && options.audience !== "all") {
         const audiences = options.audience.split(",").map((a) => a.trim().toUpperCase()).filter(Boolean);
-        if (audiences.length > 0 && !audiences.includes(p.audience.toUpperCase())) return false;
+        if (audiences.length > 0) {
+          const pAud = (p.audience || "").toUpperCase();
+          const pCatId = (p.categoryId || "").toUpperCase();
+          const match = audiences.some((a) => pAud === a || pCatId.includes(a));
+          if (!match) return false;
+        }
       }
       if (options?.category && options.category !== "all") {
-        const categories = options.category.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
-        const pCat = (p.categoryName || p.categoryId || "").toLowerCase();
-        if (categories.length > 0 && !categories.some((c) => pCat.includes(c))) return false;
+        const categories = options.category.split(",").map((c) => c.trim().toLowerCase().replace(/[^a-z0-9]/g, "")).filter(Boolean);
+        if (categories.length > 0) {
+          const pCatName = (p.categoryName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+          const pCatId = (p.categoryId || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+          const match = categories.some((c) => 
+            pCatName === c ||
+            pCatId === c ||
+            pCatName.includes(c) ||
+            c.includes(pCatName) ||
+            pCatId.includes(c) ||
+            c.includes(pCatId)
+          );
+          if (!match) return false;
+        }
       }
       if (options?.search || options?.q) {
         const q = (options.search || options.q || "").toLowerCase().trim();
-        const match =
-          p.name.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q) ||
-          p.sku.toLowerCase().includes(q) ||
-          p.description?.toLowerCase().includes(q);
+        const terms = q.split(/\s+/).filter(Boolean);
+        const name = (p.name || "").toLowerCase();
+        const brand = (p.brand || "").toLowerCase();
+        const sku = (p.sku || "").toLowerCase();
+        const cat = (p.categoryName || p.categoryId || "").toLowerCase();
+        const desc = (p.description || p.shortDescription || "").toLowerCase();
+        const match = terms.every(
+          (t) =>
+            name.includes(t) ||
+            brand.includes(t) ||
+            sku.includes(t) ||
+            cat.includes(t) ||
+            desc.includes(t)
+        );
         if (!match) return false;
       }
       if (options?.price_min !== undefined && p.wholesalePrice < options.price_min) {

@@ -18,10 +18,21 @@ export function proxy(request: NextRequest) {
   // Remove port if present for consistent checking
   const currentHost = hostname.replace(`:${url.port}`, '');
 
-  if (currentHost === 'admin.localhost' || currentHost.startsWith('admin.')) {
-    // If the pathname doesn't already start with /admin, rewrite it
-    if (!url.pathname.startsWith('/admin')) {
-      url.pathname = `/admin${url.pathname}`;
+  const isAdminHost =
+    currentHost === 'admin.localhost' ||
+    currentHost.startsWith('admin.') ||
+    url.port === '3001' ||
+    hostname.includes(':3001');
+
+  if (isAdminHost) {
+    // Preserve authentication and static paths without /admin prefix
+    if (
+      !url.pathname.startsWith('/admin') &&
+      !url.pathname.startsWith('/login') &&
+      !url.pathname.startsWith('/signup') &&
+      !url.pathname.startsWith('/api')
+    ) {
+      url.pathname = url.pathname === '/' ? '/admin' : `/admin${url.pathname}`;
       return NextResponse.rewrite(url);
     }
   }

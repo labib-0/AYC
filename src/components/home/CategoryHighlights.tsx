@@ -26,6 +26,24 @@ export default function CategoryHighlights() {
     load();
   }, []);
 
+  useEffect(() => {
+    const handleExpandAllCategories = () => {
+      setIsExpanded(true);
+      setTimeout(() => {
+        const prodCat = document.getElementById("product-categories-grid");
+        if (prodCat) {
+          prodCat.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } else {
+          const catSec = document.getElementById("categories");
+          catSec?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    };
+
+    window.addEventListener("expand-all-categories", handleExpandAllCategories);
+    return () => window.removeEventListener("expand-all-categories", handleExpandAllCategories);
+  }, []);
+
   const detailedCategories = useMemo(() => {
     const audienceIds = new Set(["c_men", "c_women", "c_boys", "c_girls", "c_unisex", "men", "women", "boys", "girls", "unisex"]);
     const audienceNames = new Set(["MEN", "WOMEN", "BOYS", "GIRLS", "UNISEX"]);
@@ -51,7 +69,7 @@ export default function CategoryHighlights() {
 
   return (
     <section id="categories" className="pt-1.5 sm:pt-2 pb-4 sm:pb-5 bg-background">
-      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 2xl:px-12">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         
         {/* AUDIENCE Section Title */}
         <div className="mb-2.5 sm:mb-3.5 text-center md:text-left flex flex-col sm:flex-row sm:items-end justify-between gap-1.5 sm:gap-2">
@@ -87,7 +105,7 @@ export default function CategoryHighlights() {
           }`}
         >
           <div className="overflow-hidden">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-3.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 2xl:grid-cols-16 gap-1.5 sm:gap-2">
               {detailedCategories.map((category) => (
                 <CategoryCard 
                   key={category.id} 

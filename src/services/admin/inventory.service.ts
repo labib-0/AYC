@@ -2,6 +2,51 @@ import { apiClient } from "@/services/api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 
+// ============================================================================
+// Unified Low-Stock Threshold & Status Logic (Single Source of Truth)
+// ============================================================================
+
+export const LOW_STOCK_THRESHOLD = 200;
+
+export type StockStatus = "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
+
+export function isOutOfStock(quantity: number): boolean {
+  return quantity <= 0;
+}
+
+export function isLowStock(quantity: number): boolean {
+  return quantity > 0 && quantity < LOW_STOCK_THRESHOLD;
+}
+
+export function isInStock(quantity: number): boolean {
+  return quantity >= LOW_STOCK_THRESHOLD;
+}
+
+export function getStockStatus(quantity: number): StockStatus {
+  if (isOutOfStock(quantity)) return "OUT_OF_STOCK";
+  if (isLowStock(quantity)) return "LOW_STOCK";
+  return "IN_STOCK";
+}
+
+// ============================================================================
+// Interfaces
+// ============================================================================
+
+export interface InventoryAdjustment {
+  id: number;
+  previous_quantity: number;
+  adjustment_amount: number;
+  resulting_quantity: number;
+  reason: string;
+  notes?: string;
+  created_at: string;
+  admin_user?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
 export interface InventoryRecord {
   id: number;
   product_variant_id: number;
@@ -18,32 +63,25 @@ export interface InventoryRecord {
     color?: string;
     stock: number;
     product?: {
-      id: number;
+      id: number | string;
       name: string;
       slug: string;
       sku: string;
       wholesale_price: number;
-      images?: Array<{ id: number; image_url: string }>;
+      brand?: string;
+      category?: string;
+      images?: Array<{ id: number; image_url: string }> | string[];
     };
   };
   warehouse?: {
     id: number;
     name: string;
     code: string;
+    city?: string;
+    address?: string;
+    country_code?: string;
   };
-  adjustments?: Array<{
-    id: number;
-    previous_quantity: number;
-    adjustment_amount: number;
-    resulting_quantity: number;
-    reason: string;
-    created_at: string;
-    admin_user?: {
-      id: number;
-      name: string;
-      email: string;
-    };
-  }>;
+  adjustments?: InventoryAdjustment[];
 }
 
 export interface Warehouse {
@@ -57,11 +95,20 @@ export interface Warehouse {
   inventories_count?: number;
 }
 
+export interface InventorySummary {
+  totalItems: number;
+  inStock: number;
+  lowStock: number;
+  outOfStock: number;
+  totalQuantity: number;
+}
+
 export interface InventoryQueryParams {
   page?: number;
   per_page?: number;
   search?: string;
   warehouse_id?: number | string;
+  status?: "ALL" | "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
   low_stock?: boolean;
   sort?: string;
   direction?: "asc" | "desc";
@@ -74,6 +121,7 @@ export interface InventoryAdjustmentPayload {
   adjustment_amount?: number;
   new_quantity?: number;
   reason: string;
+  notes?: string;
 }
 
 export class AdminInventoryService {
@@ -86,26 +134,44 @@ export class AdminInventoryService {
   }> {
     if (!isFrontendOnly()) {
       try {
-        const res = await apiClient.get<any>("/admin/inventory", params as any);
+        const res = await apiClient.get<any>("/admin/inventory", { params: params as any });
         const paginated = res?.data || res;
         if (paginated && Array.isArray(paginated.data)) {
           return paginated;
         }
       } catch {
-        // Fallback
+        // Fallback to mockStore
       }
     }
 
     let list = mockStore.getInventory();
+
+    // 1. Filter by Search Query
     if (params?.search) {
-      const q = params.search.toLowerCase();
-      list = list.filter((i) => i.variant?.title.toLowerCase().includes(q) || i.variant?.sku.toLowerCase().includes(q));
+      const q = params.search.trim().toLowerCase();
+      list = list.filter((i) => {
+        const titleMatch = i.variant?.title?.toLowerCase().includes(q);
+        const productNameMatch = i.variant?.product?.name?.toLowerCase().includes(q);
+        const variantSkuMatch = i.variant?.sku?.toLowerCase().includes(q);
+        const productSkuMatch = i.variant?.product?.sku?.toLowerCase().includes(q);
+        const brandMatch = i.variant?.product?.brand?.toLowerCase().includes(q);
+        return Boolean(titleMatch || productNameMatch || variantSkuMatch || productSkuMatch || brandMatch);
+      });
     }
+
+    // 2. Filter by Warehouse
     if (params?.warehouse_id && params.warehouse_id !== "all") {
       list = list.filter((i) => String(i.warehouse_id) === String(params.warehouse_id));
     }
-    if (params?.low_stock) {
-      list = list.filter((i) => i.quantity < 200);
+
+    // 3. Filter by Stock Status (Unified Threshold)
+    const effectiveStatus = params?.status || (params?.low_stock ? "LOW_STOCK" : "ALL");
+    if (effectiveStatus === "LOW_STOCK") {
+      list = list.filter((i) => isLowStock(i.quantity));
+    } else if (effectiveStatus === "OUT_OF_STOCK") {
+      list = list.filter((i) => isOutOfStock(i.quantity));
+    } else if (effectiveStatus === "IN_STOCK") {
+      list = list.filter((i) => isInStock(i.quantity));
     }
 
     const page = params?.page ?? 1;
@@ -122,7 +188,47 @@ export class AdminInventoryService {
     };
   }
 
-  async adjustInventory(payload: InventoryAdjustmentPayload): Promise<any> {
+  async getInventorySummary(warehouseId?: string | number): Promise<InventorySummary> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>("/admin/inventory/summary", { params: { warehouse_id: warehouseId } });
+        const summary = res?.data || res;
+        if (summary && typeof summary.totalItems === "number") {
+          return summary;
+        }
+      } catch {
+        // Fallback to local computation
+      }
+    }
+
+    let list = mockStore.getInventory();
+    if (warehouseId && warehouseId !== "all") {
+      list = list.filter((i) => String(i.warehouse_id) === String(warehouseId));
+    }
+
+    let inStock = 0;
+    let lowStock = 0;
+    let outOfStock = 0;
+    let totalQuantity = 0;
+
+    for (const item of list) {
+      totalQuantity += item.quantity;
+      const status = getStockStatus(item.quantity);
+      if (status === "OUT_OF_STOCK") outOfStock++;
+      else if (status === "LOW_STOCK") lowStock++;
+      else inStock++;
+    }
+
+    return {
+      totalItems: list.length,
+      inStock,
+      lowStock,
+      outOfStock,
+      totalQuantity,
+    };
+  }
+
+  async adjustInventory(payload: InventoryAdjustmentPayload): Promise<InventoryRecord | null> {
     if (!isFrontendOnly()) {
       try {
         const res = await apiClient.post<any>("/admin/inventory/adjust", payload);
@@ -162,6 +268,26 @@ export class AdminInventoryService {
     }
 
     return mockStore.createWarehouse(data);
+  }
+
+  async updateWarehouse(id: number, data: Partial<Warehouse>): Promise<Warehouse | null> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.put<any>(`/admin/warehouses/${id}`, data);
+        const item = res?.data || res;
+        if (item && item.id) return item;
+      } catch {
+        // Fallback
+      }
+    }
+
+    return mockStore.updateWarehouse(id, data);
+  }
+
+  async getInventoryItemHistory(inventoryId: number): Promise<InventoryRecord["adjustments"]> {
+    const list = mockStore.getInventory();
+    const item = list.find((i) => i.id === inventoryId);
+    return item?.adjustments || [];
   }
 }
 

@@ -22,6 +22,8 @@ import Link from "next/link";
 import BrandName from "@/components/common/BrandName";
 import BUSINESS_PROFILE from "@/config/business-profile";
 import { downloadCommercialDocumentPDF } from "@/lib/pdf-generator";
+import CommercialProductGallery from "@/components/admin/documents/CommercialProductGallery";
+import BeneficiaryBankDetails from "@/components/admin/documents/BeneficiaryBankDetails";
 
 export default function CommercialDocumentPage({
   params,
@@ -51,9 +53,9 @@ export default function CommercialDocumentPage({
     window.print();
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (doc) {
-      downloadCommercialDocumentPDF(doc);
+      await downloadCommercialDocumentPDF(doc);
     }
   };
 
@@ -586,6 +588,15 @@ export default function CommercialDocumentPage({
               </div>
             </div>
 
+            {/* Offer Sheet / Order Sheet Product Visual Gallery */}
+            {isOrderSheet && (
+              <CommercialProductGallery
+                images={doc.product_gallery || doc.items?.[0]?.product_images}
+                primaryImageUrl={doc.items?.[0]?.product_image_url}
+                productName={doc.items?.[0]?.description}
+              />
+            )}
+
             {/* Bill To & Logistics Snapshot */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="p-4 rounded-2xl bg-secondary/30 border border-border/60 space-y-1">
@@ -784,27 +795,10 @@ export default function CommercialDocumentPage({
 
             {/* Bank Details & Signature */}
             <div className="pt-6 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-              {doc.bankDetails && (
-                <div className="p-4 rounded-xl bg-secondary/30 border border-border/60 space-y-1">
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                    Official Export Bank Wire Information (USD)
-                  </span>
-                  <p className="text-muted-foreground text-xs leading-relaxed">
-                    Beneficiary: <strong className="text-foreground">{doc.bankDetails.beneficiaryName}</strong><br />
-                    {doc.bankDetails.isConfigured && doc.bankDetails.bankName ? (
-                      <>
-                        Bank: {doc.bankDetails.bankName}<br />
-                        Account No: <strong className="font-mono text-foreground">{doc.bankDetails.accountNumber}</strong><br />
-                        SWIFT Code: <strong className="font-mono text-foreground">{doc.bankDetails.swiftCode}</strong><br />
-                        Branch: {doc.bankDetails.branch}
-                      </>
-                    ) : (
-                      <span className="italic text-muted-foreground">
-                        Official banking & wire instructions will be provided upon contract / order confirmation.
-                      </span>
-                    )}
-                  </p>
-                </div>
+              {isPI ? (
+                <BeneficiaryBankDetails bankDetails={doc.bankDetails} />
+              ) : (
+                <div />
               )}
 
               <div className="flex flex-col justify-end items-start sm:items-end text-right">

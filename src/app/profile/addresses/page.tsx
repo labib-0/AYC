@@ -1,288 +1,86 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { MapPin, Plus, Star, Pencil, Trash2, X, Check, AlertCircle } from "lucide-react";
+import {
+  MapPin,
+  Plus,
+  Star,
+  Pencil,
+  Trash2,
+  X,
+  Check,
+  Building2,
+  Phone,
+  Mail,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { UserAddress } from "@/types/api";
+import { addressService, AddressFormData, getCountryName } from "@/lib/services/address.service";
+import AddressForm from "@/components/account/AddressForm";
 
-// ─── localStorage-backed address service ──────────────────────────────────────
+// ─── Delete Confirmation Dialog ────────────────────────────────────────────────
 
-const ADDR_KEY = "ayaan_customer_addresses_v1";
-
-function loadAddresses(userId: string): UserAddress[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(ADDR_KEY);
-    const all: Record<string, UserAddress[]> = raw ? JSON.parse(raw) : {};
-    return all[userId] || [];
-  } catch {
-    return [];
-  }
-}
-
-function saveAddresses(userId: string, addresses: UserAddress[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    const raw = localStorage.getItem(ADDR_KEY);
-    const all: Record<string, UserAddress[]> = raw ? JSON.parse(raw) : {};
-    all[userId] = addresses;
-    localStorage.setItem(ADDR_KEY, JSON.stringify(all));
-  } catch {
-    // ignore quota
-  }
-}
-
-function generateId(): string {
-  return `addr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-}
-
-// ─── Country list ──────────────────────────────────────────────────────────────
-
-const COUNTRIES = [
-  { code: "US", name: "United States" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "DE", name: "Germany" },
-  { code: "FR", name: "France" },
-  { code: "CA", name: "Canada" },
-  { code: "AU", name: "Australia" },
-  { code: "JP", name: "Japan" },
-  { code: "AE", name: "United Arab Emirates" },
-  { code: "SA", name: "Saudi Arabia" },
-  { code: "IN", name: "India" },
-  { code: "CN", name: "China" },
-  { code: "SG", name: "Singapore" },
-  { code: "TR", name: "Turkey" },
-  { code: "IT", name: "Italy" },
-  { code: "ES", name: "Spain" },
-  { code: "NL", name: "Netherlands" },
-  { code: "BE", name: "Belgium" },
-  { code: "SE", name: "Sweden" },
-  { code: "NO", name: "Norway" },
-  { code: "DK", name: "Denmark" },
-  { code: "PL", name: "Poland" },
-  { code: "BD", name: "Bangladesh" },
-  { code: "PK", name: "Pakistan" },
-  { code: "LK", name: "Sri Lanka" },
-  { code: "VN", name: "Vietnam" },
-  { code: "KR", name: "South Korea" },
-  { code: "HK", name: "Hong Kong SAR" },
-  { code: "NZ", name: "New Zealand" },
-  { code: "ZA", name: "South Africa" },
-  { code: "BR", name: "Brazil" },
-  { code: "MX", name: "Mexico" },
-].sort((a, b) => a.name.localeCompare(b.name));
-
-// ─── Blank address form ────────────────────────────────────────────────────────
-
-type AddressForm = Omit<UserAddress, "id" | "user_id">;
-
-function blankForm(): AddressForm {
-  return {
-    name: "",
-    phone: "",
-    address_line_1: "",
-    address_line_2: "",
-    city: "",
-    state: "",
-    postal_code: "",
-    country_code: "US",
-    is_default: false,
-  };
-}
-
-// ─── InputField ───────────────────────────────────────────────────────────────
-
-function InputField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  required,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  type?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        required={required}
-        className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all"
-      />
-    </div>
-  );
-}
-
-// ─── Address Form Modal ────────────────────────────────────────────────────────
-
-function AddressModal({
-  initial,
-  onClose,
-  onSave,
-}: {
-  initial: AddressForm;
+interface DeleteDialogProps {
+  address: UserAddress;
+  isDeleting: boolean;
   onClose: () => void;
-  onSave: (f: AddressForm) => void;
-}) {
-  const [form, setForm] = useState<AddressForm>(initial);
-  const [errors, setErrors] = useState<string[]>([]);
-
-  const set = (key: keyof AddressForm, value: string | boolean) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const errs: string[] = [];
-    if (!form.name.trim()) errs.push("Recipient name is required.");
-    if (!form.address_line_1.trim()) errs.push("Address line 1 is required.");
-    if (!form.city.trim()) errs.push("City is required.");
-    if (!form.postal_code.trim()) errs.push("Postal code is required.");
-    if (!form.country_code) errs.push("Country is required.");
-    if (errs.length) { setErrors(errs); return; }
-    onSave(form);
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
-    >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-lg rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 dark:border-white/10">
-          <h3 className="text-base font-bold font-display text-slate-900 dark:text-white">
-            {initial.name ? "Edit Address" : "New Address"}
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          {errors.length > 0 && (
-            <div className="flex gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 text-xs text-red-700 dark:text-red-400">
-              <AlertCircle size={14} className="shrink-0 mt-0.5" />
-              <ul className="space-y-0.5">
-                {errors.map((e, i) => <li key={i}>{e}</li>)}
-              </ul>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputField label="Recipient Name" value={form.name} onChange={(v) => set("name", v)} required />
-            <InputField label="Phone" value={form.phone || ""} onChange={(v) => set("phone", v)} placeholder="+1 555 000 0000" type="tel" />
-          </div>
-
-          <InputField label="Company" value={(form as any).company_name || ""} onChange={(v) => set("company_name" as any, v)} placeholder="Company / Business (optional)" />
-          <InputField label="Address Line 1" value={form.address_line_1} onChange={(v) => set("address_line_1", v)} required placeholder="Street address, P.O. box" />
-          <InputField label="Address Line 2" value={form.address_line_2 || ""} onChange={(v) => set("address_line_2", v)} placeholder="Apt, suite, floor (optional)" />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputField label="City" value={form.city} onChange={(v) => set("city", v)} required />
-            <InputField label="State / Region" value={form.state || ""} onChange={(v) => set("state", v)} />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputField label="Postal Code" value={form.postal_code} onChange={(v) => set("postal_code", v)} required />
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                Country <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={form.country_code}
-                onChange={(e) => set("country_code", e.target.value)}
-                required
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.03] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all"
-              >
-                {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.is_default}
-              onChange={(e) => set("is_default", e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-400"
-            />
-            <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">
-              Set as default shipping address
-            </span>
-          </label>
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 text-sm font-bold transition-all active:scale-[0.98] shadow-sm"
-            >
-              Save Address
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+  onConfirm: () => void;
 }
 
-// ─── Delete confirmation ───────────────────────────────────────────────────────
-
-function DeleteDialog({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+function DeleteDialog({ address, isDeleting, onClose, onConfirm }: DeleteDialogProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
+      onClick={onClose}
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-2xl p-6 shadow-2xl space-y-4">
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/20 flex items-center justify-center shrink-0">
-            <Trash2 size={16} className="text-red-500" />
+      <div
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0 border border-red-200 dark:border-red-800/40">
+            <Trash2 size={18} className="text-red-600 dark:text-red-400" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Delete Address</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Are you sure you want to remove this saved address? This cannot be undone.
+            <h3 className="text-base font-bold font-display text-slate-900 dark:text-white">
+              Delete Saved Address?
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+              Are you sure you want to remove <strong className="text-slate-700 dark:text-slate-300">&ldquo;{address.label || address.address_line_1}&rdquo;</strong>?
+              {address.is_default && (
+                <span className="block text-amber-600 dark:text-amber-400 font-medium mt-1">
+                  Note: This is your default address. If removed, your next saved address will become default.
+                </span>
+              )}
             </p>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2">
+
+        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-white/10">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
+            disabled={isDeleting}
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-all"
+            disabled={isDeleting}
+            className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all active:scale-[0.98] shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            Delete
+            {isDeleting ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                <span>Deleting...</span>
+              </>
+            ) : (
+              <span>Confirm Delete</span>
+            )}
           </button>
         </div>
       </div>
@@ -292,241 +90,293 @@ function DeleteDialog({ onClose, onConfirm }: { onClose: () => void; onConfirm: 
 
 // ─── Address Card ──────────────────────────────────────────────────────────────
 
+interface AddressCardProps {
+  address: UserAddress;
+  onEdit: () => void;
+  onDelete: () => void;
+  onSetDefault: () => void;
+  isSettingDefault: boolean;
+}
+
 function AddressCard({
   address,
   onEdit,
   onDelete,
   onSetDefault,
-}: {
-  address: UserAddress;
-  onEdit: () => void;
-  onDelete: () => void;
-  onSetDefault: () => void;
-}) {
-  const country = COUNTRIES.find((c) => c.code === address.country_code)?.name || address.country_code;
+  isSettingDefault,
+}: AddressCardProps) {
+  const country = address.country || getCountryName(address.country_code);
 
   return (
     <div
-      className={[
-        "bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-sm flex flex-col gap-4",
+      className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-xs flex flex-col justify-between transition-all ${
         address.is_default
-          ? "border-amber-300 dark:border-amber-700/50"
-          : "border-slate-200 dark:border-white/10",
-      ].join(" ")}
+          ? "border-amber-400/80 dark:border-amber-500/50 ring-1 ring-amber-400/30 dark:ring-amber-500/20"
+          : "border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20"
+      }`}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <MapPin size={14} className={address.is_default ? "text-amber-600" : "text-slate-400"} />
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            {address.is_default ? "Default Shipping" : "Saved Address"}
-          </span>
-          {address.is_default && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-[0.6875rem] font-bold border border-amber-200 dark:border-amber-700/40">
-              <Star size={10} fill="currentColor" />
-              DEFAULT
+      <div className="space-y-3.5">
+        {/* Header: Label & Default Badge */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/[0.06] text-slate-800 dark:text-slate-200 text-xs font-bold">
+              <MapPin size={12} className={address.is_default ? "text-amber-500" : "text-slate-400"} />
+              {address.label || "Address"}
             </span>
+
+            {address.is_default && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-extrabold uppercase tracking-wider border border-amber-200 dark:border-amber-700/50">
+                <Star size={10} className="fill-amber-500 text-amber-500" />
+                Default Address
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Address Body */}
+        <div className="text-xs space-y-1 text-slate-600 dark:text-slate-300">
+          <div className="font-bold text-sm text-slate-900 dark:text-white">
+            {address.name || address.contact_name}
+          </div>
+
+          {address.company_name && (
+            <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200 pt-0.5">
+              <Building2 size={12} className="text-slate-400 shrink-0" />
+              <span>{address.company_name}</span>
+            </div>
           )}
+
+          <div className="pt-1 text-slate-600 dark:text-slate-300 leading-relaxed">
+            <p>{address.address_line_1}</p>
+            {address.address_line_2 && <p>{address.address_line_2}</p>}
+            <p>
+              {address.city}
+              {address.state ? `, ${address.state}` : ""}{" "}
+              <span className="font-mono">{address.postal_code}</span>
+            </p>
+            <p className="font-semibold text-slate-700 dark:text-slate-300">{country}</p>
+          </div>
+
+          <div className="pt-2 space-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-white/[0.05]">
+            {address.phone && (
+              <div className="flex items-center gap-1.5">
+                <Phone size={11} className="text-slate-400 shrink-0" />
+                <span>{address.phone}</span>
+              </div>
+            )}
+            {address.email && (
+              <div className="flex items-center gap-1.5">
+                <Mail size={11} className="text-slate-400 shrink-0" />
+                <span>{address.email}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Address body */}
-      <div className="text-sm space-y-0.5">
-        <p className="font-bold text-slate-900 dark:text-white">{address.name}</p>
-        {(address as any).company_name && (
-          <p className="text-slate-500 dark:text-slate-400 text-xs">{(address as any).company_name}</p>
-        )}
-        <p className="text-slate-600 dark:text-slate-300">{address.address_line_1}</p>
-        {address.address_line_2 && (
-          <p className="text-slate-600 dark:text-slate-300">{address.address_line_2}</p>
-        )}
-        <p className="text-slate-600 dark:text-slate-300">
-          {address.city}{address.state ? `, ${address.state}` : ""} {address.postal_code}
-        </p>
-        <p className="text-slate-600 dark:text-slate-300">{country}</p>
-        {address.phone && (
-          <p className="text-slate-500 dark:text-slate-400 text-xs pt-1">{address.phone}</p>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-slate-100 dark:border-white/[0.06]">
+      {/* Action Buttons */}
+      <div className="flex items-center gap-2 flex-wrap pt-3.5 mt-4 border-t border-slate-100 dark:border-white/[0.06]">
         <button
           type="button"
           onClick={onEdit}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer"
         >
           <Pencil size={12} />
-          Edit
+          <span>Edit</span>
         </button>
+
         {!address.is_default && (
           <button
             type="button"
             onClick={onSetDefault}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all"
+            disabled={isSettingDefault}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer disabled:opacity-50"
           >
-            <Star size={12} />
-            Set Default
+            {isSettingDefault ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Star size={12} />
+            )}
+            <span>Set as Default</span>
           </button>
         )}
+
         <button
           type="button"
           onClick={onDelete}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all ml-auto"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all ml-auto cursor-pointer"
         >
           <Trash2 size={12} />
-          Delete
+          <span>Delete</span>
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Main page ─────────────────────────────────────────────────────────────────
+// ─── Main Addresses Page ───────────────────────────────────────────────────────
 
 export default function AddressesPage() {
   const { user } = useAuth();
   const userId = String(user?.id || "guest");
 
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
-  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<UserAddress | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserAddress | null>(null);
-  const [savedMsg, setSavedMsg] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
-  const reload = useCallback(() => {
-    setAddresses(loadAddresses(userId));
+  const showToast = (text: string, type: "success" | "error" = "success") => {
+    setToastMsg({ text, type });
+    setTimeout(() => {
+      setToastMsg((cur) => (cur?.text === text ? null : cur));
+    }, 3500);
+  };
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const list = await addressService.getAddresses(userId);
+      setAddresses(list);
+    } catch {
+      showToast("Unable to load saved addresses. Please refresh.", "error");
+    } finally {
+      setLoading(false);
+    }
   }, [userId]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    loadData();
+  }, [loadData]);
 
-  const persist = (next: UserAddress[]) => {
-    saveAddresses(userId, next);
-    setAddresses(next);
-  };
-
-  const handleSave = (form: AddressForm) => {
-    let next: UserAddress[];
-
-    if (editTarget) {
-      // Update existing
-      next = addresses.map((a) =>
-        a.id === editTarget.id ? { ...a, ...form } : a
-      );
-    } else {
-      // Create new
-      const newAddr: UserAddress = {
-        ...form,
-        id: generateId(),
-        user_id: userId,
-      };
-      next = [...addresses, newAddr];
-    }
-
-    // If new default — clear existing default
-    if (form.is_default) {
-      next = next.map((a) => ({
-        ...a,
-        is_default: a.id === (editTarget?.id || next[next.length - 1].id),
-      }));
-    }
-
-    persist(next);
-    setShowForm(false);
+  const handleOpenNew = () => {
     setEditTarget(null);
-    setSavedMsg(true);
-    setTimeout(() => setSavedMsg(false), 3000);
+    setShowModal(true);
   };
 
-  const handleDelete = () => {
+  const handleOpenEdit = (addr: UserAddress) => {
+    setEditTarget(addr);
+    setShowModal(true);
+  };
+
+  const handleSave = async (formData: AddressFormData) => {
+    try {
+      setIsSubmitting(true);
+      const isEditing = Boolean(editTarget);
+      await addressService.saveAddress(userId, formData, editTarget?.id);
+
+      const refreshed = await addressService.getAddresses(userId);
+      setAddresses(refreshed);
+
+      setShowModal(false);
+      setEditTarget(null);
+      showToast(isEditing ? "Address updated successfully." : "Address saved successfully.");
+    } catch {
+      showToast("Failed to save address. Please try again.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    const next = addresses.filter((a) => a.id !== deleteTarget.id);
-    persist(next);
-    setDeleteTarget(null);
+    try {
+      setIsDeleting(true);
+      const res = await addressService.deleteAddress(userId, deleteTarget.id);
+      setAddresses(res.addresses);
+      setDeleteTarget(null);
+      showToast("Address deleted successfully.");
+    } catch {
+      showToast("Failed to delete address.", "error");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
-  const handleSetDefault = (address: UserAddress) => {
-    const next = addresses.map((a) => ({ ...a, is_default: a.id === address.id }));
-    persist(next);
+  const handleSetDefault = async (addr: UserAddress) => {
+    try {
+      setSettingDefaultId(String(addr.id));
+      const updated = await addressService.setDefaultAddress(userId, addr.id);
+      setAddresses(updated);
+      showToast("Default address updated.");
+    } catch {
+      showToast("Failed to update default address.", "error");
+    } finally {
+      setSettingDefaultId(null);
+    }
   };
-
-  const openEdit = (address: UserAddress) => {
-    setEditTarget(address);
-    setShowForm(true);
-  };
-
-  const openNew = () => {
-    setEditTarget(null);
-    setShowForm(true);
-  };
-
-  const initialForm: AddressForm = editTarget
-    ? {
-        name: editTarget.name,
-        phone: editTarget.phone,
-        address_line_1: editTarget.address_line_1,
-        address_line_2: editTarget.address_line_2,
-        city: editTarget.city,
-        state: editTarget.state,
-        postal_code: editTarget.postal_code,
-        country_code: editTarget.country_code,
-        is_default: editTarget.is_default,
-      }
-    : blankForm();
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      {/* Page header */}
+    <div className="space-y-6">
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-lg sm:text-xl font-bold font-display text-slate-900 dark:text-white tracking-tight">
-            Addresses
+          <h1 className="text-xl sm:text-2xl font-bold font-display text-slate-900 dark:text-white tracking-tight">
+            Saved Addresses
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage your saved shipping addresses.
+            Manage your commercial consignee and delivery destinations for quick checkout and export documentation.
           </p>
         </div>
+
         <button
           type="button"
-          onClick={openNew}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-xs uppercase tracking-wider transition-all active:scale-[0.98] shadow-sm shrink-0"
+          onClick={handleOpenNew}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-xs uppercase tracking-wider transition-all active:scale-[0.98] shadow-sm shrink-0 cursor-pointer self-start sm:self-auto"
         >
-          <Plus size={14} />
-          Add New Address
+          <Plus size={15} />
+          <span>Add Address</span>
         </button>
       </div>
 
-      {/* Success toast */}
-      {savedMsg && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
-          <Check size={14} />
-          Address saved successfully.
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div
+          className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-xs font-semibold animate-in fade-in slide-in-from-top-2 ${
+            toastMsg.type === "success"
+              ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300"
+              : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/40 text-red-800 dark:text-red-300"
+          }`}
+        >
+          {toastMsg.type === "success" ? <Check size={16} /> : <AlertCircle size={16} />}
+          <span>{toastMsg.text}</span>
         </div>
       )}
 
-      {/* Content */}
-      {addresses.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-sm flex flex-col items-center justify-center text-center py-8 sm:py-10 px-6">
-          <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-white/[0.05] flex items-center justify-center mb-3">
-            <MapPin size={20} className="text-slate-400" />
+      {/* Content Area */}
+      {loading ? (
+        <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
+          <Loader2 size={24} className="animate-spin text-amber-500" />
+          <p className="text-xs font-medium text-slate-500">Loading saved addresses...</p>
+        </div>
+      ) : addresses.length === 0 ? (
+        /* Empty State */
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xs flex flex-col items-center justify-center text-center py-12 px-6">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3.5 border border-amber-200 dark:border-amber-800/40">
+            <MapPin size={22} />
           </div>
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white">No saved addresses</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs leading-relaxed">
+          <h2 className="text-base font-bold font-display text-slate-900 dark:text-white">
+            No saved addresses yet.
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm leading-relaxed">
             Add a shipping address to make checkout faster.
           </p>
           <button
             type="button"
-            onClick={openNew}
-            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-xs uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+            onClick={handleOpenNew}
+            className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-xs uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer"
           >
-            <Plus size={13} />
-            Add New Address
+            <Plus size={14} />
+            <span>Add Address</span>
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        /* Address Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {addresses
             .slice()
             .sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
@@ -534,24 +384,103 @@ export default function AddressesPage() {
               <AddressCard
                 key={addr.id}
                 address={addr}
-                onEdit={() => openEdit(addr)}
+                onEdit={() => handleOpenEdit(addr)}
                 onDelete={() => setDeleteTarget(addr)}
                 onSetDefault={() => handleSetDefault(addr)}
+                isSettingDefault={settingDefaultId === String(addr.id)}
               />
             ))}
         </div>
       )}
 
-      {/* Modals */}
-      {showForm && (
-        <AddressModal
-          initial={initialForm}
-          onClose={() => { setShowForm(false); setEditTarget(null); }}
-          onSave={handleSave}
-        />
+      {/* Address Form Modal */}
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
+          onClick={() => {
+            if (!isSubmitting) {
+              setShowModal(false);
+              setEditTarget(null);
+            }
+          }}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-xl rounded-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/10">
+              <div>
+                <h3 className="text-base font-bold font-display text-slate-900 dark:text-white">
+                  {editTarget ? "Edit Shipping Address" : "Add New Shipping Address"}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Consignee destination details for export documentation
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(false);
+                  setEditTarget(null);
+                }}
+                disabled={isSubmitting}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-6 overflow-y-auto">
+              <AddressForm
+                initialData={
+                  editTarget
+                    ? {
+                        label: editTarget.label,
+                        name: editTarget.name || editTarget.contact_name,
+                        contact_name: editTarget.contact_name || editTarget.name,
+                        company_name: editTarget.company_name,
+                        email: editTarget.email,
+                        phone: editTarget.phone,
+                        address_line_1: editTarget.address_line_1,
+                        address_line_2: editTarget.address_line_2,
+                        city: editTarget.city,
+                        state: editTarget.state,
+                        postal_code: editTarget.postal_code,
+                        country_code: editTarget.country_code,
+                        country: editTarget.country,
+                        is_default: editTarget.is_default,
+                      }
+                    : {
+                        label: "Office",
+                        name: user?.name || "",
+                        contact_name: user?.name || "",
+                        company_name: (user as any)?.company_name || "",
+                        email: user?.email || "",
+                        phone: user?.phone || "",
+                        country_code: "US",
+                        is_default: addresses.length === 0,
+                      }
+                }
+                onSubmit={handleSave}
+                onCancel={() => {
+                  setShowModal(false);
+                  setEditTarget(null);
+                }}
+                isSubmitting={isSubmitting}
+                submitLabel={editTarget ? "Update Address" : "Save Address"}
+              />
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* Delete Confirmation Modal */}
       {deleteTarget && (
         <DeleteDialog
+          address={deleteTarget}
+          isDeleting={isDeleting}
           onClose={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
         />

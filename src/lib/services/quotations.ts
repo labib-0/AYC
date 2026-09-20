@@ -262,6 +262,7 @@ export async function getCommercialDocument(
           description: item.description || item.product_name,
           sku: item.sku || "AYN-SKU",
           product_image_url: item.product_image_url,
+          product_images: item.product_images || (item.product_image_url ? [item.product_image_url] : []),
           quantity: item.quantity,
           unitPrice: item.unitPrice ?? item.unit_price,
           total: item.total ?? item.line_total ?? item.amount,
@@ -270,6 +271,7 @@ export async function getCommercialDocument(
           package_breakdown: item.package_breakdown,
           details: item.details,
         })),
+        product_gallery: orderDoc.product_gallery || (orderDoc.items || []).flatMap((it: any) => it.product_images || (it.product_image_url ? [it.product_image_url] : [])).filter(Boolean),
         subtotal: orderDoc.financials?.subtotal ?? orderDoc.summary?.subtotal ?? orderDoc.summary?.goods_value ?? orderDoc.summary?.fob_amount ?? 0,
         goods_value: orderDoc.financials?.goods_value ?? orderDoc.summary?.goods_value ?? orderDoc.summary?.fob_amount ?? orderDoc.summary?.subtotal ?? 0,
         discount: orderDoc.financials?.discount_amount ?? 0,
@@ -285,13 +287,17 @@ export async function getCommercialDocument(
         validUntil: orderDoc.valid_until || orderDoc.validity,
         notes: orderDoc.notes || orderDoc.shipping_note,
         bankDetails: {
-          isConfigured: Boolean(orderDoc.bank_details?.is_configured),
-          beneficiaryName: orderDoc.bank_details?.beneficiary_name || BUSINESS_PROFILE.name,
-          bankName: orderDoc.bank_details?.bank_name || null,
-          accountNumber: orderDoc.bank_details?.account_number || null,
-          swiftCode: orderDoc.bank_details?.swift_code || null,
-          branch: orderDoc.bank_details?.branch || null,
-          routing_no: orderDoc.bank_details?.routing_no || null,
+          isConfigured: Boolean(orderDoc.bank_details?.is_configured ?? BUSINESS_PROFILE.banking.isConfigured),
+          beneficiaryName: orderDoc.bank_details?.account_title || orderDoc.bank_details?.beneficiary_name || BUSINESS_PROFILE.banking.accountTitle,
+          accountTitle: orderDoc.bank_details?.account_title || BUSINESS_PROFILE.banking.accountTitle,
+          bankName: orderDoc.bank_details?.bank_name || BUSINESS_PROFILE.banking.bankName,
+          accountNumber: orderDoc.bank_details?.account_no || orderDoc.bank_details?.account_number || BUSINESS_PROFILE.banking.accountNo,
+          accountNo: orderDoc.bank_details?.account_no || orderDoc.bank_details?.account_number || BUSINESS_PROFILE.banking.accountNo,
+          swiftCode: orderDoc.bank_details?.swift_code || BUSINESS_PROFILE.banking.swiftCode,
+          bankAddress: orderDoc.bank_details?.bank_address || BUSINESS_PROFILE.banking.bankAddress,
+          branch: orderDoc.bank_details?.branch || BUSINESS_PROFILE.banking.branch,
+          routing_no: null,
+          routingNumber: null,
         },
       };
     }
@@ -307,6 +313,7 @@ export async function getCommercialDocument(
       if (prod) {
         const basePrice = Number(prod.wholesalePrice || (prod as any).price) || 12;
         const moq = prod.moq || 10;
+        const prodImages = prod.images && prod.images.length > 0 ? prod.images : ((prod as any).image ? [(prod as any).image] : []);
         return {
           id: `doc_offer_${prod.id}`,
           docNumber: `OS-${(prod.sku || prod.id).toUpperCase()}`,
@@ -317,11 +324,13 @@ export async function getCommercialDocument(
           buyerName: "Prospective Consignee",
           buyerEmail: "buyer@example.com",
           buyerCountry: "Worldwide Export",
+          product_gallery: prodImages,
           items: [
             {
               description: prod.name,
               sku: prod.sku || "AYN-SKU",
-              product_image_url: prod.images?.[0],
+              product_image_url: prodImages[0],
+              product_images: prodImages,
               quantity: moq,
               unitPrice: basePrice,
               total: basePrice * moq,
@@ -343,7 +352,13 @@ export async function getCommercialDocument(
           notes: "Commercial Offer only — Not an invoice. Valid for 30 days. FOB Dhaka Port / Airport.",
           bankDetails: {
             isConfigured: false,
-            beneficiaryName: BUSINESS_PROFILE.name,
+            beneficiaryName: BUSINESS_PROFILE.banking.accountTitle,
+            accountTitle: BUSINESS_PROFILE.banking.accountTitle,
+            bankName: BUSINESS_PROFILE.banking.bankName,
+            accountNumber: BUSINESS_PROFILE.banking.accountNo,
+            accountNo: BUSINESS_PROFILE.banking.accountNo,
+            swiftCode: BUSINESS_PROFILE.banking.swiftCode,
+            bankAddress: BUSINESS_PROFILE.banking.bankAddress,
           },
         };
       }
@@ -413,12 +428,16 @@ export async function getCommercialDocument(
     notes: quote.adminNotes,
     bankDetails: {
       isConfigured: BUSINESS_PROFILE.banking.isConfigured,
-      beneficiaryName: BUSINESS_PROFILE.name,
+      beneficiaryName: BUSINESS_PROFILE.banking.accountTitle,
+      accountTitle: BUSINESS_PROFILE.banking.accountTitle,
       bankName: BUSINESS_PROFILE.banking.bankName,
-      accountNumber: BUSINESS_PROFILE.banking.accountNumber,
+      accountNumber: BUSINESS_PROFILE.banking.accountNo,
+      accountNo: BUSINESS_PROFILE.banking.accountNo,
       swiftCode: BUSINESS_PROFILE.banking.swiftCode,
+      bankAddress: BUSINESS_PROFILE.banking.bankAddress,
       branch: BUSINESS_PROFILE.banking.branch,
-      routing_no: BUSINESS_PROFILE.banking.routingNumber,
+      routing_no: null,
+      routingNumber: null,
     },
   };
 }

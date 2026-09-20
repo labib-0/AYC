@@ -491,7 +491,7 @@ function SearchResultsContent() {
   if (loading) {
     return (
       <div className="w-full bg-background min-h-[70vh] py-6 sm:py-8">
-        <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border/70 mb-6">
             <div className="space-y-2">
               <div className="h-7 bg-secondary/60 rounded-full w-64 animate-pulse" />
@@ -500,8 +500,8 @@ function SearchResultsContent() {
           </div>
           <div className="flex flex-col lg:flex-row items-start gap-6 xl:gap-8 w-full">
             <div className="flex-1 min-w-0">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-5">
-                <ProductSkeletonRow count={10} />
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 min-[1440px]:grid-cols-6 2xl:grid-cols-6 gap-3.5 sm:gap-5">
+                <ProductSkeletonRow count={12} />
               </div>
             </div>
           </div>
@@ -513,7 +513,7 @@ function SearchResultsContent() {
   // ── Full render ───────────────────────────────────────────────────────────
   return (
     <div className="w-full bg-background min-h-[70vh] py-6 sm:py-8">
-      <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
 
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border/70 mb-6">
@@ -640,15 +640,15 @@ function SearchResultsContent() {
             {products.length > 0 ? (
               <div className={`grid gap-3.5 sm:gap-5 transition-all duration-200 ${
                   isFilterOpen
-                    ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4"
-                    : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                    ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 min-[1440px]:grid-cols-5 2xl:grid-cols-5"
+                    : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 min-[1440px]:grid-cols-6 2xl:grid-cols-6"
                 }`}>
                 {products.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
 
                 {/* Loading more — skeleton cards inline with grid */}
-                {loadingMore && <ProductSkeletonRow count={5} />}
+                {loadingMore && <ProductSkeletonRow count={isFilterOpen ? 5 : 6} />}
               </div>
             ) : (
               /* Empty state */

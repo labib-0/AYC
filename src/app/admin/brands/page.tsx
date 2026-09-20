@@ -1,242 +1,350 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { brandService, BrandModel } from "@/services/brand.service";
-import { Plus, Edit2, Trash2, Search, RefreshCw } from "lucide-react";
-import BrandTile from "@/components/common/BrandTile";
-import BrandModal from "@/components/admin/BrandModal";
+import {
+  BrandToolbar,
+  BrandStatusFilter,
+  BrandTable,
+  BrandModal,
+  BrandStatusDialog,
+  BrandDeleteDialog,
+  BrandPagination,
+} from "@/components/admin/brands";
+import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
+
+const PER_PAGE = 20;
 
 export default function AdminBrandsPage() {
   const [brands, setBrands] = useState<BrandModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Filters & Pagination State
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+  const [statusFilter, setStatusFilter] = useState<BrandStatusFilter>("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Dialog & Modal State
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<BrandModel | null>(null);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  const loadBrands = async () => {
-    setLoading(true);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [targetStatusBrand, setTargetStatusBrand] = useState<BrandModel | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [targetDeleteBrand, setTargetDeleteBrand] = useState<BrandModel | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Toast State
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = useCallback((type: "success" | "error", message: string) => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    setToasts((prev) => [...prev, { id, type, message }]);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Fetch Brands
+  const loadBrands = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    else setIsRefreshing(true);
+    setError(null);
+
     try {
       const data = await brandService.getBrands({ isAdmin: true, all: true });
       setBrands(data);
-    } catch (err) {
-      console.error("Failed to load brands:", err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unable to load brands. Please try again.";
+      setError(msg);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadBrands();
-  }, []);
+  }, [loadBrands]);
 
-  const handleOpenCreate = () => {
-    setEditingBrand(null);
-    setIsModalOpen(true);
+  // Search & Filter Handlers (Resets page to 1)
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    setCurrentPage(1);
   };
 
-  const handleOpenEdit = (b: BrandModel) => {
-    setEditingBrand(b);
-    setIsModalOpen(true);
+  const handleStatusFilterChange = (status: BrandStatusFilter) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
   };
 
-  const handleBrandSaved = (saved: BrandModel) => {
-    setFeedback({
-      type: "success",
-      msg: editingBrand ? `Updated brand "${saved.name}".` : `Created new brand "${saved.name}".`,
-    });
-    loadBrands();
+  const handleClearFilters = () => {
+    setSearch("");
+    setStatusFilter("ALL");
+    setCurrentPage(1);
   };
 
-  const handleToggleActive = async (b: BrandModel) => {
-    try {
-      const newStatus = !b.is_active;
-      await brandService.updateBrand(b.id, { is_active: newStatus });
-      setFeedback({
-        type: "success",
-        msg: `Brand "${b.name}" is now ${newStatus ? "ACTIVE" : "INACTIVE"}.`,
-      });
-      loadBrands();
-    } catch (err: any) {
-      setFeedback({ type: "error", msg: err?.message || "Failed to toggle status." });
-    }
-  };
-
-  const handleDelete = async (b: BrandModel) => {
-    if (!confirm(`Are you sure you want to delete brand "${b.name}"?`)) return;
-
-    try {
-      await brandService.deleteBrand(b.id);
-      setFeedback({ type: "success", msg: `Deleted brand: ${b.name}` });
-      loadBrands();
-    } catch (err: any) {
-      setFeedback({ type: "error", msg: err?.message || "Failed to delete brand." });
-    }
-  };
-
+  // Filtered & Paginated Brands
   const filteredBrands = useMemo(() => {
     return brands.filter((b) => {
+      // Search matching name or slug
+      const q = search.trim().toLowerCase();
       const matchesSearch =
-        b.name.toLowerCase().includes(search.toLowerCase()) ||
-        b.slug.toLowerCase().includes(search.toLowerCase());
+        !q ||
+        b.name.toLowerCase().includes(q) ||
+        b.slug.toLowerCase().includes(q);
 
+      // Status matching
       const matchesStatus =
-        filterStatus === "ALL" ||
-        (filterStatus === "ACTIVE" && b.is_active !== false) ||
-        (filterStatus === "INACTIVE" && b.is_active === false);
+        statusFilter === "ALL" ||
+        (statusFilter === "ACTIVE" && b.is_active !== false) ||
+        (statusFilter === "INACTIVE" && b.is_active === false);
 
       return matchesSearch && matchesStatus;
     });
-  }, [brands, search, filterStatus]);
+  }, [brands, search, statusFilter]);
 
-  const nextSortOrder = brands.length > 0 ? Math.max(...brands.map((b) => b.sort_order || 0)) + 1 : 1;
+  // Statistics for Toolbar
+  const activeCount = useMemo(() => brands.filter((b) => b.is_active !== false).length, [brands]);
+  const inactiveCount = useMemo(() => brands.filter((b) => b.is_active === false).length, [brands]);
+
+  // Pagination Calculations
+  const totalPages = Math.ceil(filteredBrands.length / PER_PAGE);
+  const paginatedBrands = useMemo(() => {
+    const startIndex = (currentPage - 1) * PER_PAGE;
+    return filteredBrands.slice(startIndex, startIndex + PER_PAGE);
+  }, [filteredBrands, currentPage]);
+
+  // Determine next available sort order for brand creation
+  const nextSortOrder = useMemo(() => {
+    if (brands.length === 0) return 1;
+    const maxOrder = Math.max(...brands.map((b) => b.sort_order || 0));
+    return maxOrder + 1;
+  }, [brands]);
+
+  // Modal Actions
+  const handleOpenCreate = () => {
+    setEditingBrand(null);
+    setModalOpen(true);
+  };
+
+  const handleOpenEdit = (brand: BrandModel) => {
+    setEditingBrand(brand);
+    setModalOpen(true);
+  };
+
+  const handleBrandSaved = (_saved: BrandModel) => {
+    if (editingBrand) {
+      addToast("success", "Brand updated successfully.");
+    } else {
+      addToast("success", "Brand created successfully.");
+    }
+    loadBrands(true);
+  };
+
+  // Status Toggle Dialog Actions
+  const handlePromptToggleStatus = (brand: BrandModel) => {
+    setTargetStatusBrand(brand);
+    setStatusDialogOpen(true);
+  };
+
+  const handleConfirmToggleStatus = async () => {
+    if (!targetStatusBrand) return;
+
+    setStatusLoading(true);
+    const newStatus = targetStatusBrand.is_active === false; // If currently false, activate (true)
+    try {
+      await brandService.updateBrand(targetStatusBrand.id, {
+        is_active: newStatus,
+      });
+      addToast(
+        "success",
+        newStatus ? "Brand activated successfully." : "Brand deactivated successfully."
+      );
+      setStatusDialogOpen(false);
+      setTargetStatusBrand(null);
+      await loadBrands(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update brand status.";
+      addToast("error", msg);
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  // Delete Dialog Actions
+  const handlePromptDelete = (brand: BrandModel) => {
+    setTargetDeleteBrand(brand);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!targetDeleteBrand) return;
+
+    setDeleteLoading(true);
+    try {
+      await brandService.deleteBrand(targetDeleteBrand.id);
+      addToast("success", "Brand deleted successfully.");
+      setDeleteDialogOpen(false);
+      setTargetDeleteBrand(null);
+
+      // Reload brands
+      const updatedBrands = await brandService.getBrands({ isAdmin: true, all: true });
+      setBrands(updatedBrands);
+
+      // Check if current page became empty after deletion
+      const remainingFiltered = updatedBrands.filter((b) => {
+        const q = search.trim().toLowerCase();
+        const matchesSearch =
+          !q ||
+          b.name.toLowerCase().includes(q) ||
+          b.slug.toLowerCase().includes(q);
+
+        const matchesStatus =
+          statusFilter === "ALL" ||
+          (statusFilter === "ACTIVE" && b.is_active !== false) ||
+          (statusFilter === "INACTIVE" && b.is_active === false);
+
+        return matchesSearch && matchesStatus;
+      });
+
+      const newTotalPages = Math.ceil(remainingFiltered.length / PER_PAGE);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete brand.";
+      addToast("error", msg);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
-            Brand Assets Directory ({brands.length})
+            Brands
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Manage manufacturer brand records. Brand logos and names are automatically synchronized across Shop by Brand and Search filters.
+            Manage your clothing brands, logos and availability.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={loadBrands}
-            className="p-2.5 rounded-full border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors self-start sm:self-auto cursor-pointer"
-            title="Refresh Brands"
-          >
-            <RefreshCw size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm self-start sm:self-auto cursor-pointer"
-          >
-            <Plus size={15} />
-            <span>Add Brand</span>
-          </button>
-        </div>
-      </div>
-
-      {feedback && (
-        <div
-          className={`p-4 rounded-2xl border text-xs font-bold flex items-center justify-between animate-in fade-in ${
-            feedback.type === "success"
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-              : "bg-destructive/10 border-destructive/20 text-destructive"
-          }`}
+        <button
+          type="button"
+          onClick={handleOpenCreate}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-xs self-start sm:self-auto cursor-pointer"
         >
-          <span>{feedback.msg}</span>
-          <button onClick={() => setFeedback(null)} className="hover:underline ml-3 cursor-pointer">
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Controls: Search & Status Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="relative max-w-md w-full">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search brands by name or slug..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-border bg-card text-foreground focus:ring-1 focus:ring-primary outline-none"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="px-3 py-2 text-xs rounded-xl border border-border bg-card text-foreground focus:ring-1 focus:ring-primary outline-none"
-          >
-            <option value="ALL">All Statuses ({brands.length})</option>
-            <option value="ACTIVE">Active Only</option>
-            <option value="INACTIVE">Inactive Only</option>
-          </select>
-        </div>
+          <Plus size={15} />
+          <span>Add Brand</span>
+        </button>
       </div>
 
-      {/* Brands Grid (Conforms to Rule 24: Admin uses unified BrandTile presentation) */}
-      {loading ? (
-        <div className="py-16 text-center text-muted-foreground">
-          <div className="w-6 h-6 border-2 border-foreground border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-          <span>Loading brands from directory...</span>
+      {/* ── Error State with Retry ── */}
+      {error ? (
+        <div className="p-6 rounded-2xl bg-card border border-destructive/30 space-y-3 text-center">
+          <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+            <AlertCircle size={20} />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Unable to load brands</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => loadBrands()}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-card hover:bg-secondary text-xs font-bold uppercase tracking-wider text-foreground transition-colors cursor-pointer"
+            >
+              <RefreshCw size={13} />
+              <span>Retry</span>
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
-          {filteredBrands.map((b) => (
-            <div
-              key={b.id}
-              className="relative group flex flex-col justify-between"
-            >
-              {/* Central Brand Tile Display */}
-              <BrandTile
-                brand={b}
-                asButton={false}
-                size="md"
-                className="w-full"
-              />
+        <>
+          {/* ── Brand Management Toolbar ── */}
+          <BrandToolbar
+            search={search}
+            onSearchChange={handleSearchChange}
+            statusFilter={statusFilter}
+            onStatusFilterChange={handleStatusFilterChange}
+            totalBrands={brands.length}
+            activeCount={activeCount}
+            inactiveCount={inactiveCount}
+            onRefresh={() => loadBrands(true)}
+            isRefreshing={isRefreshing}
+          />
 
-              {/* Status and Action Bar */}
-              <div className="flex items-center justify-between px-1 pt-1.5 gap-1">
-                <button
-                  type="button"
-                  onClick={() => handleToggleActive(b)}
-                  className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase cursor-pointer transition-colors ${
-                    b.is_active !== false
-                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
-                  title="Click to toggle active status"
-                >
-                  {b.is_active !== false ? "Active" : "Inactive"}
-                </button>
+          {/* ── Brand Table & Responsive Mobile Cards ── */}
+          <BrandTable
+            brands={paginatedBrands}
+            loading={loading}
+            isFiltered={Boolean(search || statusFilter !== "ALL")}
+            onEdit={handleOpenEdit}
+            onToggleStatus={handlePromptToggleStatus}
+            onDelete={handlePromptDelete}
+            onAddBrand={handleOpenCreate}
+            onClearFilters={handleClearFilters}
+          />
 
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(b)}
-                    className="p-1 rounded-md bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground text-xs transition-colors cursor-pointer"
-                    title="Edit Brand"
-                  >
-                    <Edit2 size={11} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(b)}
-                    className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive text-xs transition-colors cursor-pointer"
-                    title="Delete Brand"
-                  >
-                    <Trash2 size={11} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+          {/* ── Brand Pagination ── */}
+          {!loading && filteredBrands.length > 0 && (
+            <BrandPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredBrands.length}
+              perPage={PER_PAGE}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </>
       )}
 
-      {/* Unified Brand Modal */}
+      {/* ── Add / Edit Brand Modal ── */}
       <BrandModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
         brand={editingBrand}
         onSuccess={handleBrandSaved}
         defaultSortOrder={nextSortOrder}
       />
+
+      {/* ── Status Change Confirmation Dialog ── */}
+      <BrandStatusDialog
+        open={statusDialogOpen}
+        brand={targetStatusBrand}
+        onConfirm={handleConfirmToggleStatus}
+        onCancel={() => {
+          setStatusDialogOpen(false);
+          setTargetStatusBrand(null);
+        }}
+        loading={statusLoading}
+      />
+
+      {/* ── Safe Delete Confirmation Dialog ── */}
+      <BrandDeleteDialog
+        open={deleteDialogOpen}
+        brand={targetDeleteBrand}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteDialogOpen(false);
+          setTargetDeleteBrand(null);
+        }}
+        loading={deleteLoading}
+      />
+
+      {/* ── Toast Feedback Notifications ── */}
+      <ProductToast toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
-

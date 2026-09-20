@@ -254,7 +254,7 @@ function HeaderContent() {
         }`}
       >
         {/* DESKTOP HEADER (Untouched, Full Desktop Bar) */}
-        <div className="hidden lg:flex items-center justify-between px-6 xl:px-12 py-3 gap-6 text-white max-w-[1440px] mx-auto">
+        <div className="hidden lg:flex items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-10 py-3 gap-6 text-white max-w-[1600px] mx-auto">
           {/* Logo */}
           <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 shrink-0 group" aria-label="Ayaan Clothing Home">
             <BrandName className="font-black text-2xl xl:text-3xl tracking-widest text-white group-hover:text-white/90 transition-colors" />
@@ -264,7 +264,7 @@ function HeaderContent() {
           <form 
             ref={desktopSearchRef}
             onSubmit={handleSearchSubmit}
-            className="flex-1 max-w-xl xl:max-w-2xl relative"
+            className="flex-1 max-w-xl xl:max-w-2xl 2xl:max-w-3xl relative"
           >
             <div 
               className={`flex items-center w-full rounded-full h-11 border transition-all duration-200 cursor-text ${
@@ -300,7 +300,7 @@ function HeaderContent() {
               )}
             </div>
 
-            {/* Suggestions Overlay */}
+            {/* Suggestions Dropdown (Desktop) */}
             <SearchOverlay 
               isOpen={isSearchOpen}
               onClose={() => setIsSearchOpen(false)}
@@ -310,6 +310,7 @@ function HeaderContent() {
                 setSearchQuery(term);
                 handleExecuteSearch(term);
               }}
+              variant="desktop"
             />
           </form>
 
@@ -630,6 +631,21 @@ function HeaderContent() {
           </div>
         </div>
 
+        {/* Mobile Search Dropdown (Anchored to mobile header) */}
+        <div className="lg:hidden">
+          <SearchOverlay 
+            isOpen={isSearchOpen}
+            onClose={() => setIsSearchOpen(false)}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onSelectTerm={(term) => {
+              setSearchQuery(term);
+              handleExecuteSearch(term);
+            }}
+            variant="mobile"
+          />
+        </div>
+
       </header>
 
       {/* Mobile Menu Overlay */}
@@ -851,14 +867,6 @@ function HeaderContent() {
         </nav>
       </div>
 
-      {/* Search Discovery Overlay */}
-      <SearchOverlay 
-        isOpen={isSearchOpen} 
-        onClose={() => setIsSearchOpen(false)}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSelectTerm={handleExecuteSearch}
-      />
 
       {/* Auth Modal (Sign In / Create Account) */}
       <AuthModal

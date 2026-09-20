@@ -46,9 +46,12 @@ export interface BusinessProfile {
   banking: {
     isConfigured: boolean;
     beneficiaryName: string;
+    accountTitle: string;
     bankName: string | null;
     accountNumber: string | null;
+    accountNo: string | null;
     swiftCode: string | null;
+    bankAddress: string | null;
     branch: string | null;
     routingNumber: string | null;
   };
@@ -104,12 +107,15 @@ export const BUSINESS_PROFILE: BusinessProfile = {
     website: "www.ayaanclothing.com",
   },
   banking: {
-    isConfigured: false,
-    beneficiaryName: "AYAAN CLOTHING",
-    bankName: null,
-    accountNumber: null,
-    swiftCode: null,
-    branch: null,
+    isConfigured: true,
+    beneficiaryName: "M/S AYAAN  CLOTHING",
+    accountTitle: "M/S AYAAN  CLOTHING",
+    bankName: "Pubali Bank Limited",
+    accountNumber: "1788-901-044316",
+    accountNo: "1788-901-044316",
+    swiftCode: "PUBABDDH210",
+    bankAddress: "Nawabpur Road Branch,\n125 Nawabpur Road,\nDhaka-1100,\nBangladesh",
+    branch: "Nawabpur Road Branch",
     routingNumber: null,
   },
   legal: {
