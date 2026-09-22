@@ -68,8 +68,8 @@ export default function AdminRfqDetailPage({
         const q = await getQuotationByRfqId(data.id);
         setQuotation(q);
       }
-    } catch (err: any) {
-      setError(err?.message || "Failed to load RFQ.");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Failed to load RFQ.");
     } finally {
       setLoading(false);
     }
@@ -94,8 +94,8 @@ export default function AdminRfqDetailPage({
         setRfq(updated);
         showToast(`RFQ status updated to ${newStatus.replace(/_/g, " ")}`);
       }
-    } catch (err: any) {
-      showToast(err?.message || "Unable to update RFQ status.", "error");
+    } catch (err: unknown) {
+      showToast((err as Error)?.message || "Unable to update RFQ status.", "error");
       throw err;
     } finally {
       setStatusUpdating(false);
@@ -121,8 +121,8 @@ export default function AdminRfqDetailPage({
         }
         showToast("Message sent successfully.");
       }
-    } catch (err: any) {
-      showToast(err?.message || "Unable to send message.", "error");
+    } catch (err: unknown) {
+      showToast((err as Error)?.message || "Unable to send message.", "error");
       throw err;
     } finally {
       setMessageSending(false);
@@ -171,8 +171,8 @@ export default function AdminRfqDetailPage({
       }
 
       showToast(`Quotation ${newQuote.quotationNumber} issued successfully.`);
-    } catch (err: any) {
-      showToast(err?.message || "Unable to generate quotation.", "error");
+    } catch (err: unknown) {
+      showToast((err as Error)?.message || "Unable to generate quotation.", "error");
       throw err;
     } finally {
       setQuotationSaving(false);

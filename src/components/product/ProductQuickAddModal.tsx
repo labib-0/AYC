@@ -135,7 +135,7 @@ export default function ProductQuickAddModal() {
                 {product.name}
               </h2>
               <p className="text-xs text-muted-foreground font-sans font-medium mt-0.5 tracking-normal">
-                {brandName ? `${brandName.toUpperCase()} · ` : ""}SKU: {product.sku ?? "—"}
+                {brandName ? `${brandName.toUpperCase()} · ` : ""}{(product.designType || "").toUpperCase() === "MASTER COPY" ? "MASTER COPY" : "ORIGINAL"} · SKU: {product.sku ?? "—"}
               </p>
             </div>
             <button
@@ -184,6 +184,14 @@ export default function ProductQuickAddModal() {
                   </h3>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 p-3 sm:p-3.5 bg-secondary/40 rounded-xl border border-border/40 font-sans">
                     <InfoItem label="Brand" value={brandName || "—"} />
+                    <InfoItem
+                      label="Design Type"
+                      value={
+                        (product.designType || "").toUpperCase() === "MASTER COPY"
+                          ? "MASTER COPY"
+                          : "ORIGINAL"
+                      }
+                    />
                     <InfoItem label="Stock" value={`${stock.toLocaleString()} pcs`} />
                     <InfoItem label="Size" value={displaySize} />
                     <InfoItem label="Color" value={displayColor} />

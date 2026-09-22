@@ -128,8 +128,8 @@ export default function RfqQuotationBuilder({
         adminNotes,
       });
       onClose();
-    } catch (err: any) {
-      setError(err?.message || "Failed to generate quotation.");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Failed to generate quotation.");
     }
   };
 
@@ -254,7 +254,7 @@ export default function RfqQuotationBuilder({
                 </label>
                 <select
                   value={incoterm}
-                  onChange={(e) => setIncoterm(e.target.value as any)}
+                  onChange={(e) => setIncoterm(e.target.value as "FOB" | "CIF" | "EXW" | "DDP" | "CFR")}
                   disabled={isLoading}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-card text-foreground focus:ring-1 focus:ring-primary outline-none"
                 >

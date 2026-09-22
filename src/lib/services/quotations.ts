@@ -92,15 +92,35 @@ export async function createQuotationRevision(
   return revisedQuote;
 }
 
-export async function getQuotationById(id: string): Promise<QuotationRecord | null> {
+export async function getQuotationById(
+  id: string,
+  userFilter?: { email?: string; companyName?: string }
+): Promise<QuotationRecord | null> {
   const all = getStoredQuotations();
   const found = all.find((q) => q.id === id || q.quotationNumber === id);
+  if (found && userFilter) {
+    const matchesEmail = userFilter.email && found.buyerEmail && found.buyerEmail.toLowerCase() === userFilter.email.toLowerCase();
+    const matchesCompany = userFilter.companyName && found.companyName && found.companyName.toLowerCase() === userFilter.companyName.toLowerCase();
+    if (!matchesEmail && !matchesCompany) {
+      return null;
+    }
+  }
   return found || null;
 }
 
-export async function getQuotationByRfqId(rfqId: string): Promise<QuotationRecord | null> {
+export async function getQuotationByRfqId(
+  rfqId: string,
+  userFilter?: { email?: string; companyName?: string }
+): Promise<QuotationRecord | null> {
   const all = getStoredQuotations();
   const found = all.find((q) => q.rfqId === rfqId);
+  if (found && userFilter) {
+    const matchesEmail = userFilter.email && found.buyerEmail && found.buyerEmail.toLowerCase() === userFilter.email.toLowerCase();
+    const matchesCompany = userFilter.companyName && found.companyName && found.companyName.toLowerCase() === userFilter.companyName.toLowerCase();
+    if (!matchesEmail && !matchesCompany) {
+      return null;
+    }
+  }
   return found || null;
 }
 
@@ -171,7 +191,8 @@ export async function buyerRespondToQuotation(
  */
 export async function getCommercialDocument(
   docType: CommercialDocType,
-  id: string
+  id: string,
+  userFilter?: { userId?: string | number; email?: string }
 ): Promise<CommercialDocument | null> {
   // Check if ID refers to an Order
   const cleanId = id.startsWith("order_") ? id.replace("order_", "") : id;
@@ -180,6 +201,11 @@ export async function getCommercialDocument(
     const { orderService } = await import("@/services/order.service");
     const orderDoc = await orderService.getOrderCommercialDocument(cleanId, docType);
     if (orderDoc && (orderDoc.doc_number || orderDoc.document_number)) {
+      if (userFilter?.email && orderDoc.buyer?.email) {
+        if (orderDoc.buyer.email.toLowerCase() !== userFilter.email.toLowerCase()) {
+          return null;
+        }
+      }
       const docNum = orderDoc.doc_number || orderDoc.document_number;
       return {
         id: orderDoc.id || `doc_${docType}_${orderDoc.order_id || cleanId}`,
@@ -215,7 +241,7 @@ export async function getCommercialDocument(
           package_breakdown: item.package_breakdown,
           details: item.details,
         })),
-        product_gallery: orderDoc.product_gallery || (orderDoc.items || []).flatMap((it: any) => it.product_images || (it.product_image_url ? [it.product_image_url] : [])).filter(Boolean),
+        product_gallery: orderDoc.product_gallery || orderDoc.items?.[0]?.product_images || (orderDoc.items?.[0]?.product_image_url ? [orderDoc.items[0].product_image_url] : []),
         subtotal: orderDoc.financials?.subtotal ?? orderDoc.summary?.subtotal ?? orderDoc.summary?.goods_value ?? orderDoc.summary?.fob_amount ?? 0,
         goods_value: orderDoc.financials?.goods_value ?? orderDoc.summary?.goods_value ?? orderDoc.summary?.fob_amount ?? orderDoc.summary?.subtotal ?? 0,
         discount: orderDoc.financials?.discount_amount ?? 0,
@@ -311,7 +337,7 @@ export async function getCommercialDocument(
     }
   }
 
-  const quote = await getQuotationById(id);
+  const quote = await getQuotationById(id, userFilter ? { email: userFilter.email } : undefined);
   if (!quote) return null;
 
   let title = "COMMERCIAL QUOTATION";

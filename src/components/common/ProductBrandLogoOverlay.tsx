@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { getBrandLogoUrl, BRAND_LOGO_MAP } from "@/lib/brand-logos";
+import { BRAND_LOGO_CONTAINER_SURFACE_CLASS } from "@/components/common/ProductBadge";
 
 export { getBrandLogoUrl, BRAND_LOGO_MAP };
 
@@ -33,25 +34,25 @@ export default function ProductBrandLogoOverlay({
     return null;
   }
 
-  // Dimension classes based on size variant — Strictly 1:1 TRUE SQUARE containers (aspect-ratio: 1 / 1)
-  let containerDimensions = "w-9 h-9 sm:w-10 sm:h-10 rounded-xl p-1.5";
+  // Dimension classes based on size variant — Compact, balanced 1:1 TRUE SQUARE containers
+  let containerDimensions = "w-7.5 h-7.5 sm:w-8 sm:h-8 rounded p-1";
   let imageDimensions = "max-w-[85%] max-h-[85%]";
 
   if (size === "detail") {
-    containerDimensions = "w-12 h-12 sm:w-14 sm:h-14 rounded-2xl p-2 sm:p-2.5";
+    containerDimensions = "w-11 h-11 sm:w-12 sm:h-12 rounded p-1.5 sm:p-2";
     imageDimensions = "max-w-[85%] max-h-[85%]";
   } else if (size === "modal") {
-    containerDimensions = "w-10 h-10 sm:w-11 sm:h-11 rounded-xl p-1.5 sm:p-2";
+    containerDimensions = "w-9 h-9 sm:w-10 sm:h-10 rounded p-1.5";
     imageDimensions = "max-w-[85%] max-h-[85%]";
   } else if (size === "thumb") {
-    containerDimensions = "w-7 h-7 rounded-lg p-1";
+    containerDimensions = "w-6 h-6 rounded p-0.5";
     imageDimensions = "max-w-[85%] max-h-[85%]";
   }
 
   return (
     <div
       style={{ aspectRatio: "1 / 1" }}
-      className={`absolute top-2.5 right-2.5 z-20 aspect-square ${containerDimensions} bg-white/95 dark:bg-slate-900/90 backdrop-blur-md flex items-center justify-center shadow-xs border border-border/70 dark:border-white/15 overflow-hidden pointer-events-none transition-transform select-none ${className}`}
+      className={`absolute top-2.5 right-2.5 z-20 aspect-square ${containerDimensions} ${BRAND_LOGO_CONTAINER_SURFACE_CLASS} flex items-center justify-center overflow-hidden pointer-events-none transition-transform select-none ${className}`}
       title={brandName || "Brand logo"}
       aria-hidden="true"
     >
@@ -67,3 +68,4 @@ export default function ProductBrandLogoOverlay({
     </div>
   );
 }
+

@@ -146,8 +146,8 @@ export default function StockAdjustmentModal({
       }
 
       onClose();
-    } catch (err: any) {
-      setErrorMessage(err?.message || "Failed to adjust stock. Please try again.");
+    } catch (err: unknown) {
+      setErrorMessage((err as Error)?.message || "Failed to adjust stock. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -157,7 +157,10 @@ export default function StockAdjustmentModal({
   const variant = activeRecord?.variant;
   const warehouse = activeRecord?.warehouse;
   const rawImg = product?.images?.[0];
-  const imageUrl = typeof rawImg === "string" ? rawImg : (rawImg as any)?.image_url || "/placeholder.jpg";
+  const imageUrl =
+    typeof rawImg === "string"
+      ? rawImg
+      : (rawImg as { image_url?: string } | undefined)?.image_url || "/placeholder.jpg";
 
   return (
     <div
@@ -237,7 +240,7 @@ export default function StockAdjustmentModal({
                 <img
                   src={imageUrl}
                   alt={product?.name || "Product"}
-                  className="w-12 h-14 object-cover rounded-lg bg-secondary shrink-0 border border-border/60"
+                  className="w-12 h-14 object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60"
                 />
                 <div className="min-w-0">
                   <h4 className="font-bold text-foreground text-xs truncate">

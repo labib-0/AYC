@@ -23,7 +23,7 @@ interface ProductBasicInfoSectionProps {
   brandId?: string | number;
   categoryId: string;
   audience: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX";
-  designType: "ORIGINAL" | "REPLICA";
+  designType: "ORIGINAL" | "MASTER COPY";
   material: string;
   description: string;
   brands: BrandOption[];
@@ -35,7 +35,7 @@ interface ProductBasicInfoSectionProps {
   onBrandChange: (brandName: string, brandId?: string, brandLogo?: string) => void;
   onCategoryChange: (catId: string, catName?: string) => void;
   onAudienceChange: (val: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX") => void;
-  onDesignTypeChange: (val: "ORIGINAL" | "REPLICA") => void;
+  onDesignTypeChange: (val: "ORIGINAL" | "MASTER COPY") => void;
   onMaterialChange: (val: string) => void;
   onDescriptionChange: (val: string) => void;
   onBrandCreated?: (newBrand: BrandModel) => void;
@@ -49,9 +49,9 @@ const AUDIENCE_OPTIONS: Array<"MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX"> = [
   "UNISEX",
 ];
 
-const DESIGN_TYPE_OPTIONS: Array<"ORIGINAL" | "REPLICA"> = [
+const DESIGN_TYPE_OPTIONS: Array<"ORIGINAL" | "MASTER COPY"> = [
   "ORIGINAL",
-  "REPLICA",
+  "MASTER COPY",
 ];
 
 export default function ProductBasicInfoSection({
@@ -265,7 +265,7 @@ export default function ProductBasicInfoSection({
             </label>
             <select
               value={designType}
-              onChange={(e) => onDesignTypeChange(e.target.value as "ORIGINAL" | "REPLICA")}
+              onChange={(e) => onDesignTypeChange(e.target.value as "ORIGINAL" | "MASTER COPY")}
               className={selectClass()}
             >
               {DESIGN_TYPE_OPTIONS.map((dt) => (

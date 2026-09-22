@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Shield, X, AlertTriangle } from "lucide-react";
+import { Shield, X } from "lucide-react";
 
 export interface CustomerRoleDialogProps {
   isOpen: boolean;
@@ -108,15 +108,13 @@ export default function CustomerRoleDialog({
             >
               <option value="b2b_buyer">B2B Wholesale Buyer</option>
               <option value="customer">Retail Customer</option>
-              <option value="sales">Sales Representative</option>
-              <option value="admin">System Administrator</option>
             </select>
           </div>
 
-          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 flex items-start gap-2 text-[11px]">
-            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <div className="p-3 rounded-2xl bg-secondary/40 border border-border/80 text-muted-foreground flex items-start gap-2 text-[11px]">
+            <Shield size={14} className="shrink-0 mt-0.5 text-primary" />
             <span>
-              Changing to Administrator or Sales will grant platform management permissions.
+              Customer roles determine wholesale tiering. Administrative and sales staff accounts are managed under Settings &rarr; Admin Users.
             </span>
           </div>
 

@@ -267,6 +267,7 @@ function OrdersContent() {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
 
   // Sync tab with URL search parameter if it changes
   useEffect(() => {
@@ -290,7 +291,6 @@ function OrdersContent() {
   }, [user?.id]);
 
   const handleCancelOrder = async (orderId: string) => {
-    if (!confirm("Are you sure you want to cancel this order?")) return;
     setCancellingId(orderId);
     if (user?.id) {
       await cancelOrder(orderId, user.id, "Buyer requested cancellation");
@@ -482,13 +482,47 @@ function OrdersContent() {
               <OrderCard
                 key={order.id}
                 order={order}
-                onCancel={handleCancelOrder}
+                onCancel={(id) => setOrderToCancel(id)}
                 cancellingId={cancellingId}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Cancel Order Confirmation Modal */}
+      {orderToCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 p-6 shadow-2xl space-y-4 font-sans">
+            <h3 className="text-base font-display font-bold uppercase text-slate-900 dark:text-white">
+              Cancel Wholesale Order
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Are you sure you want to cancel this order? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setOrderToCancel(null)}
+                className="px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const id = orderToCancel;
+                  setOrderToCancel(null);
+                  if (id) await handleCancelOrder(id);
+                }}
+                className="px-4 py-2 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-xs"
+              >
+                Confirm Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

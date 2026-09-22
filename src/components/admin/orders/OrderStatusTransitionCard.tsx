@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { OrderRecord } from "@/services/order.service";
 import { adminOrderService } from "@/services/admin";
 import OrderStatusBadge from "./OrderStatusBadge";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export interface OrderStatusTransitionCardProps {
   order: OrderRecord;

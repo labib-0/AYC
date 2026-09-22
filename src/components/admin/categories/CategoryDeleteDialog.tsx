@@ -87,7 +87,7 @@ export default function CategoryDeleteDialog({
               id="category-delete-dialog-title"
               className="text-sm font-bold text-foreground"
             >
-              {hasProducts ? "Category has associated products" : "Delete this category?"}
+              {hasProducts ? "Category has associated products." : "Delete this category?"}
             </h3>
 
             <div className="text-xs text-muted-foreground space-y-2 leading-relaxed">
@@ -98,16 +98,16 @@ export default function CategoryDeleteDialog({
               {hasProducts ? (
                 <>
                   <p className="text-amber-700 dark:text-amber-400 font-semibold bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
-                    {productCount} {productCount === 1 ? "product" : "products"} currently use this category. Deleting it is blocked to prevent orphan catalog references.
+                    This category is currently used by {productCount} {productCount === 1 ? "product" : "products"}. Deletion is blocked to protect catalog integrity.
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    Please reassign the associated products to another category before deleting this category record.
+                    Reassign the associated products to another category before deleting this category.
                   </p>
                 </>
               ) : (
                 <>
                   <p>
-                    This category currently has <strong className="text-foreground">0 associated products</strong>.
+                    This category has no associated products.
                   </p>
                   <p className="text-[11px] text-muted-foreground">
                     This action cannot be undone. The category will be permanently removed from your catalog taxonomy.

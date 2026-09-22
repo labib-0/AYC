@@ -34,8 +34,8 @@ export default function AdminQuotationsPage() {
     try {
       const data = await getAllQuotations();
       setQuotations(data);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load quotations.");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Failed to load quotations.");
     } finally {
       setLoading(false);
     }

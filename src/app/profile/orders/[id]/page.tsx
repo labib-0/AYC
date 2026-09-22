@@ -10,7 +10,6 @@ import {
   getOrderStatusKey,
   getPaymentPresentation,
   formatOrderDate,
-  formatCents,
 } from "@/lib/order-status";
 import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
 import {
@@ -21,7 +20,6 @@ import {
   ArrowLeft,
   Package,
   Truck,
-  CheckCircle2,
   XCircle,
   CircleDot,
   CreditCard,
@@ -540,7 +538,11 @@ export default function OrderDetailPage({ params }: Props) {
   const fetchOrder = async () => {
     setLoading(true);
     const data = await getOrderById(orderId, user?.id);
-    setOrder(data);
+    if (data && data.user_id && user?.id && String(data.user_id) !== String(user.id)) {
+      setOrder(null);
+    } else {
+      setOrder(data);
+    }
     setLoading(false);
   };
 
@@ -900,6 +902,7 @@ export default function OrderDetailPage({ params }: Props) {
                           price: it.unit_price,
                           moq: it.quantity,
                           imageUrl: it.product_image_url,
+                          images: (it as any).product_images || (it as any).images || (it.product_image_url ? [it.product_image_url] : []),
                           packageBreakdown: it.package_breakdown,
                         },
                         {
@@ -927,6 +930,7 @@ export default function OrderDetailPage({ params }: Props) {
                           price: it.unit_price,
                           moq: it.quantity,
                           imageUrl: it.product_image_url,
+                          images: (it as any).product_images || (it as any).images || (it.product_image_url ? [it.product_image_url] : []),
                           packageBreakdown: it.package_breakdown,
                         },
                         {

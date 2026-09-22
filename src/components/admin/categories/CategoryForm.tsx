@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { AlertCircle } from "lucide-react";
 import { CategoryModel } from "@/services/category.service";
+import CategoryBasicInfoSection from "./CategoryBasicInfoSection";
 import CategoryImageUploader from "./CategoryImageUploader";
+import CategoryAdvancedSection from "./CategoryAdvancedSection";
 
 export interface CategoryFormData {
   name: string;
@@ -160,61 +162,17 @@ export default function CategoryForm({
         </div>
       )}
 
-      {/* 1. Category Basic Info */}
-      <div className="space-y-4">
-        {/* Category Name */}
-        <div className="space-y-1.5">
-          <label htmlFor="category-form-name" className="text-xs font-bold uppercase tracking-wider text-foreground block">
-            Category Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="category-form-name"
-            type="text"
-            required
-            autoFocus
-            disabled={isSaving}
-            value={name}
-            onChange={handleNameChange}
-            placeholder="e.g. T-Shirts, Hoodies, Jackets"
-            className={`w-full px-3.5 py-2 text-xs rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1.5 transition-all ${
-              nameError
-                ? "border-red-500 focus:ring-red-500"
-                : "border-border focus:ring-foreground"
-            }`}
-          />
-          {nameError && (
-            <p className="text-[11px] text-red-600 dark:text-red-400 font-medium">{nameError}</p>
-          )}
-        </div>
-
-        {/* Category Slug */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label htmlFor="category-form-slug" className="text-xs font-bold uppercase tracking-wider text-foreground block">
-              Category Slug
-            </label>
-            <span className="text-[10px] text-muted-foreground">
-              {isSlugManuallyEdited ? "Customized manually" : "Auto-generated from name"}
-            </span>
-          </div>
-          <input
-            id="category-form-slug"
-            type="text"
-            disabled={isSaving}
-            value={slug}
-            onChange={handleSlugChange}
-            placeholder="e.g. t-shirts"
-            className={`w-full px-3.5 py-2 font-mono text-xs rounded-xl border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1.5 transition-all ${
-              slugError
-                ? "border-red-500 focus:ring-red-500"
-                : "border-border focus:ring-foreground"
-            }`}
-          />
-          {slugError && (
-            <p className="text-[11px] text-red-600 dark:text-red-400 font-medium">{slugError}</p>
-          )}
-        </div>
-      </div>
+      {/* 1. Category Basic Info (Name & Slug) */}
+      <CategoryBasicInfoSection
+        name={name}
+        onNameChange={handleNameChange}
+        nameError={nameError}
+        slug={slug}
+        onSlugChange={handleSlugChange}
+        slugError={slugError}
+        isSlugManuallyEdited={isSlugManuallyEdited}
+        disabled={isSaving}
+      />
 
       {/* 2. Category Image Section */}
       <CategoryImageUploader
@@ -224,68 +182,17 @@ export default function CategoryForm({
         disabled={isSaving}
       />
 
-      {/* 3. Description & Settings */}
-      <div className="space-y-4 pt-1">
-        {/* Description */}
-        <div className="space-y-1.5">
-          <label htmlFor="category-form-description" className="text-xs font-bold uppercase tracking-wider text-foreground block">
-            Description <span className="text-muted-foreground font-normal normal-case">(optional)</span>
-          </label>
-          <textarea
-            id="category-form-description"
-            rows={3}
-            disabled={isSaving}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Brief description of this apparel category for wholesale buyers..."
-            className="w-full px-3.5 py-2 text-xs rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1.5 focus:ring-foreground transition-all resize-none"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-          {/* Sort Order */}
-          <div className="space-y-1.5">
-            <label htmlFor="category-form-sort-order" className="text-xs font-bold uppercase tracking-wider text-foreground block">
-              Sort Order
-            </label>
-            <input
-              id="category-form-sort-order"
-              type="number"
-              min="0"
-              disabled={isSaving}
-              value={sortOrder}
-              onChange={handleSortOrderChange}
-              className={`w-full px-3.5 py-2 text-xs rounded-xl border bg-background text-foreground focus:outline-none focus:ring-1.5 transition-all ${
-                sortOrderError
-                  ? "border-red-500 focus:ring-red-500"
-                  : "border-border focus:ring-foreground"
-              }`}
-            />
-            {sortOrderError && (
-              <p className="text-[11px] text-red-600 dark:text-red-400 font-medium">{sortOrderError}</p>
-            )}
-          </div>
-
-          {/* Active Status Checkbox */}
-          <div className="flex flex-col justify-end pb-1.5">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={isActive}
-                disabled={isSaving}
-                onChange={(e) => setIsActive(e.target.checked)}
-                className="w-4 h-4 rounded border-border text-foreground focus:ring-foreground accent-foreground cursor-pointer"
-              />
-              <span className="text-xs font-bold text-foreground">
-                Active Category
-              </span>
-            </label>
-            <span className="text-[10px] text-muted-foreground pl-6 mt-0.5">
-              Visible across storefront navigation &amp; catalog
-            </span>
-          </div>
-        </div>
-      </div>
+      {/* 3. Category Advanced Section (Description, Sort Order, Active Status) */}
+      <CategoryAdvancedSection
+        description={description}
+        onDescriptionChange={(e) => setDescription(e.target.value)}
+        sortOrder={sortOrder}
+        onSortOrderChange={handleSortOrderChange}
+        sortOrderError={sortOrderError}
+        isActive={isActive}
+        onIsActiveChange={setIsActive}
+        disabled={isSaving}
+      />
 
       {/* Form Action Buttons */}
       <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-border/70">

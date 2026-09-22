@@ -12,6 +12,7 @@ export interface Product {
   categoryId: string;
   categoryName?: string;
   audience?: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | string;
+  designType?: "ORIGINAL" | "MASTER COPY";
   images: string[];
   isNew?: boolean;
   isHot?: boolean;

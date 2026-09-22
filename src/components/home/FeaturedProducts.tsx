@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Loader2, SlidersHorizontal, RotateCcw, X, LayoutGrid } from "lucide-react";
 import ProductCard from "../product/ProductCard";
 import GlobalFilterRail from "@/components/common/GlobalFilterRail";
-import InlineCategoryExpansion from "./InlineCategoryExpansion";
+import AllCategoriesPanel from "./AllCategoriesPanel";
 import { Product } from "@/types";
 import {
   getFeaturedProducts,
@@ -26,16 +26,17 @@ export default function FeaturedProducts() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [isAllCategoriesOpen, setIsAllCategoriesOpen] = useState(false);
 
-  // ── Three Completely Independent States ──────────────────────────────────
-  // 1. Filter Button Visibility: Always visible (rendered unconditionally)
-  // 2. Filter Rail Open/Closed: User-toggled only, default closed
+  // ── State Machine: Modes & Filter (Section 17) ───────────────────────────
+  // Mode A: Manual Load More (isContinuousMode = false)
+  // Mode B: Continuous Auto-Pagination (isContinuousMode = true)
+  const [hasLoadedMore, setHasLoadedMore] = useState<boolean>(false);
+  const [isContinuousMode, setIsContinuousMode] = useState<boolean>(false);
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
-  // 3. Product Pagination State: Active ONLY when Filter Rail is open
-  const [isPaginationActive, setIsPaginationActive] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<Tab>("best-deals");
 
   // ── Filter Selection State (Preserved across filter open/close) ──────────
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedDesignTypes, setSelectedDesignTypes] = useState<string[]>([]);
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
@@ -59,12 +60,14 @@ export default function FeaturedProducts() {
   // Request race-condition protection & async synchronization refs
   const generationRef = useRef<number>(0);
   const isLoadingRef = useRef<boolean>(false);
-
-  const isPaginationActiveRef = useRef<boolean>(false);
+  const isContinuousModeRef = useRef<boolean>(false);
 
   useEffect(() => {
-    isPaginationActiveRef.current = isPaginationActive;
-  }, [isPaginationActive]);
+    isContinuousModeRef.current = isContinuousMode;
+  }, [isContinuousMode]);
+
+  // Backward compatibility alias
+  const isPaginationActive = isContinuousMode;
 
   // Active tab ref for stale response protection
   const activeTabRef = useRef<Tab>("best-deals");
@@ -95,12 +98,10 @@ export default function FeaturedProducts() {
 
   // ── Adjust Initial Product Count Responsively on Client Mount ───────────
   useEffect(() => {
-    if (typeof window === "undefined" || isPaginationActiveRef.current) return;
+    if (typeof window === "undefined" || isContinuousModeRef.current || hasLoadedMore) return;
 
     let targetLimit = DESKTOP_INITIAL_LIMIT;
-    if (window.innerWidth >= 1440) {
-      targetLimit = 18; // Large Desktop: 6 cols x 3 rows = 18
-    } else if (window.innerWidth < 640) {
+    if (window.innerWidth < 640) {
       targetLimit = 6; // Mobile: 2 cols x 3 rows = 6
     } else if (window.innerWidth < 1024) {
       targetLimit = 9; // Tablet: 3 cols x 3 rows = 9
@@ -110,11 +111,11 @@ export default function FeaturedProducts() {
     setTotalCount(fullList.length);
     setProducts(fullList.slice(0, targetLimit));
     setHasMore(fullList.length > targetLimit);
-  }, []);
+  }, [hasLoadedMore]);
 
-  // ── Manual LOAD MORE Click (Pagination remains inactive) ───────────────────
-  const handleFirstLoadMore = async () => {
-    if (isLoadingRef.current || isPaginationActive) return;
+  // ── Load More Click: First click activates Continuous Mode; subsequent clicks in manual mode reactivate it ──
+  const handleLoadMoreClick = async () => {
+    if (isLoadingRef.current || isContinuousMode || !hasMore) return;
 
     isLoadingRef.current = true;
     setIsLoadingMore(true);
@@ -122,6 +123,7 @@ export default function FeaturedProducts() {
 
     const currentTab = activeTab;
     const currentOffset = products.length;
+    const currentGen = generationRef.current;
 
     try {
       const result = await getFeaturedProducts({
@@ -129,11 +131,17 @@ export default function FeaturedProducts() {
         offset: currentOffset,
         limit: FIRST_LOAD_MORE_LIMIT,
         brands: selectedBrands,
+        designTypes: selectedDesignTypes,
         audiences: selectedAudiences,
         categories: selectedCategories,
       });
 
-      if (activeTabRef.current !== currentTab) return;
+      if (
+        generationRef.current !== currentGen ||
+        activeTabRef.current !== currentTab
+      ) {
+        return;
+      }
 
       // Append next batch (+25 products) with duplicate protection
       setProducts((prev) => {
@@ -144,25 +152,43 @@ export default function FeaturedProducts() {
 
       setTotalCount(result.total);
       setHasMore(result.hasMore);
+
+      // ── CRITICAL STATE TRANSITIONS (Sections 1, 3, 5, 10, 11, 15, 17) ──────
+      // 1. Mark that user has loaded more
+      setHasLoadedMore(true);
+      // 2. Activate continuous mode (auto-pagination = ON)
+      setIsContinuousMode(true);
+      isContinuousModeRef.current = true;
+      // 3. Open filter rail automatically ONCE (visible + sticky + 6-col grid)
+      setIsFilterOpen(true);
     } catch {
-      if (activeTabRef.current === currentTab) {
+      if (
+        generationRef.current === currentGen &&
+        activeTabRef.current === currentTab
+      ) {
         setError("Unable to load more products. Please try again.");
       }
     } finally {
-      if (activeTabRef.current === currentTab) {
+      if (
+        generationRef.current === currentGen &&
+        activeTabRef.current === currentTab
+      ) {
         setIsLoadingMore(false);
         isLoadingRef.current = false;
       }
     }
   };
 
-  // ── Continuous Progressive Auto-Pagination (Active ONLY when isPaginationActive is true) ──
+  // Backward compatibility alias
+  const handleFirstLoadMore = handleLoadMoreClick;
+
+  // ── Continuous Progressive Auto-Pagination (Active ONLY when isContinuousMode is true) ──
   const loadNextBatch = useCallback(
     async () => {
       if (
         isLoadingRef.current ||
         !hasMore ||
-        !isPaginationActiveRef.current
+        !isContinuousModeRef.current
       ) {
         return;
       }
@@ -181,13 +207,15 @@ export default function FeaturedProducts() {
           offset: currentOffset,
           limit: CONTINUOUS_BATCH_LIMIT,
           brands: selectedBrands,
+          designTypes: selectedDesignTypes,
           audiences: selectedAudiences,
           categories: selectedCategories,
         });
 
         if (
           generationRef.current !== currentGen ||
-          activeTabRef.current !== currentTab
+          activeTabRef.current !== currentTab ||
+          !isContinuousModeRef.current
         ) {
           return;
         }
@@ -201,23 +229,29 @@ export default function FeaturedProducts() {
         setTotalCount(result.total);
         setHasMore(result.hasMore);
       } catch {
-        if (generationRef.current === currentGen) {
+        if (
+          generationRef.current === currentGen &&
+          activeTabRef.current === currentTab
+        ) {
           setError("Unable to load additional products. Please try again.");
         }
       } finally {
-        if (generationRef.current === currentGen) {
+        if (
+          generationRef.current === currentGen &&
+          activeTabRef.current === currentTab
+        ) {
           setIsLoadingMore(false);
           isLoadingRef.current = false;
         }
       }
     },
-    [hasMore, products.length, selectedBrands, selectedAudiences, selectedCategories]
+    [hasMore, products.length, selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories]
   );
 
-  // ── IntersectionObserver: Active ONLY when isPaginationActive is true ────
+  // ── IntersectionObserver: Active ONLY when isContinuousMode is true ────
   useEffect(() => {
-    // Observer MUST NOT run when pagination is inactive or no more products
-    if (!isPaginationActive || !hasMore) return;
+    // Observer MUST NOT run when continuous mode is inactive or no more products
+    if (!isContinuousMode || !hasMore) return;
 
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
@@ -228,7 +262,7 @@ export default function FeaturedProducts() {
         if (
           entry.isIntersecting &&
           !isLoadingRef.current &&
-          isPaginationActiveRef.current
+          isContinuousModeRef.current
         ) {
           loadNextBatch();
         }
@@ -245,15 +279,34 @@ export default function FeaturedProducts() {
     return () => {
       observer.disconnect();
     };
-  }, [isPaginationActive, hasMore, loadNextBatch]);
+  }, [isContinuousMode, hasMore, loadNextBatch]);
+
+  // ── Filter Rail Close & Toggle Handlers (Sections 13, 16, 17) ─────────────
+  const handleCloseFilter = () => {
+    setIsFilterOpen(false);
+    setIsContinuousMode(false);
+    isContinuousModeRef.current = false;
+  };
+
+  const handleToggleFilters = () => {
+    if (isFilterOpen) {
+      handleCloseFilter();
+    } else {
+      setIsFilterOpen(true);
+      setIsContinuousMode(true);
+      isContinuousModeRef.current = true;
+    }
+  };
 
   // ── Filter Changes Handler ───────────────────────────────────────────────
   const handleFilterUpdate = async (
     brands: string[],
+    designTypes: string[],
     audiences: string[],
     categories: string[]
   ) => {
     setSelectedBrands(brands);
+    setSelectedDesignTypes(designTypes);
     setSelectedAudiences(audiences);
     setSelectedCategories(categories);
 
@@ -265,11 +318,10 @@ export default function FeaturedProducts() {
 
     let limit = DESKTOP_INITIAL_LIMIT;
     if (typeof window !== "undefined") {
-      if (window.innerWidth >= 1440) limit = 18;
-      else if (window.innerWidth < 640) limit = 6;
+      if (window.innerWidth < 640) limit = 6;
       else if (window.innerWidth < 1024) limit = 9;
     }
-    if (isPaginationActive) {
+    if (isContinuousMode) {
       limit += FIRST_LOAD_MORE_LIMIT;
     }
 
@@ -279,6 +331,7 @@ export default function FeaturedProducts() {
         offset: 0,
         limit,
         brands,
+        designTypes,
         audiences,
         categories,
       });
@@ -299,28 +352,38 @@ export default function FeaturedProducts() {
   };
 
   const handleClearAllFilters = () => {
-    handleFilterUpdate([], [], []);
+    handleFilterUpdate([], [], [], []);
   };
 
   const removeSingleFilter = (
-    type: "brand" | "audience" | "category",
+    type: "brand" | "designType" | "audience" | "category",
     val: string
   ) => {
     if (type === "brand") {
       handleFilterUpdate(
         selectedBrands.filter((b) => b !== val),
+        selectedDesignTypes,
+        selectedAudiences,
+        selectedCategories
+      );
+    } else if (type === "designType") {
+      handleFilterUpdate(
+        selectedBrands,
+        selectedDesignTypes.filter((d) => d !== val),
         selectedAudiences,
         selectedCategories
       );
     } else if (type === "audience") {
       handleFilterUpdate(
         selectedBrands,
+        selectedDesignTypes,
         selectedAudiences.filter((a) => a !== val),
         selectedCategories
       );
     } else {
       handleFilterUpdate(
         selectedBrands,
+        selectedDesignTypes,
         selectedAudiences,
         selectedCategories.filter((c) => c !== val)
       );
@@ -340,19 +403,19 @@ export default function FeaturedProducts() {
 
     let initialCount = DESKTOP_INITIAL_LIMIT;
     if (typeof window !== "undefined") {
-      if (window.innerWidth >= 1440) initialCount = 18;
-      else if (window.innerWidth < 640) initialCount = 6;
+      if (window.innerWidth < 640) initialCount = 6;
       else if (window.innerWidth < 1024) initialCount = 9;
     }
 
-    if (!isPaginationActive) {
+    if (!isContinuousMode) {
       // Pagination inactive: reset initial static products, stay inactive
       const fullList = getInitialFeaturedProducts(
         tab,
         9999,
         selectedBrands,
         selectedAudiences,
-        selectedCategories
+        selectedCategories,
+        selectedDesignTypes
       );
       setProducts(fullList.slice(0, initialCount));
       setTotalCount(fullList.length);
@@ -366,6 +429,7 @@ export default function FeaturedProducts() {
           offset: 0,
           limit: initialCount + FIRST_LOAD_MORE_LIMIT,
           brands: selectedBrands,
+          designTypes: selectedDesignTypes,
           audiences: selectedAudiences,
           categories: selectedCategories,
         });
@@ -414,7 +478,10 @@ export default function FeaturedProducts() {
   }, [searchParams]);
 
   const totalActiveFilters =
-    selectedBrands.length + selectedAudiences.length + selectedCategories.length;
+    selectedBrands.length +
+    selectedDesignTypes.length +
+    selectedAudiences.length +
+    selectedCategories.length;
 
   const handleAllCategoriesClick = () => {
     setIsAllCategoriesOpen((prev) => !prev);
@@ -443,7 +510,7 @@ export default function FeaturedProducts() {
               <button
                 type="button"
                 onClick={() => handleTabClick("best-deals")}
-                className={`px-4 py-2 rounded-full text-xs font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                className={`px-4 py-2 rounded-full text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                   activeTab === "best-deals"
                     ? "bg-foreground text-background shadow-sm"
                     : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -456,7 +523,7 @@ export default function FeaturedProducts() {
               <button
                 type="button"
                 onClick={() => handleTabClick("new-arrivals")}
-                className={`px-4 py-2 rounded-full text-xs font-sans font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                className={`px-4 py-2 rounded-full text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
                   activeTab === "new-arrivals"
                     ? "bg-foreground text-background shadow-[0_0_14px_rgba(255,255,255,0.22)] ring-1 ring-primary/40"
                     : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -468,7 +535,7 @@ export default function FeaturedProducts() {
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 self-start sm:self-auto">
               {/* Product Counter */}
-              <div className="text-xs font-medium text-muted-foreground font-sans whitespace-nowrap">
+              <div className="text-[13px] font-medium text-muted-foreground font-sans whitespace-nowrap">
                 Showing{" "}
                 <span className="font-bold text-foreground">
                   {products.length}
@@ -481,14 +548,10 @@ export default function FeaturedProducts() {
                 {/* Filter Toggle Button: ALWAYS VISIBLE */}
                 <button
                   type="button"
-                  onClick={() => {
-                    const nextState = !isFilterOpen;
-                    setIsFilterOpen(nextState);
-                    setIsPaginationActive(nextState);
-                  }}
+                  onClick={handleToggleFilters}
                   aria-label={isFilterOpen ? "Close filters" : "Open filters"}
                   aria-expanded={isFilterOpen}
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-sans font-bold uppercase tracking-wider border transition-all duration-200 cursor-pointer ${
+                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[13px] font-sans font-bold uppercase tracking-wider border transition-all duration-200 cursor-pointer ${
                     isFilterOpen || totalActiveFilters > 0
                       ? "bg-foreground text-background border-foreground shadow-xs"
                       : "bg-secondary/70 hover:bg-secondary text-foreground border-border/80"
@@ -514,7 +577,8 @@ export default function FeaturedProducts() {
                   type="button"
                   onClick={handleAllCategoriesClick}
                   aria-expanded={isAllCategoriesOpen}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer group shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
+                  aria-controls="featured-products-categories"
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer group shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
                     isAllCategoriesOpen
                       ? "bg-foreground text-background border border-foreground shadow-xs"
                       : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-border/60 hover:border-foreground/30"
@@ -536,20 +600,44 @@ export default function FeaturedProducts() {
           </div>
         </div>
 
-        {/* ── Inline Expanded Category Panel ── */}
-        <InlineCategoryExpansion isOpen={isAllCategoriesOpen} />
+        {/* ── Inline Expanded Category Panel (Shared AllCategoriesPanel) ── */}
+        <AllCategoriesPanel
+          isOpen={isAllCategoriesOpen}
+          id="featured-products-categories"
+          selectedAudiences={selectedAudiences}
+          selectedDesignTypes={selectedDesignTypes}
+          selectedCategories={selectedCategories}
+          onSelectAudience={(aud) => {
+            const next = selectedAudiences.includes(aud)
+              ? selectedAudiences.filter((a) => a !== aud)
+              : [...selectedAudiences, aud];
+            handleFilterUpdate(selectedBrands, selectedDesignTypes, next, selectedCategories);
+          }}
+          onSelectDesignType={(dt) => {
+            const next = selectedDesignTypes.includes(dt)
+              ? selectedDesignTypes.filter((d) => d !== dt)
+              : [...selectedDesignTypes, dt];
+            handleFilterUpdate(selectedBrands, next, selectedAudiences, selectedCategories);
+          }}
+          onSelectCategory={(cat) => {
+            const next = selectedCategories.includes(cat)
+              ? selectedCategories.filter((c) => c !== cat)
+              : [...selectedCategories, cat];
+            handleFilterUpdate(selectedBrands, selectedDesignTypes, selectedAudiences, next);
+          }}
+        />
 
         {/* ── Active Filter Badges Strip ── */}
         {totalActiveFilters > 0 && (
           <div className="flex flex-wrap items-center gap-2 mb-6 pb-3 border-b border-border/60">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider font-sans mr-1">
+            <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider font-sans mr-1">
               Active Filters:
             </span>
 
             {selectedBrands.map((b) => (
               <span
                 key={`b-${b}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-secondary text-foreground border border-border/80"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-secondary text-foreground border border-border/80"
               >
                 <span>{b}</span>
                 <button
@@ -563,10 +651,27 @@ export default function FeaturedProducts() {
               </span>
             ))}
 
+            {selectedDesignTypes.map((d) => (
+              <span
+                key={`d-${d}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-secondary text-foreground border border-border/80"
+              >
+                <span>Design: {d}</span>
+                <button
+                  type="button"
+                  onClick={() => removeSingleFilter("designType", d)}
+                  aria-label={`Remove design type ${d}`}
+                  className="text-muted-foreground hover:text-foreground cursor-pointer p-0.5"
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+
             {selectedAudiences.map((a) => (
               <span
                 key={`a-${a}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-secondary text-foreground border border-border/80"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-secondary text-foreground border border-border/80"
               >
                 <span>Audience: {a}</span>
                 <button
@@ -583,7 +688,7 @@ export default function FeaturedProducts() {
             {selectedCategories.map((c) => (
               <span
                 key={`c-${c}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-secondary text-foreground border border-border/80"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-secondary text-foreground border border-border/80"
               >
                 <span>{c}</span>
                 <button
@@ -600,7 +705,7 @@ export default function FeaturedProducts() {
             <button
               type="button"
               onClick={handleClearAllFilters}
-              className="text-xs font-semibold text-primary hover:underline cursor-pointer ml-1"
+              className="text-[13px] font-semibold text-primary hover:underline cursor-pointer ml-1"
             >
               Clear All
             </button>
@@ -611,7 +716,7 @@ export default function FeaturedProducts() {
         <div
           className={
             isFilterOpen
-              ? "featured-products-layout filter-open grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8"
+              ? "featured-products-layout filter-open grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-6 lg:gap-6 xl:gap-8"
               : "featured-products-layout filter-closed w-full"
           }
         >
@@ -619,21 +724,22 @@ export default function FeaturedProducts() {
           {isFilterOpen && (
             <GlobalFilterRail
               isOpen={isFilterOpen}
-              onClose={() => {
-                setIsFilterOpen(false);
-                setIsPaginationActive(false);
-              }}
+              onClose={handleCloseFilter}
               selectedBrands={selectedBrands}
+              selectedDesignTypes={selectedDesignTypes}
               selectedAudiences={selectedAudiences}
               selectedCategories={selectedCategories}
               onBrandsChange={(b) =>
-                handleFilterUpdate(b, selectedAudiences, selectedCategories)
+                handleFilterUpdate(b, selectedDesignTypes, selectedAudiences, selectedCategories)
+              }
+              onDesignTypesChange={(d) =>
+                handleFilterUpdate(selectedBrands, d, selectedAudiences, selectedCategories)
               }
               onAudiencesChange={(a) =>
-                handleFilterUpdate(selectedBrands, a, selectedCategories)
+                handleFilterUpdate(selectedBrands, selectedDesignTypes, a, selectedCategories)
               }
               onCategoriesChange={(c) =>
-                handleFilterUpdate(selectedBrands, selectedAudiences, c)
+                handleFilterUpdate(selectedBrands, selectedDesignTypes, selectedAudiences, c)
               }
               onClearAll={handleClearAllFilters}
               availableBrands={availableBrands}
@@ -646,27 +752,32 @@ export default function FeaturedProducts() {
             {isLoadingInitial ? (
               <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
                 <Loader2 className="w-6 h-6 animate-spin text-foreground" />
-                <span className="text-xs font-semibold uppercase tracking-wider font-sans">
+                <span className="text-[13px] font-semibold uppercase tracking-wider font-sans">
                   Updating products...
                 </span>
               </div>
             ) : products.length > 0 ? (
               /*
-                RESPONSIVE GRID SYSTEM:
+                RESPONSIVE GRID SYSTEM (PHASE 21):
                 - Filter Closed:
-                  Desktop (xl): 5 columns
-                  Tablet (md): 3 columns
+                  Large Desktop (>= 1440px / 2xl): 7 columns
+                  Desktop (xl): 6 columns
+                  Laptop (lg): 5 columns
+                  Tablet (md): 4 columns
+                  Small Tablet (sm): 3 columns
                   Mobile: 2 columns
                 - Filter Open:
-                  Desktop (lg & xl): 4 columns beside 300px filter rail
+                  Large Desktop (>= 1440px / 2xl): 6 columns beside 280px filter rail
+                  Desktop (xl): 5 columns
+                  Laptop (lg): 4 columns
                   Tablet/Mobile: 2-3 columns with mobile drawer overlay
                 - Product image ratio: strictly 3:4 preserved across all cards
               */
               <div
-                className={`grid gap-3 sm:gap-4 transition-all duration-200 ${
+                className={`grid gap-3 sm:gap-3.5 xl:gap-4 transition-all duration-200 ${
                   isFilterOpen
-                    ? "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 min-[1440px]:grid-cols-5 2xl:grid-cols-5"
-                    : "grid-cols-2 md:grid-cols-3 xl:grid-cols-5 min-[1440px]:grid-cols-6 2xl:grid-cols-6"
+                    ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 min-[1440px]:grid-cols-6 2xl:grid-cols-6"
+                    : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 min-[1440px]:grid-cols-7 2xl:grid-cols-7"
                 }`}
               >
                 {products.map((product) => (
@@ -675,46 +786,46 @@ export default function FeaturedProducts() {
               </div>
             ) : (
               <div className="text-center py-16 px-4 border border-dashed border-border/80 rounded-2xl">
-                <p className="text-sm font-semibold uppercase tracking-wider text-foreground mb-1 font-sans">
+                <p className="text-[13px] font-bold uppercase tracking-wider text-foreground mb-1 font-sans">
                   NO PRODUCTS FOUND
                 </p>
-                <p className="text-xs text-muted-foreground mb-4 font-sans">
+                <p className="text-[13px] text-muted-foreground mb-4 font-sans">
                   Try changing or clearing your filters.
                 </p>
                 <button
                   type="button"
                   onClick={handleClearAllFilters}
-                  className="px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
+                  className="px-5 py-2.5 rounded-full text-[13px] font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
                 >
                   Clear All Filters
                 </button>
               </div>
             )}
 
-            {/* ── State 1: Explicit LOAD MORE Button (isPaginationActive === false) ── */}
-            {!isPaginationActive && (
+            {/* ── State 1: Manual Load More Mode (!isContinuousMode) (Sections 2, 9, 13, 21, 22, 23) ── */}
+            {!isContinuousMode && (
               <div className="w-full pt-8 sm:pt-10 flex flex-col items-center justify-center">
                 {error ? (
                   <div className="flex flex-col items-center gap-3 py-2">
-                    <span className="text-xs font-semibold text-destructive font-sans">
+                    <span className="text-[13px] font-semibold text-destructive font-sans">
                       {error}
                     </span>
                     <button
                       type="button"
-                      onClick={handleFirstLoadMore}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
+                      onClick={handleLoadMoreClick}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold uppercase tracking-wider bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
                     >
                       <RotateCcw size={14} />
                       <span>Retry</span>
                     </button>
                   </div>
-                ) : (
+                ) : hasMore ? (
                   <button
                     type="button"
-                    onClick={handleFirstLoadMore}
+                    onClick={handleLoadMoreClick}
                     disabled={isLoadingMore}
                     aria-label="Load more featured products"
-                    className={`px-8 py-3 rounded-full text-xs font-sans font-bold uppercase tracking-widest transition-all duration-200 shadow-sm ${
+                    className={`px-8 py-3 rounded-full text-[13px] font-sans font-bold uppercase tracking-widest transition-all duration-200 shadow-sm ${
                       isLoadingMore
                         ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-80"
                         : "bg-foreground text-background hover:opacity-90 active:scale-[0.98] cursor-pointer"
@@ -729,12 +840,19 @@ export default function FeaturedProducts() {
                       <span>LOAD MORE</span>
                     )}
                   </button>
-                )}
+                ) : products.length > 0 ? (
+                  <div className="text-center py-4">
+                    <div className="w-12 h-0.5 bg-border/80 mx-auto mb-3" />
+                    <p className="text-[13px] font-semibold uppercase tracking-widest text-muted-foreground font-sans">
+                      All {products.length} products loaded
+                    </p>
+                  </div>
+                ) : null}
               </div>
             )}
 
-            {/* ── State 2: Auto-Pagination Sentinel & Loading/End Indicators (isPaginationActive === true) ── */}
-            {isPaginationActive && (
+            {/* ── State 2: Continuous Auto-Pagination Sentinel (isContinuousMode === true) (Sections 6, 7, 8, 9, 21) ── */}
+            {isContinuousMode && (
               <div
                 ref={sentinelRef}
                 className="w-full py-8 flex flex-col items-center justify-center"
@@ -742,19 +860,19 @@ export default function FeaturedProducts() {
                 {isLoadingMore ? (
                   <div className="flex items-center gap-2.5 text-muted-foreground py-3">
                     <Loader2 className="w-4 h-4 animate-spin text-foreground" />
-                    <span className="text-xs font-semibold uppercase tracking-wider font-sans">
+                    <span className="text-[13px] font-semibold uppercase tracking-wider font-sans">
                       Loading more products...
                     </span>
                   </div>
                 ) : error ? (
                   <div className="flex flex-col items-center gap-2.5 py-2">
-                    <span className="text-xs font-semibold text-destructive font-sans">
+                    <span className="text-[13px] font-semibold text-destructive font-sans">
                       {error}
                     </span>
                     <button
                       type="button"
                       onClick={loadNextBatch}
-                      className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold uppercase tracking-wider bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-[13px] font-semibold uppercase tracking-wider bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
                     >
                       <RotateCcw size={13} />
                       <span>Retry</span>
@@ -763,7 +881,7 @@ export default function FeaturedProducts() {
                 ) : !hasMore && products.length > 0 ? (
                   <div className="text-center py-4">
                     <div className="w-12 h-0.5 bg-border/80 mx-auto mb-3" />
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground font-sans">
+                    <p className="text-[13px] font-semibold uppercase tracking-widest text-muted-foreground font-sans">
                       All {products.length} products loaded
                     </p>
                   </div>

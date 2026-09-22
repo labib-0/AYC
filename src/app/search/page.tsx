@@ -72,16 +72,29 @@ function SearchResultsContent() {
   // ── URL params ──────────────────────────────────────────────────────────
   const query               = searchParams.get("query") || "";
   const initialBrandParam   = searchParams.get("brand") || "";
+  const initialDesignTypeParam = searchParams.get("designType") || searchParams.get("design_type") || "";
   const initialAudienceParam= searchParams.get("audience") || "";
   const initialCategoryParam= searchParams.get("category") || "";
   const initialSortParam    = (searchParams.get("sort") || "newest") as SortValue;
   const initialPageParam    = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
   const initialFilterOpen   = searchParams.get("filterOpen") === "true";
 
-  // ── Filter state (3 Distinct Dimensions: Audience, Category, Brand) ──────
+  // ── Filter state (4 Distinct Dimensions: Brand, Design Type, Audience, Category) ──
   const [selectedBrands, setSelectedBrands] = useState<string[]>(() =>
     initialBrandParam ? initialBrandParam.split(",").map((s) => s.trim()).filter(Boolean) : []
   );
+  const [selectedDesignTypes, setSelectedDesignTypes] = useState<string[]>(() => {
+    if (!initialDesignTypeParam) return [];
+    return initialDesignTypeParam
+      .toUpperCase()
+      .split(",")
+      .map((s) => {
+        const item = s.trim();
+        if (item === "REPLICA" || item === "MASTER_COPY" || item === "MC") return "MASTER COPY";
+        return item;
+      })
+      .filter(Boolean);
+  });
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>(() =>
     initialAudienceParam
       ? initialAudienceParam.toUpperCase().split(",").map((s) => s.trim()).filter(Boolean)
@@ -142,10 +155,11 @@ function SearchResultsContent() {
 
   // ── URL sync helper ───────────────────────────────────────────────────────
   const updateUrl = useCallback(
-    (brands: string[], audiences: string[], categories: string[], sortVal: SortValue, page: number) => {
+    (brands: string[], designTypes: string[], audiences: string[], categories: string[], sortVal: SortValue, page: number) => {
       const params = new URLSearchParams();
       if (query)             params.set("query",    query);
       if (brands.length)     params.set("brand",    brands.join(","));
+      if (designTypes.length)params.set("designType", designTypes.join(","));
       if (audiences.length)  params.set("audience", audiences.map((a) => a.toLowerCase()).join(","));
       if (categories.length) params.set("category", categories.map((c) => c.toLowerCase()).join(","));
       if (sortVal !== "newest") params.set("sort", sortVal);
@@ -185,13 +199,14 @@ function SearchResultsContent() {
       try {
         const result = await productService.getProductsPaginated(
           {
-            q:        query || undefined,
-            brand:    selectedBrands.join(",") || undefined,
-            audience: selectedAudiences.join(",") || undefined,
-            category: selectedCategories.join(",") || undefined,
+            q:           query || undefined,
+            brand:       selectedBrands.join(",") || undefined,
+            design_type: selectedDesignTypes.join(",") || undefined,
+            audience:    selectedAudiences.join(",") || undefined,
+            category:    selectedCategories.join(",") || undefined,
             sort,
             page,
-            per_page: PER_PAGE,
+            per_page:    PER_PAGE,
           },
           controller.signal
         );
@@ -213,7 +228,7 @@ function SearchResultsContent() {
         setTotal(result.meta.total);
 
         // Sync URL
-        updateUrl(selectedBrands, selectedAudiences, selectedCategories, sort, result.meta.current_page);
+        updateUrl(selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories, sort, result.meta.current_page);
       } catch (err: any) {
         if (err?.name === "AbortError" || err?.message === "AbortError") return;
         if (gen !== genRef.current) return;
@@ -231,7 +246,7 @@ function SearchResultsContent() {
 
   // ── Reset & reload on filter/sort/query change ────────────────────────────
   const resetAndReload = useCallback(
-    (brands: string[], audiences: string[], categories: string[], sortVal: SortValue) => {
+    (brands: string[], designTypes: string[], audiences: string[], categories: string[], sortVal: SortValue) => {
       genRef.current += 1;
       loadedIdsRef.current = new Set();
       setProducts([]);
@@ -251,13 +266,14 @@ function SearchResultsContent() {
       productService
         .getProductsPaginated(
           {
-            q:        query || undefined,
-            brand:    brands.join(",") || undefined,
-            audience: audiences.join(",") || undefined,
-            category: categories.join(",") || undefined,
-            sort:     sortVal,
-            page:     1,
-            per_page: PER_PAGE,
+            q:           query || undefined,
+            brand:       brands.join(",") || undefined,
+            design_type: designTypes.join(",") || undefined,
+            audience:    audiences.join(",") || undefined,
+            category:    categories.join(",") || undefined,
+            sort:        sortVal,
+            page:        1,
+            per_page:    PER_PAGE,
           },
           controller.signal
         )
@@ -274,7 +290,7 @@ function SearchResultsContent() {
           setCurrentPage(result.meta.current_page);
           setLastPage(result.meta.last_page);
           setTotal(result.meta.total);
-          updateUrl(brands, audiences, categories, sortVal, 1);
+          updateUrl(brands, designTypes, audiences, categories, sortVal, 1);
         })
         .catch((err) => {
           if (err?.name === "AbortError" || err?.message === "AbortError") return;
@@ -311,13 +327,14 @@ function SearchResultsContent() {
     productService
       .getProductsPaginated(
         {
-          q:        query || undefined,
-          brand:    selectedBrands.join(",") || undefined,
-          audience: selectedAudiences.join(",") || undefined,
-          category: selectedCategories.join(",") || undefined,
+          q:           query || undefined,
+          brand:       selectedBrands.join(",") || undefined,
+          design_type: selectedDesignTypes.join(",") || undefined,
+          audience:    selectedAudiences.join(",") || undefined,
+          category:    selectedCategories.join(",") || undefined,
           sort,
-          page:     initialPageParam,
-          per_page: PER_PAGE,
+          page:        initialPageParam,
+          per_page:    PER_PAGE,
         },
         controller.signal
       )
@@ -397,7 +414,7 @@ function SearchResultsContent() {
               setCurrentPage(result.meta.current_page);
               setLastPage(result.meta.last_page);
               setTotal(result.meta.total);
-              updateUrl(selectedBrands, selectedAudiences, selectedCategories, sort, result.meta.current_page);
+              updateUrl(selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories, sort, result.meta.current_page);
             })
             .catch((err) => {
               if (err?.name === "AbortError") return;
@@ -426,41 +443,50 @@ function SearchResultsContent() {
   const handleBrandToggle = useCallback(
     (brands: string[]) => {
       setSelectedBrands(brands);
-      resetAndReload(brands, selectedAudiences, selectedCategories, sort);
+      resetAndReload(brands, selectedDesignTypes, selectedAudiences, selectedCategories, sort);
     },
-    [selectedAudiences, selectedCategories, sort, resetAndReload]
+    [selectedDesignTypes, selectedAudiences, selectedCategories, sort, resetAndReload]
+  );
+
+  const handleDesignTypeToggle = useCallback(
+    (designTypes: string[]) => {
+      setSelectedDesignTypes(designTypes);
+      resetAndReload(selectedBrands, designTypes, selectedAudiences, selectedCategories, sort);
+    },
+    [selectedBrands, selectedAudiences, selectedCategories, sort, resetAndReload]
   );
 
   const handleAudienceToggle = useCallback(
     (audiences: string[]) => {
       setSelectedAudiences(audiences);
-      resetAndReload(selectedBrands, audiences, selectedCategories, sort);
+      resetAndReload(selectedBrands, selectedDesignTypes, audiences, selectedCategories, sort);
     },
-    [selectedBrands, selectedCategories, sort, resetAndReload]
+    [selectedBrands, selectedDesignTypes, selectedCategories, sort, resetAndReload]
   );
 
   const handleCategoryToggle = useCallback(
     (categories: string[]) => {
       setSelectedCategories(categories);
-      resetAndReload(selectedBrands, selectedAudiences, categories, sort);
+      resetAndReload(selectedBrands, selectedDesignTypes, selectedAudiences, categories, sort);
     },
-    [selectedBrands, selectedAudiences, sort, resetAndReload]
+    [selectedBrands, selectedDesignTypes, selectedAudiences, sort, resetAndReload]
   );
 
   const handleSortChange = useCallback(
     (newSort: SortValue) => {
       setSort(newSort);
       setIsSortOpen(false);
-      resetAndReload(selectedBrands, selectedAudiences, selectedCategories, newSort);
+      resetAndReload(selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories, newSort);
     },
-    [selectedBrands, selectedAudiences, selectedCategories, resetAndReload]
+    [selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories, resetAndReload]
   );
 
   const handleClearFilters = useCallback(() => {
     setSelectedBrands([]);
+    setSelectedDesignTypes([]);
     setSelectedAudiences([]);
     setSelectedCategories([]);
-    resetAndReload([], [], [], sort);
+    resetAndReload([], [], [], [], sort);
   }, [sort, resetAndReload]);
 
   const handleClearSearch = useCallback(() => {
@@ -479,7 +505,11 @@ function SearchResultsContent() {
   }, []);
 
   // ── Derived values ────────────────────────────────────────────────────────
-  const activeFilterCount = selectedBrands.length + selectedAudiences.length + selectedCategories.length;
+  const activeFilterCount =
+    selectedBrands.length +
+    selectedDesignTypes.length +
+    selectedAudiences.length +
+    selectedCategories.length;
   const hasActiveFilters  = activeFilterCount > 0;
   const hasMore           = currentPage < lastPage;
   const isEndOfResults    = currentPage >= lastPage && currentPage > 0 && products.length > 0;
@@ -622,9 +652,11 @@ function SearchResultsContent() {
               isOpen={isFilterOpen}
               onClose={() => setIsFilterOpen(false)}
               selectedBrands={selectedBrands}
+              selectedDesignTypes={selectedDesignTypes}
               selectedAudiences={selectedAudiences}
               selectedCategories={selectedCategories}
               onBrandsChange={handleBrandToggle}
+              onDesignTypesChange={handleDesignTypeToggle}
               onAudiencesChange={handleAudienceToggle}
               onCategoriesChange={handleCategoryToggle}
               onClearAll={handleClearFilters}

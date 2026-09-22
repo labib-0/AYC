@@ -40,7 +40,7 @@ export default function StockStatusBadge({
         title={`Low stock alert — below threshold of ${LOW_STOCK_THRESHOLD} units`}
       >
         <AlertTriangle size={iconSize} className="shrink-0" />
-        <span>Low Stock (&lt;{LOW_STOCK_THRESHOLD})</span>
+        <span>{`Low Stock (<${LOW_STOCK_THRESHOLD})`}</span>
       </span>
     );
   }

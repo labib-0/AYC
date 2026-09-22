@@ -26,6 +26,7 @@ export interface B2BProductInput {
   categoryName?: string;
   categories?: (number | string)[];
   audience: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX";
+  designType?: "ORIGINAL" | "MASTER COPY";
   productType?: string;
   collectionSeason?: string;
   shortDescription?: string;

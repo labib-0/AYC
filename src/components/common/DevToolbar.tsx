@@ -31,16 +31,30 @@ export default function DevToolbar() {
     }
   }, [user]);
 
-  const handleResetData = () => {
-    if (confirm("Reset all frontend demo data (products, categories, brands, orders, cart, wishlist) back to fresh defaults?")) {
-      mockStore.resetAllMockData();
-      refreshSession();
-      setResetSuccess(true);
-      setTimeout(() => {
-        setResetSuccess(false);
-        window.location.reload();
-      }, 800);
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+
+  useEffect(() => {
+    if (isConfirmingReset) {
+      const timer = setTimeout(() => {
+        setIsConfirmingReset(false);
+      }, 4000);
+      return () => clearTimeout(timer);
     }
+  }, [isConfirmingReset]);
+
+  const handleResetData = () => {
+    if (!isConfirmingReset) {
+      setIsConfirmingReset(true);
+      return;
+    }
+    mockStore.resetAllMockData();
+    refreshSession();
+    setResetSuccess(true);
+    setIsConfirmingReset(false);
+    setTimeout(() => {
+      setResetSuccess(false);
+      window.location.reload();
+    }, 800);
   };
 
   const handleSwitchUser = (role: "guest" | "customer" | "b2b_buyer" | "admin") => {
@@ -165,12 +179,21 @@ export default function DevToolbar() {
           <div className="pt-1 border-t border-slate-800 flex flex-col gap-1.5">
             <button
               onClick={handleResetData}
-              className="flex items-center justify-center gap-2 w-full bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 font-medium py-2 rounded-xl transition-all cursor-pointer"
+              className={`flex items-center justify-center gap-2 w-full font-medium py-2 rounded-xl transition-all cursor-pointer ${
+                isConfirmingReset
+                  ? "bg-amber-600/30 hover:bg-amber-600/40 text-amber-200 border border-amber-500/50 animate-pulse"
+                  : "bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40"
+              }`}
             >
               {resetSuccess ? (
                 <>
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Data Restored! Reloading...</span>
+                </>
+              ) : isConfirmingReset ? (
+                <>
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Confirm Reset? (Click again)</span>
                 </>
               ) : (
                 <>
@@ -180,7 +203,7 @@ export default function DevToolbar() {
               )}
             </button>
             <div className="text-[10px] text-slate-500 text-center">
-              Restores products, brands, categories &amp; orders.
+              {isConfirmingReset ? "Click button again to wipe mutations & restore fresh demo data." : "Restores products, brands, categories & orders."}
             </div>
           </div>
         </div>

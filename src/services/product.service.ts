@@ -16,6 +16,8 @@ export interface ProductQueryParams {
   category?: string;
   brand?: string;
   audience?: string;
+  design_type?: string;
+  designType?: string;
   price_min?: number;
   price_max?: number;
   color?: string;
@@ -87,6 +89,10 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     else if (rawCat.includes("boys")) audienceVal = "BOYS";
     else if (rawCat.includes("girls")) audienceVal = "GIRLS";
   }
+
+  const rawDt = (p.designType || p.design_type || "").toString().toUpperCase();
+  const designTypeVal: "ORIGINAL" | "MASTER COPY" =
+    rawDt === "MASTER COPY" || rawDt === "REPLICA" || rawDt === "MC" ? "MASTER COPY" : "ORIGINAL";
 
   const categoryInfo = inferProductCategory(p);
 
@@ -201,6 +207,7 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     categoryId: categoryInfo.id,
     categoryName: categoryInfo.name,
     audience: audienceVal,
+    designType: designTypeVal,
     productType: p.productType || p.product_type || "Ready-Made Garments",
     collectionSeason: p.collectionSeason || p.collection_season || "2026 Core Collection",
     shortDescription: p.shortDescription || p.short_description || `Premium quality ${p.name} direct from Dhaka export facilities.`,
@@ -262,6 +269,7 @@ export function toStorefrontProduct(p: B2BProductInput): Product {
     categoryId: p.categoryId || "c_sweaters",
     categoryName: p.categoryName,
     audience: p.audience,
+    designType: p.designType || "ORIGINAL",
     images: p.images,
     isNew: p.isNew,
     isHot: p.isHot,
@@ -622,6 +630,21 @@ export class ProductService {
           const pCatId = (p.categoryId || "").toUpperCase();
           const match = audiences.some((a) => pAud === a || pCatId.includes(a));
           if (!match) return false;
+        }
+      }
+      const dtOption = options?.design_type || options?.designType;
+      if (dtOption && dtOption !== "all") {
+        const designTypes = dtOption.split(",").map((d) => {
+          const upper = d.trim().toUpperCase();
+          if (upper === "REPLICA" || upper === "MASTER_COPY" || upper === "MASTER COPY" || upper === "MC") {
+            return "MASTER COPY";
+          }
+          return upper;
+        }).filter(Boolean);
+        if (designTypes.length > 0) {
+          const rawPDt = (p.designType || "ORIGINAL").toUpperCase();
+          const pDt = (rawPDt === "REPLICA" || rawPDt === "MC") ? "MASTER COPY" : rawPDt;
+          if (!designTypes.includes(pDt)) return false;
         }
       }
       if (options?.category && options.category !== "all") {

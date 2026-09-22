@@ -7,6 +7,7 @@ export interface TopBannerConfig {
   eyebrow?: string;
   title: string;
   subtitle?: string;
+  buttonText?: string;
   target: string;
   active: boolean;
 }
@@ -22,6 +23,7 @@ export const DEFAULT_TOP_BANNER: TopBannerConfig = {
   eyebrow: "AYAAN CLOTHING",
   title: "YOUR WHOLESALE APPAREL SOURCING PARTNER",
   subtitle: "Quality apparel for retailers, boutiques and bulk buyers, with dependable sourcing and export-ready support.",
+  buttonText: "EXPLORE CATALOG →",
   target: "#featured",
   active: true,
 };
@@ -32,31 +34,43 @@ export const DEFAULT_TOP_BANNER: TopBannerConfig = {
  * while gracefully falling back to DEFAULT_TOP_BANNER.
  */
 export function getTopBannerConfig(): TopBannerConfig {
-  if (typeof window !== "undefined") {
-    try {
-      const promotions = mockStore.getPromotions();
-      const activePromo = promotions.find(
-        (p) =>
-          (p.type === "top_banner" || p.type === "hero_banner") &&
-          p.is_active &&
-          Boolean(p.image_url)
-      );
+  try {
+    const promotions = mockStore.getPromotions();
+    const bannerPromo = promotions.find(
+      (p) => p.type === "top_banner" || p.type === "hero_banner"
+    );
 
-      if (activePromo && activePromo.image_url && !activePromo.image_url.includes("ayaan-top-banner")) {
+    if (bannerPromo) {
+      if (!bannerPromo.is_active) {
         return {
-          id: activePromo.id,
-          imageUrl: activePromo.image_url,
-          altText: activePromo.title || DEFAULT_TOP_BANNER.altText,
+          id: bannerPromo.id,
+          imageUrl: bannerPromo.image_url || DEFAULT_TOP_BANNER.imageUrl,
+          altText: bannerPromo.title || DEFAULT_TOP_BANNER.altText,
           eyebrow: DEFAULT_TOP_BANNER.eyebrow,
-          title: activePromo.title || DEFAULT_TOP_BANNER.title,
-          subtitle: activePromo.subtitle || DEFAULT_TOP_BANNER.subtitle,
-          target: activePromo.button_target || DEFAULT_TOP_BANNER.target,
-          active: activePromo.is_active,
+          title: bannerPromo.title || DEFAULT_TOP_BANNER.title,
+          subtitle: bannerPromo.subtitle !== undefined ? bannerPromo.subtitle : DEFAULT_TOP_BANNER.subtitle,
+          buttonText: bannerPromo.button_text || DEFAULT_TOP_BANNER.buttonText,
+          target: bannerPromo.button_target || DEFAULT_TOP_BANNER.target,
+          active: false,
         };
       }
-    } catch {
-      // Fallback gracefully if mockStore is not ready
+
+      if (bannerPromo.image_url) {
+        return {
+          id: bannerPromo.id,
+          imageUrl: bannerPromo.image_url,
+          altText: bannerPromo.title || DEFAULT_TOP_BANNER.altText,
+          eyebrow: DEFAULT_TOP_BANNER.eyebrow,
+          title: bannerPromo.title || DEFAULT_TOP_BANNER.title,
+          subtitle: bannerPromo.subtitle !== undefined ? bannerPromo.subtitle : DEFAULT_TOP_BANNER.subtitle,
+          buttonText: bannerPromo.button_text || DEFAULT_TOP_BANNER.buttonText,
+          target: bannerPromo.button_target || DEFAULT_TOP_BANNER.target,
+          active: true,
+        };
+      }
     }
+  } catch {
+    // Fallback gracefully if mockStore is not ready
   }
 
   return DEFAULT_TOP_BANNER;

@@ -33,8 +33,8 @@ export default function AdminRfqPage() {
     try {
       const data = await getAllRfqs();
       setRfqs(data);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load RFQs.");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Failed to load RFQs.");
     } finally {
       setLoading(false);
     }

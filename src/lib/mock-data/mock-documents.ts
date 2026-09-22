@@ -64,7 +64,10 @@ export function generateMockDocument(order: OrderRecord, docType: string, isAdmi
         };
       });
 
-      const topGallery = orderSheetItems.flatMap((it) => it.product_images || []).filter(Boolean);
+      const primaryItem = orderSheetItems[0];
+      const topGallery = primaryItem?.product_images && primaryItem.product_images.length > 0
+        ? primaryItem.product_images
+        : (primaryItem?.product_image_url ? [primaryItem.product_image_url] : []);
 
       // Offer Sheet NEVER contains shipping information — shipping is always negotiated separately
       return {

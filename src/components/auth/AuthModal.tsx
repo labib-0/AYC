@@ -414,27 +414,33 @@ export default function AuthModal({
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                     By clicking Get Started, you agree to AYAAN CLOTHING&apos;s{" "}
-                    <a
-                      href="#privacy"
+                    <button
+                      type="button"
                       onClick={(e) => {
                         e.preventDefault();
-                        alert("AYAAN CLOTHING Privacy Policy: We respect your data and never sell personal information.");
+                        setStatusMessage({
+                          type: "info",
+                          text: "AYAAN CLOTHING Terms: Wholesale B2B orders are governed by standard international export terms and AQL 2.5 quality standards.",
+                        });
                       }}
-                      className="text-amber-600 dark:text-amber-400 underline underline-offset-2 hover:text-amber-700"
+                      className="text-amber-600 dark:text-amber-400 underline underline-offset-2 hover:text-amber-700 cursor-pointer"
                     >
                       Terms of Service
-                    </a>{" "}
+                    </button>{" "}
                     and{" "}
-                    <a
-                      href="#privacy"
+                    <button
+                      type="button"
                       onClick={(e) => {
                         e.preventDefault();
-                        alert("AYAAN CLOTHING Privacy Policy: We respect your data and never sell personal information.");
+                        setStatusMessage({
+                          type: "info",
+                          text: "AYAAN CLOTHING Privacy Policy: We respect your data and never sell personal information.",
+                        });
                       }}
-                      className="text-amber-600 dark:text-amber-400 underline underline-offset-2 hover:text-amber-700"
+                      className="text-amber-600 dark:text-amber-400 underline underline-offset-2 hover:text-amber-700 cursor-pointer"
                     >
                       Privacy Policy
-                    </a>
+                    </button>
                     .
                   </p>
                 </div>

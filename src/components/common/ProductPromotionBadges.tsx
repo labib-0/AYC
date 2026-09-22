@@ -2,6 +2,7 @@
 
 import React from "react";
 import { getNormalizedPromotion } from "@/lib/product-promotions";
+import ProductBadge from "@/components/common/ProductBadge";
 
 export interface ProductPromotionBadgesProps {
   product?: any;
@@ -39,20 +40,22 @@ export default function ProductPromotionBadges({
         className={`absolute top-3.5 left-3.5 sm:top-4 sm:left-4 flex flex-col gap-1.5 z-10 pointer-events-none select-none ${className}`}
       >
         {isNew && (
-          <span
+          <ProductBadge
+            variant="neutral"
             aria-label="New product"
-            className="text-[0.625rem] sm:text-[0.6875rem] font-sans font-bold uppercase py-0.5 px-2 sm:px-2.5 bg-background/90 text-primary tracking-[0.08em] backdrop-blur-sm rounded-md shadow-xs border border-border/40 leading-normal inline-block w-fit"
+            className="text-[10px] sm:text-[10.5px] px-2 py-0.5 sm:px-2.5 w-fit"
           >
             NEW
-          </span>
+          </ProductBadge>
         )}
         {isHot && (
-          <span
+          <ProductBadge
+            variant="hot"
             aria-label="Hot product"
-            className="text-[0.625rem] sm:text-[0.6875rem] font-sans font-bold uppercase py-0.5 px-2 sm:px-2.5 bg-rose-500/90 text-white tracking-[0.08em] backdrop-blur-sm rounded-md shadow-xs leading-normal inline-block w-fit"
+            className="text-[10px] sm:text-[10.5px] px-2 py-0.5 sm:px-2.5 w-fit"
           >
             HOT
-          </span>
+          </ProductBadge>
         )}
       </div>
     );
@@ -66,20 +69,22 @@ export default function ProductPromotionBadges({
         className={`absolute top-3 left-3 flex flex-col gap-1.5 z-10 pointer-events-none select-none ${className}`}
       >
         {isNew && (
-          <span
+          <ProductBadge
+            variant="neutral"
             aria-label="New product"
-            className="text-[0.625rem] font-sans font-bold uppercase py-0.5 px-2 bg-background/90 text-primary tracking-[0.08em] backdrop-blur-sm rounded-md shadow-xs border border-border/40 leading-normal inline-block w-fit"
+            className="text-[9.5px] sm:text-[10px] px-2 py-0.5 w-fit"
           >
             NEW
-          </span>
+          </ProductBadge>
         )}
         {isHot && (
-          <span
+          <ProductBadge
+            variant="hot"
             aria-label="Hot product"
-            className="text-[0.625rem] font-sans font-bold uppercase py-0.5 px-2 bg-rose-500/90 text-white tracking-[0.08em] backdrop-blur-sm rounded-md shadow-xs leading-normal inline-block w-fit"
+            className="text-[9.5px] sm:text-[10px] px-2 py-0.5 w-fit"
           >
             HOT
-          </span>
+          </ProductBadge>
         )}
       </div>
     );
@@ -93,24 +98,27 @@ export default function ProductPromotionBadges({
       className={`absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10 pointer-events-none select-none ${className}`}
     >
       {isNew && (
-        <span
+        <ProductBadge
+          variant="neutral"
           aria-label="New product"
-          className="text-[0.5625rem] sm:text-[0.625rem] font-sans font-bold uppercase py-0.5 px-2 bg-background/90 text-primary tracking-[0.08em] backdrop-blur-sm rounded-md shadow-xs border border-border/40 leading-normal inline-block w-fit"
+          className="w-fit"
         >
           NEW
-        </span>
+        </ProductBadge>
       )}
       {isHot && (
-        <span
+        <ProductBadge
+          variant="hot"
           aria-label="Hot product"
-          className="text-[0.5625rem] sm:text-[0.625rem] font-sans font-bold uppercase py-0.5 px-2 bg-rose-500/90 text-white tracking-[0.08em] backdrop-blur-sm rounded-md shadow-xs leading-normal inline-block w-fit"
+          className="w-fit"
         >
           HOT
-        </span>
+        </ProductBadge>
       )}
     </div>
   );
 }
 
 export { ProductPromotionBadges as PromotionBadges };
+
 

@@ -49,8 +49,8 @@ export default function AdminCustomerDetailPage({
     try {
       const data = await adminCustomerService.getCustomerById(id);
       setCustomer(data);
-    } catch (err: any) {
-      setError(err?.message || "The requested customer account could not be found.");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "The requested customer account could not be found.");
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -87,8 +87,8 @@ export default function AdminCustomerDetailPage({
 
       addToast("success", "Customer information updated successfully.");
       await loadCustomer(true);
-    } catch (err: any) {
-      addToast("error", err?.message || "Unable to update customer information.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Unable to update customer information.");
     } finally {
       setActionLoading(false);
     }
@@ -104,8 +104,8 @@ export default function AdminCustomerDetailPage({
       setIsRoleDialogOpen(false);
       addToast("success", `Customer role updated successfully to ${newRole.toUpperCase()}.`);
       await loadCustomer(true);
-    } catch (err: any) {
-      addToast("error", err?.message || "Unable to change customer role.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Unable to change customer role.");
     } finally {
       setActionLoading(false);
     }

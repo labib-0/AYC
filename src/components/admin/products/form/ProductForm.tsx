@@ -53,9 +53,9 @@ export default function ProductForm({
   const [audience, setAudience] = useState<"MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX">(
     initialData?.audience || "MEN"
   );
-  const [designType, setDesignType] = useState<"ORIGINAL" | "REPLICA">(() => {
-    const raw = (initialData?.productType || "").toUpperCase();
-    return raw === "REPLICA" ? "REPLICA" : "ORIGINAL";
+  const [designType, setDesignType] = useState<"ORIGINAL" | "MASTER COPY">(() => {
+    const raw = (initialData?.designType || initialData?.productType || "").toUpperCase();
+    return raw === "MASTER COPY" || raw === "REPLICA" || raw === "MC" ? "MASTER COPY" : "ORIGINAL";
   });
   const [material, setMaterial] = useState(initialData?.material || "");
   const [description, setDescription] = useState(initialData?.description || "");
@@ -305,6 +305,7 @@ export default function ProductForm({
         categoryId: categoryId,
         categoryName: activeCat?.name || categoryName || "Apparel",
         audience: audience,
+        designType: designType,
         productType: designType,
         description: description.trim(),
         shortDescription: seoDescription.trim() || description.slice(0, 160).trim(),

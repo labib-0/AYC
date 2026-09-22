@@ -262,15 +262,17 @@ Replaced monolithic `ProductForm.tsx` (2127 lines) with modular, focused compone
 - `AudienceReference.tsx`: Compact read-only informational card displaying the 5 fixed audiences (`MEN`, `WOMEN`, `BOYS`, `GIRLS`, `UNISEX`) with clear explanation that Audience is a fixed product attribute and not managed as a product category. Contains strictly zero CRUD buttons or forms.
 - `CategoryToolbar.tsx`: Search input matching category name and slug, status filter (`All`, `Active`, `Inactive`) with counts, and refresh button with spin state.
 - `CategoryImageUploader.tsx`: Drag & drop zone + file picker with format validation (SVG, PNG, JPG, WebP) and size limits (5MB). Preserves native aspect ratio with `object-cover` without destructive cropping. Supports live preview, replace, and remove actions.
-- `CategoryForm.tsx`: Unified form for create and edit. Supports category name (required, trimmed, validation), slug (auto-generated from name with manual override preservation), image uploader, optional description, sort order (numeric validation), and active status toggle.
+- `CategoryBasicInfoSection.tsx`: Modular basic information form section managing category name (required, trimmed, max 100 chars, inline error) and slug (auto-generated with manual override preservation).
+- `CategoryAdvancedSection.tsx`: Modular advanced information section managing description (optional), sort order (numeric validation), and active status checkbox/toggle.
+- `CategoryForm.tsx`: Unified form coordinator composing `CategoryBasicInfoSection`, `CategoryImageUploader`, and `CategoryAdvancedSection` with complete state sanitization and clean reset between create and edit modes.
 - `CategoryModal.tsx`: Accessible dialog shell (`role="dialog"`, ESC key, backdrop close, focus trap) wrapping `CategoryForm` with clean state reset on close.
-- `CategoryRow.tsx`: Desktop table row with real category image (aspect ratio preserved, neutral Layers fallback — never fake initials), category name, description snippet, slug, actual product count badge, sort order, active status badge, and compact accessible actions (Edit, Activate/Deactivate, Delete). Includes responsive mobile card layout with zero page-level overflow.
+- `CategoryRow.tsx`: Desktop table row with real category image (aspect ratio preserved, neutral Layers fallback — never fake initials), category name, description snippet, slug, authoritative numeric product count badge (`12` or `0` with accessible label), sort order, active status badge, and compact accessible actions (Edit, Activate/Deactivate, Delete). Includes responsive mobile card layout with zero page-level overflow.
 - `CategoryTable.tsx`: Full table structure with column headers (Image, Category, Slug, Products, Sort Order, Status, Actions), loading skeletons, and empty state delegation.
 - `CategoryDeleteDialog.tsx`: Safe delete confirmation dialog (no native `confirm`). If associated products exist (`products_count > 0`), deletion is strictly BLOCKED with an explanatory warning directing the administrator to reassign products first. If 0 products, provides confirmation with loading state.
 - `CategoryStatusDialog.tsx`: Custom dialog for activating or deactivating categories with clear consequence messaging.
-- `CategoryEmptyState.tsx`: Distinct visual presentations for empty catalog ("No product categories yet" + "+ Add Category") vs filter/search empty ("No categories match your current search or filter." + "Clear Filters").
+- `CategoryEmptyState.tsx`: Distinct visual presentations for empty catalog ("No product categories yet" + "Add a category to start organizing your catalog." + "+ Add Category") vs filter/search empty ("No categories match your current search or filter." + "Clear Filters").
 - `CategoryPagination.tsx`: 20 categories per page, "Showing X–Y of Z categories", page numbers with ellipsis, previous/next controls, and automatic page index correction on record deletion.
-- `src/app/admin/categories/page.tsx`: Page orchestration connecting all components, error state with Retry, loading skeleton, and toast feedback notifications.
+- `src/app/admin/categories/page.tsx`: Page orchestration connecting all components, error state with Retry, loading skeleton, modal state clearing on close, and toast feedback notifications.
 
 **Data & Service Layer:**
 - `CategoryService.getCategories()` dynamically calculates accurate `products_count` from `mockStore.getProducts()` by matching `categoryId` or `categoryName` in mock mode, while passing through API counts in live mode.
@@ -282,6 +284,7 @@ Replaced monolithic `ProductForm.tsx` (2127 lines) with modular, focused compone
 - Flat taxonomy strictly maintained: no subcategories or hierarchy trees introduced, preserving the current database and API models.
 - Audience (`MEN`, `WOMEN`, `BOYS`, `GIRLS`, `UNISEX`) is completely separated from Product Category.
 - Deletion safety is enforced on the frontend by blocking deletion when associated products exist, avoiding orphan catalog references.
+- Static verification only: live browser testing was not performed; validated entirely through TypeScript checking, ESLint, import analysis, and code inspection.
 
 **Completion Checklist:**
 - [x] Category list loads from mockStore
@@ -438,31 +441,45 @@ Replaced monolithic `ProductForm.tsx` (2127 lines) with modular, focused compone
 
 ---
 
-## PHASE 8 — HOMEPAGE / BANNER MANAGEMENT
+## PHASE 8 — HOMEPAGE / BANNER MANAGEMENT (COMPLETED)
 
-**Goal:** A dedicated, first-class admin page to manage the homepage banner.
+**Goal:** Dedicated, first-class admin page to manage the primary homepage banner.
 
-**Dependencies:** Phase 1, `adminPromotionService`, storage upload service
+**Status:** ✅ COMPLETED (2026-09-22)
 
-**Required UI:**
-- Page title: "Homepage & Banner Management"
-- Current active banner preview (image + title + subtitle + target URL)
-- Edit banner form: image upload (drag/drop), title, subtitle, target URL, active toggle
-- Save button
-- "Preview on Storefront" link
+**Dependencies:** Phase 1, `adminPromotionService`, `mockStore`, `src/config/banner.ts`, `uploadBannerImage` in `storage.ts`
 
-**Background:** `src/config/banner.ts` already reads `mockStore.getPromotions()` to override the banner. The new page just needs a clean UI for this specific promotion type (`hero_banner`/`top_banner`).
+**Implemented UI & Components (`src/components/admin/homepage/`):**
+- `HomepageBannerHeader.tsx`: Title "Homepage & Banner", description, "Unsaved Changes" indicator badge, "Preview on Storefront ↗" link, "Reset" button (active only when dirty), and "Save Changes" primary action with loading spinner.
+- `HomepageBannerPreview.tsx`: Proportional live preview matching the storefront thin horizontal banner (~1375×158 px, ~8.7:1), real-time typography overlays (eyebrow, title, subtitle, CTA text), target anchor badge, and active/hidden status indicator.
+- `BannerImageUploader.tsx`: Drag-and-drop & file picker, file type verification (PNG, JPG, JPEG, WebP, max 10MB), non-destructive aspect ratio detection and warning if ratio < 2.5, image replacement, inline confirmation for image removal, and collapsible "Advanced: Direct Image URL" fallback input.
+- `BannerContentForm.tsx`: Controlled inputs for Title (required when active, max 120 chars), Subtitle (max 250 chars), Button Text (max 50 chars), and Target Destination with quick suggestion chips (`#featured`, `/products`, `/categories`, `/brands`, `/rfq`).
+- `BannerStatusControl.tsx`: Accessible toggle switch for `is_active` status with emerald/amber visual indicators and descriptive operational explanations.
+- `BannerRecordSelector.tsx`: Multi-record campaign manager if multiple `hero_banner` or `top_banner` promotions exist, highlighting active status and resolution priority.
+- `BannerEmptyState.tsx`: Structured zero-state card with "Configure Banner" action.
+- `src/app/admin/homepage/page.tsx`: Orchestrator page handling draft state, dirty checking, form validation, saving through `adminPromotionService`, and toast notifications.
+- `src/proxy.ts` and `src/app/admin/layout.tsx`: Seamless routing for `/homepage` and `/admin/homepage`, with `PanelTop` icon in admin sidebar.
 
-**Required Backend/API:** Reads/writes via `adminPromotionService` (type = `hero_banner`)
-
-**Priority:** MEDIUM
+**Data & Service Architecture:**
+- Reads and updates existing promotional records (`type === "hero_banner" || type === "top_banner"`) via `adminPromotionService.getPromotions()` / `updatePromotion()`.
+- Single source of truth: writes to `mockStore.savePromotion()` which updates `STORAGE_KEYS.PROMOTIONS` and dispatches `ayaan:data-updated`.
+- Storefront configuration (`src/config/banner.ts`) dynamically resolves the updated banner and dynamically respects `is_active` state to hide or display the banner cleanly.
+- Storage pipeline (`src/lib/services/storage.ts`): `uploadBannerImage` supports persistent base64 Data URLs for client demo / mock mode and standard `/upload` REST API for live mode.
 
 **Completion Checklist:**
-- [ ] Current banner displayed
-- [ ] Image upload works
-- [ ] Save updates storefront banner
-- [ ] Preview link to storefront homepage
-- [ ] Loading, empty, error states
+- [x] Dedicated Homepage & Banner page at `/admin/homepage` (accessible as `/homepage` on admin subdomain)
+- [x] Navigation item added to Admin layout sidebar (`PanelTop` icon)
+- [x] Live real-time preview reflecting form state and storefront proportions (~1375×158 px)
+- [x] Drag & drop image uploader with format validation and aspect ratio warning
+- [x] Safe image replacement and confirmed image removal
+- [x] Title, subtitle, CTA button text, and button target editing with suggestion chips
+- [x] Active / Inactive visibility toggle (`is_active`)
+- [x] Multi-record campaign selector with conflict surfacing
+- [x] Storefront synchronization verified via `src/config/banner.ts`
+- [x] Loading skeleton, error state with retry, and empty state
+- [x] Clean zero errors and zero warnings on `tsc --noEmit` and `eslint`
+- [x] 18/18 headless static and data assertions passing
+- [x] Zero live browser testing performed (strictly static/code-level validation)
 
 ---
 
@@ -572,30 +589,48 @@ Replaced monolithic `ProductForm.tsx` (2127 lines) with modular, focused compone
 
 ---
 
-## PHASE 11 — PROMOTIONS & COUPONS
+## PHASE 11 — PROMOTIONS & COUPONS (Status: Completed)
 
-**Goal:** Clean promotions management. Add image upload to promotions form.
+**Goal:** Clean promotions and coupons management module. Replace text-only image URL with drag-and-drop file upload, live preview, replacement, and safe banner handling.
 
-**Dependencies:** Phase 1, Phase 8 (banner), `adminPromotionService`, storage upload service
+**Dependencies:** Phase 1, Phase 8 (banner integration), `adminPromotionService`, storage upload service
 
-**Required UI:**
-- Dual-tab: Promotions | Coupons
-- Promotions tab: list with type/status, create/edit modal with image UPLOAD (drag/drop, not text URL)
-- Coupons tab: list with code/discount/usage, create/edit modal
-- Delete with confirmation modal
-- Loading, empty, error states
+**Implemented UI & Components (`src/components/admin/promotions/`):**
+- `PromotionHeader.tsx`: Clean header with title, operational subtitle, live refresh button, and dynamic Add button (`+ Add Promotion` / `+ Add Coupon`) depending on active tab.
+- `PromotionTabs.tsx`: Dual-tab switcher (PROMOTIONS | COUPONS) with badge counts for each entity.
+- `promotions/`:
+  - `PromotionToolbar.tsx`: Search input (title/subtitle), Status filter (All, Active, Inactive), Type filter (All, hero_banner, top_banner, sidebar_banner, sale_event), active filter indicator, Clear Filters button.
+  - `PromotionTable.tsx`: Operational data table with responsive layout, skeleton loading, filter-empty state, zero-data empty state, and mobile card view.
+  - `PromotionRow.tsx`: Compact row with 16:9 thumbnail preview, title, subtitle, homepage banner badge indicator, friendly type badge, discount percentage, active/inactive toggle switch, sort order, and Edit/Delete actions.
+  - `PromotionModal.tsx`: Reusable Add/Edit modal featuring drag-and-drop image uploader (`PromotionImageUploader`), instant preview with replace/remove controls, advanced direct URL fallback, inline form validations, button target/text fields, and banner alert note.
+  - `PromotionDeleteDialog.tsx`: Custom modal delete confirmation with active homepage banner conflict warning (warns admin if deleting an active `top_banner` or `hero_banner` used on storefront).
+  - `PromotionPagination.tsx`: Clean 20 items/page pagination with page count and next/previous controls.
+- `coupons/`:
+  - `CouponToolbar.tsx`: Search input (coupon code), Status filter (All, Active, Inactive), Type filter (All, Percentage, Fixed Amount), Clear Filters button.
+  - `CouponTable.tsx`: Operational data table with responsive layout, skeleton loading, filter-empty state, zero-data empty state, and mobile card view.
+  - `CouponRow.tsx`: Compact row with monospace coupon code, type badge, discount value ($ or %), minimum spend (USD), real usage count/limit (`X / Y` or `X / unlimited`), formatted expiration date, active/inactive toggle switch, and Edit/Delete actions.
+  - `CouponModal.tsx`: Reusable Add/Edit modal with automatic uppercase code formatting, discount type selector (percentage / fixed), value validation, optional minimum spend, optional usage limit, expiration date picker, and active status toggle.
+  - `CouponDeleteDialog.tsx`: Custom modal delete confirmation with usage history protection warning.
+  - `CouponPagination.tsx`: Clean 20 items/page pagination.
+- `src/app/admin/promotions/page.tsx`: Replaced monolithic 714-line file with a clean orchestrator page managing tab switching, data fetching, search/filtering, pagination, modals, and toasts.
 
-**Required Backend/API:** `GET/POST/PUT/DELETE /admin/promotions`, `/admin/coupons`
-
-**Priority:** MEDIUM
+**Data & Service Architecture:**
+- `AdminPromotionService`: Fully preserved with backward compatibility for live API (`/admin/promotions`, `/admin/coupons`) and enhanced mockStore filtering for `status` and `type`.
+- `mockStore`: Preserves `STORAGE_KEYS.PROMOTIONS` and `STORAGE_KEYS.COUPONS` as single source of truth.
+- `Phase 8 Banner Integration`: Preserves shared underlying promotion record schema between `banner.ts` and `mockStore`. Active homepage banner is safely indicated in UI with warnings before deletion.
+- `Storage Upload Service`: Added `uploadPromotionImage` in `src/lib/services/storage.ts` supporting drag-and-drop file upload to persistent base64 data URLs for mock mode and `/upload` endpoint for live mode.
+- Coupon usage tracking accurately reflects stored usage counts without fabricating synthetic analytics.
 
 **Completion Checklist:**
-- [ ] Promotions list loads
-- [ ] Create/edit with image upload
-- [ ] Coupon list loads
-- [ ] Create/edit coupon works
-- [ ] Delete confirmation modal
-- [ ] Loading, empty, error states
+- [x] Promotions list loads via service
+- [x] Create/edit with drag-and-drop image upload, live preview, replace, and remove
+- [x] Coupon list loads via service
+- [x] Create/edit coupon works with uppercase code and validations
+- [x] Custom delete confirmation modals with homepage banner conflict warning
+- [x] Loading skeleton, empty, filtered-empty, and error states with retry
+- [x] Zero native alert(), confirm(), or prompt() dialogs
+- [x] Responsive layout on desktop, tablet, and mobile with no page-level horizontal overflow
+- [x] Zero browser testing performed (code-level & static test validation only)
 
 ---
 
@@ -627,32 +662,110 @@ When backend is connected: migrate to Next.js middleware with JWT cookie check.
 
 ---
 
-## PHASE 13 — COMMERCIAL DOCUMENT VIEWER (Cleanup)
+## PHASE 13 — COMMERCIAL DOCUMENT VIEWER (Status: Completed)
 
-**Goal:** Keep document viewer but refactor from 828-line monolith and add sidebar link.
+**Goal:** Clean up the commercial document viewer, refactor from the 815-line monolith into focused rendering components, add a dedicated Documents Hub, and add Documents to the Admin sidebar.
 
-**Dependencies:** Phase 1, Phase 10 (quotation system), `src/lib/pdf-generator.ts`
+**Dependencies:** Phase 1, Phase 10 (quotation system), `src/lib/pdf-generator.ts`, `src/lib/services/quotations.ts`
 
-**Required:**
-- Add "Documents" link to admin sidebar
-- Break 828-line page into render sections
-- Ensure print and PDF download work
+**Implemented UI & Components (`src/components/admin/documents/` & `src/app/admin/documents/`):**
+- `src/app/admin/documents/page.tsx`: Lightweight, functional Commercial Documents Hub:
+  - Header with operational description and live refresh button
+  - KPI summary metrics: Total Documents, Proforma Invoices (PI), Offer Sheets, Invoices (CI), Packing Lists (PL)
+  - Search input: Filter by doc number, order ref, company name, or buyer
+  - Filter Tabs: All, Proforma Invoices, Offer Sheets, Invoices, Packing Lists, Quotes
+  - Table of all commercial documents derived from existing orders and quotations with date, amount (USD), status, and "View" action
+  - Clean pagination (20 items/page) and empty/filtered-empty states
+- `src/components/admin/documents/`:
+  - `DocumentViewer.tsx`: Orchestrates loading, error state, and dispatches to the dedicated document type renderer. Wraps document in an A4 container with safe horizontal overflow handling on mobile.
+  - `DocumentToolbar.tsx`: Action bar with Back button, draft preview gated badge, Download PDF button (invokes `downloadCommercialDocumentPDF`), and Print button (`window.print()`). Hidden automatically on print (`print:hidden`).
+  - `DocumentHeader.tsx`: Exporter header with `BrandName`, tagline, `BUSINESS_PROFILE` address, and document meta (Title, Doc Number, Issue Date, Order Ref, Valid Until).
+  - `DocumentSignatory.tsx`: Clean authorized signatory section with designation and official seal / line.
+  - `PackingListDocument.tsx`: Commercial Packing List layout with Shipper/Consignee/Routing grid, Physical Packing Details Schedule Table (cartons/items with pcs/ctn, dimensions, gross weight, net weight, CBM), Total Summary row, Declaration of Export Packing, and signatory.
+  - `CommercialInvoiceDocument.tsx`: Commercial Invoice layout with Exporter/Buyer/Delivery terms, Goods Table with Marks & Nos, HS Code, SKU, Quantity, Unit Price, Amount, Financial Summary with "Total Amount Say in Words", Packaging & Freight Summary, Bank Details, and Signatory.
+  - `ProformaInvoiceDocument.tsx`: Proforma Invoice layout with Consignee & Physical Shipment/Logistics snapshot, Goods Table with SKU, product thumbnail, matrix breakdown, Commercial Terms & Notes, Financial Summary box, exact Pubali Bank Limited details via `BeneficiaryBankDetails`, and Signatory.
+  - `OfferSheetDocument.tsx`: Commercial Offer Sheet layout with `CommercialProductGallery` at the top (1 large featured image + thumbnail strip underneath), Consignee & Offer Terms with strictly zero shipping info, Items Table with thumbnails, descriptions, matrix breakdown, FOB Dhaka terms note, Offer Value (USD) box, and Signatory.
+  - `QuotationDocument.tsx`: Commercial Quotation layout for RFQ-derived quotes and delivery chalans.
+  - `index.ts`: Barrel export of all document components.
+- `src/app/admin/documents/[type]/[id]/page.tsx`: Refactored the previous 815-line monolith into a concise, maintainable 80-line controller delegating directly to `DocumentViewer`.
+- `src/app/admin/layout.tsx`: Added `{ label: "Commercial Documents", href: "/admin/documents", adminOriginHref: "/documents", icon: Files }` to `NAV_ITEMS`.
 
-**Priority:** LOW (functional already, mostly cleanup)
+**Data & Service Architecture:**
+- Preserved `getCommercialDocument` in `src/lib/services/quotations.ts` for orders, quotations, and product offer sheets.
+- Preserved single source of truth in `mockStore` (`getOrders`, `getQuotations`, `getProducts`).
+- Preserved exact Pubali Bank Limited details in `BUSINESS_PROFILE.banking` and `BeneficiaryBankDetails`:
+  - Bank Name: Pubali Bank Limited
+  - Account Title: M/S AYAAN  CLOTHING
+  - Account No: 1788-901-044316
+  - SWIFT CODE: PUBABDDH210
+  - Bank Address: Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh
+  - Routing number: strictly omitted / null.
+- Preserved Offer Sheet product gallery with 1 large primary image and smaller thumbnails underneath.
+- Preserved strictly zero shipping charges on Offer Sheets.
+- Preserved historical quotation/order prices and totals.
+- Preserved PDF download integration with `src/lib/pdf-generator.ts`.
+
+**Completion Checklist:**
+- [x] "Commercial Documents" added to Admin sidebar (`NAV_ITEMS`)
+- [x] Commercial Documents Hub created at `/admin/documents`
+- [x] 815-line monolithic document viewer refactored into modular components
+- [x] Packing List, Commercial Invoice, Proforma Invoice, Offer Sheet, and Quotation renderers
+- [x] Exact Pubali Bank Limited details verified (no routing number)
+- [x] Offer Sheet product gallery verified
+- [x] Print styling verified (`print:hidden`, `print:p-0`)
+- [x] PDF download functionality verified
+- [x] TypeScript validation passed (0 errors)
+- [x] ESLint validation passed (0 errors)
+- [x] Headless verification script passed (all 7 suites)
+- [x] Live browser testing NOT performed (static validation only)
 
 ---
 
-## PHASE 14 — SETTINGS (Future)
+## PHASE 14 — SETTINGS & USER MANAGEMENT
 
-**Goal:** Admin settings page for business configuration.
+**Goal:** Dedicated Admin Settings area and basic Admin User Management.
 
-**Possible sections:**
-- Business profile (name, address, contact — reads `src/config/business-profile.ts`)
-- Notification preferences
-- API key display (read-only)
-- Theme preference
+**Sections Implemented:**
+- **Profile & Security**: Admin account credentials, phone, company, role immutability, Change Password modal with client validation.
+- **Business Information**: Company name, export warehouse address, contact info, read-only verified Pubali Bank Limited export wire details.
+- **Admin Users**: Internal admin and sales staff personnel management, role filters, search, add/edit modal, self-deletion prevention.
+- **System Preferences**: Locked USD ($) currency standard, export defaults (Incoterms, carton specs, AQL), pagination sizing.
 
-**Priority:** LOW — post-MVP
+**Checklist:**
+- [x] Dedicated route `/admin/settings` (and `/settings` via `proxy.ts`)
+- [x] Admin sidebar navigation contains Settings with `Settings` icon
+- [x] Strict admin auth guard integration via admin layout
+- [x] Role safety: read-only role for current admin, no self-role modifications
+- [x] Secure password change flow (no plaintext passwords in storage)
+- [x] Single source of truth for business profile and export bank details (`Pubali Bank Limited`, `1788-901-044316`, `PUBABDDH210`, `Nawabpur Road Branch`)
+- [x] No old bank account or routing number reintroduced
+- [x] USD-only currency standard enforced
+- [x] Self-deletion of active admin session prevented
+- [x] Clean modular UI with toasts and custom confirmation dialogs (no native alert/confirm)
+- [x] TypeScript & ESLint clean
+- [x] Headless test script `scripts/test-phase14-settings.ts` passed
+- [x] Live browser testing NOT performed (static validation only)
+
+---
+
+## PHASE 15 — FINAL ADMIN AUDIT, CONSISTENCY & DEMO READINESS
+
+**Goal:** Final technical, UX consistency, and demo-readiness audit across the entire AYAAN CLOTHING Admin application.
+
+**Audit Areas & Standardizations Completed:**
+- **Route Inventory:** Verified all 19 separate Admin routes are operational and accounted for.
+- **Sidebar & Shell:** Verified consistent navigation links, icons, active state logic, and mobile drawer definition sharing.
+- **Low-Stock Standardization:** Unified all inventory threshold references to canonical `LOW_STOCK_THRESHOLD = 200` from `@/services/admin/inventory.service` across Products, Dashboard, and Inventory tables.
+- **Customer Role Scoping:** Scoped `CustomerRoleDialog` to customer-tier roles (`b2b_buyer`, `customer`) to prevent accidental administrative escalation from the customer management view; internal staff roles remain exclusively under Settings → Admin Users.
+- **Carrier Neutrality:** Confirmed zero hardcoded freight providers (no `Akij Sea Freight` in admin UI).
+- **Dialog Safety:** Confirmed zero native `alert()`, `confirm()`, or `prompt()` calls in admin codebase.
+- **Export Bank Wire Details:** Re-verified authoritative Pubali Bank Limited export wire details (`Pubali Bank Limited`, `1788-901-044316`, `PUBABDDH210`, `Nawabpur Road Branch`) and zero old accounts or routing numbers.
+- **Offer Sheet Visuals:** Re-verified product visual gallery and strict zero shipping charges (FOB Dhaka).
+- **USD Currency Standard:** Re-verified strict USD-only pricing standard across catalog and settings.
+- **TypeScript & ESLint:** Verified 0 errors on `npx tsc --noEmit` and clean ESLint.
+- **Production Build:** Verified `npm run build` generates all 32 static/dynamic routes successfully with Turbopack.
+- **Test Suite:** Automated static assertion script `scripts/test-phase15-audit.ts` passing all 14 audit suites.
+- [x] Live browser testing NOT performed (static validation only)
 
 ---
 
@@ -675,6 +788,7 @@ Phase 10 — RFQ & Quotation                [Mid priority]
 Phase 11 — Promotions & Coupons           [After banner is sorted]
 Phase 13 — Document Viewer Cleanup        [Low — functional already]
 Phase 14 — Settings                        [Last — future]
+Phase 15 — Final Audit & Consistency       [Final Polish & Stabilization]
 ```
 
 ---
@@ -687,18 +801,19 @@ Phase 14 — Settings                        [Last — future]
 | 12 | Auth Guard | ✅ Completed | Phase 1 |
 | 2 | Dashboard | ✅ Completed | Phase 2 |
 | 3A | Product List | ✅ Completed | 2026-09-20 |
-| 3B | Product Create/Edit | Pending | — |
-| 4 | Brand Management | Pending | — |
+| 3B | Product Create/Edit | ✅ Completed | 2026-09-20 |
+| 4 | Brand Management | ✅ Completed | 2026-09-20 |
 | 5 | Category Management | ✅ Completed | 2026-09-20 |
 | 7A | Order List | ✅ Completed | 2026-09-20 |
 | 7B | Order Detail | ✅ Completed | 2026-09-20 |
 | 6 | Inventory | ✅ Completed | 2026-09-20 |
-| 8 | Homepage / Banner | Pending | — |
+| 8 | Homepage / Banner | ✅ Completed | 2026-09-22 |
 | 9 | Customer Management | ✅ Completed | 2026-09-20 |
 | 10 | RFQ & Quotation | ✅ Completed | 2026-09-20 |
-| 11 | Promotions & Coupons | Pending | — |
-| 13 | Document Viewer | Pending | — |
-| 14 | Settings | Future | — |
+| 11 | Promotions & Coupons | ✅ Completed | 2026-09-22 |
+| 13 | Document Viewer | ✅ Completed | 2026-09-22 |
+| 14 | Settings & User Management | ✅ Completed | 2026-09-22 |
+| 15 | Final Admin Audit & Polish | ✅ Completed | 2026-09-22 |
 
 ---
 

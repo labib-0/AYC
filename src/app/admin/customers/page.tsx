@@ -65,9 +65,9 @@ export default function AdminCustomersPage() {
       setTotal(custRes.total);
       setTotalPages(custRes.last_page);
       setMetrics(summaryRes);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load customers:", err);
-      setError(err?.message || "Unable to load customer directory.");
+      setError((err as Error)?.message || "Unable to load customer directory.");
     } finally {
       setLoading(false);
       setIsRefreshing(false);

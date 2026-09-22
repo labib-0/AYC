@@ -246,7 +246,7 @@ export default function AdminCategoriesPage() {
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-xs self-start sm:self-auto cursor-pointer"
         >
           <Plus size={15} />
-          <span>Add Category</span>
+          <span>+ Add Category</span>
         </button>
       </div>
 
@@ -317,7 +317,10 @@ export default function AdminCategoriesPage() {
       {/* ── Add / Edit Category Modal ── */}
       <CategoryModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingCategory(null);
+        }}
         category={editingCategory}
         onSuccess={handleCategorySaved}
         defaultSortOrder={nextSortOrder}

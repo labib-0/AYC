@@ -16,6 +16,24 @@ import { INITIAL_MOCK_RFQS } from "./mock-rfqs";
 import { INITIAL_MOCK_QUOTATIONS } from "./mock-quotations";
 import { INITIAL_MOCK_INVENTORY, INITIAL_MOCK_WAREHOUSES } from "./mock-inventory";
 import { INITIAL_MOCK_PROMOTIONS, INITIAL_MOCK_COUPONS } from "./mock-promotions";
+import BUSINESS_PROFILE, { BusinessProfile } from "@/config/business-profile";
+
+export interface SystemPreferences {
+  currency: string;
+  defaultIncoterm: string;
+  defaultCartonSpec: string;
+  defaultQualityStandard: string;
+  defaultPaginationSize: number;
+  updated_at?: string;
+}
+
+export const INITIAL_SYSTEM_PREFERENCES: SystemPreferences = {
+  currency: "USD",
+  defaultIncoterm: "FOB Dhaka",
+  defaultCartonSpec: "Standard 5-ply export master carton (60x40x30 cm)",
+  defaultQualityStandard: "AQL 2.5 Major",
+  defaultPaginationSize: 20,
+};
 
 // Storage Keys
 export const STORAGE_KEYS = {
@@ -32,16 +50,18 @@ export const STORAGE_KEYS = {
   WAREHOUSES: "ayaan_mock_warehouses_v2",
   PROMOTIONS: "ayaan_mock_promotions_v2",
   COUPONS: "ayaan_mock_coupons_v2",
+  BUSINESS_PROFILE: "ayaan_mock_business_profile_v2",
+  SYSTEM_PREFERENCES: "ayaan_mock_system_preferences_v2",
   CART: "ayaan_cart",
   WISHLIST: "ayaan_wishlist",
 } as const;
 
 class MockStore {
-  private inMemoryCache: Record<string, any> = {};
+  private inMemoryCache: Record<string, unknown> = {};
 
   private getItem<T>(key: string, defaultValue: T): T {
     if (this.inMemoryCache[key] !== undefined) {
-      return this.inMemoryCache[key];
+      return this.inMemoryCache[key] as T;
     }
 
     if (typeof window === "undefined") {
@@ -260,7 +280,18 @@ class MockStore {
   // USERS & AUTH
   // ==========================================
   getUsers(): MockUserData[] {
-    return this.getItem<MockUserData[]>(STORAGE_KEYS.USERS, INITIAL_MOCK_USERS);
+    const list = this.getItem<MockUserData[]>(STORAGE_KEYS.USERS, INITIAL_MOCK_USERS);
+    // Self-healing synchronization: If stored dataset is missing baseline accounts, merge missing users
+    if (Array.isArray(list)) {
+      const existingEmails = new Set(list.map((u) => (u.email || "").toLowerCase()));
+      const missing = INITIAL_MOCK_USERS.filter((u) => !existingEmails.has((u.email || "").toLowerCase()));
+      if (missing.length > 0) {
+        const merged = [...list, ...missing];
+        this.setItem(STORAGE_KEYS.USERS, merged);
+        return merged;
+      }
+    }
+    return list;
   }
 
   getUserById(id: number | string): MockUserData | null {
@@ -307,9 +338,14 @@ class MockStore {
         role: userData.role || "customer",
         phone: userData.phone,
         company_name: userData.company_name,
+        tax_id: userData.tax_id,
+        country: userData.country,
+        business_type: userData.business_type,
+        website: userData.website,
         b2b_approval_status: userData.b2b_approval_status || (userData.role === "b2b_buyer" ? "pending" : "approved"),
         b2b_payment_terms: userData.b2b_payment_terms || "none",
         b2b_credit_limit: userData.b2b_credit_limit || 0,
+        is_active: userData.is_active ?? true,
         created_at: new Date().toISOString(),
       };
       users.push(saved);
@@ -326,16 +362,46 @@ class MockStore {
     return saved;
   }
 
+  deleteUser(id: number | string): boolean {
+    const currentActive = this.getActiveUser();
+    if (currentActive && String(currentActive.id) === String(id)) {
+      return false; // Prevent deleting active user
+    }
+    const users = this.getUsers().filter((u) => String(u.id) !== String(id));
+    this.setItem(STORAGE_KEYS.USERS, users);
+    return true;
+  }
+
   // ==========================================
   // ORDERS
   // ==========================================
   getOrders(): OrderRecord[] {
-    return this.getItem<OrderRecord[]>(STORAGE_KEYS.ORDERS, INITIAL_MOCK_ORDERS);
+    const list = this.getItem<OrderRecord[]>(STORAGE_KEYS.ORDERS, INITIAL_MOCK_ORDERS);
+    // Self-healing synchronization: If stored dataset is missing baseline orders, merge missing orders
+    if (Array.isArray(list)) {
+      const existingIds = new Set(list.map((o) => String(o.id)));
+      const missing = INITIAL_MOCK_ORDERS.filter((o) => !existingIds.has(String(o.id)));
+      if (missing.length > 0) {
+        const merged = [...list, ...missing];
+        this.setItem(STORAGE_KEYS.ORDERS, merged);
+        return merged;
+      }
+    }
+    return list;
   }
 
   getOrderById(id: string): OrderRecord | null {
     const orders = this.getOrders();
-    return orders.find((o) => String(o.id) === String(id) || o.order_number === id) || null;
+    const clean = String(id).trim().toLowerCase();
+    const cleanNoHash = clean.replace(/^#/, "");
+    return (
+      orders.find((o) => {
+        const oId = String(o.id).toLowerCase();
+        const oNum = String(o.order_number || "").toLowerCase();
+        const oNumNoHash = oNum.replace(/^#/, "");
+        return oId === clean || oNum === clean || oNumNoHash === cleanNoHash || oId === cleanNoHash;
+      }) || null
+    );
   }
 
   getUserOrders(userId: string | number): OrderRecord[] {
@@ -652,6 +718,60 @@ class MockStore {
   }
 
   // ==========================================
+  // BUSINESS PROFILE & PREFERENCES
+  // ==========================================
+  getBusinessProfile(): BusinessProfile {
+    return this.getItem<BusinessProfile>(STORAGE_KEYS.BUSINESS_PROFILE, BUSINESS_PROFILE);
+  }
+
+  saveBusinessProfile(data: Partial<BusinessProfile>): BusinessProfile {
+    const current = this.getBusinessProfile();
+    const updated: BusinessProfile = {
+      ...current,
+      ...data,
+      address: {
+        ...current.address,
+        ...(data.address || {}),
+      },
+      contact: {
+        ...current.contact,
+        ...(data.contact || {}),
+      },
+      // Strictly preserve approved Pubali Bank Limited export wire details
+      banking: {
+        ...BUSINESS_PROFILE.banking,
+        ...(data.banking || {}),
+        bankName: "Pubali Bank Limited",
+        accountTitle: "M/S AYAAN  CLOTHING",
+        accountNo: "1788-901-044316",
+        accountNumber: "1788-901-044316",
+        swiftCode: "PUBABDDH210",
+        bankAddress: "Nawabpur Road Branch,\n125 Nawabpur Road,\nDhaka-1100,\nBangladesh",
+        branch: "Nawabpur Road Branch",
+        routingNumber: null,
+      },
+    };
+    this.setItem(STORAGE_KEYS.BUSINESS_PROFILE, updated);
+    return updated;
+  }
+
+  getSystemPreferences(): SystemPreferences {
+    return this.getItem<SystemPreferences>(STORAGE_KEYS.SYSTEM_PREFERENCES, INITIAL_SYSTEM_PREFERENCES);
+  }
+
+  saveSystemPreferences(data: Partial<SystemPreferences>): SystemPreferences {
+    const current = this.getSystemPreferences();
+    const updated: SystemPreferences = {
+      ...current,
+      ...data,
+      currency: "USD", // Strictly USD
+      updated_at: new Date().toISOString(),
+    };
+    this.setItem(STORAGE_KEYS.SYSTEM_PREFERENCES, updated);
+    return updated;
+  }
+
+  // ==========================================
   // RESET ALL DEMO DATA
   // ==========================================
   resetAllMockData(): void {
@@ -672,8 +792,12 @@ class MockStore {
         localStorage.removeItem(STORAGE_KEYS.WAREHOUSES);
         localStorage.removeItem(STORAGE_KEYS.PROMOTIONS);
         localStorage.removeItem(STORAGE_KEYS.COUPONS);
+        localStorage.removeItem(STORAGE_KEYS.BUSINESS_PROFILE);
+        localStorage.removeItem(STORAGE_KEYS.SYSTEM_PREFERENCES);
         localStorage.removeItem(STORAGE_KEYS.CART);
         localStorage.removeItem(STORAGE_KEYS.WISHLIST);
+        localStorage.removeItem("ayaan_customer_addresses_v1");
+        localStorage.removeItem("ayaan_recent_searches");
       } catch {
         // Ignore
       }
@@ -691,6 +815,8 @@ class MockStore {
     this.setItem(STORAGE_KEYS.WAREHOUSES, INITIAL_MOCK_WAREHOUSES);
     this.setItem(STORAGE_KEYS.PROMOTIONS, INITIAL_MOCK_PROMOTIONS);
     this.setItem(STORAGE_KEYS.COUPONS, INITIAL_MOCK_COUPONS);
+    this.setItem(STORAGE_KEYS.BUSINESS_PROFILE, BUSINESS_PROFILE);
+    this.setItem(STORAGE_KEYS.SYSTEM_PREFERENCES, INITIAL_SYSTEM_PREFERENCES);
     this.setItem(STORAGE_KEYS.ACTIVE_USER, null);
 
     if (typeof window !== "undefined") {

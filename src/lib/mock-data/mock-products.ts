@@ -183,6 +183,9 @@ export function normalizeProductData(p: any): B2BProductInput {
 
   const brandName = typeof p.brand === "string" ? p.brand : p.brand?.name || "Ayaan";
   const brandLogo = p.brandLogo || p.brand_logo || getBrandLogoUrl(brandName) || "/logo.png";
+  const rawDt = (p.designType || p.design_type || "").toString().toUpperCase();
+  const designTypeVal: "ORIGINAL" | "MASTER COPY" =
+    rawDt === "MASTER COPY" || rawDt === "REPLICA" || rawDt === "MC" ? "MASTER COPY" : "ORIGINAL";
 
   return {
     id: String(p.id),
@@ -194,6 +197,7 @@ export function normalizeProductData(p: any): B2BProductInput {
     categoryId: categoryInfo.id,
     categoryName: categoryInfo.name,
     audience: audienceVal,
+    designType: designTypeVal,
     productType: p.productType || "Ready-Made Garments",
     collectionSeason: p.collectionSeason || "2026 Core Export Line",
     shortDescription: p.shortDescription || `Export grade ${p.name} manufactured in Dhaka, Bangladesh with precision stitching and premium fabric.`,

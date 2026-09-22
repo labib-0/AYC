@@ -6,8 +6,21 @@ export async function getUserOrders(userId: string | number): Promise<OrderRecor
   return orderService.getUserOrders(userId);
 }
 
-export async function getOrderById(orderId: string, _userId?: string | number): Promise<OrderRecord | null> {
-  return orderService.getOrderById(orderId);
+export async function getOrderById(
+  orderId: string,
+  userId?: string | number,
+  userEmail?: string
+): Promise<OrderRecord | null> {
+  const order = await orderService.getOrderById(orderId);
+  if (order && (userId !== undefined || userEmail !== undefined)) {
+    const isOwner =
+      (userId !== undefined && String(order.user_id) === String(userId)) ||
+      (userEmail !== undefined && order.email && order.email.toLowerCase() === userEmail.toLowerCase());
+    if (!isOwner) {
+      return null;
+    }
+  }
+  return order;
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<OrderRecord> {

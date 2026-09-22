@@ -131,7 +131,7 @@ export default function SearchOverlay({
               <button
                 type="button"
                 onClick={() => onSelectTerm(searchQuery)}
-                className="w-full flex items-center justify-between py-2 px-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold transition-colors group cursor-pointer text-left"
+                className="w-full flex items-center justify-between py-2 px-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[13px] font-bold transition-colors group cursor-pointer text-left"
               >
                 <span className="flex items-center gap-2 truncate">
                   <Search size={13} className="shrink-0" />
@@ -145,7 +145,7 @@ export default function SearchOverlay({
             {recentSearches.length > 0 && (
               <div>
                 <div className="mb-2 px-1">
-                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                     Recent Searches
                   </span>
                 </div>
@@ -154,7 +154,7 @@ export default function SearchOverlay({
                     <div
                       key={term}
                       onClick={() => onSelectTerm(term)}
-                      className="group/item relative flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-left text-xs font-medium text-foreground transition-colors cursor-pointer"
+                      className="group/item relative flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-left text-[13px] font-medium text-foreground transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-2 truncate pr-5">
                         <Clock size={12.5} className="text-muted-foreground/70 shrink-0" />
@@ -180,7 +180,7 @@ export default function SearchOverlay({
             {/* Trending Searches */}
             <div>
               <div className="mb-2 px-1">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   Trending
                 </span>
               </div>
@@ -190,7 +190,7 @@ export default function SearchOverlay({
                     key={term}
                     type="button"
                     onClick={() => onSelectTerm(term)}
-                    className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-left text-xs font-medium text-foreground transition-colors group cursor-pointer"
+                    className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-left text-[13px] font-medium text-foreground transition-colors group cursor-pointer"
                   >
                     <span className="flex items-center gap-2 truncate">
                       <TrendingUp size={12.5} className="text-amber-500 shrink-0" />
@@ -207,14 +207,14 @@ export default function SearchOverlay({
           <div className="flex-1 p-4 xl:p-4.5 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-2.5 px-1">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   {q ? "Matching Products" : "Trending Products"}
                 </span>
                 {q && displayedProducts.length > 0 && (
                   <button
                     type="button"
                     onClick={() => onSelectTerm(searchQuery)}
-                    className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                    className="text-[13px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
                   >
                     View all
                   </button>
@@ -231,7 +231,7 @@ export default function SearchOverlay({
                       className="group relative flex flex-col bg-slate-50/70 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-white/10 p-2 transition-all duration-150 text-left hover:shadow-xs hover:border-foreground/30"
                     >
                       {/* Compact Image */}
-                      <div className="relative aspect-[4/5] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-2">
+                      <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={product.images?.[0] || "/placeholder.jpg"}
@@ -258,7 +258,7 @@ export default function SearchOverlay({
                       </div>
 
                       {/* Product Name */}
-                      <span className="text-xs font-semibold text-foreground line-clamp-1 leading-tight mb-1 group-hover:text-primary transition-colors">
+                      <span className="text-[13px] font-semibold text-foreground line-clamp-1 leading-tight mb-1 group-hover:text-primary transition-colors">
                         {product.name}
                       </span>
 
@@ -267,7 +267,7 @@ export default function SearchOverlay({
                         <span className="text-[13px] font-bold text-foreground tabular-nums">
                           {formatPrice(product.price)}
                         </span>
-                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tight">
+                        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-tight">
                           MOQ {product.moq || 10}
                         </span>
                       </div>
@@ -275,10 +275,10 @@ export default function SearchOverlay({
                   ))}
                 </div>
               ) : (
-                <div className="py-10 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-1.5">
+                <div className="py-10 text-center text-[13px] text-muted-foreground flex flex-col items-center justify-center gap-1.5">
                   <Search size={22} className="text-muted-foreground/40 mb-1" />
                   <p className="font-semibold text-foreground">No preview matches for &quot;{searchQuery}&quot;</p>
-                  <p className="text-[11.5px]">Press Enter to search the full catalog</p>
+                  <p className="text-[11.5px]">Try searching by product name, category, or brand</p>
                 </div>
               )}
             </div>
@@ -376,7 +376,7 @@ export default function SearchOverlay({
                   onClick={onClose}
                   className="group relative flex flex-col bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200/80 dark:border-white/10 p-2 text-left"
                 >
-                  <div className="relative aspect-[4/5] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-1.5">
+                  <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-1.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={product.images?.[0] || "/placeholder.jpg"}

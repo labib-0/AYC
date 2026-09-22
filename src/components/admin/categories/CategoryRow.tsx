@@ -72,13 +72,15 @@ export default function CategoryRow({
         {/* 4. Products Column */}
         <td className="py-3 px-4">
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums ${
+            className={`inline-flex items-center justify-center min-w-[28px] px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums ${
               productCount > 0
                 ? "bg-secondary text-foreground font-bold"
                 : "bg-muted/50 text-muted-foreground"
             }`}
+            title={`${productCount} associated ${productCount === 1 ? "product" : "products"}`}
+            aria-label={`${productCount} associated ${productCount === 1 ? "product" : "products"}`}
           >
-            {productCount} {productCount === 1 ? "product" : "products"}
+            {productCount}
           </span>
         </td>
 

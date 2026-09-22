@@ -35,7 +35,7 @@ export interface CouponRecord {
 }
 
 export class AdminPromotionService {
-  async getPromotions(params?: { type?: string; search?: string }): Promise<PromotionRecord[]> {
+  async getPromotions(params?: { type?: string; search?: string; status?: string }): Promise<PromotionRecord[]> {
     if (!isFrontendOnly()) {
       try {
         const res = await apiClient.get<any>("/admin/promotions", params as any);
@@ -49,6 +49,11 @@ export class AdminPromotionService {
     let list = mockStore.getPromotions();
     if (params?.type && params.type !== "all") {
       list = list.filter((p) => p.type === params.type);
+    }
+    if (params?.status === "active") {
+      list = list.filter((p) => p.is_active);
+    } else if (params?.status === "inactive") {
+      list = list.filter((p) => !p.is_active);
     }
     if (params?.search) {
       const q = params.search.toLowerCase();
@@ -97,7 +102,7 @@ export class AdminPromotionService {
     return mockStore.deletePromotion(id);
   }
 
-  async getCoupons(params?: { status?: string; search?: string }): Promise<CouponRecord[]> {
+  async getCoupons(params?: { status?: string; search?: string; type?: string }): Promise<CouponRecord[]> {
     if (!isFrontendOnly()) {
       try {
         const res = await apiClient.get<any>("/admin/coupons", params as any);
@@ -109,6 +114,9 @@ export class AdminPromotionService {
     }
 
     let list = mockStore.getCoupons();
+    if (params?.type && params.type !== "all") {
+      list = list.filter((c) => c.discount_type === params.type);
+    }
     if (params?.status === "active") {
       list = list.filter((c) => c.is_active);
     } else if (params?.status === "inactive") {

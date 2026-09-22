@@ -106,8 +106,8 @@ export default function WarehouseManagementModal({
 
       onRefresh();
       setView("list");
-    } catch (err: any) {
-      setErrorMessage(err?.message || "Failed to save warehouse.");
+    } catch (err: unknown) {
+      setErrorMessage((err as Error)?.message || "Failed to save warehouse.");
     } finally {
       setIsSubmitting(false);
     }

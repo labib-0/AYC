@@ -50,7 +50,7 @@ export default function OrderItemsTable({ items }: OrderItemsTableProps) {
                   <img
                     src={imageUrl}
                     alt={item.product_name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain p-0.5"
                     loading="lazy"
                   />
                 ) : (

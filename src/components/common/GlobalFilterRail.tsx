@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, RotateCcw, Tag } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, RotateCcw, ChevronDown } from "lucide-react";
 import { BrandModel } from "@/services/brand.service";
 import { CategoryModel } from "@/services/category.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
+import BrandLogoTile from "@/components/common/BrandLogoTile";
 import {
   IconMen,
   IconWomen,
@@ -17,9 +18,11 @@ export interface GlobalFilterRailProps {
   isOpen: boolean;
   onClose: () => void;
   selectedBrands: string[];
+  selectedDesignTypes?: string[];
   selectedAudiences: string[];
   selectedCategories: string[];
   onBrandsChange: (brands: string[]) => void;
+  onDesignTypesChange?: (types: string[]) => void;
   onAudiencesChange: (audiences: string[]) => void;
   onCategoriesChange: (categories: string[]) => void;
   onClearAll: () => void;
@@ -35,29 +38,100 @@ const AUDIENCES = [
   { key: "UNISEX", label: "Unisex", Icon: IconUnisex },
 ];
 
+const DESIGN_TYPES = [
+  { value: "ORIGINAL", display: "ORIGINAL", fullLabel: "Original" },
+  { value: "MASTER COPY", display: "MC", fullLabel: "Master Copy" },
+] as const;
+
+const INITIAL_BRAND_COUNT = 9; // 3 columns x 3 rows = 9 initial brand tiles
+const BRAND_BATCH_SIZE = 9; // +3 rows per click
+const INITIAL_CATEGORY_COUNT = 30; // Initial comfortable batch for category scroll region
+const CATEGORY_BATCH_SIZE = 20; // Incremental slice as user scrolls
+
 export default function GlobalFilterRail({
   isOpen,
   onClose,
   selectedBrands,
+  selectedDesignTypes = [],
   selectedAudiences,
   selectedCategories,
   onBrandsChange,
+  onDesignTypesChange,
   onAudiencesChange,
   onCategoriesChange,
   onClearAll,
   availableBrands,
   availableCategories,
 }: GlobalFilterRailProps) {
-  const [brandImgErrors, setBrandImgErrors] = useState<Record<string, boolean>>({});
+  const [visibleBrandCount, setVisibleBrandCount] = useState<number>(INITIAL_BRAND_COUNT);
+  const [isLoadingMoreBrands, setIsLoadingMoreBrands] = useState(false);
+  const [visibleCategoryCount, setVisibleCategoryCount] = useState<number>(INITIAL_CATEGORY_COUNT);
+  const categorySentinelRef = useRef<HTMLDivElement>(null);
+
+  // If any selected brand is beyond the initial 9, expand visible count in multiples of 9
+  useEffect(() => {
+    if (selectedBrands.length > 0 && availableBrands.length > 0) {
+      const maxIdx = availableBrands.reduce((acc, b, idx) => {
+        return selectedBrands.includes(b.name) ? Math.max(acc, idx) : acc;
+      }, -1);
+      if (maxIdx >= visibleBrandCount) {
+        const neededCount = Math.ceil((maxIdx + 1) / BRAND_BATCH_SIZE) * BRAND_BATCH_SIZE;
+        setVisibleBrandCount(Math.min(neededCount, availableBrands.length));
+      }
+    }
+  }, [selectedBrands, availableBrands, visibleBrandCount]);
+
+  // If any selected category is beyond initial count, expand visible category count
+  useEffect(() => {
+    if (selectedCategories.length > 0 && availableCategories.length > 0) {
+      const maxIdx = availableCategories.reduce((acc, c, idx) => {
+        return selectedCategories.includes(c.name) ? Math.max(acc, idx) : acc;
+      }, -1);
+      if (maxIdx >= visibleCategoryCount) {
+        const neededCount = Math.ceil((maxIdx + 1) / CATEGORY_BATCH_SIZE) * CATEGORY_BATCH_SIZE;
+        setVisibleCategoryCount(Math.min(neededCount, availableCategories.length));
+      }
+    }
+  }, [selectedCategories, availableCategories, visibleCategoryCount]);
+
+  // Internal IntersectionObserver on sentinel inside the Category scroll container (independent from page sentinel)
+  useEffect(() => {
+    const sentinel = categorySentinelRef.current;
+    if (!sentinel || visibleCategoryCount >= availableCategories.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCategoryCount((prev) => Math.min(prev + CATEGORY_BATCH_SIZE, availableCategories.length));
+        }
+      },
+      { rootMargin: "40px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [visibleCategoryCount, availableCategories.length]);
 
   const totalActiveCount =
-    selectedBrands.length + selectedAudiences.length + selectedCategories.length;
+    selectedBrands.length +
+    (selectedDesignTypes?.length || 0) +
+    selectedAudiences.length +
+    selectedCategories.length;
 
   const toggleBrand = (brandName: string) => {
     if (selectedBrands.includes(brandName)) {
       onBrandsChange(selectedBrands.filter((b) => b !== brandName));
     } else {
       onBrandsChange([...selectedBrands, brandName]);
+    }
+  };
+
+  const toggleDesignType = (dt: string) => {
+    if (!onDesignTypesChange) return;
+    if (selectedDesignTypes.includes(dt)) {
+      onDesignTypesChange(selectedDesignTypes.filter((d) => d !== dt));
+    } else {
+      onDesignTypesChange([...selectedDesignTypes, dt]);
     }
   };
 
@@ -77,71 +151,107 @@ export default function GlobalFilterRail({
     }
   };
 
-  const handleBrandImgError = (brandName: string) => {
-    setBrandImgErrors((prev) => ({ ...prev, [brandName]: true }));
+  const handleLoadMoreBrands = () => {
+    if (isLoadingMoreBrands || visibleBrandCount >= availableBrands.length) return;
+    setIsLoadingMoreBrands(true);
+    setVisibleBrandCount((prev) => Math.min(prev + BRAND_BATCH_SIZE, availableBrands.length));
+    setIsLoadingMoreBrands(false);
   };
+
+  const visibleBrands = availableBrands.slice(0, visibleBrandCount);
+  const hasMoreBrands = visibleBrandCount < availableBrands.length;
+  const visibleCategories = availableCategories.slice(0, visibleCategoryCount);
+  const hasMoreCategories = visibleCategoryCount < availableCategories.length;
 
   // ── Shared Filter Content (Desktop + Mobile) ──────────────────────────────
   const filterContent = (
-    <div className="space-y-5">
-      {/* ── 1. BRAND — Visual Square Logo Tile Grid (3 per row) ── */}
+    <div className="space-y-4">
+      {/* ── 1. BRAND — 3-Column Visual Brand Grid (3 rows = 9 initial) ── */}
       <div>
-        <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans mb-2.5">
-          BRAND
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans">
+            BRAND
+          </h3>
+          {availableBrands.length > 0 && (
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {Math.min(visibleBrandCount, availableBrands.length)}/{availableBrands.length}
+            </span>
+          )}
+        </div>
 
         <div className="grid grid-cols-3 gap-2">
-          {availableBrands.map((brand) => {
+          {visibleBrands.map((brand) => {
             const isSelected = selectedBrands.includes(brand.name);
             const rawLogo = brand.logo_url || brand.logo;
             const resolvedLogo = getBrandLogoUrl(brand.name, rawLogo) || rawLogo;
-            const hasValidLogo = Boolean(
-              resolvedLogo &&
-                resolvedLogo.trim() !== "" &&
-                !resolvedLogo.includes("pexels.com") &&
-                !brandImgErrors[brand.name]
-            );
 
             return (
-              <button
+              <BrandLogoTile
                 key={brand.id || brand.name}
-                type="button"
+                id={brand.id}
+                name={brand.name}
+                logoUrl={resolvedLogo}
+                isSelected={isSelected}
                 onClick={() => toggleBrand(brand.name)}
-                className={`group relative flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 ease-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground aspect-square active:translate-y-0 active:scale-[0.99] ${
+                title={brand.name}
+                ariaLabel={`${brand.name} brand`}
+              />
+            );
+          })}
+        </div>
+
+        {/* Centered Minimal Down-Arrow Load More Control (appends +9 brands = 3 rows) */}
+        {hasMoreBrands && (
+          <div className="flex justify-center mt-2.5">
+            <button
+              type="button"
+              onClick={handleLoadMoreBrands}
+              disabled={isLoadingMoreBrands}
+              className="inline-flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors group cursor-pointer focus-visible:outline-none"
+              aria-label="Load more brands"
+            >
+              <div className="w-6.5 h-6.5 rounded-full border border-border/80 group-hover:border-foreground/50 bg-card group-hover:bg-secondary/70 flex items-center justify-center transition-all shadow-2xs group-hover:shadow-xs">
+                <ChevronDown
+                  size={13}
+                  className="transition-transform duration-200 group-hover:translate-y-0.5 text-foreground/70 group-hover:text-foreground"
+                />
+              </div>
+              <span className="text-[9.5px] font-bold uppercase tracking-widest font-sans">
+                LOAD MORE
+              </span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Divider */}
+      <div className="h-px bg-border/50" />
+
+      {/* ── 2. AUDIENCE — Separate Compact Section ── */}
+      <div>
+        <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans mb-2">
+          AUDIENCE
+        </h3>
+
+        <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
+          {AUDIENCES.map(({ key, label, Icon }) => {
+            const isSelected = selectedAudiences.includes(key);
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => toggleAudience(key)}
+                className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-foreground min-h-[38px] select-none ${
                   isSelected
-                    ? "border-foreground ring-1.5 ring-foreground/30 bg-secondary/90 dark:bg-secondary/80 shadow-xs hover:bg-secondary hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(15,23,42,0.12)] dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
-                    : "border-slate-900/25 dark:border-white/25 bg-card shadow-2xs hover:border-slate-900/70 dark:hover:border-white/70 hover:bg-secondary/60 dark:hover:bg-secondary/50 hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)] dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
+                    ? "bg-foreground text-background border-foreground shadow-2xs font-bold"
+                    : "bg-card text-muted-foreground hover:text-foreground border-slate-900/25 dark:border-white/25 hover:border-slate-900/60 dark:hover:border-white/60 shadow-2xs"
                 }`}
                 aria-pressed={isSelected}
-                aria-label={`${brand.name} brand`}
+                aria-label={`Audience: ${label}`}
               >
-                {/* Logo Area */}
-                <div className="h-7 w-full flex items-center justify-center overflow-hidden">
-                  {hasValidLogo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={resolvedLogo}
-                      alt={`${brand.name} logo`}
-                      className="max-h-6 max-w-[56px] w-auto h-auto object-contain"
-                      loading="lazy"
-                      decoding="async"
-                      onError={() => handleBrandImgError(brand.name)}
-                    />
-                  ) : (
-                    <Tag size={16} strokeWidth={1.5} className="text-muted-foreground/50" />
-                  )}
-                </div>
-
-                {/* Brand Name */}
-                <span
-                  className={`text-[12px] font-sans font-semibold uppercase tracking-wider text-center truncate w-full leading-tight mt-1 ${
-                    isSelected
-                      ? "text-foreground font-bold"
-                      : "text-muted-foreground group-hover:text-foreground"
-                  }`}
-                  title={brand.name}
-                >
-                  {brand.name}
+                <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={isSelected ? 2.2 : 1.75} />
+                <span className="text-[9.5px] font-sans font-bold uppercase tracking-tight leading-none mt-1 truncate max-w-full">
+                  {label}
                 </span>
               </button>
             );
@@ -152,47 +262,34 @@ export default function GlobalFilterRail({
       {/* Divider */}
       <div className="h-px bg-border/50" />
 
-      {/* ── 2. AUDIENCE — Icon Tiles (2 columns) ── */}
+      {/* ── 3. DESIGN TYPE — Separate Compact Section ── */}
       <div>
-        <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans mb-2.5">
-          AUDIENCE
+        <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans mb-2">
+          DESIGN TYPE
         </h3>
 
-        <div className="grid grid-cols-2 gap-2">
-          {AUDIENCES.map(({ key, label, Icon }) => {
-            const isSelected = selectedAudiences.includes(key);
-            const isUnisex = key === "UNISEX";
-
-            const buttonNode = (
+        <div className="grid grid-cols-2 gap-1.5">
+          {DESIGN_TYPES.map(({ value, display, fullLabel }) => {
+            const isSelected = selectedDesignTypes.includes(value);
+            return (
               <button
-                key={key}
+                key={value}
                 type="button"
-                onClick={() => toggleAudience(key)}
-                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-full text-xs font-sans font-semibold uppercase tracking-wider transition-all duration-200 ease-out cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground active:translate-y-0 ${
-                  isUnisex ? "w-[calc(50%-0.25rem)]" : "w-full"
-                } ${
+                onClick={() => toggleDesignType(value)}
+                className={`flex items-center justify-center py-2 px-2 rounded-lg border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-foreground min-h-[36px] select-none ${
                   isSelected
-                    ? "bg-foreground text-background border-foreground shadow-xs font-bold hover:-translate-y-0.5"
-                    : "bg-card text-muted-foreground hover:text-foreground hover:border-slate-900/60 dark:hover:border-white/60 hover:bg-secondary/50 border-slate-900/25 dark:border-white/25 shadow-2xs hover:-translate-y-0.5"
+                    ? "bg-foreground text-background border-foreground shadow-2xs font-bold"
+                    : "bg-card text-muted-foreground hover:text-foreground border-slate-900/25 dark:border-white/25 hover:border-slate-900/60 dark:hover:border-white/60 shadow-2xs"
                 }`}
                 aria-pressed={isSelected}
+                aria-label={`Design Type: ${fullLabel}`}
+                title={`Design Type: ${fullLabel}`}
               >
-                <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                  <Icon size={14} />
-                </div>
-                <span className="truncate">{label}</span>
+                <span className="text-[10.5px] font-sans font-extrabold uppercase tracking-wider leading-tight">
+                  {display}
+                </span>
               </button>
             );
-
-            if (isUnisex) {
-              return (
-                <div key={key} className="col-span-2 flex justify-center">
-                  {buttonNode}
-                </div>
-              );
-            }
-
-            return buttonNode;
           })}
         </div>
       </div>
@@ -200,21 +297,34 @@ export default function GlobalFilterRail({
       {/* Divider */}
       <div className="h-px bg-border/50" />
 
-      {/* ── 3. PRODUCT CATEGORY — Dynamic Compact Chips ── */}
+      {/* ── 4. PRODUCT CATEGORY — Controlled Scroll Area ── */}
       <div>
-        <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans mb-2.5">
-          PRODUCT CATEGORY
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans">
+            PRODUCT CATEGORY
+          </h3>
+          {availableCategories.length > 0 && (
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {availableCategories.length}
+            </span>
+          )}
+        </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {availableCategories.map((cat) => {
+        {/* Controlled Category Viewport with Internal Vertical Scrolling */}
+        <div
+          role="region"
+          aria-label="Product Categories"
+          tabIndex={0}
+          className="max-h-[260px] sm:max-h-[280px] overflow-y-auto pr-1 flex flex-wrap gap-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20 rounded-md"
+        >
+          {visibleCategories.map((cat) => {
             const isSelected = selectedCategories.includes(cat.name);
             return (
               <button
                 key={cat.id || cat.name}
                 type="button"
                 onClick={() => toggleCategory(cat.name)}
-                className={`px-3 py-1.5 rounded-full text-xs font-sans transition-all duration-200 ease-out cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground whitespace-nowrap active:translate-y-0 ${
+                className={`px-3 py-1.5 rounded-full text-[12.5px] font-sans transition-all duration-150 ease-out cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground whitespace-nowrap active:translate-y-0 ${
                   isSelected
                     ? "bg-foreground text-background border-foreground shadow-xs font-semibold hover:-translate-y-0.5"
                     : "bg-card text-muted-foreground hover:text-foreground hover:border-slate-900/60 dark:hover:border-white/60 hover:bg-secondary/50 border-slate-900/25 dark:border-white/25 shadow-2xs font-medium hover:-translate-y-0.5"
@@ -225,6 +335,9 @@ export default function GlobalFilterRail({
               </button>
             );
           })}
+          {hasMoreCategories && (
+            <div ref={categorySentinelRef} className="w-full h-2 pointer-events-none" aria-hidden="true" />
+          )}
         </div>
       </div>
     </div>
@@ -245,11 +358,7 @@ export default function GlobalFilterRail({
         >
           <X size={isMobile ? 16 : 14} />
         </button>
-        <span
-          className={`${
-            isMobile ? "text-sm" : "text-xs"
-          } font-bold uppercase tracking-wider text-foreground font-sans`}
-        >
+        <span className="text-[13px] font-bold uppercase tracking-wider text-foreground font-sans">
           FILTERS
         </span>
         {totalActiveCount > 0 && (
@@ -264,7 +373,7 @@ export default function GlobalFilterRail({
         <button
           type="button"
           onClick={onClearAll}
-          className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1 text-[13px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
           <RotateCcw size={11} />
           <span>CLEAR ALL</span>
@@ -278,7 +387,7 @@ export default function GlobalFilterRail({
       {/* ── Desktop Left Rail (lg: >= 1024px): Outer Column + Inner Sticky Panel ── */}
       <div className="filter-column hidden lg:block w-[280px] shrink-0">
         <aside
-          className="filter-panel sticky top-[84px] w-full bg-card border border-border/80 rounded-2xl p-4 sm:p-5 shadow-xs font-sans"
+          className="filter-panel sticky top-[84px] w-full bg-card border border-border/80 rounded-2xl p-4 shadow-xs font-sans"
           aria-label="Product Filters"
         >
           {panelHeader(false)}

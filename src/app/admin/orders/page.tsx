@@ -73,9 +73,9 @@ export default function AdminOrdersPage() {
       setTotal(orderRes.total);
       setTotalPages(orderRes.last_page);
       setMetrics(summaryRes);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load orders:", err);
-      setError(err?.message || "Unable to load orders. Please try again.");
+      setError((err as Error)?.message || "Unable to load orders. Please try again.");
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -135,8 +135,8 @@ export default function AdminOrdersPage() {
       setIsReviewModalOpen(false);
       setReviewOrder(null);
       await loadData(true);
-    } catch (err: any) {
-      addToast("error", err?.message || "Failed to approve payment proof.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Failed to approve payment proof.");
     } finally {
       setActionLoading(false);
     }

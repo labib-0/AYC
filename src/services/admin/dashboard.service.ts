@@ -1,6 +1,7 @@
 import { apiClient } from "@/services/api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
+import { LOW_STOCK_THRESHOLD } from "./inventory.service";
 
 export interface DashboardMetrics {
   total_products: number;
@@ -61,7 +62,7 @@ export class AdminDashboardService {
     const processingOrders = orders.filter((o) => o.status === "processing" || o.fulfillment_status === "processing").length;
     const deliveredOrders = orders.filter((o) => o.status === "delivered" || o.status === "fulfilled" || o.fulfillment_status === "delivered").length;
     const totalRevenue = orders.reduce((sum, o) => sum + (o.payment_status === "paid" ? o.total_amount : 0), 0);
-    const lowStock = products.filter((p) => p.stock < 100).length;
+    const lowStock = products.filter((p) => p.stock < LOW_STOCK_THRESHOLD).length;
 
     const recentOrders = orders.slice(0, 5).map((o, idx) => ({
       id: o.id || idx + 1,

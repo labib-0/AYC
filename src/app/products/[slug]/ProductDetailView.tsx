@@ -379,11 +379,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           </div>
         )}
 
-        {/* MAIN PRODUCT GRID (5 Cols Left Images ≈ 41.7%, 7 Cols Right Purchase Hierarchy ≈ 58.3%) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        {/* MAIN PRODUCT GRID (Balanced ~35-40% Left Gallery, ~60-65% Right Purchase Hierarchy) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10">
           
-          {/* LEFT: GALLERY / MEDIA + SPECIFICATIONS (5 Cols with controlled max-width) */}
-          <div className="lg:col-span-5 space-y-3.5 max-w-[420px] xl:max-w-[440px] 2xl:max-w-[480px] w-full mx-auto lg:mx-0">
+          {/* LEFT: GALLERY / MEDIA + SPECIFICATIONS (Compact 3:4 portrait column, sensible desktop max-width, natural mobile width) */}
+          <div className="lg:col-span-5 xl:col-span-4 space-y-3.5 w-full max-w-lg lg:max-w-[420px] xl:max-w-[440px] mx-auto lg:mx-0">
             {/* Unified Media Experience (Images + Video + Lightbox) */}
             <ProductGallery
               images={product.images}
@@ -411,95 +411,132 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
             {/* Specifications Section — positioned underneath thumbnail rail with clean, compact spacing */}
             <div className="pt-4 mt-4 border-t border-border/60 font-sans">
-              <h2 className="text-[11px] font-display font-bold uppercase tracking-wider text-foreground mb-2">
+              <h2 className="text-[13px] sm:text-[14px] font-display font-bold uppercase tracking-wider text-foreground mb-2">
                 Specifications
               </h2>
               
               {product.description && (
-                <p className="font-sans text-muted-foreground leading-relaxed text-xs mb-4 max-w-prose">
+                <p className="font-sans text-muted-foreground leading-relaxed text-[13px] sm:text-[13.5px] mb-4 max-w-prose">
                   {product.description}
                 </p>
               )}
 
               {/* Compact structured metadata grid, fields rendered dynamically based on existence */}
-              {(product.material || product.weightGrams || product.collectionSeason) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-4 border-t border-border/40 text-xs font-sans">
-                  {product.material && (
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">Material</span>
-                      <span className="font-medium text-foreground block leading-snug break-words">
-                        {product.material}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {product.weightGrams && (
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">Weight</span>
-                      <span className="font-medium text-foreground block leading-snug break-words">
-                        {product.weightGrams} g/m²
-                      </span>
-                    </div>
-                  )}
-                  
-                  {product.collectionSeason && (
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">Season</span>
-                      <span className="font-medium text-foreground block leading-snug break-words">
-                        {product.collectionSeason}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Note: product.audience intentionally omitted here to prevent redundancy with Product Header */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-4 border-t border-border/40 text-[13px] sm:text-[13.5px] font-sans">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] sm:text-[11.5px] text-muted-foreground block uppercase font-bold tracking-wider">Design Type</span>
+                  <span className="font-semibold text-foreground block leading-snug break-words">
+                    {(product.designType || "").toUpperCase() === "MASTER COPY"
+                      ? "MASTER COPY"
+                      : "ORIGINAL"}
+                  </span>
                 </div>
-              )}
+                {product.material && (
+                  <div className="space-y-0.5">
+                    <span className="text-[11px] sm:text-[11.5px] text-muted-foreground block uppercase font-bold tracking-wider">Material</span>
+                    <span className="font-medium text-foreground block leading-snug break-words">
+                      {product.material}
+                    </span>
+                  </div>
+                )}
+                
+                {product.weightGrams && (
+                  <div className="space-y-0.5">
+                    <span className="text-[11px] sm:text-[11.5px] text-muted-foreground block uppercase font-bold tracking-wider">Weight</span>
+                    <span className="font-medium text-foreground block leading-snug break-words">
+                      {product.weightGrams} g/m²
+                    </span>
+                  </div>
+                )}
+                
+                {product.collectionSeason && (
+                  <div className="space-y-0.5">
+                    <span className="text-[11px] sm:text-[11.5px] text-muted-foreground block uppercase font-bold tracking-wider">Season</span>
+                    <span className="font-medium text-foreground block leading-snug break-words">
+                      {product.collectionSeason}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Note: product.audience intentionally omitted here to prevent redundancy with Product Header */}
+              </div>
             </div>
           </div>
 
-          {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (7 Cols — Sticky on Desktop) */}
-          <div className="lg:col-span-7 lg:sticky lg:top-[80px] lg:self-start max-w-xl xl:max-w-2xl 2xl:max-w-3xl w-full flex flex-col">
+          {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (7 Cols / 8 Cols on XL+ — Sticky on Desktop) */}
+          <div className="lg:col-span-7 xl:col-span-8 lg:sticky lg:top-[80px] lg:self-start w-full flex flex-col">
             
             {/* ========================================================= */}
             {/* 1. PRODUCT IDENTITY & METADATA HIERARCHY */}
             {/* ========================================================= */}
-            <div className="space-y-1.5 pb-4 border-b border-border/60">
+            <div className="space-y-2 pb-4 border-b border-border/60">
               
-              {/* Structured Metadata (Brand prominent, SKU · Audience · Category secondary) */}
-              <div className="space-y-0.5">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-primary">
+              {/* Structured Metadata Row (BRAND · DESIGN TYPE · SKU · AUDIENCE · CATEGORY) */}
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13px] sm:text-[13.5px] font-sans leading-normal">
+                {/* Brand Name (Prominent: bold, slightly larger than secondary metadata, uppercase) */}
+                <Link
+                  href={`/search?brand=${encodeURIComponent(product.brand)}`}
+                  className="font-bold text-[14px] sm:text-[15px] uppercase tracking-wider text-foreground hover:text-primary transition-colors"
+                >
                   {product.brand}
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-sans text-muted-foreground">
-                  <span>SKU: <span className="font-mono text-foreground/90 font-medium">{product.sku}</span></span>
-                  <span className="text-border/80">·</span>
-                  <span className="uppercase font-medium">{product.audience}</span>
-                  <span className="text-border/80">·</span>
-                  <span className="font-medium">{product.categoryName || "Apparel"}</span>
-                </div>
+                </Link>
+
+                <span className="text-muted-foreground/50 select-none">·</span>
+
+                {/* Design Type (Canonical full wording, immediately following Brand, no prefix, semibold) */}
+                <span className="font-semibold text-[13px] sm:text-[13.5px] text-foreground/90 uppercase tracking-wider">
+                  {(product.designType || "").toUpperCase() === "MASTER COPY" ? "MASTER COPY" : "ORIGINAL"}
+                </span>
+
+                {product.sku && (
+                  <>
+                    <span className="text-muted-foreground/50 select-none">·</span>
+                    <span className="text-muted-foreground text-[12.5px] sm:text-[13px]">
+                      SKU: <span className="font-mono text-foreground/80 font-medium">{product.sku}</span>
+                    </span>
+                  </>
+                )}
+
+                {product.audience && (
+                  <>
+                    <span className="text-muted-foreground/50 select-none">·</span>
+                    <span className="font-medium text-[12.5px] sm:text-[13px] uppercase text-muted-foreground">
+                      {product.audience}
+                    </span>
+                  </>
+                )}
+
+                {product.categoryName && (
+                  <>
+                    <span className="text-muted-foreground/50 select-none">·</span>
+                    <span className="font-medium text-[12.5px] sm:text-[13px] uppercase text-muted-foreground">
+                      {product.categoryName}
+                    </span>
+                  </>
+                )}
               </div>
 
               {/* Product Title */}
-              <h1 className="text-xl sm:text-2xl font-display font-bold uppercase tracking-tight text-foreground leading-tight">
+              <h1 className="text-xl sm:text-2xl lg:text-[26px] font-display font-bold uppercase tracking-tight text-foreground leading-snug">
                 {product.name}
               </h1>
 
               {/* Price Hierarchy */}
-              <div className="space-y-1 pt-0.5">
+              <div className="space-y-1.5 pt-1">
                 {/* Dominant Primary B2B Unit Price */}
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl sm:text-3xl font-sans font-bold text-foreground tabular-nums tracking-tight">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl sm:text-3xl lg:text-[32px] font-sans font-bold text-foreground tabular-nums tracking-tight">
                     {formatPrice(currentPrice)}
                   </span>
-                  <span className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wider">
+                  <span className="text-[13px] sm:text-[14px] font-sans font-medium text-muted-foreground uppercase tracking-wider">
                     / pc
                   </span>
                 </div>
 
                 {/* Compact Secondary MOQ & Stock Facts */}
-                <div className="flex items-center gap-1.5 text-[11px] font-sans text-muted-foreground">
+                <div className="flex items-center gap-2 sm:gap-2.5 text-[13px] sm:text-[13.5px] font-sans text-muted-foreground">
                   <span>MOQ: <strong className="text-foreground font-semibold tabular-nums">{moq} pcs</strong></span>
-                  <span className="text-border/80">·</span>
+                  <span className="text-muted-foreground/50 select-none">·</span>
                   <span>Stock: <strong className="text-foreground font-semibold tabular-nums">{totalStock.toLocaleString()} pcs</strong></span>
                 </div>
               </div>
@@ -511,16 +548,16 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             <div className="space-y-3 pt-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-[11px] font-display font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                <h3 className="text-[13px] sm:text-[14px] font-display font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                   <TrendingDown size={14} className="text-primary" />
                   <span>Buy More, Save More</span>
                 </h3>
-                <span className="text-[10px] text-muted-foreground/70">Select a tier to set order volume</span>
+                <span className="text-[11px] sm:text-[11.5px] text-muted-foreground/70">Select a tier to set order volume</span>
               </div>
 
-              <div className="text-xs font-sans min-w-[280px]">
+              <div className="text-[12px] sm:text-[13px] font-sans min-w-[280px]">
                 {/* Header Row */}
-                <div className="grid grid-cols-[30%_35%_35%] px-3 pb-2 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/60">
+                <div className="grid grid-cols-[30%_35%_35%] px-3 pb-2 text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border/60">
                   <div className="font-semibold text-foreground">Tier</div>
                   <div className="font-semibold text-foreground">Quantity</div>
                   <div className="font-bold text-right text-foreground">Unit Price</div>
@@ -548,15 +585,15 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   >
                     <div className="flex items-center gap-2">
                       <span className={`w-1.5 h-1.5 rounded-full transition-all shrink-0 ${isStandard ? "bg-foreground scale-125" : "bg-muted-foreground/40"}`} />
-                      <span className={`uppercase tracking-wider text-[11px] ${isStandard ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>Standard</span>
+                      <span className={`uppercase tracking-wider text-[11px] sm:text-[12px] ${isStandard ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>Standard</span>
                     </div>
-                    <div className="font-normal tabular-nums text-xs">
+                    <div className="font-normal tabular-nums text-xs sm:text-[13px]">
                       <span className={isStandard ? "text-foreground" : "text-muted-foreground"}>
                         {moq}–{bulkThreshold - 1} pcs
                       </span>
                     </div>
                     <div className="text-right tabular-nums whitespace-nowrap">
-                      <span className={`tabular-nums text-xs sm:text-sm ${isStandard ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
+                      <span className={`tabular-nums text-xs sm:text-[13px] ${isStandard ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
                         {formatPrice(standardPrice)}
                       </span>
                     </div>
@@ -582,9 +619,9 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   >
                     <div className="flex items-center gap-2">
                       <span className={`w-1.5 h-1.5 rounded-full transition-all shrink-0 ${isBulk ? "bg-foreground scale-125" : "bg-muted-foreground/40"}`} />
-                      <span className={`uppercase tracking-wider text-[11px] ${isBulk ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>Bulk</span>
+                      <span className={`uppercase tracking-wider text-[11px] sm:text-[12px] ${isBulk ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>Bulk</span>
                     </div>
-                    <div className="font-normal tabular-nums text-xs">
+                    <div className="font-normal tabular-nums text-xs sm:text-[13px]">
                       <span className={isBulk ? "text-foreground" : "text-muted-foreground"}>
                         {bulkThreshold}+ pcs
                       </span>
@@ -592,11 +629,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     <div className="text-right tabular-nums whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         {bulkSavingsPercent > 0 && (
-                          <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">
+                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">
                             {bulkSavingsPercent}% OFF
                           </span>
                         )}
-                        <span className={`tabular-nums text-xs sm:text-sm ${isBulk ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
+                        <span className={`tabular-nums text-xs sm:text-[13px] ${isBulk ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
                           {formatPrice(bulkPrice)}
                         </span>
                       </div>
@@ -624,9 +661,9 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     >
                       <div className="flex items-center gap-2">
                         <span className={`w-1.5 h-1.5 rounded-full transition-all shrink-0 ${isFullStock ? "bg-foreground scale-125" : "bg-muted-foreground/40"}`} />
-                        <span className={`uppercase tracking-wider text-[11px] ${isFullStock ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>Full Stock</span>
+                        <span className={`uppercase tracking-wider text-[11px] sm:text-[12px] ${isFullStock ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>Take All</span>
                       </div>
-                      <div className="font-normal tabular-nums text-xs">
+                      <div className="font-normal tabular-nums text-xs sm:text-[13px]">
                         <span className={isFullStock ? "text-foreground" : "text-muted-foreground"}>
                           {totalStock.toLocaleString()} pcs
                         </span>
@@ -634,11 +671,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                       <div className="text-right tabular-nums whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           {fullStockSavingsPercent > 0 && (
-                            <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">
+                            <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">
                               {fullStockSavingsPercent}% OFF
                             </span>
                           )}
-                          <span className={`tabular-nums text-xs sm:text-sm ${isFullStock ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
+                          <span className={`tabular-nums text-xs sm:text-[13px] ${isFullStock ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
                             {formatPrice(resolvedFullStockPrice)}
                           </span>
                         </div>
@@ -656,51 +693,51 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               
               {/* Left side: Order Quantity */}
               <div className="space-y-2">
-                <span className="text-[10px] font-display font-bold uppercase tracking-wider text-foreground block">
+                <span className="text-[13px] sm:text-[14px] font-display font-bold uppercase tracking-wider text-foreground block">
                   Order Quantity
                 </span>
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center border border-border/80 rounded-md bg-card shadow-2xs h-8">
+                  <div className="flex items-center border border-border/80 rounded-md bg-card shadow-2xs h-8 sm:h-9">
                     <button 
                       type="button" 
                       onClick={handleDecrement}
                       disabled={quantity <= moq && !isFullStock}
-                      className="w-8 h-full flex items-center justify-center text-foreground font-bold text-sm hover:bg-secondary/60 rounded-l-md cursor-pointer transition-colors select-none disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="w-8 sm:w-9 h-full flex items-center justify-center text-foreground font-bold text-sm hover:bg-secondary/60 rounded-l-md cursor-pointer transition-colors select-none disabled:opacity-30 disabled:cursor-not-allowed"
                       aria-label="Decrease quantity"
                       title={quantity <= moq ? `Minimum order quantity is ${moq} pcs` : undefined}
                     >
                       −
                     </button>
-                    <div className="w-16 text-center font-bold text-xs select-none tabular-nums font-sans">
+                    <div className="w-16 sm:w-18 text-center font-bold text-[13px] sm:text-[14px] select-none tabular-nums font-sans">
                       {quantity.toLocaleString()}
                     </div>
                     <button 
                       type="button" 
                       onClick={handleIncrement}
                       disabled={isFullStock || (totalStock > 0 && quantity >= totalStock)}
-                      className="w-8 h-full flex items-center justify-center text-foreground font-bold text-sm hover:bg-secondary/60 rounded-r-md cursor-pointer transition-colors select-none disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="w-8 sm:w-9 h-full flex items-center justify-center text-foreground font-bold text-sm hover:bg-secondary/60 rounded-r-md cursor-pointer transition-colors select-none disabled:opacity-30 disabled:cursor-not-allowed"
                       aria-label="Increase quantity"
                       title={isFullStock || (totalStock > 0 && quantity >= totalStock) ? `Maximum available stock is ${totalStock.toLocaleString()} pcs` : undefined}
                     >
                       +
                     </button>
                   </div>
-                  <span className="text-[11px] text-muted-foreground font-medium">pcs</span>
+                  <span className="text-[13px] text-muted-foreground font-medium">pcs</span>
                 </div>
-                <div className="text-[10px] text-muted-foreground/80 leading-none">
+                <div className="text-[11px] sm:text-[12px] text-muted-foreground/80 leading-none">
                   Multiples of {moq} pcs
                 </div>
               </div>
 
               {/* Right side: Estimated Total */}
               <div className="space-y-1.5 sm:text-right">
-                <span className="text-[10px] font-display font-bold uppercase tracking-wider text-muted-foreground block">
+                <span className="text-[13px] sm:text-[14px] font-display font-bold uppercase tracking-wider text-muted-foreground block">
                   Est. Total
                 </span>
                 <div className="text-xl sm:text-2xl font-bold text-foreground font-sans tabular-nums leading-none">
                   {formatPrice(currentPrice * quantity)}
                 </div>
-                <div className="text-[10px] text-muted-foreground tabular-nums leading-none">
+                <div className="text-[11px] sm:text-[12px] text-muted-foreground tabular-nums leading-none">
                   {quantity.toLocaleString()} pcs × {formatPrice(currentPrice)} / pc
                 </div>
               </div>
@@ -709,28 +746,28 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             {/* 4. WHOLESALE PACKAGE / ASSORTMENT INFORMATION */}
             {/* ========================================================= */}
-            <div className="flex flex-col p-2.5 rounded-lg border border-border/50 bg-secondary/10 font-sans gap-2 mt-5">
+            <div className="flex flex-col p-2.5 sm:p-3 rounded-lg border border-border/50 bg-secondary/10 font-sans gap-2 mt-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Package size={13} className="text-primary" />
-                  <h3 className="text-[11px] font-display font-bold uppercase tracking-wider text-foreground">
+                  <Package size={14} className="text-primary" />
+                  <h3 className="text-[13px] sm:text-[14px] font-display font-bold uppercase tracking-wider text-foreground">
                     Package Assortment
                   </h3>
                 </div>
-                <span className="text-[10px] font-sans font-medium text-muted-foreground tabular-nums">
+                <span className="text-[12px] sm:text-[12.5px] font-sans font-medium text-muted-foreground tabular-nums">
                   {matrixData ? `${matrixData.grandTotal.toLocaleString()} pcs total` : `${moq} pcs / pack`}
                 </span>
               </div>
 
               {/* Compact Summary */}
-              <div className="text-[10px] text-muted-foreground leading-snug">
+              <div className="text-[12px] text-muted-foreground leading-snug">
                 <span className="font-semibold text-foreground">Colors:</span> {colorsList.join(", ")} <span className="mx-1">&middot;</span> <span className="font-semibold text-foreground">Sizes:</span> {sizesList.join(", ")}
               </div>
 
               {/* Package Breakdown Matrix Table (if available) */}
               {matrixData && (
                 <div className="space-y-1 mt-1">
-                  <div className="flex items-center justify-between text-[9px] mb-1">
+                  <div className="flex items-center justify-between text-[10px] sm:text-[11px] mb-1">
                     <span className="font-display font-semibold uppercase tracking-wider text-foreground/80">
                       {isFullStock ? "Full Stock Matrix" : "Ratio Matrix"}
                     </span>
@@ -739,7 +776,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
                   <div className="overflow-x-auto border border-border/50 rounded-md bg-background shadow-2xs">
                     <table className="w-full text-xs text-left min-w-[220px] font-sans">
-                      <thead className="bg-secondary/30 text-[9px] uppercase tracking-wider text-muted-foreground border-b border-border/50">
+                      <thead className="bg-secondary/30 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/50">
                         <tr>
                           <th className="px-2 py-1.5 font-semibold">Color</th>
                           {matrixData.sizes.map((s) => (
@@ -748,10 +785,10 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                           <th className="px-2 py-1.5 font-bold text-right text-foreground">Total</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border/30 text-[10px]">
+                      <tbody className="divide-y divide-border/30 text-[11px]">
                         {matrixData.colors.map((color) => (
                           <tr key={color} className="hover:bg-secondary/10">
-                            <td className="px-2 py-1 font-medium text-foreground flex items-center gap-1.5">
+                            <td className="px-2 py-1.5 font-medium text-foreground flex items-center gap-1.5">
                               <span
                                 className="w-1.5 h-1.5 rounded-full border border-black/10 shrink-0"
                                 style={{ backgroundColor: getColorHex(color) }}
@@ -759,19 +796,19 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                               <span>{color}</span>
                             </td>
                             {matrixData.sizes.map((size) => (
-                              <td key={size} className="px-1.5 py-1 text-center text-muted-foreground tabular-nums">
+                              <td key={size} className="px-1.5 py-1.5 text-center text-muted-foreground tabular-nums">
                                 {matrixData.cellMap[color]?.[size] || 0}
                               </td>
                             ))}
-                            <td className="px-2 py-1 font-bold text-right text-foreground tabular-nums">
+                            <td className="px-2 py-1.5 font-bold text-right text-foreground tabular-nums">
                               {matrixData.rowTotals[color] || 0}
                             </td>
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-secondary/20 border-t border-border/50 font-bold text-foreground text-[10px]">
+                      <tfoot className="bg-secondary/20 border-t border-border/50 font-bold text-foreground text-[11px]">
                         <tr>
-                          <td className="px-2 py-1.5 uppercase text-[9px]">TOTAL</td>
+                          <td className="px-2 py-1.5 uppercase text-[10px]">TOTAL</td>
                           {matrixData.sizes.map((size) => (
                             <td key={size} className="px-1.5 py-1.5 text-center tabular-nums">
                               {matrixData.colTotals[size] || 0}
@@ -796,7 +833,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  className="w-full flex-1 h-11 sm:h-12 px-5 rounded-lg bg-foreground text-background font-sans font-bold text-[11px] sm:text-xs uppercase tracking-wider hover:bg-foreground/90 transition-all duration-150 cursor-pointer shadow-md active:scale-[0.99] flex items-center justify-center gap-2"
+                  className="w-full flex-1 h-11 sm:h-12 px-5 rounded-lg bg-foreground text-background font-sans font-bold text-[13px] sm:text-[14px] uppercase tracking-wider hover:bg-foreground/90 transition-all duration-150 cursor-pointer shadow-md active:scale-[0.99] flex items-center justify-center gap-2"
                 >
                   <ShoppingCart size={15} />
                   <span>Add to Cart</span>

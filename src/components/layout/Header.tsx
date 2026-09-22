@@ -66,8 +66,22 @@ function HeaderContent() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAudienceOpen, setIsAudienceOpen] = useState(true);
-  const [isCategoryOpen, setIsCategoryOpen] = useState(true);
+  const [mobileAccordion, setMobileAccordion] = useState<"none" | "audience" | "category">("none");
+  const isAudienceOpen = mobileAccordion === "audience";
+  const isCategoryOpen = mobileAccordion === "category";
+
+  const toggleAudienceAccordion = () => {
+    setMobileAccordion((prev) => (prev === "audience" ? "none" : "audience"));
+  };
+
+  const toggleCategoryAccordion = () => {
+    setMobileAccordion((prev) => (prev === "category" ? "none" : "category"));
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+    setMobileAccordion("none");
+  };
   
   // Modals state
   const [isLocationOpen, setIsLocationOpen] = useState(false);
@@ -199,7 +213,7 @@ function HeaderContent() {
   const openSignIn = () => {
     setIsSearchOpen(false);
     if (user) {
-      router.push("/profile");
+      router.push("/dashboard");
     } else {
       router.push("/login");
     }
@@ -278,7 +292,7 @@ function HeaderContent() {
               )}
               <input 
                 type="text"
-                className={`bg-transparent border-none outline-none w-full text-sm focus:ring-0 ${
+                className={`bg-transparent border-none outline-none w-full text-[13px] focus:ring-0 ${
                   isSearchOpen 
                     ? "text-slate-900 placeholder:text-slate-400 font-medium pr-2" 
                     : "text-white placeholder:text-white/50"
@@ -291,7 +305,7 @@ function HeaderContent() {
               {isSearchOpen && (
                 <button 
                   type="submit"
-                  className="shrink-0 h-8 px-4 rounded-full bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                  className="shrink-0 h-8 px-4 rounded-full bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-[13px] flex items-center justify-center gap-1.5 shadow-sm transition-all"
                   aria-label="Search"
                 >
                   <Search size={14} className="text-white" strokeWidth={2.5} />
@@ -326,8 +340,8 @@ function HeaderContent() {
             >
               <span className="text-xl leading-none">{preferences.flag}</span>
               <div className="flex flex-col leading-none justify-center text-left">
-                <span className="text-xs text-white/50 mb-0.5 uppercase tracking-wide">Deliver to:</span>
-                <span className="font-bold tracking-wide text-sm truncate max-w-[90px]">
+                <span className="text-[11px] text-white/50 mb-0.5 uppercase tracking-wide">Deliver to:</span>
+                <span className="font-bold tracking-wide text-[13px] truncate max-w-[90px]">
                   {preferences.countryCode}
                 </span>
               </div>
@@ -341,7 +355,7 @@ function HeaderContent() {
               aria-label={`Language: ${preferences.language}`}
             >
               <Globe size={18} strokeWidth={1.5} />
-              <span className="font-bold tracking-wide text-sm uppercase">
+              <span className="font-bold tracking-wide text-[13px] uppercase">
                 {preferences.language}
               </span>
             </button>
@@ -380,13 +394,13 @@ function HeaderContent() {
             {/* Account / Profile */}
             {user ? (
               <Link
-                href="/profile"
+                href="/dashboard"
                 className="flex items-center gap-2 h-10 px-3 rounded-full border border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer"
-                aria-label={`My Profile: ${user.name || user.email}`}
+                aria-label={`My Dashboard: ${user.name || user.email}`}
               >
                 <User size={18} strokeWidth={1.5} />
                 <span className="text-xs font-semibold max-w-[100px] truncate">
-                  {user.name?.split(" ")[0] || "Account"}
+                  {user.name?.split(" ")[0] || "Dashboard"}
                 </span>
               </Link>
             ) : (
@@ -655,13 +669,13 @@ function HeaderContent() {
         }`}
       >
         <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <Link href="/" className="flex items-center" onClick={(e) => { setIsMobileMenuOpen(false); handleLogoClick(e); }} aria-label="Ayaan Clothing Home">
+          <Link href="/" className="flex items-center" onClick={(e) => { closeMobileMenu(); handleLogoClick(e); }} aria-label="Ayaan Clothing Home">
             <BrandName className="font-bold text-xl tracking-widest text-white" />
           </Link>
           <button 
             type="button"
             className="p-2 -mr-2 rounded-full hover:bg-white/10 transition-colors"
-            onClick={() => setIsMobileMenuOpen(false)}
+            onClick={closeMobileMenu}
             aria-label="Close menu"
           >
             <div className="w-6 h-6 flex items-center justify-center relative">
@@ -676,8 +690,8 @@ function HeaderContent() {
           <div className="py-3">
             <button
               type="button"
-              onClick={() => setIsAudienceOpen(!isAudienceOpen)}
-              className="w-full flex items-center justify-between py-2 text-xs font-display font-extrabold uppercase tracking-widest text-white/70 hover:text-white transition-colors cursor-pointer group"
+              onClick={toggleAudienceAccordion}
+              className="w-full flex items-center justify-between py-2 text-[13px] font-display font-extrabold uppercase tracking-wider text-white/70 hover:text-white transition-colors cursor-pointer group"
             >
               <span>AUDIENCE</span>
               <ChevronDown
@@ -694,8 +708,8 @@ function HeaderContent() {
                   <Link
                     key={item.label}
                     href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="py-2.5 text-sm font-display font-bold uppercase tracking-wider text-white hover:text-amber-400 transition-colors"
+                    onClick={closeMobileMenu}
+                    className="py-2 text-[13px] font-display font-bold uppercase tracking-wider text-white hover:text-amber-400 transition-colors"
                   >
                     {item.label}
                   </Link>
@@ -708,8 +722,8 @@ function HeaderContent() {
           <div className="py-3">
             <button
               type="button"
-              onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-              className="w-full flex items-center justify-between py-2 text-xs font-display font-extrabold uppercase tracking-widest text-white/70 hover:text-white transition-colors cursor-pointer group"
+              onClick={toggleCategoryAccordion}
+              className="w-full flex items-center justify-between py-2 text-[13px] font-display font-extrabold uppercase tracking-wider text-white/70 hover:text-white transition-colors cursor-pointer group"
             >
               <span>PRODUCT CATEGORY</span>
               <ChevronDown
@@ -726,8 +740,8 @@ function HeaderContent() {
                   <Link
                     key={item.label}
                     href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="py-2 text-xs font-display font-semibold uppercase tracking-wider text-white/90 hover:text-amber-400 transition-colors"
+                    onClick={closeMobileMenu}
+                    className="py-2 text-[13px] font-display font-semibold uppercase tracking-wider text-white/90 hover:text-amber-400 transition-colors"
                   >
                     {item.label}
                   </Link>
@@ -741,7 +755,7 @@ function HeaderContent() {
             <Link
               href="/#hot-sales"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="py-2.5 text-sm font-display font-bold uppercase tracking-wider text-red-400 hover:text-red-300 transition-colors"
+              className="py-2 text-[13px] font-display font-bold uppercase tracking-wider text-red-400 hover:text-red-300 transition-colors"
             >
               HOT SALES
             </Link>
@@ -756,7 +770,7 @@ function HeaderContent() {
                   if (featEl) featEl.scrollIntoView({ behavior: "smooth", block: "start" });
                 }
               }}
-              className="py-2.5 text-sm font-display font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 transition-colors"
+              className="py-2 text-[13px] font-display font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 transition-colors"
             >
               NEW ARRIVALS
             </Link>
@@ -799,24 +813,24 @@ function HeaderContent() {
             {user ? (
               <>
                 <Link 
-                  href="/profile"
+                  href="/dashboard"
                   className="flex items-center justify-between py-2 text-amber-400"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <div className="flex items-center gap-3">
                     <User size={18} strokeWidth={1.5} />
-                    <span className="font-semibold text-sm">My Profile ({user.name || user.email})</span>
+                    <span className="font-semibold text-sm">B2B Dashboard ({user.name || user.email})</span>
                   </div>
                   <span className="text-xs uppercase font-bold tracking-wider">View</span>
                 </Link>
                 <Link 
-                  href="/profile/orders"
+                  href="/dashboard/orders"
                   className="flex items-center justify-between py-2 text-white/90"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <div className="flex items-center gap-3">
                     <Package size={18} strokeWidth={1.5} />
-                    <span className="font-semibold text-sm">My Orders & Tracking</span>
+                    <span className="font-semibold text-sm">Wholesale Orders</span>
                   </div>
                   <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Orders</span>
                 </Link>

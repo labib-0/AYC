@@ -18,10 +18,10 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // If already logged in, redirect to profile
+  // If already logged in, redirect to dashboard
   React.useEffect(() => {
     if (user) {
-      router.push("/profile");
+      router.push("/dashboard");
     }
   }, [user, router]);
 
@@ -45,7 +45,7 @@ export default function SignUpPage() {
       const errMsg = typeof res.error === "string" ? res.error : res.error.message || "Failed to create account. Please try again.";
       setError(errMsg);
     } else {
-      router.push("/profile");
+      router.push("/dashboard");
     }
   };
 

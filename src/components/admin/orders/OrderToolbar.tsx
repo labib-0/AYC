@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, X, Filter } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 export interface OrderToolbarProps {
   search: string;

@@ -7,7 +7,6 @@ import {
   Star,
   Pencil,
   Trash2,
-  X,
   Check,
   Building2,
   Phone,
@@ -18,7 +17,7 @@ import {
 import { useAuth } from "@/lib/AuthContext";
 import { UserAddress } from "@/types/api";
 import { addressService, AddressFormData, getCountryName } from "@/lib/services/address.service";
-import AddressForm from "@/components/account/AddressForm";
+import { DashboardAddressModal } from "@/components/account/address";
 
 // ─── Delete Confirmation Dialog ────────────────────────────────────────────────
 
@@ -329,7 +328,7 @@ export default function AddressesPage() {
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-xs uppercase tracking-wider transition-all active:scale-[0.98] shadow-sm shrink-0 cursor-pointer self-start sm:self-auto"
         >
           <Plus size={15} />
-          <span>Add Address</span>
+          <span>+ Add Address</span>
         </button>
       </div>
 
@@ -371,7 +370,7 @@ export default function AddressesPage() {
             className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-xs uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer"
           >
             <Plus size={14} />
-            <span>Add Address</span>
+            <span>+ Add Address</span>
           </button>
         </div>
       ) : (
@@ -394,87 +393,26 @@ export default function AddressesPage() {
       )}
 
       {/* Address Form Modal */}
-      {showModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
-          onClick={() => {
-            if (!isSubmitting) {
-              setShowModal(false);
-              setEditTarget(null);
-            }
-          }}
-        >
-          <div
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-xl rounded-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/10">
-              <div>
-                <h3 className="text-base font-bold font-display text-slate-900 dark:text-white">
-                  {editTarget ? "Edit Shipping Address" : "Add New Shipping Address"}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Consignee destination details for export documentation
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowModal(false);
-                  setEditTarget(null);
-                }}
-                disabled={isSubmitting}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Scrollable Body */}
-            <div className="p-6 overflow-y-auto">
-              <AddressForm
-                initialData={
-                  editTarget
-                    ? {
-                        label: editTarget.label,
-                        name: editTarget.name || editTarget.contact_name,
-                        contact_name: editTarget.contact_name || editTarget.name,
-                        company_name: editTarget.company_name,
-                        email: editTarget.email,
-                        phone: editTarget.phone,
-                        address_line_1: editTarget.address_line_1,
-                        address_line_2: editTarget.address_line_2,
-                        city: editTarget.city,
-                        state: editTarget.state,
-                        postal_code: editTarget.postal_code,
-                        country_code: editTarget.country_code,
-                        country: editTarget.country,
-                        is_default: editTarget.is_default,
-                      }
-                    : {
-                        label: "Office",
-                        name: user?.name || "",
-                        contact_name: user?.name || "",
-                        company_name: (user as any)?.company_name || "",
-                        email: user?.email || "",
-                        phone: user?.phone || "",
-                        country_code: "US",
-                        is_default: addresses.length === 0,
-                      }
-                }
-                onSubmit={handleSave}
-                onCancel={() => {
-                  setShowModal(false);
-                  setEditTarget(null);
-                }}
-                isSubmitting={isSubmitting}
-                submitLabel={editTarget ? "Update Address" : "Save Address"}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <DashboardAddressModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditTarget(null);
+        }}
+        editTarget={editTarget}
+        onSubmit={handleSave}
+        isSubmitting={isSubmitting}
+        defaultValues={{
+          label: "Office",
+          name: user?.name || "",
+          contact_name: user?.name || "",
+          company_name: (user as any)?.company_name || "",
+          email: user?.email || "",
+          phone: user?.phone || "",
+          country_code: "US",
+          is_default: addresses.length === 0,
+        }}
+      />
 
       {/* Delete Confirmation Modal */}
       {deleteTarget && (

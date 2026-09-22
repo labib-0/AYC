@@ -194,7 +194,7 @@ export default function HotSales() {
     (activeCategory === "towels" && !towelColors.includes("ALL") && towelColors.length > 0);
 
   return (
-    <section id="hot-sales" className="pb-7 sm:pb-9 bg-background">
+    <section id="hot-sales" className="pb-7 sm:pb-9 bg-background scroll-mt-20">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         
         {/* Section Heading */}

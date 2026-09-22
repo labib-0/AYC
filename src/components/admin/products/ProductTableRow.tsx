@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
+import { LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
 
 interface ProductTableRowProps {
   product: B2BProductInput;
@@ -65,7 +66,7 @@ export default function ProductTableRow({
   }, []);
 
   const isPublished = product.status === "published";
-  const isLowStock = product.stock < 100;
+  const isLowStock = product.stock < LOW_STOCK_THRESHOLD;
   const thumbnail = product.images?.[0] || "/placeholder.jpg";
   const brandLogo = getBrandLogoUrl(product.brand);
 
@@ -107,20 +108,23 @@ export default function ProductTableRow({
           <p className="text-xs font-bold text-foreground truncate max-w-[220px]">
             {product.name}
           </p>
-          {(product.isNew || product.isHot) && (
-            <div className="flex items-center gap-1 mt-0.5">
-              {product.isNew && (
-                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
-                  New
-                </span>
-              )}
-              {product.isHot && (
-                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">
-                  Hot
-                </span>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary text-foreground/80 border border-border/50">
+              {(product.designType || "").toUpperCase() === "MASTER COPY"
+                ? "MASTER COPY"
+                : "ORIGINAL"}
+            </span>
+            {product.isNew && (
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+                New
+              </span>
+            )}
+            {product.isHot && (
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">
+                Hot
+              </span>
+            )}
+          </div>
         </div>
       </td>
 

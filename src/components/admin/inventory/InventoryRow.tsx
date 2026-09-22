@@ -31,18 +31,21 @@ export default function InventoryRow({
   if (!variantDetails.length && variant?.title) variantDetails.push(variant.title);
 
   // Brand and category info
-  const brandName = typeof product?.brand === "string"
-    ? product.brand
-    : (product?.brand as any)?.name || "Ayaan";
+  const brandName =
+    typeof product?.brand === "string"
+      ? product.brand
+      : (product?.brand as { name?: string } | undefined)?.name || "Ayaan";
 
-  const categoryName = typeof product?.category === "string"
-    ? product.category
-    : (product?.category as any)?.name || "Apparel";
+  const categoryName =
+    typeof product?.category === "string"
+      ? product.category
+      : (product?.category as { name?: string } | undefined)?.name || "Apparel";
 
   const rawImg = product?.images?.[0];
-  const imageUrl = typeof rawImg === "string"
-    ? rawImg
-    : (rawImg as any)?.image_url || "/placeholder.jpg";
+  const imageUrl =
+    typeof rawImg === "string"
+      ? rawImg
+      : (rawImg as { image_url?: string } | undefined)?.image_url || "/placeholder.jpg";
 
   return (
     <tr className="hover:bg-secondary/25 transition-colors font-medium border-b border-border/50 text-xs">
@@ -53,7 +56,7 @@ export default function InventoryRow({
           <img
             src={imageUrl}
             alt={product?.name || "Product"}
-            className="w-11 h-13 object-cover rounded-lg bg-secondary shrink-0 border border-border/60 shadow-2xs"
+            className="w-11 h-13 object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60 shadow-2xs"
             loading="lazy"
           />
           <div className="min-w-0 flex-1">

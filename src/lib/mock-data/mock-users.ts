@@ -2,9 +2,42 @@ import { User } from "@/types/api";
 
 export interface MockUserData extends User {
   password: string;
+  is_active?: boolean;
 }
 
 export const INITIAL_MOCK_USERS: MockUserData[] = [
+  // 0A. Default Demo Admin (Phase 28 Frontend-Only Mode)
+  {
+    id: 998,
+    name: "Ayaan Demo Admin",
+    email: "admin@ayaan-demo.local",
+    password: "Admin@12345",
+    role: "admin",
+    phone: "+8801826304930",
+    company_name: "AYAAN CLOTHING Admin Desk",
+    tax_id: "BD-DEMO-ADMIN",
+    avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200",
+    b2b_approval_status: "approved",
+    b2b_payment_terms: "net_60",
+    b2b_credit_limit: 500000,
+    created_at: "2026-09-22T00:00:00Z",
+  },
+  // 0B. Default Demo Customer (Phase 28 Frontend-Only Mode)
+  {
+    id: 999,
+    name: "Demo Customer",
+    email: "customer@ayaan-demo.local",
+    password: "Customer@12345",
+    role: "customer",
+    phone: "+1-555-0199",
+    company_name: "Ayaan Commercial Demo Corp",
+    tax_id: "US-DEMO-99901",
+    avatar_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200",
+    b2b_approval_status: "approved",
+    b2b_payment_terms: "none",
+    b2b_credit_limit: 10000,
+    created_at: "2026-09-22T00:00:00Z",
+  },
   // 1. Retail Customer
   {
     id: 101,

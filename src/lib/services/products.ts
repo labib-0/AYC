@@ -84,6 +84,7 @@ export interface FeaturedProductsOptions {
   offset?: number;
   limit?: number;
   brands?: string[];
+  designTypes?: string[];
   audiences?: string[];
   categories?: string[];
 }
@@ -102,6 +103,7 @@ export async function getFeaturedProducts(
     is_best_deal: isDeals ? true : undefined,
     is_new: !isDeals ? true : undefined,
     brand: options.brands && options.brands.length > 0 ? options.brands.join(",") : undefined,
+    design_type: options.designTypes && options.designTypes.length > 0 ? options.designTypes.join(",") : undefined,
     audience: options.audiences && options.audiences.length > 0 ? options.audiences.join(",") : undefined,
     category: options.categories && options.categories.length > 0 ? options.categories.join(",") : undefined,
   };
@@ -126,7 +128,8 @@ export function getInitialFeaturedProducts(
   limit: number = 15,
   brands?: string[],
   audiences?: string[],
-  categories?: string[]
+  categories?: string[],
+  designTypes?: string[]
 ): Product[] {
   const isDeals = tab === "best-deals";
   let filtered = INITIAL_MOCK_PRODUCTS.filter((p) =>
@@ -149,6 +152,18 @@ export function getInitialFeaturedProducts(
           bClean.includes(pBrandClean)
         );
       });
+    });
+  }
+  if (designTypes && designTypes.length > 0) {
+    const dtUpper = designTypes.map((d) => {
+      const u = d.toUpperCase();
+      if (u === "REPLICA" || u === "MASTER_COPY" || u === "MASTER COPY" || u === "MC") return "MASTER COPY";
+      return u;
+    });
+    filtered = filtered.filter((p) => {
+      const rawDt = ((p as any).designType || "ORIGINAL").toUpperCase();
+      const pDt = (rawDt === "REPLICA" || rawDt === "MC") ? "MASTER COPY" : rawDt;
+      return dtUpper.includes(pDt);
     });
   }
   if (audiences && audiences.length > 0) {

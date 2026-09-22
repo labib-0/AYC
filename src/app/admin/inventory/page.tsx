@@ -97,9 +97,9 @@ export default function AdminInventoryPage() {
         setTotal(invRes.total);
         setSummary(summaryRes);
         setWarehouses(whRes);
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(
-          err?.message || "Failed to load inventory records. Please retry."
+          (err as Error)?.message || "Failed to load inventory records. Please retry."
         );
       } finally {
         setLoading(false);

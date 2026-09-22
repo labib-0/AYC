@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { brandService, BrandModel } from "@/services/brand.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
 import { ChevronDown, Tag, LayoutGrid } from "lucide-react";
-import InlineCategoryExpansion from "./InlineCategoryExpansion";
+import AllCategoriesPanel from "./AllCategoriesPanel";
+import BrandLogoTile from "@/components/common/BrandLogoTile";
 
 export interface Brand {
   id: string;
@@ -70,7 +71,6 @@ export default function ShopByBrand() {
   const router = useRouter();
   const [dbBrands, setDbBrands] = useState<Brand[]>([]);
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_DISPLAY_COUNT);
-  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const [isAllCategoriesOpen, setIsAllCategoriesOpen] = useState(false);
 
   useEffect(() => {
@@ -126,10 +126,6 @@ export default function ShopByBrand() {
     router.push(`/search?brand=${encodeURIComponent(brand.name)}&filterOpen=true`);
   };
 
-  const handleLogoError = (brandId: string) => {
-    setImgErrors((prev) => ({ ...prev, [brandId]: true }));
-  };
-
   const handleAllCategoriesClick = () => {
     setIsAllCategoriesOpen((prev) => !prev);
   };
@@ -155,7 +151,8 @@ export default function ShopByBrand() {
               type="button"
               onClick={handleAllCategoriesClick}
               aria-expanded={isAllCategoriesOpen}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
+              aria-controls="shop-by-brand-categories"
+              className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
                 isAllCategoriesOpen
                   ? "bg-foreground text-background border border-foreground shadow-xs"
                   : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-border/60 hover:border-foreground/30"
@@ -175,8 +172,8 @@ export default function ShopByBrand() {
           </div>
         </div>
 
-        {/* ── Inline Expanded Category Panel ── */}
-        <InlineCategoryExpansion isOpen={isAllCategoriesOpen} />
+        {/* ── Inline Expanded Category Panel (Shared AllCategoriesPanel) ── */}
+        <AllCategoriesPanel isOpen={isAllCategoriesOpen} id="shop-by-brand-categories" />
 
         {/* 
           Compact Responsive Brand Navigation Grid:
@@ -192,36 +189,17 @@ export default function ShopByBrand() {
           {visibleBrands.map((brand) => {
             // Direct logo source: brand.logo_url is authoritative (supports local /brands/*.svg or admin-uploaded URLs)
             const logoUrl = brand.logo_url || brand.logo || getBrandLogoUrl(brand.name);
-            const hasError = imgErrors[brand.id];
-            const hasValidLogo = Boolean(logoUrl && !hasError);
 
             return (
-              <button
+              <BrandLogoTile
                 key={brand.id}
-                type="button"
+                id={brand.id}
+                name={brand.name}
+                logoUrl={logoUrl}
                 onClick={() => handleBrandClick(brand)}
-                className="group relative flex items-center justify-center aspect-[1.35/1] w-full p-2 sm:p-2.5 rounded-lg bg-card border border-border/70 hover:border-foreground/40 hover:bg-secondary/20 shadow-2xs transition-all duration-200 cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground"
                 title={brand.name}
-                aria-label={`Shop ${brand.name}`}
-              >
-                {/* Unified Full-Tile Logo Area (object-contain, minimal padding, no text label) */}
-                <div className="w-full h-full flex items-center justify-center">
-                  {hasValidLogo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={logoUrl || undefined}
-                      alt={`${brand.name} logo`}
-                      className="w-auto h-auto max-h-full max-w-full object-contain transition-transform duration-200 group-hover:scale-105"
-                      loading="lazy"
-                      onError={() => handleLogoError(brand.id)}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center text-muted-foreground/40">
-                      <Tag size={16} strokeWidth={1.5} />
-                    </div>
-                  )}
-                </div>
-              </button>
+                ariaLabel={`Shop ${brand.name}`}
+              />
             );
           })}
         </div>

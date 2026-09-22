@@ -318,64 +318,93 @@ export function generateProductOfferSheetDoc(
     doc.text("PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES", margin, y);
     y += 2.5;
 
-    // Main Large Product Image Frame
-    const mainImgWidth = 76;
-    const mainImgHeight = 44;
-    const mainFrameX = (pageWidth - mainImgWidth) / 2;
+    // Main Large Product Image Frame (Centered, Aspect Ratio Preserved)
+    const mainBoxWidth = 80;
+    const mainBoxHeight = 44;
     const mainImgData = galleryImages[0];
 
     doc.setFillColor(248, 250, 252);
     doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(margin, y, contentWidth, mainImgHeight + 4, 1.5, 1.5, "FD");
+    doc.roundedRect(margin, y, contentWidth, mainBoxHeight + 4, 1.5, 1.5, "FD");
 
     try {
-      doc.addImage(
-        mainImgData,
-        "JPEG",
-        mainFrameX,
-        y + 2,
-        mainImgWidth,
-        mainImgHeight
-      );
+      const props = (doc as any).getImageProperties(mainImgData);
+      const imgRatio = (props?.width || 1) / (props?.height || 1);
+      let drawW = mainBoxWidth;
+      let drawH = drawW / imgRatio;
+      if (drawH > mainBoxHeight) {
+        drawH = mainBoxHeight;
+        drawW = drawH * imgRatio;
+      }
+      const drawX = (pageWidth - drawW) / 2;
+      const drawY = y + 2 + (mainBoxHeight - drawH) / 2;
+      doc.addImage(mainImgData, "JPEG", drawX, drawY, drawW, drawH);
     } catch {
-      // Fallback
+      const mainFrameX = (pageWidth - mainBoxWidth) / 2;
+      doc.addImage(mainImgData, "JPEG", mainFrameX, y + 2, mainBoxWidth, mainBoxHeight);
     }
 
-    y += mainImgHeight + 6;
+    y += mainBoxHeight + 6;
 
-    // Small Thumbnail Images Row (Underneath Main Image)
+    // Small Thumbnail Images (All Available Product Images Shown, Multi-Row Wrapping)
     if (galleryImages.length > 1) {
-      const thumbSize = 14;
+      const thumbSize = 13;
       const thumbSpacing = 2.5;
-      const maxPerCol = 10;
-      const thumbsToShow = galleryImages.slice(0, maxPerCol);
-      const totalThumbsWidth =
-        thumbsToShow.length * thumbSize +
-        (thumbsToShow.length - 1) * thumbSpacing;
-      let startThumbX = (pageWidth - totalThumbsWidth) / 2;
-      if (startThumbX < margin) startThumbX = margin;
+      const availableWidth = contentWidth - 4;
+      const maxPerRow = Math.max(1, Math.floor((availableWidth + thumbSpacing) / (thumbSize + thumbSpacing)));
 
+      // Group all gallery images into rows
+      const thumbRows: string[][] = [];
+      for (let i = 0; i < galleryImages.length; i += maxPerRow) {
+        thumbRows.push(galleryImages.slice(i, i + maxPerRow));
+      }
+
+      const totalThumbBoxHeight = thumbRows.length * thumbSize + (thumbRows.length - 1) * 3 + 4;
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(margin, y, contentWidth, thumbSize + 4, 1.5, 1.5, "FD");
+      doc.roundedRect(margin, y, contentWidth, totalThumbBoxHeight, 1.5, 1.5, "FD");
 
-      thumbsToShow.forEach((tImg, tIdx) => {
-        const curX = startThumbX + tIdx * (thumbSize + thumbSpacing);
-        doc.setFillColor(255, 255, 255);
-        doc.setDrawColor(
-          tIdx === 0 ? 234 : 203,
-          tIdx === 0 ? 88 : 213,
-          tIdx === 0 ? 12 : 225
-        );
-        doc.roundedRect(curX, y + 2, thumbSize, thumbSize, 1, 1, "FD");
-        try {
-          doc.addImage(tImg, "JPEG", curX + 1, y + 3, thumbSize - 2, thumbSize - 2);
-        } catch {
-          // fallback
-        }
+      let rowY = y + 2;
+      let globalIdx = 0;
+
+      thumbRows.forEach((row) => {
+        const rowTotalWidth = row.length * thumbSize + (row.length - 1) * thumbSpacing;
+        let startThumbX = (pageWidth - rowTotalWidth) / 2;
+        if (startThumbX < margin + 2) startThumbX = margin + 2;
+
+        row.forEach((tImg, colIdx) => {
+          const curX = startThumbX + colIdx * (thumbSize + thumbSpacing);
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(
+            globalIdx === 0 ? 234 : 203,
+            globalIdx === 0 ? 88 : 213,
+            globalIdx === 0 ? 12 : 225
+          );
+          doc.roundedRect(curX, rowY, thumbSize, thumbSize, 1, 1, "FD");
+
+          try {
+            const tProps = (doc as any).getImageProperties(tImg);
+            const tRatio = (tProps?.width || 1) / (tProps?.height || 1);
+            let tDrawW = thumbSize - 2;
+            let tDrawH = tDrawW / tRatio;
+            if (tDrawH > thumbSize - 2) {
+              tDrawH = thumbSize - 2;
+              tDrawW = tDrawH * tRatio;
+            }
+            const tDrawX = curX + 1 + (thumbSize - 2 - tDrawW) / 2;
+            const tDrawY = rowY + 1 + (thumbSize - 2 - tDrawH) / 2;
+            doc.addImage(tImg, "JPEG", tDrawX, tDrawY, tDrawW, tDrawH);
+          } catch {
+            doc.addImage(tImg, "JPEG", curX + 1, rowY + 1, thumbSize - 2, thumbSize - 2);
+          }
+
+          globalIdx++;
+        });
+
+        rowY += thumbSize + 3;
       });
 
-      y += thumbSize + 7;
+      y += totalThumbBoxHeight + 5;
     } else {
       y += 2;
     }
@@ -470,11 +499,11 @@ export function generateProductOfferSheetDoc(
     y += 12;
   }
 
-  // 4. Section 2: Volume Pricing Tiers & Offered Commercial Summary
+  // 4. Section 2: Applicable Wholesale Pricing
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("2. VOLUME WHOLESALE PRICING TIERS (USD)", margin, y);
+  doc.text("2. APPLICABLE WHOLESALE PRICING (USD)", margin, y);
   y += 3;
 
   const basePrice = Number(product.price) || 12;
@@ -490,29 +519,49 @@ export function generateProductOfferSheetDoc(
         { minQuantity: 201, maxQuantity: undefined, price: Math.round(basePrice * 0.85 * 100) / 100 },
       ];
 
-  const tierRows = tiers.map((t, idx) => {
-    const rangeLabel = t.maxQuantity
-      ? `${t.minQuantity} – ${t.maxQuantity} pcs`
-      : `${t.minQuantity}+ pcs (Bulk Volume)`;
-    const unitPriceFmt = fmtUSD(t.price);
-    const estTotalMin = fmtUSD(t.price * t.minQuantity);
-    const savings = idx === 0 ? "Standard Tier" : `${Math.round(((basePrice - t.price) / basePrice) * 100)}% Discount`;
+  // ── Resolve the single applicable tier for this order quantity ──────────────
+  // Reuses the same min/max range logic used by the commercial summary callout
+  // below. We find the matching tier index so we can label it correctly (e.g.
+  // "Tier 2") while showing only ONE row in the pricing table.
+  const qtyToOffer = selectedQty || product.moq || 10;
+  let matchedTierIdx = 0; // default to first tier if nothing else matches
+  let matchedPrice = basePrice;
 
-    return [
-      `Tier ${idx + 1}`,
-      rangeLabel,
-      `${unitPriceFmt} / pc`,
-      estTotalMin,
-      savings,
-      "FOB Dhaka",
-    ];
-  });
+  for (let i = 0; i < tiers.length; i++) {
+    const t = tiers[i];
+    if (qtyToOffer >= t.minQuantity) {
+      if (!t.maxQuantity || qtyToOffer <= t.maxQuantity) {
+        matchedTierIdx = i;
+        matchedPrice = t.price;
+      }
+    }
+  }
+
+  // Build the SINGLE applicable tier row using the same field derivation as before
+  const matchedTier = tiers[matchedTierIdx];
+  const rangeLabel = matchedTier.maxQuantity
+    ? `${matchedTier.minQuantity} – ${matchedTier.maxQuantity} pcs`
+    : `${matchedTier.minQuantity}+ pcs (Bulk Volume)`;
+  const unitPriceFmt = fmtUSD(matchedTier.price);
+  const estTotalMin = fmtUSD(matchedTier.price * matchedTier.minQuantity);
+  const savings = matchedTierIdx === 0
+    ? "Standard Tier"
+    : `${Math.round(((basePrice - matchedTier.price) / basePrice) * 100)}% Discount`;
+
+  const singleTierRow = [
+    `Tier ${matchedTierIdx + 1}`,
+    rangeLabel,
+    `${unitPriceFmt} / pc`,
+    estTotalMin,
+    savings,
+    "FOB Dhaka",
+  ];
 
   applyAutoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
     head: [["Tier", "Order Quantity Range", "Unit Price (USD)", "Min Order Value", "Volume Benefit", "Incoterm"]],
-    body: tierRows,
+    body: [singleTierRow],
     theme: "striped",
     headStyles: {
       fillColor: [30, 41, 59],
@@ -538,17 +587,7 @@ export function generateProductOfferSheetDoc(
 
   y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 6 : y + 36;
 
-  // 5. Offered Quantity & Commercial Value Box (if specific quantity was requested)
-  const qtyToOffer = selectedQty || product.moq || 10;
-  // Calculate applicable tier price for this quantity
-  let matchedPrice = basePrice;
-  for (const tier of tiers) {
-    if (qtyToOffer >= tier.minQuantity) {
-      if (!tier.maxQuantity || qtyToOffer <= tier.maxQuantity) {
-        matchedPrice = tier.price;
-      }
-    }
-  }
+  // 5. Offered Quantity & Commercial Value Box
   const merchandiseOfferTotal = qtyToOffer * matchedPrice;
 
   // Commercial Summary Callout Bar
@@ -661,6 +700,25 @@ export async function downloadProductOfferSheetPDF(
   }
   if (product.image && !imageSources.includes(product.image)) {
     imageSources.unshift(product.image);
+  }
+
+  // Fallback: If no images provided, check mockStore
+  if (imageSources.length === 0 && (product.sku || product.name)) {
+    try {
+      const { mockStore } = await import("@/lib/mock-data/mock-store");
+      const found = mockStore.getProducts().find(
+        (p) =>
+          (product.sku && p.sku?.toUpperCase() === product.sku.toUpperCase()) ||
+          (product.name && p.name.toLowerCase() === product.name.toLowerCase())
+      );
+      if (found && found.images && found.images.length > 0) {
+        found.images.forEach((img) => {
+          if (img && !imageSources.includes(img)) imageSources.push(img);
+        });
+      }
+    } catch {
+      // fallback
+    }
   }
 
   let galleryDataUrls: string[] = product.galleryDataUrls || [];

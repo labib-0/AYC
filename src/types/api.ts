@@ -73,6 +73,9 @@ export interface User {
   phone?: string;
   company_name?: string;
   tax_id?: string;
+  country?: string;
+  business_type?: string;
+  website?: string;
   b2b_approval_status?: "pending" | "approved" | "rejected";
   b2b_payment_terms?: "none" | "net_30" | "net_60" | "terms";
   b2b_credit_limit?: number;

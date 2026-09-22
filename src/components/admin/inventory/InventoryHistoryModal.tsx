@@ -70,10 +70,11 @@ export default function InventoryHistoryModal({
               src={
                 typeof product?.images?.[0] === "string"
                   ? product.images[0]
-                  : (product?.images?.[0] as any)?.image_url || "/placeholder.jpg"
+                  : (product?.images?.[0] as { image_url?: string } | undefined)
+                      ?.image_url || "/placeholder.jpg"
               }
               alt={product?.name || "Product"}
-              className="w-12 h-14 object-cover rounded-lg bg-secondary shrink-0 border border-border/60"
+              className="w-12 h-14 object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60"
             />
             <div className="min-w-0">
               <h4 className="font-bold text-foreground text-xs truncate">
@@ -167,7 +168,7 @@ export default function InventoryHistoryModal({
 
                       <div className="flex items-center gap-1">
                         <User size={12} className="text-muted-foreground" />
-                        <span>Admin ({adj.admin_user?.name || (adj as any).user?.name || "Ayaan Admin"})</span>
+                        <span>Admin ({adj.admin_user?.name || (adj as { user?: { name?: string } }).user?.name || "Ayaan Admin"})</span>
                       </div>
                     </div>
 

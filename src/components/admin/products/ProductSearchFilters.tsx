@@ -37,7 +37,7 @@ const STATUSES = [
 const DESIGN_TYPES = [
   { value: "all", label: "All Design Types" },
   { value: "original", label: "Original" },
-  { value: "replica", label: "Replica" },
+  { value: "master_copy", label: "Master Copy" },
 ];
 
 export default function ProductSearchFilters({

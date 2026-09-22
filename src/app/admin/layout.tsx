@@ -22,6 +22,9 @@ import {
   ChevronRight,
   LogOut,
   UserCheck,
+  PanelTop,
+  Files,
+  Settings,
 } from "lucide-react";
 import BrandName from "@/components/common/BrandName";
 import { useAuth } from "@/lib/AuthContext";
@@ -36,7 +39,10 @@ const NAV_ITEMS = [
   { label: "Customer Accounts", href: "/admin/customers", adminOriginHref: "/customers", icon: Users },
   { label: "B2B RFQs & Inquiries", href: "/admin/rfq", adminOriginHref: "/rfq", icon: FileText },
   { label: "Commercial Quotes", href: "/admin/quotations", adminOriginHref: "/quotations", icon: FileCheck },
+  { label: "Commercial Documents", href: "/admin/documents", adminOriginHref: "/documents", icon: Files },
+  { label: "Homepage & Banner", href: "/admin/homepage", adminOriginHref: "/homepage", icon: PanelTop },
   { label: "Promotions & Coupons", href: "/admin/promotions", adminOriginHref: "/promotions", icon: Percent },
+  { label: "Settings", href: "/admin/settings", adminOriginHref: "/settings", icon: Settings },
 ];
 
 export default function AdminLayout({

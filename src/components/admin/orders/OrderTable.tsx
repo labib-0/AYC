@@ -5,7 +5,7 @@ import OrderTableRow from "./OrderTableRow";
 import OrderStatusBadge from "./OrderStatusBadge";
 import PaymentStatusBadge from "./PaymentStatusBadge";
 import FulfillmentStatusBadge from "./FulfillmentStatusBadge";
-import { ShoppingBag, AlertCircle, RefreshCw, Eye } from "lucide-react";
+import { ShoppingBag, AlertCircle, RefreshCw } from "lucide-react";
 
 export interface OrderTableProps {
   orders: OrderRecord[];

@@ -2,9 +2,17 @@
 
 import React from "react";
 import Link from "next/link";
-import { Plus, ShoppingBag, Warehouse, ArrowRight } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Plus, ShoppingBag, Warehouse } from "lucide-react";
 
 export default function DashboardQuickActions() {
+  const pathname = usePathname();
+  const isUnderAdminPath = pathname.startsWith("/admin");
+
+  const addProductHref = isUnderAdminPath ? "/admin/products/new" : "/products/new";
+  const ordersHref = isUnderAdminPath ? "/admin/orders" : "/orders";
+  const inventoryHref = isUnderAdminPath ? "/admin/inventory" : "/inventory";
+
   return (
     <div className="flex flex-wrap items-center gap-2 pt-1">
       <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mr-1">
@@ -12,7 +20,7 @@ export default function DashboardQuickActions() {
       </span>
 
       <Link
-        href="/admin/products/new"
+        href={addProductHref}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/80 bg-card hover:bg-secondary text-xs font-semibold text-foreground transition-all shadow-2xs hover:-translate-y-0.5"
       >
         <Plus size={13} className="text-primary" />
@@ -20,7 +28,7 @@ export default function DashboardQuickActions() {
       </Link>
 
       <Link
-        href="/admin/orders"
+        href={ordersHref}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/80 bg-card hover:bg-secondary text-xs font-semibold text-foreground transition-all shadow-2xs hover:-translate-y-0.5"
       >
         <ShoppingBag size={13} className="text-muted-foreground" />
@@ -28,7 +36,7 @@ export default function DashboardQuickActions() {
       </Link>
 
       <Link
-        href="/admin/inventory"
+        href={inventoryHref}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/80 bg-card hover:bg-secondary text-xs font-semibold text-foreground transition-all shadow-2xs hover:-translate-y-0.5"
       >
         <Warehouse size={13} className="text-muted-foreground" />

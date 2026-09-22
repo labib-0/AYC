@@ -173,3 +173,116 @@ export async function uploadPaymentProof(file: File, orderId: string): Promise<U
     key: `local_proof_${orderId}_${Date.now()}`,
   };
 }
+
+/**
+ * Upload a homepage banner image via REST API or persistent base64 Data URL
+ */
+export async function uploadBannerImage(file: File): Promise<UploadResult> {
+  const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+  const isImage = validTypes.includes(file.type) || file.type.startsWith("image/");
+
+  if (!isImage) {
+    throw new Error("Invalid file format. Please upload a valid image file (PNG, JPG, or WebP).");
+  }
+
+  // Attempt REST API upload if available
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", "banners");
+
+    const res = await apiClient.post<{ url?: string; data?: { url?: string; key?: string }; key?: string }>("/upload", formData);
+    if (res?.url || res?.data?.url) {
+      return {
+        url: res.url || res.data?.url || "",
+        key: res.key || res.data?.key || file.name,
+      };
+    }
+  } catch {
+    // Graceful fallback for offline / frontend mode
+  }
+
+  // In offline / mock mode, convert to persistent base64 Data URL so it saves to mockStore / localStorage
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      resolve({
+        url: dataUrl,
+        key: `banner_${Date.now()}_${file.name}`,
+      });
+    };
+    reader.onerror = () => {
+      const fallbackUrl = typeof window !== "undefined" ? URL.createObjectURL(file) : "/images/homepage-banner.jpg";
+      resolve({
+        url: fallbackUrl,
+        key: `banner_${Date.now()}_${file.name}`,
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Upload a promotional campaign asset via REST API or persistent base64 Data URL
+ */
+export async function uploadPromotionImage(file: File): Promise<UploadResult> {
+  const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+  const isImage = validTypes.includes(file.type) || file.type.startsWith("image/");
+
+  if (!isImage) {
+    throw new Error("Invalid file format. Please upload a valid image file (PNG, JPG, or WebP).");
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", "promotions");
+
+    const res = await apiClient.post<{ url?: string; data?: { url?: string; key?: string }; key?: string }>("/upload", formData);
+    if (res?.url || res?.data?.url) {
+      return {
+        url: res.url || res.data?.url || "",
+        key: res.key || res.data?.key || file.name,
+      };
+    }
+  } catch {
+    // Graceful fallback for offline / frontend mode
+  }
+
+  if (typeof FileReader !== "undefined") {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        resolve({
+          url: dataUrl,
+          key: `promo_${Date.now()}_${file.name}`,
+        });
+      };
+      reader.onerror = () => {
+        const fallbackUrl = typeof window !== "undefined" ? URL.createObjectURL(file) : "/images/homepage-banner.jpg";
+        resolve({
+          url: fallbackUrl,
+          key: `promo_${Date.now()}_${file.name}`,
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (typeof file.arrayBuffer === "function") {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const mime = file.type || "image/png";
+    return {
+      url: `data:${mime};base64,${buffer.toString("base64")}`,
+      key: `promo_${Date.now()}_${file.name}`,
+    };
+  }
+
+  return {
+    url: "/images/homepage-banner.jpg",
+    key: `promo_${Date.now()}_${file.name}`,
+  };
+}
+

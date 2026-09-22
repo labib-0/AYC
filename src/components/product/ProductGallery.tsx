@@ -314,7 +314,7 @@ export default function ProductGallery({
 
   const isModal = variant === "modal";
   const mainRadiusClass = isModal ? "rounded-xl" : "rounded-2xl";
-  const thumbSizeClass = isModal ? "w-11 sm:w-12 rounded-lg" : "w-14 sm:w-16 rounded-xl";
+  const thumbSizeClass = isModal ? "w-11 sm:w-12 rounded-lg" : "w-12 sm:w-14 rounded-lg";
   const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "";
 
   if (images.length === 0 && !resolvedYoutubeEmbedUrl) {
@@ -358,7 +358,7 @@ export default function ProductGallery({
                 alt={`${productName} — image ${currentIndex + 1}`}
                 loading={currentIndex === 0 ? "eager" : "lazy"}
                 decoding="async"
-                className="w-full h-full object-cover object-center transition-transform duration-200 group-hover:scale-[1.02] pointer-events-none"
+                className="w-full h-full object-contain object-center transition-transform duration-200 group-hover:scale-[1.02] pointer-events-none"
                 draggable={false}
               />
             </button>
@@ -474,7 +474,7 @@ export default function ProductGallery({
                       alt={`${productName} thumbnail ${idx + 1}`}
                       loading="lazy"
                       decoding="async"
-                      className="w-full h-full object-cover object-center pointer-events-none"
+                      className="w-full h-full object-contain object-center pointer-events-none"
                       draggable={false}
                     />
                   </button>

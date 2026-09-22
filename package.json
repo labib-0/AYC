@@ -6,7 +6,10 @@
     "dev": "next dev",
     "dev:admin": "node scripts/admin-proxy.js",
     "dev:both": "node scripts/start-dev.js",
+    "dev:frontend-only": "node scripts/start-dev.js",
+    "dev:demo": "node scripts/start-dev.js",
     "build": "next build",
+    "build:clean": "rm -rf .next && next build",
     "start": "next start",
     "lint": "eslint"
   },

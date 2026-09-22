@@ -70,7 +70,7 @@ export default function Footer() {
                   <span>ABOUT US</span>
                   <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
                 </button>
-                <p className="text-sm text-white/70 leading-relaxed mt-2.5 max-w-sm">
+                <p className="text-[13px] text-white/70 leading-relaxed mt-2.5 max-w-sm">
                   {BUSINESS_PROFILE.description}. Established in {BUSINESS_PROFILE.establishedYear}, serving international buyers with premium ready-made garments manufacturing & export.
                 </p>
               </div>
@@ -79,7 +79,7 @@ export default function Footer() {
                 <button
                   type="button"
                   onClick={handleAboutUsClick}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/80 hover:text-white transition-colors underline underline-offset-4 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wider text-white/80 hover:text-white transition-colors underline underline-offset-4 cursor-pointer"
                 >
                   Explore Buyer Capabilities →
                 </button>
@@ -88,10 +88,10 @@ export default function Footer() {
 
             {/* COLUMN 2 — INFORMATION (Col span 3) */}
             <div className="lg:col-span-3">
-              <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
+              <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                 INFORMATION
               </h3>
-              <ul className="flex flex-col gap-2.5 text-sm text-white/75">
+              <ul className="flex flex-col gap-2.5 text-[13px] text-white/75">
                 <li>
                   <button
                     type="button"
@@ -131,7 +131,7 @@ export default function Footer() {
             {/* COLUMN 3 — OFFICIAL BUSINESS ADDRESS & CONTACT (Col span 3) */}
             <div className="lg:col-span-3 flex flex-col gap-4">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
+                <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                   OFFICIAL BUSINESS ADDRESS
                 </h3>
                 
@@ -168,7 +168,7 @@ export default function Footer() {
               </div>
 
               {/* Official Business Information */}
-              <div className="space-y-2.5 text-xs text-white/75">
+              <div className="space-y-2.5 text-[13px] text-white/75">
                 <div className="flex items-start gap-2.5">
                   <MapPin size={15} className="text-white/60 shrink-0 mt-0.5" />
                   <span className="leading-relaxed">
@@ -186,7 +186,7 @@ export default function Footer() {
                     Chat on WhatsApp
                   </a>
                 </div>
-                <div className="text-[11px] text-white/50 pl-6">
+                <div className="text-[12px] text-white/50 pl-6">
                   Established: {BUSINESS_PROFILE.establishedYear} • Brand Mark: {BUSINESS_PROFILE.brandMark}
                 </div>
               </div>
@@ -194,10 +194,10 @@ export default function Footer() {
 
             {/* COLUMN 4 — SUPPORT (Col span 2) */}
             <div className="lg:col-span-2">
-              <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
+              <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                 SUPPORT
               </h3>
-              <ul className="flex flex-col gap-2.5 text-sm text-white/75">
+              <ul className="flex flex-col gap-2.5 text-[13px] text-white/75">
                 <li>
                   <Link href="#shipping" className="hover:text-white transition-colors">
                     Shipping Information
@@ -219,14 +219,14 @@ export default function Footer() {
           </div>
 
           {/* Brand Legal Disclaimer */}
-          <div className="pt-6 pb-6 text-xs text-white/50 leading-relaxed border-b border-white/5">
+          <div className="pt-6 pb-6 text-[13px] text-white/50 leading-relaxed border-b border-white/5">
             <p>
               Disclaimer: All brand names, logos, trademarks, and registered trademarks displayed on this website are the property of their respective owners. {BUSINESS_PROFILE.name} is an independent ready-made garments manufacturer and exporter.
             </p>
           </div>
 
           {/* Bottom Copyright & Legal Row */}
-          <div className="flex flex-col sm:flex-row items-center justify-between pt-6 gap-4 text-xs text-white/40">
+          <div className="flex flex-col sm:flex-row items-center justify-between pt-6 gap-4 text-[13px] text-white/40">
             <p>© {new Date().getFullYear()} {BUSINESS_PROFILE.name}. All rights reserved.</p>
             <div className="flex items-center gap-6">
               <Link href="#privacy" className="hover:text-white/70 transition-colors">

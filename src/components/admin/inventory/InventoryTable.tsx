@@ -1,7 +1,8 @@
 import React from "react";
-import { Package, SearchX, CheckCircle2 } from "lucide-react";
+import { Package, SearchX, CheckCircle2, History } from "lucide-react";
 import { InventoryRecord, LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
 import InventoryRow from "./InventoryRow";
+import StockStatusBadge from "./StockStatusBadge";
 
 export interface InventoryTableProps {
   records: InventoryRecord[];
@@ -123,8 +124,132 @@ export default function InventoryTable({
 
   return (
     <div className="bg-card border border-border/70 rounded-2xl shadow-xs overflow-hidden">
-      {/* Desktop Table View */}
-      <div className="overflow-x-auto">
+      {/* Mobile Stacked Card View (md:hidden) */}
+      <div className="md:hidden divide-y divide-border/60">
+        {records.map((record) => {
+          const product = record.variant?.product;
+          const variant = record.variant;
+          const warehouse = record.warehouse;
+          const totalStock = record.quantity;
+          const reserved = record.reserved_quantity || 0;
+          const available = Math.max(0, totalStock - reserved);
+          const rawImg = product?.images?.[0];
+          const imageUrl =
+            typeof rawImg === "string"
+              ? rawImg
+              : (rawImg as { image_url?: string } | undefined)?.image_url ||
+                "/placeholder.jpg";
+          const brandName =
+            typeof product?.brand === "string"
+              ? product.brand
+              : (product?.brand as { name?: string } | undefined)?.name;
+          const categoryName =
+            typeof product?.category === "string"
+              ? product.category
+              : (product?.category as { name?: string } | undefined)?.name;
+
+          return (
+            <div key={record.id} className="p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl}
+                  alt={product?.name || "Product"}
+                  className="w-12 h-14 object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60 shadow-2xs"
+                  loading="lazy"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-bold text-foreground block text-xs sm:text-sm">
+                      {product?.name || "Catalog Product"}
+                    </span>
+                    <StockStatusBadge quantity={available} size="sm" />
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {brandName && (
+                      <span className="font-semibold text-foreground mr-1.5">
+                        {brandName}
+                      </span>
+                    )}
+                    {categoryName && <span>{categoryName} • </span>}
+                    <span className="font-mono">{variant?.sku || record.id}</span>
+                  </div>
+                  {(variant?.size || variant?.color) && (
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {[
+                        variant?.color,
+                        variant?.size ? `Size: ${variant.size}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Stock Metric Grid */}
+              <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-secondary/30 border border-border/60 text-center">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">
+                    Current
+                  </span>
+                  <span className="text-xs font-display font-bold text-foreground tabular-nums">
+                    {totalStock.toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">
+                    Reserved
+                  </span>
+                  <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                    {reserved.toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">
+                    Available
+                  </span>
+                  <span
+                    className={`text-xs font-display font-bold tabular-nums ${
+                      available === 0 ? "text-rose-500" : "text-foreground"
+                    }`}
+                  >
+                    {available.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Warehouse & Actions */}
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="text-[11px] text-muted-foreground font-medium truncate">
+                  📍 {warehouse?.name || "Main Warehouse"} ({warehouse?.code || "MAIN"})
+                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onAdjust(record)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  >
+                    <span>Adjust</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onViewHistory(record)}
+                    className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="View history"
+                    aria-label="View history"
+                  >
+                    <History size={13} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table View (hidden on mobile, visible md+) */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="border-b border-border bg-secondary/40 text-muted-foreground uppercase text-[11px] font-bold tracking-wider">

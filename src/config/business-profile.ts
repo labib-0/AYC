@@ -64,7 +64,7 @@ export interface BusinessProfile {
   };
 }
 
-export const WHATSAPP_BUSINESS_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "8801982183886";
+export const WHATSAPP_BUSINESS_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "8801826304930";
 export const WHATSAPP_BUSINESS_URL = `https://wa.me/${WHATSAPP_BUSINESS_NUMBER.replace(/[^0-9]/g, "")}`;
 
 /**
@@ -77,6 +77,69 @@ export function getWhatsAppUrl(prefilledText?: string): string {
     return `https://wa.me/${cleanNumber}`;
   }
   return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(prefilledText)}`;
+}
+
+/**
+ * Resolves the storefront public base URL for commercial deep links.
+ * Works across local development (localhost:3000), Vercel deployments,
+ * and optional environment variable overrides.
+ */
+export function getStorefrontBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_CUSTOMER_APP_URL) {
+    return process.env.NEXT_PUBLIC_CUSTOMER_APP_URL.replace(/\/$/, "");
+  }
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  }
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+  return "http://localhost:3000";
+}
+
+/**
+ * Generates the universal commercial-order deep link for an order reference.
+ * Example: https://demo-domain.com/order-access/AYN-20260922-697987
+ */
+export function getOrderAccessDeepLink(orderReference: string): string {
+  const baseUrl = getStorefrontBaseUrl();
+  const cleanRef = String(orderReference).trim().replace(/^#/, "");
+  return `${baseUrl}/order-access/${encodeURIComponent(cleanRef)}`;
+}
+
+/**
+ * Generates the prefilled WhatsApp commercial order message with deep link.
+ */
+export function getCommercialOrderWhatsAppMessage(order: {
+  order_number: string;
+  total_amount: number;
+  shipping_company?: string | null;
+  shipping_name?: string | null;
+  shipping_city?: string | null;
+  shipping_country_code?: string | null;
+}): string {
+  const deepLink = getOrderAccessDeepLink(order.order_number);
+  const consignee = order.shipping_company || order.shipping_name || "Valued Consignee";
+  const destination = [order.shipping_city, order.shipping_country_code].filter(Boolean).join(", ") || "—";
+  const totalFormatted = `$${Number(order.total_amount || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} USD`;
+
+  return [
+    "Hello AYAAN CLOTHING,",
+    "",
+    `I have confirmed Commercial Order #${order.order_number}.`,
+    "",
+    `Total: ${totalFormatted}`,
+    `Consignee: ${consignee}`,
+    `Destination: ${destination}`,
+    "",
+    "Please advise on next steps.",
+    "",
+    "View Commercial Order:",
+    deepLink,
+  ].join("\n");
 }
 
 export const BUSINESS_PROFILE: BusinessProfile = {

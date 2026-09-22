@@ -62,8 +62,8 @@ export default function AdminOrderDetailPage({
     try {
       const data = await adminOrderService.getOrderById(id);
       setOrder(data);
-    } catch (err: any) {
-      setError(err?.message || "Could not retrieve order details.");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Could not retrieve order details.");
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -89,8 +89,8 @@ export default function AdminOrderDetailPage({
       const updated = await adminOrderService.updateOrderStatus(order.id, newStatus, note);
       setOrder(updated);
       addToast("success", `Order status updated to ${newStatus.toUpperCase()}.`);
-    } catch (err: any) {
-      addToast("error", err?.message || "Unable to update order status.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Unable to update order status.");
     } finally {
       setActionLoading(false);
     }
@@ -117,8 +117,8 @@ export default function AdminOrderDetailPage({
       setOrder(updated);
       setIsFulfillmentModalOpen(false);
       addToast("success", "Fulfillment updated successfully.");
-    } catch (err: any) {
-      addToast("error", err?.message || "Failed to update fulfillment.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Failed to update fulfillment.");
     } finally {
       setActionLoading(false);
     }
@@ -141,8 +141,8 @@ export default function AdminOrderDetailPage({
         "success",
         `Aramex shipment created successfully! AWB: ${result.tracking_number || "Generated"}.`
       );
-    } catch (err: any) {
-      addToast("error", err?.message || "Failed to create Aramex shipment.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Failed to create Aramex shipment.");
       await loadOrder(true);
     } finally {
       setActionLoading(false);
@@ -163,8 +163,8 @@ export default function AdminOrderDetailPage({
         "success",
         `Carrier tracking refreshed: ${result.tracking?.status || "Updated"}.`
       );
-    } catch (err: any) {
-      addToast("error", err?.message || "Failed to refresh live tracking.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Failed to refresh live tracking.");
     } finally {
       setActionLoading(false);
     }
@@ -189,8 +189,8 @@ export default function AdminOrderDetailPage({
       setOrder(updated);
       setIsReviewModalOpen(false);
       addToast("success", `Payment proof ${reviewAction}d successfully.`);
-    } catch (err: any) {
-      addToast("error", err?.message || "Payment proof review failed.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Payment proof review failed.");
     } finally {
       setActionLoading(false);
     }
@@ -215,8 +215,8 @@ export default function AdminOrderDetailPage({
         "success",
         `Freight quote saved: $${data.amount.toFixed(2)} USD.`
       );
-    } catch (err: any) {
-      addToast("error", err?.message || "Failed to update freight quote.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Failed to update freight quote.");
     } finally {
       setActionLoading(false);
     }

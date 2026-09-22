@@ -25,9 +25,9 @@ import {
   ProductToast,
 } from "@/components/admin/products";
 import type { ProductFilters, ToastMessage } from "@/components/admin/products";
+import { LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
 
 const ITEMS_PER_PAGE = 20;
-const LOW_STOCK_THRESHOLD = 100;
 
 export default function AdminProductsPage() {
   // ── Data State ──
@@ -108,24 +108,23 @@ export default function AdminProductsPage() {
         category: filters.category !== "all" ? filters.category : undefined,
       });
 
-      // Apply design type filter locally (not in ProductService)
+      // Apply design type filter locally
       let filtered = data;
       if (filters.designType !== "all") {
         const dtLower = filters.designType.toLowerCase();
         filtered = data.filter((p) => {
-          const pName = (p.name || "").toLowerCase();
-          const pDesc = (p.description || p.shortDescription || "").toLowerCase();
-          if (dtLower === "replica") {
-            return pName.includes("replica") || pDesc.includes("replica");
+          const rawDt = ((p.designType || p.productType || "ORIGINAL") as string).toUpperCase();
+          const pDt = (rawDt === "MASTER COPY" || rawDt === "REPLICA" || rawDt === "MC") ? "MASTER COPY" : "ORIGINAL";
+          if (dtLower === "master_copy" || dtLower === "replica" || dtLower === "mc") {
+            return pDt === "MASTER COPY";
           }
-          // "original" = everything that's NOT a replica
-          return !pName.includes("replica") && !pDesc.includes("replica");
+          return pDt === "ORIGINAL";
         });
       }
 
       setAllProducts(filtered);
-    } catch (err: any) {
-      setError(err?.message || "Failed to load products.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load products.");
     } finally {
       setLoading(false);
     }

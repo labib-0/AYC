@@ -83,8 +83,18 @@ export async function getAllRfqs(filters?: {
   });
 }
 
-export async function getRfqById(id: string): Promise<RfqRecord | null> {
-  return mockStore.getRfqById(id);
+export async function getRfqById(
+  id: string,
+  userFilter?: { userId?: string | number; email?: string }
+): Promise<RfqRecord | null> {
+  const rfq = mockStore.getRfqById(id);
+  if (rfq && userFilter) {
+    const isOwner =
+      (userFilter.userId !== undefined && String(rfq.userId) === String(userFilter.userId)) ||
+      (userFilter.email !== undefined && rfq.buyerEmail && rfq.buyerEmail.toLowerCase() === userFilter.email.toLowerCase());
+    if (!isOwner) return null;
+  }
+  return rfq;
 }
 
 export async function updateRfqStatus(

@@ -25,8 +25,8 @@ export default function RfqMessageComposer({
       setError(null);
       await onSendMessage(clean);
       setText(""); // Only clear upon successful send
-    } catch (err: any) {
-      setError(err?.message || "Unable to send message. Please try again.");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Unable to send message. Please try again.");
     }
   };
 

@@ -21,9 +21,11 @@ export default function CategoryEmptyState({
           <FilterX size={22} />
         </div>
         <div className="space-y-1">
-          <h3 className="text-sm font-bold text-foreground">No categories found</h3>
+          <h3 className="text-sm font-bold text-foreground">
+            No categories match your current search or filter.
+          </h3>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            No categories match your current search or filter criteria.
+            Try adjusting your search terms or status filter to view available categories.
           </p>
         </div>
         {onClearFilters && (
@@ -49,7 +51,7 @@ export default function CategoryEmptyState({
       <div className="space-y-1">
         <h3 className="text-base font-bold text-foreground">No product categories yet</h3>
         <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-          Add a category to start organizing your catalog and apparel taxonomy.
+          Add a category to start organizing your catalog.
         </p>
       </div>
       {onAddCategory && (
@@ -57,7 +59,7 @@ export default function CategoryEmptyState({
           <button
             type="button"
             onClick={onAddCategory}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-foreground text-background text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-foreground text-background text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-xs cursor-pointer"
           >
             <Plus size={14} />
             <span>Add Category</span>

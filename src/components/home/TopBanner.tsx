@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from "react";
 import { DEFAULT_TOP_BANNER, getTopBannerConfig, TopBannerConfig } from "@/config/banner";
@@ -89,7 +90,7 @@ export default function TopBanner() {
 
               {/* Compact CTA: Secondary to headline */}
               <div className="flex items-center gap-1.5 text-[9.5px] sm:text-[10.5px] font-sans font-bold uppercase tracking-wider text-foreground/80 group-hover:text-primary transition-colors mt-1 sm:mt-1.5">
-                <span>EXPLORE CATALOG →</span>
+                <span>{banner.buttonText || "EXPLORE CATALOG →"}</span>
               </div>
 
             </div>

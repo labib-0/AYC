@@ -68,8 +68,8 @@ export default function RfqStatusDialog({
       setError(null);
       await onConfirm(selectedStatus, note.trim() || undefined);
       onClose();
-    } catch (err: any) {
-      setError(err?.message || "Failed to update RFQ status.");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Failed to update RFQ status.");
     }
   };
 

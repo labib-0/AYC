@@ -59,7 +59,7 @@ export default function InventoryKpis({
       id: "LOW_STOCK" as const,
       label: "Low Stock",
       value: summary.lowStock,
-      subtitle: `&lt; ${LOW_STOCK_THRESHOLD} units alert`,
+      subtitle: `< ${LOW_STOCK_THRESHOLD} units alert`,
       icon: AlertTriangle,
       iconColor: "text-amber-500",
       activeRing: "ring-2 ring-amber-500/30 border-amber-500/50",
@@ -117,10 +117,9 @@ export default function InventoryKpis({
               <Icon size={18} className={`${c.iconColor} shrink-0`} />
             </div>
 
-            <p
-              className="text-[11px] text-muted-foreground mt-1"
-              dangerouslySetInnerHTML={{ __html: c.subtitle }}
-            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {c.subtitle}
+            </p>
 
             {isSelected && c.id !== "ALL" && (
               <span className="text-[10px] font-bold text-primary uppercase tracking-wider mt-1 block">
