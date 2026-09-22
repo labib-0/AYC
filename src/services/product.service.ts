@@ -1,7 +1,5 @@
-import { apiClient } from "./api-client";
 import { Product } from "@/types";
 import { B2BProductInput } from "@/types/b2b";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { findMatchingShippingProfile, calculateTotalCbm } from "@/lib/services/shipping-package";
 import { inferProductCategory } from "@/lib/mock-data/mock-products";
@@ -310,20 +308,6 @@ export class ProductService {
    * Fetch products with query parameters
    */
   async getProducts(params?: ProductQueryParams): Promise<B2BProductInput[]> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/products", {
-          params: params as Record<string, string | number | boolean | undefined>,
-        });
-        const items = Array.isArray(res) ? res : res?.data;
-        if (Array.isArray(items) && items.length > 0) {
-          return items.map(normalizeToB2BProduct);
-        }
-      } catch {
-        // Fallback to local store
-      }
-    }
-
     const all = mockStore.getProducts();
     let result = this.filterLocalProducts(all, params);
     if (params?.offset !== undefined || params?.limit !== undefined) {
@@ -339,50 +323,8 @@ export class ProductService {
    */
   async getProductsPaginated(
     params: ProductQueryParams,
-    signal?: AbortSignal
+    _signal?: AbortSignal
   ): Promise<PaginatedProductsResult> {
-    const defaultMeta = {
-      current_page: params.page ?? 1,
-      last_page: 1,
-      per_page: params.per_page ?? 24,
-      total: 0,
-      from: null,
-      to: null,
-    };
-
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/products", {
-          params: params as Record<string, string | number | boolean | undefined>,
-          signal,
-        } as any);
-
-        const rawData = res?.data;
-        const rawMeta = res?.meta;
-
-        if (Array.isArray(rawData)) {
-          return {
-            data: rawData.map(normalizeToB2BProduct),
-            meta: rawMeta
-              ? {
-                  current_page: Number(rawMeta.current_page ?? defaultMeta.current_page),
-                  last_page: Number(rawMeta.last_page ?? 1),
-                  per_page: Number(rawMeta.per_page ?? defaultMeta.per_page),
-                  total: Number(rawMeta.total ?? 0),
-                  from: rawMeta.from != null ? Number(rawMeta.from) : null,
-                  to: rawMeta.to != null ? Number(rawMeta.to) : null,
-                }
-              : defaultMeta,
-          };
-        }
-      } catch (err: any) {
-        if (err?.name === "AbortError" || err?.message === "AbortError") {
-          throw err;
-        }
-      }
-    }
-
-    // Frontend-only pagination & filtering from mockStore
     const all = mockStore.getProducts();
     const filtered = this.filterLocalProducts(all, params);
     const page = params.page ?? 1;
@@ -407,18 +349,6 @@ export class ProductService {
    * Fetch single product by Slug or ID
    */
   async getProductBySlugOrId(slugOrId: string): Promise<B2BProductInput | null> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/products/${slugOrId}`);
-        const item = res?.data || res;
-        if (item && item.id) {
-          return normalizeToB2BProduct(item);
-        }
-      } catch {
-        // Fallback to local store
-      }
-    }
-
     return mockStore.getProductByIdOrSlug(slugOrId);
   }
 
@@ -426,23 +356,6 @@ export class ProductService {
    * Fetch search suggestions (quick autocomplete)
    */
   async getSearchSuggestions(query: string): Promise<SearchSuggestionsResult> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/search/suggestions", {
-          params: { q: query },
-        });
-        const data = res?.data || res;
-        if (data && (data.products || data.categories || data.brands)) {
-          return {
-            products: data.products || [],
-            categories: data.categories || [],
-            brands: data.brands || [],
-          };
-        }
-      } catch {
-        // Fallback
-      }
-    }
 
     const q = query.toLowerCase().trim();
     if (!q) {
@@ -500,16 +413,6 @@ export class ProductService {
     const slug = input.slug || (input.name || "apparel").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const sku = input.sku || generateProductSku(input.brand || "AYN", input.categoryName || "APP", input.name || "PRD");
 
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>("/products", { ...input, slug, sku });
-        const item = res?.data || res;
-        if (item) return normalizeToB2BProduct(item);
-      } catch {
-        // Fallback to local store
-      }
-    }
-
     return mockStore.saveProduct({ ...input, slug, sku });
   }
 
@@ -517,16 +420,6 @@ export class ProductService {
    * Update product
    */
   async updateProduct(id: string, updates: Partial<B2BProductInput>): Promise<B2BProductInput | null> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.put<any>(`/products/${id}`, updates);
-        const item = res?.data || res;
-        if (item) return normalizeToB2BProduct(item);
-      } catch {
-        // Fallback to local store
-      }
-    }
-
     return mockStore.saveProduct({ ...updates, id });
   }
 
@@ -534,14 +427,6 @@ export class ProductService {
    * Delete product
    */
   async deleteProduct(id: string): Promise<boolean> {
-    if (!isFrontendOnly()) {
-      try {
-        await apiClient.delete(`/products/${id}`);
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.deleteProduct(id);
   }
 
@@ -555,17 +440,7 @@ export class ProductService {
   /**
    * Fetch calculated shipping physical package specs for a product quantity
    */
-  async getProductShippingSpecs(slugOrId: string, quantity: number, isFullStock: boolean = false): Promise<any> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/products/${slugOrId}/shipping-specs`, {
-          params: { quantity, full_stock: isFullStock ? 1 : 0 },
-        });
-        return res?.data || res;
-      } catch {
-        // Local calculation fallback
-      }
-    }
+  async getProductShippingSpecs(slugOrId: string, quantity: number, _isFullStock: boolean = false): Promise<any> {
 
     const prod = mockStore.getProductByIdOrSlug(slugOrId);
     if (!prod) {

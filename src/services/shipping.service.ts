@@ -1,5 +1,3 @@
-import { apiClient } from "./api-client";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import { calculateMockShippingQuote } from "@/lib/mock-data/mock-shipping";
 
 export interface ShippingQuoteItem {
@@ -94,18 +92,6 @@ class ShippingService {
    * Request real-time shipping quote
    */
   async getShippingQuotes(request: ShippingQuoteRequest): Promise<ShippingQuoteResponse> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>("/shipping/quote", request);
-        const data = res?.data || res;
-        if (data && Array.isArray(data.quotes)) {
-          return data;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
     return calculateMockShippingQuote(request);
   }
 }

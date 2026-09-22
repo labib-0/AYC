@@ -1,6 +1,4 @@
-import { apiClient } from "./api-client";
 import { RfqRecord, RfqStatus, RfqMessage } from "@/types/b2b";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 
 export class RfqService {
@@ -46,19 +44,6 @@ export class RfqService {
       updatedAt: new Date().toISOString(),
     };
 
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>("/rfq", newRecord);
-        const item = res?.data || res;
-        if (item && item.id) {
-          mockStore.saveRfq(item);
-          return item;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
     mockStore.saveRfq(newRecord);
     return newRecord;
   }
@@ -67,18 +52,6 @@ export class RfqService {
    * Get all RFQ records
    */
   async getUserRfqs(): Promise<RfqRecord[]> {
-    if (!isFrontendOnly()) {
-      try {
-        if (apiClient.getToken()) {
-          const res = await apiClient.get<any>("/rfq");
-          const items = res?.data || res;
-          if (Array.isArray(items) && items.length > 0) return items;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.getRfqs();
   }
 
@@ -86,16 +59,6 @@ export class RfqService {
    * Get RFQ by ID
    */
   async getRfqById(id: string): Promise<RfqRecord | null> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/rfq/${id}`);
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.getRfqById(id);
   }
 
@@ -108,19 +71,6 @@ export class RfqService {
     actorName: string = "Admin",
     note?: string
   ): Promise<RfqRecord | null> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.patch<any>(`/rfq/${id}/status`, { status, note });
-        const item = res?.data || res;
-        if (item && item.id) {
-          mockStore.saveRfq(item);
-          return item;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.updateRfqStatus(id, status, actorName, note);
   }
 
@@ -133,23 +83,6 @@ export class RfqService {
     senderName: string,
     message: string
   ): Promise<RfqMessage | null> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>(`/rfq/${rfqId}/messages`, {
-          senderRole,
-          senderName,
-          message,
-        });
-        const item = res?.data || res;
-        if (item && item.id) {
-          mockStore.addRfqMessage(rfqId, { senderRole, senderName, message });
-          return item;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.addRfqMessage(rfqId, { senderRole, senderName, message });
   }
 }

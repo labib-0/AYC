@@ -1,5 +1,3 @@
-import { apiClient } from "@/services/api-client";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 
 // ============================================================================
@@ -132,18 +130,6 @@ export class AdminInventoryService {
     total: number;
     per_page: number;
   }> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/admin/inventory", { params: params as any });
-        const paginated = res?.data || res;
-        if (paginated && Array.isArray(paginated.data)) {
-          return paginated;
-        }
-      } catch {
-        // Fallback to mockStore
-      }
-    }
-
     let list = mockStore.getInventory();
 
     // 1. Filter by Search Query
@@ -189,18 +175,6 @@ export class AdminInventoryService {
   }
 
   async getInventorySummary(warehouseId?: string | number): Promise<InventorySummary> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/admin/inventory/summary", { params: { warehouse_id: warehouseId } });
-        const summary = res?.data || res;
-        if (summary && typeof summary.totalItems === "number") {
-          return summary;
-        }
-      } catch {
-        // Fallback to local computation
-      }
-    }
-
     let list = mockStore.getInventory();
     if (warehouseId && warehouseId !== "all") {
       list = list.filter((i) => String(i.warehouse_id) === String(warehouseId));
@@ -229,58 +203,18 @@ export class AdminInventoryService {
   }
 
   async adjustInventory(payload: InventoryAdjustmentPayload): Promise<InventoryRecord | null> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>("/admin/inventory/adjust", payload);
-        const data = res?.data || res;
-        if (data) return data;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.adjustInventory(payload);
   }
 
   async getWarehouses(): Promise<Warehouse[]> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/admin/warehouses");
-        const data = res?.data || (Array.isArray(res) ? res : []);
-        if (Array.isArray(data) && data.length > 0) return data;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.getWarehouses();
   }
 
   async createWarehouse(data: Partial<Warehouse>): Promise<Warehouse> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>("/admin/warehouses", data);
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.createWarehouse(data);
   }
 
   async updateWarehouse(id: number, data: Partial<Warehouse>): Promise<Warehouse | null> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.put<any>(`/admin/warehouses/${id}`, data);
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.updateWarehouse(id, data);
   }
 

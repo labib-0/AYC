@@ -1,6 +1,4 @@
-import { apiClient } from "@/services/api-client";
 import { OrderRecord } from "@/services/order.service";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 
 export interface AdminOrderQueryParams {
@@ -67,18 +65,6 @@ export class AdminOrderService {
     total: number;
     per_page: number;
   }> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/admin/orders", params as any);
-        const paginated = res?.data || res;
-        if (paginated && Array.isArray(paginated.data)) {
-          return paginated;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
     let list = mockStore.getOrders();
     if (params?.search) {
       const q = params.search.toLowerCase();
@@ -115,32 +101,12 @@ export class AdminOrderService {
   }
 
   async getOrderById(id: number | string): Promise<OrderRecord> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/admin/orders/${id}`);
-        const data = res?.data || res;
-        if (data && data.id) return data;
-      } catch {
-        // Fallback
-      }
-    }
-
     const order = mockStore.getOrderById(String(id));
     if (!order) throw new Error("Order not found");
     return order;
   }
 
   async updateOrderStatus(id: number | string, status: string, note?: string): Promise<OrderRecord> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.patch<any>(`/admin/orders/${id}/status`, { status, note });
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     const order = mockStore.getOrderById(String(id));
     if (!order) throw new Error("Order not found");
 
@@ -166,21 +132,6 @@ export class AdminOrderService {
     carrier?: string,
     note?: string
   ): Promise<OrderRecord> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.patch<any>(`/admin/orders/${id}/fulfillment`, {
-          fulfillment_status,
-          tracking_number,
-          carrier,
-          note,
-        });
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     const order = mockStore.getOrderById(String(id));
     if (!order) throw new Error("Order not found");
 
@@ -207,19 +158,6 @@ export class AdminOrderService {
     action: "approve" | "reject",
     note?: string
   ): Promise<OrderRecord> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>(`/admin/orders/${id}/payment-proof/review`, {
-          action,
-          note,
-        });
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     const order = mockStore.getOrderById(String(id));
     if (!order) throw new Error("Order not found");
 
@@ -252,16 +190,6 @@ export class AdminOrderService {
     is_duplicate_prevented?: boolean;
     message?: string;
   }> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>(`/admin/orders/${id}/shipment/aramex`);
-        const item = res?.data || res;
-        if (item && item.order) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     const order = mockStore.getOrderById(String(id));
     if (!order) throw new Error("Order not found");
 

@@ -1,6 +1,4 @@
 import { UserAddress } from "@/types/api";
-import { isFrontendOnly } from "@/lib/frontend-mode";
-import { apiClient } from "@/services/api-client";
 
 export const ADDR_STORAGE_KEY = "ayaan_customer_addresses_v1";
 
@@ -100,20 +98,6 @@ export class AddressService {
    */
   async getAddresses(userId: string | number): Promise<UserAddress[]> {
     const uId = String(userId || "guest");
-
-    if (!isFrontendOnly() && uId !== "guest") {
-      try {
-        const res = await apiClient.get<any>(`/user/addresses?user_id=${uId}`);
-        const data = res?.data?.data || res?.data || res;
-        if (Array.isArray(data)) {
-          writeLocal(uId, data);
-          return data;
-        }
-      } catch {
-        // Fallback to local
-      }
-    }
-
     let list = readLocal(uId);
 
     // If user is a seeded test user and has no addresses yet, seed initial realistic address
@@ -276,18 +260,6 @@ export class AddressService {
       }
     }
 
-    if (!isFrontendOnly() && uId !== "guest") {
-      try {
-        if (isEditing) {
-          await apiClient.put(`/user/addresses/${targetId}`, savedItem);
-        } else {
-          await apiClient.post(`/user/addresses`, savedItem);
-        }
-      } catch {
-        // Continue with local save
-      }
-    }
-
     writeLocal(uId, nextList);
     return savedItem;
   }
@@ -304,14 +276,6 @@ export class AddressService {
       ...a,
       is_default: String(a.id) === targetStr,
     }));
-
-    if (!isFrontendOnly() && uId !== "guest") {
-      try {
-        await apiClient.put(`/user/addresses/${targetStr}/default`, { is_default: true });
-      } catch {
-        // Fallback to local
-      }
-    }
 
     writeLocal(uId, nextList);
     return nextList;
@@ -343,14 +307,6 @@ export class AddressService {
         is_default: idx === 0,
       }));
       promotedDefaultId = nextList[0].id;
-    }
-
-    if (!isFrontendOnly() && uId !== "guest") {
-      try {
-        await apiClient.delete(`/user/addresses/${targetStr}`);
-      } catch {
-        // Fallback to local
-      }
     }
 
     writeLocal(uId, nextList);

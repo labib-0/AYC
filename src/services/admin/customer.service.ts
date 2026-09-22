@@ -1,5 +1,3 @@
-import { apiClient } from "@/services/api-client";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { addressService } from "@/lib/services/address.service";
 
@@ -99,18 +97,6 @@ export class AdminCustomerService {
     total: number;
     per_page: number;
   }> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/admin/customers", params as any);
-        const paginated = res?.data || res;
-        if (paginated && Array.isArray(paginated.data)) {
-          return paginated;
-        }
-      } catch {
-        // Fallback to mock
-      }
-    }
-
     // By default, customer directory lists non-admin buyer accounts (unless role filter specifically requests otherwise)
     const users = mockStore.getUsers().filter((u) => {
       if (params?.role && params.role !== "all") {
@@ -188,16 +174,6 @@ export class AdminCustomerService {
   }
 
   async getCustomerById(id: number | string): Promise<CustomerDetail> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/admin/customers/${id}`);
-        const data = res?.data || res;
-        if (data && data.id) return data;
-      } catch {
-        // Fallback
-      }
-    }
-
     const user = mockStore.getUserById(id);
     if (!user) {
       throw new Error("Customer not found");
@@ -299,16 +275,6 @@ export class AdminCustomerService {
   }
 
   async updateCustomer(id: number | string, data: Partial<CustomerRecord>): Promise<CustomerRecord> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.put<any>(`/admin/customers/${id}`, data);
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     const roleVal =
       data.role === "admin" || data.role === "b2b_buyer" || data.role === "sales" || data.role === "customer"
         ? data.role

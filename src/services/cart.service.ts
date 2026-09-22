@@ -1,50 +1,46 @@
-import { apiClient } from "./api-client";
 import { Product } from "@/types";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export interface CartItemData {
-  id?: string;
+  id: string;
   cart_id?: string;
-  product_id?: string;
-  product_variant_id?: string | null;
+  product_id: string;
+  product_variant_id?: string;
   product: Product;
   size: string;
   color?: string;
   quantity: number;
-  unit_price?: number;
-  line_total?: number;
+  unit_price: number;
+  line_total: number;
   package_breakdown?: import("@/types").PackageBreakdown[];
 }
 
 export interface CartData {
   id?: string;
-  user_id?: string | null;
-  session_id?: string | null;
+  user_id?: number | string | null;
+  session_id?: string;
   items: CartItemData[];
   total_items: number;
   subtotal: number;
-  currency?: string;
+  currency: string;
 }
 
 export class CartService {
   private localKey = "ayaan_cart";
 
   /**
-   * Calculate active unit price based on 3-tier volume pricing.
-   * Reads stock from all field aliases used by B2BProductInput and storefront Product.
+   * Determine exact unit price based on three-tier wholesale pricing model
    */
-  private calculateTierUnitPrice(product: Product, quantity: number): number {
-    const basePrice = Number(product.wholesalePrice ?? (product as any).standardPrice ?? product.price ?? 15);
-    const bulkThreshold = product.bulkThreshold ? Number(product.bulkThreshold) : 200;
-    const bulkPrice = product.bulkPrice ? Number(product.bulkPrice) : Math.round(basePrice * 0.8 * 100) / 100;
-    const fullStockPrice = product.fullStockPrice ? Number(product.fullStockPrice) : Math.round(basePrice * 0.7 * 100) / 100;
-    // Resolve stock from all possible field names used by different data sources
-    const availableStock =
-      Number(product.availableStock ?? (product as any).fullStockQuantity ?? (product as any).stock ?? 1000) || 1000;
+  public calculateTierUnitPrice(product: Product, quantity: number): number {
+    const basePrice = product.wholesalePrice || product.price || 15;
+    const bulkThreshold = product.bulkThreshold || 200;
+    const bulkPrice = product.bulkPrice || Math.round(basePrice * 0.8 * 100) / 100;
+    const fullStockPrice = product.fullStockPrice || Math.round(basePrice * 0.7 * 100) / 100;
+    const availableStock = product.availableStock || 1000;
 
-    if (quantity >= availableStock) {
+    if (quantity >= availableStock && availableStock > 0) {
       return fullStockPrice;
-    } else if (quantity >= bulkThreshold) {
+    }
+    if (quantity >= bulkThreshold) {
       return bulkPrice;
     }
     return basePrice;
@@ -54,26 +50,6 @@ export class CartService {
    * Get user's active cart
    */
   async getCart(): Promise<CartData> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/cart");
-        const data = res?.data || res;
-        if (data && Array.isArray(data.items)) {
-          return {
-            id: data.id,
-            user_id: data.user_id,
-            session_id: data.session_id,
-            items: data.items.map((i: any) => this.normalizeCartItem(i)),
-            total_items: data.total_items ?? data.items.reduce((s: number, i: any) => s + (i.quantity || 1), 0),
-            subtotal: data.subtotal ?? data.items.reduce((s: number, i: any) => s + (i.line_total || (i.product?.price || 0) * (i.quantity || 1)), 0),
-            currency: data.currency || "USD",
-          };
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(this.localKey);
@@ -104,35 +80,6 @@ export class CartService {
     variantId?: string,
     packageBreakdown?: import("@/types").PackageBreakdown[]
   ): Promise<CartData> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>("/cart", {
-          product_id: product.id,
-          variant_id: variantId,
-          size: size || "Standard Assorted",
-          quantity,
-          package_breakdown: packageBreakdown,
-        });
-
-        const data = res?.data || res;
-        if (data && Array.isArray(data.items)) {
-          const cart: CartData = {
-            id: data.id,
-            user_id: data.user_id,
-            session_id: data.session_id,
-            items: data.items.map((i: any) => this.normalizeCartItem(i)),
-            total_items: data.total_items ?? data.items.reduce((s: number, i: any) => s + (i.quantity || 1), 0),
-            subtotal: data.subtotal ?? data.items.reduce((s: number, i: any) => s + (i.line_total || (i.product?.price || 0) * (i.quantity || 1)), 0),
-            currency: data.currency || "USD",
-          };
-          this.saveLocal(cart.items);
-          return cart;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
     const currentCart = await this.getCart();
     const items = [...currentCart.items];
     const existingIndex = items.findIndex(
@@ -151,6 +98,8 @@ export class CartService {
     } else {
       items.push({
         id: `ci_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        product_id: String(product.id),
+        product_variant_id: variantId,
         product,
         size: size || "Standard Assorted",
         quantity,
@@ -170,28 +119,6 @@ export class CartService {
    * Update item quantity in cart
    */
   async updateItemQuantity(itemId: string, quantity: number): Promise<CartData> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.put<any>(`/cart/items/${itemId}`, { quantity });
-        const data = res?.data || res;
-        if (data && Array.isArray(data.items)) {
-          const cart: CartData = {
-            id: data.id,
-            user_id: data.user_id,
-            session_id: data.session_id,
-            items: data.items.map((i: any) => this.normalizeCartItem(i)),
-            total_items: data.total_items ?? data.items.reduce((s: number, i: any) => s + (i.quantity || 1), 0),
-            subtotal: data.subtotal ?? data.items.reduce((s: number, i: any) => s + (i.line_total || (i.product?.price || 0) * (i.quantity || 1)), 0),
-            currency: data.currency || "USD",
-          };
-          this.saveLocal(cart.items);
-          return cart;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
     const currentCart = await this.getCart();
     let items = [...currentCart.items];
 
@@ -217,7 +144,7 @@ export class CartService {
   /**
    * Remove item from cart by ID or Product ID + Size
    */
-  async removeFromCart(productId: string, size?: string, itemId?: string): Promise<CartData> {
+  async removeFromCart(productId: string, _size?: string, itemId?: string): Promise<CartData> {
     const targetId = itemId || productId;
     return this.updateItemQuantity(targetId, 0);
   }
@@ -225,7 +152,7 @@ export class CartService {
   /**
    * Update quantity alias for CartContext
    */
-  async updateQuantity(productId: string, size: string, quantity: number, itemId?: string): Promise<CartData> {
+  async updateQuantity(productId: string, _size: string, quantity: number, itemId?: string): Promise<CartData> {
     const targetId = itemId || productId;
     return this.updateItemQuantity(targetId, quantity);
   }
@@ -248,14 +175,6 @@ export class CartService {
    * Clear all items from cart
    */
   async clearCart(): Promise<CartData> {
-    if (!isFrontendOnly()) {
-      try {
-        await apiClient.delete("/cart").catch(() => null);
-      } catch {
-        // Fallback
-      }
-    }
-
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem(this.localKey);

@@ -1,5 +1,3 @@
-import { apiClient } from "./api-client";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 
 export interface BrandModel {
@@ -27,18 +25,6 @@ export class BrandService {
    * Fetch brands
    */
   async getBrands(options?: BrandQueryParams): Promise<BrandModel[]> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/brands", options as any);
-        const items = Array.isArray(res) ? res : res?.data;
-        if (Array.isArray(items) && items.length > 0) {
-          return items;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
     let list = mockStore.getBrands();
 
     // Dynamically calculate accurate product count from live product dataset
@@ -91,16 +77,6 @@ export class BrandService {
    * Fetch single brand by slug or id
    */
   async getBrandBySlug(slugOrId: string): Promise<BrandModel | null> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/brands/${slugOrId}`);
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.getBrandBySlug(slugOrId);
   }
 
@@ -116,16 +92,6 @@ export class BrandService {
     sort_order?: number;
     is_active?: boolean;
   }): Promise<BrandModel> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>("/brands", data);
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.saveBrand(data);
   }
 
@@ -133,16 +99,6 @@ export class BrandService {
    * Update brand
    */
   async updateBrand(id: string | number, updates: Partial<BrandModel>): Promise<BrandModel> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.put<any>(`/brands/${id}`, updates);
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.saveBrand({ ...updates, id: String(id) });
   }
 
@@ -150,15 +106,6 @@ export class BrandService {
    * Get actual product count associated with a brand
    */
   async getProductCount(brand: BrandModel): Promise<number> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/brands/${brand.id}/products/count`);
-        if (typeof res?.count === "number") return res.count;
-      } catch {
-        // Fallback to local calculation
-      }
-    }
-
     const products = mockStore.getProducts();
     const idKey = String(brand.id).toLowerCase().trim();
     const nameKey = (brand.name || "").toLowerCase().trim();
@@ -184,14 +131,6 @@ export class BrandService {
    * Delete brand
    */
   async deleteBrand(id: string | number): Promise<boolean> {
-    if (!isFrontendOnly()) {
-      try {
-        await apiClient.delete<any>(`/brands/${id}`);
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.deleteBrand(id);
   }
 }

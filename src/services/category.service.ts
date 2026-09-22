@@ -1,6 +1,4 @@
-import { apiClient } from "./api-client";
 import { Category } from "@/types";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 
 export interface CategoryModel extends Category {
@@ -27,18 +25,6 @@ export class CategoryService {
    * Fetch categories
    */
   async getCategories(options?: CategoryQueryParams): Promise<CategoryModel[]> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>("/categories", options as any);
-        const items = Array.isArray(res) ? res : res?.data;
-        if (Array.isArray(items) && items.length > 0) {
-          return items;
-        }
-      } catch {
-        // Fallback to local store
-      }
-    }
-
     let list = mockStore.getCategories();
 
     // Dynamically calculate accurate product count from live product dataset
@@ -92,16 +78,6 @@ export class CategoryService {
    * Fetch single category by slug or id
    */
   async getCategoryBySlug(slugOrId: string): Promise<CategoryModel | null> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/categories/${slugOrId}`);
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.getCategoryBySlug(slugOrId);
   }
 
@@ -109,16 +85,6 @@ export class CategoryService {
    * Create category
    */
   async createCategory(data: Partial<CategoryModel>): Promise<CategoryModel> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>("/categories", data);
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.saveCategory(data);
   }
 
@@ -126,16 +92,6 @@ export class CategoryService {
    * Update category
    */
   async updateCategory(id: number | string, data: Partial<CategoryModel>): Promise<CategoryModel> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.put<any>(`/categories/${id}`, data);
-        const item = res?.data || res;
-        if (item && item.id) return item;
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.saveCategory({ ...data, id: String(id) });
   }
 
@@ -143,15 +99,6 @@ export class CategoryService {
    * Get actual product count associated with a category
    */
   async getProductCount(category: CategoryModel): Promise<number> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/categories/${category.id}/products/count`);
-        if (typeof res?.count === "number") return res.count;
-      } catch {
-        // Fallback to local calculation
-      }
-    }
-
     const products = mockStore.getProducts();
     const idKey = String(category.id).toLowerCase().trim();
     const nameKey = (category.name || "").toLowerCase().trim();
@@ -163,6 +110,7 @@ export class CategoryService {
       const pCatName = (p.categoryName || "").toLowerCase().trim();
       if (pCatId && (pCatId === idKey || pCatId === strippedId)) return true;
       if (pCatName && (pCatName === nameKey || pCatName === slugKey)) return true;
+      if (pCatName && slugKey && pCatName.toLowerCase() === slugKey.toLowerCase()) return true;
       return false;
     }).length;
   }
@@ -171,14 +119,6 @@ export class CategoryService {
    * Delete category
    */
   async deleteCategory(id: number | string): Promise<boolean> {
-    if (!isFrontendOnly()) {
-      try {
-        await apiClient.delete<any>(`/categories/${id}`);
-      } catch {
-        // Fallback
-      }
-    }
-
     return mockStore.deleteCategory(id);
   }
 }

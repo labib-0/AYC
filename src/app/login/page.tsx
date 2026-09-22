@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import { Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight } from "lucide-react";
 
 import BrandName from "@/components/common/BrandName";
@@ -140,44 +139,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        {/* Demo Fast Access Panel (Frontend-Only Mode) */}
-        {isFrontendOnly() && (
-          <div className="mt-6 pt-5 border-t border-slate-100 dark:border-white/10 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Demo Testing Credentials
-              </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold uppercase">
-                Demo Only
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("admin@ayaan-demo.local");
-                  setPassword("Admin@12345");
-                }}
-                className="p-2.5 rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-white/[0.03] hover:bg-slate-100 dark:hover:bg-white/[0.07] text-left transition-colors cursor-pointer"
-              >
-                <div className="font-bold text-slate-800 dark:text-slate-200">Admin Demo</div>
-                <div className="text-[10px] text-slate-400 font-mono truncate">admin@ayaan-demo.local</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("customer@ayaan-demo.local");
-                  setPassword("Customer@12345");
-                }}
-                className="p-2.5 rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-white/[0.03] hover:bg-slate-100 dark:hover:bg-white/[0.07] text-left transition-colors cursor-pointer"
-              >
-                <div className="font-bold text-slate-800 dark:text-slate-200">Customer Demo</div>
-                <div className="text-[10px] text-slate-400 font-mono truncate">customer@ayaan-demo.local</div>
-              </button>
-            </div>
-          </div>
-        )}
 
         <div className="mt-8 pt-6 border-t border-slate-100 dark:border-white/10 text-center text-sm text-slate-500 dark:text-slate-400">
           Don&apos;t have an account yet?{" "}

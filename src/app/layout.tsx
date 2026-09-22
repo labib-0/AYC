@@ -10,7 +10,6 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import MiniCart from "@/components/cart/MiniCart";
 import ProductQuickAddModal from "@/components/product/ProductQuickAddModal";
-import DevToolbar from "@/components/common/DevToolbar";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -158,7 +157,6 @@ export default function RootLayout({
                     <ProductQuickAddModal />
                     <main className="min-h-screen pb-safe">{children}</main>
                     <Footer />
-                    <DevToolbar />
                   </ProductModalProvider>
                 </RfqProvider>
               </WishlistProvider>

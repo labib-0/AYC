@@ -5,15 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { orderService, OrderRecord } from "@/services/order.service";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import BrandName from "@/components/common/BrandName";
 import {
   Lock,
   ShieldAlert,
   AlertTriangle,
   ArrowRight,
-  UserCheck,
-  Building2,
   LogIn,
   LogOut,
   ShoppingBag,
@@ -29,14 +26,13 @@ export default function OrderAccessGatewayPage({ params }: Props) {
   const cleanRef = decodeURIComponent(rawReference).trim().replace(/^#/, "");
 
   const router = useRouter();
-  const { user, loading: authLoading, signIn, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
 
   const [order, setOrder] = useState<OrderRecord | null>(null);
   const [resolvingOrder, setResolvingOrder] = useState(true);
   const [orderNotFound, setOrderNotFound] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
-  const [quickLoginLoading, setQuickLoginLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // 1. Resolve order record from mock/api data
@@ -126,22 +122,6 @@ export default function OrderAccessGatewayPage({ params }: Props) {
       router.replace(`/profile/orders/${order.id}`);
     }
   }, [order, user, resolvingOrder, authLoading, router]);
-
-  // Quick Demo Login Handler
-  const handleQuickLogin = async (email: string, pass: string) => {
-    setQuickLoginLoading(true);
-    setErrorMessage(null);
-    try {
-      const res = await signIn(email, pass);
-      if (res.error) {
-        setErrorMessage(typeof res.error === "string" ? res.error : res.error.message || "Sign in failed");
-      }
-    } catch (err: any) {
-      setErrorMessage(err?.message || "Demo sign in error");
-    } finally {
-      setQuickLoginLoading(false);
-    }
-  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -319,55 +299,6 @@ export default function OrderAccessGatewayPage({ params }: Props) {
             <span>Return to Storefront</span>
           </Link>
         </div>
-
-        {/* Demo Fast Access Panel (Frontend-Only Mode) */}
-        {isFrontendOnly() && (
-          <div className="pt-5 border-t border-border/70 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Demo Testing Shortcuts
-              </span>
-              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold">
-                Frontend-Only Demo
-              </span>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Use preconfigured demo roles to test role-aware dispatching for this order:
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              <button
-                type="button"
-                disabled={quickLoginLoading}
-                onClick={() => handleQuickLogin("admin@ayaan-demo.local", "Admin@12345")}
-                className="p-3 rounded-xl border border-border/80 bg-secondary/30 hover:bg-secondary text-left transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                  <Building2 size={13} className="text-primary" />
-                  <span>Demo Admin</span>
-                </div>
-                <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
-                  admin@ayaan-demo.local
-                </div>
-              </button>
-
-              <button
-                type="button"
-                disabled={quickLoginLoading}
-                onClick={() => handleQuickLogin("customer@ayaan-demo.local", "Customer@12345")}
-                className="p-3 rounded-xl border border-border/80 bg-secondary/30 hover:bg-secondary text-left transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                  <UserCheck size={13} className="text-emerald-600 dark:text-emerald-400" />
-                  <span>Demo Customer</span>
-                </div>
-                <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
-                  customer@ayaan-demo.local
-                </div>
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

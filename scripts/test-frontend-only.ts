@@ -93,7 +93,7 @@ const clientFilesToCheck = [
   "src/app/order-access/[reference]/page.tsx",
 ];
 const forbiddenImports = ["pg", "pg-pool", "ioredis", "mysql", "sqlite3", "child_process", "fs/promises"];
-let forbiddenFound: string[] = [];
+const forbiddenFound: string[] = [];
 for (const rel of clientFilesToCheck) {
   const content = fs.readFileSync(path.join(root, rel), "utf-8");
   for (const pkg of forbiddenImports) {

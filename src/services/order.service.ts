@@ -1,5 +1,3 @@
-import { apiClient } from "./api-client";
-import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { generateMockDocument } from "@/lib/mock-data/mock-documents";
 import { getWhatsAppUrl } from "@/config/business-profile";
@@ -164,17 +162,6 @@ export class OrderService {
    * Fetch all orders for a user
    */
   async getUserOrders(userId?: string | number): Promise<OrderRecord[]> {
-    if (!isFrontendOnly() && userId) {
-      try {
-        const res = await apiClient.get<any>(`/orders?user_id=${userId}`);
-        const data = res?.data?.data || res?.data || res;
-        if (Array.isArray(data)) {
-          return data.map((o) => this.normalizeOrderRecord(o));
-        }
-      } catch (err: any) {
-        console.warn("API getUserOrders failed, falling back to mock:", err.message);
-      }
-    }
     if (userId) {
       return mockStore.getUserOrders(userId);
     }
@@ -185,17 +172,6 @@ export class OrderService {
    * Fetch a single order by ID
    */
   async getOrderById(orderId: string): Promise<OrderRecord | null> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/orders/${orderId}`);
-        const data = res?.data?.data || res?.data || res;
-        if (data && data.id) {
-          return this.normalizeOrderRecord(data);
-        }
-      } catch (err: any) {
-        console.warn(`API getOrderById(${orderId}) failed, falling back to mock:`, err.message);
-      }
-    }
     return mockStore.getOrderById(orderId);
   }
 
@@ -308,20 +284,6 @@ export class OrderService {
       ],
     };
 
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>("/orders", newOrder);
-        const raw = res?.data || res;
-        if (raw && raw.id) {
-          const norm = this.normalizeOrderRecord(raw);
-          mockStore.saveOrder(norm);
-          return norm;
-        }
-      } catch {
-        // Fallback to local store
-      }
-    }
-
     mockStore.saveOrder(newOrder);
     return newOrder;
   }
@@ -330,15 +292,6 @@ export class OrderService {
    * Fetch official commercial document for an order
    */
   async getOrderCommercialDocument(orderId: string, docType: string): Promise<any> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/orders/${orderId}/documents/${docType}`);
-        return res?.data || res;
-      } catch {
-        // Fallback to local document generation
-      }
-    }
-
     const order = mockStore.getOrderById(orderId);
     if (!order) {
       throw new Error("Order not found");
@@ -353,15 +306,6 @@ export class OrderService {
    * Fetch live carrier tracking status for an order
    */
   async getOrderTracking(orderId: string): Promise<any> {
-    if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.get<any>(`/orders/${orderId}/tracking`);
-        return res?.data || res;
-      } catch {
-        // Fallback
-      }
-    }
-
     const order = mockStore.getOrderById(orderId);
     return {
       order_number: order?.order_number || orderId,
@@ -376,15 +320,7 @@ export class OrderService {
   /**
    * Cancel order
    */
-  async cancelOrder(orderId: string, userId: string | number, reason?: string): Promise<boolean> {
-    if (!isFrontendOnly()) {
-      try {
-        await apiClient.post(`/orders/${orderId}/cancel`, { reason });
-      } catch {
-        // Fallback
-      }
-    }
-
+  async cancelOrder(orderId: string, _userId: string | number, reason?: string): Promise<boolean> {
     const order = mockStore.getOrderById(orderId);
     if (order) {
       order.status = "cancelled";
