@@ -52,10 +52,7 @@ export class AdminDashboardService {
       .filter((o) => o.payment_status === "paid" || o.status === "delivered" || o.status === "shipped")
       .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
 
-    const lowStock = products.filter((p) => {
-      const stock = Number(p.stock ?? 0);
-      return stock > 0 && stock <= LOW_STOCK_THRESHOLD;
-    }).length;
+    const lowStock = products.filter((p) => p.stock < LOW_STOCK_THRESHOLD).length;
 
     const recentOrders = [...orders]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())

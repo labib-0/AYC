@@ -163,7 +163,7 @@ export default function AuthModal({
   const handleGoogleAuth = () => {
     setStatusMessage({
       type: "info",
-      text: "Google OAuth will be available once the Laravel Socialite backend is connected.",
+      text: "Google OAuth sign-in is not available in frontend demo mode. Please sign in with email credentials.",
     });
   };
 

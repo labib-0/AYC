@@ -14,11 +14,11 @@ export default function Home() {
       <div className="flex flex-col gap-4 sm:gap-5">
         <TopBanner />
         <ServiceStrip />
-        <ShopByBrand />
-        <HotSales />
         <Suspense fallback={<div className="h-64 bg-background" />}>
           <FeaturedProducts />
         </Suspense>
+        <HotSales />
+        <ShopByBrand />
         <CategoryHighlights />
       </div>
       <Testimonials />

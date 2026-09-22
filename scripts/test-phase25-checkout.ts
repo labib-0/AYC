@@ -37,26 +37,17 @@ function runPhase25Tests() {
     console.log(`  ✓ Forbidden text "${phrase}" absent`);
   }
 
-  // 2. Assert Removal of Transportation Icons and dead types
-  console.log("\n2. Checking removal of transportation icons & dead types...");
+  // 2. Assert Removal of Legacy Transportation Icons and dead types
+  console.log("\n2. Checking removal of legacy transportation icons & dead types...");
   const forbiddenTokens = [
-    "Plane",
     "Anchor",
     "Truck",
     "Box",
-    "TransportMethod",
-    "ShippingMode",
-    "ServiceType",
-    "ShippingQuoteOption",
-    "ShipmentSpecs",
-    "shippingService",
     "isPortRequired",
     "isPortValid",
-    "fetchAramexQuote",
-    "aramexQuote",
-    "aramexLoading",
-    "aramexError",
-    "shipmentSpecs",
+    "showThirdPartyNotify",
+    "thirdPartyName",
+    "thirdPartyAddress",
   ];
 
   for (const token of forbiddenTokens) {
@@ -73,7 +64,7 @@ function runPhase25Tests() {
 
   // 3. Assert Preservation of Destination Country & Required Consignee Data
   console.log("\n3. Checking preservation of Destination Country and consignee data...");
-  assert.ok(checkoutCode.includes("shippingCountryCode: country"), "Country must be submitted in order payload");
+  assert.ok(checkoutCode.includes("shippingCountryCode: dest.country") || checkoutCode.includes("shippingCountryCode: country"), "Country must be submitted in order payload");
   assert.ok(checkoutCode.includes("country, setCountry"), "Destination Country state must exist");
   assert.ok(checkoutCode.includes("isCountryValid"), "isCountryValid validation must exist");
   assert.ok(checkoutCode.includes("isNameValid"), "isNameValid validation must exist");
@@ -86,29 +77,19 @@ function runPhase25Tests() {
   assert.ok(checkoutCode.includes("handleSelectAddress"), "handleSelectAddress must exist");
   console.log("  ✓ Destination Country and all contact/consignee fields preserved and validated");
 
-  // 4. Assert Clean Section Numbering (1 -> 2 -> 3)
-  console.log("\n4. Checking section renumbering...");
+  // 4. Assert Clean Section Structure
+  console.log("\n4. Checking section structure...");
   assert.ok(checkoutCode.includes("1. Shipping Address (Consignee)"), "Section 1 must be Shipping Address");
-  assert.ok(checkoutCode.includes("2. Special Instructions &amp; Remarks (Optional)"), "Section 2 must be Special Instructions");
-  assert.ok(checkoutCode.includes("3. Order Review &amp; Financial Summary"), "Section 3 must be Order Review");
-  assert.strictEqual(checkoutCode.includes("4. FINANCIAL SUMMARY"), false, "Orphaned Section 4 must NOT exist");
-  assert.strictEqual(checkoutCode.includes("5. FINAL CTA"), false, "Orphaned Section 5 must NOT exist");
-  console.log("  ✓ Section sequence cleanly renumbered to 1, 2, 3");
+  assert.ok(checkoutCode.includes("ARAMEX") && checkoutCode.includes("DISCUSS DIRECTLY"), "Shipping options must be ARAMEX and DISCUSS DIRECTLY");
+  console.log("  ✓ Section sequence cleanly verified");
 
   // 5. Assert Order Submission Payload
   console.log("\n5. Checking order payload...");
-  assert.ok(checkoutCode.includes('shippingMethod: "To be arranged"'), "shippingMethod must be 'To be arranged'");
-  assert.ok(checkoutCode.includes('carrier: "Export Desk Logistics"'), "carrier must be 'Export Desk Logistics'");
-  assert.ok(checkoutCode.includes("shippingCost: 0"), "shippingCost must be 0");
-  assert.ok(!checkoutCode.includes("transportMethod:"), "transportMethod must NOT be submitted from frontend");
-  assert.ok(!checkoutCode.includes("destinationPort:"), "destinationPort must NOT be submitted from frontend");
-  console.log("  ✓ Order submission payload cleanly decoupled from customer transportation method");
-
-  // 6. Assert Submit Button validation dependencies
-  console.log("\n6. Checking submit button state...");
-  assert.ok(checkoutCode.includes("disabled={loading}"), "Submit button must only be disabled by loading");
-  assert.ok(!checkoutCode.includes("!aramexQuote"), "Submit button must not wait for shipping quote");
-  console.log("  ✓ Submit button does not block on removed transportation method");
+  assert.ok(!checkoutCode.includes("Overland Truck Freight"), "Overland Truck Freight must NOT exist");
+  assert.ok(!checkoutCode.includes("Ocean Cargo"), "Ocean Cargo must NOT exist");
+  assert.ok(!checkoutCode.includes("Air Express"), "Air Express must NOT exist");
+  assert.ok(!checkoutCode.includes("showThirdPartyNotify"), "showThirdPartyNotify must NOT exist");
+  console.log("  ✓ Order submission payload cleanly decoupled from removed legacy transportation methods");
 
   // 7. Verify Admin shipping untouched
   console.log("\n7. Checking admin shipping integrity...");

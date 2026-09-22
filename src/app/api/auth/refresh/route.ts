@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     return NextResponse.json({
       success: true,
-      message: "Token refresh endpoint ready for Laravel Sanctum / JWT",
+      message: "Frontend token refresh simulated successfully",
       token: body?.refresh_token ? `refreshed_${Date.now()}` : null,
     });
   } catch {

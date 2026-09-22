@@ -105,9 +105,7 @@ export default function CustomerRoleDialog({
               className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-secondary/30 text-foreground font-bold focus:ring-1 focus:ring-primary outline-none cursor-pointer"
               id="select-new-role"
             >
-              <option value="customer">Customer</option>
-              <option value="sales">Sales Representative</option>
-              <option value="admin">System Administrator</option>
+              <option value="customer">Customer (Standard &amp; Wholesale)</option>
             </select>
           </div>
 

@@ -1,5 +1,5 @@
 import { AUDIENCE_CATEGORIES } from "../filters";
-import { categoryService, CategoryModel } from "@/services/category.service";
+import { categoryService } from "@/services/category.service";
 
 export interface CategoryInfo {
   id: string;

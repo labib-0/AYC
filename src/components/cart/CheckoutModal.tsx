@@ -17,7 +17,6 @@ import {
 } from "@/lib/pdf-generator";
 import {
   X,
-  Truck,
   FileText,
   CheckCircle2,
   AlertCircle,
@@ -25,7 +24,7 @@ import {
   ArrowRight,
   Plane,
   MessageCircle,
-  Box,
+  Package,
   RefreshCw,
   ChevronDown,
   ChevronUp,
@@ -34,7 +33,6 @@ import {
   MapPin,
   Plus,
   Star,
-  Anchor,
   Globe,
   Check,
   Pencil,
@@ -101,11 +99,6 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const shippingServiceType: ServiceType = "door_to_door"; // default service scope
   const [specialInstructions, setSpecialInstructions] = useState("");
 
-  // Third-Party Notification (Aramex SLI "Also Notify 3rd Party")
-  const [showThirdPartyNotify, setShowThirdPartyNotify] = useState(false);
-  const [thirdPartyName, setThirdPartyName] = useState("");
-  const [thirdPartyAddress, setThirdPartyAddress] = useState("");
-
   // Submission & Quote States
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -122,9 +115,6 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const [offerSheetError, setOfferSheetError] = useState<string | null>(null);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Port is never required with the simplified 2-option model
-  const isPortRequired = false;
 
   // ─── NORMALIZED SHIPPING DESTINATION ──────────────────────────────────────
   // Build a single canonical object that represents the shipping destination
@@ -456,8 +446,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         shippingMethodTitle = `Aramex — ${aramexQuote.service_name}`;
         carrierTitle = aramexQuote.carrier;
       } else {
-        shippingMethodTitle = "Aramex — Priority Air Express";
-        carrierTitle = "Aramex Express Air";
+        shippingMethodTitle = "Aramex — Priority Air";
+        carrierTitle = "Aramex Express";
       }
 
       // Consignee snapshot
@@ -486,10 +476,6 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         port_of_loading: "Hazrat Shahjalal International Airport (DAC), Dhaka",
         service_type: shippingServiceType,
         special_instructions: specialInstructions.trim() || undefined,
-        third_party_notify:
-          showThirdPartyNotify && thirdPartyName.trim()
-            ? { name: thirdPartyName.trim(), address: thirdPartyAddress.trim() }
-            : undefined,
         notes: specialInstructions.trim() || (shippingMode === "manual" ? "Freight to be confirmed separately by AYAAN CLOTHING export team." : undefined),
         destination: {
           name: dest.name,
@@ -527,10 +513,6 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         shippingServiceType,
         destinationPort: undefined,
         specialInstructions: specialInstructions.trim() || undefined,
-        thirdPartyNotify:
-          showThirdPartyNotify && thirdPartyName.trim()
-            ? { name: thirdPartyName.trim(), address: thirdPartyAddress.trim() }
-            : undefined,
         notes: specialInstructions.trim() || undefined,
         items: items.map((item) => ({
           productId: item.product.id,
@@ -809,7 +791,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             <div className="space-y-3.5">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                  <Truck size={15} className="text-primary" />
+                  <MapPin size={15} className="text-primary" />
                   <span>1. Shipping Address (Consignee)</span>
                 </h3>
 
@@ -961,7 +943,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       {shippingMode === "aramex" && <CheckCircle2 size={15} className="text-foreground shrink-0" />}
                     </div>
                     <span className="text-[11px] text-muted-foreground block leading-snug">
-                      Priority Air Express · 3–5 business days
+                      Priority Air · 3–5 business days
                     </span>
                   </div>
 
@@ -1038,7 +1020,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 <div className="py-2 px-3 rounded-lg border border-border/60 bg-secondary/10 font-sans">
                   <div className="flex items-center justify-between text-xs">
                     <div className="text-foreground font-medium flex items-center gap-2">
-                      <Box size={14} className="text-muted-foreground" />
+                      <Package size={14} className="text-muted-foreground" />
                       <span>
                         {totalItemQuantity} pcs · {shipmentSpecs.carton_count} cartons · {shipmentSpecs.gross_weight} kg · {shipmentSpecs.total_cbm} CBM
                       </span>
@@ -1066,52 +1048,6 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                   placeholder="e.g. Delivery between 9AM-5PM, deliver to warehouse bay 4, notify receiving dock before arrival"
                   className="w-full px-3 py-2 text-xs rounded-xl border border-border/80 bg-secondary/30 text-foreground outline-none focus:border-foreground transition-all"
                 />
-              </div>
-
-              {/* Third-Party Notification (Optional & Collapsed by default) */}
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowThirdPartyNotify((prev) => !prev)}
-                  className="text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1.5 cursor-pointer"
-                >
-                  {showThirdPartyNotify ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  <span>Also Notify Third Party (Optional)</span>
-                </button>
-
-                {showThirdPartyNotify && (
-                  <div className="mt-2.5 p-3.5 rounded-xl border border-border bg-secondary/20 space-y-2.5 animate-in fade-in">
-                    <div className="text-[11px] text-muted-foreground">
-                      Third-party broker or logistics agent to receive shipping arrival notices:
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
-                          Third-Party Name / Broker
-                        </label>
-                        <input
-                          type="text"
-                          value={thirdPartyName}
-                          onChange={(e) => setThirdPartyName(e.target.value)}
-                          placeholder="e.g. Apex Customs Clearance Ltd"
-                          className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-card text-foreground outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
-                          Third-Party Address / Email
-                        </label>
-                        <input
-                          type="text"
-                          value={thirdPartyAddress}
-                          onChange={(e) => setThirdPartyAddress(e.target.value)}
-                          placeholder="e.g. broker@customs.com or Terminal Office"
-                          className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-card text-foreground outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 

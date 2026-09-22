@@ -36,7 +36,7 @@ async function runTests() {
   assert(orders.length > 0, `Found ${orders.length} orders in mockStore`);
   assert(quotations.length > 0, `Found ${quotations.length} quotations in mockStore`);
 
-  const sampleOrder = orders[0];
+  const sampleOrder = orders.find((o) => o.payment_status === "paid") || orders[0];
   const sampleQuote = quotations[0];
 
   // 2. Test Document Resolution for Orders

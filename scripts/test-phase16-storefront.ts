@@ -98,31 +98,31 @@ console.log("\n📄 4. Headline Ticker (ServiceStrip.tsx)");
   assert("Orange bullet separator #EA580C", strip.includes("#EA580C"));
 }
 
-// ── 5. Filter Order: BRAND → DESIGN TYPE → AUDIENCE → PRODUCT CATEGORY ───
+// ── 5. Filter Order: BRAND → AUDIENCE → DESIGN TYPE → PRODUCT CATEGORY ───
 console.log("\n📄 5. Filter Rail Order (GlobalFilterRail.tsx)");
 {
   const rail = readSrcFile("components/common/GlobalFilterRail.tsx");
   // Match the <h3> heading text to avoid false positives from prop names
-  const brandIdx = rail.indexOf(">\\n          BRAND\\n");
-  const designTypeIdx = rail.indexOf(">\\n          DESIGN TYPE\\n");
-  const audienceIdx = rail.indexOf(">\\n          AUDIENCE\\n");
-  const categoryIdx = rail.indexOf(">\\n          PRODUCT CATEGORY\\n");
+  const brandIdx = rail.indexOf(">\n          BRAND\n");
+  const audienceIdx = rail.indexOf(">\n          AUDIENCE\n");
+  const designTypeIdx = rail.indexOf(">\n          DESIGN TYPE\n");
+  const categoryIdx = rail.indexOf(">\n          PRODUCT CATEGORY\n");
   // Fallback: match the comment markers which are more reliable
   const brandCommentIdx = rail.indexOf("1. BRAND");
-  const designTypeCommentIdx = rail.indexOf("2. DESIGN TYPE");
-  const audienceCommentIdx = rail.indexOf("3. AUDIENCE");
+  const audienceCommentIdx = rail.indexOf("2. AUDIENCE");
+  const designTypeCommentIdx = rail.indexOf("3. DESIGN TYPE");
   const categoryCommentIdx = rail.indexOf("4. PRODUCT CATEGORY");
   
   const b = brandCommentIdx >= 0 ? brandCommentIdx : brandIdx;
-  const d = designTypeCommentIdx >= 0 ? designTypeCommentIdx : designTypeIdx;
   const a = audienceCommentIdx >= 0 ? audienceCommentIdx : audienceIdx;
+  const d = designTypeCommentIdx >= 0 ? designTypeCommentIdx : designTypeIdx;
   const c = categoryCommentIdx >= 0 ? categoryCommentIdx : categoryIdx;
   
   assert("Filter rail has all section comments",
-    b >= 0 && d >= 0 && a >= 0 && c >= 0
+    b >= 0 && a >= 0 && d >= 0 && c >= 0
   );
-  assert("Order: BRAND → DESIGN TYPE → AUDIENCE → PRODUCT CATEGORY",
-    b < d && d < a && a < c
+  assert("Order: BRAND → AUDIENCE → DESIGN TYPE → PRODUCT CATEGORY",
+    b < a && a < d && d < c
   );
 }
 

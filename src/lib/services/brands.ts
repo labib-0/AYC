@@ -1,4 +1,4 @@
-import { brandService, BrandModel } from "@/services/brand.service";
+import { brandService } from "@/services/brand.service";
 
 export interface Brand {
   id: string;

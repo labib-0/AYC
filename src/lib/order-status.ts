@@ -1,6 +1,5 @@
 import { OrderRecord } from "@/lib/services/orders";
 import {
-  Package,
   Truck,
   CheckCircle2,
   XCircle,
