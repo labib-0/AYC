@@ -27,8 +27,7 @@ export default function LoginPage() {
     }
     const u = targetUser || user;
     if (u?.role === "admin") return "/admin";
-    if (u?.role === "b2b_buyer") return "/dashboard";
-    return "/profile";
+    return "/dashboard";
   };
 
   // If already logged in, redirect to target or role-based dashboard

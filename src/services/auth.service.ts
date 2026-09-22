@@ -14,7 +14,7 @@ export interface RegisterData {
   password_confirmation?: string;
   phone?: string;
   company_name?: string;
-  role?: "customer" | "b2b_buyer";
+  role?: "customer" | "admin";
 }
 
 export class AuthService {
@@ -39,7 +39,7 @@ export class AuthService {
     }
 
     // If logging in with an email not yet in the store, automatically create customer profile
-    const role: User["role"] = email.includes("admin") ? "admin" : email.includes("buyer") ? "b2b_buyer" : "customer";
+    const role: User["role"] = email.includes("admin") ? "admin" : "customer";
     const newUser = mockStore.saveUser({
       name: email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
       email,

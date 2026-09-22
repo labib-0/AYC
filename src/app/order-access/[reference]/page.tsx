@@ -116,11 +116,7 @@ export default function OrderAccessGatewayPage({ params }: Props) {
 
     // Customer owns order: route to customer order details
     setRedirecting(true);
-    if (user.role === "b2b_buyer") {
-      router.replace(`/dashboard/orders/${order.id}`);
-    } else {
-      router.replace(`/profile/orders/${order.id}`);
-    }
+    router.replace(`/dashboard/orders/${order.id}`);
   }, [order, user, resolvingOrder, authLoading, router]);
 
   const handleSignOut = async () => {
@@ -241,7 +237,7 @@ export default function OrderAccessGatewayPage({ params }: Props) {
               <span>Switch Account / Sign Out</span>
             </button>
             <Link
-              href={user?.role === "b2b_buyer" ? "/dashboard/orders" : "/profile/orders"}
+              href="/dashboard/orders"
               className="w-full py-3 px-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-1.5 shadow-xs"
             >
               <span>View My Orders</span>

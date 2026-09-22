@@ -24,16 +24,16 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
         <div className="space-y-1.5 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[0.6875rem] font-bold tracking-wider uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              B2B Buyer Portal
+              Customer Portal
             </span>
             <span className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-emerald-400">
               <ShieldCheck size={12} />
-              <span>Verified Wholesale Account</span>
+              <span>Verified Account</span>
             </span>
           </div>
 
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-            Welcome back, {user?.name || "Wholesale Buyer"}
+            Welcome back, {user?.name || "Customer"}
           </h1>
 
           <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-300">
@@ -46,7 +46,7 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
             {memberSince && (
               <div className="flex items-center gap-1.5 text-slate-400">
                 <Calendar size={13} />
-                <span>Buyer since {memberSince}</span>
+                <span>Customer since {memberSince}</span>
               </div>
             )}
             <div className="text-slate-400">

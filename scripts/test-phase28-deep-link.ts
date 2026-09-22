@@ -110,11 +110,7 @@ function simulateGatewayDispatch(
     return { destination: null, status: "UNAUTHORIZED_DENIED" };
   }
 
-  if (user.role === "b2b_buyer") {
-    return { destination: `/dashboard/orders/${order.id}`, status: "AUTHORIZED" };
-  }
-
-  return { destination: `/profile/orders/${order.id}`, status: "AUTHORIZED" };
+  return { destination: `/dashboard/orders/${order.id}`, status: "AUTHORIZED" };
 }
 
 const adminUser = { role: "admin", id: 998, email: "admin@ayaan-demo.local" };
@@ -129,8 +125,8 @@ assert(
 const customerOwner = { role: "customer", id: 999, email: "customer@ayaan-demo.local" };
 const customerDispatch = simulateGatewayDispatch(customerOwner, testOrder!);
 assert(
-  customerDispatch.status === "AUTHORIZED" && customerDispatch.destination === `/profile/orders/${testOrder?.id}`,
-  "6. Customer role resolves to Customer order route (/profile/orders/[id])",
+  customerDispatch.status === "AUTHORIZED" && customerDispatch.destination === `/dashboard/orders/${testOrder?.id}`,
+  "6. Customer role resolves to Customer order route (/dashboard/orders/[id])",
   `Customer destination: ${customerDispatch.destination}`
 );
 

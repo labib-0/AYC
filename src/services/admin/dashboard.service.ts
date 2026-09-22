@@ -43,7 +43,7 @@ export class AdminDashboardService {
     const rfqs = mockStore.getRfqs();
 
     const activeProducts = products.filter((p) => p.status === "published").length;
-    const customers = users.filter((u) => u.role === "customer" || u.role === "b2b_buyer").length;
+    const customers = users.filter((u) => u.role !== "admin" && u.role !== "sales").length;
     const pendingOrders = orders.filter((o) => o.status === "pending").length;
     const processingOrders = orders.filter((o) => o.status === "processing").length;
     const deliveredOrders = orders.filter((o) => o.status === "delivered").length;

@@ -283,13 +283,28 @@ class MockStore {
     const list = this.getItem<MockUserData[]>(STORAGE_KEYS.USERS, INITIAL_MOCK_USERS);
     // Self-healing synchronization: If stored dataset is missing baseline accounts, merge missing users
     if (Array.isArray(list)) {
-      const existingEmails = new Set(list.map((u) => (u.email || "").toLowerCase()));
+      let modified = false;
+      const normalizedList = list.map((u) => {
+        if ((u as any).role === "b2b_buyer") {
+          modified = true;
+          return { ...u, role: "customer" as const };
+        }
+        return u;
+      });
+
+      const existingEmails = new Set(normalizedList.map((u) => (u.email || "").toLowerCase()));
       const missing = INITIAL_MOCK_USERS.filter((u) => !existingEmails.has((u.email || "").toLowerCase()));
       if (missing.length > 0) {
-        const merged = [...list, ...missing];
+        const merged = [...normalizedList, ...missing];
         this.setItem(STORAGE_KEYS.USERS, merged);
         return merged;
       }
+
+      if (modified) {
+        this.setItem(STORAGE_KEYS.USERS, normalizedList);
+        return normalizedList;
+      }
+      return normalizedList;
     }
     return list;
   }
@@ -303,7 +318,12 @@ class MockStore {
   }
 
   getActiveUser(): User | null {
-    return this.getItem<User | null>(STORAGE_KEYS.ACTIVE_USER, null);
+    const active = this.getItem<User | null>(STORAGE_KEYS.ACTIVE_USER, null);
+    if (active && (active as any).role === "b2b_buyer") {
+      active.role = "customer";
+      this.setActiveUser(active);
+    }
+    return active;
   }
 
   setActiveUser(user: User | null): void {
@@ -335,14 +355,14 @@ class MockStore {
         name: userData.name || "New User",
         email: userData.email || `user${Date.now()}@example.com`,
         password: userData.password || "password",
-        role: userData.role || "customer",
+        role: userData.role === "admin" || userData.role === "sales" ? userData.role : "customer",
         phone: userData.phone,
         company_name: userData.company_name,
         tax_id: userData.tax_id,
         country: userData.country,
         business_type: userData.business_type,
         website: userData.website,
-        b2b_approval_status: userData.b2b_approval_status || (userData.role === "b2b_buyer" ? "pending" : "approved"),
+        b2b_approval_status: userData.b2b_approval_status || "approved",
         b2b_payment_terms: userData.b2b_payment_terms || "none",
         b2b_credit_limit: userData.b2b_credit_limit || 0,
         is_active: userData.is_active ?? true,

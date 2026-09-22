@@ -86,10 +86,10 @@ export function DashboardMobileNav() {
           </div>
           <div className="min-w-0">
             <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-              {user?.name || "B2B Wholesale Buyer"}
+              {user?.name || "Customer"}
             </p>
             <p className="text-[0.625rem] text-slate-500 dark:text-slate-400 truncate">
-              {user?.company_name || "Commercial Buyer"}
+              {user?.company_name || "Direct Customer"}
             </p>
           </div>
         </div>

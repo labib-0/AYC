@@ -62,11 +62,6 @@ export default function CustomerStatusBadge({
   let label = val.replace(/_/g, " ").toUpperCase();
 
   switch (val) {
-    case "b2b_buyer":
-      colorClasses = "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30";
-      icon = <Briefcase size={size === "sm" ? 11 : 13} />;
-      label = "B2B Buyer";
-      break;
     case "admin":
       colorClasses = "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30";
       icon = <Shield size={size === "sm" ? 11 : 13} />;
@@ -77,11 +72,12 @@ export default function CustomerStatusBadge({
       icon = <Award size={size === "sm" ? 11 : 13} />;
       label = "Sales Rep";
       break;
+    case "b2b_buyer":
     case "customer":
     default:
       colorClasses = "bg-secondary border border-border text-foreground";
       icon = <UserIcon size={size === "sm" ? 11 : 13} />;
-      label = "Retail Customer";
+      label = "Customer";
       break;
   }
 

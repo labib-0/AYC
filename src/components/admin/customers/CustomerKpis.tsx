@@ -48,11 +48,11 @@ export default function CustomerKpis({
       borderColor: "border-border/70",
     },
     {
-      label: "B2B Accounts",
-      value: metrics.b2bAccounts,
+      label: "Corporate Accounts",
+      value: metrics.corporateAccounts ?? metrics.b2bAccounts ?? 0,
       icon: <Briefcase size={16} className="text-blue-500" />,
-      active: activeRoleFilter === "b2b_buyer",
-      onClick: () => onSelectRoleFilter(activeRoleFilter === "b2b_buyer" ? "all" : "b2b_buyer"),
+      active: activeRoleFilter === "corporate",
+      onClick: () => onSelectRoleFilter(activeRoleFilter === "corporate" ? "all" : "corporate"),
       borderColor: "border-blue-500/30",
     },
     {

@@ -37,11 +37,11 @@ async function runPhase9StaticValidation() {
 
   // 3. Multi-Field Filter Tests
   console.log("\n--- 3. Multi-Field Filter Tests ---");
-  // Filter by role: b2b_buyer
-  const b2bOnly = await adminCustomerService.getCustomers({ role: "b2b_buyer" });
+  // Filter by role: corporate (accounts with registered company)
+  const corporateOnly = await adminCustomerService.getCustomers({ role: "corporate" });
   assert(
-    b2bOnly.data.every((c) => c.role === "b2b_buyer"),
-    "Role filter 'b2b_buyer' returns only wholesale buyer accounts"
+    corporateOnly.data.every((c) => Boolean(c.company_name)),
+    "Filter 'corporate' returns accounts with registered company names"
   );
 
   // Filter by role: customer
@@ -150,11 +150,11 @@ async function runPhase9StaticValidation() {
   // 8. Role Change Mutation & Persistence
   console.log("\n--- 8. Role Change Mutation & Persistence Tests ---");
   const updatedRole = await adminCustomerService.updateCustomer(101, {
-    role: "b2b_buyer",
+    role: "sales",
   });
-  assert(updatedRole.role === "b2b_buyer", "Customer 101 role changed to 'b2b_buyer'");
+  assert(updatedRole.role === "sales", "Customer 101 role changed to 'sales'");
   const user101InStore = mockStore.getUserById(101);
-  assert(user101InStore?.role === "b2b_buyer", "Role change persisted in mockStore");
+  assert(user101InStore?.role === "sales", "Role change persisted in mockStore");
 
   // Restore 101 for idempotency
   await adminCustomerService.updateCustomer(101, { role: "customer" });

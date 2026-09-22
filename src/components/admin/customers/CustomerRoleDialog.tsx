@@ -39,10 +39,9 @@ export default function CustomerRoleDialog({
 
   const getRoleLabel = (r: string) => {
     switch (r) {
-      case "b2b_buyer":
-        return "B2B Wholesale Buyer";
       case "customer":
-        return "Retail Customer";
+      case "b2b_buyer":
+        return "Customer";
       case "sales":
         return "Sales Representative";
       case "admin":
@@ -106,15 +105,16 @@ export default function CustomerRoleDialog({
               className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-secondary/30 text-foreground font-bold focus:ring-1 focus:ring-primary outline-none cursor-pointer"
               id="select-new-role"
             >
-              <option value="b2b_buyer">B2B Wholesale Buyer</option>
-              <option value="customer">Retail Customer</option>
+              <option value="customer">Customer</option>
+              <option value="sales">Sales Representative</option>
+              <option value="admin">System Administrator</option>
             </select>
           </div>
 
           <div className="p-3 rounded-2xl bg-secondary/40 border border-border/80 text-muted-foreground flex items-start gap-2 text-[11px]">
             <Shield size={14} className="shrink-0 mt-0.5 text-primary" />
             <span>
-              Customer roles determine wholesale tiering. Administrative and sales staff accounts are managed under Settings &rarr; Admin Users.
+              Customer accounts have full access to retail and bulk wholesale ordering. Administrative and sales staff accounts grant management portal access.
             </span>
           </div>
 

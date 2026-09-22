@@ -64,8 +64,7 @@ export default function CustomerToolbar({
           aria-label="Filter by Role"
         >
           <option value="all">All Roles</option>
-          <option value="b2b_buyer">B2B Wholesale Buyer</option>
-          <option value="customer">Retail Customer</option>
+          <option value="customer">Customer</option>
           <option value="sales">Sales Representative</option>
           <option value="admin">System Administrator</option>
         </select>

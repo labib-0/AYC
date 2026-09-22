@@ -74,6 +74,7 @@ export interface CustomerQueryParams {
 
 export interface CustomerSummaryMetrics {
   totalCustomers: number;
+  corporateAccounts: number;
   b2bAccounts: number;
   approvedB2b: number;
   pendingB2b: number;
@@ -82,9 +83,11 @@ export interface CustomerSummaryMetrics {
 export class AdminCustomerService {
   async getCustomerSummary(): Promise<CustomerSummaryMetrics> {
     const users = mockStore.getUsers().filter((u) => u.role !== "admin");
+    const corporate = users.filter((u) => Boolean(u.company_name)).length;
     return {
       totalCustomers: users.length,
-      b2bAccounts: users.filter((u) => u.role === "b2b_buyer").length,
+      corporateAccounts: corporate,
+      b2bAccounts: corporate,
       approvedB2b: users.filter((u) => u.b2b_approval_status === "approved").length,
       pendingB2b: users.filter((u) => u.b2b_approval_status === "pending").length,
     };
@@ -100,6 +103,9 @@ export class AdminCustomerService {
     // By default, customer directory lists non-admin buyer accounts (unless role filter specifically requests otherwise)
     const users = mockStore.getUsers().filter((u) => {
       if (params?.role && params.role !== "all") {
+        if (params.role === "corporate") {
+          return Boolean(u.company_name);
+        }
         return u.role === params.role;
       }
       return u.role !== "admin";
@@ -126,9 +132,9 @@ export class AdminCustomerService {
         phone: u.phone,
         company_name: u.company_name,
         tax_id: u.tax_id,
-        b2b_approval_status: u.b2b_approval_status || (u.role === "b2b_buyer" ? "pending" : "approved"),
-        b2b_payment_terms: u.b2b_payment_terms || (u.role === "b2b_buyer" ? "net_30" : "none"),
-        b2b_credit_limit: u.b2b_credit_limit || (u.role === "b2b_buyer" ? 50000 : 0),
+        b2b_approval_status: u.b2b_approval_status || "approved",
+        b2b_payment_terms: u.b2b_payment_terms || "none",
+        b2b_credit_limit: u.b2b_credit_limit || 0,
         avatar_url: u.avatar_url,
         orders_count: userOrders.length,
         quotes_count: userRfqs.length,
@@ -246,9 +252,9 @@ export class AdminCustomerService {
       phone: user.phone,
       company_name: user.company_name,
       tax_id: user.tax_id,
-      b2b_approval_status: user.b2b_approval_status || (user.role === "b2b_buyer" ? "pending" : "approved"),
-      b2b_payment_terms: user.b2b_payment_terms || (user.role === "b2b_buyer" ? "net_30" : "none"),
-      b2b_credit_limit: user.b2b_credit_limit || (user.role === "b2b_buyer" ? 50000 : 0),
+      b2b_approval_status: user.b2b_approval_status || "approved",
+      b2b_payment_terms: user.b2b_payment_terms || "none",
+      b2b_credit_limit: user.b2b_credit_limit || 0,
       avatar_url: user.avatar_url,
       orders_count: orders.length,
       quotes_count: rfqs.length,
@@ -276,8 +282,10 @@ export class AdminCustomerService {
 
   async updateCustomer(id: number | string, data: Partial<CustomerRecord>): Promise<CustomerRecord> {
     const roleVal =
-      data.role === "admin" || data.role === "b2b_buyer" || data.role === "sales" || data.role === "customer"
+      data.role === "admin" || data.role === "sales" || data.role === "customer"
         ? data.role
+        : data.role === "b2b_buyer"
+        ? "customer"
         : undefined;
     const approvalVal =
       data.b2b_approval_status === "approved" ||

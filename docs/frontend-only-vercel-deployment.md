@@ -80,5 +80,5 @@ The local store is pre-seeded with accounts:
 | Role | Email | Password | Access Level |
 |---|---|---|---|
 | **Admin** | `admin@ayaanclothing.com` | `admin123` | Full Admin Portal (`/admin`) |
-| **B2B Wholesale Buyer** | `buyer@ayaanclothing.com` | `password` | B2B Wholesale Portal (`/dashboard`) |
-| **Retail Customer** | `testuser@example.com` | `testpass` | Customer Storefront & Profile (`/profile`) |
+| **Customer (Corporate / Commercial)** | `buyer@ayaanclothing.com` | `password` | Customer Portal & Commercial Features (`/dashboard`) |
+| **Customer (Standard)** | `testuser@example.com` | `testpass` | Customer Portal & Commercial Features (`/dashboard`) |

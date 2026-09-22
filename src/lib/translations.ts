@@ -29,7 +29,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "b2b.moq_units": "pcs minimum",
     "b2b.request_quote": "Request Commercial Quote",
     "b2b.net30": "Net 30 Terms",
-    "b2b.b2b_buyer": "B2B Wholesale Account",
+    "b2b.b2b_buyer": "Customer Account",
 
     // Actions & Cart
     "action.add_to_cart": "Add to Cart",
@@ -66,7 +66,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "b2b.moq_units": "পিস সর্বনিম্ন",
     "b2b.request_quote": "উদ্ধৃতি অনুরোধ করুন",
     "b2b.net30": "নেট ৩০ শর্তাবলি",
-    "b2b.b2b_buyer": "বিটুবি পাইকারি অ্যাকাউন্ট",
+    "b2b.b2b_buyer": "গ্রাহক অ্যাকাউন্ট",
 
     // Actions & Cart
     "action.add_to_cart": "কার্টে যোগ করুন",
@@ -103,7 +103,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "b2b.moq_units": "قطعة كحد أدنى",
     "b2b.request_quote": "طلب عرض أسعار تجاري",
     "b2b.net30": "شروط الدفع الآجل (صافي 30 يومًا)",
-    "b2b.b2b_buyer": "حساب تاجر جملة (B2B)",
+    "b2b.b2b_buyer": "حساب العميل",
 
     // Actions & Cart
     "action.add_to_cart": "أضف إلى السلة",

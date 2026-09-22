@@ -21,7 +21,7 @@ function getBreadcrumbLabel(pathname: string): string {
   if (pathname.startsWith("/dashboard/addresses")) return "Address Book";
   if (pathname.startsWith("/dashboard/documents")) return "Document Center";
   if (pathname.startsWith("/dashboard/settings")) return "Settings";
-  return "B2B Portal";
+  return "Customer Portal";
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -41,7 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            Accessing B2B Buyer Workspace...
+            Accessing Customer Portal...
           </p>
         </div>
       </div>
@@ -72,14 +72,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Link>
           <ChevronRight size={11} className="text-slate-300 dark:text-slate-600" />
           {isOverview ? (
-            <span className="text-slate-900 dark:text-white font-semibold">B2B Portal</span>
+            <span className="text-slate-900 dark:text-white font-semibold">Customer Portal</span>
           ) : (
             <>
               <Link
                 href="/dashboard"
                 className="hover:text-slate-900 dark:hover:text-white transition-colors"
               >
-                B2B Portal
+                Customer Portal
               </Link>
               <ChevronRight size={11} className="text-slate-300 dark:text-slate-600" />
               <span className="text-slate-900 dark:text-white font-semibold">

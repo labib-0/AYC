@@ -86,14 +86,14 @@ export function DashboardSidebar() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                  {user?.name || "B2B Wholesale Buyer"}
+                  {user?.name || "Customer"}
                 </p>
                 <p className="text-[0.6875rem] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                  {user?.company_name || "Commercial Buyer"}
+                  {user?.company_name || "Direct Customer"}
                 </p>
                 <div className="mt-1 inline-flex items-center gap-1 text-[0.625rem] text-emerald-600 dark:text-emerald-400 font-semibold">
                   <ShieldCheck size={11} />
-                  <span>Verified B2B Account</span>
+                  <span>Verified Account</span>
                 </div>
               </div>
             </div>

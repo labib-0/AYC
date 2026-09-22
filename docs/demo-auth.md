@@ -13,13 +13,13 @@ These accounts are seeded into the local mock user store (`ayaan_mock_users_v2`)
 
 | Role | Email | Password | Intended Destination Context |
 |---|---|---|---|
-| **ADMIN** | `admin@ayaan-demo.local` | `Admin@12345` | Admin Order Detail (`/admin/orders/[id]` or separate Admin origin) |
-| **CUSTOMER** | `customer@ayaan-demo.local` | `Customer@12345` | Customer Order Detail (`/profile/orders/[id]` or `/dashboard/orders/[id]`) |
+| **ADMIN** | `admin@ayaan-demo.local` | `Admin@12345` | Admin Order Detail (`/admin/orders/[id]` or `/admin`) |
+| **CUSTOMER** | `customer@ayaan-demo.local` | `Customer@12345` | Customer Order Detail (`/dashboard/orders/[id]` or `/dashboard`) |
 
 *Existing development credentials also remain active:*
-- **Legacy Admin**: `admin@ayaanclothing.com` / `admin123`
-- **Legacy B2B Buyer**: `buyer@ayaanclothing.com` / `password`
-- **Legacy Retail**: `testuser@example.com` / `testpass`
+- **Admin**: `admin@ayaanclothing.com` / `admin123`
+- **Customer (Commercial / Corporate)**: `buyer@ayaanclothing.com` / `password`
+- **Customer (Standard)**: `testuser@example.com` / `testpass`
 
 ---
 
@@ -53,21 +53,21 @@ https://ayaan-clothing.vercel.app/order-access/AYN-20260922-697987
                 ├── NO  ──► Render "Commercial Order Not Found"
                 └── YES ──► Check Active Session
                                 │
-                                ├── Not Authenticated ──► Prompt Sign-In / Demo Login
+                                ├── Not Authenticated ──► Prompt Sign-In / Login
                                 │                        (Preserves return URL)
                                 │
                                 └── Authenticated User
                                         │
                     ┌───────────────────┴───────────────────┐
                     ▼                                       ▼
-             Role is ADMIN                     Role is CUSTOMER / BUYER
+             Role is ADMIN                     Role is CUSTOMER
                     │                                       │
                     ▼                                       ▼
         Route to Admin Order Detail                 Does User Own Order?
         /admin/orders/[id]                     (user_id / email matches)
-        (or separate Admin origin)                          │
+                                                            │
                                                 ├── YES ──► Route to Customer Detail
-                                                │           /profile/orders/[id]
+                                                │           /dashboard/orders/[id]
                                                 │
                                                 └── NO  ──► Render "Order Not Available"
                                                             (No order data leaked)

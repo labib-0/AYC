@@ -14,7 +14,7 @@ interface AuthContextType {
     email: string,
     password: string,
     fullName: string,
-    options?: { phone?: string; company_name?: string; role?: "customer" | "b2b_buyer" }
+    options?: { phone?: string; company_name?: string; role?: "customer" | "admin" }
   ) => Promise<{ error?: any; user?: any }>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<{ error?: any; user?: any }>;
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     fullName: string,
-    options?: { phone?: string; company_name?: string; role?: "customer" | "b2b_buyer" }
+    options?: { phone?: string; company_name?: string; role?: "customer" | "admin" }
   ) => {
     try {
       const res = await authService.register({

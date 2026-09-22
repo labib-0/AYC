@@ -69,7 +69,7 @@ export interface User {
   id: string | number;
   name: string;
   email: string;
-  role?: "customer" | "b2b_buyer" | "admin" | "sales";
+  role?: "customer" | "admin" | "sales";
   phone?: string;
   company_name?: string;
   tax_id?: string;

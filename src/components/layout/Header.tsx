@@ -819,7 +819,7 @@ function HeaderContent() {
                 >
                   <div className="flex items-center gap-3">
                     <User size={18} strokeWidth={1.5} />
-                    <span className="font-semibold text-sm">B2B Dashboard ({user.name || user.email})</span>
+                    <span className="font-semibold text-sm">My Dashboard ({user.name || user.email})</span>
                   </div>
                   <span className="text-xs uppercase font-bold tracking-wider">View</span>
                 </Link>
@@ -830,7 +830,7 @@ function HeaderContent() {
                 >
                   <div className="flex items-center gap-3">
                     <Package size={18} strokeWidth={1.5} />
-                    <span className="font-semibold text-sm">Wholesale Orders</span>
+                    <span className="font-semibold text-sm">My Orders</span>
                   </div>
                   <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Orders</span>
                 </Link>
