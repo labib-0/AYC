@@ -13,7 +13,7 @@ export interface Brand {
 }
 
 /**
- * Fetch dynamic brands from the Laravel REST API
+ * Fetch dynamic brands from the data store
  */
 export async function getBrands(options?: { all?: boolean; isAdmin?: boolean; search?: string }): Promise<Brand[]> {
   const list = await brandService.getBrands(options);

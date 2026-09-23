@@ -29,7 +29,6 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "node_modules/**",
     "ayaan-clothing/**",
-    "backend/**",
   ]),
 ]);
 

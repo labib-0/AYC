@@ -25,7 +25,8 @@ class ApiClient {
   private tokenKey = "ayaan_auth_token";
 
   constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+    // API base URL — currently unused in frontend-only mode
+    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
     // Strip trailing slash if present
     if (this.baseUrl.endsWith("/")) {
       this.baseUrl = this.baseUrl.slice(0, -1);
@@ -109,7 +110,7 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        // Laravel standard validation error handling (422)
+        // Standard validation error handling (422)
         if (response.status === 422 && responseData?.errors) {
           const validation = responseData as ApiValidationError;
           throw new ApiError(

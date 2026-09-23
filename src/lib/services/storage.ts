@@ -7,8 +7,8 @@ export interface UploadResult {
 }
 
 /**
- * Upload a product image via Laravel REST API (/upload or /products/images)
- * Falls back to local Object URL in development
+ * Upload a product image via REST API or local fallback.
+ * Falls back to local Data URL in development / frontend-only mode.
  */
 export async function uploadProductImage(file: File): Promise<UploadResult> {
   try {
@@ -148,7 +148,7 @@ export async function uploadCategoryImage(file: File): Promise<UploadResult> {
   });
 }
 /**
- * Upload payment proof via Laravel REST API (/orders/:id/payment-proof)
+ * Upload payment proof via REST API or local fallback.
  */
 export async function uploadPaymentProof(file: File, orderId: string): Promise<UploadResult> {
   try {

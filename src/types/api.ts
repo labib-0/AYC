@@ -1,5 +1,5 @@
 /**
- * Standard Laravel REST API Response Wrapper
+ * Standard API Response Wrapper
  */
 export interface ApiResponse<T> {
   success: boolean;
@@ -9,7 +9,7 @@ export interface ApiResponse<T> {
 }
 
 /**
- * Standard Laravel Paginated API Response Wrapper
+ * Paginated API Response Wrapper
  */
 export interface PaginatedResponse<T> {
   data: T[];
@@ -31,7 +31,7 @@ export interface PaginatedResponse<T> {
 }
 
 /**
- * Standard Laravel 422 Unprocessable Entity Validation Error
+ * Standard 422 Unprocessable Entity Validation Error
  */
 export interface ApiValidationError {
   message: string;
@@ -63,7 +63,7 @@ export interface AuthResponse {
 }
 
 /**
- * User Entity matching Laravel User Model
+ * User Entity
  */
 export interface User {
   id: string | number;

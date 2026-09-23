@@ -14,7 +14,7 @@ export interface CategoryInfo {
 }
 
 /**
- * Fetch dynamic categories from the Laravel REST API
+ * Fetch dynamic categories from the data store
  */
 export async function getCategories(options?: { all?: boolean; isAdmin?: boolean }): Promise<CategoryInfo[]> {
   const list = await categoryService.getCategories(options);
