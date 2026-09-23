@@ -22,8 +22,7 @@ export interface ProductGalleryProps {
 }
 
 // ── Swipe/Drag Configuration ──────────────────────────────────────────────
-const SWIPE_THRESHOLD = 40; // px: minimum horizontal movement to trigger swipe
-const SWIPE_ANGLE_LIMIT = 30; // degrees: max deviation from horizontal to count as swipe (not vertical scroll)
+const SWIPE_THRESHOLD = 35; // px: minimum horizontal movement to trigger swipe
 const CLICK_THRESHOLD = 6; // px: max movement to still count as a click (not drag)
 
 export default function ProductGallery({
@@ -57,7 +56,7 @@ export default function ProductGallery({
   useEffect(() => {
     setMediaMode("image");
     setInternalIndex(0);
-  }, [productName]);
+  }, [productName, productSlug]);
 
   const setIndex = useCallback(
     (idx: number) => {
@@ -151,13 +150,13 @@ export default function ProductGallery({
   ) => {
     const startRef = useRef<{ x: number; y: number; time: number } | null>(null);
     const isDraggingRef = useRef(false);
+    const hasCapturedRef = useRef(false);
 
     const onPointerDown = useCallback((e: React.PointerEvent) => {
+      if (e.button !== 0) return;
       startRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
       isDraggingRef.current = false;
-      try {
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      } catch { /* ignore */ }
+      hasCapturedRef.current = false;
     }, []);
 
     const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -166,9 +165,12 @@ export default function ProductGallery({
       const dy = Math.abs(e.clientY - startRef.current.y);
       if (dx > CLICK_THRESHOLD || dy > CLICK_THRESHOLD) {
         isDraggingRef.current = true;
-      }
-      if (dx > dy && dx > 10) {
-        e.preventDefault();
+        if (!hasCapturedRef.current) {
+          try {
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            hasCapturedRef.current = true;
+          } catch { /* ignore */ }
+        }
       }
     }, []);
 
@@ -180,23 +182,38 @@ export default function ProductGallery({
         const absDx = Math.abs(dx);
         const absDy = Math.abs(dy);
 
-        const angle = Math.atan2(absDy, absDx) * (180 / Math.PI);
+        const isHorizontalSwipe = absDx >= SWIPE_THRESHOLD && absDx > absDy * 0.8;
 
-        if (absDx >= SWIPE_THRESHOLD && angle <= SWIPE_ANGLE_LIMIT) {
+        if (isHorizontalSwipe) {
           if (dx < 0) onSwipeLeft();
           else onSwipeRight();
         }
 
+        if (hasCapturedRef.current) {
+          try {
+            (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+          } catch { /* ignore */ }
+          hasCapturedRef.current = false;
+        }
+
         startRef.current = null;
-        try {
-          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-        } catch { /* ignore */ }
         setTimeout(() => {
           isDraggingRef.current = false;
         }, 50);
       },
       [onSwipeLeft, onSwipeRight]
     );
+
+    const onPointerCancel = useCallback((e: React.PointerEvent) => {
+      if (hasCapturedRef.current) {
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        } catch { /* ignore */ }
+        hasCapturedRef.current = false;
+      }
+      startRef.current = null;
+      isDraggingRef.current = false;
+    }, []);
 
     const onClick = useCallback(
       (e: React.MouseEvent) => {
@@ -210,7 +227,7 @@ export default function ProductGallery({
       [onTap]
     );
 
-    return { onPointerDown, onPointerMove, onPointerUp, onClick };
+    return { onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onClick };
   };
 
   // ── Main Gallery Swipe Handlers ─────────────────────────────────────────
@@ -228,18 +245,19 @@ export default function ProductGallery({
 
   // ── Thumbnail Drag to Scroll ─────────────────────────────────────────────
   const [isThumbDragging, setIsThumbDragging] = useState(false);
-  const thumbDragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0 });
+  const thumbDragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0, hasCaptured: false });
+  const isThumbDraggingRef = useRef(false);
 
   const onThumbPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
     if (!thumbContainerRef.current) return;
     thumbDragRef.current = {
       isDown: true,
       startX: e.pageX - thumbContainerRef.current.offsetLeft,
-      scrollLeft: thumbContainerRef.current.scrollLeft
+      scrollLeft: thumbContainerRef.current.scrollLeft,
+      hasCaptured: false,
     };
-    try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } catch { /* ignore */ }
+    isThumbDraggingRef.current = false;
   }, []);
 
   const onThumbPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -247,21 +265,38 @@ export default function ProductGallery({
     const x = e.pageX - thumbContainerRef.current.offsetLeft;
     const walk = (x - thumbDragRef.current.startX) * 1.5; // Drag speed
     
-    if (Math.abs(walk) > 5 && !isThumbDragging) {
-      setIsThumbDragging(true);
+    if (Math.abs(walk) > 6) {
+      if (!isThumbDraggingRef.current) {
+        isThumbDraggingRef.current = true;
+        setIsThumbDragging(true);
+        if (!thumbDragRef.current.hasCaptured) {
+          try {
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            thumbDragRef.current.hasCaptured = true;
+          } catch { /* ignore */ }
+        }
+      }
+      thumbContainerRef.current.scrollLeft = thumbDragRef.current.scrollLeft - walk;
     }
-    
-    thumbContainerRef.current.scrollLeft = thumbDragRef.current.scrollLeft - walk;
-  }, [isThumbDragging]);
+  }, []);
 
   const onThumbPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (thumbDragRef.current.hasCaptured) {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch { /* ignore */ }
+    }
     thumbDragRef.current.isDown = false;
-    try {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch { /* ignore */ }
-    setTimeout(() => {
+    thumbDragRef.current.hasCaptured = false;
+    
+    if (isThumbDraggingRef.current) {
+      setTimeout(() => {
+        isThumbDraggingRef.current = false;
+        setIsThumbDragging(false);
+      }, 50);
+    } else {
       setIsThumbDragging(false);
-    }, 50);
+    }
   }, []);
 
   // ── Thumbnail Navigation Arrows ──────────────────────────────────────────
@@ -452,7 +487,7 @@ export default function ProductGallery({
                     key={idx}
                     type="button"
                     onClick={(e) => {
-                      if (isThumbDragging) {
+                      if (isThumbDraggingRef.current || isThumbDragging) {
                         e.preventDefault();
                         e.stopPropagation();
                         return;
@@ -488,7 +523,7 @@ export default function ProductGallery({
                 <button
                   type="button"
                   onClick={(e) => {
-                    if (isThumbDragging) {
+                    if (isThumbDraggingRef.current || isThumbDragging) {
                       e.preventDefault();
                       e.stopPropagation();
                       return;
