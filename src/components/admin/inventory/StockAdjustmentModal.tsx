@@ -225,7 +225,7 @@ export default function StockAdjustmentModal({
                 {allItems.map((item) => (
                   <option key={item.id} value={String(item.id)}>
                     {item.variant?.product?.name || "Product"} — {item.variant?.sku} (
-                    {item.warehouse?.name || "Warehouse"}, Stock: {item.quantity})
+                    {item.warehouse?.name || "Uttara"}, Stock: {item.quantity})
                   </option>
                 ))}
               </select>
@@ -250,7 +250,7 @@ export default function StockAdjustmentModal({
                     SKU: {variant?.sku}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    {warehouse?.name} ({warehouse?.code})
+                    {warehouse?.name || "Uttara"} ({warehouse?.code || "WH-UTT-01"})
                   </div>
                 </div>
               </div>

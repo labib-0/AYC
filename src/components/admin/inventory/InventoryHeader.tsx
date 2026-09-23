@@ -1,16 +1,14 @@
 import React from "react";
-import { PlusCircle, Warehouse as WarehouseIcon, RefreshCw } from "lucide-react";
+import { PlusCircle, RefreshCw } from "lucide-react";
 
 export interface InventoryHeaderProps {
   onAdjustStock: () => void;
-  onManageWarehouses: () => void;
   onRefresh: () => void;
   isLoading?: boolean;
 }
 
 export default function InventoryHeader({
   onAdjustStock,
-  onManageWarehouses,
   onRefresh,
   isLoading = false,
 }: InventoryHeaderProps) {
@@ -21,7 +19,7 @@ export default function InventoryHeader({
           Inventory &amp; Stock
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 leading-relaxed">
-          Monitor stock levels, warehouses and inventory adjustments.
+          Monitor real-time stock levels and inventory adjustments at Uttara Warehouse.
         </p>
       </div>
 
@@ -34,16 +32,6 @@ export default function InventoryHeader({
         >
           <PlusCircle size={15} />
           <span>Adjust Stock</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onManageWarehouses}
-          className="inline-flex items-center gap-2 px-4 sm:px-4.5 py-2.5 rounded-full border border-border bg-card hover:bg-secondary text-foreground font-bold text-xs uppercase tracking-wider transition-colors shadow-xs cursor-pointer"
-          id="btn-manage-warehouses"
-        >
-          <WarehouseIcon size={14} />
-          <span>Manage Warehouses</span>
         </button>
 
         <button

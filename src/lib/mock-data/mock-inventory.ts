@@ -1,37 +1,17 @@
 import { InventoryRecord, Warehouse } from "@/services/admin/inventory.service";
 
-export const INITIAL_MOCK_WAREHOUSES: Warehouse[] = [
-  {
-    id: 1,
-    name: "Dhaka Central Export Hub",
-    code: "WH-DHK-01",
-    address: "House #33, Road #12, Sector #11, Uttara",
-    city: "Dhaka",
-    country_code: "BD",
-    is_active: true,
-    inventories_count: 85,
-  },
-  {
-    id: 2,
-    name: "Chittagong Port Export Facility",
-    code: "WH-CTG-02",
-    address: "Export Processing Zone (EPZ), Agrabad",
-    city: "Chittagong",
-    country_code: "BD",
-    is_active: true,
-    inventories_count: 42,
-  },
-  {
-    id: 3,
-    name: "Savar Production & Transit Hub",
-    code: "WH-SVR-03",
-    address: "Plot #14-16, Hemayetpur Industrial Area",
-    city: "Savar",
-    country_code: "BD",
-    is_active: true,
-    inventories_count: 28,
-  },
-];
+export const CANONICAL_WAREHOUSE: Warehouse = {
+  id: 1,
+  name: "Uttara",
+  code: "WH-UTT-01",
+  address: "House #33, Road #12, Sector #11, Uttara",
+  city: "Dhaka",
+  country_code: "BD",
+  is_active: true,
+  inventories_count: 24,
+};
+
+export const INITIAL_MOCK_WAREHOUSES: Warehouse[] = [CANONICAL_WAREHOUSE];
 
 export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
   // ── IN STOCK ITEMS (>= 200) ───────────────────────────────────────────────
@@ -65,8 +45,8 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [
       {
@@ -111,8 +91,8 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [
       {
@@ -129,7 +109,7 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
   {
     id: 3,
     product_variant_id: 103,
-    warehouse_id: 2,
+    warehouse_id: 1,
     quantity: 650,
     reserved_quantity: 80,
     created_at: "2026-02-15T10:00:00Z",
@@ -155,9 +135,9 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 2,
-      name: "Chittagong Port Export Facility",
-      code: "WH-CTG-02",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
@@ -191,15 +171,15 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
   {
     id: 5,
     product_variant_id: 105,
-    warehouse_id: 2,
+    warehouse_id: 1,
     quantity: 430,
     reserved_quantity: 40,
     created_at: "2026-03-10T10:00:00Z",
@@ -225,16 +205,16 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 2,
-      name: "Chittagong Port Export Facility",
-      code: "WH-CTG-02",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
   {
     id: 6,
     product_variant_id: 106,
-    warehouse_id: 3,
+    warehouse_id: 1,
     quantity: 950,
     reserved_quantity: 120,
     created_at: "2026-04-01T10:00:00Z",
@@ -260,9 +240,9 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 3,
-      name: "Savar Production & Transit Hub",
-      code: "WH-SVR-03",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
@@ -296,8 +276,8 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
@@ -331,15 +311,15 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
   {
     id: 9,
     product_variant_id: 109,
-    warehouse_id: 2,
+    warehouse_id: 1,
     quantity: 280,
     reserved_quantity: 25,
     created_at: "2026-05-10T10:00:00Z",
@@ -365,16 +345,16 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 2,
-      name: "Chittagong Port Export Facility",
-      code: "WH-CTG-02",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
   {
     id: 10,
     product_variant_id: 110,
-    warehouse_id: 3,
+    warehouse_id: 1,
     quantity: 410,
     reserved_quantity: 50,
     created_at: "2026-05-20T10:00:00Z",
@@ -400,9 +380,9 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 3,
-      name: "Savar Production & Transit Hub",
-      code: "WH-SVR-03",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
@@ -436,15 +416,15 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
   {
     id: 12,
     product_variant_id: 112,
-    warehouse_id: 2,
+    warehouse_id: 1,
     quantity: 350,
     reserved_quantity: 35,
     created_at: "2026-06-10T10:00:00Z",
@@ -470,9 +450,9 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 2,
-      name: "Chittagong Port Export Facility",
-      code: "WH-CTG-02",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
@@ -508,8 +488,8 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [
       {
@@ -554,8 +534,8 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [
       {
@@ -572,7 +552,7 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
   {
     id: 15,
     product_variant_id: 115,
-    warehouse_id: 2,
+    warehouse_id: 1,
     quantity: 60,
     reserved_quantity: 15,
     created_at: "2026-07-01T10:00:00Z",
@@ -598,16 +578,16 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 2,
-      name: "Chittagong Port Export Facility",
-      code: "WH-CTG-02",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
   {
     id: 16,
     product_variant_id: 116,
-    warehouse_id: 2,
+    warehouse_id: 1,
     quantity: 120,
     reserved_quantity: 30,
     created_at: "2026-07-05T10:00:00Z",
@@ -633,16 +613,16 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 2,
-      name: "Chittagong Port Export Facility",
-      code: "WH-CTG-02",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
   {
     id: 17,
     product_variant_id: 117,
-    warehouse_id: 3,
+    warehouse_id: 1,
     quantity: 45,
     reserved_quantity: 10,
     created_at: "2026-07-10T10:00:00Z",
@@ -668,9 +648,9 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 3,
-      name: "Savar Production & Transit Hub",
-      code: "WH-SVR-03",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [
       {
@@ -714,8 +694,8 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
@@ -751,8 +731,8 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [
       {
@@ -770,7 +750,7 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
   {
     id: 20,
     product_variant_id: 120,
-    warehouse_id: 2,
+    warehouse_id: 1,
     quantity: 0,
     reserved_quantity: 0,
     created_at: "2026-07-25T10:00:00Z",
@@ -796,9 +776,9 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 2,
-      name: "Chittagong Port Export Facility",
-      code: "WH-CTG-02",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [
       {
@@ -815,7 +795,7 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
   {
     id: 21,
     product_variant_id: 121,
-    warehouse_id: 3,
+    warehouse_id: 1,
     quantity: 0,
     reserved_quantity: 0,
     created_at: "2026-08-01T10:00:00Z",
@@ -841,9 +821,9 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 3,
-      name: "Savar Production & Transit Hub",
-      code: "WH-SVR-03",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
@@ -879,15 +859,15 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
     },
     warehouse: {
       id: 1,
-      name: "Dhaka Central Export Hub",
-      code: "WH-DHK-01",
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
   {
     id: 23,
     product_variant_id: 123,
-    warehouse_id: 2,
+    warehouse_id: 1,
     quantity: 490,
     reserved_quantity: 65,
     created_at: "2026-08-10T10:00:00Z",
@@ -913,16 +893,16 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 2,
-      name: "Chittagong Port Export Facility",
-      code: "WH-CTG-02",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },
   {
     id: 24,
     product_variant_id: 124,
-    warehouse_id: 3,
+    warehouse_id: 1,
     quantity: 560,
     reserved_quantity: 70,
     created_at: "2026-08-15T10:00:00Z",
@@ -948,9 +928,9 @@ export const INITIAL_MOCK_INVENTORY: InventoryRecord[] = [
       },
     },
     warehouse: {
-      id: 3,
-      name: "Savar Production & Transit Hub",
-      code: "WH-SVR-03",
+      id: 1,
+      name: "Uttara",
+      code: "WH-UTT-01",
     },
     adjustments: [],
   },

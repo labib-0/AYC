@@ -84,7 +84,7 @@ export default function InventoryHistoryModal({
                 SKU: {variant?.sku || inventoryItem.id}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                {warehouse?.name} ({warehouse?.code})
+                {warehouse?.name || "Uttara"} ({warehouse?.code || "WH-UTT-01"})
               </div>
             </div>
           </div>

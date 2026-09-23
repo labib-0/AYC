@@ -5,7 +5,6 @@ import { AlertCircle } from "lucide-react";
 import {
   adminInventoryService,
   InventoryRecord,
-  Warehouse,
   InventorySummary,
 } from "@/services/admin/inventory.service";
 import {
@@ -17,7 +16,6 @@ import {
   InventoryPagination,
   StockAdjustmentModal,
   InventoryHistoryModal,
-  WarehouseManagementModal,
 } from "@/components/admin/inventory";
 import ProductToast, {
   ToastMessage,
@@ -35,7 +33,6 @@ export default function AdminInventoryPage() {
     outOfStock: 0,
     totalQuantity: 0,
   });
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [total, setTotal] = useState(0);
 
   // UX & Loading State
@@ -47,7 +44,6 @@ export default function AdminInventoryPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StockFilterStatus>("ALL");
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
 
   // Modal State
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
@@ -55,8 +51,6 @@ export default function AdminInventoryPage() {
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [historyItem, setHistoryItem] = useState<InventoryRecord | null>(null);
-
-  const [isWarehouseModalOpen, setIsWarehouseModalOpen] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -78,25 +72,19 @@ export default function AdminInventoryPage() {
       setError(null);
 
       try {
-        const warehouseParam =
-          selectedWarehouse !== "all" ? selectedWarehouse : undefined;
-
-        const [invRes, summaryRes, whRes] = await Promise.all([
+        const [invRes, summaryRes] = await Promise.all([
           adminInventoryService.getInventory({
             page,
             per_page: PER_PAGE,
             search: search.trim() || undefined,
-            warehouse_id: warehouseParam,
             status,
           }),
-          adminInventoryService.getInventorySummary(warehouseParam),
-          adminInventoryService.getWarehouses(),
+          adminInventoryService.getInventorySummary(),
         ]);
 
         setInventories(invRes.data);
         setTotal(invRes.total);
         setSummary(summaryRes);
-        setWarehouses(whRes);
       } catch (err: unknown) {
         setError(
           (err as Error)?.message || "Failed to load inventory records. Please retry."
@@ -106,7 +94,7 @@ export default function AdminInventoryPage() {
         setIsRefreshing(false);
       }
     },
-    [page, search, status, selectedWarehouse]
+    [page, search, status]
   );
 
   useEffect(() => {
@@ -124,15 +112,9 @@ export default function AdminInventoryPage() {
     setPage(1);
   };
 
-  const handleWarehouseChange = (whId: string) => {
-    setSelectedWarehouse(whId);
-    setPage(1);
-  };
-
   const handleResetFilters = () => {
     setSearch("");
     setStatus("ALL");
-    setSelectedWarehouse("all");
     setPage(1);
   };
 
@@ -153,11 +135,6 @@ export default function AdminInventoryPage() {
     setIsHistoryModalOpen(true);
   };
 
-  // Warehouse Management Handler
-  const handleOpenWarehouseModal = () => {
-    setIsWarehouseModalOpen(true);
-  };
-
   const handleMutationSuccess = (message: string) => {
     addToast("success", message);
     loadData(true);
@@ -168,7 +145,6 @@ export default function AdminInventoryPage() {
       {/* 1. Page Header */}
       <InventoryHeader
         onAdjustStock={handleOpenGlobalAdjust}
-        onManageWarehouses={handleOpenWarehouseModal}
         onRefresh={() => loadData(true)}
         isLoading={isRefreshing || loading}
       />
@@ -198,15 +174,12 @@ export default function AdminInventoryPage() {
         isLoading={loading && inventories.length === 0}
       />
 
-      {/* 3. Search, Status & Warehouse Toolbar */}
+      {/* 3. Search & Status Toolbar with Uttara Warehouse Indicator */}
       <InventoryToolbar
         search={search}
         onSearchChange={handleSearchChange}
         status={status}
         onStatusChange={handleStatusChange}
-        warehouses={warehouses}
-        selectedWarehouse={selectedWarehouse}
-        onSelectWarehouse={handleWarehouseChange}
         onResetFilters={handleResetFilters}
         totalResults={total}
       />
@@ -217,7 +190,6 @@ export default function AdminInventoryPage() {
         isLoading={loading}
         search={search}
         status={status}
-        selectedWarehouse={selectedWarehouse}
         onAdjust={handleOpenRowAdjust}
         onViewHistory={handleOpenHistory}
         onResetFilters={handleResetFilters}
@@ -245,15 +217,6 @@ export default function AdminInventoryPage() {
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
         inventoryItem={historyItem}
-      />
-
-      {/* 8. Warehouse Management Modal */}
-      <WarehouseManagementModal
-        isOpen={isWarehouseModalOpen}
-        onClose={() => setIsWarehouseModalOpen(false)}
-        warehouses={warehouses}
-        onRefresh={() => loadData(true)}
-        onSuccess={handleMutationSuccess}
       />
 
       {/* Application Toasts */}

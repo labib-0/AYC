@@ -562,14 +562,42 @@ class MockStore {
   }
 
   // ==========================================
-  // INVENTORY & WAREHOUSES
+  // INVENTORY & SINGLE UTTARA WAREHOUSE
   // ==========================================
   getInventory(): InventoryRecord[] {
-    return this.getItem<InventoryRecord[]>(STORAGE_KEYS.INVENTORY, INITIAL_MOCK_INVENTORY);
+    const raw = this.getItem<InventoryRecord[]>(STORAGE_KEYS.INVENTORY, INITIAL_MOCK_INVENTORY);
+    // Normalize legacy multi-warehouse localStorage data to single Uttara warehouse
+    let changed = false;
+    const normalized = raw.map((item) => {
+      if (
+        item.warehouse_id !== 1 ||
+        item.warehouse?.name !== "Uttara" ||
+        item.warehouse?.code !== "WH-UTT-01"
+      ) {
+        changed = true;
+        return {
+          ...item,
+          warehouse_id: 1,
+          warehouse: {
+            id: 1,
+            name: "Uttara",
+            code: "WH-UTT-01",
+            city: "Dhaka",
+            address: "House #33, Road #12, Sector #11, Uttara",
+            country_code: "BD",
+          },
+        };
+      }
+      return item;
+    });
+    if (changed) {
+      this.setItem(STORAGE_KEYS.INVENTORY, normalized);
+    }
+    return normalized;
   }
 
   getWarehouses(): Warehouse[] {
-    return this.getItem<Warehouse[]>(STORAGE_KEYS.WAREHOUSES, INITIAL_MOCK_WAREHOUSES);
+    return INITIAL_MOCK_WAREHOUSES;
   }
 
   adjustInventory(payload: InventoryAdjustmentPayload): InventoryRecord | null {
@@ -602,54 +630,6 @@ class MockStore {
 
     this.setItem(STORAGE_KEYS.INVENTORY, inventoryList);
     return item;
-  }
-
-  createWarehouse(warehouseData: Partial<Warehouse>): Warehouse {
-    const warehouses = this.getWarehouses();
-    const newWh: Warehouse = {
-      id: Date.now(),
-      name: warehouseData.name || "New Warehouse",
-      code: warehouseData.code || `WH-${Date.now().toString(36).toUpperCase()}`,
-      address: warehouseData.address,
-      city: warehouseData.city || "Dhaka",
-      country_code: warehouseData.country_code || "BD",
-      is_active: warehouseData.is_active ?? true,
-      inventories_count: 0,
-    };
-    warehouses.push(newWh);
-    this.setItem(STORAGE_KEYS.WAREHOUSES, warehouses);
-    return newWh;
-  }
-
-  updateWarehouse(id: number, updates: Partial<Warehouse>): Warehouse | null {
-    const warehouses = this.getWarehouses();
-    const index = warehouses.findIndex((w) => w.id === id);
-    if (index === -1) return null;
-
-    warehouses[index] = {
-      ...warehouses[index],
-      ...updates,
-      id,
-    };
-    this.setItem(STORAGE_KEYS.WAREHOUSES, warehouses);
-
-    // Sync warehouse name/code across inventory items
-    if (updates.name || updates.code) {
-      const inventoryList = this.getInventory();
-      let changed = false;
-      inventoryList.forEach((inv) => {
-        if (inv.warehouse_id === id && inv.warehouse) {
-          if (updates.name) inv.warehouse.name = updates.name;
-          if (updates.code) inv.warehouse.code = updates.code;
-          changed = true;
-        }
-      });
-      if (changed) {
-        this.setItem(STORAGE_KEYS.INVENTORY, inventoryList);
-      }
-    }
-
-    return warehouses[index];
   }
 
   // ==========================================

@@ -97,10 +97,10 @@ export default function InventoryRow({
       <td className="py-3 px-3 whitespace-nowrap">
         <div className="flex flex-col">
           <span className="font-bold text-foreground">
-            {warehouse?.name || "Main Warehouse"}
+            {warehouse?.name || "Uttara"}
           </span>
           <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">
-            {warehouse?.code || "MAIN"} • {warehouse?.city || "BD"}
+            {warehouse?.code || "WH-UTT-01"} • {warehouse?.city || "Dhaka"}
           </span>
         </div>
       </td>

@@ -105,7 +105,6 @@ export interface InventoryQueryParams {
   page?: number;
   per_page?: number;
   search?: string;
-  warehouse_id?: number | string;
   status?: "ALL" | "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
   low_stock?: boolean;
   sort?: string;
@@ -115,7 +114,6 @@ export interface InventoryQueryParams {
 export interface InventoryAdjustmentPayload {
   inventory_id?: number;
   variant_id?: number;
-  warehouse_id?: number;
   adjustment_amount?: number;
   new_quantity?: number;
   reason: string;
@@ -145,12 +143,7 @@ export class AdminInventoryService {
       });
     }
 
-    // 2. Filter by Warehouse
-    if (params?.warehouse_id && params.warehouse_id !== "all") {
-      list = list.filter((i) => String(i.warehouse_id) === String(params.warehouse_id));
-    }
-
-    // 3. Filter by Stock Status (Unified Threshold)
+    // 2. Filter by Stock Status (Unified Threshold)
     const effectiveStatus = params?.status || (params?.low_stock ? "LOW_STOCK" : "ALL");
     if (effectiveStatus === "LOW_STOCK") {
       list = list.filter((i) => isLowStock(i.quantity));
@@ -174,11 +167,8 @@ export class AdminInventoryService {
     };
   }
 
-  async getInventorySummary(warehouseId?: string | number): Promise<InventorySummary> {
-    let list = mockStore.getInventory();
-    if (warehouseId && warehouseId !== "all") {
-      list = list.filter((i) => String(i.warehouse_id) === String(warehouseId));
-    }
+  async getInventorySummary(): Promise<InventorySummary> {
+    const list = mockStore.getInventory();
 
     let inStock = 0;
     let lowStock = 0;
@@ -208,14 +198,6 @@ export class AdminInventoryService {
 
   async getWarehouses(): Promise<Warehouse[]> {
     return mockStore.getWarehouses();
-  }
-
-  async createWarehouse(data: Partial<Warehouse>): Promise<Warehouse> {
-    return mockStore.createWarehouse(data);
-  }
-
-  async updateWarehouse(id: number, data: Partial<Warehouse>): Promise<Warehouse | null> {
-    return mockStore.updateWarehouse(id, data);
   }
 
   async getInventoryItemHistory(inventoryId: number): Promise<InventoryRecord["adjustments"]> {

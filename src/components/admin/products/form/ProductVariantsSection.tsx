@@ -101,7 +101,7 @@ export default function ProductVariantsSection({
             Variants & Stock Configuration
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Configure product colors, size range, and warehouse stock allocation.
+            Configure product colors, size range, and Uttara warehouse stock.
           </p>
         </div>
         <span className="text-xs font-bold text-muted-foreground tabular-nums">

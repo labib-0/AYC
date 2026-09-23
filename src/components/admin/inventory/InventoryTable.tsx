@@ -9,7 +9,6 @@ export interface InventoryTableProps {
   isLoading: boolean;
   search: string;
   status: "ALL" | "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
-  selectedWarehouse: string;
   onAdjust: (record: InventoryRecord) => void;
   onViewHistory: (record: InventoryRecord) => void;
   onResetFilters?: () => void;
@@ -20,7 +19,6 @@ export default function InventoryTable({
   isLoading,
   search,
   status,
-  selectedWarehouse,
   onAdjust,
   onViewHistory,
   onResetFilters,
@@ -75,9 +73,7 @@ export default function InventoryTable({
 
   // Handle empty states per Section 45
   if (records.length === 0) {
-    const hasActiveFilters = Boolean(
-      search.trim() || status !== "ALL" || selectedWarehouse !== "all"
-    );
+    const hasActiveFilters = Boolean(search.trim() || status !== "ALL");
 
     let emptyTitle = "Inventory is empty.";
     let emptyDescription = "No inventory records are available yet.";
@@ -93,7 +89,7 @@ export default function InventoryTable({
       Icon = CheckCircle2;
     } else if (hasActiveFilters) {
       emptyTitle = "No inventory items match your current filters.";
-      emptyDescription = "Try adjusting your search term, warehouse, or stock status.";
+      emptyDescription = "Try adjusting your search term or stock status.";
       Icon = SearchX;
     }
 
@@ -222,7 +218,7 @@ export default function InventoryTable({
               {/* Warehouse & Actions */}
               <div className="flex items-center justify-between gap-2 pt-1">
                 <span className="text-[11px] text-muted-foreground font-medium truncate">
-                  📍 {warehouse?.name || "Main Warehouse"} ({warehouse?.code || "MAIN"})
+                  📍 {warehouse?.name || "Uttara"} ({warehouse?.code || "WH-UTT-01"})
                 </span>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button

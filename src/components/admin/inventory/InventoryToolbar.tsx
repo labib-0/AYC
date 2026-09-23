@@ -1,7 +1,6 @@
 import React from "react";
-import { Search, X, SlidersHorizontal } from "lucide-react";
-import { Warehouse, LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
-import WarehouseSelector from "./WarehouseSelector";
+import { Search, X, SlidersHorizontal, MapPin } from "lucide-react";
+import { LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
 
 export type StockFilterStatus = "ALL" | "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
 
@@ -10,9 +9,6 @@ export interface InventoryToolbarProps {
   onSearchChange: (value: string) => void;
   status: StockFilterStatus;
   onStatusChange: (status: StockFilterStatus) => void;
-  warehouses: Warehouse[];
-  selectedWarehouse: string;
-  onSelectWarehouse: (warehouseId: string) => void;
   onResetFilters: () => void;
   totalResults: number;
 }
@@ -22,15 +18,10 @@ export default function InventoryToolbar({
   onSearchChange,
   status,
   onStatusChange,
-  warehouses,
-  selectedWarehouse,
-  onSelectWarehouse,
   onResetFilters,
   totalResults,
 }: InventoryToolbarProps) {
-  const hasActiveFilters = Boolean(
-    search.trim() || status !== "ALL" || selectedWarehouse !== "all"
-  );
+  const hasActiveFilters = Boolean(search.trim() || status !== "ALL");
 
   const statusOptions: { id: StockFilterStatus; label: string }[] = [
     { id: "ALL", label: "All Items" },
@@ -69,13 +60,12 @@ export default function InventoryToolbar({
           )}
         </div>
 
-        {/* Warehouse Selector */}
+        {/* Single Warehouse Badge & Reset */}
         <div className="flex items-center gap-2 shrink-0">
-          <WarehouseSelector
-            warehouses={warehouses}
-            selectedWarehouse={selectedWarehouse}
-            onSelectWarehouse={onSelectWarehouse}
-          />
+          <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/50 border border-border/80 text-xs font-semibold text-foreground">
+            <MapPin size={13} className="text-primary shrink-0" />
+            <span>Uttara Warehouse</span>
+          </div>
 
           {hasActiveFilters && (
             <button
