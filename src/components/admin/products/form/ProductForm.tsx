@@ -119,8 +119,11 @@ export default function ProductForm({
   });
 
   // SEO
-  const [seoTitle, setSeoTitle] = useState(initialData?.name || "");
-  const [seoDescription, setSeoDescription] = useState(initialData?.shortDescription || "");
+  const [seoTitle, setSeoTitle] = useState(initialData?.seoTitle || initialData?.name || "");
+  const [seoDescription, setSeoDescription] = useState(
+    initialData?.seoDescription || initialData?.shortDescription || ""
+  );
+  const [keywords, setKeywords] = useState<string[]>(initialData?.keywords || []);
 
   // Publish Status
   const [status, setStatus] = useState<"published" | "draft">(
@@ -309,6 +312,9 @@ export default function ProductForm({
         productType: designType,
         description: description.trim(),
         shortDescription: seoDescription.trim() || description.slice(0, 160).trim(),
+        seoTitle: seoTitle.trim() || undefined,
+        seoDescription: seoDescription.trim() || undefined,
+        keywords: keywords,
         material: material.trim(),
         images: images.length > 0 ? images : ["/placeholder.jpg"],
         wholesalePrice: wholesalePrice,
@@ -530,10 +536,12 @@ export default function ProductForm({
           <ProductSeoSection
             seoTitle={seoTitle}
             seoDescription={seoDescription}
+            keywords={keywords}
             productName={name}
             slug={slug}
             onSeoTitleChange={setSeoTitle}
             onSeoDescriptionChange={setSeoDescription}
+            onKeywordsChange={setKeywords}
           />
         </div>
       </div>

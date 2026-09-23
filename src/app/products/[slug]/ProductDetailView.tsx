@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { getProductBySlugOrId, getProducts, toStorefrontProduct } from "@/lib/services/products";
+import { getProductBySlugOrId, getProducts, getRelatedProducts, toStorefrontProduct } from "@/lib/services/products";
 import { useCart } from "@/lib/CartContext";
 import { useWishlist } from "@/lib/WishlistContext";
 import { B2BProductInput } from "@/types/b2b";
@@ -79,13 +79,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           setProduct(p);
           setQuantity(p.moq || 10);
 
-          const all = await getProducts({ brand: p.brand });
-          setRelatedProducts(all.filter((item) => item.id !== p.id).slice(0, 5));
+          const related = await getRelatedProducts(p, 5);
+          setRelatedProducts(related);
         }
         setLoading(false);
       } else {
-        const all = await getProducts({ brand: initialProduct.brand });
-        setRelatedProducts(all.filter((item) => item.id !== initialProduct.id).slice(0, 5));
+        const related = await getRelatedProducts(initialProduct, 5);
+        setRelatedProducts(related);
       }
     }
     load();

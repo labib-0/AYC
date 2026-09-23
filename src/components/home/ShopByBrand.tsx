@@ -196,6 +196,7 @@ export default function ShopByBrand() {
                 id={brand.id}
                 name={brand.name}
                 logoUrl={logoUrl}
+                href={`/search?brand=${encodeURIComponent(brand.name)}`}
                 onClick={() => handleBrandClick(brand)}
                 title={brand.name}
                 ariaLabel={`Shop ${brand.name}`}

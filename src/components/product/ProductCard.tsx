@@ -12,6 +12,8 @@ import ProductBrandLogoOverlay from "@/components/common/ProductBrandLogoOverlay
 import ProductPromotionBadges from "@/components/common/ProductPromotionBadges";
 import ProductBadge from "@/components/common/ProductBadge";
 
+import { generateProductImageAlt } from "@/lib/seo";
+
 interface ProductCardProps {
   product: Product;
 }
@@ -37,6 +39,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   const coverImage = product.images?.[0] || "/placeholder.jpg";
+  const imageAlt = generateProductImageAlt(product, 0);
 
   return (
     <div className="group relative flex flex-col w-full h-full bg-card rounded-2xl border border-border/80 shadow-[0_1px_4px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:shadow-md hover:border-border transition-all duration-300 overflow-hidden font-sans">
@@ -47,7 +50,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={coverImage}
-              alt={product.name}
+              alt={imageAlt}
               loading="lazy"
               decoding="async"
               className="w-full h-full object-cover object-center transition-transform duration-500 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-105"

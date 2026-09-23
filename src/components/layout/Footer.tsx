@@ -2,12 +2,45 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Mail, Phone, MapPin, ArrowUp, MessageCircle } from "lucide-react";
+import { MapPin, ArrowUp, MessageCircle } from "lucide-react";
 import BrandName from "../common/BrandName";
 import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
+import { categoryService, CategoryModel } from "@/services/category.service";
+import { brandService, BrandModel } from "@/services/brand.service";
 
 export default function Footer() {
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [categories, setCategories] = useState<CategoryModel[]>([]);
+  const [brands, setBrands] = useState<BrandModel[]>([]);
+
+  // Load active categories and brands for dynamic crawlable links
+  useEffect(() => {
+    async function loadTaxonomies() {
+      try {
+        const [cList, bList] = await Promise.all([
+          categoryService.getCategories(),
+          brandService.getBrands(),
+        ]);
+        if (Array.isArray(cList)) {
+          const filtered = cList.filter(
+            (c) =>
+              c.is_active !== false &&
+              !["men", "women", "boys", "girls", "unisex"].includes(
+                (c.name || "").toLowerCase()
+              )
+          );
+          setCategories(filtered.slice(0, 9));
+        }
+        if (Array.isArray(bList)) {
+          const activeBrands = bList.filter((b) => b.is_active !== false);
+          setBrands(activeBrands.slice(0, 9));
+        }
+      } catch (err) {
+        console.warn("Footer taxonomy load notice:", err);
+      }
+    }
+    loadTaxonomies();
+  }, []);
 
   // Monitor scroll for back-to-top visibility
   useEffect(() => {
@@ -52,11 +85,11 @@ export default function Footer() {
       <footer className="bg-[#0b1329] text-white/90 pt-14 pb-10 border-t border-white/10">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
           
-          {/* Main 4-Column Grid (Desktop 4 cols, Tablet 2 cols, Mobile Stacked 1 col) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 pb-12 border-b border-white/10">
+          {/* Main 5-Column Structured IA Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-8 lg:gap-7 pb-12 border-b border-white/10">
             
-            {/* COLUMN 1 — AYAAN CLOTHING / ABOUT US (Col span 4) */}
-            <div className="lg:col-span-4 flex flex-col gap-4">
+            {/* COLUMN 1 — AYAAN CLOTHING / ABOUT US (Col span 3) */}
+            <div className="lg:col-span-3 flex flex-col gap-4">
               <Link href="/" className="flex items-center inline-block w-fit" aria-label="Ayaan Clothing Home">
                 <BrandName className="font-black text-2xl tracking-widest text-white" />
               </Link>
@@ -71,7 +104,7 @@ export default function Footer() {
                   <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
                 </button>
                 <p className="text-[13px] text-white/70 leading-relaxed mt-2.5 max-w-sm">
-                  {BUSINESS_PROFILE.description}. Established in {BUSINESS_PROFILE.establishedYear}, serving international buyers with premium ready-made garments manufacturing & export.
+                  {BUSINESS_PROFILE.description}. Established in {BUSINESS_PROFILE.establishedYear}, serving international retail chains and corporate apparel importers with export-grade ready-made garments.
                 </p>
               </div>
 
@@ -86,57 +119,150 @@ export default function Footer() {
               </div>
             </div>
 
-            {/* COLUMN 2 — INFORMATION (Col span 3) */}
-            <div className="lg:col-span-3">
+            {/* COLUMN 2 — SHOP & COLLECTIONS (Col span 2) */}
+            <div className="lg:col-span-2">
               <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
-                INFORMATION
+                SHOP
               </h3>
-              <ul className="flex flex-col gap-2.5 text-[13px] text-white/75">
+              <ul className="flex flex-col gap-2 text-[13px] text-white/75">
                 <li>
-                  <button
-                    type="button"
-                    onClick={handleAboutUsClick}
-                    className="hover:text-white transition-colors text-left cursor-pointer"
-                  >
-                    About Us
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={handleComplianceClick}
-                    className="hover:text-white transition-colors text-left cursor-pointer"
-                  >
-                    Compliance & Certifications
-                  </button>
-                </li>
-                <li>
-                  <Link href="/rfq" className="hover:text-white transition-colors">
-                    Request for Quotation (RFQ)
+                  <Link href="/search" className="hover:text-white transition-colors">
+                    All Products
                   </Link>
                 </li>
                 <li>
-                  <Link href="#privacy" className="hover:text-white transition-colors">
-                    Privacy Policy
+                  <Link href="/search?sort=newest" className="hover:text-white transition-colors">
+                    New Arrivals
                   </Link>
                 </li>
                 <li>
-                  <Link href="#terms" className="hover:text-white transition-colors">
-                    Terms & Conditions
+                  <Link href="/search?sort=popular" className="hover:text-white transition-colors">
+                    Best Deals &amp; Hot Sales
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/search?audience=MEN" className="hover:text-white transition-colors">
+                    Men&apos;s Collection
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/search?audience=WOMEN" className="hover:text-white transition-colors">
+                    Women&apos;s Apparel
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/search?audience=BOYS" className="hover:text-white transition-colors">
+                    Boys Fashion
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/search?audience=GIRLS" className="hover:text-white transition-colors">
+                    Girls Wear
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/search?audience=UNISEX" className="hover:text-white transition-colors">
+                    Unisex Essentials
                   </Link>
                 </li>
               </ul>
             </div>
 
-            {/* COLUMN 3 — OFFICIAL BUSINESS ADDRESS & CONTACT (Col span 3) */}
+            {/* COLUMN 3 — POPULAR CATEGORIES (Col span 2) */}
+            <div className="lg:col-span-2">
+              <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
+                CATEGORIES
+              </h3>
+              <ul className="flex flex-col gap-2 text-[13px] text-white/75">
+                {categories.length > 0 ? (
+                  categories.map((cat) => (
+                    <li key={cat.id}>
+                      <Link
+                        href={`/search?category=${encodeURIComponent(cat.name)}`}
+                        className="hover:text-white transition-colors"
+                      >
+                        {cat.name}
+                      </Link>
+                    </li>
+                  ))
+                ) : (
+                  <>
+                    <li><Link href="/search?category=Sweaters" className="hover:text-white transition-colors">Sweaters</Link></li>
+                    <li><Link href="/search?category=T-Shirts" className="hover:text-white transition-colors">T-Shirts</Link></li>
+                    <li><Link href="/search?category=Hoodies" className="hover:text-white transition-colors">Hoodies</Link></li>
+                    <li><Link href="/search?category=Trousers" className="hover:text-white transition-colors">Trousers</Link></li>
+                    <li><Link href="/search?category=Jackets" className="hover:text-white transition-colors">Jackets</Link></li>
+                    <li><Link href="/search?category=Pants" className="hover:text-white transition-colors">Pants</Link></li>
+                  </>
+                )}
+              </ul>
+            </div>
+
+            {/* COLUMN 4 — POPULAR BRANDS (Col span 2) */}
+            <div className="lg:col-span-2">
+              <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
+                BRANDS
+              </h3>
+              <ul className="flex flex-col gap-2 text-[13px] text-white/75">
+                {brands.length > 0 ? (
+                  brands.map((b) => (
+                    <li key={b.id}>
+                      <Link
+                        href={`/search?brand=${encodeURIComponent(b.name)}`}
+                        className="hover:text-white transition-colors"
+                      >
+                        {b.name}
+                      </Link>
+                    </li>
+                  ))
+                ) : (
+                  <>
+                    <li><Link href="/search?brand=Nike" className="hover:text-white transition-colors">Nike</Link></li>
+                    <li><Link href="/search?brand=Adidas" className="hover:text-white transition-colors">Adidas</Link></li>
+                    <li><Link href="search?brand=Levi%27s" className="hover:text-white transition-colors">Levi&apos;s</Link></li>
+                    <li><Link href="/search?brand=Puma" className="hover:text-white transition-colors">Puma</Link></li>
+                    <li><Link href="/search?brand=Champion" className="hover:text-white transition-colors">Champion</Link></li>
+                    <li><Link href="/search?brand=Zara" className="hover:text-white transition-colors">Zara</Link></li>
+                  </>
+                )}
+              </ul>
+            </div>
+
+            {/* COLUMN 5 — WHOLESALE SOURCING & CONTACT (Col span 3) */}
             <div className="lg:col-span-3 flex flex-col gap-4">
               <div>
                 <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
-                  OFFICIAL BUSINESS ADDRESS
+                  WHOLESALE SOURCING
                 </h3>
-                
+                <ul className="flex flex-col gap-2 text-[13px] text-white/75 mb-4">
+                  <li>
+                    <Link href="/rfq" className="hover:text-white transition-colors font-medium text-white/90">
+                      Request for Quotation (RFQ) →
+                    </Link>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={handleComplianceClick}
+                      className="hover:text-white transition-colors text-left cursor-pointer"
+                    >
+                      Compliance &amp; Certifications (AQL 2.5)
+                    </button>
+                  </li>
+                  <li>
+                    <Link href="#shipping" className="hover:text-white transition-colors">
+                      Export Shipping &amp; Incoterms
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="#faq" className="hover:text-white transition-colors">
+                      Wholesale FAQ
+                    </Link>
+                  </li>
+                </ul>
+
                 {/* Social Icons (Line style SVGs) */}
-                <div className="flex items-center gap-2.5 mb-5">
+                <div className="flex items-center gap-2.5 mb-4">
                   <a
                     href="https://facebook.com"
                     target="_blank"
@@ -168,7 +294,7 @@ export default function Footer() {
               </div>
 
               {/* Official Business Information */}
-              <div className="space-y-2.5 text-[13px] text-white/75">
+              <div className="space-y-2 text-[13px] text-white/75 border-t border-white/10 pt-3">
                 <div className="flex items-start gap-2.5">
                   <MapPin size={15} className="text-white/60 shrink-0 mt-0.5" />
                   <span className="leading-relaxed">
@@ -178,42 +304,15 @@ export default function Footer() {
                 <div className="flex items-start gap-2.5">
                   <MessageCircle size={15} className="text-[#25D366] shrink-0 mt-0.5" />
                   <a
-                    href={getWhatsAppUrl(`Hi ${BUSINESS_PROFILE.name}, I have an inquiry regarding wholesale apparel.`)}
+                    href={getWhatsAppUrl(`Hi ${BUSINESS_PROFILE.name}, I have an inquiry regarding wholesale apparel sourcing.`)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover:text-white transition-colors underline-offset-4 hover:underline"
                   >
-                    Chat on WhatsApp
+                    WhatsApp: {BUSINESS_PROFILE.contact.phone}
                   </a>
                 </div>
-                <div className="text-[12px] text-white/50 pl-6">
-                  Established: {BUSINESS_PROFILE.establishedYear} • Brand Mark: {BUSINESS_PROFILE.brandMark}
-                </div>
               </div>
-            </div>
-
-            {/* COLUMN 4 — SUPPORT (Col span 2) */}
-            <div className="lg:col-span-2">
-              <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
-                SUPPORT
-              </h3>
-              <ul className="flex flex-col gap-2.5 text-[13px] text-white/75">
-                <li>
-                  <Link href="#shipping" className="hover:text-white transition-colors">
-                    Shipping Information
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/profile/orders" className="hover:text-white transition-colors">
-                    Order Tracking
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#faq" className="hover:text-white transition-colors">
-                    FAQ
-                  </Link>
-                </li>
-              </ul>
             </div>
 
           </div>
@@ -233,7 +332,7 @@ export default function Footer() {
                 Privacy Policy
               </Link>
               <Link href="#terms" className="hover:text-white/70 transition-colors">
-                Terms & Conditions
+                Terms &amp; Conditions
               </Link>
             </div>
           </div>
@@ -256,7 +355,7 @@ export default function Footer() {
 
       {/* Floating WhatsApp Button */}
       <a
-        href={getWhatsAppUrl(`Hi ${BUSINESS_PROFILE.name}, I have an inquiry regarding wholesale apparel.`)}
+        href={getWhatsAppUrl(`Hi ${BUSINESS_PROFILE.name}, I have an inquiry regarding wholesale apparel sourcing.`)}
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-[#25D366] text-white shadow-xl flex items-center justify-center hover:bg-[#20ba59] hover:scale-105 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

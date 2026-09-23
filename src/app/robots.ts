@@ -1,7 +1,8 @@
 import { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/seo";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ayaan-clothing.vercel.app";
+  const baseUrl = SITE_URL;
 
   return {
     rules: [
@@ -20,6 +21,8 @@ export default function robots(): MetadataRoute.Robots {
           "/profile/*",
           "/dashboard",
           "/dashboard/*",
+          "/order-access",
+          "/order-access/*",
           "/cart",
           "/checkout",
           "/login",

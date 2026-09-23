@@ -184,60 +184,79 @@ export function normalizeProductData(p: any): B2BProductInput {
   const brandName = typeof p.brand === "string" ? p.brand : p.brand?.name || "Ayaan";
   const brandLogo = p.brandLogo || p.brand_logo || getBrandLogoUrl(brandName) || "/logo.png";
   const rawDt = (p.designType || p.design_type || "").toString().toUpperCase();
-  const designTypeVal: "ORIGINAL" | "MASTER COPY" =
-    rawDt === "MASTER COPY" || rawDt === "REPLICA" || rawDt === "MC" ? "MASTER COPY" : "ORIGINAL";
+  const designTypeVal: "ORIGINAL" | "MASTER COPY" = rawDt.includes("MASTER") ? "MASTER COPY" : "ORIGINAL";
 
-  return {
-    id: String(p.id),
-    name: p.name || "Apparel Item",
-    slug: p.slug || (p.name || "apparel").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-    sku: p.sku || `AYN-${Date.now().toString(36).toUpperCase()}`,
-    brand: brandName,
-    brandLogo: brandLogo,
-    categoryId: categoryInfo.id,
-    categoryName: categoryInfo.name,
-    audience: audienceVal,
-    designType: designTypeVal,
-    productType: p.productType || "Ready-Made Garments",
-    collectionSeason: p.collectionSeason || "2026 Core Export Line",
-    shortDescription: p.shortDescription || `Export grade ${p.name} manufactured in Dhaka, Bangladesh with precision stitching and premium fabric.`,
-    description: p.description || `${p.name} is engineered for international apparel retailers and corporate buyers. Manufactured with high-tensile yarn, reactive dye technology, and compliant with European & US export quality standards (AQL 2.5).`,
-    material: p.material || "100% Combed Compact Cotton (Single Jersey / Brushed Fleece)",
-    colorName: p.colorName || colors[0] || "Black",
-    colorHex: p.colorHex || "#111827",
-    weightGrams: p.weightGrams || 240,
-    videoUrl: p.videoUrl || "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    youtubeVideoId: "dQw4w9WgXcQ",
-    youtubeEmbedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
-    images: images,
-    costPrice: Math.round(wholesalePrice * 0.55 * 100) / 100,
-    wholesalePrice: wholesalePrice,
-    standardPrice: wholesalePrice,
-    bulkThreshold: bulkThreshold,
-    bulkPrice: bulkPrice,
-    fullStockPrice: fullStockPrice,
-    msrpPrice: msrpPrice,
-    moq: moq,
-    stock: stock,
-    status: p.status || "published",
-    isFeatured: Boolean(p.isFeatured || p.featured || p.isHot),
-    isNew: Boolean(p.isNew),
-    isHot: Boolean(p.isHot),
-    isBestDeal: Boolean(p.isBestDeal || p.is_best_deal || p.isLimitedDeal || p.isLimitedTimeOffer || p.isHot || p.isFeatured || (msrpPrice > wholesalePrice)),
-    sizes: sizes,
-    colors: colors,
-    variants: [],
-    pricingTiers: [
-      { min_quantity: moq, max_quantity: bulkThreshold - 1, unit_price: wholesalePrice },
-      { min_quantity: bulkThreshold, max_quantity: stock - 1, unit_price: bulkPrice },
-      { min_quantity: stock, max_quantity: null, unit_price: fullStockPrice },
-    ],
-    packageAllocations: packageAllocations,
-    shippingPackageProfiles: shippingPackageProfiles,
-    shipping_package_profiles: shippingPackageProfiles,
-    isPackageAssortment: true,
-    fullStockQuantity: stock,
-  };
-}
+  // Keywords and SEO
+  let keywordsList: string[] = [];
+  if (Array.isArray(p.keywords)) {
+    keywordsList = p.keywords.map((k: unknown) => String(k).trim()).filter(Boolean);
+    } else if (typeof p.keywords === "string" && p.keywords.trim()) {
+      keywordsList = p.keywords.split(",").map((s: string) => s.trim()).filter(Boolean);
+    } else {
+      const pName = (p.name || "Apparel").toLowerCase();
+      keywordsList = [
+        `wholesale ${brandName.toLowerCase()} ${pName}`,
+        `bulk ${pName}`,
+        `${categoryInfo.name.toLowerCase()} supplier`,
+        `${audienceVal.toLowerCase()} apparel export`,
+        "Bangladesh clothing manufacturer",
+      ];
+    }
+
+    return {
+      id: String(p.id),
+      name: p.name || "Apparel Item",
+      slug: p.slug || (p.name || "apparel").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+      sku: p.sku || `AYN-${Date.now().toString(36).toUpperCase()}`,
+      brand: brandName,
+      brandLogo: brandLogo,
+      categoryId: categoryInfo.id,
+      categoryName: categoryInfo.name,
+      audience: audienceVal,
+      designType: designTypeVal,
+      productType: p.productType || "Ready-Made Garments",
+      collectionSeason: p.collectionSeason || "2026 Core Export Line",
+      shortDescription: p.shortDescription || `Export grade ${p.name} manufactured in Dhaka, Bangladesh with precision stitching and premium fabric.`,
+      description: p.description || `${p.name} is engineered for international apparel retailers and corporate buyers. Manufactured with high-tensile yarn, reactive dye technology, and compliant with European & US export quality standards (AQL 2.5).`,
+      seoTitle: p.seoTitle || p.name || undefined,
+      seoDescription: p.seoDescription || p.shortDescription || undefined,
+      keywords: keywordsList,
+      material: p.material || "100% Combed Compact Cotton (Single Jersey / Brushed Fleece)",
+      colorName: p.colorName || colors[0] || "Black",
+      colorHex: p.colorHex || "#111827",
+      weightGrams: p.weightGrams || 240,
+      videoUrl: p.videoUrl || "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      youtubeVideoId: "dQw4w9WgXcQ",
+      youtubeEmbedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+      images: images,
+      costPrice: Math.round(wholesalePrice * 0.55 * 100) / 100,
+      wholesalePrice: wholesalePrice,
+      standardPrice: wholesalePrice,
+      bulkThreshold: bulkThreshold,
+      bulkPrice: bulkPrice,
+      fullStockPrice: fullStockPrice,
+      msrpPrice: msrpPrice,
+      moq: moq,
+      stock: stock,
+      status: p.status || "published",
+      isFeatured: Boolean(p.isFeatured || p.featured || p.isHot),
+      isNew: Boolean(p.isNew),
+      isHot: Boolean(p.isHot),
+      isBestDeal: Boolean(p.isBestDeal || p.is_best_deal || p.isLimitedDeal || p.isLimitedTimeOffer || p.isHot || p.isFeatured || (msrpPrice > wholesalePrice)),
+      sizes: sizes,
+      colors: colors,
+      variants: [],
+      pricingTiers: [
+        { min_quantity: moq, max_quantity: bulkThreshold - 1, unit_price: wholesalePrice },
+        { min_quantity: bulkThreshold, max_quantity: stock - 1, unit_price: bulkPrice },
+        { min_quantity: stock, max_quantity: null, unit_price: fullStockPrice },
+      ],
+      packageAllocations: packageAllocations,
+      shippingPackageProfiles: shippingPackageProfiles,
+      shipping_package_profiles: shippingPackageProfiles,
+      isPackageAssortment: true,
+      fullStockQuantity: stock,
+    };
+  }
 
 export const INITIAL_MOCK_PRODUCTS: B2BProductInput[] = (rawProductsData as any[]).map(normalizeProductData);

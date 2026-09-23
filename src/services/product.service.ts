@@ -210,6 +210,13 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     collectionSeason: p.collectionSeason || p.collection_season || "2026 Core Collection",
     shortDescription: p.shortDescription || p.short_description || `Premium quality ${p.name} direct from Dhaka export facilities.`,
     description: p.description || `Premium apparel manufactured with high-tensile combed yarn and reactive dye technology. Compliant with international export standards (AQL 2.5).`,
+    seoTitle: p.seoTitle || p.seo_title || p.name || undefined,
+    seoDescription: p.seoDescription || p.seo_description || p.shortDescription || p.short_description || undefined,
+    keywords: Array.isArray(p.keywords)
+      ? p.keywords
+      : typeof p.keywords === "string"
+      ? p.keywords.split(",").map((s: string) => s.trim()).filter(Boolean)
+      : undefined,
     material: p.material || "100% Cotton",
     colorName: p.colorName || p.color_name || p.color || "Black",
     colorHex: p.colorHex || p.color_hex || "#111827",
@@ -280,6 +287,9 @@ export function toStorefrontProduct(p: B2BProductInput): Product {
     brandLogo: p.brandLogo,
     color: p.colorName,
     description: p.description || p.shortDescription,
+    seoTitle: p.seoTitle,
+    seoDescription: p.seoDescription,
+    keywords: p.keywords,
     pricingTiers: p.pricingTiers,
     packageAllocations: p.packageAllocations,
     shippingPackageProfiles: p.shippingPackageProfiles,

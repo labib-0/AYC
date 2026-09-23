@@ -32,6 +32,7 @@ export interface B2BProductInput {
   shortDescription?: string;
   description?: string;
   material?: string;
+  color?: string;
   colorName?: string;
   colorHex?: string;
   weightGrams?: number;
@@ -63,6 +64,9 @@ export interface B2BProductInput {
   shipping_package_profiles?: import("./index").ShippingPackageProfile[];
   isPackageAssortment?: boolean;
   fullStockQuantity?: number;
+  seoTitle?: string;
+  seoDescription?: string;
+  keywords?: string[];
 }
 
 export type RfqStatus = 

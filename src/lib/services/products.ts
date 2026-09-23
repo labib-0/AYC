@@ -194,4 +194,52 @@ export function getInitialFeaturedProducts(
   return filtered.slice(0, limit).map(toStorefrontProduct);
 }
 
+/**
+ * Calculates contextually relevant related products based on category, brand, audience, design type, and keyword similarity
+ */
+export async function getRelatedProducts(
+  product: B2BProductInput,
+  limit: number = 6
+): Promise<B2BProductInput[]> {
+  const allProducts = await getProducts();
+  const others = allProducts.filter((p) => p.id !== product.id && p.slug !== product.slug);
+
+  const scored = others.map((item) => {
+    let score = 0;
+    // Category match: weight 4
+    if (item.categoryId && product.categoryId && item.categoryId === product.categoryId) {
+      score += 4;
+    } else if (
+      item.categoryName &&
+      product.categoryName &&
+      item.categoryName.toLowerCase() === product.categoryName.toLowerCase()
+    ) {
+      score += 4;
+    }
+    // Brand match: weight 3
+    if (item.brand && product.brand && item.brand.toLowerCase() === product.brand.toLowerCase()) {
+      score += 3;
+    }
+    // Audience match: weight 2
+    if (item.audience && product.audience && item.audience === product.audience) {
+      score += 2;
+    }
+    // Design type match: weight 2
+    if (item.designType && product.designType && item.designType === product.designType) {
+      score += 2;
+    }
+    // Keywords overlap: weight 3
+    if (item.keywords && product.keywords && Array.isArray(item.keywords) && Array.isArray(product.keywords)) {
+      const itemKws = new Set(item.keywords.map((k) => k.toLowerCase()));
+      const overlap = product.keywords.filter((k) => itemKws.has(k.toLowerCase())).length;
+      score += overlap * 3;
+    }
+    return { item, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit).map((s) => s.item);
+}
+
+
 

@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { categoryService, CategoryModel } from "@/services/category.service";
 import { AudienceTiles } from "@/components/common/AudienceCard";
 import { Check } from "lucide-react";
@@ -115,6 +116,7 @@ export default function CategoryHighlights() {
                     slug: category.slug || String(category.id),
                     image: category.image_url || category.image || "/categories/default.jpg"
                   }} 
+                  href={`/search?category=${encodeURIComponent(category.name)}`}
                   variant="compact"
                   isActive={false}
                   onClick={() => handleCategoryClick(category.name)}
@@ -138,36 +140,36 @@ interface CategoryCardProps {
     description?: string;
     imageClass?: string;
   };
+  href?: string;
   variant?: "primary" | "compact";
   isActive?: boolean;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
 }
 
 export function CategoryCard({
   category,
+  href,
   variant = "primary",
   isActive = false,
   onClick,
 }: CategoryCardProps) {
   const isPrimary = variant === "primary";
 
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group relative overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 block w-full text-left cursor-pointer ${
-        isPrimary ? "aspect-[16/10]" : "aspect-[4/3]"
-      } ${
-        isActive
-          ? "border-foreground ring-2 ring-foreground shadow-lg scale-[1.02]"
-          : "border-border hover:border-foreground/40 shadow-xs hover:shadow-md hover:-translate-y-0.5"
-      }`}
-    >
+  const cardClasses = `group relative overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 block w-full text-left cursor-pointer ${
+    isPrimary ? "aspect-[16/10]" : "aspect-[4/3]"
+  } ${
+    isActive
+      ? "border-foreground ring-2 ring-foreground shadow-lg scale-[1.02]"
+      : "border-border hover:border-foreground/40 shadow-xs hover:shadow-md hover:-translate-y-0.5"
+  }`;
+
+  const innerContent = (
+    <>
       {/* Background Image */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={category.image}
-        alt={category.name}
+        alt={`Wholesale ${category.name} apparel collection`}
         className={`absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 ${
           category.imageClass || "object-center"
         }`}
@@ -207,6 +209,20 @@ export function CategoryCard({
           </h3>
         </div>
       </div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={cardClasses} onClick={onClick}>
+        {innerContent}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" className={cardClasses} onClick={onClick}>
+      {innerContent}
     </button>
   );
 }

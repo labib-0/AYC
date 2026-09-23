@@ -10,6 +10,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import MiniCart from "@/components/cart/MiniCart";
 import ProductQuickAddModal from "@/components/product/ProductQuickAddModal";
+import { generateOrganizationJsonLd, generateWebSiteJsonLd, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -24,7 +25,7 @@ const inter = Inter({
   display: "swap",
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ayaan-clothing.vercel.app";
+const siteUrl = SITE_URL;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -33,20 +34,7 @@ export const metadata: Metadata = {
     template: "%s | AYAAN CLOTHING",
   },
   description:
-    "Ready-made garments manufacturer and exporter from Bangladesh. B2B wholesale apparel for international buyers. Est. 2010.",
-  keywords: [
-    "AYAAN CLOTHING",
-    "Ready-made Garments Manufacturer",
-    "Garments Exporter",
-    "wholesale apparel",
-    "clothing manufacturer Bangladesh",
-    "bulk fashion export",
-    "RMG Bangladesh",
-    "B2B fashion sourcing",
-    "custom apparel OEM",
-    "Uttara Dhaka",
-    "international wholesale garments",
-  ],
+    "Ready-made garments manufacturer and exporter from Bangladesh. B2B wholesale apparel, bulk fashion export, and custom OEM manufacturing for international buyers. Est. 2010.",
   authors: [{ name: "AYAAN CLOTHING" }],
   creator: "AYAAN CLOTHING",
   publisher: "AYAAN CLOTHING",
@@ -100,38 +88,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const jsonLdOrg = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "AYAAN CLOTHING",
-    alternateName: "AYC",
-    url: siteUrl,
-    logo: `${siteUrl}/logo.png`,
-    description: "Ready-made Garments Manufacturer & Exporter",
-    foundingDate: "2010",
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: "House #33 (2nd floor), Road #12, Sector #11",
-      addressLocality: "Uttara, Dhaka",
-      postalCode: "1230",
-      addressCountry: "BD",
-    },
-  };
-
-  const jsonLdWebSite = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "AYAAN CLOTHING",
-    url: siteUrl,
-    potentialAction: {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${siteUrl}/search?q={search_term_string}`,
-      },
-      "query-input": "required name=search_term_string",
-    },
-  };
+  const jsonLdOrg = generateOrganizationJsonLd();
+  const jsonLdWebSite = generateWebSiteJsonLd();
 
   return (
     <html lang="en">

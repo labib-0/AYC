@@ -27,6 +27,10 @@ export interface Product {
   brandLogo?: string;
   colours?: number;
   color?: string;
+  colorName?: string;
+  material?: string;
+  shortDescription?: string;
+  status?: string;
   description?: string;
   createdAt?: string;
   addedAt?: string;
@@ -40,6 +44,9 @@ export interface Product {
   videoUrl?: string;
   youtubeVideoId?: string;
   youtubeEmbedUrl?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  keywords?: string[];
 }
 
 export interface ShippingPackageProfile {
