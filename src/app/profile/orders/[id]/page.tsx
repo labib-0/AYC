@@ -747,9 +747,13 @@ export default function OrderDetailPage({ params }: Props) {
                 </div>
               )}
               {(order.discount_amount || 0) > 0 && (
-                <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
-                  <span>Discount</span>
-                  <span className="font-semibold">−{formatUSD(order.discount_amount || 0)}</span>
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
+                  <span>
+                    {order.coupon_code || order.promo_code
+                      ? `Discount (${order.coupon_code || order.promo_code})`
+                      : "Discount"}
+                  </span>
+                  <span className="font-semibold font-mono">−{formatUSD(order.discount_amount || 0)}</span>
                 </div>
               )}
               <div className="flex justify-between items-baseline pt-3 border-t border-slate-200 dark:border-white/10">

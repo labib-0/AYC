@@ -15,6 +15,8 @@ import {
   downloadProformaInvoicePDF,
   downloadCombinedProductOfferSheetsPDF,
 } from "@/lib/pdf-generator";
+import { CouponRecord } from "@/services/admin/promotion.service";
+import { validateCoupon } from "@/lib/coupon";
 import {
   X,
   FileText,
@@ -37,6 +39,7 @@ import {
   Check,
   Pencil,
   Info,
+  Tag,
 } from "lucide-react";
 
 interface CheckoutModalProps {
@@ -113,6 +116,12 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   const [isGeneratingOfferSheets, setIsGeneratingOfferSheets] = useState(false);
   const [offerSheetError, setOfferSheetError] = useState<string | null>(null);
+
+  // Promo Code / Coupon State
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponRecord | null>(null);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoError, setPromoError] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -259,6 +268,17 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     }
   }, [isOpen, loadCustomerAddresses]);
 
+  // Revalidate applied coupon when subtotal changes (e.g. cart quantity modified)
+  useEffect(() => {
+    if (appliedCoupon && subtotal > 0) {
+      const result = validateCoupon(appliedCoupon.code, subtotal);
+      if (!result.isValid) {
+        setAppliedCoupon(null);
+        setPromoError(`Promo code ${appliedCoupon.code} was removed: ${result.error}`);
+      }
+    }
+  }, [subtotal, appliedCoupon]);
+
   // Handle selecting a saved address card
   const handleSelectAddress = (addr: UserAddress) => {
     setSelectedAddressId(String(addr.id));
@@ -396,11 +416,52 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   if (!isOpen) return null;
 
+  // Coupon discount calculation (strictly capped at merchandise subtotal)
+  const discountAmount = appliedCoupon
+    ? (validateCoupon(appliedCoupon.code, subtotal).isValid
+        ? (validateCoupon(appliedCoupon.code, subtotal) as any).discountAmount
+        : 0)
+    : 0;
+  const merchandiseAfterDiscount = Math.max(0, subtotal - discountAmount);
+
   const aramexShippingCost =
     shippingMode === "aramex" && transportMethod === "air" && aramexQuote
       ? aramexQuote.amount || 0
       : 0;
-  const total = subtotal + aramexShippingCost;
+  const total = merchandiseAfterDiscount + aramexShippingCost;
+
+  // Apply Promo Code Handler
+  const handleApplyCoupon = () => {
+    const trimmed = promoInput.trim();
+    if (!trimmed) {
+      setPromoError("Please enter a promo code.");
+      return;
+    }
+
+    setPromoLoading(true);
+    setPromoError("");
+
+    try {
+      const result = validateCoupon(trimmed, subtotal);
+      if (result.isValid) {
+        setAppliedCoupon(result.coupon);
+        setPromoError("");
+      } else {
+        setPromoError(result.error);
+      }
+    } catch {
+      setPromoError("Unable to validate promo code. Please try again.");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  // Remove Promo Code Handler
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setPromoError("");
+    setPromoInput("");
+  };
 
   // Handle Place Order
   const handlePlaceOrder = async (e: React.FormEvent) => {
@@ -428,6 +489,23 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     if (items.length === 0) {
       setError("Your cart is empty.");
       return;
+    }
+
+    // Revalidate coupon before order placement
+    let finalDiscountAmount = 0;
+    let finalCouponCode: string | undefined = undefined;
+
+    if (appliedCoupon) {
+      const valResult = validateCoupon(appliedCoupon.code, subtotal);
+      if (valResult.isValid) {
+        finalDiscountAmount = valResult.discountAmount;
+        finalCouponCode = valResult.code;
+      } else {
+        setError(`Promo code error: ${valResult.error}`);
+        setAppliedCoupon(null);
+        setPromoError(valResult.error);
+        return;
+      }
     }
 
     setLoading(true);
@@ -508,6 +586,9 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         shippingCost: shippingMode === "aramex" ? aramexShippingCost : 0,
         shippingQuoteId: shippingMode === "aramex" ? aramexQuote?.quote_id : undefined,
         shippingSnapshot,
+        couponCode: finalCouponCode,
+        promoCode: finalCouponCode,
+        discountAmount: finalDiscountAmount,
         paymentMethod: "proforma_invoice",
         transportMethod: "air",
         shippingServiceType,
@@ -528,6 +609,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       });
 
       clearCart();
+      setAppliedCoupon(null);
+      setPromoInput("");
       setConfirmedOrder(newOrder);
     } catch (err: any) {
       setError(err?.message || "Failed to confirm order. Please try again.");
@@ -638,6 +721,12 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                   <span>Merchandise Value ({confirmedOrder.items?.length || 0} items):</span>
                   <span>${confirmedOrder.subtotal.toFixed(2)} USD</span>
                 </div>
+                {confirmedOrder.discount_amount > 0 && (
+                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                    <span>Discount ({confirmedOrder.coupon_code || confirmedOrder.promo_code || "Promo"}):</span>
+                    <span className="font-bold font-mono">-${confirmedOrder.discount_amount.toFixed(2)} USD</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span>Shipping Arrangement:</span>
                   <span className="font-semibold text-foreground">
@@ -1053,12 +1142,138 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
             <hr className="border-border/60" />
 
-            {/* ─── 4. FINANCIAL SUMMARY ────────────────────────────────────── */}
+            {/* ─── 4. PROMO / COUPON CODE ─────────────────────────────────── */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="promoCodeInput"
+                  className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5"
+                >
+                  <Tag size={14} className="text-primary" />
+                  <span>Promo Code</span>
+                </label>
+                {appliedCoupon && (
+                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <Check size={12} />
+                    <span>Applied ✓</span>
+                  </span>
+                )}
+              </div>
+
+              {appliedCoupon ? (
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
+                      <Tag size={15} />
+                    </div>
+                    <div className="truncate">
+                      <div className="text-xs font-mono font-bold text-foreground tracking-wide">
+                        {appliedCoupon.code}
+                      </div>
+                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                        {appliedCoupon.discount_type === "percentage"
+                          ? `${appliedCoupon.discount_value}% Discount Applied`
+                          : `$${appliedCoupon.discount_value} Discount Applied`}
+                        {appliedCoupon.max_discount ? ` (up to $${appliedCoupon.max_discount})` : ""}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    aria-label={`Remove promo code ${appliedCoupon.code}`}
+                    className="px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive text-muted-foreground text-xs font-bold transition-all shrink-0 cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        id="promoCodeInput"
+                        name="promoCode"
+                        type="text"
+                        placeholder="Enter promo code (e.g. AYAAN10)"
+                        value={promoInput}
+                        onChange={(e) => {
+                          setPromoInput(e.target.value);
+                          if (promoError) setPromoError("");
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleApplyCoupon();
+                          }
+                        }}
+                        disabled={promoLoading || loading}
+                        aria-invalid={Boolean(promoError)}
+                        aria-describedby={promoError ? "promoErrorText" : undefined}
+                        className={`w-full px-3.5 py-2.5 text-xs font-mono uppercase rounded-xl border bg-secondary/30 text-foreground placeholder:text-muted-foreground placeholder:normal-case placeholder:font-sans outline-none transition-all disabled:opacity-50 ${
+                          promoError
+                            ? "border-destructive focus:ring-1 focus:ring-destructive"
+                            : "border-border/80 focus:border-foreground"
+                        }`}
+                      />
+                      {promoInput && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPromoInput("");
+                            setPromoError("");
+                          }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs font-bold px-1 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={!promoInput.trim() || promoLoading || loading}
+                      className="px-4 py-2.5 rounded-xl bg-foreground text-background hover:bg-foreground/90 font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 cursor-pointer shadow-2xs"
+                    >
+                      {promoLoading ? (
+                        <span className="flex items-center gap-1">
+                          <RefreshCw size={12} className="animate-spin" />
+                          <span>Checking...</span>
+                        </span>
+                      ) : (
+                        <span>Apply</span>
+                      )}
+                    </button>
+                  </div>
+
+                  {promoError && (
+                    <p id="promoErrorText" className="text-[11px] text-destructive font-medium flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle size={12} className="shrink-0" />
+                      <span>{promoError}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <hr className="border-border/60" />
+
+            {/* ─── 5. FINANCIAL SUMMARY ────────────────────────────────────── */}
             <div className="space-y-1.5 text-sm font-sans pt-1">
               <div className="flex justify-between text-muted-foreground font-medium">
-                <span className="uppercase tracking-wide text-xs">Merchandise Total</span>
+                <span className="uppercase tracking-wide text-xs">Subtotal</span>
                 <span className="text-foreground font-semibold">{formatPrice(subtotal)}</span>
               </div>
+
+              {discountAmount > 0 && appliedCoupon && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span className="uppercase tracking-wide text-xs">Discount ({appliedCoupon.code})</span>
+                  <span className="font-semibold font-mono">-{formatPrice(discountAmount)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between text-muted-foreground font-medium">
                 <span className="uppercase tracking-wide text-xs">Shipping</span>
                 <span className="text-foreground font-semibold">
@@ -1074,10 +1289,10 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 </span>
               </div>
               <div className="flex justify-between items-end pt-3 mt-2 border-t border-border">
-                <span className="font-bold text-foreground text-sm uppercase tracking-wide">Order Total</span>
+                <span className="font-bold text-foreground text-sm uppercase tracking-wide">Grand Total</span>
                 <div className="text-right">
                   <span className="font-black text-lg text-foreground">
-                    {formatPrice(shippingMode === "aramex" && aramexQuote ? total : subtotal)}
+                    {formatPrice(shippingMode === "aramex" && aramexQuote ? total : merchandiseAfterDiscount)}
                   </span>
                   {(shippingMode === "manual" || !aramexQuote) && (
                     <span className="block text-[11px] text-muted-foreground font-medium mt-0.5">
@@ -1093,7 +1308,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               <span>Commercial wholesale order · Proforma Invoice issued</span>
             </div>
 
-            {/* ─── 5. FINAL CTA ───────────────────────────────────────────── */}
+            {/* ─── 6. FINAL CTA ───────────────────────────────────────────── */}
             <div className="pt-2">
               <button
                 type="submit"

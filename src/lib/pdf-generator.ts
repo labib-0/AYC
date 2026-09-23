@@ -885,7 +885,9 @@ export function generateProformaInvoiceDoc(order: OrderRecord): jsPDF {
     !isAramex;
 
   const shippingAmount = isAramex ? (order.shipping_cost || 0) : 0;
-  const grandTotal = isAramex ? order.subtotal + shippingAmount : order.subtotal;
+  const discountVal = Number(order.discount_amount || 0);
+  const merchandisePayable = Math.max(0, order.subtotal - discountVal);
+  const grandTotal = isAramex ? merchandisePayable + shippingAmount : merchandisePayable;
 
   // 2. Exporter / Buyer Details (Two Columns)
   const colWidth = (contentWidth - 6) / 2;
@@ -1075,7 +1077,8 @@ export function generateProformaInvoiceDoc(order: OrderRecord): jsPDF {
   }
 
   // Right side: Financial Totals Box
-  const boxHeight = isAramex ? 25 : 20;
+  const hasDiscount = discountVal > 0;
+  const boxHeight = (isAramex ? 25 : 20) + (hasDiscount ? 4.5 : 0);
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(summaryX, y, summaryWidth, boxHeight, 1.5, 1.5, "FD");
@@ -1088,6 +1091,16 @@ export function generateProformaInvoiceDoc(order: OrderRecord): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
   doc.text(fmtUSD(order.subtotal), summaryX + summaryWidth - 3, subY, { align: "right" });
+
+  if (hasDiscount) {
+    subY += 4.5;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(22, 101, 52); // green-800
+    const promoLabel = order.coupon_code || order.promo_code ? `Discount (${order.coupon_code || order.promo_code}):` : "Discount Applied:";
+    doc.text(promoLabel, summaryX + 3, subY);
+    doc.setFont("helvetica", "bold");
+    doc.text(`-${fmtUSD(discountVal)}`, summaryX + summaryWidth - 3, subY, { align: "right" });
+  }
 
   if (isAramex) {
     subY += 4.5;

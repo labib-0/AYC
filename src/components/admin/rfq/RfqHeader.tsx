@@ -2,7 +2,8 @@ import React from "react";
 import Link from "next/link";
 import { RfqRecord, QuotationRecord } from "@/types/b2b";
 import RfqStatusBadge from "./RfqStatusBadge";
-import { ArrowLeft, RefreshCw, DollarSign, Printer, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, DollarSign, Printer, CheckCircle2, Clock } from "lucide-react";
+import { formatRfqDateTime } from "@/lib/rfq-datetime";
 
 export interface RfqHeaderProps {
   rfq: RfqRecord;
@@ -25,15 +26,6 @@ export default function RfqHeader({
   isLoading,
   documentBaseUrl = "/admin/documents",
 }: RfqHeaderProps) {
-  const formattedDate = rfq.createdAt
-    ? new Date(rfq.createdAt).toLocaleDateString("en-US", {
-        weekday: "short",
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
-    : "—";
-
   return (
     <div className="space-y-3">
       {/* Top back breadcrumb */}
@@ -49,7 +41,7 @@ export default function RfqHeader({
 
       {/* Main Header Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-border/80">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
               {rfq.rfqNumber}
@@ -63,9 +55,25 @@ export default function RfqHeader({
             )}
           </div>
 
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Inquiry from <strong className="text-foreground">{rfq.buyerName}</strong> ({rfq.companyName}) • Received on {formattedDate}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs sm:text-sm text-muted-foreground">
+            <span>
+              Inquiry from <strong className="text-foreground">{rfq.buyerName}</strong> ({rfq.companyName})
+            </span>
+            <span>•</span>
+            <span className="inline-flex items-center gap-1">
+              <Clock size={12} className="text-muted-foreground/80" />
+              <span>Created:</span>
+              <strong className="text-foreground font-medium">{formatRfqDateTime(rfq.createdAt)}</strong>
+            </span>
+            {rfq.updatedAt && rfq.updatedAt !== rfq.createdAt && (
+              <>
+                <span>•</span>
+                <span>
+                  Last Updated: <strong className="text-foreground font-medium">{formatRfqDateTime(rfq.updatedAt)}</strong>
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Action Buttons */}

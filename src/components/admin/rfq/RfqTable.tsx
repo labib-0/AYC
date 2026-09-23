@@ -3,7 +3,8 @@ import Link from "next/link";
 import { RfqRecord } from "@/types/b2b";
 import RfqTableRow from "./RfqTableRow";
 import RfqStatusBadge from "./RfqStatusBadge";
-import { FileText, RotateCcw, AlertTriangle, Globe2 } from "lucide-react";
+import { FileText, RotateCcw, AlertTriangle, Globe2, Clock } from "lucide-react";
+import { formatRfqDateTime } from "@/lib/rfq-datetime";
 
 export interface RfqTableProps {
   rfqs: RfqRecord[];
@@ -83,10 +84,10 @@ export default function RfqTable({
             <FileText size={22} />
           </div>
           <h3 className="text-sm font-bold text-foreground">
-            No RFQs match your current filters.
+            No RFQs found for this date and time range.
           </h3>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Try adjusting your search keywords, status filter, or destination country.
+            Try adjusting your date selection, time period, status filter, or search keywords.
           </p>
           {onResetFilters && (
             <button
@@ -131,7 +132,7 @@ export default function RfqTable({
                 <th className="py-3 px-3 text-center">Items</th>
                 <th className="py-3 px-3 text-right">Total Units</th>
                 <th className="py-3 px-3 text-center">Status</th>
-                <th className="py-3 px-3 text-right">Date</th>
+                <th className="py-3 px-3 text-right">Submitted Date &amp; Time</th>
                 <th className="py-3 px-4 text-right">Action</th>
               </tr>
             </thead>
@@ -156,12 +157,7 @@ export default function RfqTable({
             (sum, it) => sum + (it.quantity || 0),
             0
           );
-          const formattedDate = rfq.createdAt
-            ? new Date(rfq.createdAt).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })
-            : "—";
+          const formattedDateTime = formatRfqDateTime(rfq.createdAt);
 
           return (
             <div
@@ -196,7 +192,10 @@ export default function RfqTable({
 
               <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
                 <span>Items: {rfq.items?.length || 1}</span>
-                <span>Submitted: {formattedDate}</span>
+                <span className="inline-flex items-center gap-1 font-mono">
+                  <Clock size={11} className="text-muted-foreground" />
+                  {formattedDateTime}
+                </span>
               </div>
 
               <div className="pt-2 border-t border-border/40">

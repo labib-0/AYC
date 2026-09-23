@@ -678,7 +678,20 @@ class MockStore {
   }
 
   getCoupons(): CouponRecord[] {
-    return this.getItem<CouponRecord[]>(STORAGE_KEYS.COUPONS, INITIAL_MOCK_COUPONS);
+    const list = this.getItem<CouponRecord[]>(STORAGE_KEYS.COUPONS, INITIAL_MOCK_COUPONS);
+    if (Array.isArray(list)) {
+      const existingCodes = new Set(list.map((c) => (c.code || "").toUpperCase().trim()));
+      const missing = INITIAL_MOCK_COUPONS.filter(
+        (c) => !existingCodes.has((c.code || "").toUpperCase().trim())
+      );
+      if (missing.length > 0) {
+        const merged = [...list, ...missing];
+        this.setItem(STORAGE_KEYS.COUPONS, merged);
+        return merged;
+      }
+      return list;
+    }
+    return list;
   }
 
   saveCoupon(couponData: Partial<CouponRecord>): CouponRecord {
@@ -709,6 +722,18 @@ class MockStore {
 
     this.setItem(STORAGE_KEYS.COUPONS, coupons);
     return saved;
+  }
+
+  incrementCouponUsage(codeOrId: string | number): void {
+    const coupons = this.getCoupons();
+    const clean = String(codeOrId).toUpperCase().trim();
+    const coupon = coupons.find(
+      (c) => String(c.id) === String(codeOrId) || (c.code || "").toUpperCase().trim() === clean
+    );
+    if (coupon) {
+      coupon.usage_count = (coupon.usage_count || 0) + 1;
+      this.saveCoupon(coupon);
+    }
   }
 
   deleteCoupon(id: number): boolean {

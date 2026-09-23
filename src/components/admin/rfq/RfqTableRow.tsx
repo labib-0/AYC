@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RfqRecord } from "@/types/b2b";
 import RfqStatusBadge from "./RfqStatusBadge";
 import { Eye, Globe2 } from "lucide-react";
+import { formatRfqDate, formatRfqTime } from "@/lib/rfq-datetime";
 
 export interface RfqTableRowProps {
   rfq: RfqRecord;
@@ -26,13 +27,8 @@ export default function RfqTableRow({
         .toUpperCase()
     : "BY";
 
-  const formattedDate = rfq.createdAt
-    ? new Date(rfq.createdAt).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
-    : "—";
+  const formattedDate = formatRfqDate(rfq.createdAt);
+  const formattedTime = formatRfqTime(rfq.createdAt);
 
   return (
     <tr className="border-b border-border/60 hover:bg-secondary/20 transition-colors group">
@@ -112,9 +108,12 @@ export default function RfqTableRow({
         <RfqStatusBadge status={rfq.status} size="sm" />
       </td>
 
-      {/* Date */}
-      <td className="py-3 px-3 text-right font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-        {formattedDate}
+      {/* Submitted Date & Time */}
+      <td className="py-3 px-3 text-right whitespace-nowrap">
+        <div className="flex flex-col items-end">
+          <span className="font-medium text-foreground text-xs">{formattedDate}</span>
+          <span className="text-[10px] text-muted-foreground font-mono">{formattedTime}</span>
+        </div>
       </td>
 
       {/* Actions */}

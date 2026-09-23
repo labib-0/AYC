@@ -9,6 +9,14 @@ import RfqToolbar from "@/components/admin/rfq/RfqToolbar";
 import RfqTable from "@/components/admin/rfq/RfqTable";
 import RfqPagination from "@/components/admin/rfq/RfqPagination";
 import { RefreshCw } from "lucide-react";
+import {
+  DateQuickFilter,
+  TimeQuickFilter,
+  RfqSortOrder,
+  isRfqMatchingDateTime,
+  sortRfqsByTimestamp,
+  getTodayRfqSummary,
+} from "@/lib/rfq-datetime";
 
 const PAGE_SIZE = 20;
 
@@ -18,10 +26,22 @@ export default function AdminRfqPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters & Search
+  // Filters & Search State
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
+
+  // Date & Time Filters State
+  const [dateFilter, setDateFilter] = useState<DateQuickFilter>("ALL");
+  const [customDate, setCustomDate] = useState("");
+  const [timeFilter, setTimeFilter] = useState<TimeQuickFilter>("ALL");
+  const [timeFrom, setTimeFrom] = useState("");
+  const [timeTo, setTimeTo] = useState("");
+
+  // Sorting State (Default: newest first)
+  const [sortOrder, setSortOrder] = useState<RfqSortOrder>("newest");
+
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
 
   const detailBaseUrl = pathname.startsWith("/admin") ? "/admin/rfq" : "/rfq";
@@ -48,18 +68,34 @@ export default function AdminRfqPage() {
   const kpiCounts: RfqKpiCounts = useMemo(() => {
     const total = rfqs.length;
     const needsReview = rfqs.filter(
-      (r) => r.status === "SUBMITTED" || r.status === "UNDER_REVIEW" || r.status === "NEED_INFORMATION"
+      (r) =>
+        r.status === "SUBMITTED" ||
+        r.status === "UNDER_REVIEW" ||
+        r.status === "NEED_INFORMATION"
     ).length;
     const quoted = rfqs.filter(
-      (r) => r.status === "QUOTATION_PREPARED" || r.status === "SENT_TO_BUYER" || r.status === "NEGOTIATION"
+      (r) =>
+        r.status === "QUOTATION_PREPARED" ||
+        r.status === "SENT_TO_BUYER" ||
+        r.status === "NEGOTIATION"
     ).length;
     const accepted = rfqs.filter((r) => r.status === "ACCEPTED").length;
     const totalUnits = rfqs.reduce(
-      (sum, r) => sum + (r.items || []).reduce((itemSum, it) => itemSum + (it.quantity || 0), 0),
+      (sum, r) =>
+        sum +
+        (r.items || []).reduce(
+          (itemSum, it) => itemSum + (it.quantity || 0),
+          0
+        ),
       0
     );
 
     return { total, needsReview, quoted, accepted, totalUnits };
+  }, [rfqs]);
+
+  // Compute Today's Activity Summary
+  const todaySummary = useMemo(() => {
+    return getTodayRfqSummary(rfqs);
   }, [rfqs]);
 
   // Extract unique available countries for the filter dropdown
@@ -73,18 +109,21 @@ export default function AdminRfqPage() {
     return Array.from(set).sort();
   }, [rfqs]);
 
-  // Filter and search
+  // Filter, Search, Date/Time Filter, and Sorting
   const filteredRfqs = useMemo(() => {
-    return rfqs.filter((rfq) => {
+    const matched = rfqs.filter((rfq) => {
+      // 1. Status Filter
       if (statusFilter !== "all" && rfq.status !== statusFilter) {
         return false;
       }
+      // 2. Country Filter
       if (
         countryFilter !== "all" &&
         rfq.destinationCountry.toLowerCase() !== countryFilter.toLowerCase()
       ) {
         return false;
       }
+      // 3. Search Term
       if (search.trim()) {
         const q = search.toLowerCase().trim();
         const match =
@@ -94,14 +133,62 @@ export default function AdminRfqPage() {
           rfq.destinationCountry.toLowerCase().includes(q);
         if (!match) return false;
       }
+      // 4. Date & Time Filtering
+      const dateTimeMatches = isRfqMatchingDateTime(rfq, {
+        dateFilter,
+        customDate,
+        timeFilter,
+        timeFrom,
+        timeTo,
+        sortOrder,
+      });
+      if (!dateTimeMatches) return false;
+
       return true;
     });
-  }, [rfqs, statusFilter, countryFilter, search]);
+
+    // 5. Sort by Timestamp (Newest first vs Oldest first)
+    return sortRfqsByTimestamp(matched, sortOrder);
+  }, [
+    rfqs,
+    statusFilter,
+    countryFilter,
+    search,
+    dateFilter,
+    customDate,
+    timeFilter,
+    timeFrom,
+    timeTo,
+    sortOrder,
+  ]);
+
+  // Is any filter active?
+  const isFiltered = Boolean(
+    search ||
+      statusFilter !== "all" ||
+      countryFilter !== "all" ||
+      dateFilter !== "ALL" ||
+      customDate ||
+      timeFilter !== "ALL" ||
+      timeFrom ||
+      timeTo ||
+      sortOrder !== "newest"
+  );
 
   // Reset pagination to page 1 on filter/search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, countryFilter]);
+  }, [
+    search,
+    statusFilter,
+    countryFilter,
+    dateFilter,
+    customDate,
+    timeFilter,
+    timeFrom,
+    timeTo,
+    sortOrder,
+  ]);
 
   // Slice for current page
   const totalPages = Math.ceil(filteredRfqs.length / PAGE_SIZE) || 1;
@@ -114,6 +201,12 @@ export default function AdminRfqPage() {
     setSearch("");
     setStatusFilter("all");
     setCountryFilter("all");
+    setDateFilter("ALL");
+    setCustomDate("");
+    setTimeFilter("ALL");
+    setTimeFrom("");
+    setTimeTo("");
+    setSortOrder("newest");
     setCurrentPage(1);
   };
 
@@ -131,7 +224,7 @@ export default function AdminRfqPage() {
             </span>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Review wholesale requests, buyer requirements and quotation activity.
+            Review wholesale requests, buyer requirements and quotation activity with precise date &amp; time filtering.
           </p>
         </div>
 
@@ -148,15 +241,18 @@ export default function AdminRfqPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards & Today's RFQ Activity Tile */}
       <RfqKpis
         counts={kpiCounts}
+        todaySummary={todaySummary}
         activeStatusFilter={statusFilter}
         onSelectStatusFilter={(status) => setStatusFilter(status)}
+        activeDateFilter={dateFilter}
+        onSelectDateFilter={(df) => setDateFilter(df)}
         isLoading={loading}
       />
 
-      {/* Toolbar: Search, Filters, Reset */}
+      {/* Toolbar: Search, Filters, Date & Time Tiles, Sort, Reset */}
       <RfqToolbar
         search={search}
         onSearchChange={setSearch}
@@ -165,6 +261,18 @@ export default function AdminRfqPage() {
         countryFilter={countryFilter}
         onCountryFilterChange={setCountryFilter}
         availableCountries={availableCountries}
+        dateFilter={dateFilter}
+        onDateFilterChange={setDateFilter}
+        customDate={customDate}
+        onCustomDateChange={setCustomDate}
+        timeFilter={timeFilter}
+        onTimeFilterChange={setTimeFilter}
+        timeFrom={timeFrom}
+        onTimeFromChange={setTimeFrom}
+        timeTo={timeTo}
+        onTimeToChange={setTimeTo}
+        sortOrder={sortOrder}
+        onSortOrderChange={setSortOrder}
         totalResults={filteredRfqs.length}
         onResetFilters={handleResetFilters}
         isLoading={loading}
@@ -176,7 +284,7 @@ export default function AdminRfqPage() {
         isLoading={loading}
         error={error}
         onRetry={loadRfqs}
-        isFiltered={Boolean(search || statusFilter !== "all" || countryFilter !== "all")}
+        isFiltered={isFiltered}
         onResetFilters={handleResetFilters}
         detailBaseUrl={detailBaseUrl}
       />

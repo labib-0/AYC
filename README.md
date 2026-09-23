@@ -27,10 +27,12 @@ To learn more about Next.js, take a look at the following resources:
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Promotions & Promo Code System
 
-## Deploy on Vercel
+Ayaan Clothing includes a centralized, frontend-only coupon and promotional discount engine:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Storage & Source of Truth:** Promo codes and coupons are managed via the Admin Portal (`/admin/promotions`) and stored centrally in the mock store (`src/lib/mock-data/mock-store.ts`, backed by persistent browser `localStorage`).
+- **Validation:** Centralized in [`src/lib/coupon.ts`](file:///Users/luhasan/Documents/ayaan/src/lib/coupon.ts) (`validateCoupon()`). Matches codes case-insensitively, enforces active date ranges (`starts_at`, `expires_at`), checks usage limits (`usage_limit` vs `usage_count`), and verifies minimum order requirements (`min_spend`).
+- **Discount Calculation:** Handles percentage (`%`) and fixed amount (`$`) discounts, applies `max_discount` caps when defined, and strictly constrains discounts to not exceed the merchandise subtotal. Promo discounts apply to goods value before freight.
+- **Checkout & Cart Integration:** Embedded in [`CheckoutModal.tsx`](file:///Users/luhasan/Documents/ayaan/src/components/cart/CheckoutModal.tsx). Automatically recalculates or revalidates discounts when cart items or quantities change. Applied coupon details (`coupon_code`, `discount_amount`) are recorded into the order record, displayed on customer dashboards, and rendered on Proforma Invoices.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

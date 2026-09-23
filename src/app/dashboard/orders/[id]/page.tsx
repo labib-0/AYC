@@ -570,9 +570,13 @@ export default function CustomerOrderDetailPage({ params }: Props) {
           )}
 
           {Number(order.discount_amount) > 0 && (
-            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-              <span>Volume Discount / Concession</span>
-              <span className="font-semibold">-{formatUSD(order.discount_amount)}</span>
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+              <span>
+                {order.coupon_code || order.promo_code
+                  ? `Discount (${order.coupon_code || order.promo_code})`
+                  : "Volume Discount / Concession"}
+              </span>
+              <span className="font-semibold font-mono">-{formatUSD(order.discount_amount)}</span>
             </div>
           )}
 

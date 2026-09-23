@@ -44,7 +44,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "buyer",
         senderName: "Tariq Al-Mansoor",
         message: "Hello Ayaan team, we are looking for a reliable shipment of 500 pcs to Dubai. Please confirm lead time and available export certifications.",
-        createdAt: "2026-08-24T14:30:00Z",
+        createdAt: "2026-09-23T08:30:00.000Z",
       },
       {
         id: "msg_101_2",
@@ -74,7 +74,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-24T14:30:00Z",
-    updatedAt: "2026-08-24T15:10:00Z",
+    updatedAt: "2026-09-23T09:15:00.000Z",
   },
   {
     id: "rfq_demo_102",
@@ -119,7 +119,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderName: "Marcus Vance",
         senderRole: "buyer",
         message: "Can you provide quotation with CIF London air freight?",
-        createdAt: "2026-08-20T10:00:00Z",
+        createdAt: "2026-09-23T11:15:00.000Z",
       },
       {
         id: "msg_102_2",
@@ -150,7 +150,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
     ],
     quotationId: "qt_demo_102",
     createdAt: "2026-08-20T09:30:00Z",
-    updatedAt: "2026-08-21T14:30:00Z",
+    updatedAt: "2026-09-23T12:00:00.000Z",
   },
   {
     id: "rfq_demo_103",
@@ -195,7 +195,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "buyer",
         senderName: "Sarah Jenkins",
         message: "Hi! We are expanding our West Coast stores and would like to review fabric swatches for the denim jackets.",
-        createdAt: "2026-08-29T11:20:00Z",
+        createdAt: "2026-09-23T14:45:00.000Z",
       },
     ],
     history: [
@@ -209,7 +209,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-29T11:15:00Z",
-    updatedAt: "2026-08-29T11:20:00Z",
+    updatedAt: "2026-09-23T15:10:00.000Z",
   },
   {
     id: "rfq_demo_104",
@@ -254,7 +254,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "buyer",
         senderName: "Kenji Sato",
         message: "Konichiwa! Can you verify colorfastness grade 4 or above?",
-        createdAt: "2026-08-25T08:00:00Z",
+        createdAt: "2026-09-23T17:20:00.000Z",
       },
       {
         id: "msg_104_2",
@@ -285,7 +285,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
     ],
     quotationId: "qt_demo_104",
     createdAt: "2026-08-25T07:45:00Z",
-    updatedAt: "2026-08-26T16:00:00Z",
+    updatedAt: "2026-09-23T17:45:00.000Z",
   },
   {
     id: "rfq_demo_105",
@@ -330,7 +330,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "buyer",
         senderName: "Chloe Dubois",
         message: "Bonjour. Can we negotiate the price down by $1.50 per piece for a repeat 400-piece order?",
-        createdAt: "2026-08-27T10:00:00Z",
+        createdAt: "2026-09-22T09:10:00.000Z",
       },
       {
         id: "msg_105_2",
@@ -361,7 +361,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
     ],
     quotationId: "qt_demo_105",
     createdAt: "2026-08-23T14:00:00Z",
-    updatedAt: "2026-08-27T14:20:00Z",
+    updatedAt: "2026-09-22T10:00:00.000Z",
   },
   {
     id: "rfq_demo_106",
@@ -407,11 +407,11 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         status: "SUBMITTED",
         actorName: "Liam O'Connor",
         note: "RFQ submitted for Dublin department store restocking",
-        createdAt: "2026-08-28T09:00:00Z",
+        createdAt: "2026-09-22T13:30:00.000Z",
       },
     ],
     createdAt: "2026-08-28T09:00:00Z",
-    updatedAt: "2026-08-28T09:00:00Z",
+    updatedAt: "2026-09-22T14:15:00.000Z",
   },
   {
     id: "rfq_demo_107",
@@ -456,7 +456,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "buyer",
         senderName: "Matteo Rossi",
         message: "We have reviewed and accepted Quotation QT-2026-000107. Please generate Proforma Invoice for 50% deposit.",
-        createdAt: "2026-08-23T11:45:00Z",
+        createdAt: "2026-09-22T18:45:00.000Z",
       },
     ],
     history: [
@@ -486,7 +486,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
     ],
     quotationId: "qt_demo_107",
     createdAt: "2026-08-21T10:00:00Z",
-    updatedAt: "2026-08-23T11:45:00Z",
+    updatedAt: "2026-09-22T19:00:00.000Z",
   },
   {
     id: "rfq_demo_108",
@@ -531,7 +531,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "admin",
         senderName: "Ayaan Export Sales",
         message: "Hej Sofia! Quotation QT-2026-000108 has been issued with DDP Stockholm terms.",
-        createdAt: "2026-08-27T09:00:00Z",
+        createdAt: "2026-09-21T10:20:00.000Z",
       },
     ],
     history: [
@@ -553,7 +553,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
     ],
     quotationId: "qt_demo_108",
     createdAt: "2026-08-26T15:00:00Z",
-    updatedAt: "2026-08-27T09:00:00Z",
+    updatedAt: "2026-09-21T11:00:00.000Z",
   },
   {
     id: "rfq_demo_109",
@@ -595,11 +595,11 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_109",
         status: "SUBMITTED",
         actorName: "David Zhang",
-        createdAt: "2026-08-29T16:00:00Z",
+        createdAt: "2026-09-20T15:15:00.000Z",
       },
     ],
     createdAt: "2026-08-29T16:00:00Z",
-    updatedAt: "2026-08-29T16:00:00Z",
+    updatedAt: "2026-09-20T16:00:00.000Z",
   },
   {
     id: "rfq_demo_110",
@@ -641,7 +641,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "admin",
         senderName: "Ayaan Compliance Desk",
         message: "Hello Amara, please provide your authorized Form M agent number in Lagos so we can quote custom clearing.",
-        createdAt: "2026-08-28T14:00:00Z",
+        createdAt: "2026-09-19T11:00:00.000Z",
       },
     ],
     history: [
@@ -662,7 +662,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-27T10:00:00Z",
-    updatedAt: "2026-08-28T14:00:00Z",
+    updatedAt: "2026-09-19T11:30:00.000Z",
   },
   {
     id: "rfq_demo_111",
@@ -702,11 +702,11 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_111",
         status: "SUBMITTED",
         actorName: "Carlos Mendez",
-        createdAt: "2026-08-29T10:00:00Z",
+        createdAt: "2026-09-18T16:40:00.000Z",
       },
     ],
     createdAt: "2026-08-29T10:00:00Z",
-    updatedAt: "2026-08-29T10:00:00Z",
+    updatedAt: "2026-09-18T17:15:00.000Z",
   },
   {
     id: "rfq_demo_112",
@@ -746,7 +746,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_112",
         status: "SUBMITTED",
         actorName: "Priya Sharma",
-        createdAt: "2026-08-28T12:00:00Z",
+        createdAt: "2026-09-17T09:30:00.000Z",
       },
       {
         id: "hist_112_2",
@@ -757,7 +757,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-28T12:00:00Z",
-    updatedAt: "2026-08-29T08:00:00Z",
+    updatedAt: "2026-09-17T10:00:00.000Z",
   },
   {
     id: "rfq_demo_113",
@@ -797,7 +797,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "buyer",
         senderName: "Hans Gruber",
         message: "Quotation accepted. Advance payment of 30% has been transferred to DBBL account.",
-        createdAt: "2026-08-21T16:00:00Z",
+        createdAt: "2026-09-15T14:00:00.000Z",
       },
     ],
     history: [
@@ -819,7 +819,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
     ],
     quotationId: "qt_demo_113",
     createdAt: "2026-08-19T09:00:00Z",
-    updatedAt: "2026-08-21T16:00:00Z",
+    updatedAt: "2026-09-15T14:45:00.000Z",
   },
   {
     id: "rfq_demo_114",
@@ -859,11 +859,11 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_114",
         status: "SUBMITTED",
         actorName: "Lucas Silva",
-        createdAt: "2026-08-29T14:30:00Z",
+        createdAt: "2026-09-13T10:45:00.000Z",
       },
     ],
     createdAt: "2026-08-29T14:30:00Z",
-    updatedAt: "2026-08-29T14:30:00Z",
+    updatedAt: "2026-09-13T11:15:00.000Z",
   },
   {
     id: "rfq_demo_115",
@@ -903,7 +903,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_115",
         status: "SUBMITTED",
         actorName: "Fatima Al-Zahra",
-        createdAt: "2026-08-28T16:00:00Z",
+        createdAt: "2026-09-11T17:15:00.000Z",
       },
       {
         id: "hist_115_2",
@@ -915,7 +915,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-28T16:00:00Z",
-    updatedAt: "2026-08-29T09:00:00Z",
+    updatedAt: "2026-09-11T17:40:00.000Z",
   },
   {
     id: "rfq_demo_116",
@@ -955,7 +955,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "admin",
         senderName: "Ayaan Export Sales",
         message: "Quotation QT-2026-000116 generated with FOB Chittagong pricing and UPF testing report.",
-        createdAt: "2026-08-28T07:30:00Z",
+        createdAt: "2026-09-08T13:20:00.000Z",
       },
     ],
     history: [
@@ -976,7 +976,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
     ],
     quotationId: "qt_demo_116",
     createdAt: "2026-08-27T04:00:00Z",
-    updatedAt: "2026-08-28T07:30:00Z",
+    updatedAt: "2026-09-08T14:00:00.000Z",
   },
   {
     id: "rfq_demo_117",
@@ -1016,11 +1016,11 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_117",
         status: "SUBMITTED",
         actorName: "Elena Rostova",
-        createdAt: "2026-08-29T06:00:00Z",
+        createdAt: "2026-09-05T11:30:00.000Z",
       },
     ],
     createdAt: "2026-08-29T06:00:00Z",
-    updatedAt: "2026-08-29T06:00:00Z",
+    updatedAt: "2026-09-05T12:00:00.000Z",
   },
   {
     id: "rfq_demo_118",
@@ -1060,7 +1060,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_118",
         status: "SUBMITTED",
         actorName: "Wei Chen",
-        createdAt: "2026-08-20T03:00:00Z",
+        createdAt: "2026-09-03T09:00:00.000Z",
       },
       {
         id: "hist_118_2",
@@ -1071,7 +1071,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-20T03:00:00Z",
-    updatedAt: "2026-08-23T09:00:00Z",
+    updatedAt: "2026-09-03T09:30:00.000Z",
   },
   {
     id: "rfq_demo_119",
@@ -1111,11 +1111,11 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_119",
         status: "SUBMITTED",
         actorName: "Noor Al-Sabah",
-        createdAt: "2026-08-29T13:00:00Z",
+        createdAt: "2026-09-01T16:10:00.000Z",
       },
     ],
     createdAt: "2026-08-29T13:00:00Z",
-    updatedAt: "2026-08-29T13:00:00Z",
+    updatedAt: "2026-09-01T16:40:00.000Z",
   },
   {
     id: "rfq_demo_120",
@@ -1155,7 +1155,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_120",
         status: "SUBMITTED",
         actorName: "James Wilson",
-        createdAt: "2026-08-27T15:00:00Z",
+        createdAt: "2026-08-30T14:30:00.000Z",
       },
       {
         id: "hist_120_2",
@@ -1166,7 +1166,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-27T15:00:00Z",
-    updatedAt: "2026-08-28T10:00:00Z",
+    updatedAt: "2026-08-30T15:00:00.000Z",
   },
   {
     id: "rfq_demo_121",
@@ -1206,7 +1206,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "admin",
         senderName: "Sales Desk",
         message: "Target price of $11.00 is below production cost for 150 pieces customized wash run.",
-        createdAt: "2026-08-25T11:00:00Z",
+        createdAt: "2026-08-28T10:15:00.000Z",
       },
     ],
     history: [
@@ -1227,7 +1227,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-24T09:00:00Z",
-    updatedAt: "2026-08-25T11:00:00Z",
+    updatedAt: "2026-08-28T11:00:00.000Z",
   },
   {
     id: "rfq_demo_122",
@@ -1267,7 +1267,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_122",
         status: "SUBMITTED",
         actorName: "Kim Min-Jun",
-        createdAt: "2026-08-26T02:00:00Z",
+        createdAt: "2026-08-27T15:45:00.000Z",
       },
       {
         id: "hist_122_2",
@@ -1278,7 +1278,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-26T02:00:00Z",
-    updatedAt: "2026-08-27T10:00:00Z",
+    updatedAt: "2026-08-27T16:20:00.000Z",
   },
   {
     id: "rfq_demo_123",
@@ -1318,11 +1318,11 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_123",
         status: "SUBMITTED",
         actorName: "Olivia Taylor",
-        createdAt: "2026-08-29T03:00:00Z",
+        createdAt: "2026-08-26T08:30:00.000Z",
       },
     ],
     createdAt: "2026-08-29T03:00:00Z",
-    updatedAt: "2026-08-29T03:00:00Z",
+    updatedAt: "2026-08-26T09:00:00.000Z",
   },
   {
     id: "rfq_demo_124",
@@ -1362,7 +1362,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         rfqId: "rfq_demo_124",
         status: "SUBMITTED",
         actorName: "Andreas Schneider",
-        createdAt: "2026-08-27T11:00:00Z",
+        createdAt: "2026-08-25T13:00:00.000Z",
       },
       {
         id: "hist_124_2",
@@ -1373,7 +1373,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-27T11:00:00Z",
-    updatedAt: "2026-08-28T09:30:00Z",
+    updatedAt: "2026-08-25T13:30:00.000Z",
   },
   {
     id: "rfq_demo_125",
@@ -1413,7 +1413,7 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
         senderRole: "buyer",
         senderName: "Daniel Kim",
         message: "We have finalized our wholesale contract. Please start lab dip approvals.",
-        createdAt: "2026-08-25T17:00:00Z",
+        createdAt: "2026-08-24T11:00:00.000Z",
       },
     ],
     history: [
@@ -1433,6 +1433,6 @@ export const INITIAL_MOCK_RFQS: RfqRecord[] = [
       },
     ],
     createdAt: "2026-08-22T13:00:00Z",
-    updatedAt: "2026-08-25T17:00:00Z",
+    updatedAt: "2026-08-24T11:30:00.000Z",
   },
 ];

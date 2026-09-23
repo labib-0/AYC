@@ -95,6 +95,8 @@ export interface OrderRecord {
   other_charges_cents?: number;
   discount_amount: number;
   discount_cents: number;
+  coupon_code?: string;
+  promo_code?: string;
   total_amount: number;
   total_cents: number;
   payment_proof_url?: string;
@@ -129,6 +131,9 @@ export interface CreateOrderInput {
   shippingQuoteId?: string;
   shippingSnapshot?: any;
   otherCharges?: number;
+  couponCode?: string;
+  promoCode?: string;
+  discountAmount?: number;
   paymentMethod?: string;
   notes?: string;
   transportMethod?: string;
@@ -181,8 +186,12 @@ export class OrderService {
   async createOrder(input: CreateOrderInput): Promise<OrderRecord> {
     const totalUnits = input.items.reduce((sum, i) => sum + (i.quantity || 1), 0);
     const subtotal = input.items.reduce((sum, i) => sum + (i.unitPrice || 15) * (i.quantity || 1), 0);
+    const requestedDiscount = input.discountAmount || 0;
+    const discount = Math.min(subtotal, Math.max(0, Math.round(requestedDiscount * 100) / 100));
     const shipping = input.shippingCost || 0;
-    const grandTotal = subtotal + shipping;
+    const otherCharges = input.otherCharges || 0;
+    const grandTotal = Math.max(0, subtotal - discount) + shipping + otherCharges;
+    const appliedCode = (input.couponCode || input.promoCode || "").trim().toUpperCase() || undefined;
 
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const randNum = Math.floor(100000 + Math.random() * 900000);
@@ -248,8 +257,12 @@ export class OrderService {
       shipping_cents: Math.round(shipping * 100),
       tax_amount: 0,
       tax_cents: 0,
-      discount_amount: 0,
-      discount_cents: 0,
+      other_charges: otherCharges,
+      other_charges_cents: Math.round(otherCharges * 100),
+      discount_amount: discount,
+      discount_cents: Math.round(discount * 100),
+      coupon_code: appliedCode,
+      promo_code: appliedCode,
       total_amount: grandTotal,
       total_cents: Math.round(grandTotal * 100),
       placed_at: new Date().toISOString(),
@@ -285,6 +298,11 @@ export class OrderService {
     };
 
     mockStore.saveOrder(newOrder);
+
+    if (appliedCode) {
+      mockStore.incrementCouponUsage(appliedCode);
+    }
+
     return newOrder;
   }
 
