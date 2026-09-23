@@ -495,7 +495,7 @@ export class ProductService {
           const pBrandClean = (p.brand || "").toLowerCase().replace(/['’.\s-]/g, "");
           const pBrandRaw = (p.brand || "").toLowerCase();
           const match = brands.some((b) => {
-            const bClean = b.replace(/['’.\s-]/g, "");
+            const bClean = b.replace(/^br_/, "").replace(/['’.\s-]/g, "");
             return (
               pBrandRaw === b ||
               pBrandClean === bClean ||

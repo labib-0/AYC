@@ -6,13 +6,18 @@ import { DEFAULT_TOP_BANNER, getTopBannerConfig, TopBannerConfig } from "@/confi
 
 export default function TopBanner() {
   const [banner, setBanner] = useState<TopBannerConfig>(DEFAULT_TOP_BANNER);
+  const [imgSrc, setImgSrc] = useState<string>(DEFAULT_TOP_BANNER.imageUrl);
 
   // Synchronize banner with admin-configured data & listen for updates
   useEffect(() => {
-    setBanner(getTopBannerConfig());
+    const config = getTopBannerConfig();
+    setBanner(config);
+    setImgSrc(config.imageUrl || DEFAULT_TOP_BANNER.imageUrl);
 
     const handleDataUpdate = () => {
-      setBanner(getTopBannerConfig());
+      const updated = getTopBannerConfig();
+      setBanner(updated);
+      setImgSrc(updated.imageUrl || DEFAULT_TOP_BANNER.imageUrl);
     };
 
     window.addEventListener("ayaan:data-updated", handleDataUpdate);
@@ -56,8 +61,13 @@ export default function TopBanner() {
             
             {/* Background Photographic Image (Natural appearance preserved) */}
             <img
-              src={banner.imageUrl}
+              src={imgSrc}
               alt={banner.altText}
+              onError={() => {
+                if (imgSrc !== DEFAULT_TOP_BANNER.imageUrl) {
+                  setImgSrc(DEFAULT_TOP_BANNER.imageUrl);
+                }
+              }}
               className="absolute inset-0 w-full h-full object-cover object-center md:object-right transition-transform duration-700 ease-out group-hover:scale-[1.012]"
               loading="eager"
             />

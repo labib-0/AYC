@@ -80,7 +80,7 @@ export async function getProductShippingSpecs(
  * Options for querying featured products with pagination and filters
  */
 export interface FeaturedProductsOptions {
-  tab: "best-deals" | "new-arrivals";
+  tab?: "best-deals" | "new-arrivals" | "all";
   offset?: number;
   limit?: number;
   brands?: string[];
@@ -96,12 +96,13 @@ export async function getFeaturedProducts(
   options: FeaturedProductsOptions
 ): Promise<{ products: Product[]; total: number; hasMore: boolean }> {
   const isDeals = options.tab === "best-deals";
+  const isNew = options.tab === "new-arrivals";
   const offset = options.offset ?? 0;
   const limit = options.limit ?? 15;
 
   const queryParams: ProductQueryParams = {
     is_best_deal: isDeals ? true : undefined,
-    is_new: !isDeals ? true : undefined,
+    is_new: isNew ? true : undefined,
     brand: options.brands && options.brands.length > 0 ? options.brands.join(",") : undefined,
     design_type: options.designTypes && options.designTypes.length > 0 ? options.designTypes.join(",") : undefined,
     audience: options.audiences && options.audiences.length > 0 ? options.audiences.join(",") : undefined,
@@ -142,7 +143,77 @@ export function getInitialFeaturedProducts(
       const pBrandRaw = (p.brand || "").toLowerCase();
       return brands.some((b) => {
         const bLower = b.toLowerCase();
-        const bClean = bLower.replace(/['’.\s-]/g, "");
+        const bClean = bLower.replace(/^br_/, "").replace(/['’.\s-]/g, "");
+        return (
+          pBrandRaw === bLower ||
+          pBrandClean === bClean ||
+          pBrandRaw.includes(bLower) ||
+          bLower.includes(pBrandRaw) ||
+          pBrandClean.includes(bClean) ||
+          bClean.includes(pBrandClean)
+        );
+      });
+    });
+  }
+  if (designTypes && designTypes.length > 0) {
+    const dtUpper = designTypes.map((d) => {
+      const u = d.toUpperCase();
+      if (u === "REPLICA" || u === "MASTER_COPY" || u === "MASTER COPY" || u === "MC") return "MASTER COPY";
+      return u;
+    });
+    filtered = filtered.filter((p) => {
+      const rawDt = ((p as any).designType || "ORIGINAL").toUpperCase();
+      const pDt = (rawDt === "REPLICA" || rawDt === "MC") ? "MASTER COPY" : rawDt;
+      return dtUpper.includes(pDt);
+    });
+  }
+  if (audiences && audiences.length > 0) {
+    const aUpper = audiences.map((a) => a.toUpperCase());
+    filtered = filtered.filter((p) => {
+      const pAud = (p.audience || "").toUpperCase();
+      const pCatId = (p.categoryId || "").toUpperCase();
+      return aUpper.some((a) => pAud === a || pCatId.includes(a));
+    });
+  }
+  if (categories && categories.length > 0) {
+    const cleanCats = categories.map((c) => c.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    filtered = filtered.filter((p) => {
+      const pCatName = (p.categoryName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const pCatId = (p.categoryId || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      return cleanCats.some(
+        (c) =>
+          pCatName === c ||
+          pCatId === c ||
+          pCatName.includes(c) ||
+          c.includes(pCatName) ||
+          pCatId.includes(c) ||
+          c.includes(pCatId)
+      );
+    });
+  }
+
+  return filtered.slice(0, limit).map(toStorefrontProduct);
+}
+
+/**
+ * Synchronous initial fallback for Shop By Brand inline expansion (default 21 items)
+ */
+export function getInitialBrandProducts(
+  brands: string[],
+  limit: number = 21,
+  audiences?: string[],
+  categories?: string[],
+  designTypes?: string[]
+): Product[] {
+  let filtered = [...INITIAL_MOCK_PRODUCTS];
+
+  if (brands && brands.length > 0) {
+    filtered = filtered.filter((p) => {
+      const pBrandClean = (p.brand || "").toLowerCase().replace(/['’.\s-]/g, "");
+      const pBrandRaw = (p.brand || "").toLowerCase();
+      return brands.some((b) => {
+        const bLower = b.toLowerCase();
+        const bClean = bLower.replace(/^br_/, "").replace(/['’.\s-]/g, "");
         return (
           pBrandRaw === bLower ||
           pBrandClean === bClean ||

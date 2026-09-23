@@ -41,10 +41,15 @@ export function getTopBannerConfig(): TopBannerConfig {
     );
 
     if (bannerPromo) {
+      const resolvedImageUrl =
+        bannerPromo.image_url && !bannerPromo.image_url.includes("ayaan-top-banner")
+          ? bannerPromo.image_url
+          : DEFAULT_TOP_BANNER.imageUrl;
+
       if (!bannerPromo.is_active) {
         return {
           id: bannerPromo.id,
-          imageUrl: bannerPromo.image_url || DEFAULT_TOP_BANNER.imageUrl,
+          imageUrl: resolvedImageUrl,
           altText: bannerPromo.title || DEFAULT_TOP_BANNER.altText,
           eyebrow: DEFAULT_TOP_BANNER.eyebrow,
           title: bannerPromo.title || DEFAULT_TOP_BANNER.title,
@@ -55,19 +60,17 @@ export function getTopBannerConfig(): TopBannerConfig {
         };
       }
 
-      if (bannerPromo.image_url) {
-        return {
-          id: bannerPromo.id,
-          imageUrl: bannerPromo.image_url,
-          altText: bannerPromo.title || DEFAULT_TOP_BANNER.altText,
-          eyebrow: DEFAULT_TOP_BANNER.eyebrow,
-          title: bannerPromo.title || DEFAULT_TOP_BANNER.title,
-          subtitle: bannerPromo.subtitle !== undefined ? bannerPromo.subtitle : DEFAULT_TOP_BANNER.subtitle,
-          buttonText: bannerPromo.button_text || DEFAULT_TOP_BANNER.buttonText,
-          target: bannerPromo.button_target || DEFAULT_TOP_BANNER.target,
-          active: true,
-        };
-      }
+      return {
+        id: bannerPromo.id,
+        imageUrl: resolvedImageUrl,
+        altText: bannerPromo.title || DEFAULT_TOP_BANNER.altText,
+        eyebrow: DEFAULT_TOP_BANNER.eyebrow,
+        title: bannerPromo.title || DEFAULT_TOP_BANNER.title,
+        subtitle: bannerPromo.subtitle !== undefined ? bannerPromo.subtitle : DEFAULT_TOP_BANNER.subtitle,
+        buttonText: bannerPromo.button_text || DEFAULT_TOP_BANNER.buttonText,
+        target: bannerPromo.button_target || DEFAULT_TOP_BANNER.target,
+        active: true,
+      };
     }
   } catch {
     // Fallback gracefully if mockStore is not ready
