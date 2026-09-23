@@ -230,13 +230,13 @@ export default function SearchOverlay({
                       onClick={onClose}
                       className="group relative flex flex-col bg-slate-50/70 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-white/10 p-2 transition-all duration-150 text-left hover:shadow-xs hover:border-foreground/30"
                     >
-                      {/* Compact Image */}
-                      <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-2">
+                      {/* Compact Image — Canonical 4:5 */}
+                      <div className="relative aspect-[4/5] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={product.images?.[0] || "/placeholder.jpg"}
                           alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                           loading="lazy"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";
@@ -376,12 +376,12 @@ export default function SearchOverlay({
                   onClick={onClose}
                   className="group relative flex flex-col bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200/80 dark:border-white/10 p-2 text-left"
                 >
-                  <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-1.5">
+                  <div className="relative aspect-[4/5] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-1.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={product.images?.[0] || "/placeholder.jpg"}
                       alt={product.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                       loading="lazy"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";

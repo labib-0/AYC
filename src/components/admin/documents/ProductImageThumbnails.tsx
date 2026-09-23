@@ -43,7 +43,7 @@ export default function ProductImageThumbnails({
               key={`${img}-${idx}`}
               type="button"
               onClick={() => onSelect(idx)}
-              className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg p-1 bg-secondary/25 border transition-all duration-150 cursor-pointer flex items-center justify-center overflow-hidden print:cursor-default ${
+              className={`relative w-12 sm:w-14 aspect-[4/5] rounded-lg p-1 bg-secondary/25 border transition-all duration-150 cursor-pointer flex items-center justify-center overflow-hidden print:cursor-default ${
                 isSelected
                   ? "border-primary ring-2 ring-primary/30 shadow-xs print:ring-0 print:border-slate-800"
                   : "border-border/70 hover:border-foreground/50 print:border-slate-300 opacity-85 hover:opacity-100"

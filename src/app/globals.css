@@ -62,7 +62,7 @@
 :root {
   --storefront-body-size: 0.8125rem;
   --storefront-body-lh: 1.45;
-  --product-image-ratio: 3 / 4;
+  --product-image-ratio: 4 / 5;
   --radius: 0.75rem;
   --brand-orange: #EA580C;
   --background: oklch(0.985 0.008 85);
@@ -233,7 +233,7 @@
 }
 
 @utility aspect-product {
-  aspect-ratio: var(--product-image-ratio, 3 / 4);
+  aspect-ratio: var(--product-image-ratio, 4 / 5);
 }
 
 @keyframes ticker-marquee {

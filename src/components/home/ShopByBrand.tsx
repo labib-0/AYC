@@ -14,6 +14,10 @@ import {
   getFeaturedProducts,
   getInitialBrandProducts,
 } from "@/lib/services/products";
+import {
+  notifyExplorerActive,
+  subscribeToExplorerActive,
+} from "@/lib/services/explorer-coordinator";
 
 export interface Brand {
   id: string;
@@ -195,6 +199,11 @@ export default function ShopByBrand() {
       return;
     }
 
+    // CRITICAL GLOBAL RULE: On ANY filter or selection change, reset to manual mode with max 21 products!
+    setHasLoadedMore(false);
+    setIsContinuousMode(false);
+    isContinuousModeRef.current = false;
+
     generationRef.current += 1;
     const currentGen = generationRef.current;
 
@@ -244,6 +253,7 @@ export default function ShopByBrand() {
       return;
     }
 
+    notifyExplorerActive("shop-by-brand", "open");
     handleFilterUpdate(nextBrands, selectedDesignTypes, selectedAudiences, selectedCategories);
 
     if (selectedBrands.length === 0 && nextBrands.length > 0) {
@@ -256,6 +266,7 @@ export default function ShopByBrand() {
   // First Load More Click: Loads next batch, activates continuous mode, and opens filter rail on left
   const handleLoadMoreClick = async () => {
     if (isLoadingRef.current || isContinuousMode || !hasMore) return;
+    notifyExplorerActive("shop-by-brand", "load-more");
 
     isLoadingRef.current = true;
     setIsLoadingMore(true);
@@ -405,7 +416,17 @@ export default function ShopByBrand() {
     setIsContinuousMode(false);
     isContinuousModeRef.current = false;
     setHasLoadedMore(false);
+    setIsAllCategoriesOpen(false);
   };
+
+  // Subscribe to explorer coordination: Close Shop By Brand expansion when another section is active
+  useEffect(() => {
+    return subscribeToExplorerActive((detail) => {
+      if (detail.activeSection !== "shop-by-brand") {
+        handleClearAll();
+      }
+    });
+  }, []);
 
   const removeSingleFilter = (
     type: "brand" | "designType" | "audience" | "category",

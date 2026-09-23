@@ -43,8 +43,8 @@ export default function OrderItemsTable({ items }: OrderItemsTableProps) {
 
           return (
             <div key={item.id || `item-${idx}`} className="py-4 flex items-start sm:items-center gap-4 text-xs">
-              {/* Thumbnail Image */}
-              <div className="w-14 h-16 rounded-xl bg-secondary shrink-0 border border-border/50 overflow-hidden flex items-center justify-center relative">
+              {/* Thumbnail Image — Canonical 4:5 */}
+              <div className="w-14 aspect-[4/5] rounded-xl bg-secondary shrink-0 border border-border/50 overflow-hidden flex items-center justify-center relative">
                 {imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

@@ -13,6 +13,7 @@ import ProductPromotionBadges from "@/components/common/ProductPromotionBadges";
 import ProductBadge from "@/components/common/ProductBadge";
 
 import { generateProductImageAlt } from "@/lib/seo";
+import ProductImageFrame from "./ProductImageFrame";
 
 interface ProductCardProps {
   product: Product;
@@ -22,7 +23,6 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { openProductModal } = useProductModal();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { user } = useAuth();
-  const [imgError, setImgError] = useState(false);
 
   const isWishlisted = isInWishlist(product.id);
 
@@ -43,24 +43,17 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div className="group relative flex flex-col w-full h-full bg-card rounded-2xl border border-border/80 shadow-[0_1px_4px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:shadow-md hover:border-border transition-all duration-300 overflow-hidden font-sans">
-      {/* Top Image Container (Flush with upper card boundaries) */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden bg-secondary/50 shrink-0">
+      {/* Top Image Container (Flush with upper card boundaries) — Canonical 4:5 */}
+      <div className="relative aspect-[4/5] w-full overflow-hidden bg-secondary/40 dark:bg-white/5 shrink-0">
         <Link href={`/products/${product.slug}`} className="block w-full h-full">
-          {!imgError ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={coverImage}
-              alt={imageAlt}
-              loading="lazy"
-              decoding="async"
-              className="w-full h-full object-cover object-center transition-transform duration-500 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-105"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-secondary to-muted flex items-center justify-center">
-              <span className="text-muted-foreground/40 text-sm font-medium text-center px-4">{product.name}</span>
-            </div>
-          )}
+          <ProductImageFrame
+            src={coverImage}
+            alt={imageAlt}
+            referenceSize="listing"
+            hoverZoom
+            fallbackText={product.name}
+            className="w-full h-full border-0 bg-transparent dark:bg-transparent"
+          />
         </Link>
 
         {/* Global Normalized Promotional Badges (Top Left) */}

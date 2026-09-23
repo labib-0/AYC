@@ -139,14 +139,14 @@ export function DashboardReorderPreview({ orders, catalogProducts = [] }: Reorde
               className="group rounded-xl border border-slate-200/80 dark:border-white/10 p-3.5 hover:border-amber-400 dark:hover:border-amber-600 transition-all flex flex-col justify-between bg-slate-50/40 dark:bg-white/[0.01]"
             >
               <div>
-                {/* Image */}
-                <div className="aspect-square rounded-lg overflow-hidden bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/5 mb-3 relative">
+                {/* Image — Canonical 4:5 */}
+                <div className="aspect-[4/5] rounded-lg overflow-hidden bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/5 mb-3 relative flex items-center justify-center p-1">
                   {item.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={item.imageUrl}
                       alt={item.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">

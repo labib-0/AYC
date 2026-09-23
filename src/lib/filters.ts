@@ -23,6 +23,10 @@ export const PRODUCT_CATEGORIES = [
   "Trousers",
   "Pants",
   "Shorts",
+  "Jackets",
+  "Polo Shirts",
+  "Activewear",
+  "Knitwear",
   "Shirts",
   "Beachwear",
   "Socks",
@@ -164,6 +168,43 @@ export function getProductCategories(product: Product): string[] {
   ) {
     cats.push("Sports");
   }
+  if (
+    name.includes("jacket") ||
+    name.includes("coat") ||
+    name.includes("vest") ||
+    name.includes("parka") ||
+    name.includes("bomber") ||
+    name.includes("blazer") ||
+    name.includes("windbreaker") ||
+    name.includes("anorak") ||
+    sku.includes("-jkt-")
+  ) {
+    cats.push("Jackets");
+  }
+  if (name.includes("polo") || sku.includes("-pol-")) {
+    cats.push("Polo Shirts");
+  }
+  if (
+    name.includes("knit") ||
+    name.includes("cardigan") ||
+    name.includes("sweater") ||
+    name.includes("pullover")
+  ) {
+    cats.push("Knitwear");
+  }
+  if (
+    name.includes("sport") ||
+    name.includes("running") ||
+    name.includes("training") ||
+    name.includes("performance") ||
+    name.includes("athletic") ||
+    name.includes("gym") ||
+    name.includes("yoga") ||
+    name.includes("compression") ||
+    name.includes("active")
+  ) {
+    cats.push("Activewear");
+  }
   if (name.includes("towel") || sku.includes("-twl-")) {
     cats.push("Towels");
   }
@@ -289,6 +330,7 @@ export function filterProducts({
     const categoryOk =
       isAllCategories ||
       categoryNames.some((cat) => {
+        if (!cat) return false;
         const normalizedCat = cat.toLowerCase().trim();
         return productCats.some((pc) => pc.toLowerCase().trim() === normalizedCat);
       });

@@ -40,7 +40,7 @@ export const AUDIENCES = [
 
 export const DESIGN_TYPES = [
   { value: "ORIGINAL", display: "ORIGINAL", fullLabel: "Original" },
-  { value: "MASTER COPY", display: "MC", fullLabel: "Master Copy" },
+  { value: "MASTER COPY", display: "MASTER COPY", fullLabel: "Master Copy" },
 ] as const;
 
 export interface AllCategoriesPanelProps {
@@ -62,12 +62,15 @@ export interface AllCategoriesPanelProps {
  * - Shop By Brand
  * - Featured Products
  * 
- * Visual Hierarchy (Phase 23B):
- * ROW 1: AUDIENCE (left)                                   DESIGN TYPE (right)
- * ROW 2: [ MEN ][ WOMEN ][ BOYS ][ GIRLS ][ UNISEX ]        [ ORIGINAL ][ MC ]
- * ─────────────────────────────────────────────────────────────────────────────
+ * Visual Hierarchy (Three Clean Rows):
+ * ROW 1: AUDIENCE
+ *        [ MEN ] [ WOMEN ] [ BOYS ] [ GIRLS ] [ UNISEX ]
+ * ─────────────────────────────────────────────────────────
+ * ROW 2: DESIGN TYPE
+ *        [ ORIGINAL ] [ MASTER COPY ]
+ * ─────────────────────────────────────────────────────────
  * ROW 3: PRODUCT CATEGORIES
- * ROW 4: [ Dynamic Category Tiles... ]
+ *        [ Dynamic Category Tiles (~10-12 per row on desktop) ]
  */
 export default function AllCategoriesPanel({
   isOpen,
@@ -171,30 +174,17 @@ export default function AllCategoriesPanel({
       aria-hidden={!isOpen}
     >
       <div className="overflow-hidden">
-        <div className="pt-3 pb-3.5 sm:pt-3.5 sm:pb-4 my-2 sm:my-2.5 border-y border-border/60 bg-secondary/10 dark:bg-card/25 rounded-2xl px-3 sm:px-4 shadow-2xs">
+        <div className="p-3.5 sm:p-5 my-2 sm:my-3 border-y border-border/60 bg-secondary/15 dark:bg-card/30 rounded-2xl shadow-xs">
           
           {/* ═══════════════════════════════════════════════════════════════════
-              ROW 1: SECTION HEADERS (AUDIENCE left, DESIGN TYPE right)
-              ROW 2: FILTER CONTROLS (5 Audience left, 2 Design Type right)
+              ROW 1: AUDIENCE
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-x-6 gap-y-2 mb-3">
-            
-            {/* ROW 1: AUDIENCE Header (Left) */}
-            <div className="order-1 text-left">
-              <h3 className="text-[12px] sm:text-[13px] font-sans font-bold uppercase tracking-wider text-muted-foreground">
-                AUDIENCE
-              </h3>
-            </div>
+          <div className="space-y-2">
+            <h3 className="text-xs sm:text-[13px] font-sans font-bold uppercase tracking-wider text-muted-foreground text-left">
+              AUDIENCE
+            </h3>
 
-            {/* ROW 1: DESIGN TYPE Header (Right) */}
-            <div className="order-3 sm:order-2 text-left sm:text-right">
-              <h3 className="text-[12px] sm:text-[13px] font-sans font-bold uppercase tracking-wider text-muted-foreground">
-                DESIGN TYPE
-              </h3>
-            </div>
-
-            {/* ROW 2: AUDIENCE Controls (Left — 5 Compact Tiles in 1 horizontal row) */}
-            <div className="order-2 sm:order-3 flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap sm:flex-nowrap">
               {AUDIENCES.map(({ key, label, Icon }) => {
                 const isSelected = selectedAudiences.includes(key);
                 return (
@@ -202,23 +192,34 @@ export default function AllCategoriesPanel({
                     key={key}
                     type="button"
                     onClick={() => handleAudienceClick(key)}
-                    className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-lg border transition-all duration-150 cursor-pointer select-none text-[11px] sm:text-[12px] font-sans font-bold uppercase tracking-wider min-h-[36px] sm:min-h-[38px] ${
+                    className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-3 sm:px-4.5 rounded-xl border transition-all duration-150 cursor-pointer select-none text-xs sm:text-[13px] font-sans font-bold uppercase tracking-wider min-h-[38px] sm:min-h-[42px] ${
                       isSelected
-                        ? "bg-foreground text-background border-foreground shadow-2xs font-bold"
-                        : "bg-card text-muted-foreground hover:text-foreground border-slate-900/25 dark:border-white/25 hover:border-slate-900/60 dark:hover:border-white/60 shadow-2xs"
+                        ? "bg-foreground text-background border-foreground shadow-xs font-bold"
+                        : "bg-card text-foreground/80 hover:text-foreground border-border/80 hover:border-foreground/40 shadow-2xs"
                     }`}
                     aria-pressed={isSelected}
                     aria-label={`Audience: ${label}`}
                   >
-                    <Icon className="w-4 h-4 shrink-0" strokeWidth={isSelected ? 2.2 : 1.75} />
+                    <Icon className="w-4 h-4 sm:w-4.5 sm:h-4.5 shrink-0" strokeWidth={isSelected ? 2.2 : 1.75} />
                     <span className="leading-none whitespace-nowrap">{label}</span>
                   </button>
                 );
               })}
             </div>
+          </div>
 
-            {/* ROW 2: DESIGN TYPE Controls (Right — 2 Compact Tiles Right-aligned) */}
-            <div className="order-4 flex items-center justify-start sm:justify-end gap-1.5 sm:gap-2">
+          {/* DIVIDER 1 */}
+          <div className="my-3 sm:my-3.5 border-t border-border/50" />
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              ROW 2: DESIGN TYPE
+              ═══════════════════════════════════════════════════════════════════ */}
+          <div className="space-y-2">
+            <h3 className="text-xs sm:text-[13px] font-sans font-bold uppercase tracking-wider text-muted-foreground text-left">
+              DESIGN TYPE
+            </h3>
+
+            <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap sm:flex-nowrap">
               {DESIGN_TYPES.map(({ value, display, fullLabel }) => {
                 const isSelected =
                   selectedDesignTypes.includes(value) ||
@@ -228,10 +229,10 @@ export default function AllCategoriesPanel({
                     key={value}
                     type="button"
                     onClick={() => handleDesignTypeClick(value)}
-                    className={`flex items-center justify-center py-1.5 px-3 sm:px-3.5 rounded-lg border transition-all duration-150 cursor-pointer select-none text-[11px] sm:text-[12px] font-sans font-extrabold uppercase tracking-wider min-h-[36px] sm:min-h-[38px] ${
+                    className={`flex items-center justify-center py-2 px-4 sm:px-6 rounded-xl border transition-all duration-150 cursor-pointer select-none text-xs sm:text-[13px] font-sans font-bold uppercase tracking-wider min-h-[38px] sm:min-h-[42px] ${
                       isSelected
-                        ? "bg-foreground text-background border-foreground shadow-2xs font-bold"
-                        : "bg-card text-muted-foreground hover:text-foreground border-slate-900/25 dark:border-white/25 hover:border-slate-900/60 dark:hover:border-white/60 shadow-2xs"
+                        ? "bg-foreground text-background border-foreground shadow-xs font-bold"
+                        : "bg-card text-foreground/80 hover:text-foreground border-border/80 hover:border-foreground/40 shadow-2xs"
                     }`}
                     aria-pressed={isSelected}
                     aria-label={`Design Type: ${fullLabel}`}
@@ -242,52 +243,46 @@ export default function AllCategoriesPanel({
                 );
               })}
             </div>
-
           </div>
 
-          {/* ═══════════════════════════════════════════════════════════════════
-              DIVIDER
-              ═══════════════════════════════════════════════════════════════════ */}
-          <div className="my-2.5 sm:my-3 border-t border-border/40" />
+          {/* DIVIDER 2 */}
+          <div className="my-3 sm:my-3.5 border-t border-border/50" />
 
           {/* ═══════════════════════════════════════════════════════════════════
-              ROW 3: CATEGORY HEADER (PRODUCT CATEGORIES)
+              ROW 3: PRODUCT CATEGORIES
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-[12px] sm:text-[13px] font-sans font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="space-y-2.5">
+            <h3 className="text-xs sm:text-[13px] font-sans font-bold uppercase tracking-wider text-muted-foreground text-left">
               PRODUCT CATEGORIES
             </h3>
-          </div>
 
-          {/* ═══════════════════════════════════════════════════════════════════
-              ROW 4+: CATEGORY TILES (Dynamic, with internal scrolling if large)
-              ═══════════════════════════════════════════════════════════════════ */}
-          <div
-            role="region"
-            aria-label="Product Categories"
-            className="max-h-[360px] sm:max-h-[420px] overflow-y-auto pr-0.5 no-scrollbar"
-          >
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 2xl:grid-cols-16 gap-1.5 sm:gap-2">
-              {detailedCategories.map((category) => {
-                const isSelected = selectedCategories.includes(category.name);
-                return (
-                  <CategoryCard
-                    key={category.id}
-                    category={{
-                      id: String(category.id),
-                      name: category.name,
-                      slug: category.slug || String(category.id),
-                      image:
-                        category.image_url ||
-                        category.image ||
-                        "/categories/default.jpg",
-                    }}
-                    variant="compact"
-                    isActive={isSelected}
-                    onClick={() => handleCategoryClick(category.name)}
-                  />
-                );
-              })}
+            <div
+              role="region"
+              aria-label="Product Categories"
+              className="max-h-[340px] sm:max-h-[400px] overflow-y-auto pr-1 no-scrollbar"
+            >
+              <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 min-[1800px]:grid-cols-12 gap-2 sm:gap-2.5">
+                {detailedCategories.map((category) => {
+                  const isSelected = selectedCategories.includes(category.name);
+                  return (
+                    <CategoryCard
+                      key={category.id}
+                      category={{
+                        id: String(category.id),
+                        name: category.name,
+                        slug: category.slug || String(category.id),
+                        image:
+                          category.image_url ||
+                          category.image ||
+                          "/categories/default.jpg",
+                      }}
+                      variant="compact"
+                      isActive={isSelected}
+                      onClick={() => handleCategoryClick(category.name)}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </div>
 

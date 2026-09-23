@@ -354,7 +354,7 @@ export default function ProductGallery({
 
   if (images.length === 0 && !resolvedYoutubeEmbedUrl) {
     return (
-      <div className={`relative aspect-product ${mainRadiusClass} overflow-hidden bg-secondary border border-border/70 shadow-sm flex items-center justify-center`}>
+      <div className={`relative aspect-[4/5] aspect-product ${mainRadiusClass} overflow-hidden bg-secondary border border-border/70 shadow-sm flex items-center justify-center`}>
         <span className="text-xs text-muted-foreground font-sans uppercase tracking-wider">No images</span>
       </div>
     );
@@ -366,7 +366,7 @@ export default function ProductGallery({
       <div className={`space-y-2.5 w-full ${isModal ? "max-w-[340px] mx-auto" : ""}`}>
         {/* Video Mode: YouTube Iframe */}
         {mediaMode === "video" && resolvedYoutubeEmbedUrl ? (
-          <div className={`relative aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary border border-border/70 shadow-sm`}>
+          <div className={`relative aspect-[4/5] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary border border-border/70 shadow-sm`}>
             <div className="w-full h-full bg-black flex items-center justify-center">
               <iframe
                 src={`${resolvedYoutubeEmbedUrl}?autoplay=1&rel=0`}
@@ -379,7 +379,7 @@ export default function ProductGallery({
           </div>
         ) : (
           /* Image Mode: Main Image with Swipe + Click to Lightbox */
-          <div className={`relative aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary border border-border/70 shadow-sm group`}>
+          <div className={`relative aspect-[4/5] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary border border-border/70 shadow-sm group`}>
             <button
               ref={lightboxTriggerRef}
               type="button"
@@ -495,7 +495,7 @@ export default function ProductGallery({
                       setMediaMode("image");
                       setIndex(idx);
                     }}
-                    className={`${thumbSizeClass} aspect-product overflow-hidden border-2 shrink-0 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    className={`${thumbSizeClass} aspect-[4/5] aspect-product overflow-hidden border-2 shrink-0 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       isActive
                         ? "border-primary ring-2 ring-primary/20 opacity-100"
                         : "border-border/70 opacity-70 hover:opacity-100 hover:border-border"
@@ -530,7 +530,7 @@ export default function ProductGallery({
                     }
                     setMediaMode("video");
                   }}
-                  className={`relative aspect-product ${thumbSizeClass} overflow-hidden border-2 shrink-0 transition-all cursor-pointer bg-black/90 flex flex-col items-center justify-center group ${
+                  className={`relative aspect-[4/5] aspect-product ${thumbSizeClass} overflow-hidden border-2 shrink-0 transition-all cursor-pointer bg-black/90 flex flex-col items-center justify-center group ${
                     mediaMode === "video"
                       ? "border-primary ring-2 ring-primary/20 opacity-100"
                       : "border-border/70 opacity-75 hover:opacity-100 hover:border-border"

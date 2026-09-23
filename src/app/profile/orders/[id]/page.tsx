@@ -401,14 +401,14 @@ function OrderDetailItem({ item }: { item: OrderItemRecord }) {
 
   return (
     <div className="flex items-start gap-4 py-4">
-      {/* Product image */}
-      <div className="w-16 h-20 sm:w-20 sm:h-24 rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 border border-slate-100 dark:border-white/[0.06] shrink-0">
+      {/* Product image — Canonical 4:5 */}
+      <div className="w-16 sm:w-20 aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 border border-slate-100 dark:border-white/[0.06] shrink-0 p-1 flex items-center justify-center">
         {item.product_image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={item.product_image_url}
             alt={item.product_name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-700">

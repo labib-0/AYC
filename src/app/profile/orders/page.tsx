@@ -69,13 +69,13 @@ function PaymentBadge({ status }: { status: string }) {
 function OrderItemRow({ item }: { item: OrderItemRecord }) {
   return (
     <div className="flex items-center gap-3 py-2.5">
-      {/* Product image */}
-      <div className="w-14 h-16 sm:w-16 sm:h-18 rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0 border border-slate-100 dark:border-white/5">
+      {/* Product image — Canonical 4:5 */}
+      <div className="w-14 sm:w-16 aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 shrink-0 border border-slate-100 dark:border-white/5 p-0.5 flex items-center justify-center">
         {item.product_image_url ? (
           <img
             src={item.product_image_url}
             alt={item.product_name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">

@@ -346,12 +346,13 @@ export function generateProductOfferSheetDoc(
 
     y += mainBoxHeight + 6;
 
-    // Small Thumbnail Images (All Available Product Images Shown, Multi-Row Wrapping)
+    // Small Thumbnail Images (Canonical 4:5 Aspect Ratio Bounding Frames: 12mm x 15mm)
     if (galleryImages.length > 1) {
-      const thumbSize = 13;
+      const thumbW = 12;
+      const thumbH = 15; // Canonical 4:5 ratio (12 x 15)
       const thumbSpacing = 2.5;
       const availableWidth = contentWidth - 4;
-      const maxPerRow = Math.max(1, Math.floor((availableWidth + thumbSpacing) / (thumbSize + thumbSpacing)));
+      const maxPerRow = Math.max(1, Math.floor((availableWidth + thumbSpacing) / (thumbW + thumbSpacing)));
 
       // Group all gallery images into rows
       const thumbRows: string[][] = [];
@@ -359,7 +360,7 @@ export function generateProductOfferSheetDoc(
         thumbRows.push(galleryImages.slice(i, i + maxPerRow));
       }
 
-      const totalThumbBoxHeight = thumbRows.length * thumbSize + (thumbRows.length - 1) * 3 + 4;
+      const totalThumbBoxHeight = thumbRows.length * thumbH + (thumbRows.length - 1) * 3 + 4;
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
       doc.roundedRect(margin, y, contentWidth, totalThumbBoxHeight, 1.5, 1.5, "FD");
@@ -368,40 +369,40 @@ export function generateProductOfferSheetDoc(
       let globalIdx = 0;
 
       thumbRows.forEach((row) => {
-        const rowTotalWidth = row.length * thumbSize + (row.length - 1) * thumbSpacing;
+        const rowTotalWidth = row.length * thumbW + (row.length - 1) * thumbSpacing;
         let startThumbX = (pageWidth - rowTotalWidth) / 2;
         if (startThumbX < margin + 2) startThumbX = margin + 2;
 
         row.forEach((tImg, colIdx) => {
-          const curX = startThumbX + colIdx * (thumbSize + thumbSpacing);
+          const curX = startThumbX + colIdx * (thumbW + thumbSpacing);
           doc.setFillColor(255, 255, 255);
           doc.setDrawColor(
             globalIdx === 0 ? 234 : 203,
             globalIdx === 0 ? 88 : 213,
             globalIdx === 0 ? 12 : 225
           );
-          doc.roundedRect(curX, rowY, thumbSize, thumbSize, 1, 1, "FD");
+          doc.roundedRect(curX, rowY, thumbW, thumbH, 1, 1, "FD");
 
           try {
             const tProps = (doc as any).getImageProperties(tImg);
             const tRatio = (tProps?.width || 1) / (tProps?.height || 1);
-            let tDrawW = thumbSize - 2;
+            let tDrawW = thumbW - 2;
             let tDrawH = tDrawW / tRatio;
-            if (tDrawH > thumbSize - 2) {
-              tDrawH = thumbSize - 2;
+            if (tDrawH > thumbH - 2) {
+              tDrawH = thumbH - 2;
               tDrawW = tDrawH * tRatio;
             }
-            const tDrawX = curX + 1 + (thumbSize - 2 - tDrawW) / 2;
-            const tDrawY = rowY + 1 + (thumbSize - 2 - tDrawH) / 2;
+            const tDrawX = curX + 1 + (thumbW - 2 - tDrawW) / 2;
+            const tDrawY = rowY + 1 + (thumbH - 2 - tDrawH) / 2;
             doc.addImage(tImg, "JPEG", tDrawX, tDrawY, tDrawW, tDrawH);
           } catch {
-            doc.addImage(tImg, "JPEG", curX + 1, rowY + 1, thumbSize - 2, thumbSize - 2);
+            doc.addImage(tImg, "JPEG", curX + 1, rowY + 1, thumbW - 2, thumbH - 2);
           }
 
           globalIdx++;
         });
 
-        rowY += thumbSize + 3;
+        rowY += thumbH + 3;
       });
 
       y += totalThumbBoxHeight + 5;

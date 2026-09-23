@@ -69,14 +69,16 @@ export default function CategoryHighlights() {
   };
 
   return (
-    <section id="categories" className="pt-1.5 sm:pt-2 pb-4 sm:pb-5 bg-background">
+    <section id="categories" className="pt-1 sm:pt-1.5 pb-2.5 sm:pb-3.5 bg-background">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         
         {/* AUDIENCE Section Title */}
-        <div className="mb-2.5 sm:mb-3.5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-1.5 sm:gap-2">
+        <div className="mb-2 sm:mb-2.5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-1">
           <div>
-            <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight">AUDIENCE</h2>
-            <p className="section-subtitle mt-1 sm:mt-1.5">
+            <h2 className="text-xl sm:text-2xl font-display font-bold uppercase tracking-tight text-foreground leading-tight">
+              AUDIENCE
+            </h2>
+            <p className="text-[12px] sm:text-[13px] text-muted-foreground mt-0.5 sm:mt-1 font-sans leading-normal">
               Select one or multiple audiences to explore tailored collections
             </p>
           </div>
@@ -102,11 +104,11 @@ export default function CategoryHighlights() {
         <div
           id="product-categories-grid"
           className={`grid transition-[grid-template-rows,opacity] duration-500 ease-in-out ${
-            isExpanded ? "grid-rows-[1fr] opacity-100 mt-6 pt-5 border-t border-border/60" : "grid-rows-[0fr] opacity-0 mt-0"
+            isExpanded ? "grid-rows-[1fr] opacity-100 mt-3 pt-2.5 border-t border-border/60" : "grid-rows-[0fr] opacity-0 mt-0"
           }`}
         >
           <div className="overflow-hidden">
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 2xl:grid-cols-16 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-3 xs:grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 2xl:grid-cols-[repeat(16,minmax(0,1fr))] min-[1800px]:grid-cols-[repeat(18,minmax(0,1fr))] gap-1 sm:gap-1.5">
               {detailedCategories.map((category) => (
                 <CategoryCard 
                   key={category.id} 
@@ -155,12 +157,14 @@ export function CategoryCard({
 }: CategoryCardProps) {
   const isPrimary = variant === "primary";
 
-  const cardClasses = `group relative overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 block w-full text-left cursor-pointer ${
-    isPrimary ? "aspect-[16/10]" : "aspect-[4/3]"
+  const cardClasses = `group relative overflow-hidden transition-all duration-200 block w-full text-left cursor-pointer ${
+    isPrimary
+      ? "aspect-[16/10] rounded-xl sm:rounded-2xl border"
+      : "aspect-[4/3] rounded-lg sm:rounded-xl border"
   } ${
     isActive
-      ? "border-foreground ring-2 ring-foreground shadow-lg scale-[1.02]"
-      : "border-border hover:border-foreground/40 shadow-xs hover:shadow-md hover:-translate-y-0.5"
+      ? "border-foreground ring-1.5 ring-foreground shadow-xs scale-[1.02]"
+      : "border-border/80 hover:border-foreground/40 shadow-2xs hover:shadow-xs hover:-translate-y-0.5"
   }`;
 
   const innerContent = (
@@ -180,30 +184,35 @@ export function CategoryCard({
         className={`absolute inset-0 bg-gradient-to-t transition-opacity duration-300 ${
           isPrimary
             ? "from-black/80 via-black/25 to-black/5 group-hover:from-black/85"
-            : "from-black/80 via-black/25 to-black/5 group-hover:from-black/90"
+            : "from-black/85 via-black/25 to-transparent group-hover:from-black/90"
         } ${isActive ? "from-black/90 via-black/35" : ""}`}
       />
 
       {/* Active Selection Checkmark Badge */}
       {isActive && (
-        <div className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full bg-foreground text-background flex items-center justify-center shadow-md animate-in zoom-in-75">
-          <Check size={11} strokeWidth={3} className="sm:w-3 sm:h-3" />
+        <div className={`absolute rounded-full bg-foreground text-background flex items-center justify-center shadow-xs animate-in zoom-in-75 ${
+          isPrimary
+            ? "top-2 right-2 sm:top-2.5 sm:right-2.5 w-5 h-5 sm:w-5.5 sm:h-5.5"
+            : "top-1.5 right-1.5 sm:top-2 sm:right-2 w-4 h-4 sm:w-4.5 sm:h-4.5"
+        }`}>
+          <Check size={isPrimary ? 11 : 10} strokeWidth={isPrimary ? 3 : 2.5} className={isPrimary ? "sm:w-3 sm:h-3" : "sm:w-2.5 sm:h-2.5"} />
         </div>
       )}
 
       {/* Category Content */}
       <div
         className={`absolute inset-x-0 bottom-0 flex flex-col justify-end ${
-          isPrimary ? "p-2.5 sm:p-3.5" : "p-2 sm:p-2.5"
+          isPrimary ? "p-2.5 sm:p-3.5" : "p-1.5 sm:p-2.5"
         }`}
       >
         <div className="flex items-center justify-between gap-1">
           <h3
-            className={`font-display font-bold uppercase tracking-tight text-white ${
+            className={`font-sans font-bold uppercase tracking-tight text-white ${
               isPrimary
-                ? "text-xs sm:text-sm md:text-base leading-tight"
-                : "text-[11px] sm:text-xs font-semibold leading-tight"
+                ? "text-xs sm:text-sm md:text-base leading-tight font-display"
+                : "text-[10.5px] sm:text-[11.5px] md:text-[12px] leading-tight line-clamp-1"
             }`}
+            title={category.name}
           >
             {category.name}
           </h3>
@@ -214,14 +223,14 @@ export function CategoryCard({
 
   if (href) {
     return (
-      <Link href={href} className={cardClasses} onClick={onClick}>
+      <Link href={href} className={cardClasses} onClick={onClick} title={category.name}>
         {innerContent}
       </Link>
     );
   }
 
   return (
-    <button type="button" className={cardClasses} onClick={onClick}>
+    <button type="button" className={cardClasses} onClick={onClick} title={category.name}>
       {innerContent}
     </button>
   );

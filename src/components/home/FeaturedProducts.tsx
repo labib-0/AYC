@@ -13,12 +13,16 @@ import {
 } from "@/lib/services/products";
 import { brandService, BrandModel } from "@/services/brand.service";
 import { categoryService, CategoryModel } from "@/services/category.service";
+import {
+  notifyExplorerActive,
+  subscribeToExplorerActive,
+} from "@/lib/services/explorer-coordinator";
 
 type Tab = "best-deals" | "new-arrivals";
 
-const DESKTOP_INITIAL_LIMIT = 15; // 5 columns x 3 rows = 15 products
-const FIRST_LOAD_MORE_LIMIT = 25; // +25 products loaded upon first explicit click
-const CONTINUOUS_BATCH_LIMIT = 25; // +25 products on EVERY subsequent automatic pagination request
+const INITIAL_PRODUCT_LIMIT = 21; // Maximum 21 products displayed initially
+const FIRST_LOAD_MORE_LIMIT = 21; // Next batch loaded upon first explicit click
+const CONTINUOUS_BATCH_LIMIT = 21; // Batch size on every subsequent automatic pagination request
 
 export default function FeaturedProducts() {
   const searchParams = useSearchParams();
@@ -44,14 +48,17 @@ export default function FeaturedProducts() {
   const [availableBrands, setAvailableBrands] = useState<BrandModel[]>([]);
   const [availableCategories, setAvailableCategories] = useState<CategoryModel[]>([]);
 
-  // ── Products & Pagination State ──────────────────────────────────────────
+  // ── Products & Pagination State (Max 21 Initial Products) ───────────────
   const [products, setProducts] = useState<Product[]>(() =>
-    getInitialFeaturedProducts("best-deals", DESKTOP_INITIAL_LIMIT)
+    getInitialFeaturedProducts("best-deals", INITIAL_PRODUCT_LIMIT)
   );
   const [totalCount, setTotalCount] = useState<number>(() =>
     getInitialFeaturedProducts("best-deals", 9999).length
   );
-  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [hasMore, setHasMore] = useState<boolean>(() => {
+    const total = getInitialFeaturedProducts("best-deals", 9999).length;
+    return total > INITIAL_PRODUCT_LIMIT;
+  });
 
   const [isLoadingInitial, setIsLoadingInitial] = useState<boolean>(false);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
@@ -96,26 +103,37 @@ export default function FeaturedProducts() {
     loadMetadata();
   }, []);
 
-  // ── Adjust Initial Product Count Responsively on Client Mount ───────────
+  // ── Ensure Initial Product Count matches INITIAL_PRODUCT_LIMIT (21) on Client Mount ───────────
   useEffect(() => {
-    if (typeof window === "undefined" || isContinuousModeRef.current || hasLoadedMore) return;
+    if (isContinuousModeRef.current || hasLoadedMore) return;
 
-    let targetLimit = DESKTOP_INITIAL_LIMIT;
-    if (window.innerWidth < 640) {
-      targetLimit = 6; // Mobile: 2 cols x 3 rows = 6
-    } else if (window.innerWidth < 1024) {
-      targetLimit = 9; // Tablet: 3 cols x 3 rows = 9
-    }
-
-    const fullList = getInitialFeaturedProducts(activeTabRef.current, 9999);
-    setTotalCount(fullList.length);
-    setProducts(fullList.slice(0, targetLimit));
-    setHasMore(fullList.length > targetLimit);
+    getFeaturedProducts({
+      tab: activeTabRef.current,
+      offset: 0,
+      limit: INITIAL_PRODUCT_LIMIT,
+      brands: selectedBrands,
+      designTypes: selectedDesignTypes,
+      audiences: selectedAudiences,
+      categories: selectedCategories,
+    })
+      .then((result) => {
+        if (isContinuousModeRef.current || hasLoadedMore) return;
+        setProducts(result.products);
+        setTotalCount(result.total);
+        setHasMore(result.hasMore && result.total > result.products.length);
+      })
+      .catch(() => {
+        const fullList = getInitialFeaturedProducts(activeTabRef.current, 9999);
+        setTotalCount(fullList.length);
+        setProducts(fullList.slice(0, INITIAL_PRODUCT_LIMIT));
+        setHasMore(fullList.length > INITIAL_PRODUCT_LIMIT);
+      });
   }, [hasLoadedMore]);
 
   // ── Load More Click: First click activates Continuous Mode; subsequent clicks in manual mode reactivate it ──
   const handleLoadMoreClick = async () => {
     if (isLoadingRef.current || isContinuousMode || !hasMore) return;
+    notifyExplorerActive("featured", "load-more");
 
     isLoadingRef.current = true;
     setIsLoadingMore(true);
@@ -143,15 +161,16 @@ export default function FeaturedProducts() {
         return;
       }
 
-      // Append next batch (+25 products) with duplicate protection
+      // Append next batch with duplicate protection
       setProducts((prev) => {
         const existingIds = new Set(prev.map((p) => p.id));
         const fresh = result.products.filter((p) => !existingIds.has(p.id));
-        return [...prev, ...fresh];
+        const next = [...prev, ...fresh];
+        setHasMore(result.hasMore && result.total > next.length);
+        return next;
       });
 
       setTotalCount(result.total);
-      setHasMore(result.hasMore);
 
       // ── CRITICAL STATE TRANSITIONS (Sections 1, 3, 5, 10, 11, 15, 17) ──────
       // 1. Mark that user has loaded more
@@ -223,11 +242,12 @@ export default function FeaturedProducts() {
         setProducts((prev) => {
           const existingIds = new Set(prev.map((p) => p.id));
           const fresh = result.products.filter((p) => !existingIds.has(p.id));
-          return [...prev, ...fresh];
+          const next = [...prev, ...fresh];
+          setHasMore(result.hasMore && result.total > next.length);
+          return next;
         });
 
         setTotalCount(result.total);
-        setHasMore(result.hasMore);
       } catch {
         if (
           generationRef.current === currentGen &&
@@ -295,6 +315,7 @@ export default function FeaturedProducts() {
       setIsFilterOpen(true);
       setIsContinuousMode(true);
       isContinuousModeRef.current = true;
+      notifyExplorerActive("featured", "filter");
     }
   };
 
@@ -305,10 +326,16 @@ export default function FeaturedProducts() {
     audiences: string[],
     categories: string[]
   ) => {
+    notifyExplorerActive("featured", "filter");
     setSelectedBrands(brands);
     setSelectedDesignTypes(designTypes);
     setSelectedAudiences(audiences);
     setSelectedCategories(categories);
+
+    // CRITICAL GLOBAL RULE: On ANY filter or selection change, reset to manual mode with max 21 products!
+    setHasLoadedMore(false);
+    setIsContinuousMode(false);
+    isContinuousModeRef.current = false;
 
     generationRef.current += 1;
     const currentGen = generationRef.current;
@@ -316,14 +343,7 @@ export default function FeaturedProducts() {
     setIsLoadingInitial(true);
     setError(null);
 
-    let limit = DESKTOP_INITIAL_LIMIT;
-    if (typeof window !== "undefined") {
-      if (window.innerWidth < 640) limit = 6;
-      else if (window.innerWidth < 1024) limit = 9;
-    }
-    if (isContinuousMode) {
-      limit += FIRST_LOAD_MORE_LIMIT;
-    }
+    const limit = INITIAL_PRODUCT_LIMIT;
 
     try {
       const result = await getFeaturedProducts({
@@ -340,7 +360,7 @@ export default function FeaturedProducts() {
 
       setProducts(result.products);
       setTotalCount(result.total);
-      setHasMore(result.hasMore);
+      setHasMore(result.hasMore && result.total > result.products.length);
     } catch {
       if (generationRef.current !== currentGen) return;
       setError("Unable to filter products. Please try again.");
@@ -352,6 +372,9 @@ export default function FeaturedProducts() {
   };
 
   const handleClearAllFilters = () => {
+    setIsContinuousMode(false);
+    isContinuousModeRef.current = false;
+    setHasLoadedMore(false);
     handleFilterUpdate([], [], [], []);
   };
 
@@ -393,6 +416,7 @@ export default function FeaturedProducts() {
   // ── Tab Click Handler (Best Deals ↔ New Arrivals) ────────────────────────
   const handleTabClick = async (tab: Tab) => {
     if (tab === activeTab) return;
+    notifyExplorerActive("featured", "tab-change");
     setActiveTab(tab);
     generationRef.current += 1;
     const currentGen = generationRef.current;
@@ -401,14 +425,33 @@ export default function FeaturedProducts() {
     setIsLoadingMore(false);
     isLoadingRef.current = false;
 
-    let initialCount = DESKTOP_INITIAL_LIMIT;
-    if (typeof window !== "undefined") {
-      if (window.innerWidth < 640) initialCount = 6;
-      else if (window.innerWidth < 1024) initialCount = 9;
-    }
+    // CRITICAL GLOBAL RULE: On tab change, reset to manual mode with max 21 products!
+    setHasLoadedMore(false);
+    setIsContinuousMode(false);
+    isContinuousModeRef.current = false;
 
-    if (!isContinuousMode) {
-      // Pagination inactive: reset initial static products, stay inactive
+    const initialCount = INITIAL_PRODUCT_LIMIT;
+
+    // Always fetch initial batch of max 21 products on tab selection
+    setIsLoadingInitial(true);
+    try {
+      const result = await getFeaturedProducts({
+        tab,
+        offset: 0,
+        limit: initialCount,
+        brands: selectedBrands,
+        designTypes: selectedDesignTypes,
+        audiences: selectedAudiences,
+        categories: selectedCategories,
+      });
+
+      if (generationRef.current !== currentGen) return;
+
+      setProducts(result.products);
+      setTotalCount(result.total);
+      setHasMore(result.hasMore && result.total > result.products.length);
+    } catch {
+      if (generationRef.current !== currentGen) return;
       const fullList = getInitialFeaturedProducts(
         tab,
         9999,
@@ -420,32 +463,9 @@ export default function FeaturedProducts() {
       setProducts(fullList.slice(0, initialCount));
       setTotalCount(fullList.length);
       setHasMore(fullList.length > initialCount);
-    } else {
-      // Pagination active: reload batch for the new tab with expanded limit
-      setIsLoadingInitial(true);
-      try {
-        const result = await getFeaturedProducts({
-          tab,
-          offset: 0,
-          limit: initialCount + FIRST_LOAD_MORE_LIMIT,
-          brands: selectedBrands,
-          designTypes: selectedDesignTypes,
-          audiences: selectedAudiences,
-          categories: selectedCategories,
-        });
-
-        if (generationRef.current !== currentGen) return;
-
-        setProducts(result.products);
-        setTotalCount(result.total);
-        setHasMore(result.hasMore);
-      } catch {
-        if (generationRef.current !== currentGen) return;
-        setError("Unable to load products. Please try again.");
-      } finally {
-        if (generationRef.current === currentGen) {
-          setIsLoadingInitial(false);
-        }
+    } finally {
+      if (generationRef.current === currentGen) {
+        setIsLoadingInitial(false);
       }
     }
   };
@@ -484,8 +504,28 @@ export default function FeaturedProducts() {
     selectedCategories.length;
 
   const handleAllCategoriesClick = () => {
-    setIsAllCategoriesOpen((prev) => !prev);
+    setIsAllCategoriesOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        notifyExplorerActive("featured", "open");
+      }
+      return next;
+    });
   };
+
+  // Subscribe to explorer coordinator: Keep Featured in collapsed/default state when another section is active
+  useEffect(() => {
+    return subscribeToExplorerActive((detail) => {
+      if (detail.activeSection !== "featured") {
+        setIsFilterOpen(false);
+        setIsContinuousMode(false);
+        isContinuousModeRef.current = false;
+        setIsAllCategoriesOpen(false);
+        setHasLoadedMore(false);
+        setProducts((prev) => (prev.length > INITIAL_PRODUCT_LIMIT ? prev.slice(0, INITIAL_PRODUCT_LIMIT) : prev));
+      }
+    });
+  }, []);
 
   return (
     <section
@@ -819,7 +859,7 @@ export default function FeaturedProducts() {
                       <span>Retry</span>
                     </button>
                   </div>
-                ) : hasMore ? (
+                ) : hasMore && totalCount > products.length ? (
                   <button
                     type="button"
                     onClick={handleLoadMoreClick}

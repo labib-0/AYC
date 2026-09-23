@@ -468,13 +468,13 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               return (
                 <div key={item.id || idx} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-16 h-18 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 shrink-0">
+                    <div className="w-16 aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 shrink-0 p-1 flex items-center justify-center">
                       {item.product_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.product_image_url}
                           alt={item.product_name}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">

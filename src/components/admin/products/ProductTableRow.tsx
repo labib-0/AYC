@@ -89,14 +89,14 @@ export default function ProductTableRow({
         />
       </td>
 
-      {/* Thumbnail (3:4 aspect ratio) */}
+      {/* Thumbnail (Canonical 4:5 aspect ratio) */}
       <td className="px-2 py-2 w-14">
-        <div className="w-10 h-[53px] rounded-lg overflow-hidden bg-secondary border border-border/40 shrink-0">
+        <div className="w-10 aspect-[4/5] rounded-lg overflow-hidden bg-secondary border border-border/40 shrink-0 p-0.5 flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={thumbnail}
             alt={product.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             loading="lazy"
           />
         </div>

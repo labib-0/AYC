@@ -205,13 +205,13 @@ export default function ProductImagesSection({
                     : "border-border/80 hover:border-foreground/40"
                 }`}
               >
-                {/* 3:4 Thumbnail Container */}
-                <div className="aspect-3/4 w-full bg-secondary relative overflow-hidden">
+                {/* 4:5 Thumbnail Container — Canonical 4:5 */}
+                <div className="aspect-[4/5] w-full bg-secondary/50 dark:bg-white/5 relative overflow-hidden flex items-center justify-center p-1">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={imgUrl}
                     alt={`Product preview ${index + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     loading="lazy"
                   />
 

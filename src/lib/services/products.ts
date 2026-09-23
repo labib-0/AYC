@@ -98,7 +98,7 @@ export async function getFeaturedProducts(
   const isDeals = options.tab === "best-deals";
   const isNew = options.tab === "new-arrivals";
   const offset = options.offset ?? 0;
-  const limit = options.limit ?? 15;
+  const limit = options.limit ?? 21;
 
   const queryParams: ProductQueryParams = {
     is_best_deal: isDeals ? true : undefined,
@@ -122,11 +122,11 @@ export async function getFeaturedProducts(
 }
 
 /**
- * Synchronous initial fallback for Featured Products to ensure instant SSR with 0 layout jump
+ * Synchronous initial fallback for Featured Products to ensure instant SSR with 0 layout jump (max 21 products)
  */
 export function getInitialFeaturedProducts(
   tab: "best-deals" | "new-arrivals",
-  limit: number = 15,
+  limit: number = 21,
   brands?: string[],
   audiences?: string[],
   categories?: string[],

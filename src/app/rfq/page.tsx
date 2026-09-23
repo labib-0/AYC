@@ -238,7 +238,7 @@ export default function RfqPage() {
                           <img
                             src={item.image}
                             alt={item.productName}
-                            className="w-16 h-20 object-cover rounded-lg bg-secondary shrink-0 border border-border/50"
+                            className="w-16 aspect-[4/5] object-contain rounded-lg bg-secondary/40 shrink-0 border border-border/50 p-1"
                           />
                           <div className="min-w-0">
                             <span className="text-xs font-bold uppercase tracking-wider text-primary block">

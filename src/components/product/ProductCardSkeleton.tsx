@@ -11,8 +11,8 @@ export function ProductCardSkeleton() {
       className="rounded-2xl border border-border/50 bg-card overflow-hidden animate-pulse"
       aria-hidden="true"
     >
-      {/* Product image placeholder */}
-      <div className="aspect-[3/4] bg-secondary/60" />
+      {/* Product image placeholder — Canonical 4:5 */}
+      <div className="aspect-[4/5] bg-secondary/60" />
 
       {/* Card body */}
       <div className="p-3 space-y-2.5">

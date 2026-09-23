@@ -74,7 +74,7 @@ export function SavedItemsCard() {
                   <img
                     src={item.product.images[0] || "/placeholder.jpg"}
                     alt={item.product.name}
-                    className="w-9 aspect-[3/4] rounded-lg object-cover object-center bg-slate-100 dark:bg-white/5 shrink-0 border border-slate-100 dark:border-white/5"
+                    className="w-10 aspect-[4/5] rounded-lg object-contain object-center bg-slate-100 dark:bg-white/5 shrink-0 border border-slate-100 dark:border-white/5 p-0.5"
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900 dark:text-white truncate leading-tight">

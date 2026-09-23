@@ -90,7 +90,7 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
                         <img
                           src={item.product_image_url}
                           alt={item.description}
-                          className="w-12 h-14 object-contain rounded-lg border border-border/80 bg-secondary shrink-0"
+                          className="w-12 aspect-[4/5] object-contain rounded-lg border border-border/80 bg-secondary shrink-0"
                         />
                       )}
                       <div className="space-y-1 min-w-0">

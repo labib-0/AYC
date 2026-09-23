@@ -372,7 +372,7 @@ export default function CustomerReorderPage() {
               key={i}
               className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl p-4 shadow-2xs animate-pulse space-y-3"
             >
-              <div className="aspect-3/4 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+              <div className="aspect-[4/5] bg-slate-100 dark:bg-slate-800 rounded-xl" />
               <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4" />
               <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded w-1/2" />
             </div>
@@ -433,14 +433,14 @@ export default function CustomerReorderPage() {
                 className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl p-4 shadow-2xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between"
               >
                 <div>
-                  {/* Product Image & Brand Header */}
-                  <div className="relative aspect-3/4 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-white/5 mb-3.5">
+                  {/* Product Image & Brand Header — Canonical 4:5 */}
+                  <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-white/5 mb-3.5 flex items-center justify-center p-1">
                     {item.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.imageUrl}
                         alt={item.name}
-                        className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+                        className="w-full h-full object-contain group-hover:scale-103 transition-transform duration-300"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">

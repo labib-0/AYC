@@ -240,7 +240,7 @@ export default function StockAdjustmentModal({
                 <img
                   src={imageUrl}
                   alt={product?.name || "Product"}
-                  className="w-12 h-14 object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60"
+                  className="w-12 aspect-[4/5] object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60"
                 />
                 <div className="min-w-0">
                   <h4 className="font-bold text-foreground text-xs truncate">
