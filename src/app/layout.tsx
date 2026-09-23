@@ -6,10 +6,7 @@ import { WishlistProvider } from "@/lib/WishlistContext";
 import { RfqProvider } from "@/lib/RfqContext";
 import { ProductModalProvider } from "@/lib/ProductModalContext";
 import { PreferencesProvider } from "@/lib/PreferencesContext";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import MiniCart from "@/components/cart/MiniCart";
-import ProductQuickAddModal from "@/components/product/ProductQuickAddModal";
+import StorefrontShell from "@/components/layout/StorefrontShell";
 import { generateOrganizationJsonLd, generateWebSiteJsonLd, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
@@ -110,11 +107,7 @@ export default function RootLayout({
               <WishlistProvider>
                 <RfqProvider>
                   <ProductModalProvider>
-                    <Header />
-                    <MiniCart />
-                    <ProductQuickAddModal />
-                    <main className="min-h-screen pb-safe">{children}</main>
-                    <Footer />
+                    <StorefrontShell>{children}</StorefrontShell>
                   </ProductModalProvider>
                 </RfqProvider>
               </WishlistProvider>
@@ -125,3 +118,4 @@ export default function RootLayout({
     </html>
   );
 }
+
