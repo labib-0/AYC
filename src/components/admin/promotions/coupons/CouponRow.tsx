@@ -22,6 +22,7 @@ export default function CouponRow({
   onDelete,
 }: CouponRowProps) {
   const isExpired = coupon.expires_at ? new Date(coupon.expires_at) < new Date() : false;
+  const isPercentage = coupon.discount_type === "percentage";
 
   return (
     <tr className="border-b border-border/60 hover:bg-secondary/20 transition-colors">
@@ -40,26 +41,26 @@ export default function CouponRow({
       {/* 2. Type */}
       <td className="py-3 px-4 whitespace-nowrap">
         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-secondary text-foreground border border-border/60">
-          {coupon.discount_type === "percentage" ? "Percentage" : "Fixed Amount"}
+          {isPercentage ? "Percentage" : "Flat Discount"}
         </span>
       </td>
 
       {/* 3. Discount Value */}
       <td className="py-3 px-4 whitespace-nowrap text-xs font-bold text-foreground">
-        {coupon.discount_type === "percentage" ? (
+        {isPercentage ? (
           <span className="text-emerald-600 dark:text-emerald-400">
-            {coupon.discount_value}% OFF
+            {coupon.discount_value}%
           </span>
         ) : (
           <span className="text-emerald-600 dark:text-emerald-400">
-            ${coupon.discount_value.toFixed(2)}
+            ${coupon.discount_value}
           </span>
         )}
       </td>
 
-      {/* 4. Minimum Spend */}
-      <td className="py-3 px-4 whitespace-nowrap text-xs font-mono text-muted-foreground">
-        {coupon.min_spend ? `$${coupon.min_spend.toFixed(2)}` : "—"}
+      {/* 4. Minimum Order */}
+      <td className="py-3 px-4 whitespace-nowrap text-xs font-mono text-foreground font-semibold">
+        ${coupon.min_spend ? Number(coupon.min_spend).toFixed(2) : "0.00"}
       </td>
 
       {/* 5. Usage */}
@@ -131,3 +132,4 @@ export default function CouponRow({
     </tr>
   );
 }
+

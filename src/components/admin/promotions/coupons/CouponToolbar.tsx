@@ -6,8 +6,8 @@ export interface CouponToolbarProps {
   onSearchChange: (val: string) => void;
   statusFilter: "all" | "active" | "inactive";
   onStatusFilterChange: (val: "all" | "active" | "inactive") => void;
-  typeFilter: "all" | "percentage" | "fixed";
-  onTypeFilterChange: (val: "all" | "percentage" | "fixed") => void;
+  typeFilter: "all" | "percentage" | "flat";
+  onTypeFilterChange: (val: "all" | "percentage" | "flat") => void;
   onResetFilters: () => void;
   hasActiveFilters: boolean;
 }
@@ -32,7 +32,7 @@ export default function CouponToolbar({
             type="text"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search coupons by code..."
+            placeholder="Search promo codes by code..."
             className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-border bg-background text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             id="input-search-coupons"
           />
@@ -63,13 +63,13 @@ export default function CouponToolbar({
           {/* Type Filter */}
           <select
             value={typeFilter}
-            onChange={(e) => onTypeFilterChange(e.target.value as "all" | "percentage" | "fixed")}
+            onChange={(e) => onTypeFilterChange(e.target.value as "all" | "percentage" | "flat")}
             className="px-3 py-2 text-xs rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             id="select-coupon-type"
           >
             <option value="all">All Types</option>
             <option value="percentage">Percentage (%)</option>
-            <option value="fixed">Fixed Amount ($)</option>
+            <option value="flat">Flat Discount ($)</option>
           </select>
 
           {hasActiveFilters && (
@@ -88,3 +88,4 @@ export default function CouponToolbar({
     </div>
   );
 }
+

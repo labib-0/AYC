@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Tag, Loader2, Save } from "lucide-react";
-import { CouponRecord } from "@/services/admin/promotion.service";
+import { CouponRecord, PromoDiscountType } from "@/services/admin/promotion.service";
 
 export interface CouponModalProps {
   isOpen: boolean;
@@ -17,9 +17,9 @@ export default function CouponModal({
 }: CouponModalProps) {
   // Form State
   const [code, setCode] = useState("");
-  const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
+  const [discountType, setDiscountType] = useState<PromoDiscountType>("percentage");
   const [discountValue, setDiscountValue] = useState<number>(10);
-  const [minSpend, setMinSpend] = useState<number>(0);
+  const [minSpend, setMinSpend] = useState<number>(500);
   const [maxDiscount, setMaxDiscount] = useState<number>(0);
   const [usageLimit, setUsageLimit] = useState<number>(100);
   const [expiresAt, setExpiresAt] = useState("");
@@ -33,9 +33,9 @@ export default function CouponModal({
     if (isOpen) {
       if (coupon) {
         setCode(coupon.code || "");
-        setDiscountType(coupon.discount_type || "percentage");
+        setDiscountType(coupon.discount_type === "percentage" ? "percentage" : "flat");
         setDiscountValue(coupon.discount_value ?? 10);
-        setMinSpend(coupon.min_spend ?? 0);
+        setMinSpend(coupon.min_spend ?? 500);
         setMaxDiscount(coupon.max_discount ?? 0);
         setUsageLimit(coupon.usage_limit ?? 100);
         setExpiresAt(coupon.expires_at ? coupon.expires_at.split("T")[0] : "");
@@ -45,7 +45,7 @@ export default function CouponModal({
         setCode("");
         setDiscountType("percentage");
         setDiscountValue(10);
-        setMinSpend(0);
+        setMinSpend(500);
         setMaxDiscount(0);
         setUsageLimit(100);
         setExpiresAt("");
@@ -62,11 +62,15 @@ export default function CouponModal({
     const cleanCode = code.trim().toUpperCase();
 
     if (!cleanCode) {
-      errs.code = "Coupon code is required.";
+      errs.code = "Promo code is required.";
     } else if (cleanCode.length > 30) {
-      errs.code = "Coupon code must not exceed 30 characters.";
+      errs.code = "Promo code must not exceed 30 characters.";
     } else if (/\s/.test(cleanCode)) {
-      errs.code = "Coupon code cannot contain spaces.";
+      errs.code = "Promo code cannot contain spaces.";
+    }
+
+    if (discountType !== "percentage" && discountType !== "flat") {
+      errs.type = "Discount type must be either Percentage or Flat Discount.";
     }
 
     if (discountValue <= 0) {
@@ -75,8 +79,8 @@ export default function CouponModal({
       errs.value = "Percentage discount cannot exceed 100%.";
     }
 
-    if (minSpend < 0) {
-      errs.minSpend = "Minimum spend cannot be negative.";
+    if (!minSpend || minSpend <= 0) {
+      errs.minSpend = "Minimum order amount is required and must be greater than $0.";
     }
 
     if (usageLimit < 0) {
@@ -97,7 +101,7 @@ export default function CouponModal({
         code: code.trim().toUpperCase(),
         discount_type: discountType,
         discount_value: Number(discountValue),
-        min_spend: minSpend > 0 ? Number(minSpend) : undefined,
+        min_spend: Number(minSpend),
         max_discount: maxDiscount > 0 ? Number(maxDiscount) : undefined,
         usage_limit: usageLimit > 0 ? Number(usageLimit) : undefined,
         expires_at: expiresAt ? `${expiresAt}T23:59:59Z` : undefined,
@@ -105,7 +109,7 @@ export default function CouponModal({
       });
       onClose();
     } catch (err: unknown) {
-      setErrors({ form: (err as Error)?.message || "Failed to save coupon." });
+      setErrors({ form: (err as Error)?.message || "Failed to save promo code." });
     } finally {
       setSaving(false);
     }
@@ -127,10 +131,10 @@ export default function CouponModal({
             </div>
             <div>
               <h2 id="coupon-modal-title" className="text-base sm:text-lg font-bold text-foreground">
-                {coupon ? "Edit Coupon" : "Create Coupon"}
+                {coupon ? "Edit Promo Code" : "Create Promo Code"}
               </h2>
               <p className="text-[11px] sm:text-xs text-muted-foreground">
-                Configure promo discount code, redemption rules, and expiration.
+                Configure promo discount code (Percentage or Flat), mandatory minimum order, and limits.
               </p>
             </div>
           </div>
@@ -153,11 +157,11 @@ export default function CouponModal({
             </div>
           )}
 
-          {/* Coupon Code */}
+          {/* Promo Code */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-semibold text-foreground">
-                Coupon Code <span className="text-red-500">*</span>
+                Promo Code <span className="text-red-500">*</span>
               </label>
               <span className="text-[10px] text-muted-foreground font-mono">
                 UPPERCASE NO SPACES
@@ -167,7 +171,7 @@ export default function CouponModal({
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="e.g. WELCOME10 or BULK500"
+              placeholder="e.g. AYAAN10 or SAVE50"
               disabled={saving}
               className={`w-full px-3 py-2 text-xs rounded-xl border bg-background text-foreground font-mono font-bold uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-primary ${
                 errors.code ? "border-red-500" : "border-border"
@@ -180,17 +184,20 @@ export default function CouponModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-foreground block mb-1">
-                Discount Type
+                Discount Type <span className="text-red-500">*</span>
               </label>
               <select
                 value={discountType}
-                onChange={(e) => setDiscountType(e.target.value as "percentage" | "fixed")}
+                onChange={(e) => setDiscountType(e.target.value as PromoDiscountType)}
                 disabled={saving}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-background text-foreground focus:ring-1 focus:ring-primary cursor-pointer outline-none"
               >
-                <option value="percentage">Percentage (%)</option>
-                <option value="fixed">Fixed Amount ($ USD)</option>
+                <option value="percentage">Percentage</option>
+                <option value="flat">Flat Discount</option>
               </select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {discountType === "percentage" ? "Percentage off eligible subtotal" : "Flat USD amount deducted"}
+              </p>
             </div>
 
             <div>
@@ -201,6 +208,7 @@ export default function CouponModal({
                 <input
                   type="number"
                   min={0.01}
+                  max={discountType === "percentage" ? 100 : undefined}
                   step={discountType === "percentage" ? "1" : "0.01"}
                   value={discountValue}
                   onChange={(e) => setDiscountValue(Number(e.target.value))}
@@ -209,30 +217,44 @@ export default function CouponModal({
                     errors.value ? "border-red-500" : "border-border"
                   }`}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono font-bold">
                   {discountType === "percentage" ? "%" : "$"}
                 </span>
               </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {discountType === "percentage" ? "Example: 10%" : "Example: $50"}
+              </p>
               {errors.value && <p className="text-[10px] text-red-500 mt-1">{errors.value}</p>}
             </div>
           </div>
 
-          {/* Min Spend & Max Discount Grid */}
+          {/* Minimum Order Amount & Usage Limit Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-foreground block mb-1">
-                Minimum Spend ($ USD)
+                Minimum Order Amount ($ USD) <span className="text-red-500">*</span>
               </label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                value={minSpend}
-                onChange={(e) => setMinSpend(Number(e.target.value))}
-                placeholder="0 for no minimum"
-                disabled={saving}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-background text-foreground focus:ring-1 focus:ring-primary outline-none"
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  min={0.01}
+                  step="0.01"
+                  value={minSpend}
+                  onChange={(e) => setMinSpend(Number(e.target.value))}
+                  placeholder="e.g. 500"
+                  disabled={saving}
+                  className={`w-full px-3 py-2 text-xs rounded-xl border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary outline-none ${
+                    errors.minSpend ? "border-red-500" : "border-border"
+                  }`}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono font-bold">
+                  $
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Customer must spend at least this amount to use the promo code.
+              </p>
+              {errors.minSpend && <p className="text-[10px] text-red-500 mt-1">{errors.minSpend}</p>}
             </div>
 
             <div>
@@ -248,6 +270,10 @@ export default function CouponModal({
                 disabled={saving}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-background text-foreground focus:ring-1 focus:ring-primary outline-none"
               />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Total redemptions allowed across all customers (0 for unlimited).
+              </p>
+              {errors.usageLimit && <p className="text-[10px] text-red-500 mt-1">{errors.usageLimit}</p>}
             </div>
           </div>
 
@@ -264,7 +290,7 @@ export default function CouponModal({
               className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-background text-foreground focus:ring-1 focus:ring-primary outline-none"
             />
             <p className="text-[10px] text-muted-foreground mt-1">
-              Leave blank if the coupon does not have an expiration date.
+              Leave blank if the promo code does not expire.
             </p>
           </div>
 
@@ -272,10 +298,10 @@ export default function CouponModal({
           <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/60">
             <div>
               <span className="text-xs font-bold text-foreground block">
-                Coupon Status
+                Promo Code Status
               </span>
               <span className="text-[11px] text-muted-foreground">
-                Active coupons can be redeemed by eligible wholesale buyers at checkout.
+                Active promo codes can be redeemed by eligible wholesale buyers at checkout.
               </span>
             </div>
 
@@ -321,7 +347,7 @@ export default function CouponModal({
               ) : (
                 <>
                   <Save size={13} />
-                  <span>{coupon ? "Update Coupon" : "Create Coupon"}</span>
+                  <span>{coupon ? "Update Promo Code" : "Create Promo Code"}</span>
                 </>
               )}
             </button>
@@ -331,3 +357,4 @@ export default function CouponModal({
     </div>
   );
 }
+

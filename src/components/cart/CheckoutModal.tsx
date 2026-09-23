@@ -274,7 +274,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       const result = validateCoupon(appliedCoupon.code, subtotal);
       if (!result.isValid) {
         setAppliedCoupon(null);
-        setPromoError(`Promo code ${appliedCoupon.code} was removed: ${result.error}`);
+        setPromoError(result.error);
       }
     }
   }, [subtotal, appliedCoupon]);
@@ -1269,7 +1269,11 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
               {discountAmount > 0 && appliedCoupon && (
                 <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                  <span className="uppercase tracking-wide text-xs">Discount ({appliedCoupon.code})</span>
+                  <span className="uppercase tracking-wide text-xs">
+                    {appliedCoupon.discount_type === "percentage"
+                      ? `Discount (${appliedCoupon.discount_value}%)`
+                      : `Discount ($${appliedCoupon.discount_value})`}
+                  </span>
                   <span className="font-semibold font-mono">-{formatPrice(discountAmount)}</span>
                 </div>
               )}

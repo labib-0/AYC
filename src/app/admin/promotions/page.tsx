@@ -51,7 +51,7 @@ export default function AdminPromotionsPage() {
   const [couponLoading, setCouponLoading] = useState(true);
   const [couponSearch, setCouponSearch] = useState("");
   const [couponStatusFilter, setCouponStatusFilter] = useState<"all" | "active" | "inactive">("all");
-  const [couponTypeFilter, setCouponTypeFilter] = useState<"all" | "percentage" | "fixed">("all");
+  const [couponTypeFilter, setCouponTypeFilter] = useState<"all" | "percentage" | "flat">("all");
   const [couponPage, setCouponPage] = useState(1);
 
   // Coupon Modals State
@@ -253,7 +253,7 @@ export default function AdminPromotionsPage() {
     setCouponPage(1);
   };
 
-  const handleCouponTypeFilterChange = (val: "all" | "percentage" | "fixed") => {
+  const handleCouponTypeFilterChange = (val: "all" | "percentage" | "flat") => {
     setCouponTypeFilter(val);
     setCouponPage(1);
   };

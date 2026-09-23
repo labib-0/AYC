@@ -708,7 +708,7 @@ class MockStore {
         code: (couponData.code || "DISCOUNT").toUpperCase().trim(),
         discount_type: couponData.discount_type || "percentage",
         discount_value: couponData.discount_value || 10,
-        min_spend: couponData.min_spend,
+        min_spend: couponData.min_spend ?? 500,
         max_discount: couponData.max_discount,
         usage_limit: couponData.usage_limit,
         usage_count: couponData.usage_count || 0,

@@ -17,12 +17,14 @@ export interface PromotionRecord {
   created_at: string;
 }
 
+export type PromoDiscountType = "percentage" | "flat";
+
 export interface CouponRecord {
   id: number;
   code: string;
-  discount_type: "percentage" | "fixed";
+  discount_type: PromoDiscountType;
   discount_value: number;
-  min_spend?: number;
+  min_spend: number; // Minimum Order Amount (USD) - mandatory, must be > 0
   max_discount?: number;
   usage_limit?: number;
   usage_count: number;
