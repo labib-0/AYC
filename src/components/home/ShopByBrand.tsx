@@ -138,38 +138,36 @@ export default function ShopByBrand() {
     >
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         
-        {/* Centered Section Heading with ALL CATEGORIES Action */}
-        <div className="relative mb-1.5 sm:mb-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2">
-          {/* Centered Heading */}
-          <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none text-center">
+        {/* Left-Aligned Section Heading with ALL CATEGORIES Action */}
+        <div className="mb-2.5 sm:mb-3.5 flex items-center justify-between gap-2">
+          {/* Left-Aligned Heading */}
+          <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none">
             SHOP BY BRAND
           </h2>
 
-          {/* Action: ALL CATEGORIES (repositioned to right without offsetting the centered title) */}
-          <div className="sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
-            <button
-              type="button"
-              onClick={handleAllCategoriesClick}
-              aria-expanded={isAllCategoriesOpen}
-              aria-controls="shop-by-brand-categories"
-              className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
+          {/* Action: ALL CATEGORIES */}
+          <button
+            type="button"
+            onClick={handleAllCategoriesClick}
+            aria-expanded={isAllCategoriesOpen}
+            aria-controls="shop-by-brand-categories"
+            className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
+              isAllCategoriesOpen
+                ? "bg-foreground text-background border border-foreground shadow-xs"
+                : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-border/60 hover:border-foreground/30"
+            }`}
+            aria-label="All Categories"
+          >
+            <LayoutGrid
+              size={13}
+              className={
                 isAllCategoriesOpen
-                  ? "bg-foreground text-background border border-foreground shadow-xs"
-                  : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-border/60 hover:border-foreground/30"
-              }`}
-              aria-label="All Categories"
-            >
-              <LayoutGrid
-                size={13}
-                className={
-                  isAllCategoriesOpen
-                    ? "text-background"
-                    : "text-foreground/70 group-hover:text-foreground transition-colors"
-                }
-              />
-              <span>ALL CATEGORIES</span>
-            </button>
-          </div>
+                  ? "text-background"
+                  : "text-foreground/70 group-hover:text-foreground transition-colors"
+              }
+            />
+            <span>ALL CATEGORIES</span>
+          </button>
         </div>
 
         {/* ── Inline Expanded Category Panel (Shared AllCategoriesPanel) ── */}

@@ -194,13 +194,13 @@ export default function HotSales() {
     (activeCategory === "towels" && !towelColors.includes("ALL") && towelColors.length > 0);
 
   return (
-    <section id="hot-sales" className="pb-7 sm:pb-9 bg-background scroll-mt-20">
+    <section id="hot-sales" className="pt-1.5 sm:pt-2 pb-5 sm:pb-7 bg-background scroll-mt-20">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         
         {/* Section Heading */}
-        <div className="mb-3.5 sm:mb-5 text-center md:text-left flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+        <div className="mb-3.5 sm:mb-5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-2">
           <div>
-            <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight">HOT SALES</h2>
+            <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight">HOT SALE</h2>
             <p className="section-subtitle mt-1 sm:mt-1.5">
               Limited-run deals on seasonal knitwear and luxury textiles
             </p>
@@ -208,7 +208,7 @@ export default function HotSales() {
           {activeCategory && (
             <button
               onClick={() => setActiveCategory(null)}
-              className="inline-flex items-center gap-1 text-xs font-sans font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors self-center sm:self-auto cursor-pointer"
+              className="inline-flex items-center gap-1 text-xs font-sans font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors self-start sm:self-auto cursor-pointer"
             >
               <X size={13} />
               Close View

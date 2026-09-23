@@ -73,7 +73,7 @@ export default function CategoryHighlights() {
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         
         {/* AUDIENCE Section Title */}
-        <div className="mb-2.5 sm:mb-3.5 text-center md:text-left flex flex-col sm:flex-row sm:items-end justify-between gap-1.5 sm:gap-2">
+        <div className="mb-2.5 sm:mb-3.5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-1.5 sm:gap-2">
           <div>
             <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight">AUDIENCE</h2>
             <p className="section-subtitle mt-1 sm:mt-1.5">

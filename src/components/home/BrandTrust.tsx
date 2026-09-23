@@ -56,10 +56,12 @@ export default function BrandTrust() {
   };
 
   return (
-    <section id="brand-trust" className="py-10 sm:py-12 bg-[#f8f6f0]">
+    <section id="certificates" className="pt-6 sm:pt-8 pb-12 sm:pb-16 bg-background scroll-mt-20">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
-        <div className="mb-6 md:mb-8">
-          <h2 className="text-fluid-h2 font-display font-bold text-foreground mb-2 tracking-tight">Compliance & certifications</h2>
+        <div className="text-left mb-6 md:mb-8">
+          <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground mb-1.5">
+            CERTIFICATE
+          </h2>
           <p className="section-subtitle mt-1 sm:mt-1.5">
             Verified registrations and quality certifications. Tap any document to view it in full.
           </p>

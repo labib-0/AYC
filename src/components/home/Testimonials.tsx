@@ -42,11 +42,15 @@ const testimonials: Testimonial[] = [
 
 export default function Testimonials() {
   return (
-    <section id="testimonials" className="py-10 sm:py-12 bg-secondary">
+    <section id="testimonials" className="py-8 sm:py-10 bg-secondary/35 scroll-mt-20 border-y border-border/40">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
-        <div className="text-center mb-6 md:mb-8">
-          <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight mb-1.5">WHAT OUR CUSTOMERS SAY</h2>
-          <p className="section-subtitle mt-1 sm:mt-1.5">Real experiences from our community</p>
+        <div className="text-left mb-6 md:mb-8">
+          <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground mb-1.5">
+            WHAT OUR CUSTOMERS SAY
+          </h2>
+          <p className="section-subtitle mt-1 sm:mt-1.5">
+            Real feedback from our retail partners and wholesale buyers
+          </p>
         </div>
         
         <HorizontalCarousel trackClassName="gap-3 md:gap-4 pb-4 font-sans pt-1">

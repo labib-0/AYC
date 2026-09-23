@@ -491,7 +491,7 @@ export default function FeaturedProducts() {
     <section
       id="featured"
       ref={sectionRef}
-      className="pb-12 sm:pb-16 bg-background scroll-mt-20"
+      className="pt-1.5 sm:pt-2 pb-8 sm:pb-12 bg-background scroll-mt-20"
     >
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         {/* ── Header & Main Controls Bar ── */}
