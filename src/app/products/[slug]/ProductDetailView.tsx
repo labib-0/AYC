@@ -19,8 +19,14 @@ import {
   Heart, 
   TrendingDown, 
   MessageCircle,
+  Sliders,
 } from "lucide-react";
 import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
+import CommerceSectionHeader from "@/components/product/CommerceSectionHeader";
+import PricingTierOption from "@/components/product/PricingTierOption";
+import QuantityStepper from "@/components/product/QuantityStepper";
+import CommerceSummary from "@/components/product/CommerceSummary";
+import PackageAssortmentMatrix from "@/components/product/PackageAssortmentMatrix";
 
 interface ProductDetailViewProps {
   initialProduct?: B2BProductInput | null;
@@ -170,8 +176,32 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   const matrixData = useMemo(() => {
     if (!product) return null;
 
-    const colors = colorsList;
-    const sizes = sizesList;
+    // 1. Determine active colors and sizes dynamically from allocations/variants
+    let colors: string[] = [];
+    let sizes: string[] = [];
+
+    if (isFullStock && product.variants && product.variants.length > 0) {
+      const variantColors = Array.from(new Set(product.variants.map(v => v.color).filter((c): c is string => Boolean(c))));
+      const variantSizes = Array.from(new Set(product.variants.map(v => v.size).filter((s): s is string => Boolean(s))));
+      
+      colors = colorsList.filter(c => variantColors.includes(c));
+      variantColors.forEach(c => { if (!colors.includes(c)) colors.push(c); });
+
+      sizes = sizesList.filter(s => variantSizes.includes(s));
+      variantSizes.forEach(s => { if (!sizes.includes(s)) sizes.push(s); });
+    } else if (product.packageAllocations && product.packageAllocations.length > 0) {
+      const allocColors = Array.from(new Set(product.packageAllocations.map(a => a.color).filter((c): c is string => Boolean(c))));
+      const allocSizes = Array.from(new Set(product.packageAllocations.map(a => a.size).filter((s): s is string => Boolean(s))));
+
+      colors = colorsList.filter(c => allocColors.includes(c));
+      allocColors.forEach(c => { if (!colors.includes(c)) colors.push(c); });
+
+      sizes = sizesList.filter(s => allocSizes.includes(s));
+      allocSizes.forEach(s => { if (!sizes.includes(s)) sizes.push(s); });
+    }
+
+    if (colors.length === 0) colors = colorsList;
+    if (sizes.length === 0) sizes = sizesList;
 
     const cellMap: Record<string, Record<string, number>> = {};
     colors.forEach(c => {
@@ -409,464 +439,310 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               }
             />
 
-            {/* Specifications Section — positioned underneath thumbnail rail with clean, compact spacing */}
-            <div className="pt-4 mt-4 border-t border-border/60 font-sans">
-              <h2 className="text-[13px] sm:text-[14px] font-display font-bold uppercase tracking-wider text-foreground mb-2">
-                Specifications
-              </h2>
+            {/* Specifications Section — Structured information module underneath gallery */}
+            <div className="pt-4 mt-4 border-t border-border/70 font-sans space-y-2.5">
+              <CommerceSectionHeader
+                title="Specifications"
+                icon={<Sliders size={14} />}
+                subtitle="Product Details"
+              />
               
               {product.description && (
-                <p className="font-sans text-muted-foreground leading-relaxed text-[13px] sm:text-[13.5px] mb-4 max-w-prose">
+                <div className="rounded-lg bg-secondary/15 border border-border/60 p-3 sm:p-3.5 text-muted-foreground text-[12.5px] sm:text-[13px] leading-relaxed">
                   {product.description}
-                </p>
+                </div>
               )}
 
               {/* Compact structured metadata grid, fields rendered dynamically based on existence */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-4 border-t border-border/40 text-[13px] sm:text-[13.5px] font-sans">
-                <div className="space-y-0.5">
-                  <span className="text-[11px] sm:text-[11.5px] text-muted-foreground block uppercase font-bold tracking-wider">Design Type</span>
-                  <span className="font-semibold text-foreground block leading-snug break-words">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[12px] sm:text-[12.5px] font-sans">
+                <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-0.5 shadow-2xs">
+                  <span className="text-[10px] sm:text-[10.5px] text-muted-foreground block uppercase font-bold tracking-wider">
+                    Design Type
+                  </span>
+                  <span className="font-semibold text-foreground block truncate">
                     {(product.designType || "").toUpperCase() === "MASTER COPY"
                       ? "MASTER COPY"
                       : "ORIGINAL"}
                   </span>
                 </div>
                 {product.material && (
-                  <div className="space-y-0.5">
-                    <span className="text-[11px] sm:text-[11.5px] text-muted-foreground block uppercase font-bold tracking-wider">Material</span>
-                    <span className="font-medium text-foreground block leading-snug break-words">
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-0.5 shadow-2xs">
+                    <span className="text-[10px] sm:text-[10.5px] text-muted-foreground block uppercase font-bold tracking-wider">
+                      Material
+                    </span>
+                    <span className="font-semibold text-foreground block truncate" title={product.material}>
                       {product.material}
                     </span>
                   </div>
                 )}
                 
                 {product.weightGrams && (
-                  <div className="space-y-0.5">
-                    <span className="text-[11px] sm:text-[11.5px] text-muted-foreground block uppercase font-bold tracking-wider">Weight</span>
-                    <span className="font-medium text-foreground block leading-snug break-words">
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-0.5 shadow-2xs">
+                    <span className="text-[10px] sm:text-[10.5px] text-muted-foreground block uppercase font-bold tracking-wider">
+                      Fabric Weight
+                    </span>
+                    <span className="font-semibold text-foreground block truncate">
                       {product.weightGrams} g/m²
                     </span>
                   </div>
                 )}
                 
                 {product.collectionSeason && (
-                  <div className="space-y-0.5">
-                    <span className="text-[11px] sm:text-[11.5px] text-muted-foreground block uppercase font-bold tracking-wider">Season</span>
-                    <span className="font-medium text-foreground block leading-snug break-words">
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-0.5 shadow-2xs">
+                    <span className="text-[10px] sm:text-[10.5px] text-muted-foreground block uppercase font-bold tracking-wider">
+                      Season
+                    </span>
+                    <span className="font-semibold text-foreground block truncate">
                       {product.collectionSeason}
                     </span>
                   </div>
                 )}
-                
-                {/* Note: product.audience intentionally omitted here to prevent redundancy with Product Header */}
               </div>
             </div>
           </div>
 
           {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (7 Cols / 8 Cols on XL+ — Sticky on Desktop) */}
-          <div className="lg:col-span-7 xl:col-span-8 lg:sticky lg:top-[80px] lg:self-start w-full flex flex-col">
+          <div className="lg:col-span-7 xl:col-span-8 lg:sticky lg:top-[80px] lg:self-start w-full flex flex-col space-y-4 sm:space-y-4.5">
             
             {/* ========================================================= */}
-            {/* 1. PRODUCT IDENTITY & METADATA HIERARCHY */}
+            {/* LEVEL 1: PRODUCT IDENTITY & METADATA STRIP */}
             {/* ========================================================= */}
-            <div className="space-y-2 pb-4 border-b border-border/60">
+            <div className="space-y-2 pb-4 border-b border-border/70">
               
-              {/* Structured Metadata Row (BRAND · DESIGN TYPE · SKU · AUDIENCE · CATEGORY) */}
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13px] sm:text-[13.5px] font-sans leading-normal">
-                {/* Brand Name (Prominent: bold, slightly larger than secondary metadata, uppercase) */}
+              {/* Compact Metadata Strip */}
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-[12px] font-sans">
+                {/* Brand Badge (Strongest item in metadata line) */}
                 <Link
                   href={`/search?brand=${encodeURIComponent(product.brand)}`}
-                  className="font-bold text-[14px] sm:text-[15px] uppercase tracking-wider text-foreground hover:text-primary transition-colors"
+                  className="inline-flex items-center px-2.5 py-0.5 rounded bg-foreground text-background font-display font-extrabold text-[11px] sm:text-[12px] uppercase tracking-wider hover:bg-foreground/90 transition-all shadow-2xs cursor-pointer"
+                  title={`View all products from ${product.brand}`}
                 >
                   {product.brand}
                 </Link>
 
-                <span className="text-muted-foreground/50 select-none">·</span>
-
-                {/* Design Type (Canonical full wording, immediately following Brand, no prefix, semibold) */}
-                <span className="font-semibold text-[13px] sm:text-[13.5px] text-foreground/90 uppercase tracking-wider">
-                  {(product.designType || "").toUpperCase() === "MASTER COPY" ? "MASTER COPY" : "ORIGINAL"}
+                {/* Design Type (Identifiable metadata tag) */}
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded font-display text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider ${
+                    (product.designType || "").toUpperCase() === "MASTER COPY"
+                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
+                      : "bg-secondary/70 text-foreground border border-border/80"
+                  }`}
+                >
+                  {(product.designType || "").toUpperCase() === "MASTER COPY" ? "Master Copy" : "Original"}
                 </span>
 
-                {product.sku && (
-                  <>
-                    <span className="text-muted-foreground/50 select-none">·</span>
-                    <span className="text-muted-foreground text-[12.5px] sm:text-[13px]">
-                      SKU: <span className="font-mono text-foreground/80 font-medium">{product.sku}</span>
-                    </span>
-                  </>
-                )}
-
+                {/* Audience Tag */}
                 {product.audience && (
-                  <>
-                    <span className="text-muted-foreground/50 select-none">·</span>
-                    <span className="font-medium text-[12.5px] sm:text-[13px] uppercase text-muted-foreground">
-                      {product.audience}
-                    </span>
-                  </>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-secondary/50 text-[10.5px] sm:text-[11px] font-medium uppercase tracking-wider text-muted-foreground border border-border/40">
+                    {product.audience}
+                  </span>
                 )}
 
+                {/* Category Tag */}
                 {product.categoryName && (
-                  <>
-                    <span className="text-muted-foreground/50 select-none">·</span>
-                    <span className="font-medium text-[12.5px] sm:text-[13px] uppercase text-muted-foreground">
-                      {product.categoryName}
-                    </span>
-                  </>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-secondary/50 text-[10.5px] sm:text-[11px] font-medium uppercase tracking-wider text-muted-foreground border border-border/40">
+                    {product.categoryName}
+                  </span>
+                )}
+
+                {/* SKU (Muted secondary monospace) */}
+                {product.sku && (
+                  <span className="inline-flex items-center gap-1 text-[11px] sm:text-[11.5px] text-muted-foreground ml-auto sm:ml-2">
+                    <span className="text-muted-foreground/60 uppercase text-[10px] font-bold">SKU:</span>
+                    <span className="font-mono text-foreground/80 font-medium tracking-tight">{product.sku}</span>
+                  </span>
                 )}
               </div>
 
-              {/* Product Title */}
-              <h1 className="text-xl sm:text-2xl lg:text-[26px] font-display font-bold uppercase tracking-tight text-foreground leading-snug">
+              {/* Product Title (Controlled Manrope Heading) */}
+              <h1 className="text-2xl sm:text-3xl lg:text-[30px] font-display font-extrabold uppercase tracking-tight text-foreground leading-tight pt-1">
                 {product.name}
               </h1>
 
-              {/* Price Hierarchy */}
-              <div className="space-y-1.5 pt-1">
-                {/* Dominant Primary B2B Unit Price */}
+              {/* LEVEL 2: CORE COMMERCIAL DATA — DEDICATED PRICE BLOCK */}
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2.5">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl sm:text-3xl lg:text-[32px] font-sans font-bold text-foreground tabular-nums tracking-tight">
+                  <span className="text-3xl sm:text-4xl font-display font-extrabold text-foreground tabular-nums tracking-tight">
                     {formatPrice(currentPrice)}
                   </span>
-                  <span className="text-[13px] sm:text-[14px] font-sans font-medium text-muted-foreground uppercase tracking-wider">
+                  <span className="text-sm sm:text-base font-sans font-medium text-muted-foreground uppercase tracking-wider">
                     / pc
                   </span>
                 </div>
 
-                {/* Compact Secondary MOQ & Stock Facts */}
-                <div className="flex items-center gap-2 sm:gap-2.5 text-[13px] sm:text-[13.5px] font-sans text-muted-foreground">
-                  <span>MOQ: <strong className="text-foreground font-semibold tabular-nums">{moq} pcs</strong></span>
-                  <span className="text-muted-foreground/50 select-none">·</span>
-                  <span>Stock: <strong className="text-foreground font-semibold tabular-nums">{totalStock.toLocaleString()} pcs</strong></span>
-                </div>
-              </div>
-
-            </div>
-
-            {/* ========================================================= */}
-            {/* 2. BUY MORE, SAVE MORE TIER TABLE */}
-            {/* ========================================================= */}
-            <div className="space-y-3 pt-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[13px] sm:text-[14px] font-display font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                  <TrendingDown size={14} className="text-primary" />
-                  <span>Buy More, Save More</span>
-                </h3>
-                <span className="text-[11px] sm:text-[11.5px] text-muted-foreground/70">Select a tier to set order volume</span>
-              </div>
-
-              <div className="text-[12px] sm:text-[13px] font-sans min-w-[280px]">
-                {/* Header Row */}
-                <div className="grid grid-cols-[30%_35%_35%] px-3 pb-2 text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border/60">
-                  <div className="font-semibold text-foreground">Tier</div>
-                  <div className="font-semibold text-foreground">Quantity</div>
-                  <div className="font-bold text-right text-foreground">Unit Price</div>
-                </div>
-
-                {/* Rows Container */}
-                <div className="pt-2.5 space-y-1.5" role="radiogroup" aria-label="Pricing Tiers">
-                  {/* STANDARD */}
-                  <div
-                    role="radio"
-                    aria-checked={isStandard}
-                    tabIndex={0}
-                    onClick={handleSelectStandard}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleSelectStandard();
-                      }
-                    }}
-                    className={`grid grid-cols-[30%_35%_35%] items-center px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-2 ${
-                      isStandard
-                        ? "bg-secondary/30 ring-2 ring-inset ring-foreground shadow-sm"
-                        : "bg-card ring-1 ring-inset ring-border/70 hover:ring-border hover:bg-secondary/20 hover:shadow-xs text-muted-foreground"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all shrink-0 ${isStandard ? "bg-foreground scale-125" : "bg-muted-foreground/40"}`} />
-                      <span className={`uppercase tracking-wider text-[11px] sm:text-[12px] ${isStandard ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>Standard</span>
-                    </div>
-                    <div className="font-normal tabular-nums text-xs sm:text-[13px]">
-                      <span className={isStandard ? "text-foreground" : "text-muted-foreground"}>
-                        {moq}–{bulkThreshold - 1} pcs
-                      </span>
-                    </div>
-                    <div className="text-right tabular-nums whitespace-nowrap">
-                      <span className={`tabular-nums text-xs sm:text-[13px] ${isStandard ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
-                        {formatPrice(standardPrice)}
-                      </span>
-                    </div>
+                <div className="flex items-center gap-2 sm:gap-2.5 text-[12px] sm:text-[12.5px] font-sans">
+                  <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-border/80 bg-secondary/30 text-foreground font-semibold">
+                    <span className="text-muted-foreground font-normal">MOQ</span>
+                    <span className="tabular-nums font-bold">{moq} pcs</span>
                   </div>
-
-                  {/* BULK */}
-                  <div
-                    role="radio"
-                    aria-checked={isBulk}
-                    tabIndex={0}
-                    onClick={handleSelectBulk}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleSelectBulk();
-                      }
-                    }}
-                    className={`grid grid-cols-[30%_35%_35%] items-center px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-2 ${
-                      isBulk
-                        ? "bg-secondary/30 ring-2 ring-inset ring-foreground shadow-sm"
-                        : "bg-card ring-1 ring-inset ring-border/70 hover:ring-border hover:bg-secondary/20 hover:shadow-xs text-muted-foreground"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all shrink-0 ${isBulk ? "bg-foreground scale-125" : "bg-muted-foreground/40"}`} />
-                      <span className={`uppercase tracking-wider text-[11px] sm:text-[12px] ${isBulk ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>Bulk</span>
-                    </div>
-                    <div className="font-normal tabular-nums text-xs sm:text-[13px]">
-                      <span className={isBulk ? "text-foreground" : "text-muted-foreground"}>
-                        {bulkThreshold}+ pcs
-                      </span>
-                    </div>
-                    <div className="text-right tabular-nums whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {bulkSavingsPercent > 0 && (
-                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">
-                            {bulkSavingsPercent}% OFF
-                          </span>
-                        )}
-                        <span className={`tabular-nums text-xs sm:text-[13px] ${isBulk ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
-                          {formatPrice(bulkPrice)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* FULL STOCK */}
-                  {totalStock > moq && (
-                    <div
-                      role="radio"
-                      aria-checked={isFullStock}
-                      tabIndex={0}
-                      onClick={handleSelectFullStock}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          handleSelectFullStock();
-                        }
-                      }}
-                      className={`grid grid-cols-[30%_35%_35%] items-center px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-2 ${
-                        isFullStock
-                          ? "bg-secondary/30 ring-2 ring-inset ring-foreground shadow-sm"
-                          : "bg-card ring-1 ring-inset ring-border/70 hover:ring-border hover:bg-secondary/20 hover:shadow-xs text-muted-foreground"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all shrink-0 ${isFullStock ? "bg-foreground scale-125" : "bg-muted-foreground/40"}`} />
-                        <span className={`uppercase tracking-wider text-[11px] sm:text-[12px] ${isFullStock ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>Take All</span>
-                      </div>
-                      <div className="font-normal tabular-nums text-xs sm:text-[13px]">
-                        <span className={isFullStock ? "text-foreground" : "text-muted-foreground"}>
-                          {totalStock.toLocaleString()} pcs
-                        </span>
-                      </div>
-                      <div className="text-right tabular-nums whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {fullStockSavingsPercent > 0 && (
-                            <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">
-                              {fullStockSavingsPercent}% OFF
-                            </span>
-                          )}
-                          <span className={`tabular-nums text-xs sm:text-[13px] ${isFullStock ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
-                            {formatPrice(resolvedFullStockPrice)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* ========================================================= */}
-            {/* 3. UNIFIED ORDER QUANTITY & ESTIMATED TOTAL DECISION BLOCK */}
-            {/* ========================================================= */}
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 sm:gap-6 font-sans pt-5">
-              
-              {/* Left side: Order Quantity */}
-              <div className="space-y-2">
-                <span className="text-[13px] sm:text-[14px] font-display font-bold uppercase tracking-wider text-foreground block">
-                  Order Quantity
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center border border-border/80 rounded-md bg-card shadow-2xs h-8 sm:h-9">
-                    <button 
-                      type="button" 
-                      onClick={handleDecrement}
-                      disabled={quantity <= moq && !isFullStock}
-                      className="w-8 sm:w-9 h-full flex items-center justify-center text-foreground font-bold text-sm hover:bg-secondary/60 rounded-l-md cursor-pointer transition-colors select-none disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label="Decrease quantity"
-                      title={quantity <= moq ? `Minimum order quantity is ${moq} pcs` : undefined}
-                    >
-                      −
-                    </button>
-                    <div className="w-16 sm:w-18 text-center font-bold text-[13px] sm:text-[14px] select-none tabular-nums font-sans">
-                      {quantity.toLocaleString()}
-                    </div>
-                    <button 
-                      type="button" 
-                      onClick={handleIncrement}
-                      disabled={isFullStock || (totalStock > 0 && quantity >= totalStock)}
-                      className="w-8 sm:w-9 h-full flex items-center justify-center text-foreground font-bold text-sm hover:bg-secondary/60 rounded-r-md cursor-pointer transition-colors select-none disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label="Increase quantity"
-                      title={isFullStock || (totalStock > 0 && quantity >= totalStock) ? `Maximum available stock is ${totalStock.toLocaleString()} pcs` : undefined}
-                    >
-                      +
-                    </button>
-                  </div>
-                  <span className="text-[13px] text-muted-foreground font-medium">pcs</span>
-                </div>
-                <div className="text-[11px] sm:text-[12px] text-muted-foreground/80 leading-none">
-                  Multiples of {moq} pcs
-                </div>
-              </div>
-
-              {/* Right side: Estimated Total */}
-              <div className="space-y-1.5 sm:text-right">
-                <span className="text-[13px] sm:text-[14px] font-display font-bold uppercase tracking-wider text-muted-foreground block">
-                  Est. Total
-                </span>
-                <div className="text-xl sm:text-2xl font-bold text-foreground font-sans tabular-nums leading-none">
-                  {formatPrice(currentPrice * quantity)}
-                </div>
-                <div className="text-[11px] sm:text-[12px] text-muted-foreground tabular-nums leading-none">
-                  {quantity.toLocaleString()} pcs × {formatPrice(currentPrice)} / pc
-                </div>
-              </div>
-            </div>
-
-            {/* ========================================================= */}
-            {/* 4. WHOLESALE PACKAGE / ASSORTMENT INFORMATION */}
-            {/* ========================================================= */}
-            <div className="flex flex-col p-2.5 sm:p-3 rounded-lg border border-border/50 bg-secondary/10 font-sans gap-2 mt-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Package size={14} className="text-primary" />
-                  <h3 className="text-[13px] sm:text-[14px] font-display font-bold uppercase tracking-wider text-foreground">
-                    Package Assortment
-                  </h3>
-                </div>
-                <span className="text-[12px] sm:text-[12.5px] font-sans font-medium text-muted-foreground tabular-nums">
-                  {matrixData ? `${matrixData.grandTotal.toLocaleString()} pcs total` : `${moq} pcs / pack`}
-                </span>
-              </div>
-
-              {/* Compact Summary */}
-              <div className="text-[12px] text-muted-foreground leading-snug">
-                <span className="font-semibold text-foreground">Colors:</span> {colorsList.join(", ")} <span className="mx-1">&middot;</span> <span className="font-semibold text-foreground">Sizes:</span> {sizesList.join(", ")}
-              </div>
-
-              {/* Package Breakdown Matrix Table (if available) */}
-              {matrixData && (
-                <div className="space-y-1 mt-1">
-                  <div className="flex items-center justify-between text-[10px] sm:text-[11px] mb-1">
-                    <span className="font-display font-semibold uppercase tracking-wider text-foreground/80">
-                      {isFullStock ? "Full Stock Matrix" : "Ratio Matrix"}
+                  <span className="text-muted-foreground/40 select-none">|</span>
+                  <div className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    <span>
+                      <strong className="text-foreground font-semibold tabular-nums">{totalStock.toLocaleString()} pcs</strong> available
                     </span>
-                    <span className="text-muted-foreground">Units per package</span>
-                  </div>
-
-                  <div className="overflow-x-auto border border-border/50 rounded-md bg-background shadow-2xs">
-                    <table className="w-full text-xs text-left min-w-[220px] font-sans">
-                      <thead className="bg-secondary/30 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/50">
-                        <tr>
-                          <th className="px-2 py-1.5 font-semibold">Color</th>
-                          {matrixData.sizes.map((s) => (
-                            <th key={s} className="px-1.5 py-1.5 font-semibold text-center">{s}</th>
-                          ))}
-                          <th className="px-2 py-1.5 font-bold text-right text-foreground">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/30 text-[11px]">
-                        {matrixData.colors.map((color) => (
-                          <tr key={color} className="hover:bg-secondary/10">
-                            <td className="px-2 py-1.5 font-medium text-foreground flex items-center gap-1.5">
-                              <span
-                                className="w-1.5 h-1.5 rounded-full border border-black/10 shrink-0"
-                                style={{ backgroundColor: getColorHex(color) }}
-                              />
-                              <span>{color}</span>
-                            </td>
-                            {matrixData.sizes.map((size) => (
-                              <td key={size} className="px-1.5 py-1.5 text-center text-muted-foreground tabular-nums">
-                                {matrixData.cellMap[color]?.[size] || 0}
-                              </td>
-                            ))}
-                            <td className="px-2 py-1.5 font-bold text-right text-foreground tabular-nums">
-                              {matrixData.rowTotals[color] || 0}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot className="bg-secondary/20 border-t border-border/50 font-bold text-foreground text-[11px]">
-                        <tr>
-                          <td className="px-2 py-1.5 uppercase text-[10px]">TOTAL</td>
-                          {matrixData.sizes.map((size) => (
-                            <td key={size} className="px-1.5 py-1.5 text-center tabular-nums">
-                              {matrixData.colTotals[size] || 0}
-                            </td>
-                          ))}
-                          <td className="px-2 py-1.5 text-right text-foreground font-bold tabular-nums">
-                            {matrixData.grandTotal.toLocaleString()}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
                   </div>
                 </div>
-              )}
+              </div>
+
             </div>
 
             {/* ========================================================= */}
-            {/* 5. PRIMARY ACTION: ADD TO CART (+ WISHLIST & SECONDARY CTAS) */}
+            {/* LEVEL 3.1: BUY MORE, SAVE MORE TIER MODULE */}
             {/* ========================================================= */}
-            <div className="space-y-3 pt-6 font-sans">
-              <div className="flex items-center gap-2 sm:gap-3">
+            <div className="space-y-2">
+              <CommerceSectionHeader
+                title="Buy More, Save More"
+                icon={<TrendingDown size={15} />}
+                subtitle="Select a tier to update order quantity"
+              />
+
+              <div className="rounded-xl border border-border/80 bg-card p-3 sm:p-3.5 space-y-1.5 shadow-2xs" role="radiogroup" aria-label="Pricing Tiers">
+                {/* Column Legend */}
+                <div className="grid grid-cols-[30%_35%_35%] px-3.5 pb-1 text-[10.5px] font-display font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
+                  <div>Tier</div>
+                  <div>Quantity</div>
+                  <div className="text-right">Unit Price</div>
+                </div>
+
+                {/* STANDARD TIER */}
+                <PricingTierOption
+                  name="Standard"
+                  quantityRange={`${moq}–${bulkThreshold - 1} pcs`}
+                  unitPrice={standardPrice}
+                  isSelected={isStandard}
+                  onSelect={handleSelectStandard}
+                />
+
+                {/* BULK TIER */}
+                <PricingTierOption
+                  name="Bulk"
+                  quantityRange={`${bulkThreshold}+ pcs`}
+                  unitPrice={bulkPrice}
+                  discountPercent={bulkSavingsPercent}
+                  isSelected={isBulk}
+                  onSelect={handleSelectBulk}
+                />
+
+                {/* TAKE ALL TIER */}
+                {totalStock > moq && (
+                  <PricingTierOption
+                    name="Take All"
+                    quantityRange={`${totalStock.toLocaleString()} pcs`}
+                    unitPrice={resolvedFullStockPrice}
+                    discountPercent={fullStockSavingsPercent}
+                    isSelected={isFullStock}
+                    onSelect={handleSelectFullStock}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* LEVEL 3.2: ORDER QUANTITY & ESTIMATED TOTAL DECISION BLOCK */}
+            {/* ========================================================= */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-stretch">
+              
+              {/* Order Quantity Stepper Module */}
+              <div className="sm:col-span-6 rounded-xl border border-border/80 bg-card p-3.5 sm:p-4 flex flex-col justify-between space-y-2 shadow-2xs">
+                <CommerceSectionHeader
+                  title="Order Quantity"
+                />
+                <QuantityStepper
+                  quantity={quantity}
+                  moq={moq}
+                  step={moq}
+                  maxStock={totalStock}
+                  onIncrement={handleIncrement}
+                  onDecrement={handleDecrement}
+                  isDecrementDisabled={quantity <= moq && !isFullStock}
+                  isIncrementDisabled={isFullStock || (totalStock > 0 && quantity >= totalStock)}
+                  helperText={`Multiples of ${moq} pcs`}
+                />
+              </div>
+
+              {/* Estimated Total Commercial Summary Module */}
+              <div className="sm:col-span-6">
+                <CommerceSummary
+                  totalAmount={currentPrice * quantity}
+                  quantity={quantity}
+                  unitPrice={currentPrice}
+                  activeTierName={isFullStock ? "Take All Tier" : isBulk ? "Bulk Tier" : "Standard Tier"}
+                  className="h-full shadow-2xs"
+                />
+              </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* LEVEL 3.3: PACKAGE ASSORTMENT COMMERCE MODULE */}
+            {/* ========================================================= */}
+            <div>
+              <div className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 sm:p-4 space-y-3 shadow-2xs">
+                <CommerceSectionHeader
+                  title="Package Assortment"
+                  icon={<Package size={15} />}
+                  badge={
+                    <span className="text-[11px] font-sans font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-background border border-border/70 text-foreground tabular-nums">
+                      {matrixData ? `${matrixData.grandTotal.toLocaleString()} PCS TOTAL` : `${moq} PCS TOTAL`}
+                    </span>
+                  }
+                />
+
+                {/* Ratio Matrix Component (Colors = Rows, Sizes = Columns, No Redundant Summary Pills) */}
+                {matrixData && (
+                  <PackageAssortmentMatrix
+                    matrixData={matrixData}
+                    title={isFullStock ? "Warehouse Inventory Matrix" : "Ratio Matrix"}
+                    getColorHex={getColorHex}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* LEVEL 4: PRIMARY ACTION (ADD TO CART) & SECONDARY CTAS */}
+            {/* ========================================================= */}
+            <div className="space-y-3 pt-2 font-sans">
+              <div className="flex items-center gap-2.5 sm:gap-3">
                 <button
                   type="button"
+                  id="add-to-cart-button"
                   onClick={handleAddToCart}
-                  className="w-full flex-1 h-11 sm:h-12 px-5 rounded-lg bg-foreground text-background font-sans font-bold text-[13px] sm:text-[14px] uppercase tracking-wider hover:bg-foreground/90 transition-all duration-150 cursor-pointer shadow-md active:scale-[0.99] flex items-center justify-center gap-2"
+                  className="w-full flex-1 h-12 sm:h-13 px-6 rounded-xl bg-foreground text-background font-display font-extrabold text-[13.5px] sm:text-[14.5px] uppercase tracking-wider hover:bg-foreground/90 active:scale-[0.99] transition-all duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2.5 group"
                 >
-                  <ShoppingCart size={15} />
+                  <ShoppingCart size={17} className="group-hover:scale-110 transition-transform" />
                   <span>Add to Cart</span>
                 </button>
 
                 <button
                   type="button"
+                  id="wishlist-toggle-button"
                   onClick={() => {
                     if (product) {
                       toggleWishlist(toStorefrontProduct(product));
                     }
                   }}
-                  className={`h-11 sm:h-12 w-11 sm:w-12 rounded-lg border transition-all cursor-pointer flex items-center justify-center shrink-0 ${
+                  className={`h-12 sm:h-13 w-12 sm:w-13 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-2xs ${
                     product && isInWishlist(product.id)
                       ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/30 dark:border-rose-800"
-                      : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-secondary/50 hover:border-border"
+                      : "border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/40 hover:border-border"
                   }`}
                   title={product && isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
                   aria-label="Toggle wishlist"
                 >
-                  <Heart size={16} className={product && isInWishlist(product.id) ? "fill-current text-rose-600" : ""} />
+                  <Heart size={18} className={product && isInWishlist(product.id) ? "fill-current text-rose-600" : ""} />
                 </button>
               </div>
 
-              {/* Secondary B2B Action (WhatsApp Inquiry Only — Offer Sheet Removed) */}
+              {/* Secondary B2B Action (WhatsApp Inquiry) */}
               {product && (
                 <a
                   href={getWhatsAppUrl(`Hello ${BUSINESS_PROFILE.name},\n\nI am interested in:\nProduct: ${product.name}\nSKU: ${product.sku}\nQuantity: ${quantity} pcs`)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full h-9 px-3 rounded-md bg-transparent hover:bg-secondary/30 border border-border/50 text-muted-foreground hover:text-[#25D366] font-sans font-semibold text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99]"
+                  className="w-full h-9 px-3 rounded-lg bg-transparent hover:bg-secondary/30 border border-border/60 text-muted-foreground hover:text-[#25D366] font-sans font-semibold text-[10.5px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99]"
                 >
-                  <MessageCircle size={13} className="opacity-70 group-hover:opacity-100" />
+                  <MessageCircle size={14} className="opacity-70 group-hover:opacity-100" />
                   <span>Inquire on WhatsApp</span>
                 </a>
               )}

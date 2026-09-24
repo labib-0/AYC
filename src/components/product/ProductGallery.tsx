@@ -366,7 +366,7 @@ export default function ProductGallery({
       <div className={`space-y-2.5 w-full ${isModal ? "max-w-[340px] mx-auto" : ""}`}>
         {/* Video Mode: YouTube Iframe */}
         {mediaMode === "video" && resolvedYoutubeEmbedUrl ? (
-          <div className={`relative aspect-[4/5] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary border border-border/70 shadow-sm`}>
+          <div className={`relative aspect-[4/5] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary border border-border/70 shadow-sm group`}>
             <div className="w-full h-full bg-black flex items-center justify-center">
               <iframe
                 src={`${resolvedYoutubeEmbedUrl}?autoplay=1&rel=0`}
@@ -376,6 +376,14 @@ export default function ProductGallery({
                 allowFullScreen
               />
             </div>
+            {/* Quick exit / switch back to photos pill */}
+            <button
+              type="button"
+              onClick={() => setMediaMode("image")}
+              className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded-md bg-black/75 hover:bg-black text-white text-[11px] font-sans font-semibold uppercase tracking-wider flex items-center gap-1.5 backdrop-blur-xs border border-white/20 transition-all cursor-pointer shadow-md active:scale-95"
+            >
+              <span>← Back to Photos</span>
+            </button>
           </div>
         ) : (
           /* Image Mode: Main Image with Swipe + Click to Lightbox */
@@ -497,8 +505,8 @@ export default function ProductGallery({
                     }}
                     className={`${thumbSizeClass} aspect-[4/5] aspect-product overflow-hidden border-2 shrink-0 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       isActive
-                        ? "border-primary ring-2 ring-primary/20 opacity-100"
-                        : "border-border/70 opacity-70 hover:opacity-100 hover:border-border"
+                        ? "border-foreground ring-2 ring-foreground/25 shadow-xs opacity-100 scale-[1.02]"
+                        : "border-border/80 opacity-70 hover:opacity-100 hover:border-foreground/50 hover:shadow-2xs active:scale-95"
                     }`}
                     aria-label={`Select image ${idx + 1}`}
                     aria-current={isActive ? "true" : undefined}
@@ -532,8 +540,8 @@ export default function ProductGallery({
                   }}
                   className={`relative aspect-[4/5] aspect-product ${thumbSizeClass} overflow-hidden border-2 shrink-0 transition-all cursor-pointer bg-black/90 flex flex-col items-center justify-center group ${
                     mediaMode === "video"
-                      ? "border-primary ring-2 ring-primary/20 opacity-100"
-                      : "border-border/70 opacity-75 hover:opacity-100 hover:border-border"
+                      ? "border-foreground ring-2 ring-foreground/25 shadow-xs opacity-100 scale-[1.02]"
+                      : "border-border/80 opacity-80 hover:opacity-100 hover:border-foreground/50 hover:shadow-2xs active:scale-95"
                   }`}
                   aria-label="Watch product video"
                   title="Watch product video"

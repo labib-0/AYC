@@ -194,7 +194,7 @@ export function generateProductOfferSheetDoc(
     format: "a4",
   });
 
-  if (existingDoc) {
+  if (existingDoc && (pageIndex === undefined || pageIndex > 1)) {
     doc.addPage();
   }
 
@@ -298,117 +298,136 @@ export function generateProductOfferSheetDoc(
 
   y += 22;
 
-  // 3. PRODUCT IMAGE GALLERY (Prominent Main Image + Thumbnails Row)
+  // 3. PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES (Full-Width Multi-Image 4:5 Grid)
+  // Canonical 4:5 ratio reference (4:5 ratio standard for document thumbnails/tiles)
+  const thumbW = 12; const thumbH = 15;
+  void thumbW; void thumbH;
+
   const galleryImages: string[] = [];
-  if (product.imageDataUrl && !galleryImages.includes(product.imageDataUrl)) {
-    galleryImages.push(product.imageDataUrl);
+  // 3.1 Primary Image first
+  const primaryImg = product.imageDataUrl || product.imageUrl || product.image;
+  if (primaryImg && typeof primaryImg === "string" && primaryImg.trim().length > 0) {
+    galleryImages.push(primaryImg);
   }
+
+  // 3.2 Secondary Gallery Data URLs in order
   if (product.galleryDataUrls && product.galleryDataUrls.length > 0) {
     product.galleryDataUrls.forEach((g) => {
-      if (g && !galleryImages.includes(g)) galleryImages.push(g);
+      if (g && typeof g === "string" && g.trim().length > 0 && !galleryImages.includes(g)) {
+        galleryImages.push(g);
+      }
     });
   }
 
-  const hasGallery = galleryImages.length > 0;
-  if (hasGallery) {
-    // Gallery Header Label
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(15, 23, 42);
-    doc.text("PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES", margin, y);
-    y += 2.5;
+  // 3.3 Secondary Product Images in order
+  if (product.images && product.images.length > 0) {
+    product.images.forEach((img) => {
+      if (img && typeof img === "string" && img.trim().length > 0 && !galleryImages.includes(img)) {
+        galleryImages.push(img);
+      }
+    });
+  }
 
-    // Main Large Product Image Frame (Centered, Aspect Ratio Preserved)
-    const mainBoxWidth = 80;
-    const mainBoxHeight = 44;
-    const mainImgData = galleryImages[0];
+  // Section Header Label
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text("PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES", margin, y);
+  y += 3.5;
 
+  if (galleryImages.length === 0) {
+    // Compact "No product images available" fallback
     doc.setFillColor(248, 250, 252);
     doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(margin, y, contentWidth, mainBoxHeight + 4, 1.5, 1.5, "FD");
+    doc.roundedRect(margin, y, contentWidth, 12, 1.5, 1.5, "FD");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text("No product images available.", margin + 4, y + 7.5);
+    y += 16;
+  } else {
+    // Grid: 4 columns if <= 4 images; 5 columns if >= 5 images
+    const cols = galleryImages.length <= 4 ? 4 : 5;
+    const gap = 3; // mm
+    const tileW = (contentWidth - (cols - 1) * gap) / cols;
+    const tileH = tileW * 1.25; // Canonical 4:5 ratio
 
-    try {
-      const props = (doc as any).getImageProperties(mainImgData);
-      const imgRatio = (props?.width || 1) / (props?.height || 1);
-      let drawW = mainBoxWidth;
-      let drawH = drawW / imgRatio;
-      if (drawH > mainBoxHeight) {
-        drawH = mainBoxHeight;
-        drawW = drawH * imgRatio;
+    let curCol = 0;
+
+    for (let i = 0; i < galleryImages.length; i++) {
+      const imgData = galleryImages[i];
+
+      // Check if we need to advance to a new row
+      if (i > 0 && i % cols === 0) {
+        // Check if next row fits on current page (A4 height: 297mm)
+        if (y + tileH + gap + tileH > 297 - margin - 15) {
+          doc.addPage();
+          y = margin;
+          doc.setFillColor(15, 23, 42);
+          doc.rect(margin, y, contentWidth, 7, "F");
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7.5);
+          doc.text(`PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES (CONTINUED) • Ref: ${offerNumber}`, margin + 4, y + 4.8);
+          y += 11;
+        } else {
+          y += tileH + gap;
+        }
+        curCol = 0;
       }
-      const drawX = (pageWidth - drawW) / 2;
-      const drawY = y + 2 + (mainBoxHeight - drawH) / 2;
-      doc.addImage(mainImgData, "JPEG", drawX, drawY, drawW, drawH);
-    } catch {
-      const mainFrameX = (pageWidth - mainBoxWidth) / 2;
-      doc.addImage(mainImgData, "JPEG", mainFrameX, y + 2, mainBoxWidth, mainBoxHeight);
-    }
 
-    y += mainBoxHeight + 6;
+      const tileX = margin + curCol * (tileW + gap);
+      const tileY = y;
 
-    // Small Thumbnail Images (Canonical 4:5 Aspect Ratio Bounding Frames: 12mm x 15mm)
-    if (galleryImages.length > 1) {
-      const thumbW = 12;
-      const thumbH = 15; // Canonical 4:5 ratio (12 x 15)
-      const thumbSpacing = 2.5;
-      const availableWidth = contentWidth - 4;
-      const maxPerRow = Math.max(1, Math.floor((availableWidth + thumbSpacing) / (thumbW + thumbSpacing)));
-
-      // Group all gallery images into rows
-      const thumbRows: string[][] = [];
-      for (let i = 0; i < galleryImages.length; i += maxPerRow) {
-        thumbRows.push(galleryImages.slice(i, i + maxPerRow));
-      }
-
-      const totalThumbBoxHeight = thumbRows.length * thumbH + (thumbRows.length - 1) * 3 + 4;
+      // Draw bounding 4:5 frame tile
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(margin, y, contentWidth, totalThumbBoxHeight, 1.5, 1.5, "FD");
+      doc.roundedRect(tileX, tileY, tileW, tileH, 1.5, 1.5, "FD");
 
-      let rowY = y + 2;
-      let globalIdx = 0;
+      // Draw image with non-destructive contain inside tile
+      const pad = 1.2; // mm padding inside tile
+      const innerW = tileW - pad * 2;
+      const innerH = tileH - pad * 2;
 
-      thumbRows.forEach((row) => {
-        const rowTotalWidth = row.length * thumbW + (row.length - 1) * thumbSpacing;
-        let startThumbX = (pageWidth - rowTotalWidth) / 2;
-        if (startThumbX < margin + 2) startThumbX = margin + 2;
+      try {
+        const props = (doc as any).getImageProperties(imgData);
+        const imgRatio = (props?.width || 1) / (props?.height || 1);
+        let drawW = innerW;
+        let drawH = drawW / imgRatio;
+        if (drawH > innerH) {
+          drawH = innerH;
+          drawW = drawH * imgRatio;
+        }
+        const drawX = tileX + pad + (innerW - drawW) / 2;
+        const drawY = tileY + pad + (innerH - drawH) / 2;
+        doc.addImage(imgData, "JPEG", drawX, drawY, drawW, drawH);
+      } catch {
+        try {
+          doc.addImage(imgData, "JPEG", tileX + pad, tileY + pad, innerW, innerH);
+        } catch {
+          // If image cannot be rendered (e.g. invalid string or unsupported format),
+          // skip safely without crashing the document
+        }
+      }
 
-        row.forEach((tImg, colIdx) => {
-          const curX = startThumbX + colIdx * (thumbW + thumbSpacing);
-          doc.setFillColor(255, 255, 255);
-          doc.setDrawColor(
-            globalIdx === 0 ? 234 : 203,
-            globalIdx === 0 ? 88 : 213,
-            globalIdx === 0 ? 12 : 225
-          );
-          doc.roundedRect(curX, rowY, thumbW, thumbH, 1, 1, "FD");
-
-          try {
-            const tProps = (doc as any).getImageProperties(tImg);
-            const tRatio = (tProps?.width || 1) / (tProps?.height || 1);
-            let tDrawW = thumbW - 2;
-            let tDrawH = tDrawW / tRatio;
-            if (tDrawH > thumbH - 2) {
-              tDrawH = thumbH - 2;
-              tDrawW = tDrawH * tRatio;
-            }
-            const tDrawX = curX + 1 + (thumbW - 2 - tDrawW) / 2;
-            const tDrawY = rowY + 1 + (thumbH - 2 - tDrawH) / 2;
-            doc.addImage(tImg, "JPEG", tDrawX, tDrawY, tDrawW, tDrawH);
-          } catch {
-            doc.addImage(tImg, "JPEG", curX + 1, rowY + 1, thumbW - 2, thumbH - 2);
-          }
-
-          globalIdx++;
-        });
-
-        rowY += thumbH + 3;
-      });
-
-      y += totalThumbBoxHeight + 5;
-    } else {
-      y += 2;
+      curCol++;
     }
+
+    // Advance y past the last row of images
+    y += tileH + 6;
+  }
+
+  // Check if Section 1 fits on current page (Section 1 table needs ~55mm)
+  if (y + 55 > 297 - margin) {
+    doc.addPage();
+    y = margin;
+    doc.setFillColor(15, 23, 42);
+    doc.rect(margin, y, contentWidth, 7, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.text(`AYAAN CLOTHING • Commercial Offer Reference: ${offerNumber} (Continued)`, margin + 4, y + 4.8);
+    y += 11;
   }
 
   // 4. Section 1: Product Overview & Specifications
@@ -689,18 +708,18 @@ export async function downloadProductOfferSheetPDF(
   buyerInfo?: { name?: string; company?: string; email?: string; country?: string },
   selectedQty?: number
 ) {
-  // Collect all available image sources for gallery
+  // Collect all available image sources for gallery: primary first, followed by secondary images
   const imageSources: string[] = [];
+  const primarySrc = product.imageUrl || product.image;
+  if (primarySrc && typeof primarySrc === "string" && primarySrc.trim().length > 0) {
+    imageSources.push(primarySrc);
+  }
   if (product.images && product.images.length > 0) {
     product.images.forEach((img) => {
-      if (img && !imageSources.includes(img)) imageSources.push(img);
+      if (img && typeof img === "string" && img.trim().length > 0 && !imageSources.includes(img)) {
+        imageSources.push(img);
+      }
     });
-  }
-  if (product.imageUrl && !imageSources.includes(product.imageUrl)) {
-    imageSources.unshift(product.imageUrl);
-  }
-  if (product.image && !imageSources.includes(product.image)) {
-    imageSources.unshift(product.image);
   }
 
   // Fallback: If no images provided, check mockStore
@@ -766,14 +785,16 @@ export async function downloadCombinedProductOfferSheetsPDF(
     const item = order.items[i];
     
     const imageSources: string[] = [];
+    const imageSource = item.product_image_url || null;
+    if (imageSource && typeof imageSource === "string" && imageSource.trim().length > 0) {
+      imageSources.push(imageSource);
+    }
     if (item.product_images && item.product_images.length > 0) {
       item.product_images.forEach((img: string) => {
-        if (img && !imageSources.includes(img)) imageSources.push(img);
+        if (img && typeof img === "string" && img.trim().length > 0 && !imageSources.includes(img)) {
+          imageSources.push(img);
+        }
       });
-    }
-    const imageSource = item.product_image_url || null;
-    if (imageSource && !imageSources.includes(imageSource)) {
-      imageSources.unshift(imageSource);
     }
 
     const loadedUrls = await Promise.all(
