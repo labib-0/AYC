@@ -22,26 +22,23 @@ export function proxy(request: NextRequest) {
     ? new URL(process.env.NEXT_PUBLIC_ADMIN_APP_URL)
     : null;
 
-  const isAdminHost =
-    request.headers.get('x-admin-app') === 'true' ||
-    request.headers.get('x-is-admin-host') === '1' ||
+  // Dedicated admin subdomain (legacy or explicit subdomain host like admin.ayaanclothing.com or admin.localhost)
+  const isExplicitAdminSubdomain =
     currentHost === 'admin.localhost' ||
     currentHost.startsWith('admin.') ||
-    (adminAppUrl && adminAppUrl.hostname !== 'localhost' && currentHost === adminAppUrl.hostname) ||
-    (adminAppUrl && adminAppUrl.port && (url.port === adminAppUrl.port || hostname.includes(`:${adminAppUrl.port}`))) ||
-    url.port === '3001' ||
-    hostname.includes(':3001');
+    (adminAppUrl && adminAppUrl.hostname.startsWith('admin.') && currentHost === adminAppUrl.hostname);
 
-  // Customer origin isolation: if request is on customer origin and targets /admin, redirect to dedicated admin app
-  if (!isAdminHost && (url.pathname === '/admin' || url.pathname.startsWith('/admin/'))) {
-    const adminOrigin = adminAppUrl ? adminAppUrl.origin : `http://${url.hostname}:3001`;
-    const cleanPath = url.pathname.replace(/^\/admin/, '') || '/';
-    const redirectUrl = new URL(cleanPath, adminOrigin);
-    redirectUrl.search = url.search;
-    return NextResponse.redirect(redirectUrl);
-  }
+  const isPort3001 = url.port === '3001' || hostname.includes(':3001');
 
-  if (isAdminHost) {
+  const isAdminGateway =
+    request.headers.get('x-admin-app') === 'true' ||
+    request.headers.get('x-is-admin-host') === '1' ||
+    isPort3001;
+
+  const isPathAdmin = url.pathname === '/admin' || url.pathname.startsWith('/admin/');
+
+  // If on explicit admin subdomain or port 3001 with unprefixed routes, rewrite to /admin/*
+  if (isExplicitAdminSubdomain || (isPort3001 && !isPathAdmin)) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-is-admin-host', '1');
     requestHeaders.set('x-admin-app', 'true');
@@ -68,6 +65,19 @@ export function proxy(request: NextRequest) {
         },
       });
     }
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  }
+
+  // If this is an admin path or admin gateway, attach admin headers and proceed
+  if (isPathAdmin || isAdminGateway) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-is-admin-host', '1');
+    requestHeaders.set('x-admin-app', 'true');
 
     return NextResponse.next({
       request: {

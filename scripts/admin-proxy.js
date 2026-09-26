@@ -5,13 +5,13 @@ const TARGET_PORT = 3000;
 
 const server = http.createServer((req, res) => {
   const headers = { ...req.headers };
-  // Ensure host header includes :3001 for proxy.ts admin detection
+  // Ensure host header includes :3001 for proxy.ts admin detection if accessed via port
   if (!headers.host || !headers.host.includes(':3001')) {
     headers.host = `localhost:${PORT}`;
   }
   headers['x-admin-app'] = 'true';
   headers['x-is-admin-host'] = '1';
-  headers['x-forwarded-host'] = `localhost:${PORT}`;
+  headers['x-forwarded-host'] = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${PORT}`;
   headers['x-forwarded-port'] = `${PORT}`;
 
   const options = {
@@ -34,7 +34,7 @@ const server = http.createServer((req, res) => {
         <html>
           <body style="font-family: sans-serif; padding: 2rem; background: #0f172a; color: #f8fafc;">
             <h2>Admin Gateway Starting...</h2>
-            <p>Waiting for Next.js dev server on port ${TARGET_PORT}. Please wait a few seconds and refresh.</p>
+            <p>Waiting for Next.js server on port ${TARGET_PORT}. Please wait a few seconds and refresh.</p>
           </body>
         </html>
       `);
@@ -57,7 +57,7 @@ server.on('upgrade', (req, socket, head) => {
   }
   headers['x-admin-app'] = 'true';
   headers['x-is-admin-host'] = '1';
-  headers['x-forwarded-host'] = `localhost:${PORT}`;
+  headers['x-forwarded-host'] = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${PORT}`;
   headers['x-forwarded-port'] = `${PORT}`;
 
   const proxyReq = http.request({
@@ -90,7 +90,7 @@ server.on('upgrade', (req, socket, head) => {
   proxyReq.end();
 });
 
-server.listen(PORT, () => {
-  console.log(`[Admin Proxy] Dedicated Admin Website listening on http://localhost:${PORT}`);
-  console.log(`[Admin Proxy] Forwarding requests with admin host to http://localhost:${TARGET_PORT}`);
+server.listen(PORT, '127.0.0.1', () => {
+  console.log(`[Admin Proxy] Dedicated Admin Website listening on http://127.0.0.1:${PORT}`);
+  console.log(`[Admin Proxy] Forwarding requests with admin host to http://127.0.0.1:${TARGET_PORT}`);
 });

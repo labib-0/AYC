@@ -54,7 +54,6 @@ export class AdminAuthService {
 
     const token = this.getAdminToken();
     if (!token) {
-      this.clearAdminSession();
       return null;
     }
 
@@ -88,9 +87,15 @@ export class AdminAuthService {
    */
   clearAdminSession(): void {
     if (typeof window !== "undefined") {
+      const hadSession = Boolean(
+        localStorage.getItem(ADMIN_STORAGE_KEYS.ADMIN_SESSION) ||
+        localStorage.getItem(ADMIN_STORAGE_KEYS.ADMIN_TOKEN)
+      );
       localStorage.removeItem(ADMIN_STORAGE_KEYS.ADMIN_SESSION);
       localStorage.removeItem(ADMIN_STORAGE_KEYS.ADMIN_TOKEN);
-      window.dispatchEvent(new CustomEvent("ayaan:admin-auth-changed", { detail: { user: null } }));
+      if (hadSession) {
+        window.dispatchEvent(new CustomEvent("ayaan:admin-auth-changed", { detail: { user: null } }));
+      }
     }
   }
 

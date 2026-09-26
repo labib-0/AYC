@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
         return target;
       }
     }
-    return "/";
+    return "/admin";
   };
 
   // If already authenticated as admin, redirect to intended target or Admin Dashboard

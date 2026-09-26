@@ -83,7 +83,9 @@ export default function OrderAccessGatewayPage({ params }: Props) {
       setRedirecting(true);
       const configuredAdminUrl = process.env.NEXT_PUBLIC_ADMIN_APP_URL;
       if (configuredAdminUrl) {
-        window.location.replace(`${configuredAdminUrl.replace(/\/$/, "")}/orders/${order.id}`);
+        const base = configuredAdminUrl.replace(/\/$/, "");
+        const adminPath = base.endsWith("/admin") ? `${base}/orders/${order.id}` : `${base}/admin/orders/${order.id}`;
+        window.location.replace(adminPath);
         return;
       }
 

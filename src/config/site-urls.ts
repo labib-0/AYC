@@ -48,7 +48,7 @@ export function getAdminAppUrl(): string {
     const { protocol, hostname, port } = window.location;
     // If on customer port 3000 in local development, point to admin port 3001
     if (port === "3000") {
-      return `${protocol}//${hostname}:3001`;
+      return `${protocol}//${hostname}:3001/admin`;
     }
     return `${protocol}//${hostname}${port ? `:${port}` : ""}/admin`;
   }
