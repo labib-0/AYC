@@ -29,7 +29,7 @@ export default function ProductHeroImage({
       className={`w-full flex items-center justify-center bg-secondary/15 rounded-xl border border-border/50 p-3 min-h-[220px] max-h-[360px] sm:max-h-[400px] print:max-h-[260px] print:min-h-[180px] print:bg-slate-50 print:border-slate-200 overflow-hidden ${className}`}
       id="product-hero-image-frame"
     >
-      <div className="relative aspect-[4/5] h-full max-h-[320px] sm:max-h-[360px] print:max-h-[240px] flex items-center justify-center overflow-hidden">
+      <div className="relative aspect-[3/4] h-full max-h-[320px] sm:max-h-[360px] print:max-h-[240px] flex items-center justify-center overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}

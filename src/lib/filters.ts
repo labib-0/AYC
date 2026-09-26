@@ -15,198 +15,27 @@ export const AUDIENCE_CATEGORIES: AudienceCategory[] = [
   { id: "UNISEX", name: "UNISEX", slug: "unisex", categoryId: "c_unisex" },
 ];
 
-export const PRODUCT_CATEGORIES = [
-  "ALL",
-  "Sweaters",
-  "T-Shirts",
-  "Hoodies",
-  "Trousers",
-  "Pants",
-  "Shorts",
-  "Jackets",
-  "Polo Shirts",
-  "Activewear",
-  "Knitwear",
-  "Shirts",
-  "Beachwear",
-  "Socks",
-  "Blouse",
-  "Tank Top",
-  "Tops",
-  "Sports",
-  "Towels",
-] as const;
-
-export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+export const PRODUCT_CATEGORIES = ["ALL"] as const;
+export type ProductCategory = string;
 
 /**
- * Extracts all detailed product categories matching a given product.
+ * Extracts all detailed product categories matching a given product from backend entities.
  */
 export function getProductCategories(product: Product): string[] {
-  const name = (product.name || "").toLowerCase();
-  const sku = (product.sku || "").toLowerCase();
   const cats: string[] = [];
 
-  if (
-    name.includes("sweater") ||
-    name.includes("cardigan") ||
-    name.includes("knit") ||
-    name.includes("pullover") ||
-    name.includes("turtleneck") ||
-    sku.includes("-swt-")
-  ) {
-    cats.push("Sweaters");
+  if (product.categoryName && !cats.includes(product.categoryName)) {
+    cats.push(product.categoryName);
   }
-  if (
-    name.includes("t-shirt") ||
-    name.includes("tee") ||
-    name.includes("graphic t-shirt") ||
-    sku.includes("-tsh-")
-  ) {
-    cats.push("T-Shirts");
-  }
-  if (
-    name.includes("hoodie") ||
-    name.includes("sweatshirt") ||
-    name.includes("fleece") ||
-    sku.includes("-hd-")
-  ) {
-    cats.push("Hoodies");
-  }
-  if (
-    name.includes("trouser") ||
-    name.includes("chino") ||
-    name.includes("sweatpants") ||
-    name.includes("jogger") ||
-    name.includes("leggings") ||
-    name.includes("tights") ||
-    sku.includes("-trs-")
-  ) {
-    cats.push("Trousers");
-  }
-  if (
-    name.includes("pants") ||
-    name.includes("jeans") ||
-    name.includes("denim") ||
-    name.includes("overalls") ||
-    sku.includes("-jns-") ||
-    sku.includes("-trs-")
-  ) {
-    cats.push("Pants");
-  }
-  if (
-    name.includes("short") ||
-    name.includes("trunks") ||
-    name.includes("board shorts") ||
-    sku.includes("-sho-")
-  ) {
-    cats.push("Shorts");
-  }
-  if (
-    name.includes("shirt") ||
-    name.includes("polo") ||
-    name.includes("button-down") ||
-    name.includes("henley") ||
-    name.includes("oxford") ||
-    sku.includes("-sht-") ||
-    sku.includes("-pol-")
-  ) {
-    cats.push("Shirts");
-  }
-  if (
-    name.includes("swim") ||
-    name.includes("swimsuit") ||
-    name.includes("bikini") ||
-    name.includes("beach") ||
-    name.includes("trunks") ||
-    name.includes("board shorts") ||
-    sku.includes("-swm-")
-  ) {
-    cats.push("Beachwear");
-  }
-  if (name.includes("sock") || sku.includes("-sck-")) {
-    cats.push("Socks");
-  }
-  if (name.includes("blouse") || name.includes("camisole") || name.includes("silk") || name.includes("satin")) {
-    cats.push("Blouse");
-  }
-  if (name.includes("tank") || name.includes("tank top") || name.includes("camisole")) {
-    cats.push("Tank Top");
-  }
-  if (
-    name.includes("top") ||
-    name.includes("tee") ||
-    name.includes("t-shirt") ||
-    name.includes("shirt") ||
-    name.includes("blouse") ||
-    name.includes("tank") ||
-    name.includes("polo") ||
-    name.includes("camisole") ||
-    sku.includes("-tsh-") ||
-    sku.includes("-sht-")
-  ) {
-    cats.push("Tops");
-  }
-  if (
-    name.includes("sport") ||
-    name.includes("running") ||
-    name.includes("training") ||
-    name.includes("performance") ||
-    name.includes("athletic") ||
-    name.includes("gym") ||
-    name.includes("yoga") ||
-    name.includes("compression") ||
-    name.includes("jogger") ||
-    name.includes("sweatpants") ||
-    name.includes("visor") ||
-    product.brand === "Nike" ||
-    product.brand === "Adidas" ||
-    product.brand === "Puma" ||
-    product.brand === "Under Armour" ||
-    product.brand === "2XU" ||
-    product.brand === "Gymshark"
-  ) {
-    cats.push("Sports");
-  }
-  if (
-    name.includes("jacket") ||
-    name.includes("coat") ||
-    name.includes("vest") ||
-    name.includes("parka") ||
-    name.includes("bomber") ||
-    name.includes("blazer") ||
-    name.includes("windbreaker") ||
-    name.includes("anorak") ||
-    sku.includes("-jkt-")
-  ) {
-    cats.push("Jackets");
-  }
-  if (name.includes("polo") || sku.includes("-pol-")) {
-    cats.push("Polo Shirts");
-  }
-  if (
-    name.includes("knit") ||
-    name.includes("cardigan") ||
-    name.includes("sweater") ||
-    name.includes("pullover")
-  ) {
-    cats.push("Knitwear");
-  }
-  if (
-    name.includes("sport") ||
-    name.includes("running") ||
-    name.includes("training") ||
-    name.includes("performance") ||
-    name.includes("athletic") ||
-    name.includes("gym") ||
-    name.includes("yoga") ||
-    name.includes("compression") ||
-    name.includes("active")
-  ) {
-    cats.push("Activewear");
-  }
-  if (name.includes("towel") || sku.includes("-twl-")) {
-    cats.push("Towels");
+
+  const rawCats = (product as any).categories;
+  if (Array.isArray(rawCats)) {
+    for (const c of rawCats) {
+      const name = typeof c === "string" ? c : c?.name || c?.slug;
+      if (name && !cats.includes(name)) {
+        cats.push(name);
+      }
+    }
   }
 
   return cats;

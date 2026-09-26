@@ -38,9 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUser(null);
       }
-    } catch (err) {
-      console.warn("Session check exception:", err);
-      setUser(null);
+    } catch (err: any) {
+      if (err?.status === 401) {
+        setUser(null);
+      } else {
+        console.warn("Session check non-auth error:", err);
+      }
     } finally {
       setLoading(false);
     }
@@ -48,6 +51,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchSession();
+
+    // Listen for confirmed session expiration from central API client
+    const handleSessionExpired = () => {
+      setUser(null);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("ayaan:session_expired", handleSessionExpired);
+      return () => {
+        window.removeEventListener("ayaan:session_expired", handleSessionExpired);
+      };
+    }
   }, [fetchSession]);
 
   const signIn = async (email: string, password: string) => {

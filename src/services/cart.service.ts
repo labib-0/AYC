@@ -1,4 +1,85 @@
 import { Product } from "@/types";
+import { isFrontendOnly } from "@/lib/frontend-mode";
+import { apiClient } from "./api-client";
+
+export class InsufficientStockError extends Error {
+  errorCode: string = "INSUFFICIENT_STOCK";
+  productId?: string | number;
+  productName?: string;
+  variantId?: string | number;
+  size?: string;
+  requestedQuantity: number;
+  availableQuantity: number;
+
+  constructor(
+    message: string,
+    details: {
+      productId?: string | number;
+      productName?: string;
+      variantId?: string | number;
+      size?: string;
+      requestedQuantity: number;
+      availableQuantity: number;
+    }
+  ) {
+    super(message);
+    this.name = "InsufficientStockError";
+    this.productId = details.productId;
+    this.productName = details.productName;
+    this.variantId = details.variantId;
+    this.size = details.size;
+    this.requestedQuantity = details.requestedQuantity;
+    this.availableQuantity = details.availableQuantity;
+  }
+}
+
+export class InvalidMoqMultipleError extends Error {
+  errorCode: string = "INVALID_MOQ_MULTIPLE";
+  productId?: string | number;
+  productName?: string;
+  moq: number;
+  requestedQuantity: number;
+
+  constructor(
+    message: string,
+    details: {
+      productId?: string | number;
+      productName?: string;
+      moq: number;
+      requestedQuantity: number;
+      errorCode?: string;
+    }
+  ) {
+    super(message);
+    this.name = "InvalidMoqMultipleError";
+    this.errorCode = details.errorCode || "INVALID_MOQ_MULTIPLE";
+    this.productId = details.productId;
+    this.productName = details.productName;
+    this.moq = details.moq;
+    this.requestedQuantity = details.requestedQuantity;
+  }
+}
+
+export interface CartStockViolation {
+  item_id?: string;
+  product_id: string | number;
+  product_name: string;
+  variant_id?: string | number;
+  size?: string;
+  color?: string;
+  sku?: string;
+  requested_quantity: number;
+  available_quantity: number;
+  moq?: number;
+  error_code?: string;
+  message: string;
+}
+
+export interface CartRevalidationResult {
+  isValid: boolean;
+  violations: CartStockViolation[];
+  items: CartItemData[];
+}
 
 export interface CartItemData {
   id: string;
@@ -56,7 +137,20 @@ export class CartService {
         if (saved) {
           const rawItems = JSON.parse(saved);
           if (Array.isArray(rawItems)) {
-            const items = rawItems.map((i: any) => this.normalizeCartItem(i));
+            let items = rawItems.map((i: any) => this.normalizeCartItem(i));
+
+            // In full-stack mode, sanitize legacy mock items (e.g., "prd0010")
+            if (!isFrontendOnly()) {
+              const sanitized = items.filter((item) => {
+                const pid = String(item.product_id || item.product?.id || "");
+                return pid && !pid.startsWith("prd") && (/^\d+$/.test(pid) || Boolean(item.product?.slug));
+              });
+              if (sanitized.length !== items.length) {
+                this.saveLocal(sanitized);
+                items = sanitized;
+              }
+            }
+
             const total_items = items.reduce((sum, item) => sum + item.quantity, 0);
             const subtotal = items.reduce((sum, item) => sum + ((item.unit_price || item.product.price) * item.quantity), 0);
             return { items, total_items, subtotal, currency: "USD" };
@@ -71,7 +165,7 @@ export class CartService {
   }
 
   /**
-   * Add item to cart
+   * Add item to cart with authoritative backend validation
    */
   async addToCart(
     product: Product,
@@ -86,10 +180,61 @@ export class CartService {
       (item) => String(item.product.id) === String(product.id) && item.size === (size || "Standard Assorted")
     );
 
+    const newQty = existingIndex > -1 ? items[existingIndex].quantity + quantity : quantity;
+
+    // Authoritative backend validation
+    if (!isFrontendOnly()) {
+      try {
+        await apiClient.post("/cart/items", {
+          product_id: product.id,
+          product_variant_id: variantId,
+          variant_id: variantId,
+          size: size || "Standard Assorted",
+          quantity: quantity,
+        });
+      } catch (err: any) {
+        const errorData = err?.data?.data || err?.data;
+        if (err?.data?.error_code === "INSUFFICIENT_STOCK" || errorData?.available_quantity !== undefined) {
+          const avail = errorData?.available_quantity ?? 0;
+          const req = errorData?.requested_quantity ?? newQty;
+          const sizeName = size && size !== "Standard Assorted" && size !== "Assorted" ? ` size ${size}` : "";
+          throw new InsufficientStockError(
+            err.message || `Insufficient stock for '${product.name}'${sizeName}. Requested: ${req}, Available: ${avail}.`,
+            {
+              productId: product.id,
+              productName: product.name,
+              variantId: variantId,
+              size: size || "Standard Assorted",
+              requestedQuantity: req,
+              availableQuantity: avail,
+            }
+          );
+        }
+        if (
+          err?.data?.error_code === "INVALID_MOQ_MULTIPLE" ||
+          err?.data?.error_code === "BELOW_MOQ" ||
+          errorData?.code === "INVALID_MOQ_MULTIPLE" ||
+          errorData?.code === "BELOW_MOQ"
+        ) {
+          const effectiveMoq = Number(errorData?.moq || product.moq || 1);
+          throw new InvalidMoqMultipleError(
+            err?.message || `Order quantity must be an exact multiple of the MOQ (${effectiveMoq} pcs).`,
+            {
+              productId: product.id,
+              productName: product.name,
+              moq: effectiveMoq,
+              requestedQuantity: errorData?.requested_quantity ?? newQty,
+              errorCode: err?.data?.error_code || errorData?.code,
+            }
+          );
+        }
+        throw err;
+      }
+    }
+
     const unitPrice = this.calculateTierUnitPrice(product, quantity);
 
     if (existingIndex > -1) {
-      const newQty = items[existingIndex].quantity + quantity;
       const newUnitPrice = this.calculateTierUnitPrice(product, newQty);
       items[existingIndex].quantity = newQty;
       items[existingIndex].unit_price = newUnitPrice;
@@ -116,14 +261,69 @@ export class CartService {
   }
 
   /**
-   * Update item quantity in cart
+   * Update item quantity in cart with authoritative backend validation
    */
   async updateItemQuantity(itemId: string, quantity: number): Promise<CartData> {
     const currentCart = await this.getCart();
     let items = [...currentCart.items];
+    const targetItem = items.find((item) => item.id === itemId || String(item.product.id) === itemId);
+
+    if (quantity > 0 && targetItem && !isFrontendOnly()) {
+      try {
+        await apiClient.put("/cart/items", {
+          item_id: targetItem.id,
+          product_id: targetItem.product_id,
+          product_variant_id: targetItem.product_variant_id,
+          size: targetItem.size,
+          quantity: quantity,
+        });
+      } catch (err: any) {
+        const errorData = err?.data?.data || err?.data;
+        if (err?.data?.error_code === "INSUFFICIENT_STOCK" || errorData?.available_quantity !== undefined) {
+          const avail = errorData?.available_quantity ?? 0;
+          const req = errorData?.requested_quantity ?? quantity;
+          const sizeName = targetItem.size && targetItem.size !== "Standard Assorted" && targetItem.size !== "Assorted" ? ` size ${targetItem.size}` : "";
+          throw new InsufficientStockError(
+            err.message || `Insufficient stock for '${targetItem.product.name}'${sizeName}. Requested: ${req}, Available: ${avail}.`,
+            {
+              productId: targetItem.product.id,
+              productName: targetItem.product.name,
+              variantId: targetItem.product_variant_id,
+              size: targetItem.size,
+              requestedQuantity: req,
+              availableQuantity: avail,
+            }
+          );
+        }
+        if (
+          err?.data?.error_code === "INVALID_MOQ_MULTIPLE" ||
+          err?.data?.error_code === "BELOW_MOQ" ||
+          errorData?.code === "INVALID_MOQ_MULTIPLE" ||
+          errorData?.code === "BELOW_MOQ"
+        ) {
+          const effectiveMoq = Number(errorData?.moq || targetItem.product.moq || 1);
+          throw new InvalidMoqMultipleError(
+            err?.message || `Order quantity must be an exact multiple of the MOQ (${effectiveMoq} pcs).`,
+            {
+              productId: targetItem.product.id,
+              productName: targetItem.product.name,
+              moq: effectiveMoq,
+              requestedQuantity: errorData?.requested_quantity ?? quantity,
+              errorCode: err?.data?.error_code || errorData?.code,
+            }
+          );
+        }
+        throw err;
+      }
+    }
 
     if (quantity <= 0) {
       items = items.filter((item) => item.id !== itemId && String(item.product.id) !== itemId);
+      if (!isFrontendOnly() && targetItem) {
+        apiClient.delete("/cart/items", {
+          params: { product_id: targetItem.product_id, size: targetItem.size },
+        }).catch(() => {});
+      }
     } else {
       const idx = items.findIndex((item) => item.id === itemId || String(item.product.id) === itemId);
       if (idx > -1) {
@@ -139,6 +339,42 @@ export class CartService {
     const total_items = items.reduce((sum, item) => sum + item.quantity, 0);
     const subtotal = items.reduce((sum, item) => sum + ((item.unit_price || item.product.price) * item.quantity), 0);
     return { items, total_items, subtotal, currency: "USD" };
+  }
+
+  /**
+   * Revalidate all items in cart against live backend inventory
+   */
+  async revalidateCart(): Promise<CartRevalidationResult> {
+    const cart = await this.getCart();
+    if (cart.items.length === 0) {
+      return { isValid: true, violations: [], items: [] };
+    }
+
+    if (!isFrontendOnly()) {
+      try {
+        const payload = cart.items.map((it) => ({
+          id: it.id,
+          product_id: it.product_id,
+          variant_id: it.product_variant_id,
+          size: it.size,
+          quantity: it.quantity,
+        }));
+
+        const res = await apiClient.post<any>("/cart/revalidate", { items: payload });
+        const violations: CartStockViolation[] = res?.violations || [];
+        const isValid = res?.is_valid ?? (violations.length === 0);
+
+        return {
+          isValid,
+          violations,
+          items: cart.items,
+        };
+      } catch (err) {
+        console.warn("Cart revalidation failed:", err);
+      }
+    }
+
+    return { isValid: true, violations: [], items: cart.items };
   }
 
   /**

@@ -1,4 +1,6 @@
 import { mockStore } from "@/lib/mock-data/mock-store";
+import { apiClient } from "./api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export interface BrandModel {
   id: string | number;
@@ -9,6 +11,8 @@ export interface BrandModel {
   website?: string | null;
   sort_order?: number;
   is_active?: boolean;
+  is_featured_on_landing?: boolean;
+  landing_sort_order?: number;
   products_count?: number;
   created_at?: string;
   updated_at?: string;
@@ -17,7 +21,9 @@ export interface BrandModel {
 export interface BrandQueryParams {
   all?: boolean;
   isAdmin?: boolean;
+  landing?: boolean;
   search?: string;
+  is_active?: boolean;
 }
 
 export class BrandService {
@@ -25,6 +31,15 @@ export class BrandService {
    * Fetch brands
    */
   async getBrands(options?: BrandQueryParams): Promise<BrandModel[]> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/brands", { params: options as any });
+      const items = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(items)) {
+        return items;
+      }
+      return [];
+    }
+
     let list = mockStore.getBrands();
 
     // Dynamically calculate accurate product count from live product dataset
@@ -74,9 +89,35 @@ export class BrandService {
   }
 
   /**
+   * Fetch landing page brands
+   */
+  async getLandingBrands(): Promise<BrandModel[]> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/brands/landing");
+      const items = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(items)) {
+        return items;
+      }
+      return [];
+    }
+    return mockStore.getBrands().filter((b) => b.is_featured_on_landing && b.is_active !== false);
+  }
+
+  /**
    * Fetch single brand by slug or id
    */
   async getBrandBySlug(slugOrId: string): Promise<BrandModel | null> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>(`/brands/${slugOrId}`);
+        const item = res?.data || res;
+        if (item && item.id) return item;
+        return null;
+      } catch (err: any) {
+        if (err?.status === 404 || err?.statusCode === 404) return null;
+        throw err;
+      }
+    }
     return mockStore.getBrandBySlug(slugOrId);
   }
 
@@ -91,7 +132,14 @@ export class BrandService {
     website?: string | null;
     sort_order?: number;
     is_active?: boolean;
+    is_featured_on_landing?: boolean;
+    landing_sort_order?: number;
   }): Promise<BrandModel> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>("/brands", data);
+      const item = res?.data || res;
+      return item;
+    }
     return mockStore.saveBrand(data);
   }
 
@@ -99,6 +147,11 @@ export class BrandService {
    * Update brand
    */
   async updateBrand(id: string | number, updates: Partial<BrandModel>): Promise<BrandModel> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.put<any>(`/brands/${id}`, updates);
+      const item = res?.data || res;
+      return item;
+    }
     return mockStore.saveBrand({ ...updates, id: String(id) });
   }
 
@@ -106,6 +159,9 @@ export class BrandService {
    * Get actual product count associated with a brand
    */
   async getProductCount(brand: BrandModel): Promise<number> {
+    if (brand.products_count !== undefined) {
+      return Number(brand.products_count);
+    }
     const products = mockStore.getProducts();
     const idKey = String(brand.id).toLowerCase().trim();
     const nameKey = (brand.name || "").toLowerCase().trim();
@@ -131,6 +187,10 @@ export class BrandService {
    * Delete brand
    */
   async deleteBrand(id: string | number): Promise<boolean> {
+    if (!isFrontendOnly()) {
+      await apiClient.delete(`/brands/${id}`);
+      return true;
+    }
     return mockStore.deleteBrand(id);
   }
 }

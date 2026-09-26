@@ -4,9 +4,14 @@ import { INITIAL_MOCK_PRODUCTS } from "../src/lib/mock-data/mock-products";
 import { toStorefrontProduct } from "../src/lib/services/products";
 import { filterProducts, PRODUCT_CATEGORIES } from "../src/lib/filters";
 import {
-  hotSalesCategories,
   AUDIENCE_FILTERS,
+  HotSaleCategory,
 } from "../src/components/home/HotSales";
+
+const hotSalesCategories: HotSaleCategory[] = [
+  { id: "hot-sweaters", name: "SWEATERS", slug: "sweaters", image: "/test.jpg", description: "Test" },
+  { id: "hot-towels", name: "TOWELS", slug: "towels", image: "/test.jpg", description: "Test" },
+];
 
 let passed = 0;
 let failed = 0;

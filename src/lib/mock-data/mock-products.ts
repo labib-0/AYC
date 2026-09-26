@@ -53,10 +53,14 @@ export function inferProductCategory(p: any): { id: string; name: string } {
   }
 
   if (explicitId && !AUDIENCE_CATEGORY_IDS.has(String(explicitId).toLowerCase())) {
-    return { id: String(explicitId), name: explicitName || "Apparel" };
+    return { id: String(explicitId), name: explicitName || "" };
   }
 
-  return { id: "c_tshirts", name: "T-Shirts" };
+  if (explicitName) {
+    return { id: `c_${String(explicitName).toLowerCase().replace(/[^a-z0-9]+/g, "")}`, name: explicitName };
+  }
+
+  return { id: "", name: "" };
 }
 
 /**
@@ -106,78 +110,43 @@ export function normalizeProductData(p: any): B2BProductInput {
     ? Number(p.availableStock)
     : 1000;
 
-  const moq = p.moq ? Number(p.moq) : 10;
-  const bulkThreshold = p.bulkThreshold ? Number(p.bulkThreshold) : 200;
+  // Package allocations must NEVER be auto-calculated from ratios or inventory.
+  // Only explicitly configured allocations from input are preserved.
+  const rawAllocations = p.packageAllocations || p.package_allocations || [];
+  const packageAllocations: Array<{ size: string; quantity: number; color: string; product_variant_id: number; package_name?: string }> = Array.isArray(rawAllocations)
+    ? rawAllocations.map((a: any) => ({
+        size: a.size || "M",
+        quantity: Number(a.quantity ?? 0),
+        color: a.color || "Standard",
+        product_variant_id: Number(a.product_variant_id || 0),
+        package_name: a.package_name || "Universal Package",
+      }))
+    : [];
+
+  const allocSum = packageAllocations.reduce((sum, a) => sum + (Number(a.quantity) || 0), 0);
+  const moq = allocSum > 0 ? allocSum : (p.moq ? Number(p.moq) : 10);
+  const bulkThreshold = p.bulkThreshold ? Number(p.bulkThreshold) : Math.max(200, moq + 50);
   const bulkPrice = p.bulkPrice ? Number(p.bulkPrice) : Math.round(wholesalePrice * 0.8 * 100) / 100;
   const fullStockPrice = p.fullStockPrice ? Number(p.fullStockPrice) : Math.round(wholesalePrice * 0.7 * 100) / 100;
 
   const sizes = Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : ["S", "M", "L", "XL", "2XL"];
   const colors = Array.isArray(p.colors) && p.colors.length > 0 ? p.colors : [p.color_name || p.color || "Black"];
 
-  // Default package allocation breakdown (Carton / Polybag ratio)
-  const defaultColors = Array.isArray(p.colors) && p.colors.length > 0 ? p.colors : [p.color_name || p.color || "Black"];
-  const piecesPerColor = Math.max(1, Math.floor(moq / defaultColors.length));
-  const remainder = moq - piecesPerColor * defaultColors.length;
-
-  const sizeRatios: [string, number][] = [
-    ["S",  0.15],
-    ["M",  0.35],
-    ["L",  0.30],
-    ["XL", 0.15],
-    ["2XL", 0.05],
-  ];
-  const activeSizes = Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes : ["S", "M", "L", "XL", "2XL"];
-  const filteredRatios = sizeRatios.filter(([s]) => activeSizes.includes(s));
-  const ratioSum = filteredRatios.reduce((a, [, r]) => a + r, 0) || 1;
-
-  const packageAllocations: Array<{ size: string; quantity: number; color: string; product_variant_id: number }> = p.packageAllocations || (() => {
-    const result: Array<{ size: string; quantity: number; color: string; product_variant_id: number }> = [];
-    defaultColors.forEach((color: string, ci: number) => {
-      const colorPcs = piecesPerColor + (ci === 0 ? remainder : 0);
-      let colorRunning = 0;
-      filteredRatios.forEach(([size, ratio], si) => {
-        const isLast = si === filteredRatios.length - 1;
-        const count = isLast
-          ? colorPcs - colorRunning
-          : Math.max(0, Math.round((ratio / ratioSum) * colorPcs));
-        colorRunning += count;
-        result.push({ size, quantity: count, color, product_variant_id: 0 });
-      });
-    });
-    return result;
-  })();
-
-  // Default shipping package profiles
+  // Default single shipping package profile
   const shippingPackageProfiles = p.shippingPackageProfiles || p.shipping_package_profiles || [
     {
-      id: `sp_${p.id || "1"}_moq`,
+      id: `sp_${p.id || "1"}_universal`,
       package_quantity: moq,
-      quantity_max: bulkThreshold - 1,
-      carton_count: Math.max(1, Math.ceil(moq / 50)),
+      carton_count: 1,
       carton_length: 60,
       carton_width: 40,
-      carton_height: 35,
+      carton_height: 30,
       dimension_unit: "cm",
-      gross_weight: Math.round((moq * 0.35 + 1.2) * 10) / 10,
-      net_weight: Math.round((moq * 0.32) * 10) / 10,
+      gross_weight: 15.0,
+      net_weight: 13.5,
       weight_unit: "kg",
       is_active: true,
-      total_cbm: 0.084,
-    },
-    {
-      id: `sp_${p.id || "1"}_bulk`,
-      package_quantity: bulkThreshold,
-      quantity_max: stock,
-      carton_count: Math.max(1, Math.ceil(bulkThreshold / 50)),
-      carton_length: 60,
-      carton_width: 40,
-      carton_height: 35,
-      dimension_unit: "cm",
-      gross_weight: Math.round((bulkThreshold * 0.35 + 4.8) * 10) / 10,
-      net_weight: Math.round((bulkThreshold * 0.32) * 10) / 10,
-      weight_unit: "kg",
-      is_active: true,
-      total_cbm: 0.336,
+      total_cbm: 0.072,
     },
   ];
 
@@ -190,73 +159,76 @@ export function normalizeProductData(p: any): B2BProductInput {
   let keywordsList: string[] = [];
   if (Array.isArray(p.keywords)) {
     keywordsList = p.keywords.map((k: unknown) => String(k).trim()).filter(Boolean);
-    } else if (typeof p.keywords === "string" && p.keywords.trim()) {
-      keywordsList = p.keywords.split(",").map((s: string) => s.trim()).filter(Boolean);
-    } else {
-      const pName = (p.name || "Apparel").toLowerCase();
-      keywordsList = [
-        `wholesale ${brandName.toLowerCase()} ${pName}`,
-        `bulk ${pName}`,
-        `${categoryInfo.name.toLowerCase()} supplier`,
-        `${audienceVal.toLowerCase()} apparel export`,
-        "Bangladesh clothing manufacturer",
-      ];
-    }
-
-    return {
-      id: String(p.id),
-      name: p.name || "Apparel Item",
-      slug: p.slug || (p.name || "apparel").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-      sku: p.sku || `AYN-${Date.now().toString(36).toUpperCase()}`,
-      brand: brandName,
-      brandLogo: brandLogo,
-      categoryId: categoryInfo.id,
-      categoryName: categoryInfo.name,
-      audience: audienceVal,
-      designType: designTypeVal,
-      productType: p.productType || "Ready-Made Garments",
-      collectionSeason: p.collectionSeason || "2026 Core Export Line",
-      shortDescription: p.shortDescription || `Export grade ${p.name} manufactured in Dhaka, Bangladesh with precision stitching and premium fabric.`,
-      description: p.description || `${p.name} is engineered for international apparel retailers and corporate buyers. Manufactured with high-tensile yarn, reactive dye technology, and compliant with European & US export quality standards (AQL 2.5).`,
-      seoTitle: p.seoTitle || p.name || undefined,
-      seoDescription: p.seoDescription || p.shortDescription || undefined,
-      keywords: keywordsList,
-      material: p.material || "100% Combed Compact Cotton (Single Jersey / Brushed Fleece)",
-      colorName: p.colorName || colors[0] || "Black",
-      colorHex: p.colorHex || "#111827",
-      weightGrams: p.weightGrams || 240,
-      videoUrl: p.videoUrl || "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      youtubeVideoId: "dQw4w9WgXcQ",
-      youtubeEmbedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
-      images: images,
-      costPrice: Math.round(wholesalePrice * 0.55 * 100) / 100,
-      wholesalePrice: wholesalePrice,
-      standardPrice: wholesalePrice,
-      bulkThreshold: bulkThreshold,
-      bulkPrice: bulkPrice,
-      fullStockPrice: fullStockPrice,
-      msrpPrice: msrpPrice,
-      moq: moq,
-      stock: stock,
-      status: p.status || "published",
-      isFeatured: Boolean(p.isFeatured || p.featured || p.isHot),
-      isNew: Boolean(p.isNew),
-      isHot: Boolean(p.isHot),
-      isBestDeal: Boolean(p.isBestDeal || p.is_best_deal || p.isLimitedDeal || p.isLimitedTimeOffer || p.isHot || p.isFeatured || (msrpPrice > wholesalePrice)),
-      sizes: sizes,
-      colors: colors,
-      variants: [],
-      pricingTiers: [
-        { min_quantity: moq, max_quantity: bulkThreshold - 1, unit_price: wholesalePrice },
-        { min_quantity: bulkThreshold, max_quantity: stock - 1, unit_price: bulkPrice },
-        { min_quantity: stock, max_quantity: null, unit_price: fullStockPrice },
-      ],
-      packageAllocations: packageAllocations,
-      shippingPackageProfiles: shippingPackageProfiles,
-      shipping_package_profiles: shippingPackageProfiles,
-      isPackageAssortment: true,
-      fullStockQuantity: stock,
-    };
+  } else if (typeof p.keywords === "string" && p.keywords.trim()) {
+    keywordsList = p.keywords.split(",").map((s: string) => s.trim()).filter(Boolean);
+  } else {
+    const pName = (p.name || "Apparel").toLowerCase();
+    keywordsList = [
+      `wholesale ${brandName.toLowerCase()} ${pName}`,
+      `bulk ${pName}`,
+      `${categoryInfo.name.toLowerCase()} supplier`,
+      `${audienceVal.toLowerCase()} apparel export`,
+      "Bangladesh clothing manufacturer",
+    ];
   }
+
+  return {
+    id: String(p.id),
+    name: p.name || "Apparel Item",
+    slug: p.slug || (p.name || "apparel").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+    sku: p.sku || `AYN-${Date.now().toString(36).toUpperCase()}`,
+    brand: brandName,
+    brandLogo: brandLogo,
+    categoryId: categoryInfo.id,
+    categoryName: categoryInfo.name,
+    audience: audienceVal,
+    designType: designTypeVal,
+    productType: p.productType || "Ready-Made Garments",
+    collectionSeason: p.collectionSeason || "2026 Core Export Line",
+    shortDescription: p.shortDescription || `Export grade ${p.name} manufactured in Dhaka, Bangladesh with precision stitching and premium fabric.`,
+    description: p.description || `${p.name} is engineered for international apparel retailers and corporate buyers. Manufactured with high-tensile yarn, reactive dye technology, and compliant with European & US export quality standards (AQL 2.5).`,
+    seoTitle: p.seoTitle || p.name || undefined,
+    seoDescription: p.seoDescription || p.shortDescription || undefined,
+    keywords: keywordsList,
+    material: p.material || "100% Combed Compact Cotton (Single Jersey / Brushed Fleece)",
+    colorName: p.colorName || colors[0] || "Black",
+    colorHex: p.colorHex || "#111827",
+    weightGrams: p.weightGrams || 240,
+    videoUrl: p.videoUrl || p.video_url || undefined,
+    youtubeVideoId: p.youtubeVideoId || p.youtube_video_id || undefined,
+    youtubeEmbedUrl: p.youtubeEmbedUrl || p.youtube_embed_url || undefined,
+    images: images,
+    costPrice: p.costPrice !== undefined ? Number(p.costPrice) : undefined,
+    wholesalePrice: wholesalePrice,
+    standardPrice: wholesalePrice,
+    bulkThreshold: bulkThreshold,
+    bulkPrice: bulkPrice,
+    fullStockPrice: fullStockPrice,
+    msrpPrice: msrpPrice,
+    moq: moq,
+    stock: stock,
+    status: p.status || "published",
+    isFeatured: Boolean(p.isFeatured || p.featured || p.isHot),
+    featuredUntil: p.featuredUntil || p.featured_until || null,
+    isNew: Boolean(p.isNew),
+    newUntil: p.newUntil || p.new_until || null,
+    isHot: Boolean(p.isHot),
+    hotUntil: p.hotUntil || p.hot_until || null,
+    isBestDeal: Boolean(p.isBestDeal || p.is_best_deal || p.isLimitedDeal || p.isLimitedTimeOffer || p.isHot || p.isFeatured || (msrpPrice > wholesalePrice)),
+    sizes: sizes,
+    colors: colors,
+    variants: [],
+    pricingTiers: [
+      { min_quantity: moq, max_quantity: bulkThreshold - 1, unit_price: wholesalePrice },
+      { min_quantity: bulkThreshold, max_quantity: stock - 1, unit_price: bulkPrice },
+      { min_quantity: stock, max_quantity: null, unit_price: fullStockPrice },
+    ],
+    packageAllocations: packageAllocations,
+    shippingPackageProfiles: shippingPackageProfiles,
+    shipping_package_profiles: shippingPackageProfiles,
+    isPackageAssortment: true,
+    fullStockQuantity: stock,
+  };
+}
 
 export const INITIAL_MOCK_PRODUCTS: B2BProductInput[] = (rawProductsData as any[]).map(normalizeProductData);

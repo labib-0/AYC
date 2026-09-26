@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { 
   LayoutDashboard,
   Package, 
@@ -17,6 +17,7 @@ import {
   PanelTop,
   Files,
   Settings,
+  ShieldCheck,
   ChevronRight,
   PlusCircle,
   TrendingUp,
@@ -55,15 +56,14 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Orders & Fulfillment", href: "/admin/orders", icon: ShoppingBag },
       { label: "Customer Accounts", href: "/admin/customers", icon: Users },
-      { label: "B2B RFQs & Inquiries", href: "/admin/rfq", icon: FileText },
-      { label: "Commercial Quotes", href: "/admin/quotations", icon: FileCheck },
+      { label: "B2B RFQs & Quotes", href: "/admin/rfq-quotes", icon: FileText },
     ],
   },
   {
     title: "MARKETING",
     items: [
-      { label: "Promotions & Coupons", href: "/admin/promotions", icon: Percent },
-      { label: "Homepage & Banners", href: "/admin/homepage", icon: PanelTop },
+      { label: "Coupons", href: "/admin/coupons", icon: Percent },
+      { label: "Homepage & Landing Page", href: "/admin/homepage", icon: PanelTop },
     ],
   },
   {
@@ -75,6 +75,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: "SYSTEM",
     items: [
+      { label: "Admin Management", href: "/admin/settings?tab=users", icon: ShieldCheck },
       { label: "Settings & Config", href: "/admin/settings", icon: Settings },
     ],
   },
@@ -86,6 +87,8 @@ export interface AdminSidebarProps {
 
 export default function AdminSidebar({ onNavigate }: AdminSidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab");
 
   return (
     <aside className="flex flex-col w-64 border-r border-border/80 bg-card p-4 space-y-6 shrink-0 h-full overflow-y-auto">
@@ -99,9 +102,21 @@ export default function AdminSidebar({ onNavigate }: AdminSidebarProps) {
             <nav className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = item.exact
-                  ? pathname === item.href
-                  : pathname === item.href || pathname.startsWith(item.href + "/");
+                const [itemPath, itemQuery] = item.href.split("?");
+                const itemTab = itemQuery ? new URLSearchParams(itemQuery).get("tab") : null;
+
+                let isActive = false;
+                if (itemTab) {
+                  isActive = pathname === itemPath && currentTab === itemTab;
+                } else if (itemPath === "/admin/settings") {
+                  isActive = pathname === itemPath && (!currentTab || currentTab !== "users");
+                } else if (item.exact) {
+                  isActive = pathname === item.href;
+                } else {
+                  isActive = pathname === item.href ||
+                    pathname.startsWith(item.href + "/") ||
+                    (item.href === "/admin/rfq-quotes" && (pathname.startsWith("/admin/rfq") || pathname.startsWith("/admin/quotations")));
+                }
 
                 return (
                   <Link

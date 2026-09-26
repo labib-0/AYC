@@ -2,8 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { CustomerRecord } from "@/services/admin";
 import CustomerTableRow from "./CustomerTableRow";
-import CustomerStatusBadge from "./CustomerStatusBadge";
-import { Users, AlertCircle, RefreshCw } from "lucide-react";
+import { Users, AlertCircle, RefreshCw, Trash2, Eye } from "lucide-react";
 
 export interface CustomerTableProps {
   customers: CustomerRecord[];
@@ -14,6 +13,7 @@ export interface CustomerTableProps {
   hasFilters: boolean;
   onResetFilters: () => void;
   detailBaseUrl?: string;
+  onDeleteCustomer?: (customer: CustomerRecord) => void;
 }
 
 export default function CustomerTable({
@@ -25,6 +25,7 @@ export default function CustomerTable({
   hasFilters,
   onResetFilters,
   detailBaseUrl = "/admin/customers",
+  onDeleteCustomer,
 }: CustomerTableProps) {
   // Error State
   if (isError) {
@@ -83,17 +84,17 @@ export default function CustomerTable({
       <div className="p-12 bg-card border border-border/70 rounded-3xl text-center space-y-3 shadow-xs">
         <Users size={36} className="text-muted-foreground mx-auto stroke-1" />
         <h3 className="text-base font-bold text-foreground">
-          No customers match your current filters.
+          No customers match your search.
         </h3>
         <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-          Try clearing your search query or changing the role and B2B status filters to view more accounts.
+          Try clearing your search query to view all customer accounts.
         </p>
         <button
           type="button"
           onClick={onResetFilters}
           className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
         >
-          <span>Clear Filters</span>
+          <span>Clear Search</span>
         </button>
       </div>
     );
@@ -106,7 +107,7 @@ export default function CustomerTable({
         <Users size={40} className="text-muted-foreground mx-auto stroke-1" />
         <h3 className="text-base font-bold text-foreground">No customers yet.</h3>
         <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-          Customer accounts will appear here when they register.
+          Customer accounts will appear here when registered.
         </p>
       </div>
     );
@@ -123,10 +124,8 @@ export default function CustomerTable({
                 <th className="py-3 px-4">Customer</th>
                 <th className="py-3 px-3">Email</th>
                 <th className="py-3 px-3">Company</th>
-                <th className="py-3 px-3">Role</th>
                 <th className="py-3 px-3 text-right">Orders</th>
                 <th className="py-3 px-3 text-right">Total Spent</th>
-                <th className="py-3 px-3">B2B Status</th>
                 <th className="py-3 px-3">Joined</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -137,6 +136,7 @@ export default function CustomerTable({
                   key={customer.id}
                   customer={customer}
                   detailBaseUrl={detailBaseUrl}
+                  onDeleteCustomer={onDeleteCustomer}
                 />
               ))}
             </tbody>
@@ -195,12 +195,6 @@ export default function CustomerTable({
                     </span>
                   </div>
                 </div>
-
-                <CustomerStatusBadge
-                  type="b2b"
-                  value={customer.b2b_approval_status || "none"}
-                  size="sm"
-                />
               </div>
 
               <div className="flex items-center justify-between text-xs pt-1">
@@ -208,13 +202,9 @@ export default function CustomerTable({
                   <span className="text-muted-foreground text-[10px] uppercase block font-bold">
                     Company
                   </span>
-                  <span className="text-foreground font-medium truncate block max-w-[140px]">
+                  <span className="text-foreground font-medium truncate block max-w-[160px]">
                     {customer.company_name || "—"}
                   </span>
-                </div>
-
-                <div>
-                  <CustomerStatusBadge type="role" value={customer.role} size="sm" />
                 </div>
               </div>
 
@@ -233,18 +223,33 @@ export default function CustomerTable({
                     Total Spent
                   </span>
                   <span className="font-mono font-bold text-foreground text-sm">
-                    ${Number(customer.total_spent || 0).toFixed(2)} USD
+                    ${Number(customer.total_spent || 0).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })} USD
                   </span>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-border/40">
+              <div className="pt-2 border-t border-border/40 grid grid-cols-2 gap-2">
                 <Link
                   href={detailHref}
-                  className="w-full py-2 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider text-center transition-colors block"
+                  className="py-2 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider text-center transition-colors flex items-center justify-center gap-1.5"
                 >
-                  View Customer Profile
+                  <Eye size={12} />
+                  <span>View</span>
                 </Link>
+
+                {onDeleteCustomer && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteCustomer(customer)}
+                    className="py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 size={12} />
+                    <span>Delete</span>
+                  </button>
+                )}
               </div>
             </div>
           );

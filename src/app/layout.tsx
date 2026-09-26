@@ -6,6 +6,7 @@ import { WishlistProvider } from "@/lib/WishlistContext";
 import { RfqProvider } from "@/lib/RfqContext";
 import { ProductModalProvider } from "@/lib/ProductModalContext";
 import { PreferencesProvider } from "@/lib/PreferencesContext";
+import { headers } from "next/headers";
 import StorefrontShell from "@/components/layout/StorefrontShell";
 import { generateOrganizationJsonLd, generateWebSiteJsonLd, SITE_URL } from "@/lib/seo";
 import "./globals.css";
@@ -80,13 +81,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const jsonLdOrg = generateOrganizationJsonLd();
   const jsonLdWebSite = generateWebSiteJsonLd();
+
+  const headersList = await headers();
+  const host = headersList.get("host") || "";
+  const isAdminHeader = headersList.get("x-is-admin-host") === "1" || headersList.get("x-admin-app") === "true";
+  const isAdminHost = isAdminHeader || host.includes(":3001") || host.startsWith("admin.") || host === "admin.localhost";
 
   return (
     <html lang="en">
@@ -107,7 +113,7 @@ export default function RootLayout({
               <WishlistProvider>
                 <RfqProvider>
                   <ProductModalProvider>
-                    <StorefrontShell>{children}</StorefrontShell>
+                    <StorefrontShell isAdminHost={isAdminHost}>{children}</StorefrontShell>
                   </ProductModalProvider>
                 </RfqProvider>
               </WishlistProvider>

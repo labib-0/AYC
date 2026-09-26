@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { CategoryCard } from "./CategoryHighlights";
+import { ProductCategoryTile } from "@/components/common/ProductCategoryTile";
+import { getCategoryImageUrl } from "@/lib/category-images";
 import ProductCard from "../product/ProductCard";
-import { INITIAL_MOCK_PRODUCTS } from "@/lib/mock-data/mock-products";
 import { Product } from "@/types";
 import { getProducts, toStorefrontProduct } from "@/lib/services/products";
 import {
-  PRODUCT_CATEGORIES,
   filterProducts,
 } from "@/lib/filters";
 import {
@@ -33,6 +32,7 @@ import {
   notifyExplorerActive,
   subscribeToExplorerActive,
 } from "@/lib/services/explorer-coordinator";
+import { homepageService } from "@/services/homepage.service";
 
 export interface HotSaleCategory {
   id: string;
@@ -41,23 +41,6 @@ export interface HotSaleCategory {
   image: string;
   description: string;
 }
-
-export const hotSalesCategories: HotSaleCategory[] = [
-  {
-    id: "hot-sweaters",
-    name: "SWEATERS",
-    slug: "sweaters",
-    image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&q=80&w=800",
-    description: "Premium warm knitwear and stylish sweaters on sale.",
-  },
-  {
-    id: "hot-towels",
-    name: "TOWELS",
-    slug: "towels",
-    image: "https://images.unsplash.com/photo-1616046229478-9901c5536a45?auto=format&fit=crop&q=80&w=800",
-    description: "Ultra-absorbent luxury bath and hand towels on special discount.",
-  },
-];
 
 export const AUDIENCE_FILTERS = [
   { id: "MEN", label: "MEN", categoryId: "c_men", icon: IconMen },
@@ -91,9 +74,7 @@ export default function HotSales() {
   const collectionSectionRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const [allProducts, setAllProducts] = useState<Product[]>(() =>
-    INITIAL_MOCK_PRODUCTS.map(toStorefrontProduct)
-  );
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -125,38 +106,67 @@ export default function HotSales() {
     loadMetadata();
   }, []);
 
+  const [curatedCategories, setCuratedCategories] = useState<HotSaleCategory[]>([]);
+
+  // Synchronize Hot Sale categories from Laravel backend API
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCurated = async () => {
+      try {
+        const data = await homepageService.getStorefrontHomepageData();
+        if (!isMounted) return;
+        if (data.hot_sale_categories && data.hot_sale_categories.length > 0) {
+          const mapped: HotSaleCategory[] = data.hot_sale_categories.map((item) => {
+            const cat = item.category;
+            const slug = cat?.slug || "";
+            return {
+              id: `hot-${slug || item.category_id}`,
+              name: (cat?.name || slug).toUpperCase(),
+              slug: slug,
+              image: cat?.image_url || (slug ? getCategoryImageUrl(slug) : "/placeholder.jpg"),
+              description: cat?.description || `Explore our hot sale collection of ${cat?.name || slug}.`,
+            };
+          });
+          setCuratedCategories(mapped);
+        } else {
+          setCuratedCategories([]);
+        }
+      } catch (err) {
+        console.warn("Could not load backend hot sale categories:", err);
+        setCuratedCategories([]);
+      }
+    };
+
+    loadCurated();
+
+    const handleUpdate = () => loadCurated();
+    window.addEventListener("ayaan:homepage-updated", handleUpdate);
+    window.addEventListener("ayaan:data-updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("ayaan:homepage-updated", handleUpdate);
+      window.removeEventListener("ayaan:data-updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
+
   // Generic active item lookup
   const activeItem = useMemo(() => {
     if (!activeCategory) return null;
     return (
-      hotSalesCategories.find(
+      curatedCategories.find(
         (c) => c.slug === activeCategory || c.id === activeCategory
-      ) || {
-        id: `hot-${activeCategory}`,
-        name: activeCategory.toUpperCase(),
-        slug: activeCategory,
-        image: "/categories/default.jpg",
-        description: `Explore our hot sale collection of ${activeCategory}.`,
-      }
+      ) || null
     );
-  }, [activeCategory]);
+  }, [activeCategory, curatedCategories]);
 
-  // Generic canonical category resolution
+  // Generic canonical category resolution from backend item
   const targetCategoryName = useMemo(() => {
     if (!activeItem) return "";
-    const slugLower = activeItem.slug.toLowerCase();
-    const nameLower = activeItem.name.toLowerCase();
-
-    const canonical = PRODUCT_CATEGORIES.find((pc) => {
-      const pcLower = pc.toLowerCase();
-      return (
-        pcLower === slugLower ||
-        pcLower === nameLower ||
-        nameLower.includes(pcLower) ||
-        pcLower.includes(slugLower)
-      );
-    });
-    return canonical || activeItem.name;
+    return activeItem.name;
   }, [activeItem]);
 
   // Shared Selection Handler for all Hot Sale items (Section 3 & 4)
@@ -346,7 +356,7 @@ export default function HotSales() {
 
   return (
     <section id="hot-sales" className="pt-1.5 sm:pt-2 pb-5 sm:pb-7 bg-background scroll-mt-20">
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         
         {/* Section Heading */}
         <div className="mb-3.5 sm:mb-5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-2">
@@ -370,18 +380,20 @@ export default function HotSales() {
         {/* 
           Hot Sales Tiles (exact compact category tile geometry matching expanded category grid)
         */}
-        <HorizontalCarousel trackClassName="gap-2.5 sm:gap-3.5 pb-2 pt-1">
-          {hotSalesCategories.map((category) => (
-            <div key={category.id} className="w-[calc(50%-5px)] sm:w-[calc(25%-9px)] md:w-[calc(16.666%-10px)] lg:w-[calc(12.5%-11px)] shrink-0 snap-start">
-              <CategoryCard
-                category={category}
-                variant="compact"
-                isActive={activeCategory === category.slug}
-                onClick={() => handleHotSaleProductSelect(category.slug)}
-              />
-            </div>
-          ))}
-        </HorizontalCarousel>
+        {curatedCategories.length > 0 ? (
+          <HorizontalCarousel trackClassName="gap-2.5 sm:gap-3.5 pb-2 pt-1">
+            {curatedCategories.map((category) => (
+              <div key={category.id} className="w-[calc(50%-5px)] sm:w-[calc(25%-9px)] md:w-[calc(16.666%-10px)] lg:w-[calc(12.5%-11px)] shrink-0 snap-start">
+                <ProductCategoryTile
+                  category={category}
+                  variant="compact"
+                  isActive={activeCategory === category.slug}
+                  onClick={() => handleHotSaleProductSelect(category.slug)}
+                />
+              </div>
+            ))}
+          </HorizontalCarousel>
+        ) : null}
 
         {/* 
           HOT SALES COLLECTION SHOWCASE & CONTEXTUAL FILTERS
@@ -600,10 +612,10 @@ export default function HotSales() {
                 {displayedProducts.length > 0 ? (
                   <>
                     <div
-                      className={`grid gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10 ${
+                      className={`grid gap-3 sm:gap-3.5 xl:gap-4 transition-all duration-200 ${
                         isFilterOpen
-                          ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 min-[1440px]:grid-cols-6 2xl:grid-cols-6"
-                          : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 min-[1440px]:grid-cols-7 2xl:grid-cols-7"
+                          ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5"
+                          : "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-6"
                       }`}
                     >
                       {displayedProducts.map((product) => (

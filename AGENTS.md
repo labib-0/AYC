@@ -1,13 +1,3 @@
-# AGENTS.md
-
-## Application Architecture
-
-Ayaan Clothing is a single, frontend-only Next.js application:
-- **Architecture:** Standalone frontend web application. There is currently no backend server.
-- **Data Store:** Client-side mock store (`src/lib/mock-data/mock-store.ts`) with in-memory caching and persistent browser `localStorage`.
-- **Services:** All services in `src/services/` directly use the client data store.
-- **Port & Routing:** Single unified application running on port 3000 (`npm run dev`). Storefront is served from `/` and the admin management portal is served from `/admin`.
-
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

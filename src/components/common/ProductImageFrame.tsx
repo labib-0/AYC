@@ -4,10 +4,10 @@ import React, { useState } from "react";
 import { Package } from "lucide-react";
 
 export type ProductImageReferenceSize =
-  | "listing"   // 800 × 1000 px reference
-  | "detail"    // 1200 × 1500 px reference
-  | "thumbnail" // 400 × 500 px reference
-  | "compact"   // 160 × 200 px reference
+  | "listing"   // 750 × 1000 px reference (3:4)
+  | "detail"    // 1200 × 1600 px reference (3:4)
+  | "thumbnail" // 300 × 400 px reference (3:4)
+  | "compact"   // 150 × 200 px reference (3:4)
   | "custom";
 
 export interface ProductImageFrameProps {
@@ -33,10 +33,10 @@ export interface ProductImageFrameProps {
  * Canonical shared product image presentation component across Ayaan Clothing.
  *
  * NON-NEGOTIABLE CORE SPECIFICATIONS:
- * 1. Ratio: Canonical 4:5 (aspect-ratio: 4 / 5) across all screen sizes and layouts.
+ * 1. Ratio: Canonical 3:4 (aspect-ratio: 3 / 4) across all screen sizes and layouts.
  * 2. Non-Destructive Fit: Always uses `object-fit: contain` so the full source
  *    image remains uncropped, centered, and intact regardless of original upload ratio.
- * 3. Stable Geometry: Retains exact 4:5 bounding box during loading, loaded, and error states.
+ * 3. Stable Geometry: Retains exact 3:4 bounding box during loading, loaded, and error states.
  * 4. Surface Treatment: Neutral, theme-aware surface backdrop (bg-secondary / dark:bg-white/5).
  */
 export default function ProductImageFrame({
@@ -62,10 +62,10 @@ export default function ProductImageFrame({
 
   return (
     <div
-      style={{ aspectRatio: "4 / 5", ...style }}
-      className={`relative aspect-[4/5] overflow-hidden flex items-center justify-center bg-secondary/40 dark:bg-white/5 select-none ${className}`}
+      style={{ aspectRatio: "3 / 4", ...style }}
+      className={`relative aspect-[3/4] overflow-hidden flex items-center justify-center bg-secondary/40 dark:bg-white/5 select-none ${className}`}
       data-reference-size={referenceSize}
-      data-aspect-ratio="4:5"
+      data-aspect-ratio="3:4"
       onClick={onClick}
     >
       {!isBroken ? (

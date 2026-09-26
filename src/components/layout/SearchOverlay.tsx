@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Clock, ArrowRight, TrendingUp, Search, X } from "lucide-react";
-import { INITIAL_MOCK_PRODUCTS } from "@/lib/mock-data/mock-products";
 import { Product } from "@/types";
 import { getProducts, toStorefrontProduct } from "@/lib/services/products";
 import { formatPrice } from "@/lib/formatters";
@@ -38,9 +37,7 @@ export default function SearchOverlay({
   variant = "desktop",
   className = "",
 }: SearchOverlayProps) {
-  const [allProducts, setAllProducts] = useState<Product[]>(() =>
-    INITIAL_MOCK_PRODUCTS.map(toStorefrontProduct)
-  );
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -230,8 +227,8 @@ export default function SearchOverlay({
                       onClick={onClose}
                       className="group relative flex flex-col bg-slate-50/70 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-white/10 p-2 transition-all duration-150 text-left hover:shadow-xs hover:border-foreground/30"
                     >
-                      {/* Compact Image — Canonical 4:5 */}
-                      <div className="relative aspect-[4/5] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-2">
+                      {/* Compact Image — Canonical 3:4 */}
+                      <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={product.images?.[0] || "/placeholder.jpg"}
@@ -376,7 +373,7 @@ export default function SearchOverlay({
                   onClick={onClose}
                   className="group relative flex flex-col bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200/80 dark:border-white/10 p-2 text-left"
                 >
-                  <div className="relative aspect-[4/5] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-1.5">
+                  <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-1.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={product.images?.[0] || "/placeholder.jpg"}

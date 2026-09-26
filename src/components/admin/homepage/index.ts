@@ -13,8 +13,10 @@ export type { BannerContentFormProps } from "./BannerContentForm";
 export { default as BannerStatusControl } from "./BannerStatusControl";
 export type { BannerStatusControlProps } from "./BannerStatusControl";
 
-export { default as BannerRecordSelector } from "./BannerRecordSelector";
-export type { BannerRecordSelectorProps } from "./BannerRecordSelector";
 
 export { default as BannerEmptyState } from "./BannerEmptyState";
 export type { BannerEmptyStateProps } from "./BannerEmptyState";
+
+export { default as HotSaleCategoryManager } from "./HotSaleCategoryManager";
+export { default as FeaturedProductManager } from "./FeaturedProductManager";
+export { default as ShopByBrandManager } from "./ShopByBrandManager";

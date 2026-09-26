@@ -134,7 +134,8 @@ export function RfqProvider({ children }: { children: React.ReactNode }) {
     setRfqItems([]);
   };
 
-  const totalRfqCount = rfqItems.reduce((acc, item) => acc + item.quantity, 0);
+  // Prompt 7: Semantic RFQ count represents distinct items in the RFQ inquiry cart (not piece sum 1550)
+  const totalRfqCount = rfqItems.length;
 
   return (
     <RfqContext.Provider

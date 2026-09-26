@@ -10,6 +10,8 @@ interface CategoryAdvancedSectionProps {
   sortOrderError?: string;
   isActive: boolean;
   onIsActiveChange: (active: boolean) => void;
+  isFeaturedOnLanding?: boolean;
+  onIsFeaturedOnLandingChange?: (featured: boolean) => void;
   disabled?: boolean;
 }
 
@@ -21,6 +23,8 @@ export default function CategoryAdvancedSection({
   sortOrderError,
   isActive,
   onIsActiveChange,
+  isFeaturedOnLanding = false,
+  onIsFeaturedOnLandingChange,
   disabled = false,
 }: CategoryAdvancedSectionProps) {
   return (
@@ -89,6 +93,25 @@ export default function CategoryAdvancedSection({
           </label>
           <span className="text-[10px] text-muted-foreground pl-6 mt-0.5">
             Visible across storefront navigation &amp; catalog
+          </span>
+        </div>
+
+        {/* Show on Landing Page Checkbox */}
+        <div className="flex flex-col justify-end pb-1.5 sm:col-span-2 pt-2 border-t border-border/40">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isFeaturedOnLanding}
+              disabled={disabled}
+              onChange={(e) => onIsFeaturedOnLandingChange && onIsFeaturedOnLandingChange(e.target.checked)}
+              className="w-4 h-4 rounded border-border text-foreground focus:ring-foreground accent-foreground cursor-pointer"
+            />
+            <span className="text-xs font-bold text-foreground">
+              Show on Landing Page (Hot Sale)
+            </span>
+          </label>
+          <span className="text-[10px] text-muted-foreground pl-6 mt-0.5">
+            When enabled, this category is featured in the storefront landing page Hot Sale section.
           </span>
         </div>
       </div>

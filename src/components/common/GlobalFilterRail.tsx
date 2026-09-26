@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { X, RotateCcw, ChevronDown } from "lucide-react";
+import React, { useState } from "react";
+import { X, RotateCcw, Search } from "lucide-react";
 import { BrandModel } from "@/services/brand.service";
 import { CategoryModel } from "@/services/category.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
@@ -30,23 +30,105 @@ export interface GlobalFilterRailProps {
   availableCategories: CategoryModel[];
 }
 
-const AUDIENCES = [
+export const AUDIENCE_ROW_1 = [
   { key: "MEN", label: "Men", Icon: IconMen },
   { key: "WOMEN", label: "Women", Icon: IconWomen },
+] as const;
+
+export const AUDIENCE_ROW_2 = [
   { key: "BOYS", label: "Boys", Icon: IconBoys },
   { key: "GIRLS", label: "Girls", Icon: IconGirls },
   { key: "UNISEX", label: "Unisex", Icon: IconUnisex },
-];
-
-const DESIGN_TYPES = [
-  { value: "ORIGINAL", display: "ORIGINAL", fullLabel: "Original" },
-  { value: "MASTER COPY", display: "MC", fullLabel: "Master Copy" },
 ] as const;
 
-const INITIAL_BRAND_COUNT = 9; // 3 columns x 3 rows = 9 initial brand tiles
-const BRAND_BATCH_SIZE = 9; // +3 rows per click
-const INITIAL_CATEGORY_COUNT = 30; // Initial comfortable batch for category scroll region
-const CATEGORY_BATCH_SIZE = 20; // Incremental slice as user scrolls
+export const DESIGN_TYPES = [
+  { value: "ORIGINAL", display: "ORIGINAL", fullLabel: "Original" },
+  { value: "MASTER COPY", display: "MASTER COPY", fullLabel: "Master Copy" },
+] as const;
+
+/**
+ * Reusable bounded scroll container for Brand Logos (max 3 rows)
+ */
+export function BrandFilterGrid({
+  brands,
+  selectedBrands,
+  onToggleBrand,
+}: {
+  brands: BrandModel[];
+  selectedBrands: string[];
+  onToggleBrand: (name: string) => void;
+}) {
+  return (
+    <div
+      role="region"
+      aria-label="Brand logos"
+      tabIndex={0}
+      className="max-h-[196px] sm:max-h-[198px] overflow-y-auto pr-1 subtle-scrollbar rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20"
+    >
+      <div className="grid grid-cols-3 gap-2">
+        {brands.map((brand) => {
+          const isSelected = selectedBrands.includes(brand.name);
+          const rawLogo = brand.logo_url || brand.logo;
+          const resolvedLogo = getBrandLogoUrl(brand.name, rawLogo) || rawLogo;
+
+          return (
+            <BrandLogoTile
+              key={brand.id || brand.name}
+              id={brand.id}
+              name={brand.name}
+              logoUrl={resolvedLogo}
+              isSelected={isSelected}
+              onClick={() => onToggleBrand(brand.name)}
+              title={brand.name}
+              ariaLabel={`${brand.name} brand`}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Reusable bounded scroll container for Product Categories (max 5 rows)
+ */
+export function ProductCategoryFilterScroll({
+  categories,
+  selectedCategories,
+  onToggleCategory,
+}: {
+  categories: CategoryModel[];
+  selectedCategories: string[];
+  onToggleCategory: (name: string) => void;
+}) {
+  return (
+    <div
+      role="region"
+      aria-label="Product Categories"
+      tabIndex={0}
+      className="max-h-[188px] sm:max-h-[192px] overflow-y-auto pr-1 subtle-scrollbar flex flex-wrap gap-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20 rounded-md"
+    >
+      {categories.map((cat) => {
+        const isSelected = selectedCategories.includes(cat.name);
+        return (
+          <button
+            key={cat.id || cat.name}
+            type="button"
+            onClick={() => onToggleCategory(cat.name)}
+            className={`px-3 py-1.5 rounded-full text-[12.5px] font-sans transition-all duration-150 ease-out cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground whitespace-nowrap active:translate-y-0 ${
+              isSelected
+                ? "bg-foreground text-background border-foreground shadow-xs font-semibold hover:-translate-y-0.5"
+                : "bg-card text-muted-foreground hover:text-foreground hover:border-slate-900/60 dark:hover:border-white/60 hover:bg-secondary/50 border-slate-900/25 dark:border-white/25 shadow-2xs font-medium hover:-translate-y-0.5"
+            }`}
+            aria-pressed={isSelected}
+          >
+            {cat.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function GlobalFilterRail({
   isOpen,
@@ -63,54 +145,7 @@ export default function GlobalFilterRail({
   availableBrands,
   availableCategories,
 }: GlobalFilterRailProps) {
-  const [visibleBrandCount, setVisibleBrandCount] = useState<number>(INITIAL_BRAND_COUNT);
-  const [isLoadingMoreBrands, setIsLoadingMoreBrands] = useState(false);
-  const [visibleCategoryCount, setVisibleCategoryCount] = useState<number>(INITIAL_CATEGORY_COUNT);
-  const categorySentinelRef = useRef<HTMLDivElement>(null);
-
-  // If any selected brand is beyond the initial 9, expand visible count in multiples of 9
-  useEffect(() => {
-    if (selectedBrands.length > 0 && availableBrands.length > 0) {
-      const maxIdx = availableBrands.reduce((acc, b, idx) => {
-        return selectedBrands.includes(b.name) ? Math.max(acc, idx) : acc;
-      }, -1);
-      if (maxIdx >= visibleBrandCount) {
-        const neededCount = Math.ceil((maxIdx + 1) / BRAND_BATCH_SIZE) * BRAND_BATCH_SIZE;
-        setVisibleBrandCount(Math.min(neededCount, availableBrands.length));
-      }
-    }
-  }, [selectedBrands, availableBrands, visibleBrandCount]);
-
-  // If any selected category is beyond initial count, expand visible category count
-  useEffect(() => {
-    if (selectedCategories.length > 0 && availableCategories.length > 0) {
-      const maxIdx = availableCategories.reduce((acc, c, idx) => {
-        return selectedCategories.includes(c.name) ? Math.max(acc, idx) : acc;
-      }, -1);
-      if (maxIdx >= visibleCategoryCount) {
-        const neededCount = Math.ceil((maxIdx + 1) / CATEGORY_BATCH_SIZE) * CATEGORY_BATCH_SIZE;
-        setVisibleCategoryCount(Math.min(neededCount, availableCategories.length));
-      }
-    }
-  }, [selectedCategories, availableCategories, visibleCategoryCount]);
-
-  // Internal IntersectionObserver on sentinel inside the Category scroll container (independent from page sentinel)
-  useEffect(() => {
-    const sentinel = categorySentinelRef.current;
-    if (!sentinel || visibleCategoryCount >= availableCategories.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setVisibleCategoryCount((prev) => Math.min(prev + CATEGORY_BATCH_SIZE, availableCategories.length));
-        }
-      },
-      { rootMargin: "40px" }
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [visibleCategoryCount, availableCategories.length]);
+  const [brandSearchQuery, setBrandSearchQuery] = useState("");
 
   const totalActiveCount =
     selectedBrands.length +
@@ -151,124 +186,129 @@ export default function GlobalFilterRail({
     }
   };
 
-  const handleLoadMoreBrands = () => {
-    if (isLoadingMoreBrands || visibleBrandCount >= availableBrands.length) return;
-    setIsLoadingMoreBrands(true);
-    setVisibleBrandCount((prev) => Math.min(prev + BRAND_BATCH_SIZE, availableBrands.length));
-    setIsLoadingMoreBrands(false);
-  };
+  // Immediate case-insensitive partial match on brand name
+  const filteredBrands = availableBrands.filter((b) =>
+    b.name.toLowerCase().includes(brandSearchQuery.trim().toLowerCase())
+  );
 
-  const visibleBrands = availableBrands.slice(0, visibleBrandCount);
-  const hasMoreBrands = visibleBrandCount < availableBrands.length;
-  const visibleCategories = availableCategories.slice(0, visibleCategoryCount);
-  const hasMoreCategories = visibleCategoryCount < availableCategories.length;
+  const renderAudienceButton = ({
+    key,
+    label,
+    Icon,
+  }: {
+    key: string;
+    label: string;
+    Icon: React.ComponentType<any>;
+  }) => {
+    const isSelected = selectedAudiences.includes(key);
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={() => toggleAudience(key)}
+        className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground min-h-[46px] sm:min-h-[48px] select-none ${
+          isSelected
+            ? "bg-foreground text-background border-foreground shadow-xs font-bold"
+            : "bg-card text-muted-foreground hover:text-foreground border-slate-900/25 dark:border-white/25 hover:border-slate-900/60 dark:hover:border-white/60 shadow-2xs"
+        }`}
+        aria-pressed={isSelected}
+        aria-label={`Audience: ${label}`}
+      >
+        <Icon className="w-5 h-5 shrink-0" strokeWidth={isSelected ? 2.2 : 1.8} />
+        <span className="text-[10.5px] sm:text-[11px] font-sans font-bold uppercase tracking-wider leading-none mt-1.5 truncate max-w-full">
+          {label}
+        </span>
+      </button>
+    );
+  };
 
   // ── Shared Filter Content (Desktop + Mobile) ──────────────────────────────
   const filterContent = (
     <div className="space-y-4">
-      {/* ── 1. BRAND — 3-Column Visual Brand Grid (3 rows = 9 initial) ── */}
+      {/* ── 1. BRAND — 3-Row Max Bounded Scroll + Brand Search (No Load More) ── */}
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1.5">
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans">
             BRAND
           </h3>
           {availableBrands.length > 0 && (
             <span className="text-[10px] text-muted-foreground font-mono">
-              {Math.min(visibleBrandCount, availableBrands.length)}/{availableBrands.length}
+              {selectedBrands.length} / {availableBrands.length}
             </span>
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          {visibleBrands.map((brand) => {
-            const isSelected = selectedBrands.includes(brand.name);
-            const rawLogo = brand.logo_url || brand.logo;
-            const resolvedLogo = getBrandLogoUrl(brand.name, rawLogo) || rawLogo;
-
-            return (
-              <BrandLogoTile
-                key={brand.id || brand.name}
-                id={brand.id}
-                name={brand.name}
-                logoUrl={resolvedLogo}
-                isSelected={isSelected}
-                onClick={() => toggleBrand(brand.name)}
-                title={brand.name}
-                ariaLabel={`${brand.name} brand`}
-              />
-            );
-          })}
-        </div>
-
-        {/* Centered Minimal Down-Arrow Load More Control (appends +9 brands = 3 rows) */}
-        {hasMoreBrands && (
-          <div className="flex justify-center mt-2.5">
+        {/* Compact Brand Search Input */}
+        <div className="relative mb-2">
+          <Search
+            size={12}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          />
+          <input
+            type="text"
+            value={brandSearchQuery}
+            onChange={(e) => setBrandSearchQuery(e.target.value)}
+            placeholder="Search brands..."
+            className="w-full bg-secondary/50 hover:bg-secondary/70 focus:bg-background border border-border/80 focus:border-foreground/40 rounded-lg pl-7 pr-7 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/70 transition-all outline-none"
+            aria-label="Search brands"
+          />
+          {brandSearchQuery && (
             <button
               type="button"
-              onClick={handleLoadMoreBrands}
-              disabled={isLoadingMoreBrands}
-              className="inline-flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors group cursor-pointer focus-visible:outline-none"
-              aria-label="Load more brands"
+              onClick={() => setBrandSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded cursor-pointer"
+              aria-label="Clear brand search"
             >
-              <div className="w-6.5 h-6.5 rounded-full border border-border/80 group-hover:border-foreground/50 bg-card group-hover:bg-secondary/70 flex items-center justify-center transition-all shadow-2xs group-hover:shadow-xs">
-                <ChevronDown
-                  size={13}
-                  className="transition-transform duration-200 group-hover:translate-y-0.5 text-foreground/70 group-hover:text-foreground"
-                />
-              </div>
-              <span className="text-[9.5px] font-bold uppercase tracking-widest font-sans">
-                LOAD MORE
-              </span>
+              <X size={12} />
             </button>
-          </div>
+          )}
+        </div>
+
+        {/* Bounded Scrollable Brand Area (Max 3 visible rows, internal scrollbar) */}
+        {filteredBrands.length === 0 ? (
+          <p className="py-4 text-center text-xs text-muted-foreground font-sans">
+            No brands found.
+          </p>
+        ) : (
+          <BrandFilterGrid
+            brands={filteredBrands}
+            selectedBrands={selectedBrands}
+            onToggleBrand={toggleBrand}
+          />
         )}
       </div>
 
       {/* Divider */}
       <div className="h-px bg-border/50" />
 
-      {/* ── 2. AUDIENCE — Separate Compact Section ── */}
+      {/* ── 2. AUDIENCE — Two Deliberate Rows with Prominent Icons ── */}
       <div>
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans mb-2">
           AUDIENCE
         </h3>
 
-        <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
-          {AUDIENCES.map(({ key, label, Icon }) => {
-            const isSelected = selectedAudiences.includes(key);
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => toggleAudience(key)}
-                className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-foreground min-h-[38px] select-none ${
-                  isSelected
-                    ? "bg-foreground text-background border-foreground shadow-2xs font-bold"
-                    : "bg-card text-muted-foreground hover:text-foreground border-slate-900/25 dark:border-white/25 hover:border-slate-900/60 dark:hover:border-white/60 shadow-2xs"
-                }`}
-                aria-pressed={isSelected}
-                aria-label={`Audience: ${label}`}
-              >
-                <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={isSelected ? 2.2 : 1.75} />
-                <span className="text-[9.5px] font-sans font-bold uppercase tracking-tight leading-none mt-1 truncate max-w-full">
-                  {label}
-                </span>
-              </button>
-            );
-          })}
+        <div className="space-y-1.5 sm:space-y-2">
+          {/* Row 1: MEN / WOMEN */}
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+            {AUDIENCE_ROW_1.map(renderAudienceButton)}
+          </div>
+          {/* Row 2: BOYS / GIRLS / UNISEX */}
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+            {AUDIENCE_ROW_2.map(renderAudienceButton)}
+          </div>
         </div>
       </div>
 
       {/* Divider */}
       <div className="h-px bg-border/50" />
 
-      {/* ── 3. DESIGN TYPE — Separate Compact Section ── */}
+      {/* ── 3. DESIGN TYPE — ORIGINAL / MASTER COPY with Equal Weight ── */}
       <div>
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans mb-2">
           DESIGN TYPE
         </h3>
 
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
           {DESIGN_TYPES.map(({ value, display, fullLabel }) => {
             const isSelected = selectedDesignTypes.includes(value);
             return (
@@ -276,16 +316,16 @@ export default function GlobalFilterRail({
                 key={value}
                 type="button"
                 onClick={() => toggleDesignType(value)}
-                className={`flex items-center justify-center py-2 px-2 rounded-lg border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-foreground min-h-[36px] select-none ${
+                className={`flex items-center justify-center py-2.5 px-3 rounded-xl border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground min-h-[40px] sm:min-h-[42px] select-none ${
                   isSelected
-                    ? "bg-foreground text-background border-foreground shadow-2xs font-bold"
+                    ? "bg-foreground text-background border-foreground shadow-xs font-bold"
                     : "bg-card text-muted-foreground hover:text-foreground border-slate-900/25 dark:border-white/25 hover:border-slate-900/60 dark:hover:border-white/60 shadow-2xs"
                 }`}
                 aria-pressed={isSelected}
                 aria-label={`Design Type: ${fullLabel}`}
                 title={`Design Type: ${fullLabel}`}
               >
-                <span className="text-[10.5px] font-sans font-extrabold uppercase tracking-wider leading-tight">
+                <span className="text-[10px] sm:text-[11px] font-sans font-extrabold uppercase tracking-wider leading-tight whitespace-nowrap">
                   {display}
                 </span>
               </button>
@@ -297,7 +337,7 @@ export default function GlobalFilterRail({
       {/* Divider */}
       <div className="h-px bg-border/50" />
 
-      {/* ── 4. PRODUCT CATEGORY — Controlled Scroll Area ── */}
+      {/* ── 4. PRODUCT CATEGORY — Bounded Scroll Area (Max 5 Rows, No Load More) ── */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans">
@@ -310,35 +350,12 @@ export default function GlobalFilterRail({
           )}
         </div>
 
-        {/* Controlled Category Viewport with Internal Vertical Scrolling */}
-        <div
-          role="region"
-          aria-label="Product Categories"
-          tabIndex={0}
-          className="max-h-[260px] sm:max-h-[280px] overflow-y-auto pr-1 flex flex-wrap gap-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20 rounded-md"
-        >
-          {visibleCategories.map((cat) => {
-            const isSelected = selectedCategories.includes(cat.name);
-            return (
-              <button
-                key={cat.id || cat.name}
-                type="button"
-                onClick={() => toggleCategory(cat.name)}
-                className={`px-3 py-1.5 rounded-full text-[12.5px] font-sans transition-all duration-150 ease-out cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground whitespace-nowrap active:translate-y-0 ${
-                  isSelected
-                    ? "bg-foreground text-background border-foreground shadow-xs font-semibold hover:-translate-y-0.5"
-                    : "bg-card text-muted-foreground hover:text-foreground hover:border-slate-900/60 dark:hover:border-white/60 hover:bg-secondary/50 border-slate-900/25 dark:border-white/25 shadow-2xs font-medium hover:-translate-y-0.5"
-                }`}
-                aria-pressed={isSelected}
-              >
-                {cat.name}
-              </button>
-            );
-          })}
-          {hasMoreCategories && (
-            <div ref={categorySentinelRef} className="w-full h-2 pointer-events-none" aria-hidden="true" />
-          )}
-        </div>
+        {/* Bounded Category Viewport (Max ~5 Rows, Internal Scrollbar If Needed) */}
+        <ProductCategoryFilterScroll
+          categories={availableCategories}
+          selectedCategories={selectedCategories}
+          onToggleCategory={toggleCategory}
+        />
       </div>
     </div>
   );

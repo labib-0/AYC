@@ -1,4 +1,10 @@
 import { calculateMockShippingQuote } from "@/lib/mock-data/mock-shipping";
+import { isFrontendOnly } from "@/lib/frontend-mode";
+import { apiClient } from "@/services/api-client";
+
+export interface ShippingSettings {
+  aramex_enabled: boolean;
+}
 
 export interface ShippingQuoteItem {
   product_id: string | number;
@@ -89,9 +95,43 @@ export interface ShippingQuoteResponse {
 
 class ShippingService {
   /**
+   * Fetch current shipping settings (e.g. Aramex enabled/disabled)
+   */
+  async getSettings(): Promise<ShippingSettings> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>("/shipping/settings");
+        return res?.data || { aramex_enabled: false };
+      } catch {
+        return { aramex_enabled: false };
+      }
+    }
+    return { aramex_enabled: false };
+  }
+
+  /**
+   * Update admin shipping settings
+   */
+  async updateAdminSettings(settings: ShippingSettings): Promise<ShippingSettings> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.patch<any>("/admin/settings/shipping", settings);
+      return res?.data || settings;
+    }
+    return settings;
+  }
+
+  /**
    * Request real-time shipping quote
    */
   async getShippingQuotes(request: ShippingQuoteRequest): Promise<ShippingQuoteResponse> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.post<ShippingQuoteResponse>("/shipping/quote", request);
+        return res;
+      } catch (err) {
+        console.warn("Backend shipping quote error, falling back to local calculation:", err);
+      }
+    }
     return calculateMockShippingQuote(request);
   }
 }

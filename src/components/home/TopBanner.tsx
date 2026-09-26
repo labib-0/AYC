@@ -2,41 +2,55 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect } from "react";
-import { DEFAULT_TOP_BANNER, getTopBannerConfig, TopBannerConfig } from "@/config/banner";
+import { DEFAULT_TOP_BANNER, TopBannerConfig } from "@/config/banner";
+import { homepageService } from "@/services/homepage.service";
 
 export default function TopBanner() {
   const [banner, setBanner] = useState<TopBannerConfig>(DEFAULT_TOP_BANNER);
   const [imgSrc, setImgSrc] = useState<string>(DEFAULT_TOP_BANNER.imageUrl);
 
-  // Synchronize banner with admin-configured data & listen for updates
+  // Synchronize banner with backend-driven Laravel API & listen for updates
   useEffect(() => {
-    const config = getTopBannerConfig();
-    setBanner(config);
-    setImgSrc(config.imageUrl || DEFAULT_TOP_BANNER.imageUrl);
+    let isMounted = true;
 
-    const handleDataUpdate = () => {
-      const updated = getTopBannerConfig();
-      setBanner(updated);
-      setImgSrc(updated.imageUrl || DEFAULT_TOP_BANNER.imageUrl);
+    const loadBanner = async () => {
+      const data = await homepageService.getStorefrontHomepageData();
+      if (!isMounted) return;
+      const config = homepageService.bannerModelToTopBannerConfig(data.banner);
+      setBanner(config);
+      setImgSrc(config.imageUrl || DEFAULT_TOP_BANNER.imageUrl);
     };
 
+    loadBanner();
+
+    const handleDataUpdate = () => {
+      loadBanner();
+    };
+
+    window.addEventListener("ayaan:homepage-updated", handleDataUpdate);
     window.addEventListener("ayaan:data-updated", handleDataUpdate);
     window.addEventListener("storage", handleDataUpdate);
 
     return () => {
+      isMounted = false;
+      window.removeEventListener("ayaan:homepage-updated", handleDataUpdate);
       window.removeEventListener("ayaan:data-updated", handleDataUpdate);
       window.removeEventListener("storage", handleDataUpdate);
     };
   }, []);
 
-  // Smooth scroll directly to the existing Featured Products section
+  // Handle smooth scroll if anchor, or normal navigation if URL
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    const featuredSection = document.getElementById("featured");
-    if (featuredSection) {
-      featuredSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else {
-      window.location.hash = "featured";
+    const target = banner.target || "#featured";
+    if (target.startsWith("#")) {
+      e.preventDefault();
+      const targetId = target.replace(/^#/, "");
+      const elem = document.getElementById(targetId);
+      if (elem) {
+        elem.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        window.location.hash = targetId;
+      }
     }
   };
 
@@ -48,7 +62,7 @@ export default function TopBanner() {
       className="w-full bg-background pt-2.5 sm:pt-3.5 pb-0"
       aria-label="Ayaan Clothing Promotional Banner"
     >
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         <a
           href={banner.target || "#featured"}
           onClick={handleClick}
@@ -72,7 +86,7 @@ export default function TopBanner() {
               loading="eager"
             />
 
-            {/* Subtle Professional Overlay: Preserves plaster photo texture without washing out */}
+            {/* Subtle Professional Overlay: Preserves photo texture without washing out */}
             <div
               className="absolute inset-0 bg-gradient-to-r from-background/55 via-background/25 to-transparent sm:from-background/45 sm:via-background/15 sm:to-transparent pointer-events-none"
               aria-hidden="true"
@@ -98,13 +112,13 @@ export default function TopBanner() {
                 </p>
               )}
 
-              {/* Compact CTA: Secondary to headline */}
-              <div className="flex items-center gap-1.5 text-[9.5px] sm:text-[10.5px] font-sans font-bold uppercase tracking-wider text-foreground/80 group-hover:text-primary transition-colors mt-1 sm:mt-1.5">
-                <span>{banner.buttonText || "EXPLORE CATALOG →"}</span>
-              </div>
-
+              {/* Action Prompt */}
+              {banner.buttonText && (
+                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-mono font-bold text-primary hover:underline mt-1">
+                  <span>{banner.buttonText}</span>
+                </span>
+              )}
             </div>
-
           </div>
         </a>
       </div>

@@ -12,6 +12,8 @@ export interface BrandFormData {
   website: string;
   sortOrder: number;
   isActive: boolean;
+  isFeaturedOnLanding: boolean;
+  landingSortOrder: number;
 }
 
 interface BrandFormProps {
@@ -54,6 +56,8 @@ export default function BrandForm({
   const [website, setWebsite] = useState("");
   const [sortOrder, setSortOrder] = useState<number>(defaultSortOrder);
   const [isActive, setIsActive] = useState(true);
+  const [isFeaturedOnLanding, setIsFeaturedOnLanding] = useState(false);
+  const [landingSortOrder, setLandingSortOrder] = useState<number>(0);
 
   // Validation errors
   const [nameError, setNameError] = useState("");
@@ -74,7 +78,9 @@ export default function BrandForm({
       setWebsite(initialBrand.website || "");
       setSortOrder(initialBrand.sort_order ?? defaultSortOrder);
       setIsActive(initialBrand.is_active ?? true);
-      setShowAdvanced(Boolean(initialBrand.website || initialBrand.sort_order));
+      setIsFeaturedOnLanding(Boolean(initialBrand.is_featured_on_landing));
+      setLandingSortOrder(initialBrand.landing_sort_order ?? 0);
+      setShowAdvanced(Boolean(initialBrand.website || initialBrand.sort_order || initialBrand.is_featured_on_landing));
     } else {
       setName("");
       setSlug("");
@@ -83,6 +89,8 @@ export default function BrandForm({
       setWebsite("");
       setSortOrder(defaultSortOrder);
       setIsActive(true);
+      setIsFeaturedOnLanding(false);
+      setLandingSortOrder(0);
       setShowAdvanced(false);
     }
     setNameError("");
@@ -172,6 +180,8 @@ export default function BrandForm({
         website: website.trim(),
         sortOrder: Number(sortOrder) || 1,
         isActive,
+        isFeaturedOnLanding,
+        landingSortOrder: Number(landingSortOrder) || 0,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save brand. Please try again.";
@@ -328,6 +338,25 @@ export default function BrandForm({
                 </label>
                 <span className="text-[10px] text-muted-foreground pl-6 mt-0.5">
                   Visible in storefront catalog and filters
+                </span>
+              </div>
+
+              {/* Show on Landing Page Checkbox */}
+              <div className="flex flex-col justify-end pb-1.5 sm:col-span-2 pt-2 border-t border-border/40">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isFeaturedOnLanding}
+                    disabled={isSaving}
+                    onChange={(e) => setIsFeaturedOnLanding(e.target.checked)}
+                    className="w-4 h-4 rounded border-border text-foreground focus:ring-foreground accent-foreground cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-foreground">
+                    Show on Landing Page (Shop By Brand)
+                  </span>
+                </label>
+                <span className="text-[10px] text-muted-foreground pl-6 mt-0.5">
+                  When enabled, this brand appears in the storefront &quot;Shop By Brand&quot; section.
                 </span>
               </div>
             </div>

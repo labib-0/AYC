@@ -426,7 +426,7 @@ export default function CustomerRfqDetailPage({ params }: Props) {
                 className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-16 aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 shrink-0 p-1 flex items-center justify-center">
+                  <div className="w-16 aspect-[3/4] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 shrink-0 p-1 flex items-center justify-center">
                     {item.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -459,7 +459,9 @@ export default function CustomerRfqDetailPage({ params }: Props) {
                     {/* Specs / Notes */}
                     <div className="flex flex-wrap gap-2 mt-1.5 text-[0.6875rem] text-slate-500">
                       {item.selectedColor && <span>Color: {item.selectedColor}</span>}
-                      {item.selectedSize && <span>Size: {item.selectedSize}</span>}
+                      {item.selectedSize && (
+                        <span>{item.selectedSize === "Assorted" ? "Assortment: Universal Package" : `Size: ${item.selectedSize}`}</span>
+                      )}
                       {item.assortedSizesNotes && (
                         <span className="italic">Sizes: {item.assortedSizesNotes}</span>
                       )}

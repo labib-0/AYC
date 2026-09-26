@@ -42,14 +42,38 @@ export default function ProductGallery({
   const [mediaMode, setMediaMode] = useState<"image" | "video">("image");
   const currentIndex = controlledIndex ?? internalIndex;
 
-  // Resolve YouTube Embed URL
-  const resolvedYoutubeEmbedUrl = useMemo(() => {
-    if (youtubeEmbedUrl) return youtubeEmbedUrl;
-    if (youtubeVideoId) return `https://www.youtube-nocookie.com/embed/${youtubeVideoId}`;
-    if (!videoUrl) return null;
-    const url = videoUrl.trim();
-    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
-    return match ? `https://www.youtube-nocookie.com/embed/${match[1]}` : null;
+  // Resolve Video Info (YouTube, Vimeo, Direct MP4)
+  const videoInfo = useMemo(() => {
+    if (!videoUrl && !youtubeVideoId && !youtubeEmbedUrl) return null;
+
+    if (youtubeEmbedUrl) {
+      return { type: "youtube" as const, embedUrl: youtubeEmbedUrl, directUrl: null };
+    }
+    if (youtubeVideoId) {
+      return { type: "youtube" as const, embedUrl: `https://www.youtube-nocookie.com/embed/${youtubeVideoId}`, directUrl: null };
+    }
+
+    const url = (videoUrl || "").trim();
+    if (!url) return null;
+
+    // YouTube pattern
+    const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+    if (ytMatch) {
+      return { type: "youtube" as const, embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}`, directUrl: null };
+    }
+
+    // Vimeo pattern
+    const vimeoMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
+    if (vimeoMatch) {
+      return { type: "vimeo" as const, embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}`, directUrl: null };
+    }
+
+    // Direct MP4 / WebM
+    if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
+      return { type: "direct" as const, embedUrl: null, directUrl: url };
+    }
+
+    return null;
   }, [youtubeEmbedUrl, youtubeVideoId, videoUrl]);
 
   // Reset to first image when images or product changes
@@ -244,6 +268,7 @@ export default function ProductGallery({
   );
 
   // ── Thumbnail Drag to Scroll ─────────────────────────────────────────────
+  const thumbContainerRef = useRef<HTMLDivElement>(null);
   const [isThumbDragging, setIsThumbDragging] = useState(false);
   const thumbDragRef = useRef({ isDown: false, startX: 0, scrollLeft: 0, hasCaptured: false });
   const isThumbDraggingRef = useRef(false);
@@ -324,7 +349,7 @@ export default function ProductGallery({
       ro.disconnect();
       el.removeEventListener("scroll", updateScroll);
     };
-  }, [images.length, resolvedYoutubeEmbedUrl]);
+  }, [images.length, videoInfo]);
 
   const scrollThumbRail = useCallback((direction: "left" | "right") => {
     if (!thumbContainerRef.current) return;
@@ -337,7 +362,6 @@ export default function ProductGallery({
   }, []);
 
   // ── Thumbnail Auto-Scroll ──────────────────────────────────────────────
-  const thumbContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!thumbContainerRef.current) return;
     const activeThumb = thumbContainerRef.current.children[currentIndex] as HTMLElement | undefined;
@@ -345,16 +369,16 @@ export default function ProductGallery({
   }, [currentIndex]);
 
   const hasMultiple = images.length > 1;
-  const hasMediaRail = images.length > 1 || (images.length > 0 && (!!resolvedYoutubeEmbedUrl || !!videoThumbnail));
+  const hasMediaRail = images.length > 1 || (images.length > 0 && (!!videoInfo || !!videoThumbnail));
 
   const isModal = variant === "modal";
   const mainRadiusClass = isModal ? "rounded-xl" : "rounded-2xl";
   const thumbSizeClass = isModal ? "w-11 sm:w-12 rounded-lg" : "w-12 sm:w-14 rounded-lg";
   const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "";
 
-  if (images.length === 0 && !resolvedYoutubeEmbedUrl) {
+  if (images.length === 0 && !videoInfo) {
     return (
-      <div className={`relative aspect-[4/5] aspect-product ${mainRadiusClass} overflow-hidden bg-secondary border border-border/70 shadow-sm flex items-center justify-center`}>
+      <div className={`relative aspect-[3/4] aspect-product ${mainRadiusClass} overflow-hidden bg-secondary border border-border/70 shadow-sm flex items-center justify-center`}>
         <span className="text-xs text-muted-foreground font-sans uppercase tracking-wider">No images</span>
       </div>
     );
@@ -364,17 +388,35 @@ export default function ProductGallery({
     <>
       {/* ── MAIN GALLERY CONTAINER ── */}
       <div className={`space-y-2.5 w-full ${isModal ? "max-w-[340px] mx-auto" : ""}`}>
-        {/* Video Mode: YouTube Iframe */}
-        {mediaMode === "video" && resolvedYoutubeEmbedUrl ? (
-          <div className={`relative aspect-[4/5] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary border border-border/70 shadow-sm group`}>
-            <div className="w-full h-full bg-black flex items-center justify-center">
-              <iframe
-                src={`${resolvedYoutubeEmbedUrl}?autoplay=1&rel=0`}
-                title={`${productName} product video`}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+        {/* Video Mode: YouTube, Vimeo, or Direct HTML5 Video */}
+        {mediaMode === "video" && videoInfo ? (
+          <div className={`relative aspect-[3/4] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-black border border-border/70 shadow-sm group`}>
+            <div className="w-full h-full flex items-center justify-center">
+              {videoInfo.type === "youtube" ? (
+                <iframe
+                  src={`${videoInfo.embedUrl}?autoplay=1&rel=0`}
+                  title={`${productName} product video`}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : videoInfo.type === "vimeo" ? (
+                <iframe
+                  src={`${videoInfo.embedUrl}?autoplay=1`}
+                  title={`${productName} product video`}
+                  className="w-full h-full border-0"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  src={videoInfo.directUrl || ""}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-contain"
+                />
+              )}
             </div>
             {/* Quick exit / switch back to photos pill */}
             <button
@@ -387,7 +429,7 @@ export default function ProductGallery({
           </div>
         ) : (
           /* Image Mode: Main Image with Swipe + Click to Lightbox */
-          <div className={`relative aspect-[4/5] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary border border-border/70 shadow-sm group`}>
+          <div className={`relative aspect-[3/4] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary border border-border/70 shadow-sm group`}>
             <button
               ref={lightboxTriggerRef}
               type="button"
@@ -503,7 +545,7 @@ export default function ProductGallery({
                       setMediaMode("image");
                       setIndex(idx);
                     }}
-                    className={`${thumbSizeClass} aspect-[4/5] aspect-product overflow-hidden border-2 shrink-0 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    className={`${thumbSizeClass} aspect-[3/4] aspect-product overflow-hidden border-2 shrink-0 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       isActive
                         ? "border-foreground ring-2 ring-foreground/25 shadow-xs opacity-100 scale-[1.02]"
                         : "border-border/80 opacity-70 hover:opacity-100 hover:border-foreground/50 hover:shadow-2xs active:scale-95"
@@ -527,7 +569,7 @@ export default function ProductGallery({
               {/* Video Thumbnail Button */}
               {videoThumbnail ? (
                 videoThumbnail
-              ) : resolvedYoutubeEmbedUrl ? (
+              ) : videoInfo ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -538,7 +580,7 @@ export default function ProductGallery({
                     }
                     setMediaMode("video");
                   }}
-                  className={`relative aspect-[4/5] aspect-product ${thumbSizeClass} overflow-hidden border-2 shrink-0 transition-all cursor-pointer bg-black/90 flex flex-col items-center justify-center group ${
+                  className={`relative aspect-[3/4] aspect-product ${thumbSizeClass} overflow-hidden border-2 shrink-0 transition-all cursor-pointer bg-black/90 flex flex-col items-center justify-center group ${
                     mediaMode === "video"
                       ? "border-foreground ring-2 ring-foreground/25 shadow-xs opacity-100 scale-[1.02]"
                       : "border-border/80 opacity-80 hover:opacity-100 hover:border-foreground/50 hover:shadow-2xs active:scale-95"

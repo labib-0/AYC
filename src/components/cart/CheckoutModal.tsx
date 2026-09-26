@@ -15,7 +15,7 @@ import {
   downloadProformaInvoicePDF,
   downloadCombinedProductOfferSheetsPDF,
 } from "@/lib/pdf-generator";
-import { CouponRecord } from "@/services/admin/promotion.service";
+import { CouponRecord } from "@/services/admin/coupon.service";
 import { validateCoupon } from "@/lib/coupon";
 import {
   X,
@@ -53,9 +53,15 @@ type ServiceType = "door_to_door" | "door_to_port" | "port_to_door" | "port_to_p
 
 export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const router = useRouter();
-  const { items, subtotal, clearCart } = useCart();
+  const { items, subtotal, clearCart, stockViolations, revalidateCart } = useCart();
   const { user } = useAuth();
   const userId = String(user?.id || "guest");
+
+  useEffect(() => {
+    if (isOpen) {
+      revalidateCart();
+    }
+  }, [isOpen, revalidateCart]);
 
   // Stable ref to the latest authenticated user — used in submit handler and address mapping
   // so we never read stale user data regardless of when React batches the state update.
@@ -108,7 +114,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const [isSubmitAttempted, setIsSubmitAttempted] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<OrderRecord | null>(null);
 
-  const [shippingMode, setShippingMode] = useState<ShippingMode>("aramex");
+  const [shippingMode, setShippingMode] = useState<ShippingMode>("manual");
+  const [aramexEnabled, setAramexEnabled] = useState<boolean>(false);
   const [aramexQuote, setAramexQuote] = useState<ShippingQuoteOption | null>(null);
   const [shipmentSpecs, setShipmentSpecs] = useState<ShipmentSpecs | null>(null);
   const [aramexLoading, setAramexLoading] = useState(false);
@@ -353,9 +360,24 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     }
   };
 
+  // Synchronize dynamic carrier settings (Aramex enabled/disabled)
+  useEffect(() => {
+    if (!isOpen) return;
+    shippingService.getSettings().then((settings) => {
+      const enabled = Boolean(settings.aramex_enabled);
+      setAramexEnabled(enabled);
+      if (!enabled && shippingMode === "aramex") {
+        setShippingMode("manual");
+      }
+    }).catch(() => {
+      setAramexEnabled(false);
+      setShippingMode("manual");
+    });
+  }, [isOpen, shippingMode]);
+
   // Calculate Aramex quote when destination changes (best-effort; does not block submit)
   const fetchAramexQuote = useCallback(async () => {
-    if (shippingMode !== "aramex") return;
+    if (!aramexEnabled || shippingMode !== "aramex") return;
     if (!country || items.length === 0) return;
 
     setAramexLoading(true);
@@ -398,11 +420,11 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     } finally {
       setAramexLoading(false);
     }
-  }, [shippingMode, items, country, city, postalCode, address]);
+  }, [aramexEnabled, shippingMode, items, country, city, postalCode, address]);
 
   useEffect(() => {
     if (!isOpen) return;
-    if (shippingMode !== "aramex") return;
+    if (!aramexEnabled || shippingMode !== "aramex") return;
 
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => {
@@ -412,7 +434,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [isOpen, shippingMode, country, city, postalCode, items, fetchAramexQuote]);
+  }, [isOpen, aramexEnabled, shippingMode, country, city, postalCode, items, fetchAramexQuote]);
 
   if (!isOpen) return null;
 
@@ -506,6 +528,17 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         setPromoError(valResult.error);
         return;
       }
+    }
+
+    if (shippingMode === "aramex" && !aramexEnabled) {
+      setError("Aramex Priority Air Express is currently unavailable. Please select Discuss Directly to proceed.");
+      return;
+    }
+
+    const liveViolations = await revalidateCart();
+    if (liveViolations.length > 0) {
+      setError(liveViolations[0].message || "Some items exceed available stock. Please reduce the quantity.");
+      return;
     }
 
     setLoading(true);
@@ -613,7 +646,28 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       setPromoInput("");
       setConfirmedOrder(newOrder);
     } catch (err: any) {
-      setError(err?.message || "Failed to confirm order. Please try again.");
+      const errData = err?.data?.data || err?.data;
+      if (err?.data?.error_code === "INSUFFICIENT_STOCK" || errData?.available_quantity !== undefined) {
+        const prod = errData?.product_name || "item";
+        const sz = errData?.size && errData.size !== "Assorted" ? ` — Size ${errData.size}` : "";
+        const req = errData?.requested_quantity;
+        const av = errData?.available_quantity;
+        setError(`Insufficient stock for ${prod}${sz}. Requested: ${req}, Available: ${av}. Please reduce the quantity.`);
+        revalidateCart();
+      } else if (err?.data?.error_code === "INVALID_MOQ_MULTIPLE" || errData?.code === "INVALID_MOQ_MULTIPLE") {
+        const prod = errData?.product_name || "item";
+        const req = errData?.requested_quantity;
+        const moq = errData?.moq;
+        setError(`Order quantity for ${prod} (${req} pcs) must be an exact multiple of the MOQ (${moq} pcs).`);
+        revalidateCart();
+      } else if (err?.data?.error_code === "BELOW_MOQ" || errData?.code === "BELOW_MOQ") {
+        const prod = errData?.product_name || "item";
+        const moq = errData?.moq;
+        setError(`Order quantity for ${prod} is below the minimum order quantity (${moq} pcs).`);
+        revalidateCart();
+      } else {
+        setError(err?.message || "Failed to confirm order. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -1012,32 +1066,47 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 {/* Option 1 — ARAMEX */}
                 <button
                   type="button"
-                  onClick={() => setShippingMode("aramex")}
-                  className={`p-3.5 rounded-xl text-left transition-all cursor-pointer relative flex flex-col justify-between ${
-                    shippingMode === "aramex"
-                      ? "border-2 border-foreground bg-secondary/30"
-                      : "border-[1.5px] border-border/80 bg-card hover:border-foreground/50 hover:bg-secondary/10"
+                  disabled={!aramexEnabled}
+                  onClick={() => aramexEnabled && setShippingMode("aramex")}
+                  className={`p-3.5 rounded-xl text-left transition-all relative flex flex-col justify-between ${
+                    !aramexEnabled
+                      ? "border border-dashed border-border/80 bg-secondary/20 opacity-60 cursor-not-allowed select-none"
+                      : shippingMode === "aramex"
+                      ? "border-2 border-foreground bg-secondary/30 cursor-pointer"
+                      : "border-[1.5px] border-border/80 bg-card hover:border-foreground/50 hover:bg-secondary/10 cursor-pointer"
                   }`}
                 >
                   <div className="w-full space-y-1">
                     <div className="flex items-center justify-between w-full">
                       <div className="flex items-center gap-1.5">
-                        <Plane size={15} className={shippingMode === "aramex" ? "text-foreground" : "text-muted-foreground"} />
+                        <Plane size={15} className={aramexEnabled && shippingMode === "aramex" ? "text-foreground" : "text-muted-foreground"} />
                         <span className={`font-bold text-xs uppercase tracking-wide ${
-                          shippingMode === "aramex" ? "text-foreground" : "text-foreground/80"
+                          aramexEnabled && shippingMode === "aramex" ? "text-foreground" : "text-foreground/80"
                         }`}>
                           ARAMEX
                         </span>
                       </div>
-                      {shippingMode === "aramex" && <CheckCircle2 size={15} className="text-foreground shrink-0" />}
+                      {aramexEnabled && shippingMode === "aramex" && <CheckCircle2 size={15} className="text-foreground shrink-0" />}
+                      {!aramexEnabled && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground uppercase tracking-wider border border-border/60">
+                          UNAVAILABLE
+                        </span>
+                      )}
                     </div>
                     <span className="text-[11px] text-muted-foreground block leading-snug">
                       Priority Air · 3–5 business days
                     </span>
+                    {!aramexEnabled && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block pt-0.5">
+                        Currently unavailable
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex justify-end w-full mt-2 min-h-[20px] items-center">
-                    {shippingMode === "aramex" && aramexLoading ? (
+                    {!aramexEnabled ? (
+                      <span className="text-[11px] text-muted-foreground font-medium">Service Disabled</span>
+                    ) : shippingMode === "aramex" && aramexLoading ? (
                       <span className="text-[11px] text-foreground font-semibold flex items-center gap-1">
                         <RefreshCw size={11} className="animate-spin" /> Calculating...
                       </span>
@@ -1314,11 +1383,19 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
             {/* ─── 6. FINAL CTA ───────────────────────────────────────────── */}
             <div className="pt-2">
+              {stockViolations.length > 0 && (
+                <div className="mb-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                  <AlertCircle size={15} className="shrink-0" />
+                  <span>
+                    {stockViolations[0]?.message || "Some items in your cart exceed currently available stock. Please reduce quantities to proceed."}
+                  </span>
+                </div>
+              )}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || stockViolations.length > 0}
                 className={`w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                  loading
+                  loading || stockViolations.length > 0
                     ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60"
                     : "bg-foreground text-background hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
                 }`}

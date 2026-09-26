@@ -14,6 +14,8 @@ export interface CategoryFormData {
   description: string;
   sortOrder: number;
   isActive: boolean;
+  isFeaturedOnLanding: boolean;
+  landingSortOrder: number;
 }
 
 interface CategoryFormProps {
@@ -46,6 +48,8 @@ export default function CategoryForm({
   const [description, setDescription] = useState("");
   const [sortOrder, setSortOrder] = useState<number>(defaultSortOrder);
   const [isActive, setIsActive] = useState(true);
+  const [isFeaturedOnLanding, setIsFeaturedOnLanding] = useState(false);
+  const [landingSortOrder, setLandingSortOrder] = useState<number>(0);
 
   // Validation errors
   const [nameError, setNameError] = useState("");
@@ -63,6 +67,8 @@ export default function CategoryForm({
       setDescription(initialCategory.description || "");
       setSortOrder(initialCategory.sort_order ?? defaultSortOrder);
       setIsActive(initialCategory.is_active ?? true);
+      setIsFeaturedOnLanding(Boolean(initialCategory.is_featured_on_landing));
+      setLandingSortOrder(initialCategory.landing_sort_order ?? 0);
     } else {
       setName("");
       setSlug("");
@@ -71,6 +77,8 @@ export default function CategoryForm({
       setDescription("");
       setSortOrder(defaultSortOrder);
       setIsActive(true);
+      setIsFeaturedOnLanding(false);
+      setLandingSortOrder(0);
     }
     setNameError("");
     setSlugError("");
@@ -146,6 +154,8 @@ export default function CategoryForm({
         description: description.trim(),
         sortOrder: Number(sortOrder) || 1,
         isActive,
+        isFeaturedOnLanding,
+        landingSortOrder: Number(landingSortOrder) || 0,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save category. Please try again.";
@@ -182,7 +192,7 @@ export default function CategoryForm({
         disabled={isSaving}
       />
 
-      {/* 3. Category Advanced Section (Description, Sort Order, Active Status) */}
+      {/* 3. Category Advanced Section (Description, Sort Order, Active Status, Landing) */}
       <CategoryAdvancedSection
         description={description}
         onDescriptionChange={(e) => setDescription(e.target.value)}
@@ -191,6 +201,8 @@ export default function CategoryForm({
         sortOrderError={sortOrderError}
         isActive={isActive}
         onIsActiveChange={setIsActive}
+        isFeaturedOnLanding={isFeaturedOnLanding}
+        onIsFeaturedOnLandingChange={setIsFeaturedOnLanding}
         disabled={isSaving}
       />
 

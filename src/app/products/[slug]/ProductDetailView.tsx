@@ -20,7 +20,10 @@ import {
   TrendingDown, 
   MessageCircle,
   Sliders,
+  FileText,
+  AlertCircle,
 } from "lucide-react";
+import { useRfq } from "@/lib/RfqContext";
 import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
 import CommerceSectionHeader from "@/components/product/CommerceSectionHeader";
 import PricingTierOption from "@/components/product/PricingTierOption";
@@ -68,6 +71,8 @@ function getColorHex(colorName?: string): string {
 export default function ProductDetailView({ initialProduct, slug }: ProductDetailViewProps) {
   const { addToCart, setIsCartOpen } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const { addToRfq } = useRfq();
+  const [addedRfqSuccess, setAddedRfqSuccess] = useState(false);
 
   const [product, setProduct] = useState<B2BProductInput | null>(initialProduct || null);
   const [relatedProducts, setRelatedProducts] = useState<B2BProductInput[]>([]);
@@ -75,23 +80,43 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
   const [quantity, setQuantity] = useState<number>(initialProduct?.moq || 10);
   const [feedbackMsg, setFeedbackMsg] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     async function load() {
       if (!initialProduct) {
         setLoading(true);
-        const p = await getProductBySlugOrId(slug);
-        if (p) {
-          setProduct(p);
-          setQuantity(p.moq || 10);
+        try {
+          const p = await getProductBySlugOrId(slug);
+          if (p) {
+            setProduct(p);
+            setQuantity(p.moq || 10);
 
-          const related = await getRelatedProducts(p, 5);
-          setRelatedProducts(related);
+            try {
+              const related = await getRelatedProducts(p, 5);
+              setRelatedProducts(related);
+            } catch (err) {
+              console.warn("Failed to load related products:", err);
+            }
+          } else {
+            setProduct(null);
+          }
+        } catch (err) {
+          console.error("Failed to load product by slug/id:", slug, err);
+          setProduct(null);
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
       } else {
-        const related = await getRelatedProducts(initialProduct, 5);
-        setRelatedProducts(related);
+        setProduct(initialProduct);
+        setQuantity(initialProduct.moq || 10);
+        setLoading(false);
+        try {
+          const related = await getRelatedProducts(initialProduct, 5);
+          setRelatedProducts(related);
+        } catch (err) {
+          console.warn("Failed to load related products:", err);
+        }
       }
     }
     load();
@@ -110,28 +135,105 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   const bulkPrice = product?.bulkPrice 
     ?? (bulkTierFromList ? bulkTierFromList.unit_price : Math.round(standardPrice * 0.8 * 100) / 100);
 
-  // 3. Total Available Stock
-  const totalStock = useMemo(() => {
-    if (!product) return 0;
-    if (product.fullStockQuantity) return product.fullStockQuantity;
-    if (product.variants && product.variants.length > 0) {
-      return product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-    }
-    return product.stock || 710;
+  const variants = useMemo<any[]>(() => {
+    if (!product?.variants) return [];
+    return Array.isArray(product.variants)
+      ? (product.variants as any[])
+      : (typeof product.variants === "object" ? (Object.values(product.variants) as any[]) : []);
   }, [product]);
 
-  // 4. Exact Full Stock Price Resolution (Backend-aligned rule: never worse than valid tier for totalStock)
-  const applicableNormalPriceForFullStock = totalStock >= bulkThreshold ? bulkPrice : standardPrice;
-  const configuredFullStockPrice = product?.fullStockPrice !== undefined && product?.fullStockPrice !== null
+  const packageAllocations = useMemo<any[]>(() => {
+    if (!product?.packageAllocations) return [];
+    return Array.isArray(product.packageAllocations)
+      ? (product.packageAllocations as any[])
+      : (typeof product.packageAllocations === "object" ? (Object.values(product.packageAllocations) as any[]) : []);
+  }, [product]);
+
+  // 3. Authoritative Complete Package Stock (from allocations & variant inventory)
+  const maxCompletePackages = useMemo<number>(() => {
+    if (typeof (product as any)?.max_complete_packages === "number") {
+      return (product as any).max_complete_packages;
+    }
+    if (typeof (product as any)?.maxCompletePackages === "number") {
+      return (product as any).maxCompletePackages;
+    }
+    if (packageAllocations.length === 0) {
+      const rawStock = Number(product?.stock ?? 0);
+      return Math.floor(rawStock / moq);
+    }
+    let minPkgs: number | null = null;
+    for (const alloc of packageAllocations) {
+      const allocQty = Number(alloc.quantity) || 0;
+      if (allocQty <= 0) continue;
+      const vMatch = variants.find(
+        (v: any) =>
+          (alloc.product_variant_id && String(v.id) === String(alloc.product_variant_id)) ||
+          (v.color?.toLowerCase() === alloc.color?.toLowerCase() && v.size?.toLowerCase() === alloc.size?.toLowerCase())
+      );
+      const vStock = Number(vMatch?.stock ?? 0);
+      const supported = Math.floor(vStock / allocQty);
+      if (minPkgs === null || supported < minPkgs) {
+        minPkgs = supported;
+      }
+    }
+    return Math.max(0, minPkgs ?? 0);
+  }, [product, moq, packageAllocations, variants]);
+
+  const completePackageStock = useMemo(() => {
+    if (typeof (product as any)?.complete_package_stock === "number") {
+      return (product as any).complete_package_stock;
+    }
+    if (typeof (product as any)?.completePackageStock === "number") {
+      return (product as any).completePackageStock;
+    }
+    return maxCompletePackages * moq;
+  }, [product, maxCompletePackages, moq]);
+
+  const totalStock = completePackageStock;
+
+  // 4. Full Stock Eligibility & Calculation (Authoritative Business Rule)
+  // FULL STOCK OPERATES AT PACKAGE LEVEL (complete packages only)
+  const qualifyingThreshold = (bulkThreshold !== undefined && bulkThreshold > 0) ? bulkThreshold : moq;
+  const derivedEligibleQty = completePackageStock;
+
+  const configuredFullStockPrice = product?.configuredFullStockPrice !== undefined && product?.configuredFullStockPrice !== null
+    ? Number(product.configuredFullStockPrice)
+    : product?.fullStockPrice !== undefined && product?.fullStockPrice !== null
     ? Number(product.fullStockPrice)
     : null;
 
-  const resolvedFullStockPrice = configuredFullStockPrice !== null && configuredFullStockPrice > 0
-    ? Math.min(configuredFullStockPrice, applicableNormalPriceForFullStock)
-    : applicableNormalPriceForFullStock;
+  const isFullStockEligible = Boolean(
+    product?.isFullStockEligible ?? (
+      configuredFullStockPrice !== null &&
+      configuredFullStockPrice > 0 &&
+      totalStock > qualifyingThreshold &&
+      derivedEligibleQty >= qualifyingThreshold &&
+      derivedEligibleQty > moq
+    )
+  );
+
+  const eligibleFullStockQuantity = isFullStockEligible
+    ? (product?.fullStockQuantity && Number(product.fullStockQuantity) > 0
+        ? Number(product.fullStockQuantity)
+        : derivedEligibleQty)
+    : 0;
+
+  // Exact Full Stock Price Resolution: never worse than valid tier for eligible quantity
+  const applicableNormalPriceForFullStock = eligibleFullStockQuantity >= bulkThreshold ? bulkPrice : standardPrice;
+  const resolvedFullStockPrice = isFullStockEligible
+    ? (configuredFullStockPrice !== null && configuredFullStockPrice > 0
+        ? Math.min(configuredFullStockPrice, applicableNormalPriceForFullStock)
+        : applicableNormalPriceForFullStock)
+    : standardPrice;
+
+  const fullStockTotal = isFullStockEligible
+    ? (product?.fullStockTotal && Number(product.fullStockTotal) > 0
+        ? Number(product.fullStockTotal)
+        : Math.round(eligibleFullStockQuantity * resolvedFullStockPrice * 100) / 100)
+    : 0;
 
   // Purchasing Mode Resolution
-  const isFullStock = Boolean(totalStock > 0 && quantity === totalStock);
+  const isFullStock = Boolean(isFullStockEligible && eligibleFullStockQuantity > 0 && quantity === eligibleFullStockQuantity);
   const isBulk = !isFullStock && quantity >= bulkThreshold;
   const isStandard = !isFullStock && !isBulk;
 
@@ -180,18 +282,18 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     let colors: string[] = [];
     let sizes: string[] = [];
 
-    if (isFullStock && product.variants && product.variants.length > 0) {
-      const variantColors = Array.from(new Set(product.variants.map(v => v.color).filter((c): c is string => Boolean(c))));
-      const variantSizes = Array.from(new Set(product.variants.map(v => v.size).filter((s): s is string => Boolean(s))));
+    if (isFullStock && variants.length > 0) {
+      const variantColors = Array.from(new Set(variants.map(v => v.color).filter((c): c is string => Boolean(c))));
+      const variantSizes = Array.from(new Set(variants.map(v => v.size).filter((s): s is string => Boolean(s))));
       
       colors = colorsList.filter(c => variantColors.includes(c));
       variantColors.forEach(c => { if (!colors.includes(c)) colors.push(c); });
 
       sizes = sizesList.filter(s => variantSizes.includes(s));
       variantSizes.forEach(s => { if (!sizes.includes(s)) sizes.push(s); });
-    } else if (product.packageAllocations && product.packageAllocations.length > 0) {
-      const allocColors = Array.from(new Set(product.packageAllocations.map(a => a.color).filter((c): c is string => Boolean(c))));
-      const allocSizes = Array.from(new Set(product.packageAllocations.map(a => a.size).filter((s): s is string => Boolean(s))));
+    } else if (packageAllocations.length > 0) {
+      const allocColors = Array.from(new Set(packageAllocations.map(a => a.color).filter((c): c is string => Boolean(c))));
+      const allocSizes = Array.from(new Set(packageAllocations.map(a => a.size).filter((s): s is string => Boolean(s))));
 
       colors = colorsList.filter(c => allocColors.includes(c));
       allocColors.forEach(c => { if (!colors.includes(c)) colors.push(c); });
@@ -209,21 +311,21 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
       sizes.forEach(s => { cellMap[c][s] = 0; });
     });
 
-    if (isFullStock && product.variants && product.variants.length > 0) {
+    if (isFullStock && variants.length > 0) {
       // Authoritative live warehouse inventory breakdown for Full Stock
-      product.variants.forEach(v => {
+      variants.forEach(v => {
         const c = v.color || colors[0];
         const s = v.size || sizes[0];
         if (!cellMap[c]) cellMap[c] = {};
         cellMap[c][s] = (cellMap[c][s] || 0) + (v.stock || 0);
       });
-    } else if (product.packageAllocations && product.packageAllocations.length > 0) {
+    } else if (packageAllocations.length > 0) {
       // Standard package allocation scaled proportionally by quantity / moq
       const mult = quantity / moq;
       let runningTotal = 0;
       const flatList: { color: string; size: string; count: number }[] = [];
 
-      product.packageAllocations.forEach(a => {
+      packageAllocations.forEach(a => {
         const c = a.color || colors[0];
         const s = a.size || sizes[0];
         // Support both `quantity` (canonical) and legacy `count` field names
@@ -245,18 +347,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
       });
 
     } else {
-      // Fallback: Proportional distribution across colors and sizes
-      const totalCombinations = colors.length * sizes.length;
-      const basePerCell = Math.floor(quantity / Math.max(1, totalCombinations));
-      let remainder = quantity % Math.max(1, totalCombinations);
-
-      colors.forEach(c => {
-        sizes.forEach(s => {
-          const extra = remainder > 0 ? 1 : 0;
-          if (remainder > 0) remainder--;
-          cellMap[c][s] = basePerCell + extra;
-        });
-      });
+      // Do NOT auto-calculate assortment if unconfigured
+      return null;
     }
 
     const rowTotals: Record<string, number> = {};
@@ -276,7 +368,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     });
 
     return { colors, sizes, cellMap, rowTotals, colTotals, grandTotal };
-  }, [product, quantity, isFullStock, moq, colorsList, sizesList]);
+  }, [product, quantity, isFullStock, moq, colorsList, sizesList, variants, packageAllocations]);
 
   // Pricing Row Click Handlers
   const handleSelectStandard = () => {
@@ -284,41 +376,51 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   };
 
   const handleSelectBulk = () => {
-    setQuantity(bulkThreshold);
+    // Select nearest valid multiple of MOQ >= bulkThreshold
+    const validBulkQty = Math.ceil(bulkThreshold / moq) * moq;
+    const maxOrderable = totalStock > 0 ? Math.floor(totalStock / moq) * moq : validBulkQty;
+    setQuantity(Math.min(validBulkQty, maxOrderable > 0 ? maxOrderable : validBulkQty));
   };
 
   const handleSelectFullStock = () => {
-    if (totalStock > 0) {
-      setQuantity(totalStock);
+    // Select largest valid MOQ multiple within available inventory
+    if (isFullStockEligible && eligibleFullStockQuantity > 0) {
+      setQuantity(eligibleFullStockQuantity);
     }
   };
 
   const handleIncrement = () => {
-    if (isFullStock) return; // already at max
+    const maxOrderable = totalStock > 0 ? Math.floor(totalStock / moq) * moq : Infinity;
     const nextQty = quantity + moq;
-    if (totalStock > 0 && nextQty >= totalStock) {
-      setQuantity(totalStock);
-    } else {
+    if (nextQty <= maxOrderable) {
       setQuantity(nextQty);
     }
   };
 
   const handleDecrement = () => {
-    if (isFullStock) {
-      // Step down smoothly to nearest valid multiple of MOQ below totalStock
-      const nearestMultiple = Math.floor((totalStock - 1) / moq) * moq;
-      setQuantity(Math.max(moq, nearestMultiple));
-      return;
-    }
-    // Never go below MOQ
     if (quantity <= moq) return;
-    setQuantity(q => Math.max(moq, q - moq));
+    setQuantity((q) => Math.max(moq, q - moq));
   };
 
 
   // Handle Add to Cart
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!product) return;
+    setErrorMessage("");
+
+    // Authoritative client-side pre-validation
+    if (quantity < moq) {
+      setErrorMessage(`Order quantity must be at least the minimum order quantity (${moq} pcs).`);
+      return;
+    }
+    if (quantity % moq !== 0) {
+      setErrorMessage(`Order quantity must be an exact multiple of the MOQ (${moq} pcs).`);
+      return;
+    }
+    if (totalStock > 0 && quantity > totalStock) {
+      setErrorMessage(`Requested quantity (${quantity} pcs) exceeds available stock (${totalStock} pcs).`);
+      return;
+    }
 
     const packageBreakdown: import("@/types").PackageBreakdown[] = [];
     if (matrixData) {
@@ -326,8 +428,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         matrixData.sizes.forEach(s => {
           const qty = matrixData.cellMap[c]?.[s] || 0;
           if (qty > 0) {
-            const matchedVariant = product.variants?.find(
-              v => (v.color === c || !v.color) && (v.size === s || !v.size)
+            const matchedVariant = variants.find(
+              (v: any) => (v.color === c || !v.color) && (v.size === s || !v.size)
             );
             packageBreakdown.push({
               product_variant_id: matchedVariant ? Number(matchedVariant.id) : null,
@@ -340,32 +442,55 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
       });
     }
 
-    addToCart(
-      {
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        brand: product.brand,
-        categoryId: product.categoryId || "c_tops",
-        price: currentPrice,
-        oldPrice: product.msrpPrice,
-        images: product.images,
-        badge: product.isHot ? "Hot" : undefined,
-        sizes: sizesList,
-        color: colorsList.join(", "),
-        isNew: product.isNew,
-        moq: moq,
-      } as any,
-      "Assorted",
-      quantity,
-      undefined,
-      packageBreakdown
-    );
-    setFeedbackMsg("Added to cart");
+    try {
+      await addToCart(
+        {
+          id: product.id,
+          name: product.name,
+          slug: product.slug,
+          brand: product.brand,
+          categoryId: product.categoryId || "c_tops",
+          price: currentPrice,
+          oldPrice: product.msrpPrice,
+          images: product.images,
+          badge: product.isHot ? "Hot" : undefined,
+          sizes: sizesList,
+          color: colorsList.join(", "),
+          isNew: product.isNew,
+          moq: moq,
+        } as any,
+        "Assorted",
+        quantity,
+        undefined,
+        packageBreakdown
+      );
+      setFeedbackMsg("Added to cart");
+      setTimeout(() => {
+        setFeedbackMsg("");
+      }, 3000);
+      setIsCartOpen(true);
+    } catch (err: any) {
+      setErrorMessage(err?.message || "Failed to add to cart due to stock limits.");
+      setTimeout(() => {
+        setErrorMessage("");
+      }, 6000);
+    }
+  };
+
+  // Handle Add to RFQ (Wholesale Quotation Request)
+  const handleAddToRfq = () => {
+    if (!product) return;
+    const tierName = isFullStock ? "Full Stock" : isBulk ? "Bulk" : "Standard";
+    addToRfq(product, quantity, {
+      color: colorsList[0] || "Standard",
+      size: sizesList[0] || "Assorted",
+      targetPrice: currentPrice,
+      buyerNotes: `Tier: ${tierName}, Quantity: ${quantity} pcs`,
+    });
+    setAddedRfqSuccess(true);
     setTimeout(() => {
-      setFeedbackMsg("");
-    }, 3000);
-    setIsCartOpen(true);
+      setAddedRfqSuccess(false);
+    }, 2500);
   };
 
   if (loading) {
@@ -389,7 +514,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
   return (
     <div className="w-full bg-background min-h-screen py-4 sm:py-6">
-      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10 space-y-4 sm:space-y-5">
+      <div className="mx-auto w-full max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8 space-y-4 sm:space-y-5">
         
         {/* Breadcrumb Navigation */}
         <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -406,6 +531,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-bold flex items-center gap-2 animate-in fade-in">
             <Check size={16} />
             <span>{feedbackMsg}</span>
+          </div>
+        )}
+
+        {errorMessage && (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold flex items-center gap-2 animate-in fade-in">
+            <AlertCircle size={16} className="shrink-0" />
+            <span>{errorMessage}</span>
           </div>
         )}
 
@@ -573,13 +705,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 <div className="flex items-center gap-2 sm:gap-2.5 text-[12px] sm:text-[12.5px] font-sans">
                   <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-border/80 bg-secondary/30 text-foreground font-semibold">
                     <span className="text-muted-foreground font-normal">MOQ</span>
-                    <span className="tabular-nums font-bold">{moq} pcs</span>
+                    <span className="tabular-nums font-bold">1 pkg ({moq} pcs)</span>
                   </div>
                   <span className="text-muted-foreground/40 select-none">|</span>
                   <div className="inline-flex items-center gap-1.5 text-muted-foreground">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                     <span>
-                      <strong className="text-foreground font-semibold tabular-nums">{totalStock.toLocaleString()} pcs</strong> available
+                      <strong className="text-foreground font-semibold tabular-nums">{maxCompletePackages} {maxCompletePackages === 1 ? "pkg" : "packages"}</strong> ({completePackageStock.toLocaleString()} pcs) available
                     </span>
                   </div>
                 </div>
@@ -624,13 +756,14 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   onSelect={handleSelectBulk}
                 />
 
-                {/* TAKE ALL TIER */}
-                {totalStock > moq && (
+                {/* FULL STOCK TIER */}
+                {isFullStockEligible && eligibleFullStockQuantity > 0 && (
                   <PricingTierOption
-                    name="Take All"
-                    quantityRange={`${totalStock.toLocaleString()} pcs`}
+                    name="Full Stock"
+                    quantityRange={`${eligibleFullStockQuantity.toLocaleString()} pcs`}
                     unitPrice={resolvedFullStockPrice}
-                    discountPercent={fullStockSavingsPercent}
+                    estimatedTotal={fullStockTotal}
+                    discountPercent={fullStockSavingsPercent > 0 ? fullStockSavingsPercent : undefined}
                     isSelected={isFullStock}
                     onSelect={handleSelectFullStock}
                   />
@@ -647,6 +780,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               <div className="sm:col-span-6 rounded-xl border border-border/80 bg-card p-3.5 sm:p-4 flex flex-col justify-between space-y-2 shadow-2xs">
                 <CommerceSectionHeader
                   title="Order Quantity"
+                  badge={
+                    <span className="text-[11px] font-sans font-bold text-primary tabular-nums">
+                      {Math.round(quantity / moq)} {Math.round(quantity / moq) === 1 ? "Package" : "Packages"} = {quantity.toLocaleString()} pcs
+                    </span>
+                  }
                 />
                 <QuantityStepper
                   quantity={quantity}
@@ -655,9 +793,9 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   maxStock={totalStock}
                   onIncrement={handleIncrement}
                   onDecrement={handleDecrement}
-                  isDecrementDisabled={quantity <= moq && !isFullStock}
-                  isIncrementDisabled={isFullStock || (totalStock > 0 && quantity >= totalStock)}
-                  helperText={`Multiples of ${moq} pcs`}
+                  isDecrementDisabled={quantity <= moq}
+                  isIncrementDisabled={totalStock > 0 && quantity + moq > totalStock}
+                  helperText={`${Math.round(quantity / moq)} package(s) × ${moq} pcs = ${quantity.toLocaleString()} pcs total`}
                 />
               </div>
 
@@ -667,51 +805,73 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   totalAmount={currentPrice * quantity}
                   quantity={quantity}
                   unitPrice={currentPrice}
-                  activeTierName={isFullStock ? "Take All Tier" : isBulk ? "Bulk Tier" : "Standard Tier"}
+                  activeTierName={isFullStock ? "Full Stock Tier" : isBulk ? "Bulk Tier" : "Standard Tier"}
                   className="h-full shadow-2xs"
                 />
               </div>
             </div>
 
-            {/* ========================================================= */}
             {/* LEVEL 3.3: PACKAGE ASSORTMENT COMMERCE MODULE */}
-            {/* ========================================================= */}
-            <div>
-              <div className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 sm:p-4 space-y-3 shadow-2xs">
-                <CommerceSectionHeader
-                  title="Package Assortment"
-                  icon={<Package size={15} />}
-                  badge={
-                    <span className="text-[11px] font-sans font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-background border border-border/70 text-foreground tabular-nums">
-                      {matrixData ? `${matrixData.grandTotal.toLocaleString()} PCS TOTAL` : `${moq} PCS TOTAL`}
-                    </span>
-                  }
-                />
+            {matrixData && (
+              <div>
+                <div className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 sm:p-4 space-y-3 shadow-2xs">
+                  <CommerceSectionHeader
+                    title={isFullStock ? "Warehouse Inventory Matrix" : "Package Assortment"}
+                    icon={<Package size={15} />}
+                    badge={
+                      <span className="text-[11px] font-sans font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-background border border-border/70 text-foreground tabular-nums">
+                        {`${matrixData.grandTotal.toLocaleString()} PCS TOTAL`}
+                      </span>
+                    }
+                  />
 
-                {/* Ratio Matrix Component (Colors = Rows, Sizes = Columns, No Redundant Summary Pills) */}
-                {matrixData && (
+                  {/* Ratio Matrix Component (Colors = Rows, Sizes = Columns, No Redundant Summary Pills) */}
                   <PackageAssortmentMatrix
                     matrixData={matrixData}
                     title={isFullStock ? "Warehouse Inventory Matrix" : "Ratio Matrix"}
                     getColorHex={getColorHex}
                   />
-                )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* ========================================================= */}
             {/* LEVEL 4: PRIMARY ACTION (ADD TO CART) & SECONDARY CTAS */}
             {/* ========================================================= */}
             <div className="space-y-3 pt-2 font-sans">
-              <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
                 <button
                   type="button"
                   id="add-to-cart-button"
                   onClick={handleAddToCart}
-                  className="w-full flex-1 h-12 sm:h-13 px-6 rounded-xl bg-foreground text-background font-display font-extrabold text-[13.5px] sm:text-[14.5px] uppercase tracking-wider hover:bg-foreground/90 active:scale-[0.99] transition-all duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2.5 group"
+                  className="w-full sm:flex-1 h-12 sm:h-13 px-5 rounded-xl bg-foreground text-background font-display font-extrabold text-[13px] sm:text-[14px] uppercase tracking-wider hover:bg-foreground/90 active:scale-[0.99] transition-all duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2 group"
                 >
                   <ShoppingCart size={17} className="group-hover:scale-110 transition-transform" />
                   <span>Add to Cart</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="add-to-rfq-button"
+                  onClick={handleAddToRfq}
+                  className={`w-full sm:flex-1 h-12 sm:h-13 px-5 rounded-xl font-display font-extrabold text-[13px] sm:text-[14px] uppercase tracking-wider transition-all duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2 border ${
+                    addedRfqSuccess
+                      ? "bg-emerald-600 text-white border-emerald-600"
+                      : "bg-card text-foreground border-border hover:bg-secondary/60 active:scale-[0.99]"
+                  }`}
+                  title="Add to Request for Quotation"
+                >
+                  {addedRfqSuccess ? (
+                    <>
+                      <Check size={17} />
+                      <span>Added to RFQ</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileText size={17} className="text-amber-500" />
+                      <span>Request Quote (RFQ)</span>
+                    </>
+                  )}
                 </button>
 
                 <button
@@ -722,7 +882,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                       toggleWishlist(toStorefrontProduct(product));
                     }
                   }}
-                  className={`h-12 sm:h-13 w-12 sm:w-13 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-2xs ${
+                  className={`h-12 sm:h-13 w-12 sm:w-13 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-2xs self-end sm:self-auto ${
                     product && isInWishlist(product.id)
                       ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/30 dark:border-rose-800"
                       : "border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/40 hover:border-border"
@@ -734,17 +894,27 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 </button>
               </div>
 
-              {/* Secondary B2B Action (WhatsApp Inquiry) */}
+              {/* Secondary B2B Actions (WhatsApp Inquiry & RFQ Overview Link) */}
               {product && (
-                <a
-                  href={getWhatsAppUrl(`Hello ${BUSINESS_PROFILE.name},\n\nI am interested in:\nProduct: ${product.name}\nSKU: ${product.sku}\nQuantity: ${quantity} pcs`)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full h-9 px-3 rounded-lg bg-transparent hover:bg-secondary/30 border border-border/60 text-muted-foreground hover:text-[#25D366] font-sans font-semibold text-[10.5px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99]"
-                >
-                  <MessageCircle size={14} className="opacity-70 group-hover:opacity-100" />
-                  <span>Inquire on WhatsApp</span>
-                </a>
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                  <a
+                    href={getWhatsAppUrl(`Hello ${BUSINESS_PROFILE.name},\n\nI am interested in:\nProduct: ${product.name}\nSKU: ${product.sku}\nQuantity: ${quantity} pcs`)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full sm:flex-1 h-9 px-3 rounded-lg bg-transparent hover:bg-secondary/30 border border-border/60 text-muted-foreground hover:text-[#25D366] font-sans font-semibold text-[10.5px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99]"
+                  >
+                    <MessageCircle size={14} className="opacity-70 group-hover:opacity-100" />
+                    <span>Inquire on WhatsApp</span>
+                  </a>
+
+                  <Link
+                    href="/rfq"
+                    className="w-full sm:w-auto h-9 px-3.5 rounded-lg bg-transparent hover:bg-secondary/30 border border-border/60 text-muted-foreground hover:text-foreground font-sans font-semibold text-[10.5px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shrink-0"
+                  >
+                    <span>View RFQ Cart</span>
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                </div>
               )}
             </div>
 
@@ -758,7 +928,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             <h2 className="text-lg sm:text-xl font-display font-bold uppercase tracking-tight text-foreground">
               More from {product.brand}
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 min-[1440px]:grid-cols-6 2xl:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-3 sm:gap-3.5 xl:gap-4">
               {relatedProducts.map((rp) => (
                 <ProductCard
                   key={rp.id}

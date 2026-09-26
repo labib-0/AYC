@@ -62,7 +62,7 @@
 :root {
   --storefront-body-size: 0.8125rem;
   --storefront-body-lh: 1.45;
-  --product-image-ratio: 4 / 5;
+  --product-image-ratio: 3 / 4;
   --radius: 0.75rem;
   --brand-orange: #EA580C;
   --background: oklch(0.985 0.008 85);
@@ -232,8 +232,27 @@
   &::-webkit-scrollbar { display: none; }
 }
 
+@utility subtle-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, currentColor 22%, transparent) transparent;
+  &::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, currentColor 22%, transparent);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, currentColor 45%, transparent);
+  }
+}
+
 @utility aspect-product {
-  aspect-ratio: var(--product-image-ratio, 4 / 5);
+  aspect-ratio: var(--product-image-ratio, 3 / 4);
 }
 
 @keyframes ticker-marquee {

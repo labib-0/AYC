@@ -6,6 +6,7 @@
 export interface ProductPromotionState {
   isNew: boolean;
   isHot: boolean;
+  isFeatured: boolean;
   isLimitedDeal: boolean;
   discountPercent: number | null;
   hasPromotions: boolean;
@@ -16,14 +17,27 @@ export function getNormalizedPromotion(product: any): ProductPromotionState {
     return {
       isNew: false,
       isHot: false,
+      isFeatured: false,
       isLimitedDeal: false,
       discountPercent: null,
       hasPromotions: false,
     };
   }
 
-  const isNew = Boolean(product.isNew ?? product.is_new ?? false);
-  const isHot = Boolean(product.isHot ?? product.is_hot ?? false);
+  const now = Date.now();
+  const isNewExpired = product.newUntil || product.new_until
+    ? new Date(product.newUntil || product.new_until).getTime() <= now
+    : false;
+  const isHotExpired = product.hotUntil || product.hot_until
+    ? new Date(product.hotUntil || product.hot_until).getTime() <= now
+    : false;
+  const isFeaturedExpired = product.featuredUntil || product.featured_until
+    ? new Date(product.featuredUntil || product.featured_until).getTime() <= now
+    : false;
+
+  const isNew = Boolean(product.isNew ?? product.is_new ?? false) && !isNewExpired;
+  const isHot = Boolean(product.isHot ?? product.is_hot ?? false) && !isHotExpired;
+  const isFeatured = Boolean(product.isFeatured ?? product.is_featured ?? product.featured ?? false) && !isFeaturedExpired;
   const isLimitedDeal = Boolean(product.isLimitedTimeOffer ?? product.isLimitedDeal ?? product.is_limited_deal ?? false);
 
   // Compute discount percentage from various product representations
@@ -48,11 +62,12 @@ export function getNormalizedPromotion(product: any): ProductPromotionState {
     }
   }
 
-  const hasPromotions = isNew || isHot || isLimitedDeal || (discountPercent !== null && discountPercent > 0);
+  const hasPromotions = isNew || isHot || isFeatured || isLimitedDeal || (discountPercent !== null && discountPercent > 0);
 
   return {
     isNew,
     isHot,
+    isFeatured,
     isLimitedDeal,
     discountPercent,
     hasPromotions,

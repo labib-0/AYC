@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Product } from "@/types";
-import { cartService, CartItemData } from "@/services/cart.service";
+import { cartService, CartItemData, CartStockViolation } from "@/services/cart.service";
 import { useAuth } from "./AuthContext";
 
 export interface CartItem {
@@ -28,6 +28,8 @@ interface CartContextType {
   subtotal: number;
   loading: boolean;
   error: string | null;
+  stockViolations: CartStockViolation[];
+  revalidateCart: () => Promise<CartStockViolation[]>;
   refreshCart: () => Promise<void>;
 }
 
@@ -41,6 +43,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stockViolations, setStockViolations] = useState<CartStockViolation[]>([]);
 
   const applyCartData = (data: { items: CartItemData[]; total_items: number; subtotal: number }) => {
     const formatted: CartItem[] = data.items.map((i) => ({
@@ -58,23 +61,41 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setSubtotal(data.subtotal);
   };
 
+  const revalidateCart = useCallback(async (): Promise<CartStockViolation[]> => {
+    try {
+      const res = await cartService.revalidateCart();
+      setStockViolations(res.violations);
+      return res.violations;
+    } catch {
+      return [];
+    }
+  }, []);
+
   const refreshCart = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await cartService.getCart();
       applyCartData(data);
+      revalidateCart();
     } catch (err: any) {
       setError(err?.message || "Failed to load cart");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [revalidateCart]);
 
   // Initial load
   useEffect(() => {
     refreshCart();
   }, [refreshCart]);
+
+  // Revalidate whenever cart drawer is opened
+  useEffect(() => {
+    if (isCartOpen) {
+      revalidateCart();
+    }
+  }, [isCartOpen, revalidateCart]);
 
   // When user logs in, merge guest cart
   useEffect(() => {
@@ -100,8 +121,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const data = await cartService.addToCart(product, size, quantity, variantId, packageBreakdown);
       applyCartData(data);
+      revalidateCart();
     } catch (err: any) {
       setError(err?.message || "Failed to add item to cart");
+      throw err;
     }
   };
 
@@ -110,6 +133,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const data = await cartService.removeFromCart(productId, size, itemId);
       applyCartData(data);
+      revalidateCart();
     } catch (err: any) {
       setError(err?.message || "Failed to remove item");
     }
@@ -125,8 +149,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const data = await cartService.updateQuantity(productId, size, quantity, itemId);
       applyCartData(data);
+      revalidateCart();
     } catch (err: any) {
       setError(err?.message || "Failed to update quantity");
+      throw err;
     }
   };
 
@@ -137,6 +163,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setItems([]);
       setTotalItems(0);
       setSubtotal(0);
+      setStockViolations([]);
     } catch (err: any) {
       setError(err?.message || "Failed to clear cart");
     }
@@ -156,6 +183,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         subtotal,
         loading,
         error,
+        stockViolations,
+        revalidateCart,
         refreshCart,
       }}
     >

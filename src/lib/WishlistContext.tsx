@@ -7,9 +7,9 @@ import { useAuth } from "./AuthContext";
 
 interface WishlistContextType {
   items: WishlistItemData[];
-  isInWishlist: (productId: string) => boolean;
+  isInWishlist: (productId: string | number) => boolean;
   addToWishlist: (product: Product) => Promise<void>;
-  removeFromWishlist: (productId: string) => Promise<void>;
+  removeFromWishlist: (productId: string | number) => Promise<void>;
   toggleWishlist: (product: Product) => Promise<void>;
   totalWishlistItems: number;
   loading: boolean;
@@ -45,7 +45,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   }, [user, refreshWishlist]);
 
   const isInWishlist = useCallback(
-    (productId: string) => {
+    (productId: string | number) => {
       if (!user) return false;
       return items.some((i) => String(i.product_id) === String(productId));
     },
@@ -58,9 +58,9 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     setItems(updated);
   };
 
-  const removeFromWishlist = async (productId: string) => {
+  const removeFromWishlist = async (productId: string | number) => {
     if (!user) return;
-    const updated = await wishlistService.removeFromWishlist(productId);
+    const updated = await wishlistService.removeFromWishlist(String(productId));
     setItems(updated);
   };
 

@@ -49,7 +49,6 @@ const localStoragePolyfill = {
 (globalThis as any).removeEventListener = () => {};
 
 import { DEFAULT_TOP_BANNER, getTopBannerConfig } from "../src/config/banner";
-import { mockStore } from "../src/lib/mock-data/mock-store";
 import {
   getFeaturedProducts,
   getInitialBrandProducts,
@@ -88,22 +87,12 @@ async function runTests() {
     "getTopBannerConfig() resolves to active default banner with valid imageUrl"
   );
 
-  // Stale ayaan-top-banner in promo should safely normalize
-  mockStore.savePromotion({
-    id: 1,
-    title: "TEST STALE BANNER",
-    type: "hero_banner",
-    image_url: "/images/ayaan-top-banner.jpg",
-    is_active: true,
-  });
-  const normalizedConfig = getTopBannerConfig();
+  // Top banner is fully decoupled from promotions
   assert(
-    normalizedConfig.imageUrl === DEFAULT_TOP_BANNER.imageUrl,
+    defaultConfig.imageUrl === DEFAULT_TOP_BANNER.imageUrl && defaultConfig.title === DEFAULT_TOP_BANNER.title,
     "A4",
-    "Stale ayaan-top-banner in store is normalized to DEFAULT_TOP_BANNER.imageUrl"
+    "getTopBannerConfig() resolves to decoupled DEFAULT_TOP_BANNER without promotion dependency"
   );
-  // Restore initial promo
-  mockStore.resetAllMockData();
 
   // ── B. Brand click: does NOT navigate ────────────────────────────────────
   console.log("\n▶ Test Group B: Brand Click Navigation Behavior");

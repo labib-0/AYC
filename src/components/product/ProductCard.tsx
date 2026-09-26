@@ -43,8 +43,8 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div className="group relative flex flex-col w-full h-full bg-card rounded-2xl border border-border/80 shadow-[0_1px_4px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:shadow-md hover:border-border transition-all duration-300 overflow-hidden font-sans">
-      {/* Top Image Container (Flush with upper card boundaries) — Canonical 4:5 */}
-      <div className="relative aspect-[4/5] w-full overflow-hidden bg-secondary/40 dark:bg-white/5 shrink-0">
+      {/* Top Image Container (Flush with upper card boundaries) — Canonical 3:4 */}
+      <div className="relative aspect-[3/4] w-full overflow-hidden bg-secondary/40 dark:bg-white/5 shrink-0">
         <Link href={`/products/${product.slug}`} className="block w-full h-full">
           <ProductImageFrame
             src={coverImage}
@@ -77,7 +77,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         {/* Actual Brand Logo Overlay (Top Right) */}
         <ProductBrandLogoOverlay
-          brandName={product.brand}
+          brandName={typeof product.brand === "string" ? product.brand : (product.brand as any)?.name || "Ayaan"}
           brandLogo={product.brandLogo}
           size="card"
         />
@@ -92,7 +92,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 : "Original"
             }`}
           >
-            {(product.designType || "").toUpperCase() === "MASTER COPY" ? "MC" : "ORIGINAL"}
+            {(product.designType || "").toUpperCase() === "MASTER COPY" ? "MASTER COPY" : "ORIGINAL"}
           </ProductBadge>
         </div>
 
@@ -107,17 +107,17 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
       </div>
 
-      {/* Card Content Area (Predictable Vertical Alignment & Isolation) */}
-      <div className="p-2.5 sm:p-3 flex flex-col justify-between flex-1 bg-card">
-        {/* Product Title (Normalized 2-line height at standard 13px body size) */}
+      {/* Card Content Area (Restored Approved Typographic Hierarchy with Compact Vertical Padding) */}
+      <div className="px-2.5 sm:px-3 pt-2 pb-2 sm:pt-2.5 sm:pb-2.5 flex flex-col justify-between flex-1 bg-card">
+        {/* Product Title (14px Inter font-body font-medium leading-snug line-clamp-2) */}
         <Link href={`/products/${product.slug}`} className="block">
-          <h3 className="text-[13px] font-body font-medium text-foreground transition-colors group-hover:text-primary line-clamp-2 min-h-[2.25rem] leading-snug">
+          <h3 className="text-[14px] font-body font-medium text-foreground transition-colors group-hover:text-primary line-clamp-2 min-h-[2.4rem] leading-snug">
             {product.name}
           </h3>
         </Link>
 
-        {/* Pricing & Commercial Discovery Block */}
-        <div className="mt-2 pt-1 flex flex-col">
+        {/* Pricing & Commercial Discovery Block (Restored Approved Typographic Scale: 17-18px bold price, 13px / pc, 13px MOQ) */}
+        <div className="mt-1.5 flex flex-col">
           <div className="flex items-baseline gap-1 font-body">
             <span className="text-[17px] sm:text-[18px] font-bold text-foreground tabular-nums leading-tight">
               {formatPrice(product.price)}
@@ -127,7 +127,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             </span>
           </div>
           <p className="text-[13px] font-body text-muted-foreground font-medium mt-0.5">
-            MOQ {product.moq || 10} pcs
+            MOQ 1 pkg ({product.moq || 10} pcs)
           </p>
         </div>
       </div>

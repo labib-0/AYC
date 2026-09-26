@@ -3,8 +3,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { categoryService, CategoryModel } from "@/services/category.service";
-import { mockStore } from "@/lib/mock-data/mock-store";
-import { CategoryCard } from "./CategoryHighlights";
+import {
+  ProductCategoryTile,
+  PRODUCT_CATEGORY_GRID_CLASSES,
+} from "@/components/common/ProductCategoryTile";
 import {
   IconMen,
   IconWomen,
@@ -13,8 +15,6 @@ import {
   IconUnisex,
 } from "@/components/common/AudienceIcons";
 
-let cachedCategories: CategoryModel[] | null = null;
-let fetchPromise: Promise<CategoryModel[]> | null = null;
 
 const AUDIENCE_IDS = new Set([
   "c_men",
@@ -85,41 +85,37 @@ export default function AllCategoriesPanel({
 }: AllCategoriesPanelProps) {
   const router = useRouter();
 
-  // Instant render from cache or mock store
-  const [categories, setCategories] = useState<CategoryModel[]>(() => {
-    if (cachedCategories && cachedCategories.length > 0) return cachedCategories;
-    try {
-      const mockCats = mockStore.getCategories();
-      if (mockCats && mockCats.length > 0) {
-        cachedCategories = mockCats;
-        return mockCats;
-      }
-    } catch {
-      // Fallback
-    }
-    return [];
-  });
+  const [categories, setCategories] = useState<CategoryModel[]>([]);
 
   useEffect(() => {
-    if (cachedCategories && cachedCategories.length > 0) {
-      setCategories(cachedCategories);
-      return;
-    }
+    let isMounted = true;
 
-    if (!fetchPromise) {
-      fetchPromise = categoryService.getCategories();
-    }
+    const loadCategories = () => {
+      categoryService.getCategories({ is_active: true, all: true })
+        .then((cats) => {
+          if (isMounted) {
+            setCategories(cats || []);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load storefront categories:", err);
+          if (isMounted) setCategories([]);
+        });
+    };
 
-    fetchPromise
-      .then((cats) => {
-        if (cats && cats.length > 0) {
-          cachedCategories = cats;
-          setCategories(cats);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load storefront categories:", err);
-      });
+    loadCategories();
+
+    const handleUpdate = () => loadCategories();
+    window.addEventListener("ayaan:homepage-updated", handleUpdate);
+    window.addEventListener("ayaan:data-updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("ayaan:homepage-updated", handleUpdate);
+      window.removeEventListener("ayaan:data-updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
   }, []);
 
   // Filter out any audience-classified items from product categories
@@ -261,21 +257,13 @@ export default function AllCategoriesPanel({
               aria-label="Product Categories"
               className="max-h-[340px] sm:max-h-[400px] overflow-y-auto pr-1 no-scrollbar"
             >
-              <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 min-[1800px]:grid-cols-12 gap-2 sm:gap-2.5">
+              <div className={PRODUCT_CATEGORY_GRID_CLASSES}>
                 {detailedCategories.map((category) => {
                   const isSelected = selectedCategories.includes(category.name);
                   return (
-                    <CategoryCard
+                    <ProductCategoryTile
                       key={category.id}
-                      category={{
-                        id: String(category.id),
-                        name: category.name,
-                        slug: category.slug || String(category.id),
-                        image:
-                          category.image_url ||
-                          category.image ||
-                          "/categories/default.jpg",
-                      }}
+                      category={category}
                       variant="compact"
                       isActive={isSelected}
                       onClick={() => handleCategoryClick(category.name)}

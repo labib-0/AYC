@@ -2,15 +2,15 @@
 
 import React, { useState } from "react";
 import { AlertTriangle, Trash2, X } from "lucide-react";
-import { MockUserData } from "@/lib/mock-data/mock-users";
+import { AdminUserRecord } from "@/services/admin/admin-user.service";
 import { UserProfile } from "@/types/api";
 
 export interface AdminUserDeleteDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  user: MockUserData | null;
+  user: AdminUserRecord | null;
   currentUser: UserProfile | null;
-  onConfirm: (user: MockUserData) => Promise<void>;
+  onConfirm: (user: AdminUserRecord) => Promise<void>;
 }
 
 export default function AdminUserDeleteDialog({
@@ -60,14 +60,14 @@ export default function AdminUserDeleteDialog({
 
         <div>
           <h2 id="delete-admin-title" className="text-base font-bold text-foreground">
-            {isSelf ? "Action Not Allowed" : "Deactivate Admin User?"}
+            {isSelf ? "Action Not Permitted" : "Remove Administrator Account?"}
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed">
             {isSelf ? (
-              <span>You cannot deactivate or delete your own active administrator account.</span>
+              <span>You cannot deactivate or remove your own active administrator account session.</span>
             ) : (
               <span>
-                Are you sure you want to remove <strong className="text-foreground">{user.name}</strong> ({user.email}) from administrative personnel? They will lose access to the Ayaan Clothing Admin portal.
+                Are you sure you want to remove <strong className="text-foreground">{user.name}</strong> ({user.email}) from administrative personnel? They will immediately lose access to the Ayaan Clothing Admin management suite.
               </span>
             )}
           </p>
@@ -93,7 +93,7 @@ export default function AdminUserDeleteDialog({
               ) : (
                 <Trash2 size={13} />
               )}
-              <span>{deleting ? "Removing..." : "Remove User"}</span>
+              <span>{deleting ? "Removing..." : "Remove Administrator"}</span>
             </button>
           )}
         </div>

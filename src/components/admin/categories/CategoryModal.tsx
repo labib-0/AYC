@@ -49,6 +49,8 @@ export default function CategoryModal({
           description: formData.description,
           sort_order: formData.sortOrder,
           is_active: formData.isActive,
+          is_featured_on_landing: formData.isFeaturedOnLanding,
+          landing_sort_order: formData.landingSortOrder,
         });
       } else {
         result = await categoryService.createCategory({
@@ -59,6 +61,8 @@ export default function CategoryModal({
           description: formData.description,
           sort_order: formData.sortOrder,
           is_active: formData.isActive,
+          is_featured_on_landing: formData.isFeaturedOnLanding,
+          landing_sort_order: formData.landingSortOrder,
         });
       }
 

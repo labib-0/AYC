@@ -71,41 +71,41 @@ export default function CustomerOrdersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<OrderFilter>("all");
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadOrders = React.useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
 
-    async function loadOrders() {
-      if (!user) return;
-      setLoading(true);
-      setError(null);
+    try {
+      const data = await getUserOrders(user.id);
 
-      try {
-        const data = await getUserOrders(user.id);
-        if (!isMounted) return;
+      // Data isolation: ensure customer only sees their own orders
+      const ownedOrders = data.filter(
+        (o) =>
+          (o.user_id && String(o.user_id) === String(user.id)) ||
+          (o.email && user.email && o.email.toLowerCase() === user.email.toLowerCase())
+      );
 
-        // Data isolation: ensure customer only sees their own orders
-        const ownedOrders = data.filter(
-          (o) =>
-            (o.user_id && String(o.user_id) === String(user.id)) ||
-            (o.email && user.email && o.email.toLowerCase() === user.email.toLowerCase())
-        );
-
-        setOrders(ownedOrders);
-      } catch (err: any) {
-        if (!isMounted) return;
-        console.error("Failed to load customer orders:", err);
-        setError("Unable to load orders. Please refresh or check your connection.");
-      } finally {
-        if (isMounted) setLoading(false);
+      setOrders(ownedOrders);
+    } catch (err: any) {
+      console.error("Failed to load customer orders:", err);
+      const isAuth = err?.status === 401;
+      const isNetwork = err?.status === 0;
+      if (isAuth) {
+        setError("Your session has expired. Please sign in again to access your orders.");
+      } else if (isNetwork) {
+        setError("Network connection error. Please check your connection and click Retry Loading.");
+      } else {
+        setError(err?.message || "Unable to load orders. Please click Retry Loading.");
       }
+    } finally {
+      setLoading(false);
     }
-
-    loadOrders();
-
-    return () => {
-      isMounted = false;
-    };
   }, [user]);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
 
   // Match order with selected filter tab
   const matchesFilter = (order: OrderRecord, filter: OrderFilter): boolean => {
@@ -279,10 +279,12 @@ export default function CustomerOrdersPage() {
           <p className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</p>
           <button
             type="button"
-            onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-colors"
+            onClick={() => loadOrders()}
+            disabled={loading}
+            className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
           >
-            Retry Loading
+            <RotateCcw size={12} className={loading ? "animate-spin" : ""} />
+            <span>{loading ? "Retrying..." : "Retry Loading"}</span>
           </button>
         </div>
       ) : loading ? (

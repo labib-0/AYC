@@ -6,6 +6,7 @@ export interface PricingTierOptionProps {
   name: string;
   quantityRange: string;
   unitPrice: number;
+  estimatedTotal?: number;
   discountPercent?: number;
   badgeLabel?: string;
   isSelected: boolean;
@@ -24,6 +25,7 @@ export default function PricingTierOption({
   name,
   quantityRange,
   unitPrice,
+  estimatedTotal,
   discountPercent,
   badgeLabel,
   isSelected,
@@ -38,13 +40,15 @@ export default function PricingTierOption({
     }
   };
 
+  const totalAria = estimatedTotal && estimatedTotal > 0 ? `, ${formatPrice(estimatedTotal)} total` : "";
+
   return (
     <button
       type="button"
       id={id}
       role="radio"
       aria-checked={isSelected}
-      aria-label={`${name} tier: ${quantityRange} at ${formatPrice(unitPrice)} per piece`}
+      aria-label={`${name} tier: ${quantityRange} at ${formatPrice(unitPrice)} per piece${totalAria}`}
       disabled={disabled}
       tabIndex={0}
       onClick={onSelect}
@@ -83,20 +87,27 @@ export default function PricingTierOption({
         </span>
       </div>
 
-      {/* Col 3: Unit Price + Optional Discount Badge */}
-      <div className="flex items-center justify-end gap-1.5 sm:gap-2 text-right">
-        {(discountPercent && discountPercent > 0) || badgeLabel ? (
-          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 tabular-nums shrink-0">
-            {badgeLabel || `${discountPercent}% OFF`}
+      {/* Col 3: Unit Price + Optional Discount Badge + Optional Estimated Total */}
+      <div className="flex flex-col items-end justify-center text-right pr-0.5">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2">
+          {(discountPercent && discountPercent > 0) || badgeLabel ? (
+            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 tabular-nums shrink-0">
+              {badgeLabel || `${discountPercent}% OFF`}
+            </span>
+          ) : null}
+          <span
+            className={`tabular-nums text-[12.5px] sm:text-[13.5px] font-display whitespace-nowrap ${
+              isSelected ? "font-extrabold text-foreground" : "font-semibold text-foreground/85"
+            }`}
+          >
+            {formatPrice(unitPrice)}
           </span>
-        ) : null}
-        <span
-          className={`tabular-nums text-[12.5px] sm:text-[13.5px] font-display whitespace-nowrap ${
-            isSelected ? "font-extrabold text-foreground" : "font-semibold text-foreground/85"
-          }`}
-        >
-          {formatPrice(unitPrice)}
-        </span>
+        </div>
+        {estimatedTotal !== undefined && estimatedTotal > 0 && (
+          <span className="text-[10px] sm:text-[10.5px] font-sans text-muted-foreground/90 tabular-nums leading-tight mt-0.5">
+            {formatPrice(estimatedTotal)} total
+          </span>
+        )}
       </div>
     </button>
   );

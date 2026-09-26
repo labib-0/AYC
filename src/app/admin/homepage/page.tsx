@@ -1,19 +1,23 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, PanelTop } from "lucide-react";
 import {
-  adminPromotionService,
-  PromotionRecord,
-} from "@/services/admin/promotion.service";
+  homepageService,
+  HomepageBannerModel,
+  HomepageHotSaleCategoryModel,
+  HomepageFeaturedProductModel,
+  HomepageFeaturedBrandModel,
+} from "@/services/homepage.service";
 import {
   HomepageBannerHeader,
   HomepageBannerPreview,
   BannerImageUploader,
   BannerContentForm,
   BannerStatusControl,
-  BannerRecordSelector,
-  BannerEmptyState,
+  ShopByBrandManager,
+  HotSaleCategoryManager,
+  FeaturedProductManager,
 } from "@/components/admin/homepage";
 import ProductToast, {
   ToastMessage,
@@ -21,6 +25,7 @@ import ProductToast, {
 import { DEFAULT_TOP_BANNER } from "@/config/banner";
 
 interface BannerFormState {
+  id?: number;
   title: string;
   subtitle: string;
   imageUrl: string;
@@ -29,12 +34,14 @@ interface BannerFormState {
   isActive: boolean;
 }
 
-export default function AdminHomepageBannerPage() {
-  // Promotion Records State
-  const [bannerRecords, setBannerRecords] = useState<PromotionRecord[]>([]);
-  const [selectedRecord, setSelectedRecord] = useState<PromotionRecord | null>(null);
+export default function AdminLandingPageManagement() {
+  // Admin Data State
+  const [activeBanner, setActiveBanner] = useState<HomepageBannerModel | null>(null);
+  const [featuredBrands, setFeaturedBrands] = useState<HomepageFeaturedBrandModel[]>([]);
+  const [hotSaleCategories, setHotSaleCategories] = useState<HomepageHotSaleCategoryModel[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<HomepageFeaturedProductModel[]>([]);
 
-  // Form Draft State
+  // Banner Form Draft State
   const [formState, setFormState] = useState<BannerFormState>({
     title: DEFAULT_TOP_BANNER.title,
     subtitle: DEFAULT_TOP_BANNER.subtitle || "",
@@ -46,8 +53,7 @@ export default function AdminHomepageBannerPage() {
 
   // UX & Validation State
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [savingBanner, setSavingBanner] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -76,116 +82,40 @@ export default function AdminHomepageBannerPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Fetch banner records from AdminPromotionService
-  const loadBannerData = useCallback(async () => {
+  // Fetch full landing page data from Laravel API
+  const loadHomepageData = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const allPromotions = await adminPromotionService.getPromotions();
-      // Filter for homepage banner types: hero_banner or top_banner
-      const banners = allPromotions.filter(
-        (p) => p.type === "top_banner" || p.type === "hero_banner"
-      );
+      const data = await homepageService.getAdminHomepageData();
+      setActiveBanner(data.banner);
+      setFeaturedBrands(data.featured_brands || []);
+      setHotSaleCategories(data.hot_sale_categories || []);
+      setFeaturedProducts(data.featured_products || []);
 
-      setBannerRecords(banners);
-
-      if (banners.length > 0) {
-        // Prioritize active record, or first record
-        const activeBanner = banners.find((b) => b.is_active) || banners[0];
-        setSelectedRecord(activeBanner);
+      if (data.banner) {
         setFormState({
-          title: activeBanner.title || "",
-          subtitle: activeBanner.subtitle || "",
-          imageUrl: activeBanner.image_url || DEFAULT_TOP_BANNER.imageUrl,
-          buttonText: activeBanner.button_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
-          buttonTarget: activeBanner.button_target || DEFAULT_TOP_BANNER.target,
-          isActive: Boolean(activeBanner.is_active),
+          id: data.banner.id,
+          title: data.banner.headline || "",
+          subtitle: data.banner.subtitle || "",
+          imageUrl: data.banner.image_url || DEFAULT_TOP_BANNER.imageUrl,
+          buttonText: data.banner.cta_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
+          buttonTarget: data.banner.destination_value || DEFAULT_TOP_BANNER.target,
+          isActive: Boolean(data.banner.is_active),
         });
-        setIsCreatingNew(false);
-      } else {
-        setSelectedRecord(null);
       }
     } catch (err: unknown) {
-      setLoadError((err as Error)?.message || "Failed to load homepage banner data.");
+      setLoadError((err as Error)?.message || "Failed to load landing page configuration.");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadBannerData();
-  }, [loadBannerData]);
+    loadHomepageData();
+  }, [loadHomepageData]);
 
-  // Handle record selection when multiple exist
-  const handleSelectRecord = (record: PromotionRecord) => {
-    setSelectedRecord(record);
-    setFormState({
-      title: record.title || "",
-      subtitle: record.subtitle || "",
-      imageUrl: record.image_url || DEFAULT_TOP_BANNER.imageUrl,
-      buttonText: record.button_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
-      buttonTarget: record.button_target || DEFAULT_TOP_BANNER.target,
-      isActive: Boolean(record.is_active),
-    });
-    setFormErrors({});
-    setIsCreatingNew(false);
-  };
-
-  // Switch to creating a new banner record
-  const handleCreateNew = () => {
-    setIsCreatingNew(true);
-    setSelectedRecord(null);
-    setFormState({
-      title: DEFAULT_TOP_BANNER.title,
-      subtitle: DEFAULT_TOP_BANNER.subtitle || "",
-      imageUrl: DEFAULT_TOP_BANNER.imageUrl,
-      buttonText: DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
-      buttonTarget: DEFAULT_TOP_BANNER.target,
-      isActive: true,
-    });
-    setFormErrors({});
-  };
-
-  // Determine if form has unsaved modifications
-  const isDirty = useMemo(() => {
-    if (isCreatingNew) return true;
-    if (!selectedRecord) return false;
-
-    return (
-      formState.title !== (selectedRecord.title || "") ||
-      formState.subtitle !== (selectedRecord.subtitle || "") ||
-      formState.imageUrl !== (selectedRecord.image_url || "") ||
-      formState.buttonText !== (selectedRecord.button_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →") ||
-      formState.buttonTarget !== (selectedRecord.button_target || DEFAULT_TOP_BANNER.target) ||
-      formState.isActive !== Boolean(selectedRecord.is_active)
-    );
-  }, [formState, selectedRecord, isCreatingNew]);
-
-  // Reset form to saved state
-  const handleReset = () => {
-    if (selectedRecord) {
-      setFormState({
-        title: selectedRecord.title || "",
-        subtitle: selectedRecord.subtitle || "",
-        imageUrl: selectedRecord.image_url || DEFAULT_TOP_BANNER.imageUrl,
-        buttonText: selectedRecord.button_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
-        buttonTarget: selectedRecord.button_target || DEFAULT_TOP_BANNER.target,
-        isActive: Boolean(selectedRecord.is_active),
-      });
-    } else {
-      setFormState({
-        title: DEFAULT_TOP_BANNER.title,
-        subtitle: DEFAULT_TOP_BANNER.subtitle || "",
-        imageUrl: DEFAULT_TOP_BANNER.imageUrl,
-        buttonText: DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
-        buttonTarget: DEFAULT_TOP_BANNER.target,
-        isActive: DEFAULT_TOP_BANNER.active,
-      });
-    }
-    setFormErrors({});
-  };
-
-  // Field change handler
+  // Field change handler for Banner form
   const handleFieldChange = <K extends keyof BannerFormState>(
     field: K,
     value: BannerFormState[K]
@@ -200,19 +130,66 @@ export default function AdminHomepageBannerPage() {
     }
   };
 
-  // Validation before saving
-  const validateForm = (): boolean => {
+  // Determine if banner form has unsaved modifications
+  const isBannerDirty = useMemo(() => {
+    if (!activeBanner) {
+      return (
+        formState.title !== DEFAULT_TOP_BANNER.title ||
+        formState.subtitle !== (DEFAULT_TOP_BANNER.subtitle || "") ||
+        formState.imageUrl !== DEFAULT_TOP_BANNER.imageUrl ||
+        formState.buttonText !== (DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →") ||
+        formState.buttonTarget !== DEFAULT_TOP_BANNER.target ||
+        formState.isActive !== DEFAULT_TOP_BANNER.active
+      );
+    }
+    return (
+      formState.title !== (activeBanner.headline || "") ||
+      formState.subtitle !== (activeBanner.subtitle || "") ||
+      formState.imageUrl !== (activeBanner.image_url || DEFAULT_TOP_BANNER.imageUrl) ||
+      formState.buttonText !== (activeBanner.cta_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →") ||
+      formState.buttonTarget !== (activeBanner.destination_value || DEFAULT_TOP_BANNER.target) ||
+      formState.isActive !== Boolean(activeBanner.is_active)
+    );
+  }, [activeBanner, formState]);
+
+  // Reset banner form to last saved state
+  const handleResetBanner = () => {
+    if (activeBanner) {
+      setFormState({
+        id: activeBanner.id,
+        title: activeBanner.headline || "",
+        subtitle: activeBanner.subtitle || "",
+        imageUrl: activeBanner.image_url || DEFAULT_TOP_BANNER.imageUrl,
+        buttonText: activeBanner.cta_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
+        buttonTarget: activeBanner.destination_value || DEFAULT_TOP_BANNER.target,
+        isActive: Boolean(activeBanner.is_active),
+      });
+    } else {
+      setFormState({
+        title: DEFAULT_TOP_BANNER.title,
+        subtitle: DEFAULT_TOP_BANNER.subtitle || "",
+        imageUrl: DEFAULT_TOP_BANNER.imageUrl,
+        buttonText: DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
+        buttonTarget: DEFAULT_TOP_BANNER.target,
+        isActive: DEFAULT_TOP_BANNER.active,
+      });
+    }
+    setFormErrors({});
+  };
+
+  // Validate banner form fields
+  const validateBannerForm = (): boolean => {
     const errors: Record<string, string> = {};
 
     const trimmedTitle = formState.title.trim();
     if (!trimmedTitle) {
       errors.title = "Banner title is required.";
-    } else if (trimmedTitle.length > 120) {
-      errors.title = "Title must not exceed 120 characters.";
+    } else if (trimmedTitle.length > 150) {
+      errors.title = "Title must not exceed 150 characters.";
     }
 
-    if (formState.subtitle.length > 250) {
-      errors.subtitle = "Subtitle must not exceed 250 characters.";
+    if (formState.subtitle.length > 500) {
+      errors.subtitle = "Subtitle must not exceed 500 characters.";
     }
 
     if (formState.isActive && !formState.imageUrl.trim()) {
@@ -223,62 +200,48 @@ export default function AdminHomepageBannerPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Save changes to persistent service
-  const handleSave = async () => {
-    if (!validateForm()) {
-      showToast("Unable to update homepage banner. Please check required fields.", "error");
+  // Save banner changes to Laravel backend
+  const handleSaveBanner = async () => {
+    if (!validateBannerForm()) {
+      showToast("Unable to save banner. Please check required fields.", "error");
       return;
     }
 
-    setSaving(true);
+    setSavingBanner(true);
     try {
-      const payload: Partial<PromotionRecord> = {
-        title: formState.title.trim(),
+      const payload = {
+        id: formState.id,
+        headline: formState.title.trim(),
         subtitle: formState.subtitle.trim() || undefined,
-        image_url: formState.imageUrl.trim() || undefined,
-        button_text: formState.buttonText.trim() || "EXPLORE CATALOG →",
-        button_target: formState.buttonTarget.trim() || "#featured",
-        button_action: "navigate",
-        type: selectedRecord?.type || "hero_banner",
+        cta_text: formState.buttonText.trim() || "EXPLORE CATALOG →",
+        destination_type: formState.buttonTarget.startsWith("#") ? "anchor" : "url",
+        destination_value: formState.buttonTarget.trim() || "#featured",
+        image_url: formState.imageUrl.trim() || DEFAULT_TOP_BANNER.imageUrl,
         is_active: formState.isActive,
-        sort_order: selectedRecord?.sort_order ?? 1,
       };
 
-      let savedRecord: PromotionRecord;
+      const saved = await homepageService.saveBanner(payload);
+      setActiveBanner(saved);
+      setFormState((prev) => ({
+        ...prev,
+        id: saved.id,
+        title: saved.headline,
+        subtitle: saved.subtitle || "",
+        imageUrl: saved.image_url || DEFAULT_TOP_BANNER.imageUrl,
+        buttonText: saved.cta_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
+        buttonTarget: saved.destination_value || DEFAULT_TOP_BANNER.target,
+        isActive: Boolean(saved.is_active),
+      }));
 
-      if (selectedRecord && selectedRecord.id) {
-        savedRecord = await adminPromotionService.updatePromotion(selectedRecord.id, payload);
-      } else {
-        savedRecord = await adminPromotionService.createPromotion(payload);
-      }
-
-      showToast("Homepage banner updated successfully.", "success");
-      setIsCreatingNew(false);
-
-      // Refresh list to keep selector and current selection strictly in sync
-      const updatedList = await adminPromotionService.getPromotions();
-      const updatedBanners = updatedList.filter(
-        (p) => p.type === "top_banner" || p.type === "hero_banner"
-      );
-      setBannerRecords(updatedBanners);
-      const matched = updatedBanners.find((b) => b.id === savedRecord.id) || savedRecord;
-      setSelectedRecord(matched);
-      setFormState({
-        title: matched.title || "",
-        subtitle: matched.subtitle || "",
-        imageUrl: matched.image_url || DEFAULT_TOP_BANNER.imageUrl,
-        buttonText: matched.button_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
-        buttonTarget: matched.button_target || DEFAULT_TOP_BANNER.target,
-        isActive: Boolean(matched.is_active),
-      });
-    } catch {
-      showToast("Unable to update homepage banner. Please try again.", "error");
+      showToast("Homepage banner updated successfully. Active on storefront.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Unable to save homepage banner. Please try again.", "error");
     } finally {
-      setSaving(false);
+      setSavingBanner(false);
     }
   };
 
-  // 1. Initial Loading State
+  // Loading State
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse max-w-6xl mx-auto">
@@ -292,109 +255,140 @@ export default function AdminHomepageBannerPage() {
     );
   }
 
-  // 2. Fatal Load Error
+  // Error State
   if (loadError) {
     return (
       <div className="max-w-2xl mx-auto my-12 p-8 bg-card rounded-2xl border border-red-500/20 text-center space-y-4 shadow-2xs">
         <div className="p-3 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full w-fit mx-auto">
           <AlertCircle size={28} />
         </div>
-        <h2 className="text-lg font-bold text-foreground">Failed to Load Homepage Banner</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">{loadError}</p>
+        <div className="space-y-1">
+          <h2 className="text-base font-bold text-foreground">
+            Failed to Load Landing Page Configuration
+          </h2>
+          <p className="text-xs text-muted-foreground">{loadError}</p>
+        </div>
         <button
           type="button"
-          onClick={loadBannerData}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer"
+          onClick={loadHomepageData}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity cursor-pointer"
         >
-          <RefreshCw size={14} />
-          <span>Retry</span>
+          <RefreshCw size={13} />
+          <span>Retry Loading</span>
         </button>
       </div>
     );
   }
 
-  // 3. Empty State (No banner records in database)
-  if (bannerRecords.length === 0 && !isCreatingNew) {
-    return (
-      <div className="space-y-6 max-w-6xl mx-auto">
-        <HomepageBannerHeader
-          storefrontUrl={storefrontUrl}
-          isDirty={false}
-          isSaving={false}
-          onSave={() => {}}
-          onReset={() => {}}
-        />
-        <BannerEmptyState onConfigure={handleCreateNew} />
-        <ProductToast toasts={toasts} onDismiss={dismissToast} />
-      </div>
-    );
-  }
-
-  // 4. Main Page View
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-8 max-w-6xl mx-auto pb-12">
       {/* Toast Notification Container */}
       <ProductToast toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Page Header with Action Bar */}
+      {/* Page Header */}
       <HomepageBannerHeader
+        title="Homepage & Landing Page"
+        description="Manage the customer storefront landing page: primary promotional banner, curated hot sale categories, and prioritized featured products."
         storefrontUrl={storefrontUrl}
-        isDirty={isDirty}
-        isSaving={saving}
-        onSave={handleSave}
-        onReset={handleReset}
+        isDirty={isBannerDirty}
+        isSaving={savingBanner}
+        onSave={handleSaveBanner}
+        onReset={handleResetBanner}
       />
 
-      {/* Multiple Records Selector (shown only if multiple exist) */}
-      <BannerRecordSelector
-        records={bannerRecords}
-        selectedId={selectedRecord?.id ?? null}
-        onSelect={handleSelectRecord}
-        onCreateNew={handleCreateNew}
-        disabled={saving}
-      />
-
-      {/* Real-time Visual Preview */}
-      <HomepageBannerPreview
-        title={formState.title}
-        subtitle={formState.subtitle}
-        imageUrl={formState.imageUrl}
-        buttonText={formState.buttonText}
-        buttonTarget={formState.buttonTarget}
-        isActive={formState.isActive}
-      />
-
-      {/* Form Controls Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column: Image Asset Uploader */}
-        <div className="space-y-6">
-          <BannerImageUploader
-            imageUrl={formState.imageUrl}
-            onImageChange={(url) => handleFieldChange("imageUrl", url)}
-            onRemoveImage={() => handleFieldChange("imageUrl", "")}
-            disabled={saving}
-          />
-
-          <BannerStatusControl
-            isActive={formState.isActive}
-            onChange={(active) => handleFieldChange("isActive", active)}
-            disabled={saving}
-          />
+      {/* ==================================================================== */}
+      {/* SECTION 1: PRIMARY BANNER                                            */}
+      {/* ==================================================================== */}
+      <section className="space-y-5">
+        <div className="flex items-center justify-between pb-1 border-b border-border/60">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <PanelTop size={16} />
+            </div>
+            <h2 className="text-base sm:text-lg font-display font-bold uppercase tracking-tight text-foreground">
+              Primary Promotional Banner
+            </h2>
+          </div>
+          <span className="text-xs font-mono text-muted-foreground">
+            Dimensions: ~1375 × 158 px
+          </span>
         </div>
 
-        {/* Right Column: Text Messaging, CTA & Target Destination */}
-        <div className="space-y-6">
-          <BannerContentForm
-            title={formState.title}
-            subtitle={formState.subtitle}
-            buttonText={formState.buttonText}
-            buttonTarget={formState.buttonTarget}
-            onChange={(field, val) => handleFieldChange(field, val)}
-            errors={formErrors}
-            disabled={saving}
-          />
+        {/* Live Visual Preview */}
+        <HomepageBannerPreview
+          title={formState.title}
+          subtitle={formState.subtitle}
+          imageUrl={formState.imageUrl}
+          buttonText={formState.buttonText}
+          buttonTarget={formState.buttonTarget}
+          isActive={formState.isActive}
+        />
+
+        {/* Form Controls Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column: Image Asset Uploader */}
+          <div className="space-y-6">
+            <BannerImageUploader
+              imageUrl={formState.imageUrl}
+              onImageChange={(url) => handleFieldChange("imageUrl", url)}
+              onRemoveImage={() => handleFieldChange("imageUrl", "")}
+              disabled={savingBanner}
+            />
+
+            <BannerStatusControl
+              isActive={formState.isActive}
+              onChange={(active) => handleFieldChange("isActive", active)}
+              disabled={savingBanner}
+            />
+          </div>
+
+          {/* Right Column: Text Messaging, CTA & Target Destination */}
+          <div className="space-y-6">
+            <BannerContentForm
+              title={formState.title}
+              subtitle={formState.subtitle}
+              buttonText={formState.buttonText}
+              buttonTarget={formState.buttonTarget}
+              onChange={(field, val) => handleFieldChange(field, val)}
+              errors={formErrors}
+              disabled={savingBanner}
+            />
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* ==================================================================== */}
+      {/* SECTION 2: SHOP BY BRAND                                             */}
+      {/* ==================================================================== */}
+      <section>
+        <ShopByBrandManager
+          initialBrands={featuredBrands}
+          onSaveSuccess={loadHomepageData}
+          showToast={showToast}
+        />
+      </section>
+
+      {/* ==================================================================== */}
+      {/* SECTION 3: HOT SALE CATEGORIES                                      */}
+      {/* ==================================================================== */}
+      <section>
+        <HotSaleCategoryManager
+          initialCategories={hotSaleCategories}
+          onSaveSuccess={loadHomepageData}
+          showToast={showToast}
+        />
+      </section>
+
+      {/* ==================================================================== */}
+      {/* SECTION 4: FEATURED PRODUCTS                                         */}
+      {/* ==================================================================== */}
+      <section>
+        <FeaturedProductManager
+          initialProducts={featuredProducts}
+          onSaveSuccess={loadHomepageData}
+          showToast={showToast}
+        />
+      </section>
     </div>
   );
 }

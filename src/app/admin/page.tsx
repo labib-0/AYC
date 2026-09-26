@@ -17,6 +17,7 @@ import {
   DashboardQuickActions,
   RecentOrdersTable,
   RecentRfqsTable,
+  SalesProfitOverview,
 } from "@/components/admin/dashboard";
 
 export default function AdminDashboardPage() {
@@ -183,12 +184,16 @@ export default function AdminDashboardPage() {
             icon={AlertTriangle}
             variant={metrics.low_stock_items > 0 ? "warning" : "default"}
             href="/admin/inventory"
-            subtext="<100 units left"
+            subtext="Below bulk MOQ"
           />
+
         </div>
       </section>
 
-      {/* 4. Operational Tables Grid: Recent Orders & Recent RFQs */}
+      {/* 4. Sales & Profit Overview Section */}
+      <SalesProfitOverview />
+
+      {/* 5. Operational Tables Grid: Recent Orders & Recent RFQs */}
       <section
         aria-label="Recent Store Operations"
         className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 items-stretch"

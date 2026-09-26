@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { X, Minus, Plus, ShoppingCart, Check } from "lucide-react";
+import { X, Minus, Plus, ShoppingCart, Check, FileText, AlertCircle, Package } from "lucide-react";
 import { useProductModal } from "@/lib/ProductModalContext";
 import { useCart } from "@/lib/CartContext";
+import { useRfq } from "@/lib/RfqContext";
 import ProductGallery from "@/components/product/ProductGallery";
 import ProductBrandLogoOverlay from "@/components/common/ProductBrandLogoOverlay";
 import ProductPromotionBadges from "@/components/common/ProductPromotionBadges";
@@ -17,26 +18,142 @@ type ExtendedProduct = Product & {
   brand_logo?: string;
   color_name?: string;
   size?: string;
+  max_complete_packages?: number;
+  maxCompletePackages?: number;
+  complete_package_stock?: number;
+  completePackageStock?: number;
+  package_allocations?: Array<{
+    id?: number | string;
+    package_name?: string;
+    product_variant_id?: number | string;
+    color?: string;
+    size?: string;
+    quantity: number;
+  }>;
+  packageAllocations?: Array<{
+    id?: number | string;
+    package_name?: string;
+    product_variant_id?: number | string;
+    color?: string;
+    size?: string;
+    quantity: number;
+  }>;
+  variants?: Array<{
+    id: number | string;
+    size?: string;
+    color?: string;
+    stock?: number;
+    sku?: string;
+  }>;
 };
 
 export default function ProductQuickAddModal() {
   const { selectedProduct: rawProduct, closeProductModal } = useProductModal();
   const product = rawProduct as ExtendedProduct | null;
   const { addToCart, setIsCartOpen } = useCart();
+  const { addToRfq } = useRfq();
 
-  const [quantity, setQuantity] = useState(0);
+  const [packageCount, setPackageCount] = useState<number>(1);
   const [addedSuccess, setAddedSuccess] = useState(false);
+  const [stockError, setStockError] = useState<string | null>(null);
+  const [addedRfqSuccess, setAddedRfqSuccess] = useState(false);
 
-  const moq = product?.moq ?? 1;
-  const step = product?.quantityStep ?? moq;
-  const stock = product?.availableStock ?? product?.stock ?? 9999;
+  const moq = Math.max(1, product?.moq ?? 1);
+
+  // Predefined Package Assortment Allocations
+  const packageAllocations = useMemo(() => {
+    if (!product) return [];
+    const list = product.package_allocations || product.packageAllocations || [];
+    return Array.isArray(list) ? list : [];
+  }, [product]);
+
+  const variantsList = useMemo<any[]>(() => {
+    if (!product?.variants) return [];
+    return Array.isArray(product.variants)
+      ? (product.variants as any[])
+      : (typeof product.variants === "object" ? (Object.values(product.variants) as any[]) : []);
+  }, [product]);
+
+  // Authoritative Maximum Complete Packages Supported by Live Variant Inventory
+  const maxCompletePackages = useMemo<number>(() => {
+    if (!product) return 0;
+    if (typeof product.max_complete_packages === "number") {
+      return product.max_complete_packages;
+    }
+    if (typeof product.maxCompletePackages === "number") {
+      return product.maxCompletePackages;
+    }
+    if (packageAllocations.length === 0) {
+      const rawStock = Number(product.availableStock ?? product.stock ?? 0);
+      return Math.floor(rawStock / moq);
+    }
+
+    let minPackages: number | null = null;
+    for (const alloc of packageAllocations) {
+      const allocQty = Number(alloc.quantity) || 0;
+      if (allocQty <= 0) continue;
+
+      const vMatch = variantsList.find(
+        (v: any) =>
+          (alloc.product_variant_id && String(v.id) === String(alloc.product_variant_id)) ||
+          (v.color?.toLowerCase() === alloc.color?.toLowerCase() && v.size?.toLowerCase() === alloc.size?.toLowerCase())
+      );
+      const vStock = Number(vMatch?.stock ?? 0);
+      const supported = Math.floor(vStock / allocQty);
+      if (minPackages === null || supported < minPackages) {
+        minPackages = supported;
+      }
+    }
+    return Math.max(0, minPackages ?? 0);
+  }, [product, moq, packageAllocations, variantsList]);
+
+  // Authoritative Complete Package Stock (in total pcs)
+  const completePackageStock = useMemo(() => {
+    if (typeof product?.complete_package_stock === "number") {
+      return product.complete_package_stock;
+    }
+    if (typeof product?.completePackageStock === "number") {
+      return product.completePackageStock;
+    }
+    return maxCompletePackages * moq;
+  }, [product, maxCompletePackages, moq]);
+
+  const totalQuantity = packageCount * moq;
+
+  // Group allocations by color for informational breakdown presentation
+  const groupedBreakdown = useMemo(() => {
+    if (packageAllocations.length === 0) return [];
+    const groups: Record<string, Array<{ size: string; quantity: number }>> = {};
+
+    packageAllocations.forEach((alloc) => {
+      const color = alloc.color || "Standard";
+      const size = alloc.size || "M";
+      const qty = Number(alloc.quantity) || 0;
+      if (!groups[color]) groups[color] = [];
+      groups[color].push({ size, quantity: qty });
+    });
+
+    return Object.entries(groups).map(([color, sizes]) => ({
+      color,
+      sizes,
+      subtotal: sizes.reduce((sum, s) => sum + s.quantity, 0),
+    }));
+  }, [packageAllocations]);
+
+  // Scaled breakdown for current package count
+  const currentOrderBreakdown = useMemo(() => {
+    return packageAllocations.map((a) => ({
+      product_variant_id: a.product_variant_id ? Number(a.product_variant_id) : null,
+      color: a.color || "Standard",
+      size: a.size || "M",
+      quantity: (Number(a.quantity) || 0) * packageCount,
+    }));
+  }, [packageAllocations, packageCount]);
 
   // Derive Brand information
   const brandName = useMemo(() => {
     if (!product) return "";
-    return typeof product.brand === "string"
-      ? product.brand
-      : "";
+    return typeof product.brand === "string" ? product.brand : "";
   }, [product]);
 
   const brandLogo = useMemo(() => {
@@ -44,34 +161,14 @@ export default function ProductQuickAddModal() {
     return product.brandLogo || product.brand_logo;
   }, [product]);
 
-  // Derive Display Size (customer-facing value, never raw count)
-  const displaySize = useMemo(() => {
-    if (!product) return "One Size";
-    if (Array.isArray(product.sizes) && product.sizes.length > 0) {
-      return product.sizes.join(", ");
-    }
-    return product.size || "One Size";
-  }, [product]);
-
-  // Derive Display Color (customer-facing name, never raw count)
-  const displayColor = useMemo(() => {
-    if (!product) return "Standard";
-    if (product.colorName) return product.colorName;
-    if (product.color) return product.color;
-    if (product.color_name) return product.color_name;
-    if (Array.isArray(product.colors) && product.colors.length > 0) {
-      return product.colors.join(", ");
-    }
-    return "Standard";
-  }, [product]);
-
-  // Reset state when product changes
+  // Reset state when product opens
   useEffect(() => {
     if (product) {
-      setQuantity(moq);
+      setPackageCount(1);
       setAddedSuccess(false);
+      setStockError(null);
     }
-  }, [product, moq]);
+  }, [product]);
 
   // Escape key closes modal
   useEffect(() => {
@@ -84,24 +181,50 @@ export default function ProductQuickAddModal() {
     }
   }, [product, closeProductModal]);
 
-  const decreaseQty = useCallback(() => {
-    setQuantity((prev) => Math.max(moq, prev - step));
-  }, [moq, step]);
+  const decreasePackages = useCallback(() => {
+    setStockError(null);
+    setPackageCount((prev) => Math.max(1, prev - 1));
+  }, []);
 
-  const increaseQty = useCallback(() => {
-    setQuantity((prev) => Math.min(stock, prev + step));
-  }, [stock, step]);
+  const increasePackages = useCallback(() => {
+    setStockError(null);
+    setPackageCount((prev) => Math.min(maxCompletePackages > 0 ? maxCompletePackages : 9999, prev + 1));
+  }, [maxCompletePackages]);
 
-  const handleAddToCart = useCallback(() => {
+  const handleAddToCart = useCallback(async () => {
     if (!product) return;
-    const size = product.sizes?.[0] ?? "One Size";
-    addToCart(product, size, quantity);
-    setAddedSuccess(true);
+    if (maxCompletePackages > 0 && packageCount > maxCompletePackages) {
+      setStockError(
+        `Requested ${packageCount} packages (${totalQuantity} pcs) exceeds available stock of ${maxCompletePackages} complete packages (${completePackageStock} pcs).`
+      );
+      return;
+    }
+    setStockError(null);
+    try {
+      await addToCart(product, "Assorted", totalQuantity, undefined, currentOrderBreakdown);
+      setAddedSuccess(true);
+      setTimeout(() => {
+        closeProductModal();
+        setIsCartOpen(true);
+      }, 800);
+    } catch (err: any) {
+      setStockError(err?.message || "Insufficient stock available for this package configuration.");
+    }
+  }, [product, packageCount, totalQuantity, maxCompletePackages, completePackageStock, currentOrderBreakdown, addToCart, closeProductModal, setIsCartOpen]);
+
+  const handleAddToRfq = useCallback(() => {
+    if (!product) return;
+    addToRfq(product, totalQuantity, {
+      size: "Assorted",
+      color: "Universal Package",
+      buyerNotes: `${packageCount} Universal Package(s) (${totalQuantity} pcs total)`,
+    });
+    setAddedRfqSuccess(true);
     setTimeout(() => {
+      setAddedRfqSuccess(false);
       closeProductModal();
-      setIsCartOpen(true);
     }, 800);
-  }, [product, quantity, addToCart, closeProductModal, setIsCartOpen]);
+  }, [product, packageCount, totalQuantity, addToRfq, closeProductModal]);
 
   if (!product) return null;
 
@@ -115,44 +238,60 @@ export default function ProductQuickAddModal() {
           isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={closeProductModal}
+        aria-hidden="true"
       />
 
-      {/* Modal Container */}
+      {/* Modal Dialog */}
       <div
-        className={`fixed inset-0 z-[210] flex items-center justify-center p-3 sm:p-4 transition-all duration-300 ${
-          isVisible ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Quick View: ${product.name}`}
+        className={`fixed inset-0 z-[201] flex items-center justify-center p-3 sm:p-4 pointer-events-none overflow-y-auto ${
+          isVisible ? "opacity-100" : "opacity-0"
         }`}
-        onClick={closeProductModal}
       >
         <div
-          className="bg-background w-full max-w-[680px] max-h-[85vh] sm:max-h-[80vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-border/70"
+          className={`relative w-full max-w-3xl bg-card border border-border/80 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden pointer-events-auto transition-all duration-300 transform font-sans ${
+            isVisible ? "scale-100 translate-y-0" : "scale-95 translate-y-4"
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* ─── LEVEL 1 & 2: Header (Product Name + Brand/SKU Metadata) ─── */}
-          <div className="flex items-start justify-between px-5 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-3.5 border-b border-border/60">
-            <div className="min-w-0 mr-3">
-              <h2 className="text-base sm:text-lg font-display font-semibold text-foreground tracking-tight truncate">
+          {/* Close Button */}
+          <button
+            onClick={closeProductModal}
+            aria-label="Close modal"
+            className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-20 w-8 h-8 rounded-full bg-background/80 hover:bg-background border border-border/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all backdrop-blur-xs cursor-pointer shadow-xs"
+          >
+            <X size={16} strokeWidth={2} />
+          </button>
+
+          {/* Modal Header */}
+          <div className="px-5 sm:px-6 pt-4 sm:pt-5 pb-3 border-b border-border/70 flex items-baseline justify-between gap-3">
+            <div className="min-w-0 pr-8">
+              <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-primary block truncate">
+                {brandName || "Ayaan Export"} • Universal Package Wholesale
+              </span>
+              <h2 className="text-base sm:text-lg font-display font-extrabold uppercase tracking-tight text-foreground truncate mt-0.5">
                 {product.name}
               </h2>
-              <p className="text-xs text-muted-foreground font-sans font-medium mt-0.5 tracking-normal">
-                {brandName ? `${brandName.toUpperCase()} · ` : ""}{(product.designType || "").toUpperCase() === "MASTER COPY" ? "MASTER COPY" : "ORIGINAL"} · SKU: {product.sku ?? "—"}
-              </p>
             </div>
-            <button
-              type="button"
-              onClick={closeProductModal}
-              className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Close product modal"
-            >
-              <X size={18} strokeWidth={1.75} />
-            </button>
+            <div className="shrink-0 text-right">
+              <div className="text-lg sm:text-xl font-display font-extrabold text-foreground tabular-nums">
+                ${Number(product.wholesalePrice || product.price || 0).toFixed(2)}
+                <span className="text-xs font-sans font-normal text-muted-foreground ml-1">/ pc</span>
+              </div>
+              <span className="text-[10.5px] font-sans font-semibold text-muted-foreground block">
+                MOQ: 1 pkg ({moq} pcs)
+              </span>
+            </div>
           </div>
 
-          {/* ─── Body (Two-Column Layout: Media + Compact Ordering) ─── */}
-          <div className="flex-1 overflow-y-auto no-scrollbar">
-            <div className="flex flex-col md:flex-row items-stretch">
-              {/* ═══ LEFT: Product Media (Shared ProductGallery with Full Experience) ═══ */}
-              <div className="md:w-[44%] md:shrink-0 p-4 sm:p-5 flex flex-col items-center justify-start">
+          {/* Modal Body */}
+          <div className="p-4 sm:p-5 max-h-[calc(85vh-120px)] overflow-y-auto">
+            <div className="flex flex-col md:flex-row gap-5">
+              
+              {/* ═══ LEFT: Media Experience (Gallery) ═══ */}
+              <div className="md:w-[44%] shrink-0">
                 <ProductGallery
                   images={product.images && product.images.length > 0 ? product.images : ["/placeholder.jpg"]}
                   productName={product.name}
@@ -175,14 +314,15 @@ export default function ProductQuickAddModal() {
                 />
               </div>
 
-              {/* ═══ RIGHT: LEVEL 3, 4, 5 (Product Info + Quantity + Add to Cart) ═══ */}
-              <div className="md:w-[56%] p-4 sm:p-5 md:pl-1 flex flex-col justify-between gap-4">
-                {/* LEVEL 3: Product Facts (Clean, non-duplicated) */}
+              {/* ═══ RIGHT: Information + Universal Package Breakdown + Quantity ═══ */}
+              <div className="md:w-[56%] flex flex-col justify-between gap-4">
+                
+                {/* Product Information Module */}
                 <div>
                   <h3 className="text-[11px] font-sans font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                    Product Information
+                    Product Specifications
                   </h3>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 p-3 sm:p-3.5 bg-secondary/40 rounded-xl border border-border/40 font-sans">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 bg-secondary/30 rounded-xl border border-border/50 text-xs font-sans">
                     <InfoItem label="Brand" value={brandName || "—"} />
                     <InfoItem
                       label="Design Type"
@@ -192,87 +332,175 @@ export default function ProductQuickAddModal() {
                           : "ORIGINAL"
                       }
                     />
-                    <InfoItem label="Stock" value={`${stock.toLocaleString()} pcs`} />
-                    <InfoItem label="Size" value={displaySize} />
-                    <InfoItem label="Color" value={displayColor} />
+                    <InfoItem
+                      label="Available Stock"
+                      value={`${maxCompletePackages} complete ${maxCompletePackages === 1 ? "pkg" : "pkgs"} (${completePackageStock.toLocaleString()} pcs)`}
+                    />
+                    <InfoItem label="Universal Package" value={`${moq} pcs / package`} />
                   </div>
                 </div>
 
-                {/* LEVEL 4 & 5: Order Quantity & Add to Cart */}
+                {/* ═══ FIXED UNIVERSAL PACKAGE ASSORTMENT (READ-ONLY) ═══ */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                      <Package size={14} className="text-primary" />
+                      Universal Package Assortment
+                    </span>
+                    <span className="text-[10.5px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full tabular-nums">
+                      1 Package = {moq} pcs
+                    </span>
+                  </div>
+
+                  {groupedBreakdown.length > 0 ? (
+                    <div className="rounded-xl border border-border/70 bg-card p-3 space-y-2.5 shadow-2xs">
+                      {groupedBreakdown.map((group) => (
+                        <div key={group.color} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs font-sans border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-foreground">{group.color}:</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {group.sizes.map((s) => (
+                                <span
+                                  key={s.size}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary/60 border border-border/60 text-[11px] text-foreground font-semibold"
+                                >
+                                  <span>{s.size}</span>
+                                  <span className="text-muted-foreground font-normal">×</span>
+                                  <strong className="text-primary tabular-nums">{s.quantity}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <span className="text-[11px] font-medium text-muted-foreground self-end sm:self-auto tabular-nums">
+                            {group.subtotal} pcs
+                          </span>
+                        </div>
+                      ))}
+                      <div className="pt-1 text-[11px] text-muted-foreground/85 italic border-t border-border/40">
+                        Fixed distribution. Customers purchase complete packages exactly as configured.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border/70 bg-card p-3 text-xs font-sans text-muted-foreground">
+                      Universal assorted package containing {moq} pcs across available color and size runs.
+                    </div>
+                  )}
+                </div>
+
+                {/* ═══ ORDER QUANTITY (PACKAGES ONLY) ═══ */}
                 <div className="space-y-3 pt-1">
                   <div>
-                    <label className="text-[11px] font-sans font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                      Order Quantity
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-sans font-semibold uppercase tracking-wider text-muted-foreground block">
+                        Order Quantity
+                      </label>
+                      <span className="text-[11px] font-bold text-foreground">
+                        {packageCount} {packageCount === 1 ? "Package" : "Packages"} · <span className="text-primary tabular-nums">{totalQuantity} pcs total</span>
+                      </span>
+                    </div>
+
                     <div className="flex items-center gap-3">
-                      <div className="inline-flex items-center border border-border rounded-xl h-11 bg-secondary/20">
+                      <div className="inline-flex items-center border border-border rounded-xl h-11 bg-card shadow-2xs">
                         <button
                           type="button"
-                          onClick={decreaseQty}
-                          disabled={quantity <= moq}
-                          className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-l-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-                          aria-label="Decrease quantity"
+                          onClick={decreasePackages}
+                          disabled={packageCount <= 1}
+                          className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-l-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+                          aria-label="Decrease packages"
                         >
                           <Minus size={15} strokeWidth={2} />
                         </button>
-                        <span className="w-12 sm:w-14 text-center text-sm sm:text-base font-bold tabular-nums font-sans select-none">
-                          {quantity}
+                        <span className="w-14 sm:w-16 text-center text-sm sm:text-base font-bold tabular-nums font-sans select-none border-x border-border/50">
+                          {packageCount}
                         </span>
                         <button
                           type="button"
-                          onClick={increaseQty}
-                          disabled={quantity >= stock}
-                          className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-r-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-                          aria-label="Increase quantity"
+                          onClick={increasePackages}
+                          disabled={maxCompletePackages > 0 && packageCount >= maxCompletePackages}
+                          className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-r-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+                          aria-label="Increase packages"
                         >
                           <Plus size={15} strokeWidth={2} />
                         </button>
                       </div>
-                      <span className="text-xs sm:text-sm font-medium text-muted-foreground font-sans">pcs</span>
+                      <span className="text-xs sm:text-sm font-semibold text-muted-foreground font-sans">
+                        packages
+                      </span>
                     </div>
+
                     <p className="text-[11px] text-muted-foreground mt-1.5 font-sans">
-                      {step === moq
-                        ? `Multiples of ${step} pcs`
-                        : `Minimum order: ${moq} pcs · Multiples of ${step} pcs`}
+                      {packageCount} package(s) × {moq} pcs = <strong className="text-foreground">{totalQuantity} pcs</strong> · Max available: {maxCompletePackages} complete {maxCompletePackages === 1 ? "pkg" : "pkgs"} ({completePackageStock} pcs)
                     </p>
                   </div>
 
-                  {/* LEVEL 5: Add to Cart (Dominant Primary Action) */}
-                  <button
-                    type="button"
-                    onClick={handleAddToCart}
-                    disabled={addedSuccess}
-                    className={`w-full h-11 sm:h-12 rounded-xl text-xs sm:text-sm font-sans font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-xs ${
-                      addedSuccess
-                        ? "bg-emerald-600 text-white cursor-default"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.99]"
-                    }`}
-                  >
-                    {addedSuccess ? (
-                      <>
-                        <Check size={16} strokeWidth={2.5} />
-                        <span>Added to Cart</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart size={16} strokeWidth={2} />
-                        <span>Add to Cart</span>
-                      </>
-                    )}
-                  </button>
+                  {stockError && (
+                    <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                      <AlertCircle size={15} className="shrink-0" />
+                      <span>{stockError}</span>
+                    </div>
+                  )}
+
+                  {/* Actions: Add to Cart & RFQ */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAddToCart}
+                      disabled={addedSuccess || (maxCompletePackages > 0 && packageCount > maxCompletePackages) || maxCompletePackages <= 0}
+                      className={`w-full h-11 sm:h-12 rounded-xl text-xs sm:text-sm font-sans font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                        addedSuccess
+                          ? "bg-emerald-600 text-white cursor-default"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.99]"
+                      }`}
+                    >
+                      {addedSuccess ? (
+                        <>
+                          <Check size={16} strokeWidth={2.5} />
+                          <span>Added to Cart</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart size={16} strokeWidth={2} />
+                          <span>Add to Cart</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleAddToRfq}
+                      disabled={addedRfqSuccess}
+                      className={`w-full h-11 sm:h-12 rounded-xl text-xs sm:text-sm font-sans font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-xs border cursor-pointer ${
+                        addedRfqSuccess
+                          ? "bg-emerald-600 text-white border-emerald-600 cursor-default"
+                          : "bg-card text-foreground border-border hover:bg-secondary/70 active:scale-[0.99]"
+                      }`}
+                    >
+                      {addedRfqSuccess ? (
+                        <>
+                          <Check size={16} strokeWidth={2.5} />
+                          <span>Added to RFQ</span>
+                        </>
+                      ) : (
+                        <>
+                          <FileText size={16} strokeWidth={2} className="text-amber-500" />
+                          <span>Add to RFQ</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ─── LEVEL 6: Footer (Secondary Action: View Full Specifications) ─── */}
+          {/* Modal Footer */}
           <div className="px-5 sm:px-6 py-2.5 sm:py-3 bg-secondary/30 border-t border-border/50 flex items-center justify-center">
             <Link
               href={`/products/${product.slug}`}
               onClick={closeProductModal}
               className="inline-flex items-center justify-center gap-1.5 py-1 px-3 text-xs font-sans font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              <span>View Full Product Specifications</span>
+              <span>View Full Product Specifications &amp; Pricing Tiers</span>
               <span aria-hidden="true">→</span>
             </Link>
           </div>

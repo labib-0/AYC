@@ -21,7 +21,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchSession = useCallback(async () => {
     try {
-      const user = adminAuthService.getAdminUser();
+      const user = await adminAuthService.verifyAdminSession();
       if (user && user.role === "admin") {
         setAdminUser(user);
       } else {
@@ -37,6 +37,15 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchSession();
+
+    const handleAuthChange = () => {
+      fetchSession();
+    };
+
+    window.addEventListener("ayaan:admin-auth-changed", handleAuthChange);
+    return () => {
+      window.removeEventListener("ayaan:admin-auth-changed", handleAuthChange);
+    };
   }, [fetchSession]);
 
   const signInAdmin = async (email: string, password: string) => {

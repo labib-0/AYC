@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { DollarSign, Package, ShieldCheck, Save, AlertCircle } from "lucide-react";
+import { DollarSign, Package, ShieldCheck, Save, AlertCircle, Plane } from "lucide-react";
 import { mockStore } from "@/lib/mock-data/mock-store";
+import { shippingService } from "@/services/shipping.service";
 
 export interface SystemPreferencesSettingsProps {
   onNotify: (message: string) => void;
@@ -13,6 +14,8 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
   const [defaultCartonSpec, setDefaultCartonSpec] = useState("Standard 5-ply export master carton (60x40x30 cm)");
   const [defaultQualityStandard, setDefaultQualityStandard] = useState("AQL 2.5 Major");
   const [defaultPaginationSize, setDefaultPaginationSize] = useState(20);
+  const [aramexEnabled, setAramexEnabled] = useState(false);
+  const [togglingAramex, setTogglingAramex] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +25,26 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
     setDefaultCartonSpec(data.defaultCartonSpec || "Standard 5-ply export master carton (60x40x30 cm)");
     setDefaultQualityStandard(data.defaultQualityStandard || "AQL 2.5 Major");
     setDefaultPaginationSize(data.defaultPaginationSize || 20);
+
+    shippingService.getSettings().then((s) => {
+      setAramexEnabled(Boolean(s.aramex_enabled));
+    }).catch(() => {});
   }, []);
+
+  const handleToggleAramex = async () => {
+    setTogglingAramex(true);
+    setError(null);
+    try {
+      const nextState = !aramexEnabled;
+      const res = await shippingService.updateAdminSettings({ aramex_enabled: nextState });
+      setAramexEnabled(Boolean(res.aramex_enabled));
+      onNotify(`Aramex shipping ${res.aramex_enabled ? "enabled" : "disabled"} successfully.`);
+    } catch (err: any) {
+      setError(err?.message || "Failed to update Aramex shipping setting.");
+    } finally {
+      setTogglingAramex(false);
+    }
+  };
 
   const handleSavePreferences = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +74,60 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
           <span>{error}</span>
         </div>
       )}
+
+      {/* Shipping Method Administration Card */}
+      <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <Plane size={16} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Carrier &amp; Shipping Services</h3>
+              <p className="text-xs text-muted-foreground">
+                Control active logistics options presented to international B2B buyers at checkout.
+              </p>
+            </div>
+          </div>
+          <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+            aramexEnabled 
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" 
+              : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+          }`}>
+            <span>{aramexEnabled ? "Aramex Active" : "Aramex Disabled"}</span>
+          </span>
+        </div>
+
+        <div className="p-4 rounded-xl bg-secondary/30 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-foreground">Aramex Priority Air Express</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                aramexEnabled ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"
+              }`}>
+                {aramexEnabled ? "Available at Checkout" : "Greyed Out / Unavailable"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              When disabled, international buyers can only checkout using &quot;Discuss Directly&quot;. Aramex is rendered as unavailable and non-selectable in checkout.
+            </p>
+          </div>
+          <div className="shrink-0 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleToggleAramex}
+              disabled={togglingAramex}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                aramexEnabled
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                  : "bg-secondary text-foreground hover:bg-secondary/80 border border-border/80"
+              }`}
+            >
+              <span>{aramexEnabled ? "Enabled [ ON ]" : "Disabled [ OFF ]"}</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Currency Standard Card */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-4">

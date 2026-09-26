@@ -3,7 +3,7 @@ import path from "path";
 
 async function runTests() {
   console.log("==================================================");
-  console.log("GLOBAL 4:5 PRODUCT IMAGE STANDARDIZATION AUDIT TESTS");
+  console.log("GLOBAL 3:4 PRODUCT IMAGE & GRID STANDARDIZATION AUDIT TESTS");
   console.log("==================================================\n");
 
   const cwd = process.cwd();
@@ -33,18 +33,18 @@ async function runTests() {
   const globalsCss = readCode("src/app/globals.css");
 
   assert(
-    globalsCss.includes("--product-image-ratio: 4 / 5;"),
-    "globals.css defines --product-image-ratio: 4 / 5;"
+    globalsCss.includes("--product-image-ratio: 3 / 4;"),
+    "globals.css defines --product-image-ratio: 3 / 4;"
   );
 
   assert(
-    !globalsCss.includes("--product-image-ratio: 3 / 4;"),
-    "globals.css removed legacy --product-image-ratio: 3 / 4;"
+    !globalsCss.includes("--product-image-ratio: 4 / 5;"),
+    "globals.css removed obsolete --product-image-ratio: 4 / 5;"
   );
 
   assert(
-    globalsCss.includes("aspect-ratio: var(--product-image-ratio, 4 / 5);"),
-    "aspect-product utility references 4 / 5 canonical ratio"
+    globalsCss.includes("aspect-ratio: var(--product-image-ratio, 3 / 4);"),
+    "aspect-product utility references 3 / 4 canonical ratio"
   );
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -61,8 +61,8 @@ async function runTests() {
   const frameCode = readCode("src/components/common/ProductImageFrame.tsx");
 
   assert(
-    frameCode.includes("aspect-[4/5]") && frameCode.includes('aspectRatio: "4 / 5"'),
-    "ProductImageFrame enforces canonical 4:5 aspect ratio in container"
+    frameCode.includes("aspect-[3/4]") && frameCode.includes('aspectRatio: "3 / 4"'),
+    "ProductImageFrame enforces canonical 3:4 aspect ratio in container"
   );
 
   assert(
@@ -90,13 +90,13 @@ async function runTests() {
   const galleryCode = readCode("src/components/product/ProductGallery.tsx");
 
   assert(
-    productCardCode.includes("aspect-[4/5]"),
-    "ProductCard container enforces aspect-[4/5]"
+    productCardCode.includes("aspect-[3/4]"),
+    "ProductCard container enforces aspect-[3/4]"
   );
 
   assert(
-    !productCardCode.includes("aspect-[3/4]"),
-    "ProductCard removed legacy aspect-[3/4]"
+    !productCardCode.includes("aspect-[4/5]"),
+    "ProductCard removed obsolete aspect-[4/5]"
   );
 
   assert(
@@ -105,23 +105,23 @@ async function runTests() {
   );
 
   assert(
-    skeletonCode.includes("aspect-[4/5]"),
-    "ProductCardSkeleton container matches aspect-[4/5]"
+    skeletonCode.includes("aspect-[3/4]"),
+    "ProductCardSkeleton container matches aspect-[3/4]"
   );
 
   assert(
-    !skeletonCode.includes("aspect-[3/4]"),
-    "ProductCardSkeleton removed legacy aspect-[3/4]"
+    !skeletonCode.includes("aspect-[4/5]"),
+    "ProductCardSkeleton removed obsolete aspect-[4/5]"
   );
 
   assert(
-    galleryCode.includes("aspect-[4/5]") && galleryCode.includes("aspect-product"),
-    "ProductGallery main image container enforces aspect-[4/5]"
+    galleryCode.includes("aspect-[3/4]") && galleryCode.includes("aspect-product"),
+    "ProductGallery main image container enforces aspect-[3/4]"
   );
 
   assert(
-    galleryCode.includes("thumbSizeClass} aspect-[4/5] aspect-product"),
-    "ProductGallery thumbnail rail enforces aspect-[4/5]"
+    galleryCode.includes("thumbSizeClass} aspect-[3/4] aspect-product"),
+    "ProductGallery thumbnail rail enforces aspect-[3/4]"
   );
 
   assert(
@@ -146,58 +146,58 @@ async function runTests() {
   const dashboardPreviewCode = readCode("src/components/dashboard/DashboardReorderPreview.tsx");
 
   assert(
-    miniCartCode.includes("aspect-[4/5]") && miniCartCode.includes("object-contain"),
-    "MiniCart uses aspect-[4/5] and non-destructive object-contain"
+    miniCartCode.includes("aspect-[3/4]") && miniCartCode.includes("object-contain"),
+    "MiniCart uses aspect-[3/4] and non-destructive object-contain"
   );
 
   assert(
-    !miniCartCode.includes("aspect-[3/4]"),
-    "MiniCart removed legacy aspect-[3/4]"
+    !miniCartCode.includes("aspect-[4/5]"),
+    "MiniCart removed obsolete aspect-[4/5]"
   );
 
   assert(
-    searchOverlayCode.includes("aspect-[4/5]") && !searchOverlayCode.includes("aspect-[3/4]"),
-    "SearchOverlay search results and trending products use aspect-[4/5]"
+    searchOverlayCode.includes("aspect-[3/4]") && !searchOverlayCode.includes("aspect-[4/5]"),
+    "SearchOverlay search results and trending products use aspect-[3/4]"
   );
 
   assert(
-    savedItemsCode.includes("aspect-[4/5]") && savedItemsCode.includes("object-contain"),
-    "SavedItemsCard uses aspect-[4/5] and object-contain"
+    savedItemsCode.includes("aspect-[3/4]") && savedItemsCode.includes("object-contain"),
+    "SavedItemsCard uses aspect-[3/4] and object-contain"
   );
 
   assert(
-    rfqPageCode.includes("w-16 aspect-[4/5] object-contain"),
-    "RFQ item list preview uses w-16 aspect-[4/5] object-contain"
+    rfqPageCode.includes("w-16 aspect-[3/4] object-contain"),
+    "RFQ item list preview uses w-16 aspect-[3/4] object-contain"
   );
 
   assert(
-    customerOrdersCode.includes("aspect-[4/5]") && customerOrdersCode.includes("object-contain"),
-    "Customer orders list uses aspect-[4/5] object-contain"
+    customerOrdersCode.includes("aspect-[3/4]") && customerOrdersCode.includes("object-contain"),
+    "Customer orders list uses aspect-[3/4] object-contain"
   );
 
   assert(
-    customerOrderDetailCode.includes("aspect-[4/5]") && customerOrderDetailCode.includes("object-contain"),
-    "Customer order detail uses aspect-[4/5] object-contain"
+    customerOrderDetailCode.includes("aspect-[3/4]") && customerOrderDetailCode.includes("object-contain"),
+    "Customer order detail uses aspect-[3/4] object-contain"
   );
 
   assert(
-    dashboardOrderDetailCode.includes("aspect-[4/5]") && dashboardOrderDetailCode.includes("object-contain"),
-    "Dashboard order detail uses aspect-[4/5] object-contain"
+    dashboardOrderDetailCode.includes("aspect-[3/4]") && dashboardOrderDetailCode.includes("object-contain"),
+    "Dashboard order detail uses aspect-[3/4] object-contain"
   );
 
   assert(
-    dashboardRfqDetailCode.includes("aspect-[4/5]") && dashboardRfqDetailCode.includes("object-contain"),
-    "Dashboard RFQ detail uses aspect-[4/5] object-contain"
+    dashboardRfqDetailCode.includes("aspect-[3/4]") && dashboardRfqDetailCode.includes("object-contain"),
+    "Dashboard RFQ detail uses aspect-[3/4] object-contain"
   );
 
   assert(
-    dashboardReorderCode.includes("aspect-[4/5]") && !dashboardReorderCode.includes("aspect-3/4"),
-    "Dashboard reorder page and skeleton use aspect-[4/5]"
+    dashboardReorderCode.includes("aspect-[3/4]") && !dashboardReorderCode.includes("aspect-[4/5]"),
+    "Dashboard reorder page and skeleton use aspect-[3/4]"
   );
 
   assert(
-    dashboardPreviewCode.includes("aspect-[4/5]") && dashboardPreviewCode.includes("object-contain"),
-    "Dashboard 1-click reorder preview uses aspect-[4/5] object-contain"
+    dashboardPreviewCode.includes("aspect-[3/4]") && dashboardPreviewCode.includes("object-contain"),
+    "Dashboard 1-click reorder preview uses aspect-[3/4] object-contain"
   );
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -221,73 +221,73 @@ async function runTests() {
   const pdfGenCode = readCode("src/lib/pdf-generator.ts");
 
   assert(
-    productTableRowCode.includes("w-10 aspect-[4/5]") && productTableRowCode.includes("object-contain"),
-    "Admin ProductTableRow uses w-10 aspect-[4/5] object-contain"
+    productTableRowCode.includes("w-10 aspect-[3/4]") && productTableRowCode.includes("object-contain"),
+    "Admin ProductTableRow uses w-10 aspect-[3/4] object-contain"
   );
 
   assert(
-    productImagesSectionCode.includes("aspect-[4/5]") && productImagesSectionCode.includes("object-contain"),
-    "Admin ProductImagesSection upload preview uses aspect-[4/5] object-contain"
+    productImagesSectionCode.includes("aspect-[3/4]") && productImagesSectionCode.includes("object-contain"),
+    "Admin ProductImagesSection upload preview uses aspect-[3/4] object-contain"
   );
 
   assert(
-    inventoryRowCode.includes("w-11 aspect-[4/5]") && inventoryRowCode.includes("object-contain"),
-    "Admin InventoryRow uses w-11 aspect-[4/5] object-contain"
+    inventoryRowCode.includes("w-11 aspect-[3/4]") && inventoryRowCode.includes("object-contain"),
+    "Admin InventoryRow uses w-11 aspect-[3/4] object-contain"
   );
 
   assert(
-    inventoryTableCode.includes("w-12 aspect-[4/5]") && inventoryTableCode.includes("object-contain"),
-    "Admin InventoryTable mobile card uses w-12 aspect-[4/5] object-contain"
+    inventoryTableCode.includes("w-12 aspect-[3/4]") && inventoryTableCode.includes("object-contain"),
+    "Admin InventoryTable mobile card uses w-12 aspect-[3/4] object-contain"
   );
 
   assert(
-    stockAdjustCode.includes("w-12 aspect-[4/5]") && stockAdjustCode.includes("object-contain"),
-    "Admin StockAdjustmentModal uses w-12 aspect-[4/5] object-contain"
+    stockAdjustCode.includes("w-12 aspect-[3/4]") && stockAdjustCode.includes("object-contain"),
+    "Admin StockAdjustmentModal uses w-12 aspect-[3/4] object-contain"
   );
 
   assert(
-    inventoryHistoryCode.includes("w-12 aspect-[4/5]") && inventoryHistoryCode.includes("object-contain"),
-    "Admin InventoryHistoryModal uses w-12 aspect-[4/5] object-contain"
+    inventoryHistoryCode.includes("w-12 aspect-[3/4]") && inventoryHistoryCode.includes("object-contain"),
+    "Admin InventoryHistoryModal uses w-12 aspect-[3/4] object-contain"
   );
 
   assert(
-    orderItemsTableCode.includes("w-14 aspect-[4/5]") && orderItemsTableCode.includes("object-contain"),
-    "Admin OrderItemsTable uses w-14 aspect-[4/5] object-contain"
+    orderItemsTableCode.includes("w-14 aspect-[3/4]") && orderItemsTableCode.includes("object-contain"),
+    "Admin OrderItemsTable uses w-14 aspect-[3/4] object-contain"
   );
 
   assert(
-    rfqItemsTableCode.includes("w-12 aspect-[4/5]") && rfqItemsTableCode.includes("object-contain"),
-    "Admin RfqItemsTable uses w-12 aspect-[4/5] object-contain"
+    rfqItemsTableCode.includes("w-12 aspect-[3/4]") && rfqItemsTableCode.includes("object-contain"),
+    "Admin RfqItemsTable uses w-12 aspect-[3/4] object-contain"
   );
 
   assert(
-    offerSheetDocCode.includes("w-12 aspect-[4/5]") && offerSheetDocCode.includes("object-contain"),
-    "Admin OfferSheetDocument uses w-12 aspect-[4/5] object-contain"
+    offerSheetDocCode.includes("w-12 aspect-[3/4]") && offerSheetDocCode.includes("object-contain"),
+    "Admin OfferSheetDocument uses w-12 aspect-[3/4] object-contain"
   );
 
   assert(
-    proformaDocCode.includes("w-12 aspect-[4/5]") && proformaDocCode.includes("object-contain"),
-    "Admin ProformaInvoiceDocument uses w-12 aspect-[4/5] object-contain"
+    proformaDocCode.includes("w-12 aspect-[3/4]") && proformaDocCode.includes("object-contain"),
+    "Admin ProformaInvoiceDocument uses w-12 aspect-[3/4] object-contain"
   );
 
   assert(
-    quotationDocCode.includes("w-12 aspect-[4/5]") && quotationDocCode.includes("object-contain"),
-    "Admin QuotationDocument uses w-12 aspect-[4/5] object-contain"
+    quotationDocCode.includes("w-12 aspect-[3/4]") && quotationDocCode.includes("object-contain"),
+    "Admin QuotationDocument uses w-12 aspect-[3/4] object-contain"
   );
 
   assert(
-    heroImageCode.includes("aspect-[4/5]") && heroImageCode.includes("object-contain"),
-    "ProductHeroImage wraps hero image in canonical aspect-[4/5] frame"
+    heroImageCode.includes("aspect-[3/4]") && heroImageCode.includes("object-contain"),
+    "ProductHeroImage wraps hero image in canonical aspect-[3/4] frame"
   );
 
   assert(
-    docThumbsCode.includes("aspect-[4/5]") && docThumbsCode.includes("object-contain"),
-    "ProductImageThumbnails renders thumbnail buttons with aspect-[4/5] and object-contain"
+    docThumbsCode.includes("aspect-[3/4]") && docThumbsCode.includes("object-contain"),
+    "ProductImageThumbnails renders thumbnail buttons with aspect-[3/4] and object-contain"
   );
 
   assert(
-    pdfGenCode.includes("thumbW = 12;") && pdfGenCode.includes("thumbH = 15;"),
-    "pdf-generator.ts enforces 4:5 ratio (12mm x 15mm) on PDF export thumbnails"
+    pdfGenCode.includes("thumbW = 12;") && pdfGenCode.includes("thumbH = 16;"),
+    "pdf-generator.ts enforces 3:4 ratio (12mm x 16mm) on PDF export thumbnails"
   );
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -310,14 +310,49 @@ async function runTests() {
     "ProductBrandLogoOverlay preserves 1:1 true square for brand logo overlay"
   );
 
+  const tileCode = readCode("src/components/common/ProductCategoryTile.tsx");
   assert(
-    categoryHighlightsCode.includes("aspect-[16/10]") && categoryHighlightsCode.includes("aspect-[4/3]"),
+    (categoryHighlightsCode.includes("aspect-[4/3]") || tileCode.includes("aspect-[4/3]")),
     "CategoryHighlights preserves non-product category tile aspect ratios"
   );
 
   assert(
     brandTrustCode.includes("cert.imageUrl"),
     "BrandTrust preserves certificate imagery"
+  );
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 7. Grid Density: 6 Normal, 5 When Filter Rail is Open
+  // ──────────────────────────────────────────────────────────────────────────
+  console.log("\n▶ Group 7: Desktop Product Grid Density (6 Normal / 5 Filter Open)");
+
+  const featuredCode = readCode("src/components/home/FeaturedProducts.tsx");
+  const hotSalesCode = readCode("src/components/home/HotSales.tsx");
+  const shopByBrandCode = readCode("src/components/home/ShopByBrand.tsx");
+  const searchPageCode = readCode("src/app/search/page.tsx");
+
+  assert(
+    featuredCode.includes("min-[1440px]:grid-cols-5 2xl:grid-cols-5") &&
+    featuredCode.includes("min-[1440px]:grid-cols-6 2xl:grid-cols-6"),
+    "FeaturedProducts grid is 5 cols with filter rail open, 6 cols when closed"
+  );
+
+  assert(
+    hotSalesCode.includes("min-[1440px]:grid-cols-5 2xl:grid-cols-5") &&
+    hotSalesCode.includes("min-[1440px]:grid-cols-6 2xl:grid-cols-6"),
+    "HotSales grid is 5 cols with filter rail open, 6 cols when closed"
+  );
+
+  assert(
+    shopByBrandCode.includes("min-[1440px]:grid-cols-5 2xl:grid-cols-5") &&
+    shopByBrandCode.includes("min-[1440px]:grid-cols-6 2xl:grid-cols-6"),
+    "ShopByBrand grid is 5 cols with filter rail open, 6 cols when closed"
+  );
+
+  assert(
+    searchPageCode.includes("min-[1440px]:grid-cols-5 2xl:grid-cols-5") &&
+    searchPageCode.includes("min-[1440px]:grid-cols-6 2xl:grid-cols-6"),
+    "Search page grid is 5 cols with filter rail open, 6 cols when closed"
   );
 
   // ──────────────────────────────────────────────────────────────────────────

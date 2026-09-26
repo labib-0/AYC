@@ -20,6 +20,8 @@
  * 16. Route Inventory & Navigation Integrity
  */
 
+process.env.NEXT_PUBLIC_FRONTEND_ONLY = "true";
+
 // ── 0. Polyfills for Headless Node Environment ─────────────────────────────
 const memoryStore = new Map<string, string>();
 const localStoragePolyfill = {
@@ -70,7 +72,7 @@ import {
   getStoredQuotations,
   getCommercialDocument,
 } from "../src/lib/services/quotations";
-import { adminPromotionService } from "../src/services/admin/promotion.service";
+import { adminCouponService } from "../src/services/admin/coupon.service";
 import { validateCoupon, calculatePromoDiscount } from "../src/lib/coupon";
 import {
   generateProformaInvoiceDoc,
@@ -231,7 +233,6 @@ export async function runAllTests() {
     expect(mockStore.getInventory().length).toBeGreaterThan(0);
     expect(mockStore.getWarehouses().length).toBeGreaterThan(0);
     expect(mockStore.getCoupons().length).toBeGreaterThan(0);
-    expect(mockStore.getPromotions().length).toBeGreaterThan(0);
     expect(mockStore.getBusinessProfile()).toBeDefined();
   });
 
@@ -491,19 +492,19 @@ export async function runAllTests() {
     expect(detail).toBeTruthy();
     expect(detail!.email).toBe(firstCust.email);
     expect(Array.isArray(detail!.recent_orders)).toBe(true);
+    expect(Array.isArray(detail!.purchased_products)).toBe(true);
   });
 
-  await test("Customers", "Update customer B2B approval status and payment terms", async () => {
+  await test("Customers", "Update customer profile and verify real customer attributes", async () => {
     const listRes = await adminCustomerService.getCustomers();
     const cust = listRes.data[0];
     const updated = await adminCustomerService.updateCustomer(cust.id, {
-      b2b_approval_status: "approved",
-      b2b_payment_terms: "net_30",
-      b2b_credit_limit: 10000,
+      name: "Updated Buyer Corp Name",
+      company_name: "Verified Global Imports Ltd",
     });
-    expect(updated.b2b_approval_status).toBe("approved");
-    expect(updated.b2b_payment_terms).toBe("net_30");
-    expect(updated.b2b_credit_limit).toBe(10000);
+    expect(updated.name).toBe("Updated Buyer Corp Name");
+    expect(updated.company_name).toBe("Verified Global Imports Ltd");
+    expect(updated.role).toBe("customer");
   });
 
   // 10. RFQ Management
@@ -608,9 +609,9 @@ export async function runAllTests() {
     expect(revised!.revisionNumber).toBe(2);
   });
 
-  // 12. Promotions & Coupons (Two types only + minimumOrderAmount)
-  console.log("\n▶ Suite 12: Promotions & Coupons Rules");
-  await test("Promotions", "Percentage coupon calculation: 10% on $1000 order (min $500) -> $100 discount", () => {
+  // 12. Coupons (Two types only + minimumOrderAmount)
+  console.log("\n▶ Suite 12: Coupon Rules & CRUD");
+  await test("Coupons", "Percentage coupon calculation: 10% on $1000 order (min $500) -> $100 discount", () => {
     const discount = calculatePromoDiscount("percentage", 10, 1000);
     expect(discount).toBe(100);
 
@@ -621,7 +622,7 @@ export async function runAllTests() {
     }
   });
 
-  await test("Promotions", "Flat coupon calculation: $50 on $1000 order (min $500) -> $50 discount", () => {
+  await test("Coupons", "Flat coupon calculation: $50 on $1000 order (min $500) -> $50 discount", () => {
     const discount = calculatePromoDiscount("flat", 50, 1000);
     expect(discount).toBe(50);
 
@@ -632,7 +633,7 @@ export async function runAllTests() {
     }
   });
 
-  await test("Promotions", "Coupon rejected when order subtotal is below minimum spend", () => {
+  await test("Coupons", "Coupon rejected when order subtotal is below minimum spend", () => {
     const validation = validateCoupon("SAVE50", 499);
     expect(validation.isValid).toBe(false);
     if (!validation.isValid) {
@@ -640,13 +641,13 @@ export async function runAllTests() {
     }
   });
 
-  await test("Promotions", "Flat coupon discount cannot exceed order subtotal (capped at subtotal)", () => {
+  await test("Coupons", "Flat coupon discount cannot exceed order subtotal (capped at subtotal)", () => {
     const discount = calculatePromoDiscount("flat", 600, 550);
     expect(discount).toBe(550);
   });
 
-  await test("Promotions", "Admin Coupon CRUD operations", async () => {
-    const coupon = await adminPromotionService.createCoupon({
+  await test("Coupons", "Admin Coupon CRUD operations", async () => {
+    const coupon = await adminCouponService.createCoupon({
       code: "AUDITCODE",
       discount_type: "percentage",
       discount_value: 15,
@@ -655,13 +656,13 @@ export async function runAllTests() {
     });
     expect(coupon.id).toBeDefined();
 
-    const list = await adminPromotionService.getCoupons({ search: "AUDITCODE" });
+    const list = await adminCouponService.getCoupons({ search: "AUDITCODE" });
     expect(list.length).toBeGreaterThan(0);
 
-    const updated = await adminPromotionService.updateCoupon(coupon.id, { is_active: false });
+    const updated = await adminCouponService.updateCoupon(coupon.id, { is_active: false });
     expect(updated.is_active).toBe(false);
 
-    const deleted = await adminPromotionService.deleteCoupon(coupon.id);
+    const deleted = await adminCouponService.deleteCoupon(coupon.id);
     expect(deleted).toBe(true);
   });
 
@@ -705,26 +706,11 @@ export async function runAllTests() {
 
   // 14. Homepage & Banner State
   console.log("\n▶ Suite 14: Homepage & Banner State");
-  await test("Homepage", "getTopBannerConfig returns active banner and responds to updates", async () => {
+  await test("Homepage", "getTopBannerConfig returns active banner decoupled from promotions", async () => {
     const banner = getTopBannerConfig();
     expect(banner.title).toBeDefined();
     expect(banner.imageUrl).toBeDefined();
-
-    // Create banner promotion record
-    const promo = await adminPromotionService.createPromotion({
-      type: "top_banner",
-      title: "Automated Audit Banner Title",
-      image_url: "/promotions/top-banner-audit.jpg",
-      is_active: true,
-      sort_order: 1,
-    });
-    expect(promo.id).toBeDefined();
-
-    const bannerUpdated = getTopBannerConfig();
-    expect(bannerUpdated.title).toBe("Automated Audit Banner Title");
-
-    // Clean up
-    await adminPromotionService.deletePromotion(promo.id);
+    expect(banner.active).toBe(true);
   });
 
   // 15. Settings & Business Profile
@@ -761,7 +747,7 @@ export async function runAllTests() {
     "/admin/customers",
     "/admin/rfq",
     "/admin/quotations",
-    "/admin/promotions",
+    "/admin/coupons",
     "/admin/homepage",
     "/admin/documents",
     "/admin/settings",

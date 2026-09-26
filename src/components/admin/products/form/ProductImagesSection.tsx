@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { 
   Upload, 
   Plus, 
@@ -9,26 +9,80 @@ import {
   ChevronLeft, 
   ChevronRight, 
   AlertCircle, 
-  Image as ImageIcon 
+  Image as ImageIcon,
+  Video,
+  Play,
+  ExternalLink,
+  Film
 } from "lucide-react";
 import { uploadProductImage } from "@/lib/services/storage";
 
 interface ProductImagesSectionProps {
   images: string[];
+  videoUrl?: string;
   onChange: (images: string[]) => void;
+  onVideoUrlChange?: (videoUrl: string) => void;
   error?: string;
 }
 
 export default function ProductImagesSection({
   images,
+  videoUrl = "",
   onChange,
+  onVideoUrlChange,
   error,
 }: ProductImagesSectionProps) {
   const [urlInput, setUrlInput] = useState("");
+  const [urlType, setUrlType] = useState<"image" | "video">("image");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper to detect video info
+  const videoDetails = useMemo(() => {
+    if (!videoUrl || !videoUrl.trim()) return null;
+    const url = videoUrl.trim();
+
+    // YouTube
+    const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+    if (ytMatch) {
+      return {
+        provider: "YouTube",
+        id: ytMatch[1],
+        embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}`,
+        thumbnail: `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg`,
+      };
+    }
+
+    // Vimeo
+    const vimeoMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
+    if (vimeoMatch) {
+      return {
+        provider: "Vimeo",
+        id: vimeoMatch[1],
+        embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}`,
+        thumbnail: null,
+      };
+    }
+
+    // Direct video file
+    if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
+      return {
+        provider: "Direct MP4",
+        id: null,
+        embedUrl: url,
+        thumbnail: null,
+      };
+    }
+
+    return {
+      provider: "Video Link",
+      id: null,
+      embedUrl: url,
+      thumbnail: null,
+    };
+  }, [videoUrl]);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -67,12 +121,33 @@ export default function ProductImagesSection({
     const trimmed = urlInput.trim();
     if (!trimmed) return;
     if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("/")) {
-      setUploadError("Please enter a valid image URL (http:// or https://).");
+      setUploadError("Please enter a valid URL (http:// or https://).");
       return;
     }
-    setUploadError(null);
-    onChange([...images, trimmed]);
-    setUrlInput("");
+
+    // Auto-detect if user pasted a video URL while on image tab or vice-versa
+    const isVideo = /(?:youtu\.be\/|youtube\.com\/|vimeo\.com\/|\.(mp4|webm|ogg|mov))/i.test(trimmed);
+
+    if (urlType === "video" || isVideo) {
+      // Validate video URL
+      const isYt = /(?:youtu\.be\/|youtube\.com\/)/i.test(trimmed);
+      const isVimeo = /vimeo\.com\//i.test(trimmed);
+      const isDirect = /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(trimmed);
+
+      if (!isYt && !isVimeo && !isDirect) {
+        setUploadError("Video URL must be a supported video source (YouTube, Vimeo, or direct MP4/WebM video).");
+        return;
+      }
+
+      setUploadError(null);
+      onVideoUrlChange?.(trimmed);
+      setUrlInput("");
+    } else {
+      // Image URL
+      setUploadError(null);
+      onChange([...images, trimmed]);
+      setUrlInput("");
+    }
   };
 
   const handleSetPrimary = (index: number) => {
@@ -96,20 +171,33 @@ export default function ProductImagesSection({
     onChange(images.filter((_, i) => i !== index));
   };
 
+  const handleRemoveVideo = () => {
+    onVideoUrlChange?.("");
+  };
+
+  const totalMediaCount = images.length + (videoUrl ? 1 : 0);
+
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
       <div className="border-b border-border/60 pb-3 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
-            Product Images
+            Product Media &amp; Gallery
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Storefront renders 3:4 presentation. Source image ratio is preserved.
+            Storefront renders 3:4 presentation. Video appears after all product images.
           </p>
         </div>
-        <span className="text-xs font-bold text-muted-foreground tabular-nums">
-          {images.length} Image{images.length !== 1 ? "s" : ""}
-        </span>
+        <div className="flex items-center gap-2">
+          {videoUrl && (
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">
+              1 Video
+            </span>
+          )}
+          <span className="text-xs font-bold text-muted-foreground tabular-nums">
+            {images.length} Image{images.length !== 1 ? "s" : ""}
+          </span>
+        </div>
       </div>
 
       {/* Drag & Drop Uploader */}
@@ -158,29 +246,70 @@ export default function ProductImagesSection({
         </div>
       </div>
 
-      {/* URL Input Fallback */}
-      <div className="flex items-center gap-2">
-        <input
-          type="url"
-          value={urlInput}
-          onChange={(e) => setUrlInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleAddUrl();
-            }
-          }}
-          placeholder="Or paste direct image URL (https://...)"
-          className="flex-1 h-9 px-3 rounded-xl border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors"
-        />
-        <button
-          type="button"
-          onClick={handleAddUrl}
-          className="h-9 px-3.5 rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-foreground text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shrink-0"
-        >
-          <Plus size={13} />
-          Add URL
-        </button>
+      {/* Unified Media URL Input with Image/Video Type Selector */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-xl border border-border bg-secondary/50 p-0.5">
+            <button
+              type="button"
+              onClick={() => setUrlType("image")}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                urlType === "image"
+                  ? "bg-card text-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Image URL
+            </button>
+            <button
+              type="button"
+              onClick={() => setUrlType("video")}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${
+                urlType === "video"
+                  ? "bg-card text-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Video size={12} className="text-rose-600" />
+              Video URL
+            </button>
+          </div>
+
+          <div className="flex-1 relative flex items-center">
+            <input
+              type="url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddUrl();
+                }
+              }}
+              placeholder={
+                urlType === "video"
+                  ? "Paste YouTube, Vimeo, or direct MP4 URL..."
+                  : "Paste direct image URL (https://...)"
+              }
+              className="w-full h-9 px-3 rounded-xl border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAddUrl}
+            className="h-9 px-3.5 rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-foreground text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shrink-0"
+          >
+            <Plus size={13} />
+            {urlType === "video" ? "Add Video" : "Add URL"}
+          </button>
+        </div>
+
+        {urlType === "video" && (
+          <p className="text-[10px] text-muted-foreground">
+            Supported video formats: YouTube (watch, shorts, embed), Vimeo, or direct MP4/WebM files. Video appears at the end of the media gallery.
+          </p>
+        )}
       </div>
 
       {/* Upload/Validation Error */}
@@ -191,9 +320,10 @@ export default function ProductImagesSection({
         </p>
       )}
 
-      {/* Image Gallery Grid */}
-      {images.length > 0 && (
+      {/* Media Gallery Grid (Images First, Video Strictly at the End) */}
+      {totalMediaCount > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-2">
+          {/* Images 1..N */}
           {images.map((imgUrl, index) => {
             const isPrimary = index === 0;
             return (
@@ -205,8 +335,8 @@ export default function ProductImagesSection({
                     : "border-border/80 hover:border-foreground/40"
                 }`}
               >
-                {/* 4:5 Thumbnail Container — Canonical 4:5 */}
-                <div className="aspect-[4/5] w-full bg-secondary/50 dark:bg-white/5 relative overflow-hidden flex items-center justify-center p-1">
+                {/* 3:4 Thumbnail Container */}
+                <div className="aspect-[3/4] w-full bg-secondary/50 dark:bg-white/5 relative overflow-hidden flex items-center justify-center p-1">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={imgUrl}
@@ -229,7 +359,7 @@ export default function ProductImagesSection({
                         <button
                           type="button"
                           onClick={() => handleSetPrimary(index)}
-                          className="px-2 py-1 rounded bg-card/90 text-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-card flex items-center gap-1 shadow-xs"
+                          className="px-2 py-1 rounded bg-card/90 text-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-card flex items-center gap-1 shadow-xs cursor-pointer"
                           title="Set as Primary Image"
                         >
                           <Star size={10} /> Set Primary
@@ -238,7 +368,7 @@ export default function ProductImagesSection({
                       <button
                         type="button"
                         onClick={() => handleRemove(index)}
-                        className="p-1 rounded bg-red-600 text-white hover:bg-red-700 transition-colors ml-auto shadow-xs"
+                        className="p-1 rounded bg-red-600 text-white hover:bg-red-700 transition-colors ml-auto shadow-xs cursor-pointer"
                         title="Delete Image"
                       >
                         <Trash2 size={13} />
@@ -251,7 +381,7 @@ export default function ProductImagesSection({
                         type="button"
                         disabled={index === 0}
                         onClick={() => handleMove(index, "left")}
-                        className="p-1 rounded bg-card/90 text-foreground hover:bg-card disabled:opacity-30 disabled:cursor-not-allowed shadow-xs"
+                        className="p-1 rounded bg-card/90 text-foreground hover:bg-card disabled:opacity-30 disabled:cursor-not-allowed shadow-xs cursor-pointer"
                         title="Move Left"
                       >
                         <ChevronLeft size={14} />
@@ -263,7 +393,7 @@ export default function ProductImagesSection({
                         type="button"
                         disabled={index === images.length - 1}
                         onClick={() => handleMove(index, "right")}
-                        className="p-1 rounded bg-card/90 text-foreground hover:bg-card disabled:opacity-30 disabled:cursor-not-allowed shadow-xs"
+                        className="p-1 rounded bg-card/90 text-foreground hover:bg-card disabled:opacity-30 disabled:cursor-not-allowed shadow-xs cursor-pointer"
                         title="Move Right"
                       >
                         <ChevronRight size={14} />
@@ -274,14 +404,85 @@ export default function ProductImagesSection({
               </div>
             );
           })}
+
+          {/* Video Media Card — Strictly Placed at the END */}
+          {videoUrl && videoDetails && (
+            <div className="relative group rounded-xl overflow-hidden border-2 border-rose-400/80 dark:border-rose-800 bg-black/90 shadow-md">
+              <div className="aspect-[3/4] w-full relative overflow-hidden flex flex-col items-center justify-center p-3 text-center">
+                {/* Background Video Poster/Thumbnail if available */}
+                {videoDetails.thumbnail ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={videoDetails.thumbnail}
+                    alt="Video thumbnail"
+                    className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-rose-950/40 to-black" />
+                )}
+
+                {/* Video Indicator Badge */}
+                <div className="absolute top-2 left-2 bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shadow-xs flex items-center gap-1 z-10">
+                  <Play size={10} className="fill-current" /> Video
+                </div>
+
+                {/* End-Of-Gallery Marker */}
+                <div className="absolute top-2 right-2 bg-black/70 text-white/80 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-white/20 z-10">
+                  End of Gallery
+                </div>
+
+                <div className="relative z-10 flex flex-col items-center gap-1.5 my-auto">
+                  <div className="w-10 h-10 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Play size={16} className="fill-current ml-0.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">
+                      {videoDetails.provider}
+                    </span>
+                    <span className="text-[10px] text-white/70 truncate max-w-[130px] block">
+                      Product Video
+                    </span>
+                  </div>
+                </div>
+
+                {/* Hover Controls */}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2 z-20">
+                  <div className="flex items-center justify-between">
+                    <a
+                      href={videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-1 rounded bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-xs"
+                      title="Open Video URL"
+                    >
+                      <ExternalLink size={10} /> Test Link
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleRemoveVideo}
+                      className="p-1 rounded bg-red-600 text-white hover:bg-red-700 transition-colors ml-auto shadow-xs cursor-pointer"
+                      title="Delete Video"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-[10px] text-white/80 bg-black/60 px-2 py-1 rounded-md border border-white/10 block font-medium">
+                      Appears after all photos
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {images.length === 0 && (
+      {totalMediaCount === 0 && (
         <div className="border border-border/60 rounded-xl p-8 text-center text-muted-foreground space-y-1">
           <ImageIcon size={28} className="mx-auto opacity-40 mb-1" />
-          <p className="text-xs font-semibold text-foreground">No images added yet</p>
-          <p className="text-[11px]">Upload or paste a URL above to showcase this product.</p>
+          <p className="text-xs font-semibold text-foreground">No media added yet</p>
+          <p className="text-[11px]">Upload photos or add video URL above to showcase this product.</p>
         </div>
       )}
     </div>

@@ -15,6 +15,7 @@ import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
 import {
   downloadProformaInvoicePDF,
   downloadProductOfferSheetPDF,
+  downloadCommercialInvoicePDF,
 } from "@/lib/pdf-generator";
 import {
   ArrowLeft,
@@ -401,8 +402,8 @@ function OrderDetailItem({ item }: { item: OrderItemRecord }) {
 
   return (
     <div className="flex items-start gap-4 py-4">
-      {/* Product image — Canonical 4:5 */}
-      <div className="w-16 sm:w-20 aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 border border-slate-100 dark:border-white/[0.06] shrink-0 p-1 flex items-center justify-center">
+      {/* Product image — Canonical 3:4 */}
+      <div className="w-16 sm:w-20 aspect-[3/4] rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 border border-slate-100 dark:border-white/[0.06] shrink-0 p-1 flex items-center justify-center">
         {item.product_image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -435,7 +436,7 @@ function OrderDetailItem({ item }: { item: OrderItemRecord }) {
                 key={i}
                 className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-white/5 text-[0.625rem] font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10"
               >
-                {bd.size}: {bd.quantity}
+                {bd.color ? `${bd.color} ` : ""}{bd.size}: {bd.quantity}
               </span>
             ))}
           </div>
@@ -846,12 +847,12 @@ export default function OrderDetailPage({ params }: Props) {
           </SectionCard>
 
           {/* Payment */}
-          <SectionCard title="Payment" icon={CreditCard}>
+          <SectionCard title="Payment & Settlement" icon={CreditCard}>
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 dark:text-slate-400">Method</span>
                 <span className="font-semibold text-slate-700 dark:text-slate-300 capitalize">
-                  {order.payment_method?.replace(/_/g, " ") || "—"}
+                  {order.payment_details?.payment_method || order.payment_method?.replace(/_/g, " ") || "Bank Transfer"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -859,33 +860,100 @@ export default function OrderDetailPage({ params }: Props) {
                 <span
                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase tracking-wider ${paymentPres.badgeClass}`}
                 >
-                  {paymentPres.label}
+                  {order.payment_status === "paid" ? "● PAID" : paymentPres.label}
                 </span>
               </div>
 
-              {/* Receipt upload */}
-              <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06]">
-                <p className="text-slate-400 dark:text-slate-500 mb-2">
-                  Attach a wire transfer receipt or bank document:
-                </p>
-                <label className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-amber-300 dark:border-amber-700/50 bg-amber-50/50 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 font-semibold text-xs cursor-pointer transition-all">
-                  <Upload size={13} />
-                  <span>{uploadingReceipt ? "Uploading…" : "Upload Receipt"}</span>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) handleUploadReceipt(e.target.files[0]);
-                    }}
-                  />
-                </label>
-                {receiptSuccess && (
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
-                    <Check size={12} /> Receipt uploaded!
+              {order.payment_status === "paid" ? (
+                /* Confirmed Payment Info */
+                <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06] space-y-2 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Txn ID:</span>
+                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                      {order.payment_details?.transaction_id || "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Amount Paid:</span>
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                      ${Number(order.payment_details?.payment_amount ?? order.total_amount).toFixed(2)} {order.currency || "USD"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Payment Date:</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                      {order.payment_details?.payment_date || formatOrderDate(order.payment_confirmed_at || "")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Bank:</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                      {order.payment_details?.bank_name || "Pubali Bank Limited"}
+                    </span>
+                  </div>
+                  {order.payment_proof_url && (
+                    <div className="pt-1 flex justify-end">
+                      <a
+                        href={order.payment_proof_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-bold hover:underline"
+                      >
+                        <ExternalLink size={11} />
+                        <span>View Bank Receipt</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ) : order.payment_status === "payment_submitted" ? (
+                /* Awaiting Verification */
+                <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06] space-y-2">
+                  <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/40 text-[11px] text-blue-700 dark:text-blue-300">
+                    <p className="font-bold">Awaiting Admin Verification</p>
+                    <p className="text-[10px] text-blue-600/80 dark:text-blue-400/80 mt-0.5">
+                      Receipt submitted. Our accounts team will verify your payment credit.
+                    </p>
+                  </div>
+                  {order.payment_proof_url && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400">Submitted Proof:</span>
+                      <a
+                        href={order.payment_proof_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold hover:underline"
+                      >
+                        <ExternalLink size={11} />
+                        <span>View Slip</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Unpaid: Receipt upload */
+                <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06]">
+                  <p className="text-slate-400 dark:text-slate-500 mb-2">
+                    Attach a wire transfer receipt or bank document:
                   </p>
-                )}
-              </div>
+                  <label className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-amber-300 dark:border-amber-700/50 bg-amber-50/50 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 font-semibold text-xs cursor-pointer transition-all">
+                    <Upload size={13} />
+                    <span>{uploadingReceipt ? "Uploading…" : "Upload Receipt"}</span>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) handleUploadReceipt(e.target.files[0]);
+                      }}
+                    />
+                  </label>
+                  {receiptSuccess && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
+                      <Check size={12} /> Receipt uploaded!
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </SectionCard>
 
@@ -958,6 +1026,7 @@ export default function OrderDetailPage({ params }: Props) {
                 label="Commercial Invoice"
                 href={`/admin/documents/COMMERCIAL_INVOICE/order_${order.id}`}
                 locked={!isPaid}
+                onDownload={isPaid ? () => downloadCommercialInvoicePDF(order) : undefined}
               />
               <DocumentRow
                 label="Packing List"

@@ -1,5 +1,7 @@
 import { User } from "@/types/api";
 import { mockStore } from "@/lib/mock-data/mock-store";
+import { apiClient } from "@/services/api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export const ADMIN_STORAGE_KEYS = {
   ADMIN_SESSION: "ayaan_admin_session",
@@ -36,11 +38,94 @@ export class AdminAuthService {
   }
 
   /**
-   * Authenticates an administrator against mockStore user records and establishes an isolated admin session.
+   * Retrieves the raw admin token from localStorage.
+   */
+  getAdminToken(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(ADMIN_STORAGE_KEYS.ADMIN_TOKEN);
+  }
+
+  /**
+   * Validates the active admin session with the Laravel backend.
+   * If the token is expired or unauthorized, clears local session and returns null.
+   */
+  async verifyAdminSession(): Promise<User | null> {
+    if (typeof window === "undefined") return null;
+
+    const token = this.getAdminToken();
+    if (!token) {
+      this.clearAdminSession();
+      return null;
+    }
+
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>("/auth/me", { token });
+        const userData = "data" in res && res.data ? res.data : res;
+        if (userData && userData.role === "admin") {
+          localStorage.setItem(ADMIN_STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(userData));
+          apiClient.setAdminToken(token);
+          return userData;
+        }
+        // Account does not have admin privileges
+        this.clearAdminSession();
+        return null;
+      } catch (err: any) {
+        if (err?.status === 401 || err?.status === 403) {
+          this.clearAdminSession();
+          return null;
+        }
+        // Fallback to cached admin user if transient network error
+        return this.getAdminUser();
+      }
+    }
+
+    return this.getAdminUser();
+  }
+
+  /**
+   * Clears all local admin session artifacts.
+   */
+  clearAdminSession(): void {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(ADMIN_STORAGE_KEYS.ADMIN_SESSION);
+      localStorage.removeItem(ADMIN_STORAGE_KEYS.ADMIN_TOKEN);
+      window.dispatchEvent(new CustomEvent("ayaan:admin-auth-changed", { detail: { user: null } }));
+    }
+  }
+
+  /**
+   * Authenticates an administrator against Laravel backend (or mockStore fallback in frontend-only mode)
+   * and establishes an isolated admin session.
    */
   async loginAdmin(credentials: AdminLoginCredentials): Promise<AdminAuthResponse> {
     const email = (credentials.email || "").trim().toLowerCase();
     const password = credentials.password || "";
+
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>("/auth/login", { email, password });
+      const authData = "data" in res && res.data ? res.data : res;
+      const user = authData?.user;
+      const token = authData?.token;
+
+      if (!user) {
+        throw new Error("Invalid response received from authentication server.");
+      }
+
+      if (user.role !== "admin") {
+        throw new Error("Access Denied: This account does not possess administrator privileges.");
+      }
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem(ADMIN_STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(user));
+        localStorage.setItem(ADMIN_STORAGE_KEYS.ADMIN_TOKEN, token);
+        window.dispatchEvent(new CustomEvent("ayaan:admin-auth-changed", { detail: { user, token } }));
+      }
+      apiClient.setAdminToken(token);
+      mockStore.setActiveUser(user);
+
+      return { user, token };
+    }
 
     const user = mockStore.getUserByEmail(email);
 
@@ -61,6 +146,7 @@ export class AdminAuthService {
     if (typeof window !== "undefined") {
       localStorage.setItem(ADMIN_STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(user));
       localStorage.setItem(ADMIN_STORAGE_KEYS.ADMIN_TOKEN, token);
+      window.dispatchEvent(new CustomEvent("ayaan:admin-auth-changed", { detail: { user, token } }));
     }
 
     return { user, token };
@@ -70,20 +156,23 @@ export class AdminAuthService {
    * Terminates ONLY the admin session without affecting customer storefront sessions.
    */
   async logoutAdmin(): Promise<void> {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(ADMIN_STORAGE_KEYS.ADMIN_SESSION);
-      localStorage.removeItem(ADMIN_STORAGE_KEYS.ADMIN_TOKEN);
+    if (!isFrontendOnly()) {
+      try {
+        await apiClient.post("/auth/logout");
+      } catch {}
     }
+    this.clearAdminSession();
+    apiClient.removeToken();
   }
 
   /**
-   * Prepares or updates demo admin credentials.
+   * Prepares demo admin credentials matching Phase 7 specifications.
    */
   getDemoCredentials(): { email: string; password: string; name: string } {
     return {
       email: "admin@ayaanclothing.com",
-      password: "admin123",
-      name: "Ayaan Operations Admin",
+      password: "password123",
+      name: "Ayaan Admin",
     };
   }
 }

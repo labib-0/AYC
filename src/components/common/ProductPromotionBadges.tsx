@@ -8,20 +8,32 @@ export interface ProductPromotionBadgesProps {
   product?: any;
   isNew?: boolean;
   isHot?: boolean;
+  isFeatured?: boolean; // Maintained for prop compatibility, ignored for visual badge rendering
   size?: "card" | "detail" | "modal";
   variant?: "card" | "detail" | "modal";
   className?: string;
 }
 
+/**
+ * ProductPromotionBadges
+ * 
+ * Authoritative Rule:
+ * - NEW: Product status badge (Active if product is marked new and not expired).
+ * - HOT: Promotional status badge (Active if product is marked hot and not expired).
+ * - FEATURED: CONTENT PLACEMENT ONLY. Determines inclusion in the Featured Products
+ *   landing page section. It is NEVER rendered as a visual badge on product images or cards.
+ */
 export default function ProductPromotionBadges({
   product,
   isNew: propIsNew,
   isHot: propIsHot,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  isFeatured: _propIsFeatured,
   size,
   variant,
   className = "",
 }: ProductPromotionBadgesProps) {
-  const promo = product ? getNormalizedPromotion(product) : { isNew: false, isHot: false };
+  const promo = product ? getNormalizedPromotion(product) : { isNew: false, isHot: false, isFeatured: false };
   
   const isNew = propIsNew !== undefined ? Boolean(propIsNew) : promo.isNew;
   const isHot = propIsHot !== undefined ? Boolean(propIsHot) : promo.isHot;

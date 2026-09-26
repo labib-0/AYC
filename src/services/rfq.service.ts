@@ -1,11 +1,20 @@
 import { RfqRecord, RfqStatus, RfqMessage } from "@/types/b2b";
 import { mockStore } from "@/lib/mock-data/mock-store";
+import { apiClient } from "./api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export class RfqService {
   /**
    * Submit new B2B RFQ
    */
   async submitRfq(input: Partial<RfqRecord>): Promise<RfqRecord> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>("/rfq", input);
+      const data = res?.data || res;
+      if (data) return data;
+      throw new Error("Invalid response received from RFQ submission endpoint.");
+    }
+
     const year = new Date().getFullYear();
     const rand = Math.floor(100000 + Math.random() * 900000);
     const rfqNumber = `RFQ-${year}-${rand}`;
@@ -52,6 +61,12 @@ export class RfqService {
    * Get all RFQ records
    */
   async getUserRfqs(): Promise<RfqRecord[]> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/rfq");
+      const list = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(list)) return list;
+      return [];
+    }
     return mockStore.getRfqs();
   }
 
@@ -59,6 +74,16 @@ export class RfqService {
    * Get RFQ by ID
    */
   async getRfqById(id: string): Promise<RfqRecord | null> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>(`/rfq/${id}`);
+        const data = res?.data || res;
+        return data || null;
+      } catch (err: any) {
+        if (err?.status === 404 || err?.statusCode === 404) return null;
+        throw err;
+      }
+    }
     return mockStore.getRfqById(id);
   }
 
@@ -71,6 +96,10 @@ export class RfqService {
     actorName: string = "Admin",
     note?: string
   ): Promise<RfqRecord | null> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.patch<any>(`/rfq/${id}/status`, { status, actor_name: actorName, note });
+      return res?.data || res;
+    }
     return mockStore.updateRfqStatus(id, status, actorName, note);
   }
 
@@ -83,7 +112,29 @@ export class RfqService {
     senderName: string,
     message: string
   ): Promise<RfqMessage | null> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>(`/rfq/${rfqId}/messages`, {
+        message,
+        sender_name: senderName,
+      });
+      const msg = res?.data || res;
+      return msg || null;
+    }
     return mockStore.addRfqMessage(rfqId, { senderRole, senderName, message });
+  }
+
+  /**
+   * Get messages for an RFQ conversation
+   */
+  async getMessages(rfqId: string): Promise<RfqMessage[]> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>(`/rfq/${rfqId}/messages`);
+      const list = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(list)) return list;
+      return [];
+    }
+    const rfq = mockStore.getRfqById(rfqId);
+    return rfq?.messages || [];
   }
 }
 

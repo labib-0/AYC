@@ -6,7 +6,7 @@
  * existing CouponRecord data model in mockStore.
  */
 
-import { CouponRecord, PromoDiscountType } from "@/services/admin/promotion.service";
+import { CouponRecord, PromoDiscountType } from "@/services/admin/coupon.service";
 import { mockStore } from "@/lib/mock-data/mock-store";
 
 export interface CouponValidationSuccess {

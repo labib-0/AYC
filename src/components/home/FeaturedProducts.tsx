@@ -9,7 +9,6 @@ import AllCategoriesPanel from "./AllCategoriesPanel";
 import { Product } from "@/types";
 import {
   getFeaturedProducts,
-  getInitialFeaturedProducts,
 } from "@/lib/services/products";
 import { brandService, BrandModel } from "@/services/brand.service";
 import { categoryService, CategoryModel } from "@/services/category.service";
@@ -49,18 +48,11 @@ export default function FeaturedProducts() {
   const [availableCategories, setAvailableCategories] = useState<CategoryModel[]>([]);
 
   // ── Products & Pagination State (Max 21 Initial Products) ───────────────
-  const [products, setProducts] = useState<Product[]>(() =>
-    getInitialFeaturedProducts("best-deals", INITIAL_PRODUCT_LIMIT)
-  );
-  const [totalCount, setTotalCount] = useState<number>(() =>
-    getInitialFeaturedProducts("best-deals", 9999).length
-  );
-  const [hasMore, setHasMore] = useState<boolean>(() => {
-    const total = getInitialFeaturedProducts("best-deals", 9999).length;
-    return total > INITIAL_PRODUCT_LIMIT;
-  });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [hasMore, setHasMore] = useState<boolean>(false);
 
-  const [isLoadingInitial, setIsLoadingInitial] = useState<boolean>(false);
+  const [isLoadingInitial, setIsLoadingInitial] = useState<boolean>(true);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,27 +99,49 @@ export default function FeaturedProducts() {
   useEffect(() => {
     if (isContinuousModeRef.current || hasLoadedMore) return;
 
-    getFeaturedProducts({
-      tab: activeTabRef.current,
-      offset: 0,
-      limit: INITIAL_PRODUCT_LIMIT,
-      brands: selectedBrands,
-      designTypes: selectedDesignTypes,
-      audiences: selectedAudiences,
-      categories: selectedCategories,
-    })
-      .then((result) => {
-        if (isContinuousModeRef.current || hasLoadedMore) return;
-        setProducts(result.products);
-        setTotalCount(result.total);
-        setHasMore(result.hasMore && result.total > result.products.length);
+    const loadProducts = () => {
+      setIsLoadingInitial(true);
+      getFeaturedProducts({
+        tab: activeTabRef.current,
+        offset: 0,
+        limit: INITIAL_PRODUCT_LIMIT,
+        brands: selectedBrands,
+        designTypes: selectedDesignTypes,
+        audiences: selectedAudiences,
+        categories: selectedCategories,
       })
-      .catch(() => {
-        const fullList = getInitialFeaturedProducts(activeTabRef.current, 9999);
-        setTotalCount(fullList.length);
-        setProducts(fullList.slice(0, INITIAL_PRODUCT_LIMIT));
-        setHasMore(fullList.length > INITIAL_PRODUCT_LIMIT);
-      });
+        .then((result) => {
+          if (isContinuousModeRef.current || hasLoadedMore) return;
+          setProducts(result.products);
+          setTotalCount(result.total);
+          setHasMore(result.hasMore && result.total > result.products.length);
+        })
+        .catch((err) => {
+          console.error("Failed to load initial featured products:", err);
+          setProducts([]);
+          setTotalCount(0);
+          setHasMore(false);
+        })
+        .finally(() => {
+          setIsLoadingInitial(false);
+        });
+    };
+
+    loadProducts();
+
+    const handleUpdate = () => {
+      if (!isContinuousModeRef.current && !hasLoadedMore) {
+        loadProducts();
+      }
+    };
+
+    window.addEventListener("ayaan:homepage-updated", handleUpdate);
+    window.addEventListener("ayaan:data-updated", handleUpdate);
+
+    return () => {
+      window.removeEventListener("ayaan:homepage-updated", handleUpdate);
+      window.removeEventListener("ayaan:data-updated", handleUpdate);
+    };
   }, [hasLoadedMore]);
 
   // ── Load More Click: First click activates Continuous Mode; subsequent clicks in manual mode reactivate it ──
@@ -450,19 +464,12 @@ export default function FeaturedProducts() {
       setProducts(result.products);
       setTotalCount(result.total);
       setHasMore(result.hasMore && result.total > result.products.length);
-    } catch {
+    } catch (err) {
       if (generationRef.current !== currentGen) return;
-      const fullList = getInitialFeaturedProducts(
-        tab,
-        9999,
-        selectedBrands,
-        selectedAudiences,
-        selectedCategories,
-        selectedDesignTypes
-      );
-      setProducts(fullList.slice(0, initialCount));
-      setTotalCount(fullList.length);
-      setHasMore(fullList.length > initialCount);
+      console.error("Failed to filter featured products:", err);
+      setProducts([]);
+      setTotalCount(0);
+      setHasMore(false);
     } finally {
       if (generationRef.current === currentGen) {
         setIsLoadingInitial(false);
@@ -533,7 +540,7 @@ export default function FeaturedProducts() {
       ref={sectionRef}
       className="pt-1.5 sm:pt-2 pb-8 sm:pb-12 bg-background scroll-mt-20"
     >
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         {/* ── Header & Main Controls Bar ── */}
         <div className="mb-6 md:mb-8 flex flex-col gap-3 sm:gap-4">
           {/* Top Heading: Title */}
@@ -816,8 +823,8 @@ export default function FeaturedProducts() {
               <div
                 className={`grid gap-3 sm:gap-3.5 xl:gap-4 transition-all duration-200 ${
                   isFilterOpen
-                    ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 min-[1440px]:grid-cols-6 2xl:grid-cols-6"
-                    : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 min-[1440px]:grid-cols-7 2xl:grid-cols-7"
+                    ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5"
+                    : "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-6"
                 }`}
               >
                 {products.map((product) => (
@@ -827,18 +834,22 @@ export default function FeaturedProducts() {
             ) : (
               <div className="text-center py-16 px-4 border border-dashed border-border/80 rounded-2xl">
                 <p className="text-[13px] font-bold uppercase tracking-wider text-foreground mb-1 font-sans">
-                  NO PRODUCTS FOUND
+                  {totalActiveFilters > 0 ? "NO MATCHING PRODUCTS FOUND" : "NO FEATURED PRODUCTS YET"}
                 </p>
                 <p className="text-[13px] text-muted-foreground mb-4 font-sans">
-                  Try changing or clearing your filters.
+                  {totalActiveFilters > 0
+                    ? "Try changing or clearing your active filters."
+                    : "No products have been featured on the landing page yet."}
                 </p>
-                <button
-                  type="button"
-                  onClick={handleClearAllFilters}
-                  className="px-5 py-2.5 rounded-full text-[13px] font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
-                >
-                  Clear All Filters
-                </button>
+                {totalActiveFilters > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAllFilters}
+                    className="px-5 py-2.5 rounded-full text-[13px] font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
+                  >
+                    Clear All Filters
+                  </button>
+                )}
               </div>
             )}
 

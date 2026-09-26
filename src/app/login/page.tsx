@@ -16,12 +16,24 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const msg = sessionStorage.getItem("ayaan_session_expired_message");
+      if (msg) {
+        setSessionNotice(msg);
+        sessionStorage.removeItem("ayaan_session_expired_message");
+      }
+    }
+  }, []);
 
   const getRedirectUrl = (targetUser?: any) => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const target = params.get("redirect");
+      const target = params.get("redirect") || sessionStorage.getItem("ayaan_intended_destination");
       if (target && target.startsWith("/") && !target.startsWith("//")) {
+        sessionStorage.removeItem("ayaan_intended_destination");
         return target;
       }
     }
@@ -71,6 +83,13 @@ export default function LoginPage() {
             Sign in to access your orders, track purchases, and manage your profile.
           </p>
         </div>
+
+        {sessionNotice && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-200 text-sm flex items-start gap-2.5">
+            <AlertCircle size={18} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+            <span>{sessionNotice}</span>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-sm flex items-start gap-2.5">

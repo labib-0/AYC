@@ -3,6 +3,8 @@ import { B2BProductInput } from "@/types/b2b";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { findMatchingShippingProfile, calculateTotalCbm } from "@/lib/services/shipping-package";
 import { inferProductCategory } from "@/lib/mock-data/mock-products";
+import { apiClient } from "./api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export interface ProductQueryParams {
   page?: number;
@@ -120,9 +122,18 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     ? Number(p.availableStock)
     : 500;
 
-  const isHot = Boolean(p.isHot || p.is_hot || p.badge === "Hot");
-  const isNew = Boolean(p.isNew || p.is_new || p.badge === "New");
-  const isFeatured = Boolean(p.isFeatured || p.is_featured || p.featured);
+  const newUntil = p.newUntil || p.new_until || null;
+  const hotUntil = p.hotUntil || p.hot_until || null;
+  const featuredUntil = p.featuredUntil || p.featured_until || null;
+
+  const now = Date.now();
+  const isNewExpired = newUntil ? new Date(newUntil).getTime() <= now : false;
+  const isHotExpired = hotUntil ? new Date(hotUntil).getTime() <= now : false;
+  const isFeaturedExpired = featuredUntil ? new Date(featuredUntil).getTime() <= now : false;
+
+  const isHot = Boolean(p.isHot ?? p.is_hot ?? p.badge === "Hot") && !isHotExpired;
+  const isNew = Boolean(p.isNew ?? p.is_new ?? p.badge === "New") && !isNewExpired;
+  const isFeatured = Boolean(p.isFeatured ?? p.is_featured ?? p.featured) && !isFeaturedExpired;
   const isLimitedDeal = Boolean(p.isLimitedDeal || p.is_limited_deal || p.isLimitedTimeOffer);
   const isBestDeal = Boolean(
     p.isBestDeal ||
@@ -138,11 +149,13 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
   if (p.status === "draft") status = "draft";
   else if (p.status === "archived" || p.status === "unpublished") status = "unpublished";
 
-  const pricingTiers = p.pricingTiers || p.pricing_tiers || [];
-  const packageAllocations = p.packageAllocations || p.package_allocations || [];
+  const pricingTiers = Array.isArray(p.pricingTiers) ? p.pricingTiers : Array.isArray(p.pricing_tiers) ? p.pricing_tiers : (typeof (p.pricingTiers || p.pricing_tiers) === 'object' && (p.pricingTiers || p.pricing_tiers) !== null ? Object.values(p.pricingTiers || p.pricing_tiers) : []);
+  const packageAllocations = Array.isArray(p.packageAllocations) ? p.packageAllocations : Array.isArray(p.package_allocations) ? p.package_allocations : (typeof (p.packageAllocations || p.package_allocations) === 'object' && (p.packageAllocations || p.package_allocations) !== null ? Object.values(p.packageAllocations || p.package_allocations) : []);
   const isPackageAssortment = p.isPackageAssortment ?? p.is_package_assortment ?? true;
-  const variants = p.variants || [];
-  const fullStockQuantity = p.fullStockQuantity ?? p.full_stock_quantity ?? (variants.length > 0 ? variants.reduce((acc: number, v: any) => acc + Number(v.stock || 0), 0) : stock);
+  const rawVariants = p.variants || [];
+  const variants = Array.isArray(rawVariants) ? rawVariants : (typeof rawVariants === 'object' && rawVariants !== null ? Object.values(rawVariants) : []);
+  const moqVal = p.moq ? Number(p.moq) : 10;
+  const availableStock = variants.length > 0 ? variants.reduce((acc: number, v: any) => acc + Number(v.stock || 0), 0) : stock;
 
   const bulkThreshold = p.bulkThreshold !== undefined && p.bulkThreshold !== null
     ? Number(p.bulkThreshold)
@@ -156,23 +169,71 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     ? Number(p.bulk_price)
     : Math.round(wholesalePrice * 0.8 * 100) / 100;
 
-  const fullStockPrice = p.fullStockPrice !== undefined && p.fullStockPrice !== null
-    ? Number(p.fullStockPrice)
+  const configuredFullStockPrice = p.configuredFullStockPrice !== undefined && p.configuredFullStockPrice !== null
+    ? Number(p.configuredFullStockPrice)
     : p.full_stock_price !== undefined && p.full_stock_price !== null
     ? Number(p.full_stock_price)
-    : Math.round(wholesalePrice * 0.7 * 100) / 100;
+    : (p.fullStockPrice !== undefined && p.fullStockPrice !== null ? Number(p.fullStockPrice) : null);
 
-  const brandName = typeof p.brand === "string" ? p.brand : p.brand?.name || "Ayaan";
-  const brandLogo = p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand?.logo_url || (brandName.toLowerCase().includes("nike")
-    ? "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200"
-    : brandName.toLowerCase().includes("adidas")
-    ? "https://images.unsplash.com/photo-1518002171953-a080ee817e1f?auto=format&fit=crop&q=80&w=200"
-    : brandName.toLowerCase().includes("levi")
-    ? "https://images.unsplash.com/photo-1582552938357-32b906df40cb?auto=format&fit=crop&q=80&w=200"
-    : "/brands/ayaan.png");
+  const qualifyingThreshold = (bulkThreshold !== undefined && bulkThreshold > 0) ? bulkThreshold : moqVal;
+  const derivedEligibleQty = Math.floor(availableStock / moqVal) * moqVal;
 
-  const youtubeVideoId = p.youtubeVideoId || p.youtube_video_id || "dQw4w9WgXcQ";
-  const youtubeEmbedUrl = p.youtubeEmbedUrl || p.youtube_embed_url || "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ";
+  const isFullStockEligible = Boolean(
+    p.isFullStockEligible ?? p.is_full_stock_eligible ?? (
+      configuredFullStockPrice !== null &&
+      configuredFullStockPrice > 0 &&
+      availableStock > qualifyingThreshold &&
+      derivedEligibleQty >= qualifyingThreshold &&
+      derivedEligibleQty > moqVal
+    )
+  );
+
+  const fullStockQuantity = isFullStockEligible
+    ? (p.fullStockQuantity !== undefined && p.fullStockQuantity !== null && Number(p.fullStockQuantity) > 0
+        ? Number(p.fullStockQuantity)
+        : p.full_stock_quantity !== undefined && p.full_stock_quantity !== null && Number(p.full_stock_quantity) > 0
+        ? Number(p.full_stock_quantity)
+        : derivedEligibleQty)
+    : 0;
+
+  const applicableNormalForFullStock = fullStockQuantity >= bulkThreshold ? bulkPrice : wholesalePrice;
+  const resolvedFullStockPrice = isFullStockEligible
+    ? (p.fullStockPrice !== undefined && p.fullStockPrice !== null
+        ? Number(p.fullStockPrice)
+        : configuredFullStockPrice !== null
+        ? Math.min(configuredFullStockPrice, applicableNormalForFullStock)
+        : applicableNormalForFullStock)
+    : wholesalePrice;
+
+  const fullStockTotal = isFullStockEligible
+    ? (p.fullStockTotal !== undefined && p.fullStockTotal !== null
+        ? Number(p.fullStockTotal)
+        : p.full_stock_total !== undefined && p.full_stock_total !== null
+        ? Number(p.full_stock_total)
+        : Math.round(fullStockQuantity * resolvedFullStockPrice * 100) / 100)
+    : 0;
+
+  const brandName = typeof p.brand === "string" ? p.brand : p.brand?.name || "";
+  const brandLogo = p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand?.logo_url || (p.brand?.slug ? `/brands/${p.brand.slug}.svg` : undefined);
+
+  const rawVideoUrl = (p.videoUrl || p.video_url || "").trim();
+  let youtubeVideoId: string | undefined = p.youtubeVideoId || p.youtube_video_id || undefined;
+  let youtubeEmbedUrl: string | undefined = p.youtubeEmbedUrl || p.youtube_embed_url || undefined;
+
+  if (rawVideoUrl) {
+    const ytMatch = rawVideoUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    if (ytMatch && ytMatch[1]) {
+      youtubeVideoId = ytMatch[1];
+      youtubeEmbedUrl = `https://www.youtube-nocookie.com/embed/${youtubeVideoId}`;
+    }
+  }
+
+  const costPrice = p.costPrice !== undefined && p.costPrice !== null
+    ? Number(p.costPrice)
+    : p.cost_price !== undefined && p.cost_price !== null
+    ? Number(p.cost_price)
+    : undefined;
+
   const rawShippingProfiles = p.shipping_package_profiles || p.shippingPackageProfiles;
   const shippingPackageProfiles = Array.isArray(rawShippingProfiles) && rawShippingProfiles.length > 0
     ? rawShippingProfiles.map((sp: any) => ({
@@ -221,38 +282,50 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     colorName: p.colorName || p.color_name || p.color || "Black",
     colorHex: p.colorHex || p.color_hex || "#111827",
     weightGrams: p.weightGrams || p.weight_grams || 250,
-    videoUrl: p.videoUrl || p.video_url || "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    videoUrl: rawVideoUrl || undefined,
+    video_url: rawVideoUrl || undefined,
     youtubeVideoId: youtubeVideoId,
     youtubeEmbedUrl: youtubeEmbedUrl,
+    videoProvider: p.videoProvider || p.video_provider || null,
+    vimeoVideoId: p.vimeoVideoId || p.vimeo_video_id || null,
     images: images,
-    costPrice: p.costPrice !== undefined ? Number(p.costPrice) : p.cost_price !== undefined ? Number(p.cost_price) : Math.round(wholesalePrice * 0.55 * 100) / 100,
+    costPrice: costPrice,
     wholesalePrice: wholesalePrice,
     standardPrice: wholesalePrice,
     bulkThreshold: bulkThreshold,
     bulkPrice: bulkPrice,
-    fullStockPrice: fullStockPrice,
+    fullStockPrice: resolvedFullStockPrice,
+    configuredFullStockPrice: configuredFullStockPrice ?? undefined,
+    isFullStockEligible: isFullStockEligible,
+    fullStockQuantity: fullStockQuantity,
+    fullStockTotal: fullStockTotal,
     msrpPrice: msrpPrice,
-    moq: p.moq ? Number(p.moq) : 10,
-    stock: stock,
+    moq: moqVal,
+    stock: availableStock,
     status: status,
     isFeatured: isFeatured,
+    featuredUntil: featuredUntil,
+    featured_until: featuredUntil,
     isNew: isNew,
+    newUntil: newUntil,
+    new_until: newUntil,
     isHot: isHot,
+    hotUntil: hotUntil,
+    hot_until: hotUntil,
     isLimitedDeal: isLimitedDeal,
     isBestDeal: isBestDeal,
     sizes: p.sizes || ["S", "M", "L", "XL", "2XL"],
     colors: p.colors || [p.color_name || p.color || "Black"],
     variants: variants,
     pricingTiers: pricingTiers.length > 0 ? pricingTiers : [
-      { min_quantity: p.moq ? Number(p.moq) : 10, max_quantity: bulkThreshold - 1, unit_price: wholesalePrice },
-      { min_quantity: bulkThreshold, max_quantity: stock - 1, unit_price: bulkPrice },
-      { min_quantity: stock, max_quantity: null, unit_price: fullStockPrice },
+      { min_quantity: moqVal, max_quantity: bulkThreshold - 1, unit_price: wholesalePrice },
+      { min_quantity: bulkThreshold, max_quantity: isFullStockEligible && fullStockQuantity > bulkThreshold ? fullStockQuantity - 1 : availableStock, unit_price: bulkPrice },
+      ...(isFullStockEligible && fullStockQuantity > 0 ? [{ min_quantity: fullStockQuantity, max_quantity: fullStockQuantity, unit_price: resolvedFullStockPrice }] : []),
     ],
     packageAllocations: packageAllocations,
     shippingPackageProfiles: shippingPackageProfiles,
     shipping_package_profiles: shippingPackageProfiles,
     isPackageAssortment: isPackageAssortment,
-    fullStockQuantity: fullStockQuantity,
   };
 }
 
@@ -277,8 +350,13 @@ export function toStorefrontProduct(p: B2BProductInput): Product {
     designType: p.designType || "ORIGINAL",
     images: p.images,
     isNew: p.isNew,
+    newUntil: p.newUntil || p.new_until,
     isHot: p.isHot,
+    hotUntil: p.hotUntil || p.hot_until,
+    isFeatured: p.isFeatured,
+    featuredUntil: p.featuredUntil || p.featured_until,
     isLimitedTimeOffer: p.isLimitedDeal,
+    videoProvider: p.videoProvider,
     sizes: p.sizes || ["S", "M", "L", "XL", "2XL"],
     sku: p.sku,
     moq: p.moq,
@@ -318,6 +396,17 @@ export class ProductService {
    * Fetch products with query parameters
    */
   async getProducts(params?: ProductQueryParams): Promise<B2BProductInput[]> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/products", {
+        params: params as Record<string, string | number | boolean | undefined>,
+      });
+      const items = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(items)) {
+        return items.map(normalizeToB2BProduct);
+      }
+      return [];
+    }
+
     const all = mockStore.getProducts();
     let result = this.filterLocalProducts(all, params);
     if (params?.offset !== undefined || params?.limit !== undefined) {
@@ -335,6 +424,47 @@ export class ProductService {
     params: ProductQueryParams,
     _signal?: AbortSignal
   ): Promise<PaginatedProductsResult> {
+    const defaultMeta = {
+      current_page: params.page ?? 1,
+      last_page: 1,
+      per_page: params.per_page ?? 24,
+      total: 0,
+      from: null,
+      to: null,
+    };
+
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>("/products", {
+          params: params as Record<string, string | number | boolean | undefined>,
+          signal: _signal,
+        } as any);
+
+        const rawData = res?.data;
+        const rawMeta = res?.meta;
+        const items = Array.isArray(rawData) ? rawData : (Array.isArray(res) ? res : []);
+
+        return {
+          data: items.map(normalizeToB2BProduct),
+          meta: rawMeta
+            ? {
+                current_page: Number(rawMeta.current_page ?? defaultMeta.current_page),
+                last_page: Number(rawMeta.last_page ?? 1),
+                per_page: Number(rawMeta.per_page ?? defaultMeta.per_page),
+                total: Number(rawMeta.total ?? items.length),
+                from: rawMeta.from != null ? Number(rawMeta.from) : null,
+                to: rawMeta.to != null ? Number(rawMeta.to) : null,
+              }
+            : defaultMeta,
+        };
+      } catch (err: any) {
+        if (err?.name === "AbortError" || err?.message === "AbortError") {
+          throw err;
+        }
+        throw err;
+      }
+    }
+
     const all = mockStore.getProducts();
     const filtered = this.filterLocalProducts(all, params);
     const page = params.page ?? 1;
@@ -359,6 +489,22 @@ export class ProductService {
    * Fetch single product by Slug or ID
    */
   async getProductBySlugOrId(slugOrId: string): Promise<B2BProductInput | null> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>(`/products/${slugOrId}`);
+        const item = res?.data || res;
+        if (item && item.id) {
+          return normalizeToB2BProduct(item);
+        }
+        return null;
+      } catch (err: any) {
+        if (err?.status === 404 || err?.statusCode === 404) {
+          return null;
+        }
+        throw err;
+      }
+    }
+
     return mockStore.getProductByIdOrSlug(slugOrId);
   }
 
@@ -366,6 +512,17 @@ export class ProductService {
    * Fetch search suggestions (quick autocomplete)
    */
   async getSearchSuggestions(query: string): Promise<SearchSuggestionsResult> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/search/suggestions", {
+        params: { q: query },
+      });
+      const data = res?.data || res;
+      return {
+        products: data?.products || [],
+        categories: data?.categories || [],
+        brands: data?.brands || [],
+      };
+    }
 
     const q = query.toLowerCase().trim();
     if (!q) {
@@ -417,11 +574,67 @@ export class ProductService {
   }
 
   /**
+   * Helper to serialize camelCase B2BProductInput to snake_case format expected by Laravel API
+   */
+  private toBackendPayload(input: Partial<B2BProductInput>): Record<string, any> {
+    const payload: Record<string, any> = { ...input };
+
+    if (input.wholesalePrice !== undefined) payload.wholesale_price = input.wholesalePrice;
+    if (input.bulkPrice !== undefined) payload.bulk_price = input.bulkPrice;
+    if (input.bulkThreshold !== undefined) payload.bulk_threshold = input.bulkThreshold;
+    if (input.fullStockPrice !== undefined) payload.full_stock_price = input.fullStockPrice;
+    if (input.msrpPrice !== undefined) payload.msrp_price = input.msrpPrice;
+    if (input.costPrice !== undefined) payload.cost_price = input.costPrice;
+
+    if (input.shortDescription !== undefined) payload.short_description = input.shortDescription;
+    if (input.videoUrl !== undefined) payload.video_url = input.videoUrl;
+
+    if (input.brand_id !== undefined) payload.brand_id = input.brand_id;
+    if (input.categoryId !== undefined && !payload.categories) {
+      const numId = Number(input.categoryId);
+      if (!isNaN(numId) && Number.isInteger(numId) && numId > 0) {
+        payload.categories = [numId];
+      }
+    }
+    if (input.designType !== undefined) {
+      payload.design_type = input.designType;
+      payload.designType = input.designType;
+    }
+    if (input.productType !== undefined) payload.product_type = input.productType;
+    if (input.collectionSeason !== undefined) payload.collection_season = input.collectionSeason;
+    if (input.colorName !== undefined) payload.color_name = input.colorName;
+    if (input.colorHex !== undefined) payload.color_hex = input.colorHex;
+    if (input.weightGrams !== undefined) payload.weight_grams = input.weightGrams;
+
+    if (input.isFeatured !== undefined) payload.is_featured = input.isFeatured;
+    if (input.featuredUntil !== undefined) payload.featured_until = input.featuredUntil;
+    if (input.isHot !== undefined) payload.is_hot = input.isHot;
+    if (input.hotUntil !== undefined) payload.hot_until = input.hotUntil;
+    if (input.isNew !== undefined) payload.is_new = input.isNew;
+    if (input.newUntil !== undefined) payload.new_until = input.newUntil;
+    if (input.isLimitedDeal !== undefined) payload.is_limited_deal = input.isLimitedDeal;
+    if (input.isBestDeal !== undefined) payload.is_best_deal = input.isBestDeal;
+
+    if (input.packageAllocations !== undefined) payload.package_allocations = input.packageAllocations;
+    if (input.shippingPackageProfiles !== undefined) payload.shipping_package_profiles = input.shippingPackageProfiles;
+    if (input.pricingTiers !== undefined) payload.pricing_tiers = input.pricingTiers;
+
+    return payload;
+  }
+
+  /**
    * Create a product
    */
   async createProduct(input: Partial<B2BProductInput>): Promise<B2BProductInput> {
     const slug = input.slug || (input.name || "apparel").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const sku = input.sku || generateProductSku(input.brand || "AYN", input.categoryName || "APP", input.name || "PRD");
+
+    if (!isFrontendOnly()) {
+      const backendPayload = this.toBackendPayload({ ...input, slug, sku });
+      const res = await apiClient.post<any>("/products", backendPayload);
+      const item = res?.data || res;
+      return normalizeToB2BProduct(item);
+    }
 
     return mockStore.saveProduct({ ...input, slug, sku });
   }
@@ -430,6 +643,13 @@ export class ProductService {
    * Update product
    */
   async updateProduct(id: string, updates: Partial<B2BProductInput>): Promise<B2BProductInput | null> {
+    if (!isFrontendOnly()) {
+      const backendPayload = this.toBackendPayload(updates);
+      const res = await apiClient.put<any>(`/products/${id}`, backendPayload);
+      const item = res?.data || res;
+      return normalizeToB2BProduct(item);
+    }
+
     return mockStore.saveProduct({ ...updates, id });
   }
 
@@ -437,6 +657,11 @@ export class ProductService {
    * Delete product
    */
   async deleteProduct(id: string): Promise<boolean> {
+    if (!isFrontendOnly()) {
+      await apiClient.delete(`/products/${id}`);
+      return true;
+    }
+
     return mockStore.deleteProduct(id);
   }
 
@@ -444,6 +669,20 @@ export class ProductService {
    * Duplicate product
    */
   async duplicateProduct(id: string): Promise<B2BProductInput | null> {
+    if (!isFrontendOnly()) {
+      const existing = await this.getProductBySlugOrId(id);
+      if (!existing) return null;
+      const { id: _ignored, ...rest } = existing;
+      const newName = `${existing.name} (Copy)`;
+      const newSlug = `${existing.slug}-copy-${Date.now().toString(36)}`;
+      const newSku = `${existing.sku}-CPY`;
+      return this.createProduct({
+        ...rest,
+        name: newName,
+        slug: newSlug,
+        sku: newSku,
+      });
+    }
     return mockStore.duplicateProduct(id);
   }
 
@@ -451,6 +690,12 @@ export class ProductService {
    * Fetch calculated shipping physical package specs for a product quantity
    */
   async getProductShippingSpecs(slugOrId: string, quantity: number, _isFullStock: boolean = false): Promise<any> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>(`/products/${slugOrId}/shipping-specs`, {
+        params: { quantity, full_stock: _isFullStock ? 1 : 0 },
+      });
+      return res?.data || res;
+    }
 
     const prod = mockStore.getProductByIdOrSlug(slugOrId);
     if (!prod) {

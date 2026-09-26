@@ -1,5 +1,3 @@
-import { mockStore } from "@/lib/mock-data/mock-store";
-
 export interface TopBannerConfig {
   id?: string | number;
   imageUrl: string;
@@ -15,6 +13,7 @@ export interface TopBannerConfig {
 /**
  * Authoritative default configuration for the thin top banner.
  * Designed for B2B wholesale clothing: clean visual, subtle copy, direct anchor to #featured.
+ * Decoupled from legacy Promotion entities.
  */
 export const DEFAULT_TOP_BANNER: TopBannerConfig = {
   id: "top-banner-default",
@@ -29,52 +28,9 @@ export const DEFAULT_TOP_BANNER: TopBannerConfig = {
 };
 
 /**
- * Retrieves the active top banner configuration.
- * Dynamically resolves admin-configured promotions (type 'top_banner' or 'hero_banner')
- * while gracefully falling back to DEFAULT_TOP_BANNER.
+ * Retrieves the authoritative top banner configuration.
+ * Independent and decoupled from legacy promotion entities.
  */
 export function getTopBannerConfig(): TopBannerConfig {
-  try {
-    const promotions = mockStore.getPromotions();
-    const bannerPromo = promotions.find(
-      (p) => p.type === "top_banner" || p.type === "hero_banner"
-    );
-
-    if (bannerPromo) {
-      const resolvedImageUrl =
-        bannerPromo.image_url && !bannerPromo.image_url.includes("ayaan-top-banner")
-          ? bannerPromo.image_url
-          : DEFAULT_TOP_BANNER.imageUrl;
-
-      if (!bannerPromo.is_active) {
-        return {
-          id: bannerPromo.id,
-          imageUrl: resolvedImageUrl,
-          altText: bannerPromo.title || DEFAULT_TOP_BANNER.altText,
-          eyebrow: DEFAULT_TOP_BANNER.eyebrow,
-          title: bannerPromo.title || DEFAULT_TOP_BANNER.title,
-          subtitle: bannerPromo.subtitle !== undefined ? bannerPromo.subtitle : DEFAULT_TOP_BANNER.subtitle,
-          buttonText: bannerPromo.button_text || DEFAULT_TOP_BANNER.buttonText,
-          target: bannerPromo.button_target || DEFAULT_TOP_BANNER.target,
-          active: false,
-        };
-      }
-
-      return {
-        id: bannerPromo.id,
-        imageUrl: resolvedImageUrl,
-        altText: bannerPromo.title || DEFAULT_TOP_BANNER.altText,
-        eyebrow: DEFAULT_TOP_BANNER.eyebrow,
-        title: bannerPromo.title || DEFAULT_TOP_BANNER.title,
-        subtitle: bannerPromo.subtitle !== undefined ? bannerPromo.subtitle : DEFAULT_TOP_BANNER.subtitle,
-        buttonText: bannerPromo.button_text || DEFAULT_TOP_BANNER.buttonText,
-        target: bannerPromo.button_target || DEFAULT_TOP_BANNER.target,
-        active: true,
-      };
-    }
-  } catch {
-    // Fallback gracefully if mockStore is not ready
-  }
-
-  return DEFAULT_TOP_BANNER;
+  return { ...DEFAULT_TOP_BANNER };
 }

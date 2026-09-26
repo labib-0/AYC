@@ -139,6 +139,12 @@ export function getPaymentPresentation(
         badgeClass:
           "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50",
       };
+    case "payment_submitted":
+      return {
+        label: "Payment Submitted",
+        badgeClass:
+          "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/50",
+      };
     case "failed":
       return {
         label: "Failed",

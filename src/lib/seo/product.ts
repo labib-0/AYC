@@ -16,8 +16,13 @@ export function deriveProductTitle(product: Partial<Product | B2BProductInput>):
       : `${customTitle} | ${SITE_CONFIG.name}`;
   }
 
-  const name = product.name?.trim() || "Apparel Item";
-  const brand = product.brand?.trim() || "Wholesale";
+  const name = typeof product.name === "string" ? product.name.trim() : "Apparel Item";
+  const rawBrand = product.brand;
+  const brand = typeof rawBrand === "string"
+    ? rawBrand.trim()
+    : rawBrand && typeof rawBrand === "object" && "name" in rawBrand && typeof (rawBrand as any).name === "string"
+    ? (rawBrand as any).name.trim()
+    : "Wholesale";
 
   return `${name} | ${brand} | ${SITE_CONFIG.name}`;
 }
@@ -41,8 +46,13 @@ export function deriveProductDescription(
     return `${clean.slice(0, 157)}...`;
   }
 
-  const name = product.name?.trim() || "Apparel Item";
-  const brand = product.brand?.trim() || "Ayaan Clothing";
+  const name = typeof product.name === "string" ? product.name.trim() : "Apparel Item";
+  const rawBrand = product.brand;
+  const brand = typeof rawBrand === "string"
+    ? rawBrand.trim()
+    : rawBrand && typeof rawBrand === "object" && "name" in rawBrand && typeof (rawBrand as any).name === "string"
+    ? (rawBrand as any).name.trim()
+    : "Ayaan Clothing";
   const category = product.categoryName?.trim() || "garments";
   const audience = product.audience ? `${product.audience.toLowerCase()} ` : "";
   const designType = product.designType ? ` (${product.designType})` : "";

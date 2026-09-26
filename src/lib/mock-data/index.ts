@@ -7,5 +7,5 @@ export * from "./mock-orders";
 export * from "./mock-rfqs";
 export * from "./mock-shipping";
 export * from "./mock-inventory";
-export * from "./mock-promotions";
+export * from "./mock-coupons";
 export * from "./mock-documents";

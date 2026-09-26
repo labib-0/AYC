@@ -69,55 +69,55 @@ export default function CustomerReorderPage() {
     }, 4000);
   };
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadReorderData = React.useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
 
-    async function loadReorderData() {
-      if (!user) return;
-      setLoading(true);
-      setError(null);
+    try {
+      const [userOrders, catalogRes] = await Promise.all([
+        getUserOrders(user.id),
+        productService.getProducts({ limit: 100 }),
+      ]);
 
-      try {
-        const [userOrders, catalogRes] = await Promise.all([
-          getUserOrders(user.id),
-          productService.getProducts({ limit: 100 }),
-        ]);
+      // Data isolation: only customer's own orders
+      const ownedOrders = userOrders.filter(
+        (o) =>
+          (o.user_id && String(o.user_id) === String(user.id)) ||
+          (o.email && user.email && o.email.toLowerCase() === user.email.toLowerCase())
+      );
 
-        if (!isMounted) return;
+      setOrders(ownedOrders);
 
-        // Data isolation: only customer's own orders
-        const ownedOrders = userOrders.filter(
-          (o) =>
-            (o.user_id && String(o.user_id) === String(user.id)) ||
-            (o.email && user.email && o.email.toLowerCase() === user.email.toLowerCase())
-        );
-
-        setOrders(ownedOrders);
-
-        // Map catalog products for fast lookup
-        const cMap = new Map<string, Product>();
-        if (Array.isArray(catalogRes)) {
-          for (const p of (catalogRes as any[])) {
-            cMap.set(String(p.id), p);
-            if (p.slug) cMap.set(p.slug.toLowerCase(), p);
-            cMap.set(p.name.toLowerCase(), p);
-          }
+      // Map catalog products for fast lookup
+      const cMap = new Map<string, Product>();
+      if (Array.isArray(catalogRes)) {
+        for (const p of (catalogRes as any[])) {
+          cMap.set(String(p.id), p);
+          if (p.slug) cMap.set(p.slug.toLowerCase(), p);
+          cMap.set(p.name.toLowerCase(), p);
         }
-        setCatalogMap(cMap);
-      } catch (err: any) {
-        console.error("Failed to load reorder data:", err);
-        setError("Unable to load previous purchases. Please try refreshing.");
-      } finally {
-        if (isMounted) setLoading(false);
       }
+      setCatalogMap(cMap);
+    } catch (err: any) {
+      console.error("Failed to load reorder data:", err);
+      const isAuth = err?.status === 401;
+      const isNetwork = err?.status === 0;
+      if (isAuth) {
+        setError("Your session has expired. Please sign in again to access your order history.");
+      } else if (isNetwork) {
+        setError("Network connection error. Please check your connection and click Retry Loading.");
+      } else {
+        setError(err?.message || "Unable to load previous purchases. Please click Retry Loading.");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    loadReorderData();
-
-    return () => {
-      isMounted = false;
-    };
   }, [user]);
+
+  useEffect(() => {
+    loadReorderData();
+  }, [loadReorderData]);
 
   // Aggregate past order items
   const reorderProducts: ReorderProduct[] = useMemo(() => {
@@ -359,10 +359,12 @@ export default function CustomerReorderPage() {
           <p className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</p>
           <button
             type="button"
-            onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-colors"
+            onClick={() => loadReorderData()}
+            disabled={loading}
+            className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
           >
-            Retry Loading
+            <RotateCcw size={12} className={loading ? "animate-spin" : ""} />
+            <span>{loading ? "Retrying..." : "Retry Loading"}</span>
           </button>
         </div>
       ) : loading ? (
@@ -372,7 +374,7 @@ export default function CustomerReorderPage() {
               key={i}
               className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl p-4 shadow-2xs animate-pulse space-y-3"
             >
-              <div className="aspect-[4/5] bg-slate-100 dark:bg-slate-800 rounded-xl" />
+              <div className="aspect-[3/4] bg-slate-100 dark:bg-slate-800 rounded-xl" />
               <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4" />
               <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded w-1/2" />
             </div>
@@ -433,8 +435,8 @@ export default function CustomerReorderPage() {
                 className="group bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl p-4 shadow-2xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between"
               >
                 <div>
-                  {/* Product Image & Brand Header — Canonical 4:5 */}
-                  <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-white/5 mb-3.5 flex items-center justify-center p-1">
+                  {/* Product Image & Brand Header — Canonical 3:4 */}
+                  <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-white/5 mb-3.5 flex items-center justify-center p-1">
                     {item.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -509,53 +511,48 @@ export default function CustomerReorderPage() {
 
                 {/* Quantity Selector & Actions */}
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 space-y-2.5">
-                  {/* Quantity Stepper */}
+                  {/* Quantity Stepper (Packages) */}
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Reorder Quantity:
-                    </span>
+                    <div>
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                        Reorder Packages:
+                      </span>
+                      <span className="text-[10.5px] text-slate-500 font-medium tabular-nums">
+                        {currentQty} pcs total
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl p-1 border border-slate-200 dark:border-white/10">
                       <button
                         type="button"
                         onClick={() =>
                           handleQuantityChange(
                             item.id,
-                            currentQty - (item.catalogProduct?.quantityStep || 10),
+                            Math.max(item.moq, currentQty - item.moq),
                             item.moq
                           )
                         }
                         disabled={currentQty <= item.moq}
                         className="w-7 h-7 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-                        aria-label="Decrease quantity"
+                        aria-label="Decrease packages"
                       >
                         <Minus size={12} />
                       </button>
 
-                      <input
-                        type="number"
-                        min={item.moq}
-                        value={currentQty}
-                        onChange={(e) =>
-                          handleQuantityChange(
-                            item.id,
-                            parseInt(e.target.value) || item.moq,
-                            item.moq
-                          )
-                        }
-                        className="w-16 text-center font-bold font-mono text-xs bg-transparent text-slate-900 dark:text-white focus:outline-none"
-                      />
+                      <span className="w-14 text-center font-bold font-mono text-xs text-slate-900 dark:text-white">
+                        {Math.max(1, Math.round(currentQty / item.moq))} pkgs
+                      </span>
 
                       <button
                         type="button"
                         onClick={() =>
                           handleQuantityChange(
                             item.id,
-                            currentQty + (item.catalogProduct?.quantityStep || 10),
+                            currentQty + item.moq,
                             item.moq
                           )
                         }
                         className="w-7 h-7 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-white flex items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-                        aria-label="Increase quantity"
+                        aria-label="Increase packages"
                       >
                         <Plus size={12} />
                       </button>

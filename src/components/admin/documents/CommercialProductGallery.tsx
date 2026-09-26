@@ -130,7 +130,7 @@ export default function CommercialProductGallery({
             <div
               key={idx}
               onClick={() => setSelectedPreviewImage(imgUrl)}
-              className="group relative aspect-[4/5] rounded-xl border border-border/80 bg-secondary/30 p-1.5 flex items-center justify-center overflow-hidden transition-all hover:border-primary/50 hover:shadow-xs cursor-pointer print:border-slate-300 print:bg-slate-50 print:p-1 print:cursor-default"
+              className="group relative aspect-[3/4] rounded-xl border border-border/80 bg-secondary/30 p-1.5 flex items-center justify-center overflow-hidden transition-all hover:border-primary/50 hover:shadow-xs cursor-pointer print:border-slate-300 print:bg-slate-50 print:p-1 print:cursor-default"
               title={`View ${effectiveProductName} sample #${idx + 1}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -173,7 +173,7 @@ export default function CommercialProductGallery({
                 ✕
               </button>
             </div>
-            <div className="w-full aspect-[4/5] max-h-[70vh] bg-secondary/20 rounded-xl flex items-center justify-center overflow-hidden p-2">
+            <div className="w-full aspect-[3/4] max-h-[70vh] bg-secondary/20 rounded-xl flex items-center justify-center overflow-hidden p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={selectedPreviewImage}

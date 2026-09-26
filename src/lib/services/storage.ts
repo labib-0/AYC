@@ -1,4 +1,5 @@
 import { apiClient } from "@/services/api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export interface UploadResult {
   url: string;
@@ -7,45 +8,66 @@ export interface UploadResult {
 }
 
 /**
- * Upload a product image via REST API or local fallback.
- * Falls back to local Data URL in development / frontend-only mode.
+ * Upload a product image via REST API.
+ *
+ * In fullstack mode (NEXT_PUBLIC_FRONTEND_ONLY=false):
+ *   POST /api/v1/upload → Laravel stores file in public/storage/products/ → returns URL
+ *   If the API call fails, the error is thrown so the admin sees it (NOT silently base64-encoded).
+ *
+ * In frontend-only / demo mode:
+ *   Falls back to a local Data URL for temporary in-browser preview only.
+ *   The Data URL is NEVER sent to a real database column.
  */
 export async function uploadProductImage(file: File): Promise<UploadResult> {
+  const frontendOnly = isFrontendOnly();
+
   try {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("folder", "products");
 
     const res = await apiClient.post<any>("/upload", formData);
-    if (res?.url || res?.data?.url) {
-      return {
-        url: res.url || res.data.url,
-        key: res.key || res.data.key || file.name,
-      };
+    const url = res?.url || res?.data?.url;
+    const key = res?.key || res?.data?.key || res?.path || file.name;
+    if (url) {
+      return { url, key };
     }
-  } catch {
-    // Graceful fallback for offline / development
-  }
+    throw new Error("Upload succeeded but server returned no URL.");
+  } catch (err: any) {
+    if (!frontendOnly) {
+      // In fullstack mode, always surface the real error so the admin knows the upload failed.
+      // Do NOT silently convert to base64 — base64 data URIs exceed varchar(500) and will corrupt the DB.
+      const msg =
+        err?.message ||
+        "Image upload failed. Please check your connection and try again.";
+      throw new Error(msg);
+    }
 
-  // Support persistent offline/frontend preview via Data URL, falling back to Object URL
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      resolve({
-        url: reader.result as string,
-        key: `local_${Date.now()}_${file.name}`,
-      });
-    };
-    reader.onerror = () => {
-      const localUrl = typeof window !== "undefined" ? URL.createObjectURL(file) : "/placeholder.jpg";
-      resolve({
-        url: localUrl,
-        key: `local_${Date.now()}_${file.name}`,
-      });
-    };
-    reader.readAsDataURL(file);
-  });
+    // Frontend-only / demo mode only: use local Data URL for in-browser preview.
+    // This Data URL is never sent to a real PostgreSQL product_images.image_url column.
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve({
+          url: reader.result as string,
+          key: `local_${Date.now()}_${file.name}`,
+        });
+      };
+      reader.onerror = () => {
+        const localUrl =
+          typeof window !== "undefined"
+            ? URL.createObjectURL(file)
+            : "/placeholder.jpg";
+        resolve({
+          url: localUrl,
+          key: `local_${Date.now()}_${file.name}`,
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
 }
+
 
 /**
  * Upload a brand logo via REST API or persistent base64 Data URL
@@ -147,27 +169,65 @@ export async function uploadCategoryImage(file: File): Promise<UploadResult> {
     reader.readAsDataURL(file);
   });
 }
+export interface PaymentSubmissionDetails {
+  payment_method?: string;
+  transaction_id?: string;
+  payer_name?: string;
+  bank_name?: string;
+  account_number?: string;
+  payment_amount?: number;
+  payment_date?: string;
+  notes?: string;
+}
+
+export interface PaymentUploadResult extends UploadResult {
+  order?: any;
+}
+
 /**
  * Upload payment proof via REST API or local fallback.
  */
-export async function uploadPaymentProof(file: File, orderId: string): Promise<UploadResult> {
+export async function uploadPaymentProof(
+  file: File | null,
+  orderId: string,
+  details?: PaymentSubmissionDetails
+): Promise<PaymentUploadResult> {
   try {
     const formData = new FormData();
-    formData.append("receipt", file);
+    if (file) {
+      formData.append("receipt", file);
+    }
     formData.append("order_id", orderId);
+    if (details) {
+      if (details.payment_method) formData.append("payment_method", details.payment_method);
+      if (details.transaction_id) formData.append("transaction_id", details.transaction_id);
+      if (details.payer_name) formData.append("payer_name", details.payer_name);
+      if (details.bank_name) formData.append("bank_name", details.bank_name);
+      if (details.account_number) formData.append("account_number", details.account_number);
+      if (details.payment_amount !== undefined && details.payment_amount !== null) {
+        formData.append("payment_amount", String(details.payment_amount));
+      }
+      if (details.payment_date) formData.append("payment_date", details.payment_date);
+      if (details.notes) formData.append("notes", details.notes);
+    }
 
     const res = await apiClient.post<any>(`/orders/${orderId}/payment-proof`, formData);
-    if (res?.url || res?.data?.url) {
-      return {
-        url: res.url || res.data.url,
-        key: res.key || res.data.key || file.name,
-      };
+    const orderData = res?.data || res?.order || res;
+    const url = res?.url || res?.data?.url || (file && typeof window !== "undefined" ? URL.createObjectURL(file) : "");
+    const key = res?.key || res?.data?.key || file?.name || `proof_${orderId}`;
+
+    return {
+      url,
+      key,
+      order: orderData,
+    };
+  } catch (error) {
+    if (error && typeof error === "object" && "message" in error) {
+      throw error;
     }
-  } catch {
-    // Graceful fallback for offline / development
   }
 
-  const localUrl = typeof window !== "undefined" ? URL.createObjectURL(file) : "/placeholder.jpg";
+  const localUrl = file && typeof window !== "undefined" ? URL.createObjectURL(file) : "/placeholder.jpg";
   return {
     url: localUrl,
     key: `local_proof_${orderId}_${Date.now()}`,
@@ -198,8 +258,10 @@ export async function uploadBannerImage(file: File): Promise<UploadResult> {
         key: res.key || res.data?.key || file.name,
       };
     }
-  } catch {
-    // Graceful fallback for offline / frontend mode
+  } catch (err: any) {
+    if (!isFrontendOnly()) {
+      throw new Error(err?.message || "Banner image upload failed. Please check network connection.");
+    }
   }
 
   // In offline / mock mode, convert to persistent base64 Data URL so it saves to mockStore / localStorage
@@ -223,66 +285,4 @@ export async function uploadBannerImage(file: File): Promise<UploadResult> {
   });
 }
 
-/**
- * Upload a promotional campaign asset via REST API or persistent base64 Data URL
- */
-export async function uploadPromotionImage(file: File): Promise<UploadResult> {
-  const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-  const isImage = validTypes.includes(file.type) || file.type.startsWith("image/");
-
-  if (!isImage) {
-    throw new Error("Invalid file format. Please upload a valid image file (PNG, JPG, or WebP).");
-  }
-
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("folder", "promotions");
-
-    const res = await apiClient.post<{ url?: string; data?: { url?: string; key?: string }; key?: string }>("/upload", formData);
-    if (res?.url || res?.data?.url) {
-      return {
-        url: res.url || res.data?.url || "",
-        key: res.key || res.data?.key || file.name,
-      };
-    }
-  } catch {
-    // Graceful fallback for offline / frontend mode
-  }
-
-  if (typeof FileReader !== "undefined") {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        resolve({
-          url: dataUrl,
-          key: `promo_${Date.now()}_${file.name}`,
-        });
-      };
-      reader.onerror = () => {
-        const fallbackUrl = typeof window !== "undefined" ? URL.createObjectURL(file) : "/images/homepage-banner.jpg";
-        resolve({
-          url: fallbackUrl,
-          key: `promo_${Date.now()}_${file.name}`,
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  if (typeof file.arrayBuffer === "function") {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const mime = file.type || "image/png";
-    return {
-      url: `data:${mime};base64,${buffer.toString("base64")}`,
-      key: `promo_${Date.now()}_${file.name}`,
-    };
-  }
-
-  return {
-    url: "/images/homepage-banner.jpg",
-    key: `promo_${Date.now()}_${file.name}`,
-  };
-}
 

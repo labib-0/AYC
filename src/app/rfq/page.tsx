@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRfq } from "@/lib/RfqContext";
+import { useAuth } from "@/lib/AuthContext";
 import { createRfq } from "@/lib/services/rfq";
 import { 
   FileText, 
@@ -40,6 +41,7 @@ const COUNTRIES = [
 
 export default function RfqPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { rfqItems, removeFromRfq, updateRfqItemQuantity, updateRfqItemNotes, clearRfq } = useRfq();
 
   // Form State
@@ -50,12 +52,23 @@ export default function RfqPage() {
   const [businessType, setBusinessType] = useState("Wholesale Distributor");
   const [website, setWebsite] = useState("");
   const [taxNumber, setTaxNumber] = useState("");
-  const [destinationCountry, setDestinationCountry] = useState("United Arab Emirates");
+  const [destinationCountry, setDestinationCountry] = useState("United States");
   const [destinationCity, setDestinationCity] = useState("");
   const [shippingPort, setShippingPort] = useState("");
   const [targetDeliveryDate, setTargetDeliveryDate] = useState("");
   const [requestTitle, setRequestTitle] = useState("");
   const [generalNotes, setGeneralNotes] = useState("");
+
+  // Automatically prefill customer profile when signed in
+  useEffect(() => {
+    if (user) {
+      if (user.name && !buyerName) setBuyerName(user.name);
+      if (user.email && !buyerEmail) setBuyerEmail(user.email);
+      if (user.phone && !buyerPhone) setBuyerPhone(user.phone);
+      if (user.company_name && !companyName) setCompanyName(user.company_name);
+      if (user.tax_id && !taxNumber) setTaxNumber(user.tax_id);
+    }
+  }, [user]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedRfqNumber, setSubmittedRfqNumber] = useState<string | null>(null);
@@ -79,6 +92,7 @@ export default function RfqPage() {
     setIsSubmitting(true);
     try {
       const created = await createRfq({
+        userId: user ? String(user.id) : undefined,
         buyerName,
         buyerEmail,
         buyerPhone,
@@ -166,7 +180,7 @@ export default function RfqPage() {
 
   return (
     <div className="w-full bg-background min-h-screen py-8 sm:py-12">
-      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="mx-auto w-full max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         
         {/* Page Header */}
         <div className="pb-6 border-b border-border/70 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -238,7 +252,7 @@ export default function RfqPage() {
                           <img
                             src={item.image}
                             alt={item.productName}
-                            className="w-16 aspect-[4/5] object-contain rounded-lg bg-secondary/40 shrink-0 border border-border/50 p-1"
+                            className="w-16 aspect-[3/4] object-contain rounded-lg bg-secondary/40 shrink-0 border border-border/50 p-1"
                           />
                           <div className="min-w-0">
                             <span className="text-xs font-bold uppercase tracking-wider text-primary block">
@@ -248,12 +262,12 @@ export default function RfqPage() {
                               {item.productName}
                             </h3>
                             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
-                              <span>Color: <strong className="text-foreground">{item.selectedColor}</strong></span>
+                              <span>Assortment: <strong className="text-foreground">Universal Package</strong></span>
                               <span>•</span>
-                              <span>Size: <strong className="text-foreground">{item.selectedSize}</strong></span>
+                              <span>MOQ: <strong className="text-foreground">1 pkg ({item.moq} pcs)</strong></span>
                             </div>
                             <span className="text-xs text-muted-foreground block mt-0.5">
-                              Wholesale Est: ${item.unitPrice?.toFixed(2)}/pc • MOQ: {item.moq} pcs
+                              Wholesale Est: ${item.unitPrice?.toFixed(2)}/pc • {Math.max(1, Math.round(item.quantity / item.moq))} {Math.max(1, Math.round(item.quantity / item.moq)) === 1 ? "pkg" : "pkgs"} ({item.quantity} pcs total)
                             </span>
                           </div>
                         </div>
@@ -261,15 +275,26 @@ export default function RfqPage() {
                         {/* Quantity & Actions */}
                         <div className="flex sm:flex-col items-end gap-2 self-stretch sm:self-auto justify-between sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0 border-border/50">
                           <div className="flex items-center gap-2">
-                            <label className="text-xs font-semibold text-muted-foreground">Qty:</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => updateRfqItemQuantity(item.id, parseInt(e.target.value) || 1)}
-                              className="w-20 px-2 py-1 text-xs font-bold border border-border rounded-lg bg-card text-foreground focus:ring-1 focus:ring-primary"
-                            />
-                            <span className="text-xs text-muted-foreground">pcs</span>
+                            <label className="text-xs font-semibold text-muted-foreground">Packages:</label>
+                            <div className="flex items-center border border-border rounded-lg h-7 bg-card">
+                              <button
+                                type="button"
+                                className="w-7 h-full flex items-center justify-center hover:bg-secondary rounded-l-lg transition-colors font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                onClick={() => updateRfqItemQuantity(item.id, Math.max(item.moq, item.quantity - item.moq))}
+                                disabled={item.quantity <= item.moq}
+                                aria-label="Decrease packages"
+                              >−</button>
+                              <span className="px-2 text-center text-xs font-bold tabular-nums">
+                                {Math.max(1, Math.round(item.quantity / item.moq))}
+                              </span>
+                              <button
+                                type="button"
+                                className="w-7 h-full flex items-center justify-center hover:bg-secondary rounded-r-lg transition-colors font-bold text-xs cursor-pointer"
+                                onClick={() => updateRfqItemQuantity(item.id, item.quantity + item.moq)}
+                                aria-label="Increase packages"
+                              >+</button>
+                            </div>
+                            <span className="text-xs text-muted-foreground tabular-nums">({item.quantity} pcs)</span>
                           </div>
 
                           {isBelowMoq && (

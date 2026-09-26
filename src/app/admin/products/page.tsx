@@ -12,7 +12,7 @@ import {
   togglePublishStatus,
 } from "@/lib/services/products";
 import { getBrands } from "@/lib/services/brands";
-import { mockStore } from "@/lib/mock-data/mock-store";
+import { categoryService } from "@/services/category.service";
 
 import {
   ProductSummaryMetrics,
@@ -85,7 +85,7 @@ export default function AdminProductsPage() {
       }
 
       try {
-        const cats = mockStore.getCategories();
+        const cats = await categoryService.getCategories({ all: true });
         setCategoriesList(cats.map((c) => ({ id: String(c.id), name: c.name })));
       } catch {
         // Use empty list

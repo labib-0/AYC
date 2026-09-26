@@ -1,4 +1,4 @@
-import { mockStore } from "@/lib/mock-data/mock-store";
+import { apiClient } from "@/services/api-client";
 
 // ============================================================================
 // Unified Low-Stock Threshold & Status Logic (Single Source of Truth)
@@ -128,82 +128,94 @@ export class AdminInventoryService {
     total: number;
     per_page: number;
   }> {
-    let list = mockStore.getInventory();
-
-    // 1. Filter by Search Query
-    if (params?.search) {
-      const q = params.search.trim().toLowerCase();
-      list = list.filter((i) => {
-        const titleMatch = i.variant?.title?.toLowerCase().includes(q);
-        const productNameMatch = i.variant?.product?.name?.toLowerCase().includes(q);
-        const variantSkuMatch = i.variant?.sku?.toLowerCase().includes(q);
-        const productSkuMatch = i.variant?.product?.sku?.toLowerCase().includes(q);
-        const brandMatch = i.variant?.product?.brand?.toLowerCase().includes(q);
-        return Boolean(titleMatch || productNameMatch || variantSkuMatch || productSkuMatch || brandMatch);
-      });
+    try {
+      const res = await apiClient.get<any>("/admin/inventory", { params: params as any });
+      const data = res?.data || res;
+      const items = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+      return {
+        data: items,
+        current_page: data?.current_page || 1,
+        last_page: data?.last_page || 1,
+        total: data?.total !== undefined ? Number(data.total) : items.length,
+        per_page: data?.per_page || (params?.per_page ?? 20),
+      };
+    } catch (err) {
+      console.warn("Failed to fetch inventory from API, returning empty database state:", err);
+      return {
+        data: [],
+        current_page: 1,
+        last_page: 1,
+        total: 0,
+        per_page: params?.per_page ?? 20,
+      };
     }
-
-    // 2. Filter by Stock Status (Unified Threshold)
-    const effectiveStatus = params?.status || (params?.low_stock ? "LOW_STOCK" : "ALL");
-    if (effectiveStatus === "LOW_STOCK") {
-      list = list.filter((i) => isLowStock(i.quantity));
-    } else if (effectiveStatus === "OUT_OF_STOCK") {
-      list = list.filter((i) => isOutOfStock(i.quantity));
-    } else if (effectiveStatus === "IN_STOCK") {
-      list = list.filter((i) => isInStock(i.quantity));
-    }
-
-    const page = params?.page ?? 1;
-    const perPage = params?.per_page ?? 20;
-    const start = (page - 1) * perPage;
-    const sliced = list.slice(start, start + perPage);
-
-    return {
-      data: sliced,
-      current_page: page,
-      last_page: Math.max(1, Math.ceil(list.length / perPage)),
-      total: list.length,
-      per_page: perPage,
-    };
   }
 
   async getInventorySummary(): Promise<InventorySummary> {
-    const list = mockStore.getInventory();
-
-    let inStock = 0;
-    let lowStock = 0;
-    let outOfStock = 0;
-    let totalQuantity = 0;
-
-    for (const item of list) {
-      totalQuantity += item.quantity;
-      const status = getStockStatus(item.quantity);
-      if (status === "OUT_OF_STOCK") outOfStock++;
-      else if (status === "LOW_STOCK") lowStock++;
-      else inStock++;
+    try {
+      const res = await apiClient.get<any>("/admin/inventory/summary");
+      const data = res?.data || res;
+      if (data && typeof data.totalItems === "number") {
+        return {
+          totalItems: Number(data.totalItems || 0),
+          inStock: Number(data.inStock || 0),
+          lowStock: Number(data.lowStock || 0),
+          outOfStock: Number(data.outOfStock || 0),
+          totalQuantity: Number(data.totalQuantity || 0),
+        };
+      }
+      return {
+        totalItems: 0,
+        inStock: 0,
+        lowStock: 0,
+        outOfStock: 0,
+        totalQuantity: 0,
+      };
+    } catch (err) {
+      console.warn("Failed to fetch inventory summary from API, returning zero state:", err);
+      return {
+        totalItems: 0,
+        inStock: 0,
+        lowStock: 0,
+        outOfStock: 0,
+        totalQuantity: 0,
+      };
     }
-
-    return {
-      totalItems: list.length,
-      inStock,
-      lowStock,
-      outOfStock,
-      totalQuantity,
-    };
   }
 
   async adjustInventory(payload: InventoryAdjustmentPayload): Promise<InventoryRecord | null> {
-    return mockStore.adjustInventory(payload);
+    try {
+      const res = await apiClient.post<any>("/admin/inventory/adjust", payload);
+      const data = res?.data || res;
+      return (data?.inventory || data) as InventoryRecord;
+    } catch (err) {
+      console.error("Failed to adjust inventory via API:", err);
+      throw err;
+    }
   }
 
   async getWarehouses(): Promise<Warehouse[]> {
-    return mockStore.getWarehouses();
+    try {
+      const res = await apiClient.get<any>("/admin/warehouses");
+      const list = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(list)) return list;
+      return [];
+    } catch (err) {
+      console.warn("Failed to fetch warehouses from API:", err);
+      return [];
+    }
   }
 
   async getInventoryItemHistory(inventoryId: number): Promise<InventoryRecord["adjustments"]> {
-    const list = mockStore.getInventory();
-    const item = list.find((i) => i.id === inventoryId);
-    return item?.adjustments || [];
+    try {
+      const res = await apiClient.get<any>(`/admin/inventory/${inventoryId}/history`);
+      const data = res?.data || res;
+      if (Array.isArray(data)) return data;
+      return [];
+    } catch (err) {
+      console.warn("Failed to fetch inventory history from API:", err);
+      return [];
+    }
   }
 }
 

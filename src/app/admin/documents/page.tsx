@@ -14,7 +14,8 @@ import {
   Layers,
   Sparkles
 } from "lucide-react";
-import { mockStore } from "@/lib/mock-data/mock-store";
+import { adminOrderService } from "@/services/admin/order.service";
+import { getAllQuotations } from "@/lib/services/quotations";
 import { OrderRecord } from "@/services/order.service";
 import { QuotationRecord, CommercialDocType } from "@/types/b2b";
 
@@ -54,13 +55,17 @@ export default function AdminDocumentsHubPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const orderList = mockStore.getOrders();
-      const quoteList = mockStore.getQuotations();
-      setOrders(orderList);
-      setQuotations(quoteList);
+      const [orderRes, quoteList] = await Promise.all([
+        adminOrderService.getOrders({ per_page: 100 }),
+        getAllQuotations(),
+      ]);
+      setOrders(orderRes.data || []);
+      setQuotations(quoteList || []);
+    } catch (err) {
+      console.error("Failed to load documents data:", err);
     } finally {
       setLoading(false);
     }
@@ -533,7 +538,7 @@ export default function AdminDocumentsHubPage() {
                       </td>
 
                       <td className="py-3.5 px-4 text-right font-mono font-bold text-foreground">
-                        ${item.amount.toFixed(2)}
+                        ${Number(item.amount || 0).toFixed(2)}
                       </td>
 
                       <td className="py-3.5 px-4">

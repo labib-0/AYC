@@ -13,7 +13,8 @@ import {
   LogOut,
   Heart,
   MessageCircle,
-  ChevronDown
+  ChevronDown,
+  FileText,
 } from "lucide-react";
 import LocationModal from "./LocationModal";
 import LanguageCurrencyModal from "./LanguageCurrencyModal";
@@ -24,6 +25,7 @@ import { useCart } from "@/lib/CartContext";
 import { useWishlist } from "@/lib/WishlistContext";
 import { usePreferences } from "@/lib/PreferencesContext";
 import { useAuth } from "@/lib/AuthContext";
+import { useRfq } from "@/lib/RfqContext";
 import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
 
 const AUDIENCE_MENU_ITEMS = [
@@ -42,6 +44,10 @@ const PRODUCT_CATEGORY_MENU_ITEMS = [
   { label: "TROUSERS", href: "/search?category=Trousers" },
   { label: "PANTS", href: "/search?category=Pants" },
   { label: "SHORTS", href: "/search?category=Shorts" },
+  { label: "JACKETS", href: "/search?category=Jackets" },
+  { label: "POLO SHIRTS", href: "/search?category=Polo%20Shirts" },
+  { label: "ACTIVEWEAR", href: "/search?category=Activewear" },
+  { label: "KNITWEAR", href: "/search?category=Knitwear" },
   { label: "SHIRTS", href: "/search?category=Shirts" },
   { label: "BEACHWEAR", href: "/search?category=Beachwear" },
   { label: "SOCKS", href: "/search?category=Socks" },
@@ -99,6 +105,7 @@ function HeaderContent() {
   const { totalWishlistItems } = useWishlist();
   const { preferences } = usePreferences();
   const { user, signOut } = useAuth();
+  const { totalRfqCount } = useRfq();
 
   // Optimized single-listener scroll detection with hysteresis and requestAnimationFrame
   useEffect(() => {
@@ -268,7 +275,7 @@ function HeaderContent() {
         }`}
       >
         {/* DESKTOP HEADER (Untouched, Full Desktop Bar) */}
-        <div className="hidden lg:flex items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-10 py-3 gap-6 text-white max-w-[1600px] mx-auto">
+        <div className="hidden lg:flex items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-8 py-3 gap-6 text-white max-w-[1728px] 2xl:max-w-[1760px] mx-auto">
           {/* Logo */}
           <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 shrink-0 group" aria-label="Ayaan Clothing Home">
             <BrandName className="font-black text-2xl xl:text-3xl tracking-widest text-white group-hover:text-white/90 transition-colors" />
@@ -390,6 +397,22 @@ function HeaderContent() {
                 </span>
               )}
             </button>
+
+            {/* RFQ Cart / Quote */}
+            <Link
+              href="/rfq"
+              className="relative inline-flex items-center justify-center h-10 px-3.5 rounded-full border border-white/20 hover:bg-white/10 text-white/90 hover:text-white transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer gap-2 text-xs font-semibold uppercase tracking-wider"
+              aria-label="Request For Quotation (RFQ)"
+              title="Request Wholesale Quotation"
+            >
+              <FileText size={16} strokeWidth={1.5} className="text-white/80" />
+              <span>RFQ</span>
+              {totalRfqCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[0.625rem] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-xs">
+                  {totalRfqCount}
+                </span>
+              )}
+            </Link>
 
             {/* Account / Profile */}
             {user ? (
@@ -833,6 +856,43 @@ function HeaderContent() {
                     <span className="font-semibold text-sm">My Orders</span>
                   </div>
                   <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Orders</span>
+                </Link>
+                <Link 
+                  href="/dashboard/quotes"
+                  className="flex items-center justify-between py-2 text-white/90"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText size={18} strokeWidth={1.5} />
+                    <span className="font-semibold text-sm">Quotes & RFQs</span>
+                  </div>
+                  <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Quotes</span>
+                </Link>
+                <Link 
+                  href="/dashboard/documents"
+                  className="flex items-center justify-between py-2 text-white/90"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText size={18} strokeWidth={1.5} />
+                    <span className="font-semibold text-sm">Trade Documents</span>
+                  </div>
+                  <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Docs</span>
+                </Link>
+                <Link 
+                  href="/rfq"
+                  className="flex items-center justify-between py-2 text-white/90 hover:text-white font-medium"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText size={18} strokeWidth={1.5} className="text-white/70" />
+                    <span className="text-sm">Request a Quote (RFQ)</span>
+                  </div>
+                  {totalRfqCount > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[0.6875rem] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-xs">
+                      {totalRfqCount}
+                    </span>
+                  )}
                 </Link>
                 <button 
                   type="button"

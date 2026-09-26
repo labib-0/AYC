@@ -20,6 +20,7 @@ import {
   OrderStatusTransitionCard,
   OrderStatusHistory,
 } from "@/components/admin/orders";
+import type { PaymentVerificationDetails } from "@/components/admin/orders/PaymentProofReview";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
 
@@ -170,7 +171,46 @@ export default function AdminOrderDetailPage({
     }
   };
 
-  // 5. Payment Proof Review (Approve / Reject)
+  // 5. Payment Verification Workflow (Approve / Reject)
+  const handleApprovePayment = async (details: PaymentVerificationDetails) => {
+    if (!order) return;
+    setActionLoading(true);
+
+    try {
+      const updated = await adminOrderService.reviewPaymentProof(
+        order.id,
+        "approve",
+        details.note,
+        details
+      );
+      setOrder(updated);
+      addToast("success", "Payment verified and order confirmed! Order is now marked as PAID.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Payment verification failed.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectPayment = async (note: string) => {
+    if (!order) return;
+    setActionLoading(true);
+
+    try {
+      const updated = await adminOrderService.reviewPaymentProof(
+        order.id,
+        "reject",
+        note
+      );
+      setOrder(updated);
+      addToast("success", "Submitted payment marked as rejected.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Payment rejection failed.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleOpenReviewModal = (action: "approve" | "reject") => {
     setReviewAction(action);
     setIsReviewModalOpen(true);
@@ -281,11 +321,12 @@ export default function AdminOrderDetailPage({
             actionLoading={actionLoading}
           />
 
-          {/* Offline Payment Proof Review */}
+          {/* Payment Verification Section */}
           <PaymentProofReview
             order={order}
-            onApprove={() => handleOpenReviewModal("approve")}
-            onReject={() => handleOpenReviewModal("reject")}
+            onApprove={handleApprovePayment}
+            onReject={handleRejectPayment}
+            isLoading={actionLoading}
           />
 
           {/* Chronological Audit Events Timeline */}

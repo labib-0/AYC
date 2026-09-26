@@ -1,6 +1,8 @@
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { generateMockDocument } from "@/lib/mock-data/mock-documents";
 import { getWhatsAppUrl } from "@/config/business-profile";
+import { apiClient } from "./api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export interface OrderItemRecord {
   id?: string;
@@ -111,6 +113,25 @@ export interface OrderRecord {
     email?: string;
     company_name?: string;
   };
+  payment_details?: {
+    payment_status?: string;
+    payment_method?: string;
+    transaction_id?: string;
+    payer_name?: string;
+    bank_name?: string;
+    account_number?: string;
+    payment_amount?: number;
+    currency?: string;
+    payment_date?: string;
+    notes?: string;
+    receipt_url?: string;
+    receipt_original_name?: string;
+    confirmed_at?: string;
+    confirmed_by_id?: number | string;
+    confirmed_by_name?: string;
+  } | null;
+  payment_confirmed_at?: string;
+  payments?: any[];
 }
 
 export interface CreateOrderInput {
@@ -167,6 +188,15 @@ export class OrderService {
    * Fetch all orders for a user
    */
   async getUserOrders(userId?: string | number): Promise<OrderRecord[]> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/orders");
+      const list = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(list)) {
+        return list.map((o: any) => this.normalizeOrderRecord(o));
+      }
+      return [];
+    }
+
     if (userId) {
       return mockStore.getUserOrders(userId);
     }
@@ -177,6 +207,20 @@ export class OrderService {
    * Fetch a single order by ID
    */
   async getOrderById(orderId: string): Promise<OrderRecord | null> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>(`/orders/${orderId}`);
+        const data = res?.data || res;
+        if (data && (data.id || data.order_number)) {
+          return this.normalizeOrderRecord(data);
+        }
+        return null;
+      } catch (err: any) {
+        if (err?.status === 404 || err?.statusCode === 404) return null;
+        throw err;
+      }
+    }
+
     return mockStore.getOrderById(orderId);
   }
 
@@ -184,6 +228,15 @@ export class OrderService {
    * Create an order
    */
   async createOrder(input: CreateOrderInput): Promise<OrderRecord> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>("/orders", input);
+      const data = res?.data || res;
+      if (data && (data.id || data.order_number)) {
+        return this.normalizeOrderRecord(data);
+      }
+      throw new Error("Invalid response received from order creation endpoint.");
+    }
+
     const totalUnits = input.items.reduce((sum, i) => sum + (i.quantity || 1), 0);
     const subtotal = input.items.reduce((sum, i) => sum + (i.unitPrice || 15) * (i.quantity || 1), 0);
     const requestedDiscount = input.discountAmount || 0;
@@ -310,6 +363,11 @@ export class OrderService {
    * Fetch official commercial document for an order
    */
   async getOrderCommercialDocument(orderId: string, docType: string): Promise<any> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>(`/orders/${orderId}/documents/${docType}`);
+      return res?.data || res;
+    }
+
     const order = mockStore.getOrderById(orderId);
     if (!order) {
       throw new Error("Order not found");
@@ -324,6 +382,18 @@ export class OrderService {
    * Fetch live carrier tracking status for an order
    */
   async getOrderTracking(orderId: string): Promise<any> {
+    if (!isFrontendOnly()) {
+      const order = await this.getOrderById(orderId);
+      return {
+        order_number: order?.order_number || orderId,
+        carrier: order?.carrier || "Aramex Express Air",
+        tracking_number: order?.tracking_number || "AWB-8801928374",
+        status: order?.carrier_status || "In Transit to Destination Airport",
+        last_updated: order?.last_carrier_update || "Cleared Export Customs at Dhaka (DAC)",
+        direct_url: (order as any)?.direct_tracking_url || getWhatsAppUrl(`Track Order ${order?.order_number || orderId}`),
+      };
+    }
+
     const order = mockStore.getOrderById(orderId);
     return {
       order_number: order?.order_number || orderId,
@@ -339,6 +409,11 @@ export class OrderService {
    * Cancel order
    */
   async cancelOrder(orderId: string, _userId: string | number, reason?: string): Promise<boolean> {
+    if (!isFrontendOnly()) {
+      await apiClient.post(`/orders/${orderId}/cancel`, { reason });
+      return true;
+    }
+
     const order = mockStore.getOrderById(orderId);
     if (order) {
       order.status = "cancelled";

@@ -9,7 +9,7 @@ import {
 } from "@/services/product.service";
 import { B2BProductInput } from "@/types/b2b";
 import { Product } from "@/types";
-import { INITIAL_MOCK_PRODUCTS } from "@/lib/mock-data/mock-products";
+import { homepageService } from "@/services/homepage.service";
 
 export { normalizeToB2BProduct, toStorefrontProduct, generateProductSku };
 export type { ProductQueryParams, SearchSuggestionsResult, PaginatedProductsResult };
@@ -100,6 +100,43 @@ export async function getFeaturedProducts(
   const offset = options.offset ?? 0;
   const limit = options.limit ?? 21;
 
+  const hasSpecificFilters = Boolean(
+    (options.brands && options.brands.length > 0) ||
+    (options.designTypes && options.designTypes.length > 0) ||
+    (options.audiences && options.audiences.length > 0) ||
+    (options.categories && options.categories.length > 0)
+  );
+
+  // When loading without active filters, use backend curated featured products in exact sort_order
+  if (!hasSpecificFilters) {
+    try {
+      const homepageData = await homepageService.getStorefrontHomepageData();
+      if (homepageData?.featured_products) {
+        const curated = homepageData.featured_products
+          .filter((fp) => fp.product && (fp.product.status === "published" || !fp.product.status))
+          .map((fp) => toStorefrontProduct(fp.product));
+
+        let list = curated;
+        if (isNew) {
+          const newOnly = list.filter((p) => p.isNew);
+          if (newOnly.length > 0) list = newOnly;
+        }
+
+        const total = list.length;
+        const sliced = list.slice(offset, offset + limit);
+        const hasMore = offset + sliced.length < total;
+
+        return {
+          products: sliced,
+          total,
+          hasMore,
+        };
+      }
+    } catch {
+      // Fall through to database query
+    }
+  }
+
   const queryParams: ProductQueryParams = {
     is_best_deal: isDeals ? true : undefined,
     is_new: isNew ? true : undefined,
@@ -121,148 +158,28 @@ export async function getFeaturedProducts(
   };
 }
 
-/**
- * Synchronous initial fallback for Featured Products to ensure instant SSR with 0 layout jump (max 21 products)
- */
 export function getInitialFeaturedProducts(
-  tab: "best-deals" | "new-arrivals",
-  limit: number = 21,
-  brands?: string[],
-  audiences?: string[],
-  categories?: string[],
-  designTypes?: string[]
+  _tab: "best-deals" | "new-arrivals",
+  _limit: number = 21,
+  _brands?: string[],
+  _audiences?: string[],
+  _categories?: string[],
+  _designTypes?: string[]
 ): Product[] {
-  const isDeals = tab === "best-deals";
-  let filtered = INITIAL_MOCK_PRODUCTS.filter((p) =>
-    isDeals ? p.isBestDeal : p.isNew
-  );
-
-  if (brands && brands.length > 0) {
-    filtered = filtered.filter((p) => {
-      const pBrandClean = (p.brand || "").toLowerCase().replace(/['’.\s-]/g, "");
-      const pBrandRaw = (p.brand || "").toLowerCase();
-      return brands.some((b) => {
-        const bLower = b.toLowerCase();
-        const bClean = bLower.replace(/^br_/, "").replace(/['’.\s-]/g, "");
-        return (
-          pBrandRaw === bLower ||
-          pBrandClean === bClean ||
-          pBrandRaw.includes(bLower) ||
-          bLower.includes(pBrandRaw) ||
-          pBrandClean.includes(bClean) ||
-          bClean.includes(pBrandClean)
-        );
-      });
-    });
-  }
-  if (designTypes && designTypes.length > 0) {
-    const dtUpper = designTypes.map((d) => {
-      const u = d.toUpperCase();
-      if (u === "REPLICA" || u === "MASTER_COPY" || u === "MASTER COPY" || u === "MC") return "MASTER COPY";
-      return u;
-    });
-    filtered = filtered.filter((p) => {
-      const rawDt = ((p as any).designType || "ORIGINAL").toUpperCase();
-      const pDt = (rawDt === "REPLICA" || rawDt === "MC") ? "MASTER COPY" : rawDt;
-      return dtUpper.includes(pDt);
-    });
-  }
-  if (audiences && audiences.length > 0) {
-    const aUpper = audiences.map((a) => a.toUpperCase());
-    filtered = filtered.filter((p) => {
-      const pAud = (p.audience || "").toUpperCase();
-      const pCatId = (p.categoryId || "").toUpperCase();
-      return aUpper.some((a) => pAud === a || pCatId.includes(a));
-    });
-  }
-  if (categories && categories.length > 0) {
-    const cleanCats = categories.map((c) => c.toLowerCase().replace(/[^a-z0-9]/g, ""));
-    filtered = filtered.filter((p) => {
-      const pCatName = (p.categoryName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const pCatId = (p.categoryId || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      return cleanCats.some(
-        (c) =>
-          pCatName === c ||
-          pCatId === c ||
-          pCatName.includes(c) ||
-          c.includes(pCatName) ||
-          pCatId.includes(c) ||
-          c.includes(pCatId)
-      );
-    });
-  }
-
-  return filtered.slice(0, limit).map(toStorefrontProduct);
+  return [];
 }
 
 /**
  * Synchronous initial fallback for Shop By Brand inline expansion (default 21 items)
  */
 export function getInitialBrandProducts(
-  brands: string[],
-  limit: number = 21,
-  audiences?: string[],
-  categories?: string[],
-  designTypes?: string[]
+  _brands: string[],
+  _limit: number = 21,
+  _audiences?: string[],
+  _categories?: string[],
+  _designTypes?: string[]
 ): Product[] {
-  let filtered = [...INITIAL_MOCK_PRODUCTS];
-
-  if (brands && brands.length > 0) {
-    filtered = filtered.filter((p) => {
-      const pBrandClean = (p.brand || "").toLowerCase().replace(/['’.\s-]/g, "");
-      const pBrandRaw = (p.brand || "").toLowerCase();
-      return brands.some((b) => {
-        const bLower = b.toLowerCase();
-        const bClean = bLower.replace(/^br_/, "").replace(/['’.\s-]/g, "");
-        return (
-          pBrandRaw === bLower ||
-          pBrandClean === bClean ||
-          pBrandRaw.includes(bLower) ||
-          bLower.includes(pBrandRaw) ||
-          pBrandClean.includes(bClean) ||
-          bClean.includes(pBrandClean)
-        );
-      });
-    });
-  }
-  if (designTypes && designTypes.length > 0) {
-    const dtUpper = designTypes.map((d) => {
-      const u = d.toUpperCase();
-      if (u === "REPLICA" || u === "MASTER_COPY" || u === "MASTER COPY" || u === "MC") return "MASTER COPY";
-      return u;
-    });
-    filtered = filtered.filter((p) => {
-      const rawDt = ((p as any).designType || "ORIGINAL").toUpperCase();
-      const pDt = (rawDt === "REPLICA" || rawDt === "MC") ? "MASTER COPY" : rawDt;
-      return dtUpper.includes(pDt);
-    });
-  }
-  if (audiences && audiences.length > 0) {
-    const aUpper = audiences.map((a) => a.toUpperCase());
-    filtered = filtered.filter((p) => {
-      const pAud = (p.audience || "").toUpperCase();
-      const pCatId = (p.categoryId || "").toUpperCase();
-      return aUpper.some((a) => pAud === a || pCatId.includes(a));
-    });
-  }
-  if (categories && categories.length > 0) {
-    const cleanCats = categories.map((c) => c.toLowerCase().replace(/[^a-z0-9]/g, ""));
-    filtered = filtered.filter((p) => {
-      const pCatName = (p.categoryName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const pCatId = (p.categoryId || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      return cleanCats.some(
-        (c) =>
-          pCatName === c ||
-          pCatId === c ||
-          pCatName.includes(c) ||
-          c.includes(pCatName) ||
-          pCatId.includes(c) ||
-          c.includes(pCatId)
-      );
-    });
-  }
-
-  return filtered.slice(0, limit).map(toStorefrontProduct);
+  return [];
 }
 
 /**

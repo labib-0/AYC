@@ -5,7 +5,7 @@ import { User } from "@/types/api";
 import { OrderRecord } from "@/services/order.service";
 import { RfqRecord, RfqStatus, RfqMessage, QuotationRecord, QuotationStatus } from "@/types/b2b";
 import { InventoryRecord, Warehouse, InventoryAdjustmentPayload } from "@/services/admin/inventory.service";
-import { PromotionRecord, CouponRecord } from "@/services/admin/promotion.service";
+import { CouponRecord } from "@/services/admin/coupon.service";
 
 import { INITIAL_MOCK_PRODUCTS, normalizeProductData } from "./mock-products";
 import { INITIAL_MOCK_CATEGORIES } from "./mock-categories";
@@ -15,7 +15,7 @@ import { INITIAL_MOCK_ORDERS } from "./mock-orders";
 import { INITIAL_MOCK_RFQS } from "./mock-rfqs";
 import { INITIAL_MOCK_QUOTATIONS } from "./mock-quotations";
 import { INITIAL_MOCK_INVENTORY, INITIAL_MOCK_WAREHOUSES } from "./mock-inventory";
-import { INITIAL_MOCK_PROMOTIONS, INITIAL_MOCK_COUPONS } from "./mock-promotions";
+import { INITIAL_MOCK_COUPONS } from "./mock-coupons";
 import BUSINESS_PROFILE, { BusinessProfile } from "@/config/business-profile";
 
 export interface SystemPreferences {
@@ -48,7 +48,6 @@ export const STORAGE_KEYS = {
   QUOTATIONS: "ayaan_mock_quotations_v2",
   INVENTORY: "ayaan_mock_inventory_v2",
   WAREHOUSES: "ayaan_mock_warehouses_v2",
-  PROMOTIONS: "ayaan_mock_promotions_v2",
   COUPONS: "ayaan_mock_coupons_v2",
   BUSINESS_PROFILE: "ayaan_mock_business_profile_v2",
   SYSTEM_PREFERENCES: "ayaan_mock_system_preferences_v2",
@@ -79,9 +78,10 @@ class MockStore {
       // Fallback
     }
 
-    this.inMemoryCache[key] = defaultValue;
-    this.setItem(key, defaultValue);
-    return defaultValue;
+    const clonedDefault = Array.isArray(defaultValue) ? ([...defaultValue] as unknown as T) : defaultValue;
+    this.inMemoryCache[key] = clonedDefault;
+    this.setItem(key, clonedDefault);
+    return clonedDefault;
   }
 
   private setItem<T>(key: string, value: T): void {
@@ -330,7 +330,12 @@ class MockStore {
     this.setItem(STORAGE_KEYS.ACTIVE_USER, user);
     if (user) {
       if (typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, `mock_token_${user.role}_${user.id}`);
+        const isFrontend = localStorage.getItem("ayaan_frontend_only_mode") === "true";
+        const currentToken = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+        // Prompt 7: NEVER overwrite a genuine backend token (Sanctum plainTextToken) with a mock token
+        if (isFrontend && (!currentToken || currentToken.startsWith("mock_token_"))) {
+          localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, `mock_token_${user.role}_${user.id}`);
+        }
       }
     } else {
       if (typeof window !== "undefined") {
@@ -355,7 +360,7 @@ class MockStore {
         name: userData.name || "New User",
         email: userData.email || `user${Date.now()}@example.com`,
         password: userData.password || "password",
-        role: userData.role === "admin" || userData.role === "sales" ? userData.role : "customer",
+        role: userData.role === "admin" ? "admin" : "customer",
         phone: userData.phone,
         company_name: userData.company_name,
         tax_id: userData.tax_id,
@@ -364,7 +369,6 @@ class MockStore {
         website: userData.website,
         b2b_approval_status: userData.b2b_approval_status || "approved",
         b2b_payment_terms: userData.b2b_payment_terms || "none",
-        b2b_credit_limit: userData.b2b_credit_limit || 0,
         is_active: userData.is_active ?? true,
         created_at: new Date().toISOString(),
       };
@@ -566,38 +570,16 @@ class MockStore {
   // ==========================================
   getInventory(): InventoryRecord[] {
     const raw = this.getItem<InventoryRecord[]>(STORAGE_KEYS.INVENTORY, INITIAL_MOCK_INVENTORY);
-    // Normalize legacy multi-warehouse localStorage data to single Uttara warehouse
-    let changed = false;
-    const normalized = raw.map((item) => {
-      if (
-        item.warehouse_id !== 1 ||
-        item.warehouse?.name !== "Uttara" ||
-        item.warehouse?.code !== "WH-UTT-01"
-      ) {
-        changed = true;
-        return {
-          ...item,
-          warehouse_id: 1,
-          warehouse: {
-            id: 1,
-            name: "Uttara",
-            code: "WH-UTT-01",
-            city: "Dhaka",
-            address: "House #33, Road #12, Sector #11, Uttara",
-            country_code: "BD",
-          },
-        };
-      }
-      return item;
-    });
-    if (changed) {
-      this.setItem(STORAGE_KEYS.INVENTORY, normalized);
-    }
-    return normalized;
+    if (!Array.isArray(raw)) return [];
+    return raw;
   }
 
   getWarehouses(): Warehouse[] {
-    return INITIAL_MOCK_WAREHOUSES;
+    const count = this.getInventory().length;
+    return INITIAL_MOCK_WAREHOUSES.map((w) => ({
+      ...w,
+      inventories_count: count,
+    }));
   }
 
   adjustInventory(payload: InventoryAdjustmentPayload): InventoryRecord | null {
@@ -633,50 +615,8 @@ class MockStore {
   }
 
   // ==========================================
-  // PROMOTIONS & COUPONS
+  // COUPONS
   // ==========================================
-  getPromotions(): PromotionRecord[] {
-    return this.getItem<PromotionRecord[]>(STORAGE_KEYS.PROMOTIONS, INITIAL_MOCK_PROMOTIONS);
-  }
-
-  savePromotion(promoData: Partial<PromotionRecord>): PromotionRecord {
-    const promos = this.getPromotions();
-    const existingIndex = promos.findIndex((p) => p.id === promoData.id);
-
-    let saved: PromotionRecord;
-    if (existingIndex >= 0) {
-      saved = { ...promos[existingIndex], ...promoData } as PromotionRecord;
-      promos[existingIndex] = saved;
-    } else {
-      saved = {
-        id: Date.now(),
-        title: promoData.title || "New Promotion",
-        subtitle: promoData.subtitle,
-        type: promoData.type || "banner",
-        image_url: promoData.image_url,
-        discount_percentage: promoData.discount_percentage || 10,
-        button_text: promoData.button_text || "Shop Now",
-        button_action: promoData.button_action || "navigate",
-        button_target: promoData.button_target || "/products",
-        starts_at: promoData.starts_at || new Date().toISOString(),
-        ends_at: promoData.ends_at,
-        sort_order: promoData.sort_order ?? promos.length + 1,
-        is_active: promoData.is_active ?? true,
-        created_at: new Date().toISOString(),
-      };
-      promos.unshift(saved);
-    }
-
-    this.setItem(STORAGE_KEYS.PROMOTIONS, promos);
-    return saved;
-  }
-
-  deletePromotion(id: number): boolean {
-    const promos = this.getPromotions().filter((p) => p.id !== id);
-    this.setItem(STORAGE_KEYS.PROMOTIONS, promos);
-    return true;
-  }
-
   getCoupons(): CouponRecord[] {
     const list = this.getItem<CouponRecord[]>(STORAGE_KEYS.COUPONS, INITIAL_MOCK_COUPONS);
     if (Array.isArray(list)) {
@@ -695,7 +635,7 @@ class MockStore {
   }
 
   saveCoupon(couponData: Partial<CouponRecord>): CouponRecord {
-    const coupons = this.getCoupons();
+    const coupons = [...this.getCoupons()];
     const existingIndex = coupons.findIndex((c) => c.id === couponData.id);
 
     let saved: CouponRecord;
@@ -736,8 +676,8 @@ class MockStore {
     }
   }
 
-  deleteCoupon(id: number): boolean {
-    const coupons = this.getCoupons().filter((c) => c.id !== id);
+  deleteCoupon(id: number | string): boolean {
+    const coupons = this.getCoupons().filter((c) => String(c.id) !== String(id));
     this.setItem(STORAGE_KEYS.COUPONS, coupons);
     return true;
   }
@@ -815,7 +755,6 @@ class MockStore {
         localStorage.removeItem(STORAGE_KEYS.QUOTATIONS);
         localStorage.removeItem(STORAGE_KEYS.INVENTORY);
         localStorage.removeItem(STORAGE_KEYS.WAREHOUSES);
-        localStorage.removeItem(STORAGE_KEYS.PROMOTIONS);
         localStorage.removeItem(STORAGE_KEYS.COUPONS);
         localStorage.removeItem(STORAGE_KEYS.BUSINESS_PROFILE);
         localStorage.removeItem(STORAGE_KEYS.SYSTEM_PREFERENCES);
@@ -838,7 +777,6 @@ class MockStore {
     this.setItem(STORAGE_KEYS.QUOTATIONS, INITIAL_MOCK_QUOTATIONS);
     this.setItem(STORAGE_KEYS.INVENTORY, INITIAL_MOCK_INVENTORY);
     this.setItem(STORAGE_KEYS.WAREHOUSES, INITIAL_MOCK_WAREHOUSES);
-    this.setItem(STORAGE_KEYS.PROMOTIONS, INITIAL_MOCK_PROMOTIONS);
     this.setItem(STORAGE_KEYS.COUPONS, INITIAL_MOCK_COUPONS);
     this.setItem(STORAGE_KEYS.BUSINESS_PROFILE, BUSINESS_PROFILE);
     this.setItem(STORAGE_KEYS.SYSTEM_PREFERENCES, INITIAL_SYSTEM_PREFERENCES);

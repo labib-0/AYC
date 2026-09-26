@@ -67,12 +67,6 @@ export default function CustomerStatusBadge({
       icon = <Shield size={size === "sm" ? 11 : 13} />;
       label = "Admin";
       break;
-    case "sales":
-      colorClasses = "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-500/30";
-      icon = <Award size={size === "sm" ? 11 : 13} />;
-      label = "Sales Rep";
-      break;
-    case "b2b_buyer":
     case "customer":
     default:
       colorClasses = "bg-secondary border border-border text-foreground";

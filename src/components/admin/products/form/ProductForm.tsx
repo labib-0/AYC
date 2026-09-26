@@ -1,19 +1,23 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Globe, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, Globe, AlertCircle, CheckCircle2, RotateCcw } from "lucide-react";
 import { B2BProductInput, B2BProductVariant } from "@/types/b2b";
-import { ShippingPackageProfile } from "@/types";
+import { ShippingPackageProfile, PackageAllocation } from "@/types";
 import { getBrands } from "@/lib/services/brands";
-import { mockStore } from "@/lib/mock-data/mock-store";
+import { categoryService } from "@/services/category.service";
 import { generateProductSku } from "@/lib/services/products";
+import { productDraftService } from "@/lib/services/product-draft.service";
+import AdminAuthModal from "@/components/admin/auth/AdminAuthModal";
+import { ApiError } from "@/services/api-client";
 
 import ProductBasicInfoSection from "./ProductBasicInfoSection";
 import ProductImagesSection from "./ProductImagesSection";
 import ProductPricingSection from "./ProductPricingSection";
 import ProductVariantsSection from "./ProductVariantsSection";
+import ProductPackageAssortmentSection from "./ProductPackageAssortmentSection";
 import ProductShippingSection from "./ProductShippingSection";
 import ProductSeoSection from "./ProductSeoSection";
 import ProductPublishSection from "./ProductPublishSection";
@@ -62,20 +66,28 @@ export default function ProductForm({
 
   // Media
   const [images, setImages] = useState<string[]>(initialData?.images || []);
+  const [videoUrl, setVideoUrl] = useState<string>(initialData?.videoUrl || (initialData as any)?.video_url || "");
 
   // Pricing
   const [wholesalePrice, setWholesalePrice] = useState(initialData?.wholesalePrice || 25.0);
-  const [moq, setMoq] = useState(initialData?.moq || 10);
   const [bulkThreshold, setBulkThreshold] = useState(initialData?.bulkThreshold || 100);
   const [bulkPrice, setBulkPrice] = useState(initialData?.bulkPrice || 20.0);
   const [fullStockPrice, setFullStockPrice] = useState<number | undefined>(initialData?.fullStockPrice);
   const [msrpPrice, setMsrpPrice] = useState<number | undefined>(initialData?.msrpPrice);
-  const [costPrice, setCostPrice] = useState<number | undefined>(initialData?.costPrice);
 
-  // Promotion
+  // Promotion with Independent Scheduling
   const [isNew, setIsNew] = useState(Boolean(initialData?.isNew));
+  const [newUntil, setNewUntil] = useState<string | null>(
+    (initialData as any)?.newUntil || (initialData as any)?.new_until || null
+  );
   const [isHot, setIsHot] = useState(Boolean(initialData?.isHot));
+  const [hotUntil, setHotUntil] = useState<string | null>(
+    (initialData as any)?.hotUntil || (initialData as any)?.hot_until || null
+  );
   const [isFeatured, setIsFeatured] = useState(Boolean(initialData?.isFeatured));
+  const [featuredUntil, setFeaturedUntil] = useState<string | null>(
+    (initialData as any)?.featuredUntil || (initialData as any)?.featured_until || null
+  );
 
   // Variants & Stock
   const [colors, setColors] = useState<string[]>(
@@ -86,22 +98,48 @@ export default function ProductForm({
   );
   const [stock, setStock] = useState(initialData?.stock ?? 500);
 
-  // Shipping Profiles
+  // Authoritative Universal Package Assortment
+  const [packageAllocations, setPackageAllocations] = useState<PackageAllocation[]>(() => {
+    const raw = initialData?.packageAllocations || (initialData as any)?.package_allocations;
+    if (Array.isArray(raw) && raw.length > 0) {
+      return raw.map((a: any) => ({
+        id: a.id,
+        package_name: a.package_name || "Universal Package",
+        color: a.color || null,
+        size: a.size || null,
+        quantity: Number(a.quantity ?? 0),
+        product_variant_id: a.product_variant_id ?? null,
+      }));
+    }
+    return [];
+  });
+
+  // Minimum Order Quantity (MOQ) — Derived automatically from Universal Package Total
+  const packageTotalUnits = useMemo(() => {
+    return packageAllocations.reduce((sum, a) => sum + (Number(a.quantity) || 0), 0);
+  }, [packageAllocations]);
+
+  const moq = packageTotalUnits > 0 ? packageTotalUnits : (initialData?.moq || 0);
+
+  // Single Shipping & Packaging Logistics Profile
   const [shippingProfiles, setShippingProfiles] = useState<ShippingPackageProfile[]>(() => {
     const raw = initialData?.shippingPackageProfiles || initialData?.shipping_package_profiles;
     if (Array.isArray(raw) && raw.length > 0) {
-      return raw.map((p) => ({
-        ...p,
-        package_quantity: Number(p.package_quantity || 10),
-        carton_count: Number(p.carton_count || 1),
-        carton_length: Number(p.carton_length || 60),
-        carton_width: Number(p.carton_width || 40),
-        carton_height: Number(p.carton_height || 30),
-        dimension_unit: (p.dimension_unit || "cm") as "cm" | "in" | "m",
-        gross_weight: Number(p.gross_weight || 15),
-        weight_unit: (p.weight_unit || "kg") as "kg" | "lbs",
-        is_active: true,
-      }));
+      const p = raw[0];
+      return [
+        {
+          ...p,
+          package_quantity: Number(p.package_quantity || initialData?.moq || 10),
+          carton_count: Number(p.carton_count || 1),
+          carton_length: Number(p.carton_length || 60),
+          carton_width: Number(p.carton_width || 40),
+          carton_height: Number(p.carton_height || 30),
+          dimension_unit: (p.dimension_unit || "cm") as "cm" | "in" | "m",
+          gross_weight: Number(p.gross_weight || 15),
+          weight_unit: (p.weight_unit || "kg") as "kg" | "lbs",
+          is_active: true,
+        },
+      ];
     }
     return [
       {
@@ -118,6 +156,30 @@ export default function ProductForm({
     ];
   });
 
+  // Handler for package allocation updates (keeps MOQ & Shipping in sync)
+  const handlePackageAllocationsChange = (next: PackageAllocation[]) => {
+    setPackageAllocations(next);
+    const sum = next.reduce((acc, a) => acc + (Number(a.quantity) || 0), 0);
+    if (sum > 0 && bulkThreshold <= sum) {
+      setBulkThreshold(sum + 50);
+    }
+    setShippingProfiles((prev) => [
+      {
+        ...(prev[0] || {
+          carton_count: 1,
+          carton_length: 60,
+          carton_width: 40,
+          carton_height: 30,
+          dimension_unit: "cm",
+          gross_weight: 15,
+          weight_unit: "kg",
+          is_active: true,
+        }),
+        package_quantity: sum > 0 ? sum : 1,
+      },
+    ]);
+  };
+
   // SEO
   const [seoTitle, setSeoTitle] = useState(initialData?.seoTitle || initialData?.name || "");
   const [seoDescription, setSeoDescription] = useState(
@@ -125,10 +187,16 @@ export default function ProductForm({
   );
   const [keywords, setKeywords] = useState<string[]>(initialData?.keywords || []);
 
-  // Publish Status
+  // Publish Status: For a new product, status defaults to "draft" until published. For edit mode, respects initialData
   const [status, setStatus] = useState<"published" | "draft">(
-    initialData?.status === "draft" ? "draft" : "published"
+    initialData?.status === "published" ? "published" : "draft"
   );
+
+  // Draft Key & Local Recovery State
+  const draftKey = isEdit && initialData?.id ? String(initialData.id) : "new";
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"published" | "draft" | null>(null);
 
   // Submission & Validation States
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -136,13 +204,141 @@ export default function ProductForm({
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Snapshot constructor for current form state
+  const getCurrentDraftData = useCallback((): Partial<B2BProductInput> => {
+    return {
+      name,
+      slug,
+      brand,
+      brand_id: brandId ? String(brandId) : undefined,
+      brandLogo,
+      categoryId,
+      categoryName,
+      audience,
+      designType,
+      material,
+      description,
+      seoTitle,
+      seoDescription,
+      keywords,
+      images,
+      videoUrl,
+      wholesalePrice,
+      bulkThreshold,
+      bulkPrice,
+      fullStockPrice,
+      msrpPrice,
+      stock,
+      colors,
+      sizes,
+      packageAllocations,
+      shippingPackageProfiles: shippingProfiles,
+      isNew,
+      newUntil,
+      isHot,
+      hotUntil,
+      isFeatured,
+      featuredUntil,
+      status,
+    };
+  }, [
+    name, slug, brand, brandId, brandLogo, categoryId, categoryName,
+    audience, designType, material, description, seoTitle, seoDescription,
+    keywords, images, videoUrl, wholesalePrice, bulkThreshold, bulkPrice,
+    fullStockPrice, msrpPrice, stock, colors, sizes, packageAllocations,
+    shippingProfiles, isNew, newUntil, isHot, hotUntil, isFeatured,
+    featuredUntil, status
+  ]);
+
+  // Restore unsaved draft on mount if available
+  useEffect(() => {
+    const saved = productDraftService.getDraft(draftKey);
+    if (saved && saved.data) {
+      const d = saved.data;
+      if (d.name) setName(d.name);
+      if (d.slug) {
+        setSlug(d.slug);
+        setSlugManuallyEdited(true);
+      }
+      if (d.brand) setBrand(d.brand);
+      if (d.brand_id) setBrandId(d.brand_id);
+      if (d.brandLogo) setBrandLogo(d.brandLogo);
+      if (d.categoryId) setCategoryId(d.categoryId);
+      if (d.categoryName) setCategoryName(d.categoryName);
+      if (d.audience) setAudience(d.audience);
+      if (d.designType) setDesignType(d.designType);
+      if (d.material) setMaterial(d.material);
+      if (d.description) setDescription(d.description);
+      if (d.seoTitle) setSeoTitle(d.seoTitle);
+      if (d.seoDescription) setSeoDescription(d.seoDescription);
+      if (d.keywords) setKeywords(d.keywords);
+      if (d.images && d.images.length > 0) setImages(d.images);
+      if (d.videoUrl !== undefined) setVideoUrl(d.videoUrl);
+      if (d.wholesalePrice !== undefined) setWholesalePrice(d.wholesalePrice);
+      if (d.bulkThreshold !== undefined) setBulkThreshold(d.bulkThreshold);
+      if (d.bulkPrice !== undefined) setBulkPrice(d.bulkPrice);
+      if (d.fullStockPrice !== undefined) setFullStockPrice(d.fullStockPrice);
+      if (d.msrpPrice !== undefined) setMsrpPrice(d.msrpPrice);
+      if (d.stock !== undefined) setStock(d.stock);
+      if (d.colors && d.colors.length > 0) setColors(d.colors);
+      if (d.sizes && d.sizes.length > 0) setSizes(d.sizes);
+      if (d.packageAllocations && d.packageAllocations.length > 0) setPackageAllocations(d.packageAllocations);
+      if (d.shippingPackageProfiles && d.shippingPackageProfiles.length > 0) setShippingProfiles(d.shippingPackageProfiles);
+      if (d.isNew !== undefined) setIsNew(d.isNew);
+      if (d.newUntil !== undefined) setNewUntil(d.newUntil);
+      if (d.isHot !== undefined) setIsHot(d.isHot);
+      if (d.hotUntil !== undefined) setHotUntil(d.hotUntil);
+      if (d.isFeatured !== undefined) setIsFeatured(d.isFeatured);
+      if (d.featuredUntil !== undefined) setFeaturedUntil(d.featuredUntil);
+      if ((d.status === "draft" || d.status === "published") && initialData?.status !== "published") {
+        setStatus(d.status);
+      }
+      setDraftRestored(true);
+    }
+  }, [draftKey, initialData?.status]);
+
+  // Debounced auto-save of current draft
+  useEffect(() => {
+    const hasData =
+      name.trim().length > 0 ||
+      description.trim().length > 0 ||
+      images.length > 0 ||
+      packageAllocations.length > 0 ||
+      wholesalePrice > 0 ||
+      colors.length > 0;
+
+    if (hasData) {
+      const timer = setTimeout(() => {
+        productDraftService.saveDraft(draftKey, getCurrentDraftData(), isEdit ? "edit" : "create");
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [draftKey, getCurrentDraftData, name, wholesalePrice, packageAllocations, isEdit, description, images.length, colors.length]);
+
+  // Immediate synchronous auto-save before page unload or visibility change
+  useEffect(() => {
+    const handleImmediateSave = () => {
+      productDraftService.saveDraft(draftKey, getCurrentDraftData(), isEdit ? "edit" : "create");
+    };
+
+    window.addEventListener("beforeunload", handleImmediateSave);
+    window.addEventListener("visibilitychange", handleImmediateSave);
+    return () => {
+      window.removeEventListener("beforeunload", handleImmediateSave);
+      window.removeEventListener("visibilitychange", handleImmediateSave);
+    };
+  }, [draftKey, getCurrentDraftData, isEdit]);
+
   // Load Reference Data
   useEffect(() => {
     async function loadRefs() {
+      const savedDraft = productDraftService.getDraft(draftKey);
+
       try {
         const bList = await getBrands({ all: true, isAdmin: true });
         setBrands(bList.map((b) => ({ id: b.id, name: b.name, logo_url: b.logo_url || b.logo })));
-        if (!brand && bList.length > 0 && !isEdit) {
+        const effectiveBrand = savedDraft?.data?.brand || brand;
+        if (!effectiveBrand && bList.length > 0 && !isEdit) {
           setBrand(bList[0].name);
           setBrandId(bList[0].id);
           setBrandLogo(bList[0].logo_url || bList[0].logo);
@@ -152,9 +348,10 @@ export default function ProductForm({
       }
 
       try {
-        const cList = mockStore.getCategories();
+        const cList = await categoryService.getCategories({ all: true });
         setCategories(cList.map((c) => ({ id: String(c.id), name: c.name })));
-        if (!categoryId && cList.length > 0 && !isEdit) {
+        const effectiveCatId = savedDraft?.data?.categoryId || categoryId;
+        if (!effectiveCatId && cList.length > 0 && !isEdit) {
           setCategoryId(String(cList[0].id));
           setCategoryName(cList[0].name);
         }
@@ -163,7 +360,7 @@ export default function ProductForm({
       }
     }
     loadRefs();
-  }, [brand, categoryId, isEdit]);
+  }, [brand, categoryId, draftKey, isEdit]);
 
   // Auto-generate slug from name in Create mode (unless manually edited)
   const handleNameChange = (val: string) => {
@@ -228,10 +425,21 @@ export default function ProductForm({
 
     if (wholesalePrice <= 0) errs.wholesalePrice = "Wholesale price must be greater than $0.00.";
 
-    if (moq <= 0) errs.moq = "Minimum order quantity (MOQ) must be at least 1 unit.";
+    if (packageAllocations.length === 0 || packageTotalUnits <= 0) {
+      errs.package_allocations = "Package assortment must have at least one unit configured to determine MOQ.";
+    } else {
+      for (const a of packageAllocations) {
+        if (!Number.isInteger(a.quantity) || a.quantity < 0) {
+          errs.package_allocations = "Package allocation quantities must be non-negative whole integers.";
+          break;
+        }
+      }
+    }
+
+    if (moq <= 0) errs.moq = "Minimum order quantity (MOQ) must be at least 1 unit (configure package assortment).";
 
     if (bulkThreshold <= moq) {
-      errs.bulkThreshold = `Bulk threshold (${bulkThreshold}) must be greater than MOQ (${moq}).`;
+      errs.bulkThreshold = `Bulk threshold (${bulkThreshold}) must be strictly greater than MOQ (${moq}).`;
     }
 
     if (bulkPrice <= 0) errs.bulkPrice = "Bulk tier price must be greater than $0.00.";
@@ -317,40 +525,98 @@ export default function ProductForm({
         keywords: keywords,
         material: material.trim(),
         images: images.length > 0 ? images : ["/placeholder.jpg"],
+        videoUrl: videoUrl.trim() || undefined,
+        video_url: videoUrl.trim() || undefined,
         wholesalePrice: wholesalePrice,
         standardPrice: wholesalePrice,
         bulkThreshold: bulkThreshold,
         bulkPrice: bulkPrice,
         fullStockPrice: fullStockPrice,
         msrpPrice: msrpPrice,
-        costPrice: costPrice,
         moq: moq,
         stock: stock,
         status: targetStatus,
         isNew: isNew,
+        newUntil: isNew ? newUntil : null,
+        new_until: isNew ? newUntil : null,
         isHot: isHot,
+        hotUntil: isHot ? hotUntil : null,
+        hot_until: isHot ? hotUntil : null,
         isFeatured: isFeatured,
+        featuredUntil: isFeatured ? featuredUntil : null,
+        featured_until: isFeatured ? featuredUntil : null,
         colors: colors,
         sizes: sizes,
         variants: variants,
         pricingTiers: pricingTiers,
+        packageAllocations: packageAllocations,
+        package_allocations: packageAllocations,
         shippingPackageProfiles: shippingProfiles,
         shipping_package_profiles: shippingProfiles,
       };
 
       await onSubmit(payload);
+      
+      // On success: clear draft, update status, notify
+      productDraftService.clearDraft(draftKey);
+      setStatus(targetStatus);
       setSaveSuccess(true);
+      setDraftRestored(false);
 
-      // In create mode, redirect to the product list or edit route
       if (!isEdit) {
         setTimeout(() => {
           router.push(backHref);
         }, 800);
       }
     } catch (err: unknown) {
+      // 1. Authentication Failure (401)
+      const is401 =
+        (err instanceof ApiError && err.status === 401) ||
+        (err instanceof Error && err.message.toLowerCase().includes("unauthenticated"));
+
+      if (is401) {
+        productDraftService.saveDraft(draftKey, getCurrentDraftData(), isEdit ? "edit" : "create");
+        setPendingAction(targetStatus);
+        setIsAuthModalOpen(true);
+        setGeneralError("Authentication required: Your session has expired. All product draft data has been preserved. Please sign in to continue.");
+        return;
+      }
+
+      // 2. Authorization Failure (403)
+      const is403 =
+        (err instanceof ApiError && err.status === 403) ||
+        (err instanceof Error && (err.message.toLowerCase().includes("unauthorized") || err.message.toLowerCase().includes("forbidden")));
+
+      if (is403) {
+        setGeneralError("Permission Denied (403): You are signed in, but your account lacks administrator permission to publish products.");
+        return;
+      }
+
+      // 3. Validation Failure (422)
+      if (err instanceof ApiError && err.status === 422) {
+        if (err.errors) {
+          const mapped: Record<string, string> = {};
+          Object.entries(err.errors).forEach(([k, msgs]) => {
+            mapped[k] = Array.isArray(msgs) ? msgs.join(" ") : String(msgs);
+          });
+          setErrors((prev) => ({ ...prev, ...mapped }));
+        }
+        setGeneralError(err.message || "Please check the highlighted product fields.");
+        return;
+      }
+
+      // 4. General / Server Error
       setGeneralError(err instanceof Error ? err.message : "An error occurred while saving the product.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleAuthModalSuccess = async () => {
+    setIsAuthModalOpen(false);
+    setGeneralError(null);
+    if (pendingAction) {
+      await handleSaveWithStatus(pendingAction);
     }
   };
 
@@ -416,6 +682,26 @@ export default function ProductForm({
           </button>
         </div>
       </div>
+
+      {/* Draft Restored Banner */}
+      {draftRestored && (
+        <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>Unsaved product draft restored from previous session. All entered configurations are ready to continue.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              productDraftService.clearDraft(draftKey);
+              setDraftRestored(false);
+            }}
+            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-amber-400/40 hover:bg-amber-500/20 transition-colors cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* General Notification / Error Banners */}
       {generalError && (
@@ -483,6 +769,16 @@ export default function ProductForm({
             onStockChange={setStock}
           />
 
+          {/* Section 2.5: Authoritative Manual Package Assortment Matrix */}
+          <ProductPackageAssortmentSection
+            colors={colors}
+            sizes={sizes}
+            allocations={packageAllocations}
+            moq={moq}
+            onAllocationsChange={handlePackageAllocationsChange}
+            errors={errors}
+          />
+
           {/* Section 3: Shipping Logistics */}
           <ProductShippingSection
             profiles={shippingProfiles}
@@ -508,27 +804,39 @@ export default function ProductForm({
             bulkPrice={bulkPrice}
             fullStockPrice={fullStockPrice}
             msrpPrice={msrpPrice}
-            costPrice={costPrice}
             isNew={isNew}
+            newUntil={newUntil}
             isHot={isHot}
+            hotUntil={hotUntil}
             isFeatured={isFeatured}
+            featuredUntil={featuredUntil}
             errors={errors}
             onWholesalePriceChange={setWholesalePrice}
-            onMoqChange={setMoq}
+            onMoqChange={() => {}}
             onBulkThresholdChange={setBulkThreshold}
             onBulkPriceChange={setBulkPrice}
             onFullStockPriceChange={setFullStockPrice}
             onMsrpPriceChange={setMsrpPrice}
-            onCostPriceChange={setCostPrice}
-            onIsNewChange={setIsNew}
-            onIsHotChange={setIsHot}
-            onIsFeaturedChange={setIsFeatured}
+            onIsNewChange={(val, until) => {
+              setIsNew(val);
+              setNewUntil(val ? (until ?? null) : null);
+            }}
+            onIsHotChange={(val, until) => {
+              setIsHot(val);
+              setHotUntil(val ? (until ?? null) : null);
+            }}
+            onIsFeaturedChange={(val, until) => {
+              setIsFeatured(val);
+              setFeaturedUntil(val ? (until ?? null) : null);
+            }}
           />
 
-          {/* Section 6: Product Images */}
+          {/* Section 6: Product Images & Media */}
           <ProductImagesSection
             images={images}
+            videoUrl={videoUrl}
             onChange={setImages}
+            onVideoUrlChange={setVideoUrl}
             error={errors.images}
           />
 
@@ -545,6 +853,15 @@ export default function ProductForm({
           />
         </div>
       </div>
+
+      {/* In-Place Admin Authentication Modal */}
+      <AdminAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthModalSuccess}
+        title="Sign In Required to Publish"
+        message="Your administrator session has expired or requires sign in. All product data has been safely preserved and will publish immediately once authenticated."
+      />
     </div>
   );
 }

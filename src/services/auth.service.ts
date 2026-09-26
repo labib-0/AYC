@@ -1,5 +1,6 @@
 import { apiClient, ApiError } from "./api-client";
 import { AuthResponse, User } from "@/types/api";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
 
 export interface LoginCredentials {
@@ -22,6 +23,18 @@ export class AuthService {
    * Log in user
    */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>("/auth/login", credentials);
+      const authData = "data" in res && res.data ? res.data : (res as AuthResponse);
+      if (authData?.token) {
+        apiClient.setToken(authData.token);
+      }
+      if (authData?.user) {
+        mockStore.setActiveUser(authData.user);
+      }
+      return authData;
+    }
+
     const email = credentials.email.trim().toLowerCase();
     const existing = mockStore.getUserByEmail(email);
 
@@ -61,6 +74,18 @@ export class AuthService {
    * Register new user
    */
   async register(data: RegisterData): Promise<AuthResponse> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>("/auth/register", data);
+      const authData = "data" in res && res.data ? res.data : (res as AuthResponse);
+      if (authData?.token) {
+        apiClient.setToken(authData.token);
+      }
+      if (authData?.user) {
+        mockStore.setActiveUser(authData.user);
+      }
+      return authData;
+    }
+
     const newUser = mockStore.saveUser({
       name: data.name,
       email: data.email,
@@ -84,6 +109,11 @@ export class AuthService {
    * Log out user
    */
   async logout(): Promise<void> {
+    if (!isFrontendOnly()) {
+      try {
+        await apiClient.post("/auth/logout");
+      } catch {}
+    }
     apiClient.removeToken();
     mockStore.setActiveUser(null);
   }
@@ -92,6 +122,33 @@ export class AuthService {
    * Get authenticated user profile
    */
   async getCurrentUser(): Promise<User | null> {
+    if (!isFrontendOnly()) {
+      const token = apiClient.getToken();
+      if (!token) return null;
+      try {
+        const res = await apiClient.get<any>("/auth/me");
+        const user = res?.data || res;
+        if (user && user.id) {
+          mockStore.setActiveUser(user);
+          return user;
+        }
+      } catch (err: any) {
+        // HARD RULE (Prompt 7): Only drop auth session if the server genuinely returned 401 Unauthenticated!
+        // 500, 502, 503, 504, 429, or network errors (status 0) MUST NOT log out the user!
+        if (err?.status === 401) {
+          apiClient.removeToken();
+          mockStore.setActiveUser(null);
+          return null;
+        }
+
+        // For temporary server blips or offline transitions, retain the cached active user session
+        const cached = mockStore.getActiveUser();
+        if (cached) {
+          return cached;
+        }
+        return null;
+      }
+    }
     return mockStore.getActiveUser();
   }
 
@@ -99,6 +156,16 @@ export class AuthService {
    * Update authenticated user profile
    */
   async updateProfile(data: Partial<User>): Promise<User> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.put<any>("/users/me", data);
+      const updated = res?.data || res;
+      if (updated && updated.id) {
+        mockStore.setActiveUser(updated);
+        return updated;
+      }
+      return updated;
+    }
+
     const current = mockStore.getActiveUser();
     if (current) {
       const updated = mockStore.saveUser({ ...current, ...data });
@@ -113,6 +180,10 @@ export class AuthService {
    * Request password reset link
    */
   async forgotPassword(email: string): Promise<{ message: string }> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>("/auth/forgot-password", { email });
+      return res?.data || res || { message: `Password reset instructions dispatched to ${email}.` };
+    }
     return {
       message: `Password reset instructions dispatched to ${email}.`,
     };
@@ -127,6 +198,10 @@ export class AuthService {
     password: string;
     password_confirmation: string;
   }): Promise<{ message: string }> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>("/auth/reset-password", data);
+      return res?.data || res || { message: "Your password has been successfully reset. You may now sign in." };
+    }
     const user = mockStore.getUserByEmail(data.email);
     if (user) {
       mockStore.saveUser({ ...user, password: data.password });

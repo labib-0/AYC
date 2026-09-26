@@ -6,3 +6,4 @@ export { default as ProductVariantsSection } from "./ProductVariantsSection";
 export { default as ProductShippingSection } from "./ProductShippingSection";
 export { default as ProductSeoSection } from "./ProductSeoSection";
 export { default as ProductPublishSection } from "./ProductPublishSection";
+export { default as ProductPackageAssortmentSection } from "./ProductPackageAssortmentSection";

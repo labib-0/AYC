@@ -7,6 +7,8 @@ import {
 import { updateRfqStatus } from "./rfq";
 import { mockStore, STORAGE_KEYS } from "@/lib/mock-data/mock-store";
 import BUSINESS_PROFILE from "@/config/business-profile";
+import { apiClient } from "@/services/api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export function getStoredQuotations(): QuotationRecord[] {
   return mockStore.getQuotations();
@@ -37,6 +39,39 @@ export function generatePiNumber(): string {
 export async function createQuotation(
   data: Omit<QuotationRecord, "id" | "quotationNumber" | "revisionNumber" | "status" | "createdAt" | "updatedAt">
 ): Promise<QuotationRecord> {
+  if (!isFrontendOnly()) {
+    const res = await apiClient.post<any>("/admin/quotations", {
+      rfq_id: data.rfqId,
+      buyer_name: data.buyerName,
+      buyer_email: data.buyerEmail,
+      buyer_phone: data.buyerPhone,
+      company_name: data.companyName,
+      destination_country: data.destinationCountry,
+      destination_city: data.destinationCity,
+      shipping_terms: data.shippingTerms,
+      payment_terms: data.paymentTerms,
+      incoterm: data.incoterm,
+      delivery_estimate: data.deliveryEstimate,
+      valid_until: data.validUntil,
+      admin_notes: data.adminNotes,
+      shipping_fee: data.shippingFee,
+      discount_total: data.discountTotal,
+      items: data.items.map((it) => ({
+        product_id: it.productId,
+        product_name: it.productName,
+        sku: it.sku,
+        quantity: it.quantity,
+        unit_price: it.unitPrice,
+        discount_amount: it.discountAmount,
+      })),
+    });
+    const created = res?.data || res;
+    if (created && (created.id || created.quotation_number || created.quotationNumber)) {
+      return created;
+    }
+    throw new Error("Invalid response received from quotation creation endpoint.");
+  }
+
   const id = `qt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const quotationNumber = generateQuotationNumber();
   const now = new Date().toISOString();
@@ -96,6 +131,20 @@ export async function getQuotationById(
   id: string,
   userFilter?: { email?: string; companyName?: string }
 ): Promise<QuotationRecord | null> {
+  if (!isFrontendOnly()) {
+    try {
+      const res = await apiClient.get<any>(`/quotations/${id}`);
+      const quote = res?.data || res;
+      if (quote && (quote.id || quote.quotation_number || quote.quotationNumber)) {
+        return quote;
+      }
+      return null;
+    } catch (err: any) {
+      if (err?.status === 404 || err?.statusCode === 404) return null;
+      throw err;
+    }
+  }
+
   const all = getStoredQuotations();
   const found = all.find((q) => q.id === id || q.quotationNumber === id);
   if (found && userFilter) {
@@ -128,6 +177,15 @@ export async function getAllQuotations(filters?: {
   status?: string;
   search?: string;
 }): Promise<QuotationRecord[]> {
+  if (!isFrontendOnly()) {
+    const res = await apiClient.get<any>("/quotations", { params: filters });
+    const list = Array.isArray(res) ? res : res?.data;
+    if (Array.isArray(list)) {
+      return list;
+    }
+    return [];
+  }
+
   const all = getStoredQuotations();
 
   return all.filter((quote) => {
@@ -155,6 +213,18 @@ export async function buyerRespondToQuotation(
   response: "accept" | "reject" | "request_changes",
   notes?: string
 ): Promise<QuotationRecord | null> {
+  if (!isFrontendOnly()) {
+    const res = await apiClient.post<any>(`/quotations/${quotationId}/respond`, {
+      response,
+      notes,
+    });
+    const data = res?.data || res;
+    if (data && (data.id || data.quotation_number || data.quotationNumber)) {
+      return data;
+    }
+    return null;
+  }
+
   const all = getStoredQuotations();
   const index = all.findIndex((q) => q.id === quotationId || q.quotationNumber === quotationId);
   if (index === -1) return null;
@@ -196,6 +266,18 @@ export async function getCommercialDocument(
 ): Promise<CommercialDocument | null> {
   // Check if ID refers to an Order
   const cleanId = id.startsWith("order_") ? id.replace("order_", "") : id;
+
+  if (!isFrontendOnly()) {
+    const endpoint = cleanId.startsWith("QT-") || cleanId.startsWith("qt_")
+      ? `/quotations/${cleanId}/documents/${docType}`
+      : `/orders/${cleanId}/documents/${docType}`;
+    const res = await apiClient.get<any>(endpoint);
+    const data = res?.data || res;
+    if (data && (data.docNumber || data.doc_number)) {
+      return data;
+    }
+    return null;
+  }
 
   try {
     const { orderService } = await import("@/services/order.service");

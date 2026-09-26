@@ -219,15 +219,19 @@ export default function StockAdjustmentModal({
                     setTargetQuantity(String(selected.quantity));
                   }
                 }}
-                disabled={isSubmitting}
+                disabled={isSubmitting || allItems.length === 0}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-secondary/30 text-foreground focus:ring-1 focus:ring-primary outline-none"
               >
-                {allItems.map((item) => (
-                  <option key={item.id} value={String(item.id)}>
-                    {item.variant?.product?.name || "Product"} — {item.variant?.sku} (
-                    {item.warehouse?.name || "Uttara"}, Stock: {item.quantity})
-                  </option>
-                ))}
+                {allItems.length === 0 ? (
+                  <option value="">No inventory items in database</option>
+                ) : (
+                  allItems.map((item) => (
+                    <option key={item.id} value={String(item.id)}>
+                      {item.variant?.product?.name || "Product"} — {item.variant?.sku} (
+                      {item.warehouse?.name || "Uttara"}, Stock: {item.quantity})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           )}
@@ -240,7 +244,7 @@ export default function StockAdjustmentModal({
                 <img
                   src={imageUrl}
                   alt={product?.name || "Product"}
-                  className="w-12 aspect-[4/5] object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60"
+                  className="w-12 aspect-[3/4] object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60"
                 />
                 <div className="min-w-0">
                   <h4 className="font-bold text-foreground text-xs truncate">
@@ -456,7 +460,7 @@ export default function StockAdjustmentModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || isInvalidNegative || !reason.trim()}
+              disabled={isSubmitting || isInvalidNegative || !reason.trim() || !activeRecord}
               className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all shadow-xs cursor-pointer"
             >
               {isSubmitting ? (

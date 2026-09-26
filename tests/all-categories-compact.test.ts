@@ -127,41 +127,49 @@ function runTests() {
     "Design Type buttons have balanced width padding (px-4 sm:px-6)"
   );
 
+  const productCategoryTilePath = path.join(cwd, "src/components/common/ProductCategoryTile.tsx");
+  const tileContent = fs.existsSync(productCategoryTilePath) ? fs.readFileSync(productCategoryTilePath, "utf-8") : "";
+
   // 6. Row 3: Product Categories Grid & Tile Sizing
   assert(
     panelContent.includes("2xl:grid-cols-12 min-[1800px]:grid-cols-12") ||
-    panelContent.includes("xl:grid-cols-10 2xl:grid-cols-12"),
+    panelContent.includes("xl:grid-cols-10 2xl:grid-cols-12") ||
+    tileContent.includes("2xl:grid-cols-12 min-[1800px]:grid-cols-12"),
     "Category grid targets ~10-12 categories per row on desktop (no 16-tile crowding)"
   );
 
   assert(
-    panelContent.includes("grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8"),
+    panelContent.includes("grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8") ||
+    tileContent.includes("grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8"),
     "Category grid uses responsive progressive columns across viewport widths"
   );
 
   assert(
-    panelContent.includes("gap-2 sm:gap-2.5"),
+    panelContent.includes("gap-2 sm:gap-2.5") || tileContent.includes("gap-2 sm:gap-2.5"),
     "Category grid uses comfortable gaps (gap-2 sm:gap-2.5)"
   );
 
   // 7. Category Tile Proportions & Visual Design
   assert(
-    highlightsContent.includes('aspect-[4/3] rounded-lg sm:rounded-xl border'),
+    highlightsContent.includes('aspect-[4/3] rounded-lg sm:rounded-xl border') ||
+    tileContent.includes('aspect-[4/3] rounded-lg sm:rounded-xl border'),
     "CategoryCard compact variant preserves aspect-[4/3] without stretching or distortion"
   );
 
   assert(
-    highlightsContent.includes("text-[10.5px] sm:text-[11.5px] md:text-[12px]"),
+    highlightsContent.includes("text-[10.5px] sm:text-[11.5px] md:text-[12px]") ||
+    tileContent.includes("text-[10.5px] sm:text-[11.5px] md:text-[12px]"),
     "CategoryCard compact variant uses improved readable typography (10.5px - 12px)"
   );
 
   assert(
-    highlightsContent.includes("line-clamp-1") && highlightsContent.includes("title={category.name}"),
+    (highlightsContent.includes("line-clamp-1") && highlightsContent.includes("title={category.name}")) ||
+    (tileContent.includes("line-clamp-1") && tileContent.includes("title={category.name}")),
     "CategoryCard compact labels truncate neatly on single line with full hover tooltip"
   );
 
   assert(
-    highlightsContent.includes("p-1.5 sm:p-2.5"),
+    highlightsContent.includes("p-1.5 sm:p-2.5") || tileContent.includes("p-1.5 sm:p-2.5"),
     "CategoryCard compact variant has comfortable padding (p-1.5 sm:p-2.5)"
   );
 

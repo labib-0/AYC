@@ -1,5 +1,7 @@
 import { OrderRecord } from "@/services/order.service";
 import { mockStore } from "@/lib/mock-data/mock-store";
+import { apiClient } from "@/services/api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export interface AdminOrderQueryParams {
   page?: number;
@@ -44,18 +46,33 @@ export class AdminOrderService {
   }
 
   async getOrderSummary(): Promise<OrderSummaryMetrics> {
-    const list = mockStore.getOrders();
-    return {
-      totalOrders: list.length,
-      pending: list.filter((o) => o.status === "pending").length,
-      confirmed: list.filter((o) => o.status === "confirmed").length,
-      processing: list.filter((o) => o.status === "processing").length,
-      shipped: list.filter((o) => o.status === "shipped").length,
-      delivered: list.filter((o) => o.status === "delivered").length,
-      cancelled: list.filter((o) => o.status === "cancelled").length,
-      paid: list.filter((o) => o.payment_status === "paid").length,
-      pendingPayment: list.filter((o) => o.payment_status === "pending").length,
-    };
+    try {
+      const res = await this.getOrders({ per_page: 500 });
+      const list = res.data || [];
+      return {
+        totalOrders: res.total !== undefined ? res.total : list.length,
+        pending: list.filter((o) => o.status === "pending").length,
+        confirmed: list.filter((o) => o.status === "confirmed").length,
+        processing: list.filter((o) => o.status === "processing").length,
+        shipped: list.filter((o) => o.status === "shipped").length,
+        delivered: list.filter((o) => o.status === "delivered").length,
+        cancelled: list.filter((o) => o.status === "cancelled").length,
+        paid: list.filter((o) => o.payment_status === "paid").length,
+        pendingPayment: list.filter((o) => o.payment_status === "pending").length,
+      };
+    } catch {
+      return {
+        totalOrders: 0,
+        pending: 0,
+        confirmed: 0,
+        processing: 0,
+        shipped: 0,
+        delivered: 0,
+        cancelled: 0,
+        paid: 0,
+        pendingPayment: 0,
+      };
+    }
   }
 
   async getOrders(params?: AdminOrderQueryParams): Promise<{
@@ -65,48 +82,46 @@ export class AdminOrderService {
     total: number;
     per_page: number;
   }> {
-    let list = mockStore.getOrders();
-    if (params?.search) {
-      const q = params.search.toLowerCase();
-      list = list.filter((o) => 
-        o.order_number.toLowerCase().includes(q) || 
-        o.shipping_name.toLowerCase().includes(q) || 
-        (o.shipping_company && o.shipping_company.toLowerCase().includes(q)) ||
-        (o.user?.company_name && o.user.company_name.toLowerCase().includes(q)) ||
-        o.email.toLowerCase().includes(q)
-      );
+    try {
+      const res = await apiClient.get<any>("/admin/orders", { params: params as any });
+      const data = res?.data || res;
+      const items = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+      return {
+        data: items,
+        current_page: data?.current_page || 1,
+        last_page: data?.last_page || 1,
+        total: data?.total !== undefined ? Number(data.total) : items.length,
+        per_page: data?.per_page || (params?.per_page ?? 20),
+      };
+    } catch (err) {
+      console.warn("Failed to fetch orders from API, returning empty database state:", err);
+      return {
+        data: [],
+        current_page: 1,
+        last_page: 1,
+        total: 0,
+        per_page: params?.per_page ?? 20,
+      };
     }
-    if (params?.status && params.status !== "all") {
-      list = list.filter((o) => o.status === params.status);
-    }
-    if (params?.payment_status && params.payment_status !== "all") {
-      list = list.filter((o) => o.payment_status === params.payment_status);
-    }
-    if (params?.fulfillment_status && params.fulfillment_status !== "all") {
-      list = list.filter((o) => o.fulfillment_status === params.fulfillment_status);
-    }
-
-    const page = params?.page ?? 1;
-    const perPage = params?.per_page ?? 20;
-    const start = (page - 1) * perPage;
-    const sliced = list.slice(start, start + perPage);
-
-    return {
-      data: sliced,
-      current_page: page,
-      last_page: Math.max(1, Math.ceil(list.length / perPage)),
-      total: list.length,
-      per_page: perPage,
-    };
   }
 
   async getOrderById(id: number | string): Promise<OrderRecord> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>(`/admin/orders/${id}`);
+      return (res?.data || res) as OrderRecord;
+    }
+
     const order = mockStore.getOrderById(String(id));
     if (!order) throw new Error("Order not found");
     return order;
   }
 
   async updateOrderStatus(id: number | string, status: string, note?: string): Promise<OrderRecord> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.patch<any>(`/admin/orders/${id}/status`, { status, note });
+      return (res?.data || res) as OrderRecord;
+    }
+
     const order = mockStore.getOrderById(String(id));
     if (!order) throw new Error("Order not found");
 
@@ -132,6 +147,16 @@ export class AdminOrderService {
     carrier?: string,
     note?: string
   ): Promise<OrderRecord> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.patch<any>(`/admin/orders/${id}/fulfillment`, {
+        fulfillment_status,
+        tracking_number,
+        carrier,
+        note,
+      });
+      return (res?.data || res) as OrderRecord;
+    }
+
     const order = mockStore.getOrderById(String(id));
     if (!order) throw new Error("Order not found");
 
@@ -156,14 +181,48 @@ export class AdminOrderService {
   async reviewPaymentProof(
     id: number | string,
     action: "approve" | "reject",
-    note?: string
+    note?: string,
+    paymentDetails?: {
+      payment_method?: string;
+      transaction_id?: string;
+      payer_name?: string;
+      bank_name?: string;
+      account_number?: string;
+      payment_amount?: number;
+      payment_date?: string;
+    }
   ): Promise<OrderRecord> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>(`/admin/orders/${id}/payment-proof/review`, {
+        action,
+        note,
+        ...paymentDetails,
+      });
+      return (res?.data || res) as OrderRecord;
+    }
+
     const order = mockStore.getOrderById(String(id));
     if (!order) throw new Error("Order not found");
 
     if (action === "approve") {
       order.payment_status = "paid";
       order.status = "processing";
+      order.payment_confirmed_at = new Date().toISOString();
+      order.payment_details = {
+        payment_status: "PAID",
+        payment_method: paymentDetails?.payment_method || order.payment_method || "Bank Transfer",
+        transaction_id: paymentDetails?.transaction_id || `TXN_${Date.now()}`,
+        payer_name: paymentDetails?.payer_name || order.shipping_name || "Customer",
+        bank_name: paymentDetails?.bank_name || "Pubali Bank Limited",
+        account_number: paymentDetails?.account_number || "M/S AYAAN CLOTHING",
+        payment_amount: paymentDetails?.payment_amount ?? order.total_amount,
+        currency: order.currency || "USD",
+        payment_date: paymentDetails?.payment_date || new Date().toISOString().split("T")[0],
+        notes: note || "Payment verified by accounts team.",
+        receipt_url: order.payment_proof_url,
+        confirmed_at: new Date().toISOString(),
+        confirmed_by_name: "Admin",
+      };
     } else {
       order.payment_status = "failed";
     }

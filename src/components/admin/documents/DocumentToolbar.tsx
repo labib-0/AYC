@@ -21,7 +21,7 @@ export default function DocumentToolbar({
   const backHref = doc.orderNumber 
     ? `/admin/orders/${doc.order_id || doc.orderNumber}`
     : doc.quotationNumber 
-    ? `/admin/quotations` 
+    ? `/admin/rfq-quotes?tab=quotes` 
     : `/admin/documents`;
 
   const backLabel = doc.orderNumber

@@ -8,8 +8,7 @@ export { default as CustomerPagination } from "./CustomerPagination";
 
 export { default as CustomerDetailHeader } from "./CustomerDetailHeader";
 export { default as CustomerProfileCard } from "./CustomerProfileCard";
-export { default as CustomerB2BCard } from "./CustomerB2BCard";
-export { default as CustomerRoleDialog } from "./CustomerRoleDialog";
 export { default as CustomerOrdersTable } from "./CustomerOrdersTable";
 export { default as CustomerQuotesTable } from "./CustomerQuotesTable";
 export { default as CustomerAddressesCard } from "./CustomerAddressesCard";
+export { default as CustomerPurchasedProductsTable } from "./CustomerPurchasedProductsTable";

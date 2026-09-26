@@ -52,13 +52,20 @@ export default function QuantityStepper({
             <Minus size={15} strokeWidth={2.5} />
           </button>
 
-          {/* Quantity Display */}
+          {/* Quantity Display (Prominent Package Count with Total Pieces) */}
           <div
-            className="min-w-20 px-3 text-center font-display font-bold text-[15px] sm:text-[16px] text-foreground tabular-nums select-none border-x border-border/60"
+            className="min-w-24 px-3 py-1 flex flex-col items-center justify-center border-x border-border/60"
             aria-live="polite"
             aria-atomic="true"
           >
-            {quantity.toLocaleString()}
+            <span className="font-display font-bold text-[14px] sm:text-[15px] text-foreground tabular-nums select-none leading-none">
+              {moq > 0 ? `${Math.round(quantity / moq)} ${Math.round(quantity / moq) === 1 ? "pkg" : "pkgs"}` : quantity.toLocaleString()}
+            </span>
+            {moq > 1 && (
+              <span className="text-[10.5px] font-sans font-medium text-muted-foreground tabular-nums select-none leading-none mt-0.5">
+                {quantity.toLocaleString()} pcs
+              </span>
+            )}
           </div>
 
           {/* Increment Button */}
@@ -78,8 +85,8 @@ export default function QuantityStepper({
           </button>
         </div>
 
-        <span className="text-[13px] font-sans font-medium text-muted-foreground uppercase tracking-wider">
-          {unitLabel}
+        <span className="text-[12px] font-sans font-semibold text-muted-foreground uppercase tracking-wider">
+          {moq > 0 ? "Packages" : unitLabel}
         </span>
       </div>
 

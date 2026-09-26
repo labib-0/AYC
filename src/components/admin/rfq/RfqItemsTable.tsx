@@ -52,10 +52,10 @@ export default function RfqItemsTable({ items }: RfqItemsTableProps) {
                         <img
                           src={item.image}
                           alt={item.productName}
-                          className="w-12 aspect-[4/5] rounded-xl object-contain bg-secondary border border-border shrink-0 p-0.5"
+                          className="w-12 aspect-[3/4] rounded-xl object-contain bg-secondary border border-border shrink-0 p-0.5"
                         />
                       ) : (
-                        <div className="w-12 aspect-[4/5] rounded-xl bg-secondary border border-border flex items-center justify-center shrink-0">
+                        <div className="w-12 aspect-[3/4] rounded-xl bg-secondary border border-border flex items-center justify-center shrink-0">
                           <Package size={20} className="text-muted-foreground" />
                         </div>
                       )}

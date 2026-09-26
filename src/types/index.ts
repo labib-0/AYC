@@ -9,13 +9,21 @@ export interface Product {
   bulkThreshold?: number;
   bulkPrice?: number;
   fullStockPrice?: number;
+  configuredFullStockPrice?: number;
+  isFullStockEligible?: boolean;
+  fullStockQuantity?: number;
+  fullStockTotal?: number;
   categoryId: string;
   categoryName?: string;
   audience?: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | string;
   designType?: "ORIGINAL" | "MASTER COPY";
   images: string[];
   isNew?: boolean;
+  newUntil?: string | null;
   isHot?: boolean;
+  hotUntil?: string | null;
+  isFeatured?: boolean;
+  featuredUntil?: string | null;
   isLimitedTimeOffer?: boolean;
   promotionType?: "limited-time" | "featured" | "clearance" | string;
   sizes: string[];
@@ -40,10 +48,11 @@ export interface Product {
   shippingPackageProfiles?: ShippingPackageProfile[];
   shipping_package_profiles?: ShippingPackageProfile[];
   isPackageAssortment?: boolean;
-  fullStockQuantity?: number;
   videoUrl?: string;
   youtubeVideoId?: string;
   youtubeEmbedUrl?: string;
+  videoProvider?: string | null;
+  vimeoVideoId?: string | null;
   seoTitle?: string;
   seoDescription?: string;
   keywords?: string[];
@@ -74,7 +83,9 @@ export interface PricingTier {
 }
 
 export interface PackageAllocation {
-  product_variant_id: number;
+  id?: number | string;
+  package_name?: string;
+  product_variant_id?: number | null;
   quantity: number;
   color: string | null;
   size: string | null;
@@ -94,51 +105,5 @@ export interface Category {
   image: string;
   description: string;
 }
-
-export type HeroCtaAction = "featured-products" | "category" | "product" | "url";
-
-export interface HeroPromotion {
-  id: string | number;
-  title: string;
-  subtitle: string;
-  description?: string;
-  eyebrow?: string;
-  image: string;
-  buttonText: string;
-  buttonAction: HeroCtaAction;
-  buttonTarget?: string;
-  active: boolean;
-  sortOrder: number;
-  startAt?: string;
-  endAt?: string;
-}
-
-export type SecondaryBannerType = "new-arrivals" | "limited-time-offer";
-
-export interface HeroSecondaryBanner {
-  id: string | number;
-  type: SecondaryBannerType;
-  title: string;
-  subtitle?: string;
-  image: string;
-  targetType: "featured-products" | "category" | "product" | "url";
-  target?: string;
-  active: boolean;
-  productId?: string;
-}
-
-export interface ProductPromotion {
-  id: string;
-  productId: string;
-  type: "limited-time" | "featured" | "clearance";
-  active: boolean;
-  startAt?: string;
-  endAt?: string;
-  priority?: number;
-  customTitle?: string;
-  customSubtitle?: string;
-  customImage?: string;
-}
-
 export * from "./api";
 

@@ -1,5 +1,4 @@
-import { mockStore } from "@/lib/mock-data/mock-store";
-import { LOW_STOCK_THRESHOLD } from "./inventory.service";
+import { apiClient } from "@/services/api-client";
 
 export interface DashboardMetrics {
   total_products: number;
@@ -37,67 +36,40 @@ export interface DashboardMetrics {
 
 export class AdminDashboardService {
   async getMetrics(): Promise<DashboardMetrics> {
-    const products = mockStore.getProducts();
-    const orders = mockStore.getOrders();
-    const users = mockStore.getUsers();
-    const rfqs = mockStore.getRfqs();
-
-    const activeProducts = products.filter((p) => p.status === "published").length;
-    const customers = users.filter((u) => u.role !== "admin" && u.role !== "sales").length;
-    const pendingOrders = orders.filter((o) => o.status === "pending").length;
-    const processingOrders = orders.filter((o) => o.status === "processing").length;
-    const deliveredOrders = orders.filter((o) => o.status === "delivered").length;
-
-    const revenue = orders
-      .filter((o) => o.payment_status === "paid" || o.status === "delivered" || o.status === "shipped")
-      .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
-
-    const lowStock = products.filter((p) => p.stock < LOW_STOCK_THRESHOLD).length;
-
-    const recentOrders = [...orders]
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 5)
-      .map((o) => ({
-        id: o.id,
-        order_number: o.order_number,
-        total_amount: Number(o.total_amount),
-        status: o.status,
-        payment_status: o.payment_status,
-        created_at: o.created_at,
-        company: o.shipping_company || o.user?.company_name,
-        user: o.user
-          ? {
-              id: o.user.id,
-              name: o.user.name,
-              email: o.user.email,
-            }
-          : undefined,
-      }));
-
-    const recentRfqs = [...rfqs]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 5)
-      .map((r) => ({
-        id: r.id,
-        rfq_number: r.rfqNumber,
-        company_name: r.companyName,
-        buyer_name: r.buyerName,
-        status: r.status,
-        created_at: r.createdAt,
-      }));
+    try {
+      const res = await apiClient.get<any>("/admin/dashboard");
+      const data = res?.data || res;
+      if (data && typeof data.total_products !== "undefined") {
+        return {
+          total_products: Number(data.total_products || 0),
+          active_products: Number(data.active_products || 0),
+          total_customers: Number(data.total_customers || 0),
+          total_orders: Number(data.total_orders || 0),
+          pending_orders: Number(data.pending_orders || 0),
+          processing_orders: Number(data.processing_orders || 0),
+          delivered_orders: Number(data.delivered_orders || 0),
+          revenue: Number(data.revenue || 0),
+          low_stock_items: Number(data.low_stock_items || 0),
+          recent_orders: Array.isArray(data.recent_orders) ? data.recent_orders : [],
+          recent_rfqs: Array.isArray(data.recent_rfqs) ? data.recent_rfqs : [],
+        };
+      }
+    } catch (err) {
+      console.warn("Failed to fetch admin dashboard metrics from API, returning zero state:", err);
+    }
 
     return {
-      total_products: products.length,
-      active_products: activeProducts,
-      total_customers: customers,
-      total_orders: orders.length,
-      pending_orders: pendingOrders,
-      processing_orders: processingOrders,
-      delivered_orders: deliveredOrders,
-      revenue,
-      low_stock_items: lowStock,
-      recent_orders: recentOrders,
-      recent_rfqs: recentRfqs,
+      total_products: 0,
+      active_products: 0,
+      total_customers: 0,
+      total_orders: 0,
+      pending_orders: 0,
+      processing_orders: 0,
+      delivered_orders: 0,
+      revenue: 0,
+      low_stock_items: 0,
+      recent_orders: [],
+      recent_rfqs: [],
     };
   }
 }

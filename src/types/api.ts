@@ -62,6 +62,8 @@ export interface AuthResponse {
   token: string;
 }
 
+export type UserRole = "customer" | "admin";
+
 /**
  * User Entity
  */
@@ -69,7 +71,7 @@ export interface User {
   id: string | number;
   name: string;
   email: string;
-  role?: "customer" | "admin" | "sales";
+  role?: UserRole;
   phone?: string;
   company_name?: string;
   tax_id?: string;
@@ -78,7 +80,6 @@ export interface User {
   website?: string;
   b2b_approval_status?: "pending" | "approved" | "rejected";
   b2b_payment_terms?: "none" | "net_30" | "net_60" | "terms";
-  b2b_credit_limit?: number;
   avatar_url?: string;
   email_verified_at?: string | null;
   created_at?: string;

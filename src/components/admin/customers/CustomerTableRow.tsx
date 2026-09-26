@@ -1,17 +1,18 @@
 import React from "react";
 import Link from "next/link";
 import { CustomerRecord } from "@/services/admin";
-import CustomerStatusBadge from "./CustomerStatusBadge";
-import { Eye } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 
 export interface CustomerTableRowProps {
   customer: CustomerRecord;
   detailBaseUrl?: string;
+  onDeleteCustomer?: (customer: CustomerRecord) => void;
 }
 
 export default function CustomerTableRow({
   customer,
   detailBaseUrl = "/admin/customers",
+  onDeleteCustomer,
 }: CustomerTableRowProps) {
   const detailHref = `${detailBaseUrl}/${customer.id}`;
 
@@ -70,7 +71,7 @@ export default function CustomerTableRow({
       <td className="py-3 px-3">
         <a
           href={`mailto:${customer.email}`}
-          className="text-foreground hover:text-primary transition-colors block truncate max-w-[170px] font-mono text-[11px]"
+          className="text-foreground hover:text-primary transition-colors block truncate max-w-[190px] font-mono text-[11px]"
         >
           {customer.email}
         </a>
@@ -79,7 +80,7 @@ export default function CustomerTableRow({
       {/* 3. Company */}
       <td className="py-3 px-3">
         {customer.company_name ? (
-          <span className="text-foreground font-medium block truncate max-w-[150px]">
+          <span className="text-foreground font-medium block truncate max-w-[160px]">
             {customer.company_name}
           </span>
         ) : (
@@ -87,51 +88,55 @@ export default function CustomerTableRow({
         )}
       </td>
 
-      {/* 4. Role */}
-      <td className="py-3 px-3 whitespace-nowrap">
-        <CustomerStatusBadge type="role" value={customer.role} size="sm" />
-      </td>
-
-      {/* 5. Orders */}
+      {/* 4. Orders */}
       <td className="py-3 px-3 text-right font-mono font-bold text-foreground">
         {customer.orders_count || 0}
       </td>
 
-      {/* 6. Total Spent */}
+      {/* 5. Total Spent */}
       <td className="py-3 px-3 text-right whitespace-nowrap">
         <span className="font-mono font-bold text-foreground text-sm block">
-          ${Number(customer.total_spent || 0).toFixed(2)}
+          ${Number(customer.total_spent || 0).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </span>
         <span className="text-[10px] text-muted-foreground uppercase font-mono block">
           USD
         </span>
       </td>
 
-      {/* 7. B2B Status */}
-      <td className="py-3 px-3 whitespace-nowrap">
-        <CustomerStatusBadge
-          type="b2b"
-          value={customer.b2b_approval_status || "none"}
-          size="sm"
-        />
-      </td>
-
-      {/* 8. Joined */}
+      {/* 6. Joined */}
       <td className="py-3 px-3 whitespace-nowrap text-muted-foreground font-mono text-[11px]">
         {createdDate}
       </td>
 
-      {/* 9. Actions */}
+      {/* 7. Actions */}
       <td className="py-3 px-4 text-right whitespace-nowrap">
-        <Link
-          href={detailHref}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-          title="View Customer Profile"
-          id={`btn-view-customer-${customer.id}`}
-        >
-          <Eye size={12} className="text-muted-foreground" />
-          <span>View</span>
-        </Link>
+        <div className="inline-flex items-center gap-1.5 justify-end">
+          <Link
+            href={detailHref}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+            title="View Customer Profile"
+            id={`btn-view-customer-${customer.id}`}
+          >
+            <Eye size={12} className="text-muted-foreground" />
+            <span>View</span>
+          </Link>
+
+          {onDeleteCustomer && (
+            <button
+              type="button"
+              onClick={() => onDeleteCustomer(customer)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              title="Delete Customer Account"
+              id={`btn-delete-customer-${customer.id}`}
+            >
+              <Trash2 size={12} />
+              <span className="sr-only sm:not-sr-only">Delete</span>
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );

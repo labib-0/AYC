@@ -4,7 +4,7 @@ import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { getOrderById, cancelOrder, OrderRecord, OrderItemRecord } from "@/lib/services/orders";
-import { uploadPaymentProof } from "@/lib/services/storage";
+import { uploadPaymentProof, PaymentSubmissionDetails } from "@/lib/services/storage";
 import {
   getOrderStatusPresentation,
   getOrderStatusKey,
@@ -15,6 +15,7 @@ import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
 import {
   downloadProformaInvoicePDF,
   downloadProductOfferSheetPDF,
+  downloadCommercialInvoicePDF,
 } from "@/lib/pdf-generator";
 import {
   ArrowLeft,
@@ -82,10 +83,19 @@ export default function CustomerOrderDetailPage({ params }: Props) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  // Payment proof upload
+  // Payment proof upload & structured submission
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [receiptSuccess, setReceiptSuccess] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [paymentTxnId, setPaymentTxnId] = useState("");
+  const [paymentPayer, setPaymentPayer] = useState("");
+  const [paymentBank, setPaymentBank] = useState("Pubali Bank Limited");
+  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  const [paymentDate, setPaymentDate] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
 
   // Tracking copy
   const [copiedTracking, setCopiedTracking] = useState(false);
@@ -118,6 +128,9 @@ export default function CustomerOrderDetailPage({ params }: Props) {
       }
 
       setOrder(data);
+      if (!paymentPayer) setPaymentPayer(data.shipping_name || "");
+      if (!paymentAmount) setPaymentAmount(String(data.total_amount || ""));
+      if (!paymentDate) setPaymentDate(new Date().toISOString().split("T")[0]);
     } catch (err: any) {
       console.error("Failed to fetch order:", err);
       setError("Unable to load order details. Please try again.");
@@ -140,20 +153,62 @@ export default function CustomerOrderDetailPage({ params }: Props) {
     }
   };
 
-  const handleUploadReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !order) return;
+  const handleSubmitPaymentDetails = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!order) return;
 
     setUploadingReceipt(true);
     setReceiptError(null);
 
     try {
-      const result = await uploadPaymentProof(file, order.id);
-      if (result?.url) {
+      const details: PaymentSubmissionDetails = {
+        payment_method: paymentMethod || "Bank Transfer",
+        transaction_id: paymentTxnId.trim() || undefined,
+        payer_name: paymentPayer.trim() || order.shipping_name,
+        bank_name: paymentBank.trim() || "Pubali Bank Limited",
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : order.total_amount,
+        payment_date: paymentDate || new Date().toISOString().split("T")[0],
+        notes: paymentNotes.trim() || undefined,
+      };
+
+      const result = await uploadPaymentProof(selectedFile, order.id, details);
+      if (result) {
+        setReceiptSuccess(true);
+        setSelectedFile(null);
+        setShowSubmitForm(false);
+        await fetchOrder();
+      }
+    } catch (err: any) {
+      console.error("Receipt upload error:", err);
+      setReceiptError(err.message || "Failed to submit payment details.");
+    } finally {
+      setUploadingReceipt(false);
+    }
+  };
+
+  const handleUploadReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !order) return;
+
+    setSelectedFile(file);
+    setUploadingReceipt(true);
+    setReceiptError(null);
+
+    try {
+      const details: PaymentSubmissionDetails = {
+        payment_method: paymentMethod || "Bank Transfer",
+        transaction_id: paymentTxnId.trim() || undefined,
+        payer_name: paymentPayer.trim() || order.shipping_name,
+        bank_name: paymentBank.trim() || "Pubali Bank Limited",
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : order.total_amount,
+        payment_date: paymentDate || new Date().toISOString().split("T")[0],
+        notes: paymentNotes.trim() || undefined,
+      };
+
+      const result = await uploadPaymentProof(file, order.id, details);
+      if (result) {
         setReceiptSuccess(true);
         await fetchOrder();
-      } else {
-        setReceiptError("Upload completed but no receipt URL was returned.");
       }
     } catch (err: any) {
       console.error("Receipt upload error:", err);
@@ -468,7 +523,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               return (
                 <div key={item.id || idx} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-16 aspect-[4/5] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 shrink-0 p-1 flex items-center justify-center">
+                    <div className="w-16 aspect-[3/4] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 shrink-0 p-1 flex items-center justify-center">
                       {item.product_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -507,7 +562,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                               key={i}
                               className="px-1.5 py-0.2 rounded text-[0.625rem] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                             >
-                              {bd.size}: {bd.quantity}
+                              {bd.color ? `${bd.color} ` : ""}{bd.size}: {bd.quantity}
                             </span>
                           ))}
                         </div>
@@ -671,98 +726,356 @@ export default function CustomerOrderDetailPage({ params }: Props) {
       </div>
 
       {/* ─── 6. PAYMENT INFORMATION ─────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xs">
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-white/5">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
           <div className="flex items-center gap-2">
             <CreditCard size={16} className="text-amber-600 dark:text-amber-400" />
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Payment Method & Settlement
+              Payment &amp; Settlement Details
             </h2>
           </div>
           <span
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase tracking-wider ${paymentPres.badgeClass}`}
           >
-            {paymentPres.label}
+            {order.payment_status === "paid" ? "● PAID" : paymentPres.label}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-          <div>
-            <p className="text-slate-500">Payment Instrument:</p>
-            <p className="font-bold text-slate-900 dark:text-white mt-0.5 text-sm uppercase">
-              {order.payment_method || "Commercial Bank Wire / Swift"}
-            </p>
-
-            {order.payment_status === "pending" && (
-              <div className="mt-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 space-y-1">
-                <p className="font-bold text-amber-800 dark:text-amber-400 text-xs">
-                  Awaiting Swift Wire Transfer
-                </p>
-                <p className="text-[0.6875rem] text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
-                  Please wire funds using the proforma invoice reference{" "}
-                  <span className="font-mono font-bold">{order.order_number}</span> to our verified export bank account.
-                </p>
+        {/* 6.1 CONFIRMED PAID STATE */}
+        {order.payment_status === "paid" ? (
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 text-xs space-y-1">
+              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold uppercase text-xs">
+                <Check size={16} />
+                <span>Payment Confirmed &amp; Verified</span>
               </div>
-            )}
-          </div>
+              <p className="text-slate-600 dark:text-slate-400 text-[11px]">
+                Your payment has been verified by the accounts team. The confirmed transaction details below are recorded in your official commercial documentation.
+              </p>
+            </div>
 
-          {/* Payment Proof Receipt Upload */}
-          <div>
-            <p className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 mb-1">
-              Payment Proof / Swift Slip
-            </p>
-
-            {order.payment_proof_url ? (
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Check size={16} className="text-emerald-500" />
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    Payment proof uploaded
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 text-xs">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Payment Status</span>
+                <span className="font-black text-emerald-600 dark:text-emerald-400 text-xs">● PAID</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Payment Method</span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {order.payment_details?.payment_method || order.payment_method || "Bank Wire Transfer"}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Transaction ID</span>
+                <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                  {order.payment_details?.transaction_id || "N/A"}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Payer / Remitter</span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {order.payment_details?.payer_name || order.shipping_name}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Bank Name</span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {order.payment_details?.bank_name || "Pubali Bank Limited"}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Payment Date</span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {order.payment_details?.payment_date || formatOrderDate(order.payment_confirmed_at || "")}
+                </span>
+              </div>
+              <div className="sm:col-span-2 md:col-span-3 pt-2 border-t border-slate-200/60 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Amount Verified</span>
+                  <span className="font-mono font-black text-base text-slate-900 dark:text-white">
+                    ${Number(order.payment_details?.payment_amount ?? order.total_amount).toFixed(2)} {order.currency || "USD"}
                   </span>
                 </div>
-                <a
-                  href={order.payment_proof_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline"
-                >
-                  <span>View Proof</span>
-                  <ExternalLink size={12} />
-                </a>
+                <div className="flex items-center gap-2">
+                  {order.payment_proof_url && (
+                    <a
+                      href={order.payment_proof_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                      <ExternalLink size={13} />
+                      <span>View Receipt</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => downloadCommercialInvoicePDF(order)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition-colors shadow-xs cursor-pointer"
+                    id="btn-generate-commercial-invoice-hero"
+                  >
+                    <Download size={14} />
+                    <span>Generate Commercial Invoice</span>
+                  </button>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-white/15 rounded-xl p-4 cursor-pointer hover:border-amber-500 transition-colors bg-slate-50/50 dark:bg-white/[0.01]">
-                  <Upload size={20} className="text-slate-400 mb-1" />
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    {uploadingReceipt ? "Uploading slip..." : "Upload Swift Wire Receipt"}
-                  </span>
-                  <span className="text-[0.625rem] text-slate-400 mt-0.5">
-                    PDF, JPG, PNG (Max 10MB)
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={handleUploadReceipt}
-                    disabled={uploadingReceipt}
-                    className="hidden"
-                  />
-                </label>
-
-                {receiptSuccess && (
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                    <Check size={13} /> Payment proof uploaded successfully! Our accounts team will review it.
-                  </p>
-                )}
-                {receiptError && (
-                  <p className="text-xs text-red-600 dark:text-red-400 font-semibold">
-                    {receiptError}
-                  </p>
-                )}
-              </div>
-            )}
+            </div>
           </div>
-        </div>
+        ) : order.payment_status === "payment_submitted" ? (
+          /* 6.2 PAYMENT SUBMITTED STATE */
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/40 text-xs space-y-1">
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-bold uppercase text-xs">
+                <Clock size={16} />
+                <span>Payment Submitted — Awaiting Admin Verification</span>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
+                We have received your payment proof and details. Our accounts team will review and verify the credit with our bank. Once approved, your order status will be marked as PAID and your official Commercial Invoice will unlock.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div className="space-y-1">
+                <p className="text-slate-500 font-medium">Submitted Receipt &amp; Details:</p>
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-blue-500" />
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {order.payment_details?.transaction_id ? `Txn: ${order.payment_details.transaction_id}` : "Receipt on File"}
+                  </span>
+                  {order.payment_details?.payment_amount && (
+                    <span className="font-mono text-slate-600 dark:text-slate-400">
+                      (${Number(order.payment_details.payment_amount).toFixed(2)})
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {order.payment_proof_url && (
+                  <a
+                    href={order.payment_proof_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300"
+                  >
+                    <ExternalLink size={12} />
+                    <span>View Submitted Proof</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitForm(!showSubmitForm)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 hover:bg-slate-100 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                  {showSubmitForm ? "Hide Form" : "Upload Additional Slip"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* 6.3 PENDING STATE */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+            <div>
+              <p className="text-slate-500">Payment Instrument:</p>
+              <p className="font-bold text-slate-900 dark:text-white mt-0.5 text-sm uppercase">
+                {order.payment_method || "Commercial Bank Wire / Swift"}
+              </p>
+
+              <div className="mt-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 space-y-1">
+                <p className="font-bold text-amber-800 dark:text-amber-400 text-xs">
+                  Awaiting Bank Wire Transfer
+                </p>
+                <p className="text-[0.6875rem] text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
+                  Please wire funds using the order reference{" "}
+                  <span className="font-mono font-bold">{order.order_number}</span> to our verified export bank account (Pubali Bank Limited).
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Upload / Form Toggle */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400">
+                  Payment Receipt &amp; Verification
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitForm(!showSubmitForm)}
+                  className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                >
+                  {showSubmitForm ? "Quick Slip Upload" : "Enter Payment Details"}
+                </button>
+              </div>
+
+              {!showSubmitForm ? (
+                <div className="space-y-2">
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-white/15 rounded-xl p-4 cursor-pointer hover:border-amber-500 transition-colors bg-slate-50/50 dark:bg-white/[0.01]">
+                    <Upload size={20} className="text-slate-400 mb-1" />
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      {uploadingReceipt ? "Submitting receipt..." : "Upload Bank Wire Receipt"}
+                    </span>
+                    <span className="text-[0.625rem] text-slate-400 mt-0.5">
+                      JPG, PNG, WEBP, PDF (Max 10MB)
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={handleUploadReceipt}
+                      disabled={uploadingReceipt}
+                      className="hidden"
+                      id="input-customer-receipt-upload"
+                    />
+                  </label>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        {/* 6.4 STRUCTURED PAYMENT SUBMISSION FORM (Active when form toggled or needed) */}
+        {(showSubmitForm || (order.payment_status === "pending" && !order.payment_proof_url)) && order.payment_status !== "paid" && (
+          <form onSubmit={handleSubmitPaymentDetails} className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/30 space-y-4 text-xs">
+            <div>
+              <h3 className="font-bold text-slate-900 dark:text-white uppercase text-xs tracking-wider">
+                Submit Payment Details &amp; Receipt
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Provide transfer details so our finance team can verify and confirm your payment promptly.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* Receipt File */}
+              <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+                <label className="text-[10px] font-bold uppercase text-slate-500 block">
+                  Payment Receipt / Slip (JPG, PNG, PDF)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer"
+                />
+              </div>
+
+              {/* Transaction ID */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-slate-500 block">
+                  Transaction ID / Swift Ref
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. TXN123456789"
+                  value={paymentTxnId}
+                  onChange={(e) => setPaymentTxnId(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 font-mono text-xs outline-none focus:border-amber-500"
+                  id="customer-payment-txn-id"
+                />
+              </div>
+
+              {/* Payer / Remitter Name */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-slate-500 block">
+                  Payer / Company Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Company or Individual"
+                  value={paymentPayer}
+                  onChange={(e) => setPaymentPayer(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs outline-none focus:border-amber-500"
+                  id="customer-payment-payer"
+                />
+              </div>
+
+              {/* Bank Name */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-slate-500 block">
+                  Bank Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Pubali Bank Limited"
+                  value={paymentBank}
+                  onChange={(e) => setPaymentBank(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs outline-none focus:border-amber-500"
+                  id="customer-payment-bank"
+                />
+              </div>
+
+              {/* Amount */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-slate-500 block">
+                  Payment Amount ({order.currency || "USD"})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 font-mono text-xs outline-none focus:border-amber-500"
+                  id="customer-payment-amount"
+                />
+              </div>
+
+              {/* Payment Date */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-slate-500 block">
+                  Payment Date
+                </label>
+                <input
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs outline-none focus:border-amber-500"
+                  id="customer-payment-date"
+                />
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-slate-500 block">
+                  Additional Notes
+                </label>
+                <input
+                  type="text"
+                  placeholder="Wire reference or branch details"
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs outline-none focus:border-amber-500"
+                  id="customer-payment-notes"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-[10px] text-slate-400 italic">
+                Rule: Order is marked PAID strictly after admin confirmation.
+              </span>
+              <button
+                type="submit"
+                disabled={uploadingReceipt}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                id="btn-submit-payment-details"
+              >
+                <Check size={14} />
+                <span>{uploadingReceipt ? "Submitting..." : "Submit Payment Details"}</span>
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Success / Error Messages */}
+        {receiptSuccess && (
+          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+            <Check size={14} /> Payment details submitted successfully! Status updated to Awaiting Verification.
+          </p>
+        )}
+        {receiptError && (
+          <p className="text-xs text-red-600 dark:text-red-400 font-semibold flex items-center gap-1.5">
+            <AlertCircle size={14} /> {receiptError}
+          </p>
+        )}
       </div>
 
       {/* ─── 7. TRACKING ────────────────────────────────────────────────────── */}
@@ -932,16 +1245,26 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               </div>
             </div>
             {order.payment_status === "paid" ? (
-              <button
-                type="button"
-                onClick={() => downloadProformaInvoicePDF(order)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
-              >
-                <Download size={12} />
-                <span>PDF</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/admin/documents/COMMERCIAL_INVOICE/order_${order.id}`}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+                >
+                  <ExternalLink size={12} />
+                  <span>View</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => downloadCommercialInvoicePDF(order)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs"
+                  id="btn-download-commercial-invoice-sec8"
+                >
+                  <Download size={12} />
+                  <span>Download PDF</span>
+                </button>
+              </div>
             ) : (
-              <span className="text-[0.625rem] text-slate-400 italic">Locked</span>
+              <span className="text-[0.625rem] text-slate-400 italic">Available after payment confirmation</span>
             )}
           </div>
 

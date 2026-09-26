@@ -3,6 +3,8 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { mockStore } from "@/lib/mock-data/mock-store";
+import { adminUserService } from "@/services/admin/admin-user.service";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 import {
   SettingsHeader,
   SettingsTabs,
@@ -15,16 +17,29 @@ import ProductToast, { ToastMessage } from "@/components/admin/products/ProductT
 
 function SettingsContent() {
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") || "profile";
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const tabFromQuery = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<string>(tabFromQuery || "profile");
   const [adminCount, setAdminCount] = useState<number>(0);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  useEffect(() => {
+    if (tabFromQuery) {
+      setActiveTab(tabFromQuery);
+    }
+  }, [tabFromQuery]);
+
   // Calculate admin user count for tab badge
   useEffect(() => {
-    const updateCount = () => {
+    const updateCount = async () => {
+      try {
+        const admins = await adminUserService.getAdminUsers();
+        setAdminCount(admins.length);
+        return;
+      } catch {
+        // Fallback below
+      }
       const allUsers = mockStore.getUsers();
-      const count = allUsers.filter((u) => u.role === "admin" || u.role === "sales").length;
+      const count = allUsers.filter((u) => u.role === "admin").length;
       setAdminCount(count);
     };
 

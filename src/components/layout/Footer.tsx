@@ -83,7 +83,7 @@ export default function Footer() {
   return (
     <>
       <footer className="bg-[#0b1329] text-white/90 pt-14 pb-10 border-t border-white/10">
-        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
+        <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
           
           {/* Main 5-Column Structured IA Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-8 lg:gap-7 pb-12 border-b border-white/10">

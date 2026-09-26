@@ -112,41 +112,41 @@ export default function CustomerRfqListPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<RfqFilter>("all");
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadRfqs = React.useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
 
-    async function loadRfqs() {
-      if (!user) return;
-      setLoading(true);
-      setError(null);
+    try {
+      const data = await getAllRfqs();
 
-      try {
-        const data = await getAllRfqs();
-        if (!isMounted) return;
+      // Strict customer ownership filtering
+      const customerRfqs = data.filter(
+        (r) =>
+          (r.userId && String(r.userId) === String(user.id)) ||
+          (r.buyerEmail && user.email && r.buyerEmail.toLowerCase() === user.email.toLowerCase())
+      );
 
-        // Strict customer ownership filtering
-        const customerRfqs = data.filter(
-          (r) =>
-            (r.userId && String(r.userId) === String(user.id)) ||
-            (r.buyerEmail && user.email && r.buyerEmail.toLowerCase() === user.email.toLowerCase())
-        );
-
-        setRfqs(customerRfqs);
-      } catch (err: any) {
-        if (!isMounted) return;
-        console.error("Failed to load customer RFQs:", err);
-        setError("Unable to load RFQ requests. Please refresh or check connection.");
-      } finally {
-        if (isMounted) setLoading(false);
+      setRfqs(customerRfqs);
+    } catch (err: any) {
+      console.error("Failed to load customer RFQs:", err);
+      const isAuth = err?.status === 401;
+      const isNetwork = err?.status === 0;
+      if (isAuth) {
+        setError("Your session has expired. Please sign in again to view your inquiries.");
+      } else if (isNetwork) {
+        setError("Network connection error. Please check your connection and click Retry Loading.");
+      } else {
+        setError(err?.message || "Unable to load RFQ requests. Please click Retry Loading.");
       }
+    } finally {
+      setLoading(false);
     }
-
-    loadRfqs();
-
-    return () => {
-      isMounted = false;
-    };
   }, [user]);
+
+  useEffect(() => {
+    loadRfqs();
+  }, [loadRfqs]);
 
   const matchesFilter = (rfq: RfqRecord, filter: RfqFilter): boolean => {
     switch (filter) {
@@ -315,10 +315,12 @@ export default function CustomerRfqListPage() {
           <p className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</p>
           <button
             type="button"
-            onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-colors"
+            onClick={() => loadRfqs()}
+            disabled={loading}
+            className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
           >
-            Retry Loading
+            <Clock size={12} className={loading ? "animate-spin" : ""} />
+            <span>{loading ? "Retrying..." : "Retry Loading"}</span>
           </button>
         </div>
       ) : loading ? (

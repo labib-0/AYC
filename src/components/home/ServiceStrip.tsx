@@ -73,7 +73,7 @@ export default function ServiceStrip() {
       className="w-full bg-background pt-0 pb-0.5 select-none"
       aria-label="Ayaan Clothing Business & Wholesale Headlines"
     >
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         {/* TV News Headline Strip (Thin, flat bar with subtle borders) */}
         <div className="relative w-full h-8 sm:h-8.5 overflow-hidden border-y border-border/50 bg-secondary/15 dark:bg-card/25 flex items-center">
           

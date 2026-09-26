@@ -1,5 +1,6 @@
 import { AUDIENCE_CATEGORIES } from "../filters";
 import { categoryService } from "@/services/category.service";
+import { getCategoryImageUrl } from "../category-images";
 
 export interface CategoryInfo {
   id: string;
@@ -18,16 +19,19 @@ export interface CategoryInfo {
  */
 export async function getCategories(options?: { all?: boolean; isAdmin?: boolean }): Promise<CategoryInfo[]> {
   const list = await categoryService.getCategories(options);
-  return list.map((c) => ({
-    id: String(c.id),
-    name: c.name,
-    slug: c.slug,
-    description: c.description,
-    image: c.image || c.image_url,
-    image_url: c.image_url,
-    is_active: c.is_active,
-    sort_order: c.sort_order,
-  }));
+  return list.map((c) => {
+    const resolvedImg = getCategoryImageUrl(c.slug || c.name, c.image_url || c.image);
+    return {
+      id: String(c.id),
+      name: c.name,
+      slug: c.slug,
+      description: c.description,
+      image: resolvedImg,
+      image_url: resolvedImg,
+      is_active: c.is_active,
+      sort_order: c.sort_order,
+    };
+  });
 }
 
 export function getAudiences() {

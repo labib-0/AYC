@@ -1,22 +1,21 @@
 import React from "react";
 import Link from "next/link";
 import { CustomerDetail } from "@/services/admin";
-import CustomerStatusBadge from "./CustomerStatusBadge";
-import { ArrowLeft, RefreshCw, Shield } from "lucide-react";
+import { ArrowLeft, RefreshCw, Trash2, User } from "lucide-react";
 
 export interface CustomerDetailHeaderProps {
   customer: CustomerDetail;
   backHref?: string;
-  onOpenRoleDialog: () => void;
   onRefresh: () => void;
+  onDeleteCustomer?: () => void;
   isLoading?: boolean;
 }
 
 export default function CustomerDetailHeader({
   customer,
   backHref = "/admin/customers",
-  onOpenRoleDialog,
   onRefresh,
+  onDeleteCustomer,
   isLoading = false,
 }: CustomerDetailHeaderProps) {
   const createdDate = customer.created_at
@@ -68,12 +67,10 @@ export default function CustomerDetailHeader({
               <h1 className="text-2xl sm:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
                 {customer.name}
               </h1>
-              <CustomerStatusBadge type="role" value={customer.role} size="md" />
-              <CustomerStatusBadge
-                type="b2b"
-                value={customer.b2b_approval_status || "none"}
-                size="md"
-              />
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-secondary border border-border text-foreground">
+                <User size={12} />
+                <span>Customer</span>
+              </span>
             </div>
 
             <p className="text-xs text-muted-foreground font-mono mt-0.5">
@@ -85,15 +82,17 @@ export default function CustomerDetailHeader({
 
       {/* Action Controls */}
       <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-        <button
-          type="button"
-          onClick={onOpenRoleDialog}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors shadow-xs cursor-pointer"
-          id="btn-change-customer-role"
-        >
-          <Shield size={14} className="text-primary" />
-          <span>Change Role</span>
-        </button>
+        {onDeleteCustomer && (
+          <button
+            type="button"
+            onClick={onDeleteCustomer}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider transition-colors shadow-xs cursor-pointer"
+            id="btn-delete-customer"
+          >
+            <Trash2 size={13} />
+            <span>Delete Customer</span>
+          </button>
+        )}
 
         <button
           type="button"

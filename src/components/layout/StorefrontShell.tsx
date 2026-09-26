@@ -7,13 +7,25 @@ import Footer from "@/components/layout/Footer";
 import MiniCart from "@/components/cart/MiniCart";
 import ProductQuickAddModal from "@/components/product/ProductQuickAddModal";
 
+interface StorefrontShellProps {
+  children: React.ReactNode;
+  isAdminHost?: boolean;
+}
+
 export default function StorefrontShell({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+  isAdminHost = false,
+}: StorefrontShellProps) {
   const pathname = usePathname();
-  const isAdminRoute = pathname?.startsWith("/admin");
+
+  // Check client-side host and port
+  const isClientAdmin = typeof window !== "undefined" && (
+    window.location.port === "3001" ||
+    window.location.hostname.startsWith("admin.") ||
+    window.location.hostname === "admin.localhost"
+  );
+
+  const isAdminRoute = isAdminHost || isClientAdmin || pathname?.startsWith("/admin");
 
   // On Admin routes: isolate completely by rendering ONLY the admin hierarchy without customer shell
   if (isAdminRoute) {

@@ -1,5 +1,7 @@
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { addressService } from "@/lib/services/address.service";
+import { apiClient } from "@/services/api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export interface CustomerRecord {
   id: number;
@@ -9,9 +11,6 @@ export interface CustomerRecord {
   phone?: string;
   company_name?: string;
   tax_id?: string;
-  b2b_approval_status?: "pending" | "approved" | "rejected" | string;
-  b2b_payment_terms?: "none" | "net_30" | "net_60" | "terms" | string;
-  b2b_credit_limit?: number;
   avatar_url?: string;
   orders_count: number;
   quotes_count: number;
@@ -56,40 +55,73 @@ export interface CustomerRecentQuote {
   created_at: string;
 }
 
+export interface CustomerPurchasedProduct {
+  product_name: string;
+  sku?: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  order_number: string;
+  order_date: string;
+}
+
 export interface CustomerDetail extends CustomerRecord {
   addresses?: CustomerAddressItem[];
   recent_orders?: CustomerRecentOrder[];
   recent_quotes?: CustomerRecentQuote[];
+  purchased_products?: CustomerPurchasedProduct[];
 }
 
 export interface CustomerQueryParams {
   page?: number;
   per_page?: number;
   search?: string;
-  role?: string;
-  b2b_approval_status?: string;
   sort?: string;
   direction?: "asc" | "desc";
 }
 
 export interface CustomerSummaryMetrics {
   totalCustomers: number;
-  corporateAccounts: number;
-  b2bAccounts: number;
-  approvedB2b: number;
-  pendingB2b: number;
+  totalOrders: number;
+  totalSpent: number;
 }
 
 export class AdminCustomerService {
   async getCustomerSummary(): Promise<CustomerSummaryMetrics> {
-    const users = mockStore.getUsers().filter((u) => u.role !== "admin");
-    const corporate = users.filter((u) => Boolean(u.company_name)).length;
+    try {
+      const res = await apiClient.get<any>("/admin/customers/summary");
+      const data = res?.data || res;
+      if (data && typeof data.totalCustomers === "number") {
+        return {
+          totalCustomers: Number(data.totalCustomers || 0),
+          totalOrders: Number(data.totalOrders || 0),
+          totalSpent: Number(data.totalSpent || 0),
+        };
+      }
+    } catch (err) {
+      console.warn("Failed to fetch customer summary from API, falling back:", err);
+    }
+
+    if (isFrontendOnly()) {
+      const customers = mockStore.getUsers().filter((u) => u.role !== "admin");
+      const orders = mockStore.getOrders();
+      const customerUserIds = new Set(customers.map((c) => String(c.id)));
+      const customerOrders = orders.filter((o) => customerUserIds.has(String(o.user_id)));
+      const totalSpent = customerOrders.reduce(
+        (sum, o) => sum + (o.payment_status === "paid" ? Number(o.total_amount || 0) : 0),
+        0
+      );
+      return {
+        totalCustomers: customers.length,
+        totalOrders: customerOrders.length,
+        totalSpent: Math.round(totalSpent * 100) / 100,
+      };
+    }
+
     return {
-      totalCustomers: users.length,
-      corporateAccounts: corporate,
-      b2bAccounts: corporate,
-      approvedB2b: users.filter((u) => u.b2b_approval_status === "approved").length,
-      pendingB2b: users.filter((u) => u.b2b_approval_status === "pending").length,
+      totalCustomers: 0,
+      totalOrders: 0,
+      totalSpent: 0,
     };
   }
 
@@ -100,89 +132,48 @@ export class AdminCustomerService {
     total: number;
     per_page: number;
   }> {
-    // By default, customer directory lists non-admin buyer accounts (unless role filter specifically requests otherwise)
-    const users = mockStore.getUsers().filter((u) => {
-      if (params?.role && params.role !== "all") {
-        if (params.role === "corporate") {
-          return Boolean(u.company_name);
-        }
-        return u.role === params.role;
-      }
-      return u.role !== "admin";
-    });
-
-    const orders = mockStore.getOrders();
-    const rfqs = mockStore.getRfqs();
-
-    let list: CustomerRecord[] = users.map((u) => {
-      const userOrders = orders.filter(
-        (o) => String(o.user_id) === String(u.id) || o.email.toLowerCase() === u.email.toLowerCase()
-      );
-      const userSpent = userOrders.reduce(
-        (sum, o) => sum + (o.payment_status === "paid" ? Number(o.total_amount || 0) : 0),
-        0
-      );
-      const userRfqs = rfqs.filter((r) => r.buyerEmail?.toLowerCase() === u.email.toLowerCase());
-
+    try {
+      const res = await apiClient.get<any>("/admin/customers", { params: params as any });
+      const data = res?.data || res;
+      const rawItems = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+      // Guarantee administrators are strictly excluded from the customer table and count
+      const items = rawItems.filter((u: any) => u.role !== "admin");
       return {
-        id: Number(u.id),
-        name: u.name,
-        email: u.email,
-        role: u.role || "customer",
-        phone: u.phone,
-        company_name: u.company_name,
-        tax_id: u.tax_id,
-        b2b_approval_status: u.b2b_approval_status || "approved",
-        b2b_payment_terms: u.b2b_payment_terms || "none",
-        b2b_credit_limit: u.b2b_credit_limit || 0,
-        avatar_url: u.avatar_url,
-        orders_count: userOrders.length,
-        quotes_count: userRfqs.length,
-        total_spent: Math.round(userSpent * 100) / 100,
-        created_at: u.created_at || "2026-01-01T00:00:00Z",
+        data: items,
+        current_page: data?.current_page || 1,
+        last_page: data?.last_page || 1,
+        total: data?.total !== undefined ? Number(data.total) : items.length,
+        per_page: data?.per_page || (params?.per_page ?? 20),
       };
-    });
-
-    // Search filter
-    if (params?.search) {
-      const q = params.search.toLowerCase();
-      list = list.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q) ||
-          (c.company_name && c.company_name.toLowerCase().includes(q)) ||
-          (c.phone && c.phone.toLowerCase().includes(q))
-      );
+    } catch (err) {
+      console.warn("Failed to fetch customers from API, returning empty state:", err);
+      return {
+        data: [],
+        current_page: 1,
+        last_page: 1,
+        total: 0,
+        per_page: params?.per_page ?? 20,
+      };
     }
-
-    // Role filter
-    if (params?.role && params.role !== "all") {
-      list = list.filter((c) => c.role === params.role);
-    }
-
-    // B2B status filter
-    if (params?.b2b_approval_status && params.b2b_approval_status !== "all") {
-      list = list.filter((c) => c.b2b_approval_status === params.b2b_approval_status);
-    }
-
-    const page = params?.page ?? 1;
-    const perPage = params?.per_page ?? 20;
-    const start = (page - 1) * perPage;
-    const sliced = list.slice(start, start + perPage);
-
-    return {
-      data: sliced,
-      current_page: page,
-      last_page: Math.max(1, Math.ceil(list.length / perPage)),
-      total: list.length,
-      per_page: perPage,
-    };
   }
 
   async getCustomerById(id: number | string): Promise<CustomerDetail> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>(`/admin/customers/${id}`);
+        const customer = (res?.data || res) as CustomerDetail;
+        if (customer && customer.role === "admin") {
+          throw new Error("Administrator accounts cannot be viewed or managed in Customer Accounts.");
+        }
+        return customer;
+      } catch (err) {
+        throw err;
+      }
+    }
+
     const user = mockStore.getUserById(id);
-    if (!user) {
-      throw new Error("Customer not found");
+    if (!user || user.role === "admin") {
+      throw new Error("Customer account not found.");
     }
 
     const orders = mockStore
@@ -244,17 +235,34 @@ export class AdminCustomerService {
       ];
     }
 
+    // Expose products purchased from orders
+    const purchasedProducts: CustomerPurchasedProduct[] = [];
+    orders.forEach((o) => {
+      (o.items || []).forEach((item: any) => {
+        purchasedProducts.push({
+          product_name: item.product_name || item.name || "Commercial Garment Item",
+          sku: item.sku || "—",
+          quantity: Number(item.quantity || 1),
+          unit_price: Number(item.unit_price || item.price || 0),
+          line_total: Number(
+            item.total_price ||
+              item.line_total ||
+              Number(item.quantity || 1) * Number(item.unit_price || item.price || 0)
+          ),
+          order_number: o.order_number,
+          order_date: o.placed_at || o.created_at || new Date().toISOString(),
+        });
+      });
+    });
+
     return {
       id: Number(user.id),
       name: user.name,
       email: user.email,
-      role: user.role || "customer",
+      role: "customer",
       phone: user.phone,
       company_name: user.company_name,
       tax_id: user.tax_id,
-      b2b_approval_status: user.b2b_approval_status || "approved",
-      b2b_payment_terms: user.b2b_payment_terms || "none",
-      b2b_credit_limit: user.b2b_credit_limit || 0,
       avatar_url: user.avatar_url,
       orders_count: orders.length,
       quotes_count: rfqs.length,
@@ -277,36 +285,37 @@ export class AdminCustomerService {
         status: r.status,
         created_at: r.createdAt,
       })),
+      purchased_products: purchasedProducts,
     };
   }
 
   async updateCustomer(id: number | string, data: Partial<CustomerRecord>): Promise<CustomerRecord> {
-    const roleVal =
-      data.role === "admin" || data.role === "sales" || data.role === "customer"
-        ? data.role
-        : data.role === "b2b_buyer"
-        ? "customer"
-        : undefined;
-    const approvalVal =
-      data.b2b_approval_status === "approved" ||
-      data.b2b_approval_status === "pending" ||
-      data.b2b_approval_status === "rejected"
-        ? data.b2b_approval_status
-        : undefined;
-    const termsVal =
-      data.b2b_payment_terms === "none" ||
-      data.b2b_payment_terms === "net_30" ||
-      data.b2b_payment_terms === "net_60" ||
-      data.b2b_payment_terms === "terms"
-        ? data.b2b_payment_terms
-        : undefined;
+    const payload: Partial<CustomerRecord> = {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      company_name: data.company_name,
+      tax_id: data.tax_id,
+    };
+
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.put<any>(`/admin/customers/${id}`, payload);
+        return (res?.data || res) as CustomerRecord;
+      } catch (err) {
+        throw err;
+      }
+    }
+
+    const targetUser = mockStore.getUserById(id);
+    if (!targetUser || targetUser.role === "admin") {
+      throw new Error("Cannot edit administrator account in Customer Accounts.");
+    }
 
     const updated = mockStore.saveUser({
-      ...data,
+      ...payload,
       id: Number(id),
-      role: roleVal,
-      b2b_approval_status: approvalVal,
-      b2b_payment_terms: termsVal,
+      role: "customer",
     });
 
     const userOrders = mockStore
@@ -324,19 +333,33 @@ export class AdminCustomerService {
       id: Number(updated.id),
       name: updated.name,
       email: updated.email,
-      role: updated.role || "customer",
+      role: "customer",
       phone: updated.phone,
       company_name: updated.company_name,
       tax_id: updated.tax_id,
-      b2b_approval_status: updated.b2b_approval_status,
-      b2b_payment_terms: updated.b2b_payment_terms,
-      b2b_credit_limit: updated.b2b_credit_limit,
       avatar_url: updated.avatar_url,
       orders_count: userOrders.length,
       quotes_count: userRfqs.length,
       total_spent: Math.round(totalSpent * 100) / 100,
       created_at: updated.created_at || new Date().toISOString(),
     };
+  }
+
+  async deleteCustomer(id: number | string): Promise<boolean> {
+    if (!isFrontendOnly()) {
+      try {
+        await apiClient.delete(`/admin/customers/${id}`);
+        return true;
+      } catch (err) {
+        console.error("Failed to delete customer:", err);
+        throw err;
+      }
+    }
+    const user = mockStore.getUserById(id);
+    if (!user || user.role === "admin") {
+      throw new Error("Cannot delete administrator via customer service.");
+    }
+    return mockStore.deleteUser(id);
   }
 }
 

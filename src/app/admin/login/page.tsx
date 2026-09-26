@@ -3,28 +3,44 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  ShieldCheck, 
   Lock, 
   Mail, 
   ArrowRight, 
   Store, 
   Loader2, 
   AlertCircle,
-  KeyRound,
-  CheckCircle2
+  KeyRound
 } from "lucide-react";
-import { adminAuthService } from "@/services/admin/admin-auth.service";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { getCustomerAppUrl } from "@/config/site-urls";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@ayaanclothing.com");
-  const [password, setPassword] = useState("admin123");
+  const { signInAdmin, isAdmin } = useAdminAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [demoNotice, setDemoNotice] = useState(false);
 
   const storefrontUrl = getCustomerAppUrl();
+
+  const getRedirectTarget = () => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const target = params.get("redirect");
+      if (target && target.startsWith("/")) {
+        return target;
+      }
+    }
+    return "/";
+  };
+
+  // If already authenticated as admin, redirect to intended target or Admin Dashboard
+  React.useEffect(() => {
+    if (isAdmin) {
+      router.push(getRedirectTarget());
+    }
+  }, [isAdmin, router]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,22 +48,17 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      await adminAuthService.loginAdmin({ email, password });
-      router.push("/admin");
+      const res = await signInAdmin(email, password);
+      if (res?.error) {
+        setError(res.error);
+      } else {
+        router.push(getRedirectTarget());
+      }
     } catch (err: any) {
       setError(err?.message || "Failed to authenticate administrator.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFillDemo = () => {
-    const creds = adminAuthService.getDemoCredentials();
-    setEmail(creds.email);
-    setPassword(creds.password);
-    setDemoNotice(true);
-    setError("");
-    setTimeout(() => setDemoNotice(false), 3000);
   };
 
   return (
@@ -93,14 +104,6 @@ export default function AdminLoginPage() {
             <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 font-medium flex items-start gap-2.5 animate-in fade-in">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
               <span>{error}</span>
-            </div>
-          )}
-
-          {/* Demo Credentials Notice */}
-          {demoNotice && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-2 animate-in fade-in">
-              <CheckCircle2 size={14} className="shrink-0" />
-              <span>Demo credentials loaded! Click Sign In to continue.</span>
             </div>
           )}
 
@@ -160,21 +163,6 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
-
-          {/* Demo One-Click Access Button */}
-          <div className="pt-2 border-t border-border/80 text-center space-y-2.5">
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="w-full py-2 px-3 rounded-xl border border-dashed border-border hover:bg-secondary text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              Fill Demo Admin Credentials (admin@ayaanclothing.com)
-            </button>
-
-            <p className="text-[11px] text-muted-foreground">
-              Internal authorized personnel only. Client-side authentication active.
-            </p>
-          </div>
         </div>
       </div>
 
