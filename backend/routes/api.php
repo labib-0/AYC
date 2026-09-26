@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\Admin\CustomerController as AdminCustomerControl
 use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\InventoryController as AdminInventoryController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Api\V1\Admin\RbacController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\CartController;
@@ -288,6 +289,30 @@ Route::prefix('v1')->group(function () {
             Route::post('/hot-sale-categories', [AdminHomepageManagementController::class, 'syncHotSaleCategories']);
             Route::post('/featured-products', [AdminHomepageManagementController::class, 'syncFeaturedProducts']);
             Route::get('/search-products', [AdminHomepageManagementController::class, 'searchProducts']);
+        });
+
+        // ── RBAC Management (Phase 1 Foundation) ────────────────────────────
+        // Read endpoints: any admin with role.view or Super Admin
+        // Write endpoints: Super Admin only (enforced inside controller)
+        Route::prefix('rbac')->group(function () {
+            // Authenticated admin's own RBAC profile
+            Route::get('/me', [RbacController::class, 'myPermissions']);
+
+            // Roles
+            Route::get('/roles',                       [RbacController::class, 'indexRoles']);
+            Route::post('/roles',                      [RbacController::class, 'storeRole']);
+            Route::get('/roles/{id}',                  [RbacController::class, 'showRole']);
+            Route::put('/roles/{id}',                  [RbacController::class, 'updateRole']);
+            Route::delete('/roles/{id}',               [RbacController::class, 'destroyRole']);
+            Route::put('/roles/{id}/permissions',      [RbacController::class, 'syncRolePermissions']);
+
+            // Permissions catalog (read-only; manage only via sync above)
+            Route::get('/permissions',                 [RbacController::class, 'indexPermissions']);
+
+            // Admin role assignments
+            Route::get('/admins/{adminId}/roles',      [RbacController::class, 'getAdminRoles']);
+            Route::post('/admins/{adminId}/roles',     [RbacController::class, 'assignRole']);
+            Route::delete('/admins/{adminId}/roles/{roleId}', [RbacController::class, 'removeRole']);
         });
     });
 });

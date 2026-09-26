@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -17,7 +18,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Bind AdminAuthorizationService as a singleton so permission caches
+        // are reused within the same request lifecycle.
+        $this->app->singleton(AdminAuthorizationService::class);
     }
 
     /**
@@ -30,11 +33,21 @@ class AppServiceProvider extends ServiceProvider
             return "{$frontendUrl}/reset-password?token={$token}&email={$notifiable->getEmailForPasswordReset()}";
         });
 
-        // Application Gates
-        Gate::define('admin', fn (User $user) => $user->isAdmin());
+        // System-role Gates (preserved from original architecture)
+        Gate::define('admin',    fn (User $user) => $user->isAdmin());
         Gate::define('customer', fn (User $user) => $user->isCustomer());
 
-        // API Rate Limiters
+        // RBAC Gates — layer 2 (on top of the role gate)
+        Gate::define('super_admin', fn (User $user) => $user->isSuperAdmin());
+
+        // Generic permission gate: Gate::allows('can_permission', 'product.publish')
+        Gate::define('can_permission', function (User $user, string $permissionSlug) {
+            /** @var AdminAuthorizationService $authz */
+            $authz = app(AdminAuthorizationService::class);
+            return $authz->can($user, $permissionSlug);
+        });
+
+        // ── API Rate Limiters ─────────────────────────────────────────────
         $this->configureRateLimiting();
     }
 

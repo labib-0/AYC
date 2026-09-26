@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -29,6 +30,7 @@ class User extends Authenticatable
         'status',
         'access_level',
         'permissions',
+        'is_super_admin',
         'phone',
         'company_name',
         'tax_id',
@@ -59,6 +61,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_demo' => 'boolean',
+            'is_super_admin' => 'boolean',
             'permissions' => 'array',
         ];
     }
@@ -74,6 +77,23 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    /**
+     * Super Admin has unrestricted administrative authority.
+     * Authoritative at the database level — no frontend flag or email check.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->isAdmin() && (bool) $this->is_super_admin;
+    }
+
+    /**
+     * Whether the user is an active (not disabled) administrator.
+     */
+    public function isActiveAdmin(): bool
+    {
+        return $this->isAdmin() && ($this->status ?? 'active') === 'active';
     }
 
     public function isCustomer(): bool
@@ -99,6 +119,21 @@ class User extends Authenticatable
         return $this->b2b_payment_terms === $term || $this->b2b_payment_terms === 'net_60' || $term === 'terms';
     }
 
+
+    // ── RBAC Relationships ────────────────────────────────────────────────
+
+    /**
+     * RBAC roles assigned to this admin (via admin_roles pivot).
+     * Only meaningful for users with role = admin.
+     */
+    public function rbacRoles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'admin_roles', 'user_id', 'role_id')
+            ->withPivot('assigned_by', 'assigned_at')
+            ->withTimestamps();
+    }
+
+    // ── Core Relationships ────────────────────────────────────────────────
 
     public function addresses(): HasMany
     {
