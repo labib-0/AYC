@@ -14,6 +14,7 @@ import {
   SystemPreferencesSettings,
 } from "@/components/admin/settings";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 function SettingsContent() {
   const searchParams = useSearchParams();
@@ -63,28 +64,30 @@ function SettingsContent() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Header */}
-      <SettingsHeader activeTab={activeTab} />
+    <AdminPageGate permission="settings.view" moduleName="System Settings">
+      <div className="space-y-6 max-w-7xl mx-auto pb-12">
+        {/* Header */}
+        <SettingsHeader activeTab={activeTab} />
 
-      {/* Tabs */}
-      <SettingsTabs
-        activeTab={activeTab}
-        onSelectTab={(tab: string) => setActiveTab(tab)}
-        adminCount={adminCount}
-      />
+        {/* Tabs */}
+        <SettingsTabs
+          activeTab={activeTab}
+          onSelectTab={(tab: string) => setActiveTab(tab)}
+          adminCount={adminCount}
+        />
 
-      {/* Tab Panels */}
-      <div className="transition-opacity duration-200">
-        {activeTab === "profile" && <ProfileSettings onNotify={handleNotify} />}
-        {activeTab === "business" && <BusinessSettings onNotify={handleNotify} />}
-        {activeTab === "users" && <AdminUsersSettings onNotify={handleNotify} />}
-        {activeTab === "preferences" && <SystemPreferencesSettings onNotify={handleNotify} />}
+        {/* Tab Panels */}
+        <div className="transition-opacity duration-200">
+          {activeTab === "profile" && <ProfileSettings onNotify={handleNotify} />}
+          {activeTab === "business" && <BusinessSettings onNotify={handleNotify} />}
+          {activeTab === "users" && <AdminUsersSettings onNotify={handleNotify} />}
+          {activeTab === "preferences" && <SystemPreferencesSettings onNotify={handleNotify} />}
+        </div>
+
+        {/* Toasts */}
+        <ProductToast toasts={toasts} onDismiss={removeToast} />
       </div>
-
-      {/* Toasts */}
-      <ProductToast toasts={toasts} onDismiss={removeToast} />
-    </div>
+    </AdminPageGate>
   );
 }
 

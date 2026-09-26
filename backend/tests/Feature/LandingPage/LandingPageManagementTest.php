@@ -35,6 +35,7 @@ class LandingPageManagementTest extends TestCase
             'name' => 'Admin User',
             'email' => 'admin@ayaanclothing.com',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->customer = User::factory()->create([

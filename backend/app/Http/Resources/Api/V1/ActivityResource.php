@@ -12,6 +12,13 @@ class ActivityResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $user = $request->user();
+        $canViewSensitive = true;
+        if ($user && $user->isAdmin()) {
+            $authorization = app(\App\Services\Rbac\AdminAuthorizationService::class);
+            $canViewSensitive = $authorization->can($user, 'audit.view_sensitive');
+        }
+
         return [
             'id' => $this->id,
             'action' => $this->action,
@@ -24,8 +31,8 @@ class ActivityResource extends JsonResource
                 'role' => $this->user->role,
             ] : null,
             'metadata' => $this->metadata,
-            'ip_address' => $this->ip_address,
-            'user_agent' => $this->user_agent,
+            'ip_address' => $canViewSensitive ? $this->ip_address : null,
+            'user_agent' => $canViewSensitive ? $this->user_agent : null,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

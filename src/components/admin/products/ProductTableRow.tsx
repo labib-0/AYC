@@ -15,6 +15,7 @@ import {
 import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
 import { LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 interface ProductTableRowProps {
   product: B2BProductInput;
@@ -34,6 +35,7 @@ export default function ProductTableRow({
   onDelete,
 }: ProductTableRowProps) {
   const pathname = usePathname();
+  const { can } = useAdminAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [storefrontBase, setStorefrontBase] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
@@ -214,15 +216,17 @@ export default function ProductTableRow({
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-xl z-30 py-1 animate-[scaleIn_100ms_ease]">
-              <Link
-                href={editHref}
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
-                onClick={() => setMenuOpen(false)}
-              >
-                <Edit size={13} />
-                Edit Product
-              </Link>
+            <div className="absolute right-0 top-8 z-30 w-44 rounded-xl border border-border/80 bg-card p-1 shadow-lg">
+              {can("product.edit") && (
+                <Link
+                  href={editHref}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <Edit size={13} />
+                  Edit Product
+                </Link>
+              )}
 
               <a
                 href={storefrontHref}
@@ -235,51 +239,59 @@ export default function ProductTableRow({
                 View Storefront
               </a>
 
-              <div className="h-px bg-border/60 my-1" />
+              {can("product.publish") && (
+                <>
+                  <div className="h-px bg-border/60 my-1" />
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onTogglePublish(product);
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left"
+                  >
+                    {isPublished ? (
+                      <>
+                        <ArrowDownCircle size={13} className="text-amber-600" />
+                        Unpublish
+                      </>
+                    ) : (
+                      <>
+                        <ArrowUpCircle size={13} className="text-emerald-600" />
+                        Publish
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
 
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  onTogglePublish(product);
-                }}
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left"
-              >
-                {isPublished ? (
-                  <>
-                    <ArrowDownCircle size={13} className="text-amber-600" />
-                    Unpublish
-                  </>
-                ) : (
-                  <>
-                    <ArrowUpCircle size={13} className="text-emerald-600" />
-                    Publish
-                  </>
-                )}
-              </button>
+              {can("product.create") && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDuplicate(product);
+                  }}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left"
+                >
+                  <Copy size={13} className="text-blue-600" />
+                  Duplicate
+                </button>
+              )}
 
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  onDuplicate(product);
-                }}
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left"
-              >
-                <Copy size={13} className="text-blue-600" />
-                Duplicate
-              </button>
-
-              <div className="h-px bg-border/60 my-1" />
-
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  onDelete(product);
-                }}
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors w-full text-left"
-              >
-                <Trash2 size={13} />
-                Delete
-              </button>
+              {can("product.delete") && (
+                <>
+                  <div className="h-px bg-border/60 my-1" />
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDelete(product);
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors w-full text-left"
+                  >
+                    <Trash2 size={13} />
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

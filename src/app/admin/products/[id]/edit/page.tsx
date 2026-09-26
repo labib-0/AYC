@@ -7,6 +7,7 @@ import { PackageX, ArrowLeft } from "lucide-react";
 import { ProductForm } from "@/components/admin/products/form";
 import { getProductBySlugOrId, updateProduct } from "@/lib/services/products";
 import { B2BProductInput } from "@/types/b2b";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 export default function EditProductPage({
   params,
@@ -111,13 +112,15 @@ export default function EditProductPage({
 
   // 3. Populated Edit Form
   return (
-    <div className="w-full max-w-full">
-      <ProductForm
-        key={product.id}
-        initialData={product}
-        mode="edit"
-        onSubmit={handleUpdate}
-      />
-    </div>
+    <AdminPageGate permission="product.edit" moduleName="Edit Product">
+      <div className="w-full max-w-full">
+        <ProductForm
+          key={product.id}
+          initialData={product}
+          mode="edit"
+          onSubmit={handleUpdate}
+        />
+      </div>
+    </AdminPageGate>
   );
 }

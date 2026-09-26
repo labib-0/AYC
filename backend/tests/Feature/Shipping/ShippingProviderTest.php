@@ -28,6 +28,7 @@ class ShippingProviderTest extends TestCase
         $this->admin = User::factory()->create([
             'email' => 'admin@ayaanclothing.com',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->customer = User::factory()->create([

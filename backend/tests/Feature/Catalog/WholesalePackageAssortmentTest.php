@@ -38,6 +38,7 @@ class WholesalePackageAssortmentTest extends TestCase
             'name' => 'Store Admin',
             'email' => 'admin@ayaan.test',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $brand = Brand::create(['name' => 'Ayaan Export', 'slug' => 'ayaan-export', 'logo_url' => '/brands/ayaan.png']);

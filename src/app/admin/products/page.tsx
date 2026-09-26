@@ -26,6 +26,8 @@ import {
 } from "@/components/admin/products";
 import type { ProductFilters, ToastMessage } from "@/components/admin/products";
 import { LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
+import { PermissionGate } from "@/components/admin/auth/PermissionGate";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -279,93 +281,97 @@ export default function AdminProductsPage() {
   const addProductHref = isUnderAdminPath ? "/admin/products/new" : "/products/new";
 
   return (
-    <div className="space-y-5 max-w-full">
-      {/* Page Header */}
-      <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
-        <div>
-          <h1 className="text-lg font-bold text-foreground tracking-tight">Products</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Manage your wholesale product catalog.
-          </p>
+    <AdminPageGate permission="product.view" moduleName="Product Catalog">
+      <div className="space-y-5 max-w-full">
+        {/* Page Header */}
+        <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
+          <div>
+            <h1 className="text-lg font-bold text-foreground tracking-tight">Products</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Manage your wholesale product catalog.
+            </p>
+          </div>
+          <PermissionGate permission="product.create">
+            <Link
+              href={addProductHref}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-colors shrink-0"
+            >
+              <Plus size={14} />
+              Add Product
+            </Link>
+          </PermissionGate>
         </div>
-        <Link
-          href={addProductHref}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-colors shrink-0"
-        >
-          <Plus size={14} />
-          Add Product
-        </Link>
+
+        {/* Summary Metrics */}
+        <ProductSummaryMetrics
+          total={totalProducts}
+          published={publishedCount}
+          draft={draftCount}
+          lowStock={lowStockCount}
+        />
+
+        {/* Search & Filters */}
+        <ProductSearchFilters
+          filters={filters}
+          onFilterChange={setFilters}
+          brands={brandsList}
+          categories={categoriesList}
+        />
+
+        {/* Bulk Actions */}
+        <ProductBulkActions
+          selectedCount={selectedIds.size}
+          onBulkPublish={handleBulkPublish}
+          onBulkUnpublish={handleBulkUnpublish}
+          onClearSelection={() => setSelectedIds(new Set())}
+        />
+
+        {/* Product Table */}
+        <ProductTable
+          products={pageProducts}
+          loading={loading}
+          error={error}
+          selectedIds={selectedIds}
+          onSelect={handleSelect}
+          onSelectAll={handleSelectAll}
+          onTogglePublish={handleTogglePublish}
+          onDuplicate={(p) => setDuplicateTarget(p)}
+          onDelete={(p) => setDeleteTarget(p)}
+          onRetry={loadProducts}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
+        />
+
+        {/* Pagination */}
+        <ProductPagination
+          currentPage={safePage}
+          totalPages={totalPages}
+          totalItems={totalProducts}
+          perPage={ITEMS_PER_PAGE}
+          onPageChange={setCurrentPage}
+        />
+
+        {/* Delete Modal */}
+        <DeleteProductModal
+          open={deleteTarget !== null}
+          productName={deleteTarget?.name || ""}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+          loading={modalLoading}
+        />
+
+        {/* Duplicate Modal */}
+        <DuplicateProductModal
+          open={duplicateTarget !== null}
+          productName={duplicateTarget?.name || ""}
+          onConfirm={handleDuplicateConfirm}
+          onCancel={() => setDuplicateTarget(null)}
+          loading={modalLoading}
+        />
+
+        {/* Toast Notifications */}
+        <ProductToast toasts={toasts} onDismiss={dismissToast} />
       </div>
-
-      {/* Summary Metrics */}
-      <ProductSummaryMetrics
-        total={totalProducts}
-        published={publishedCount}
-        draft={draftCount}
-        lowStock={lowStockCount}
-      />
-
-      {/* Search & Filters */}
-      <ProductSearchFilters
-        filters={filters}
-        onFilterChange={setFilters}
-        brands={brandsList}
-        categories={categoriesList}
-      />
-
-      {/* Bulk Actions */}
-      <ProductBulkActions
-        selectedCount={selectedIds.size}
-        onBulkPublish={handleBulkPublish}
-        onBulkUnpublish={handleBulkUnpublish}
-        onClearSelection={() => setSelectedIds(new Set())}
-      />
-
-      {/* Product Table */}
-      <ProductTable
-        products={pageProducts}
-        loading={loading}
-        error={error}
-        selectedIds={selectedIds}
-        onSelect={handleSelect}
-        onSelectAll={handleSelectAll}
-        onTogglePublish={handleTogglePublish}
-        onDuplicate={(p) => setDuplicateTarget(p)}
-        onDelete={(p) => setDeleteTarget(p)}
-        onRetry={loadProducts}
-        onClearFilters={handleClearFilters}
-        hasActiveFilters={hasActiveFilters}
-      />
-
-      {/* Pagination */}
-      <ProductPagination
-        currentPage={safePage}
-        totalPages={totalPages}
-        totalItems={totalProducts}
-        perPage={ITEMS_PER_PAGE}
-        onPageChange={setCurrentPage}
-      />
-
-      {/* Delete Modal */}
-      <DeleteProductModal
-        open={deleteTarget !== null}
-        productName={deleteTarget?.name || ""}
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteTarget(null)}
-        loading={modalLoading}
-      />
-
-      {/* Duplicate Modal */}
-      <DuplicateProductModal
-        open={duplicateTarget !== null}
-        productName={duplicateTarget?.name || ""}
-        onConfirm={handleDuplicateConfirm}
-        onCancel={() => setDuplicateTarget(null)}
-        loading={modalLoading}
-      />
-
-      {/* Toast Notifications */}
-      <ProductToast toasts={toasts} onDismiss={dismissToast} />
-    </div>
+    </AdminPageGate>
   );
 }

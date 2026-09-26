@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { X, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react";
+import { X, AlertTriangle, CheckCircle2, ArrowRight, Lock } from "lucide-react";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 import {
   adminInventoryService,
   InventoryRecord,
@@ -30,6 +31,8 @@ export default function StockAdjustmentModal({
   allItems,
   onSuccess,
 }: StockAdjustmentModalProps) {
+  const { can, isSuperAdmin } = useAdminAuth();
+  const canAdjust = isSuperAdmin || can("inventory.adjust");
   // If no specific item was passed (global button), allow user to pick one
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [mode, setMode] = useState<"set" | "delta">("delta");
@@ -460,13 +463,19 @@ export default function StockAdjustmentModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || isInvalidNegative || !reason.trim() || !activeRecord}
+              disabled={isSubmitting || !canAdjust || isInvalidNegative || !reason.trim() || !activeRecord}
+              title={!canAdjust ? "Requires 'inventory.adjust' permission" : undefined}
               className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all shadow-xs cursor-pointer"
             >
               {isSubmitting ? (
                 <>
                   <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   <span>Saving...</span>
+                </>
+              ) : !canAdjust ? (
+                <>
+                  <Lock size={14} className="text-amber-300" />
+                  <span>Adjustment Unauthorized</span>
                 </>
               ) : (
                 <>

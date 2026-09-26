@@ -10,44 +10,60 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Quote;
 use App\Models\User;
+use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends ApiController
 {
+    public function __construct(
+        private readonly AdminAuthorizationService $authorization
+    ) {}
+
     /**
      * GET /api/v1/admin/dashboard
-     * Return admin dashboard metrics.
+     * Return admin dashboard metrics without data leakage.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $totalProducts = Product::count();
-        $activeProducts = Product::where('status', 'published')->count();
-        $totalCustomers = User::where('role', 'customer')->count();
-        $totalOrders = Order::count();
-        $pendingOrders = Order::where('status', 'pending')->count();
-        $processingOrders = Order::where('status', 'processing')->count();
-        $deliveredOrders = Order::where('status', 'delivered')->count();
-        $revenue = (float) Order::where(function ($q) {
+        $user = $request->user();
+
+        $canViewProducts = $this->authorization->can($user, 'product.view');
+        $canViewCustomers = $this->authorization->can($user, 'customer.view');
+        $canViewOrders = $this->authorization->can($user, 'order.view');
+        $canViewSales = $this->authorization->can($user, 'analytics.sales.view');
+        $canViewInventory = $this->authorization->can($user, 'inventory.view');
+        $canViewRfq = $this->authorization->can($user, 'rfq.view');
+
+        $totalProducts = $canViewProducts ? Product::count() : 0;
+        $activeProducts = $canViewProducts ? Product::where('status', 'published')->count() : 0;
+        $totalCustomers = $canViewCustomers ? User::where('role', 'customer')->count() : 0;
+        
+        $totalOrders = $canViewOrders ? Order::count() : 0;
+        $pendingOrders = $canViewOrders ? Order::where('status', 'pending')->count() : 0;
+        $processingOrders = $canViewOrders ? Order::where('status', 'processing')->count() : 0;
+        $deliveredOrders = $canViewOrders ? Order::where('status', 'delivered')->count() : 0;
+        
+        $revenue = $canViewSales ? (float) Order::where(function ($q) {
             $q->where('payment_status', 'paid')
               ->orWhere('status', 'delivered');
-        })->sum('total_amount');
+        })->sum('total_amount') : 0.0;
         
         // Low stock based on unified LOW_STOCK_THRESHOLD
-        $lowStockItems = ProductVariant::whereHas('product')
+        $lowStockItems = $canViewInventory ? ProductVariant::whereHas('product')
             ->where('stock', '>', 0)
             ->where('stock', '<', InventoryController::LOW_STOCK_THRESHOLD)
-            ->count();
+            ->count() : 0;
 
-        
-        $recentOrders = Order::with('user')
+        $recentOrders = $canViewOrders ? Order::with('user')
             ->orderByDesc('created_at')
             ->limit(5)
-            ->get();
+            ->get() : collect();
             
-        $recentRfqs = Quote::orderByDesc('created_at')
+        $recentRfqs = $canViewRfq ? Quote::orderByDesc('created_at')
             ->limit(5)
-            ->get();
+            ->get() : collect();
 
         return $this->success(new DashboardResource([
             'total_products' => $totalProducts,

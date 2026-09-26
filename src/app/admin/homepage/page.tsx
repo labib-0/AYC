@@ -23,6 +23,7 @@ import ProductToast, {
   ToastMessage,
 } from "@/components/admin/products/ProductToast";
 import { DEFAULT_TOP_BANNER } from "@/config/banner";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 interface BannerFormState {
   id?: number;
@@ -281,7 +282,8 @@ export default function AdminLandingPageManagement() {
   }
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-12">
+    <AdminPageGate permission="homepage.view" moduleName="Homepage Merchandising">
+      <div className="space-y-8 max-w-6xl mx-auto pb-12">
       {/* Toast Notification Container */}
       <ProductToast toasts={toasts} onDismiss={dismissToast} />
 
@@ -389,6 +391,7 @@ export default function AdminLandingPageManagement() {
           showToast={showToast}
         />
       </section>
-    </div>
+      </div>
+    </AdminPageGate>
   );
 }

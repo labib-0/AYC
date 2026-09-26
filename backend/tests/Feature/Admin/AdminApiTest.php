@@ -34,6 +34,7 @@ class AdminApiTest extends TestCase
             'name' => 'Super Admin',
             'email' => 'admin@ayaan.com',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->customer = User::factory()->create([

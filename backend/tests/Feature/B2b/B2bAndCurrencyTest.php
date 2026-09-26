@@ -30,6 +30,7 @@ class B2bAndCurrencyTest extends TestCase
             'name' => 'Admin User',
             'email' => 'admin@ayaan.test',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->b2bBuyer = User::factory()->create([

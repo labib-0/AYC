@@ -23,6 +23,7 @@ class DevelopmentUserSeeder extends Seeder
             'company_name' => 'Ayaan Sourcing Ltd.',
             'email_verified_at' => now(),
             'is_demo' => true,
+            'is_super_admin' => true,
         ];
         $admin = User::withTrashed()->where('email', 'admin@ayaan-demo.local')->first();
         if ($admin) {

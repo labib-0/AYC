@@ -40,6 +40,7 @@ class TwoRoleModelTest extends TestCase
             'email' => 'admin@ayaan-demo.local',
             'password' => Hash::make('Admin@12345'),
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $brand = Brand::create(['name' => 'Ayaan Export', 'slug' => 'ayaan-export', 'logo_url' => '/brands/ayaan.png']);

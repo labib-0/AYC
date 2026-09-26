@@ -25,6 +25,7 @@ class AdminProductPublishAuthenticationTest extends TestCase
         $this->admin = User::factory()->create([
             'role' => User::ROLE_ADMIN,
             'email' => 'admin.test@ayaanclothing.com',
+            'is_super_admin' => true,
         ]);
 
         $this->customer = User::factory()->create([

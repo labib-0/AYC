@@ -28,6 +28,7 @@ class ShippingPackageProfileTest extends TestCase
         $this->admin = User::factory()->create([
             'email' => 'admin@ayaan.test',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->brand = Brand::create([

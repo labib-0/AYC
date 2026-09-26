@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\DB;
 
 class ProductController extends ApiController
 {
+    public function __construct(
+        private readonly \App\Services\Rbac\AdminAuthorizationService $authorization
+    ) {}
+
     /**
      * GET /api/v1/products
      */
@@ -371,6 +375,33 @@ class ProductController extends ApiController
             'package_allocations' => ['nullable', 'array'],
             'shipping_package_profiles' => ['nullable', 'array'],
         ]);
+
+        $user = $request->user();
+        $targetStatus = $validated['status'] ?? 'draft';
+
+        if ($targetStatus === 'published' && !$this->authorization->can($user, 'product.publish')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.publish' permission to publish products.");
+        }
+
+        if ($targetStatus === 'draft' && !$this->authorization->can($user, 'product.save_draft')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.save_draft' permission.");
+        }
+
+        if ($targetStatus === 'archived' && !$this->authorization->can($user, 'product.archive')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.archive' permission.");
+        }
+
+        if (!empty($validated['pricing_tiers']) && !$this->authorization->can($user, 'product.pricing.manage')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.pricing.manage' permission.");
+        }
+
+        if (!empty($validated['variants']) && !$this->authorization->can($user, 'product.variant.manage')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.variant.manage' permission.");
+        }
+
+        if ((!empty($validated['package_allocations']) || !empty($validated['shipping_package_profiles'])) && !$this->authorization->can($user, 'product.shipping_profile.manage')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.shipping_profile.manage' permission.");
+        }
 
         $productData = collect($validated)->except([
             'categories', 'images', 'variants', 'pricing_tiers', 'package_allocations', 'shipping_package_profiles',
@@ -747,6 +778,41 @@ class ProductController extends ApiController
             'package_allocations' => ['nullable', 'array'],
             'shipping_package_profiles' => ['nullable', 'array'],
         ]);
+
+        $user = $request->user();
+
+        // Status transition enforcement
+        if (array_key_exists('status', $validated)) {
+            $newStatus = $validated['status'];
+            $oldStatus = $product->status;
+            if ($newStatus !== $oldStatus) {
+                if ($newStatus === 'published' && !$this->authorization->can($user, 'product.publish')) {
+                    return $this->forbidden("Forbidden: you do not have the 'product.publish' permission to publish products.");
+                }
+                if ($newStatus === 'archived' && !$this->authorization->can($user, 'product.archive')) {
+                    return $this->forbidden("Forbidden: you do not have the 'product.archive' permission to archive products.");
+                }
+                if ($newStatus === 'draft' && !$this->authorization->can($user, 'product.save_draft')) {
+                    return $this->forbidden("Forbidden: you do not have the 'product.save_draft' permission to save drafts.");
+                }
+            }
+        }
+
+        // Pricing protection
+        $hasPricingChanges = $request->hasAny(['wholesale_price', 'bulk_price', 'bulk_threshold', 'cost_price', 'full_stock_price', 'msrp_price', 'pricing_tiers']);
+        if ($hasPricingChanges && !$this->authorization->can($user, 'product.pricing.manage')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.pricing.manage' permission to update pricing.");
+        }
+
+        // Variant protection
+        if ($request->has('variants') && !$this->authorization->can($user, 'product.variant.manage')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.variant.manage' permission.");
+        }
+
+        // Package and shipping profile protection
+        if ($request->hasAny(['shipping_package_profiles', 'package_allocations']) && !$this->authorization->can($user, 'product.shipping_profile.manage')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.shipping_profile.manage' permission.");
+        }
 
         $productData = collect($validated)->except([
             'categories', 'images', 'variants', 'pricing_tiers', 'package_allocations', 'shipping_package_profiles',

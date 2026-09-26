@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { OrderRecord } from "@/services/order.service";
 import { adminOrderService } from "@/services/admin";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 import OrderStatusBadge from "./OrderStatusBadge";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Lock } from "lucide-react";
 
 export interface OrderStatusTransitionCardProps {
   order: OrderRecord;
@@ -15,14 +16,27 @@ export default function OrderStatusTransitionCard({
   onUpdateStatus,
   isLoading = false,
 }: OrderStatusTransitionCardProps) {
-  const allowedNext = adminOrderService.getAllowedNextStatuses(order.status);
+  const { can, isSuperAdmin } = useAdminAuth();
+  const rawAllowedNext = adminOrderService.getAllowedNextStatuses(order.status);
+
+  // Filter allowed transitions by granular permissions
+  const allowedNext = rawAllowedNext.filter((status) => {
+    if (isSuperAdmin) return true;
+    if (status === "confirmed") return can("order.confirm");
+    if (status === "cancelled") return can("order.cancel");
+    if (status === "processing") return can("order.mark_processing") || can("order.update_status");
+    if (status === "shipped") return can("order.mark_shipped") || can("order.update_status");
+    if (status === "delivered") return can("order.mark_delivered") || can("order.update_status");
+    return can("order.update_status");
+  });
+
   const [selectedStatus, setSelectedStatus] = useState(
     allowedNext.length > 0 ? allowedNext[0] : order.status
   );
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    const nexts = adminOrderService.getAllowedNextStatuses(order.status);
+    const nexts = allowedNext;
     setSelectedStatus(nexts.length > 0 ? nexts[0] : order.status);
     setNote("");
   }, [order.status]);
@@ -33,7 +47,25 @@ export default function OrderStatusTransitionCard({
     await onUpdateStatus(selectedStatus, note.trim() || undefined);
   };
 
-  const isTerminal = allowedNext.length === 0;
+  const canUpdateStatus = isSuperAdmin || can("order.update_status");
+  const isTerminal = rawAllowedNext.length === 0;
+
+  if (!canUpdateStatus) {
+    return (
+      <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-border/60">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+            Order Status
+          </h2>
+          <OrderStatusBadge status={order.status} size="sm" />
+        </div>
+        <div className="p-4 rounded-2xl bg-secondary/30 border border-border/60 text-xs text-muted-foreground flex items-center gap-2.5">
+          <Lock size={15} className="text-amber-500 shrink-0" />
+          <span>Status modification is restricted. Requires <code className="font-mono text-foreground font-semibold">order.update_status</code> authority.</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">

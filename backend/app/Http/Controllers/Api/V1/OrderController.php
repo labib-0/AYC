@@ -905,8 +905,13 @@ class OrderController extends ApiController
             return $this->notFound('Order not found');
         }
 
-        // Enforce access control: customer owner or admin
-        if ($order->user_id !== null && $order->user_id !== $user->id && $user->role !== 'admin') {
+        // Enforce access control: customer owner or admin with document.view
+        if ($user->role === 'admin') {
+            $authorization = app(\App\Services\Rbac\AdminAuthorizationService::class);
+            if (!$authorization->can($user, 'document.view')) {
+                return $this->forbidden("Forbidden: you do not have the 'document.view' permission to view commercial documents.");
+            }
+        } elseif ($order->user_id !== null && (int) $order->user_id !== (int) $user->id) {
             return $this->forbidden('You are not authorized to view commercial documents for this order');
         }
 

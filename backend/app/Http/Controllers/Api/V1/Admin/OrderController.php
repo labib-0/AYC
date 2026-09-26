@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class OrderController extends ApiController
 {
+    public function __construct(
+        private readonly \App\Services\Rbac\AdminAuthorizationService $authorization
+    ) {}
+
     /**
      * GET /api/v1/admin/orders
      * List all orders across the system with server-side filters and pagination.
@@ -140,6 +144,23 @@ class OrderController extends ApiController
             return $this->success(new OrderResource($order->load(['items', 'payments', 'statusEvents'])), 'Order status unchanged');
         }
 
+        // Enforce state transition permissions
+        if ($newStatus === 'confirmed' && !$this->authorization->can($admin, 'order.confirm')) {
+            return $this->forbidden("Forbidden: you do not have the 'order.confirm' permission to confirm orders.");
+        }
+        if ($newStatus === 'cancelled' && !$this->authorization->can($admin, 'order.cancel')) {
+            return $this->forbidden("Forbidden: you do not have the 'order.cancel' permission to cancel orders.");
+        }
+        if ($newStatus === 'processing' && !$this->authorization->can($admin, 'order.mark_processing')) {
+            return $this->forbidden("Forbidden: you do not have the 'order.mark_processing' permission.");
+        }
+        if ($newStatus === 'shipped' && !$this->authorization->can($admin, 'order.mark_shipped')) {
+            return $this->forbidden("Forbidden: you do not have the 'order.mark_shipped' permission.");
+        }
+        if ($newStatus === 'delivered' && !$this->authorization->can($admin, 'order.mark_delivered')) {
+            return $this->forbidden("Forbidden: you do not have the 'order.mark_delivered' permission.");
+        }
+
         if (isset($validTransitions[$oldStatus]) && !in_array($newStatus, $validTransitions[$oldStatus])) {
             return $this->error("Invalid status transition from '{$oldStatus}' to '{$newStatus}'.", 422);
         }
@@ -231,7 +252,7 @@ class OrderController extends ApiController
         })->firstOrFail();
 
         $validated = $request->validate([
-            'action' => ['required', 'string', 'in:approve,reject'],
+            'action' => ['required', 'string', 'in:approve,reject,verify'],
             'note' => ['nullable', 'string', 'max:1000'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'transaction_id' => ['nullable', 'string', 'max:100'],
@@ -244,9 +265,19 @@ class OrderController extends ApiController
 
         $admin = $request->user();
         $action = $validated['action'];
-        $note = $validated['note'] ?? ($action === 'approve' ? 'Payment verified and approved by accounts team.' : 'Payment proof rejected.');
+        $isApprove = in_array($action, ['approve', 'verify'], true);
 
-        DB::transaction(function () use ($order, $action, $admin, $note, $request) {
+        // Enforce payment review permissions
+        if ($isApprove && !$this->authorization->can($admin, 'payment.receipt.verify')) {
+            return $this->forbidden("Forbidden: you do not have the 'payment.receipt.verify' permission to verify payments.");
+        }
+        if ($action === 'reject' && !$this->authorization->can($admin, 'payment.receipt.reject')) {
+            return $this->forbidden("Forbidden: you do not have the 'payment.receipt.reject' permission to reject payments.");
+        }
+
+        $note = $validated['note'] ?? ($isApprove ? 'Payment verified and approved by accounts team.' : 'Payment proof rejected.');
+
+        DB::transaction(function () use ($order, $action, $isApprove, $admin, $note, $request) {
             $latestPayment = $order->payments()->where('status', 'submitted')->latest()->first()
                 ?? $order->payments()->latest()->first();
 
@@ -272,7 +303,7 @@ class OrderController extends ApiController
             $paymentDate = $request->input('payment_date')
                 ?: ($latestPayment?->payment_date?->format('Y-m-d') ?: now()->toDateString());
 
-            if ($action === 'approve') {
+            if ($isApprove) {
                 $confirmedSnapshot = [
                     'payment_status' => 'PAID',
                     'payment_method' => $paymentMethod,

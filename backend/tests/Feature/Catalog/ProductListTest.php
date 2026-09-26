@@ -229,7 +229,7 @@ class ProductListTest extends TestCase
 
     public function test_admin_can_create_update_delete_product(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
 
         // Create
         $createResponse = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/products', [

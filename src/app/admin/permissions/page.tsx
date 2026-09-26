@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { rbacService, RbacPermission, RbacRole } from "@/services/admin/rbac.service";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 export default function PermissionsPage() {
   const [permissions, setPermissions] = useState<RbacPermission[]>([]);
@@ -142,7 +143,8 @@ export default function PermissionsPage() {
   }, [filteredPermissions]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <AdminPageGate permission="permission.view" moduleName="Permission Catalog">
+      <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* Top Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -411,6 +413,7 @@ export default function PermissionsPage() {
 
       {/* Toast notifications */}
       <ProductToast toasts={toasts} onDismiss={dismissToast} />
-    </div>
+      </div>
+    </AdminPageGate>
   );
 }

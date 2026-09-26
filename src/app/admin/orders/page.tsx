@@ -15,6 +15,7 @@ import {
   PaymentReviewModal,
 } from "@/components/admin/orders";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 const PER_PAGE = 20;
 
@@ -149,75 +150,77 @@ export default function AdminOrdersPage() {
     fulfillmentStatus !== "all";
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* 1. Header */}
-      <OrderListHeader onRefresh={handleRefresh} isLoading={isRefreshing} />
+    <AdminPageGate permission="order.view" moduleName="Orders Management">
+      <div className="space-y-6 max-w-7xl mx-auto">
+        {/* 1. Header */}
+        <OrderListHeader onRefresh={handleRefresh} isLoading={isRefreshing} />
 
-      {/* 2. KPI Metrics */}
-      <OrderKpis
-        metrics={metrics}
-        activeStatusFilter={status}
-        activePaymentFilter={paymentStatus}
-        onSelectStatusFilter={handleStatusChange}
-        onSelectPaymentFilter={handlePaymentStatusChange}
-        isLoading={loading && !metrics}
-      />
+        {/* 2. KPI Metrics */}
+        <OrderKpis
+          metrics={metrics}
+          activeStatusFilter={status}
+          activePaymentFilter={paymentStatus}
+          onSelectStatusFilter={handleStatusChange}
+          onSelectPaymentFilter={handlePaymentStatusChange}
+          isLoading={loading && !metrics}
+        />
 
-      {/* 3. Search & Filters Toolbar */}
-      <OrderToolbar
-        search={search}
-        onSearchChange={handleSearchChange}
-        status={status}
-        onStatusChange={handleStatusChange}
-        paymentStatus={paymentStatus}
-        onPaymentStatusChange={handlePaymentStatusChange}
-        fulfillmentStatus={fulfillmentStatus}
-        onFulfillmentStatusChange={handleFulfillmentStatusChange}
-        onResetFilters={handleResetFilters}
-        totalFiltered={total}
-      />
+        {/* 3. Search & Filters Toolbar */}
+        <OrderToolbar
+          search={search}
+          onSearchChange={handleSearchChange}
+          status={status}
+          onStatusChange={handleStatusChange}
+          paymentStatus={paymentStatus}
+          onPaymentStatusChange={handlePaymentStatusChange}
+          fulfillmentStatus={fulfillmentStatus}
+          onFulfillmentStatusChange={handleFulfillmentStatusChange}
+          onResetFilters={handleResetFilters}
+          totalFiltered={total}
+        />
 
-      {/* 4. Orders Table */}
-      <OrderTable
-        orders={orders}
-        isLoading={loading}
-        isError={Boolean(error)}
-        errorMessage={error || undefined}
-        onRetry={() => loadData()}
-        hasFilters={hasFilters}
-        onResetFilters={handleResetFilters}
-        detailBaseUrl="/admin/orders"
-        onReviewPaymentProof={handleOpenReviewProof}
-      />
-
-      {/* 5. Pagination */}
-      {!loading && !error && orders.length > 0 && (
-        <OrderPagination
-          currentPage={page}
-          totalPages={totalPages}
-          totalOrders={total}
-          perPage={PER_PAGE}
-          onPageChange={(p) => setPage(p)}
+        {/* 4. Orders Table */}
+        <OrderTable
+          orders={orders}
           isLoading={loading}
+          isError={Boolean(error)}
+          errorMessage={error || undefined}
+          onRetry={() => loadData()}
+          hasFilters={hasFilters}
+          onResetFilters={handleResetFilters}
+          detailBaseUrl="/admin/orders"
+          onReviewPaymentProof={handleOpenReviewProof}
         />
-      )}
 
-      {/* 6. Quick Payment Proof Review Modal */}
-      {reviewOrder && (
-        <PaymentReviewModal
-          isOpen={isReviewModalOpen}
-          action="approve"
-          onClose={() => {
-            setIsReviewModalOpen(false);
-            setReviewOrder(null);
-          }}
-          onConfirm={handleConfirmPaymentProof}
-          isLoading={actionLoading}
-        />
-      )}
+        {/* 5. Pagination */}
+        {!loading && !error && orders.length > 0 && (
+          <OrderPagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalOrders={total}
+            perPage={PER_PAGE}
+            onPageChange={(p) => setPage(p)}
+            isLoading={loading}
+          />
+        )}
 
-      {/* 7. Toast Alerts */}
-      <ProductToast toasts={toasts} onDismiss={removeToast} />
-    </div>
+        {/* 6. Quick Payment Proof Review Modal */}
+        {reviewOrder && (
+          <PaymentReviewModal
+            isOpen={isReviewModalOpen}
+            action="approve"
+            onClose={() => {
+              setIsReviewModalOpen(false);
+              setReviewOrder(null);
+            }}
+            onConfirm={handleConfirmPaymentProof}
+            isLoading={actionLoading}
+          />
+        )}
+
+        {/* 7. Toast Alerts */}
+        <ProductToast toasts={toasts} onDismiss={removeToast} />
+      </div>
+    </AdminPageGate>
   );
 }

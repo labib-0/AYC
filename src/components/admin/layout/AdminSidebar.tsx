@@ -25,6 +25,9 @@ import {
   Boxes
 } from "lucide-react";
 
+import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { ADMIN_PERMISSIONS } from "@/lib/permissions";
+
 export interface NavSection {
   title: string;
   items: {
@@ -33,6 +36,7 @@ export interface NavSection {
     icon: React.ComponentType<{ size?: number; className?: string }>;
     exact?: boolean;
     badge?: string;
+    permission?: string;
   }[];
 }
 
@@ -40,51 +44,51 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: "OVERVIEW",
     items: [
-      { label: "Dashboard", href: "/admin", icon: LayoutDashboard, exact: true },
+      { label: "Dashboard", href: "/admin", icon: LayoutDashboard, exact: true, permission: ADMIN_PERMISSIONS.ANALYTICS_DASHBOARD_VIEW },
     ],
   },
   {
     title: "CATALOG",
     items: [
-      { label: "Products Catalog", href: "/admin/products", icon: Package },
-      { label: "Category Taxonomy", href: "/admin/categories", icon: Layers },
-      { label: "Brands Directory", href: "/admin/brands", icon: Tag },
-      { label: "Inventory & Stock", href: "/admin/inventory", icon: Warehouse },
+      { label: "Products Catalog", href: "/admin/products", icon: Package, permission: ADMIN_PERMISSIONS.PRODUCT_VIEW },
+      { label: "Category Taxonomy", href: "/admin/categories", icon: Layers, permission: ADMIN_PERMISSIONS.CATEGORY_VIEW },
+      { label: "Brands Directory", href: "/admin/brands", icon: Tag, permission: ADMIN_PERMISSIONS.BRAND_VIEW },
+      { label: "Inventory & Stock", href: "/admin/inventory", icon: Warehouse, permission: ADMIN_PERMISSIONS.INVENTORY_VIEW },
     ],
   },
   {
     title: "COMMERCE",
     items: [
-      { label: "Orders & Fulfillment", href: "/admin/orders", icon: ShoppingBag },
-      { label: "Customer Accounts", href: "/admin/customers", icon: Users },
-      { label: "B2B RFQs & Quotes", href: "/admin/rfq-quotes", icon: FileText },
+      { label: "Orders & Fulfillment", href: "/admin/orders", icon: ShoppingBag, permission: ADMIN_PERMISSIONS.ORDER_VIEW },
+      { label: "Customer Accounts", href: "/admin/customers", icon: Users, permission: ADMIN_PERMISSIONS.CUSTOMER_VIEW },
+      { label: "B2B RFQs & Quotes", href: "/admin/rfq-quotes", icon: FileText, permission: ADMIN_PERMISSIONS.RFQ_VIEW },
     ],
   },
   {
     title: "MARKETING",
     items: [
-      { label: "Coupons", href: "/admin/coupons", icon: Percent },
-      { label: "Homepage & Landing Page", href: "/admin/homepage", icon: PanelTop },
+      { label: "Coupons", href: "/admin/coupons", icon: Percent, permission: ADMIN_PERMISSIONS.COUPON_VIEW },
+      { label: "Homepage & Landing Page", href: "/admin/homepage", icon: PanelTop, permission: ADMIN_PERMISSIONS.HOMEPAGE_VIEW },
     ],
   },
   {
     title: "DOCUMENTS",
     items: [
-      { label: "Commercial Documents", href: "/admin/documents", icon: Files },
+      { label: "Commercial Documents", href: "/admin/documents", icon: Files, permission: ADMIN_PERMISSIONS.DOCUMENT_VIEW },
     ],
   },
   {
     title: "ADMINISTRATION",
     items: [
-      { label: "Administrators", href: "/admin/administrators", icon: ShieldCheck },
-      { label: "RBAC Roles", href: "/admin/roles", icon: Layers },
-      { label: "Permissions Matrix", href: "/admin/permissions", icon: KeyRound },
+      { label: "Administrators", href: "/admin/administrators", icon: ShieldCheck, permission: ADMIN_PERMISSIONS.ADMIN_VIEW },
+      { label: "RBAC Roles", href: "/admin/roles", icon: Layers, permission: ADMIN_PERMISSIONS.ROLE_VIEW },
+      { label: "Permissions Matrix", href: "/admin/permissions", icon: KeyRound, permission: ADMIN_PERMISSIONS.PERMISSION_VIEW },
     ],
   },
   {
     title: "SYSTEM",
     items: [
-      { label: "Settings & Config", href: "/admin/settings", icon: Settings },
+      { label: "Settings & Config", href: "/admin/settings", icon: Settings, permission: ADMIN_PERMISSIONS.SETTINGS_VIEW },
     ],
   },
 ];
@@ -97,12 +101,21 @@ export default function AdminSidebar({ onNavigate }: AdminSidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentTab = searchParams.get("tab");
+  const { can, isSuperAdmin } = useAdminAuth();
+
+  const visibleSections = ADMIN_NAV_SECTIONS.map((section) => {
+    const visibleItems = section.items.filter((item) => {
+      if (!item.permission) return true;
+      return isSuperAdmin || can(item.permission);
+    });
+    return { ...section, items: visibleItems };
+  }).filter((section) => section.items.length > 0);
 
   return (
     <aside className="flex flex-col w-64 border-r border-border/80 bg-card p-4 space-y-6 shrink-0 h-full overflow-y-auto">
       {/* Navigation Sections */}
       <div className="space-y-5">
-        {ADMIN_NAV_SECTIONS.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.title} className="space-y-1">
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80 px-3 block mb-1.5 font-mono">
               {section.title}

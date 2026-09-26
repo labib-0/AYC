@@ -23,6 +23,7 @@ import {
 import type { PaymentVerificationDetails } from "@/components/admin/orders/PaymentProofReview";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 export default function AdminOrderDetailPage({
   params,
@@ -295,7 +296,8 @@ export default function AdminOrderDetailPage({
   }
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <AdminPageGate permission="order.view" moduleName="Order Details">
+      <div className="space-y-8 max-w-6xl mx-auto">
       {/* 1. Detail Header & Commercial Document Links */}
       <OrderDetailHeader
         order={order}
@@ -400,6 +402,7 @@ export default function AdminOrderDetailPage({
 
       {/* 4. Global Toast Notifications */}
       <ProductToast toasts={toasts} onDismiss={removeToast} />
-    </div>
+      </div>
+    </AdminPageGate>
   );
 }

@@ -26,6 +26,7 @@ class RefinePricingPromotionMediaTest extends TestCase
             'name' => 'Store Admin',
             'email' => 'admin@ayaan.test',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->brand = Brand::create(['name' => 'Ayaan Wholesale', 'slug' => 'ayaan-wholesale']);

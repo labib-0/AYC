@@ -38,6 +38,7 @@ class InfrastructureAndPerformanceTest extends TestCase
             'name' => 'Managing Director',
             'email' => 'admin@ayaan.com',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->customer = User::factory()->create([

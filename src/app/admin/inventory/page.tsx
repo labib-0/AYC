@@ -20,6 +20,7 @@ import {
 import ProductToast, {
   ToastMessage,
 } from "@/components/admin/products/ProductToast";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 const PER_PAGE = 20;
 
@@ -141,86 +142,88 @@ export default function AdminInventoryPage() {
   };
 
   return (
-    <div className="space-y-5">
-      {/* 1. Page Header */}
-      <InventoryHeader
-        onAdjustStock={handleOpenGlobalAdjust}
-        onRefresh={() => loadData(true)}
-        isLoading={isRefreshing || loading}
-      />
+    <AdminPageGate permission="inventory.view" moduleName="Inventory Management">
+      <div className="space-y-5">
+        {/* 1. Page Header */}
+        <InventoryHeader
+          onAdjustStock={handleOpenGlobalAdjust}
+          onRefresh={() => loadData(true)}
+          isLoading={isRefreshing || loading}
+        />
 
-      {/* Error Banner with Retry */}
-      {error && (
-        <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={16} className="shrink-0" />
-            <span>{error}</span>
+        {/* Error Banner with Retry */}
+        {error && (
+          <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => loadData(false)}
+              className="px-3 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer shrink-0"
+            >
+              Retry
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => loadData(false)}
-            className="px-3 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer shrink-0"
-          >
-            Retry
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* 2. Dynamic KPI Summary */}
-      <InventoryKpis
-        summary={summary}
-        selectedStatus={status}
-        onSelectStatus={(st) => handleStatusChange(st)}
-        isLoading={loading && inventories.length === 0}
-      />
+        {/* 2. Dynamic KPI Summary */}
+        <InventoryKpis
+          summary={summary}
+          selectedStatus={status}
+          onSelectStatus={(st) => handleStatusChange(st)}
+          isLoading={loading && inventories.length === 0}
+        />
 
-      {/* 3. Search & Status Toolbar with Uttara Warehouse Indicator */}
-      <InventoryToolbar
-        search={search}
-        onSearchChange={handleSearchChange}
-        status={status}
-        onStatusChange={handleStatusChange}
-        onResetFilters={handleResetFilters}
-        totalResults={total}
-      />
+        {/* 3. Search & Status Toolbar with Uttara Warehouse Indicator */}
+        <InventoryToolbar
+          search={search}
+          onSearchChange={handleSearchChange}
+          status={status}
+          onStatusChange={handleStatusChange}
+          onResetFilters={handleResetFilters}
+          totalResults={total}
+        />
 
-      {/* 4. Inventory Data Table */}
-      <InventoryTable
-        records={inventories}
-        isLoading={loading}
-        search={search}
-        status={status}
-        onAdjust={handleOpenRowAdjust}
-        onViewHistory={handleOpenHistory}
-        onResetFilters={handleResetFilters}
-      />
+        {/* 4. Inventory Data Table */}
+        <InventoryTable
+          records={inventories}
+          isLoading={loading}
+          search={search}
+          status={status}
+          onAdjust={handleOpenRowAdjust}
+          onViewHistory={handleOpenHistory}
+          onResetFilters={handleResetFilters}
+        />
 
-      {/* 5. Real Pagination Controls */}
-      <InventoryPagination
-        currentPage={page}
-        perPage={PER_PAGE}
-        totalItems={total}
-        onPageChange={(newPage) => setPage(newPage)}
-      />
+        {/* 5. Real Pagination Controls */}
+        <InventoryPagination
+          currentPage={page}
+          perPage={PER_PAGE}
+          totalItems={total}
+          onPageChange={(newPage) => setPage(newPage)}
+        />
 
-      {/* 6. Stock Adjustment Modal (Global + Row-preselected) */}
-      <StockAdjustmentModal
-        isOpen={isAdjustModalOpen}
-        onClose={() => setIsAdjustModalOpen(false)}
-        inventoryItem={adjustingItem}
-        allItems={inventories}
-        onSuccess={handleMutationSuccess}
-      />
+        {/* 6. Stock Adjustment Modal (Global + Row-preselected) */}
+        <StockAdjustmentModal
+          isOpen={isAdjustModalOpen}
+          onClose={() => setIsAdjustModalOpen(false)}
+          inventoryItem={adjustingItem}
+          allItems={inventories}
+          onSuccess={handleMutationSuccess}
+        />
 
-      {/* 7. Inventory History Audit Trail Modal */}
-      <InventoryHistoryModal
-        isOpen={isHistoryModalOpen}
-        onClose={() => setIsHistoryModalOpen(false)}
-        inventoryItem={historyItem}
-      />
+        {/* 7. Inventory History Audit Trail Modal */}
+        <InventoryHistoryModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          inventoryItem={historyItem}
+        />
 
-      {/* Application Toasts */}
-      <ProductToast toasts={toasts} onDismiss={dismissToast} />
-    </div>
+        {/* Application Toasts */}
+        <ProductToast toasts={toasts} onDismiss={dismissToast} />
+      </div>
+    </AdminPageGate>
   );
 }

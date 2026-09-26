@@ -18,6 +18,7 @@ import { adminOrderService } from "@/services/admin/order.service";
 import { getAllQuotations } from "@/lib/services/quotations";
 import { OrderRecord } from "@/services/order.service";
 import { QuotationRecord, CommercialDocType } from "@/types/b2b";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 interface DocumentHubItem {
   id: string;
@@ -294,7 +295,8 @@ export default function AdminDocumentsHubPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <AdminPageGate permission="document.view" moduleName="Commercial Documents">
+      <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -605,7 +607,8 @@ export default function AdminDocumentsHubPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </AdminPageGate>
   );
 }

@@ -17,6 +17,7 @@ import {
   RoleDeleteDialog,
 } from "@/components/admin/roles";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<RbacRole[]>([]);
@@ -151,7 +152,8 @@ export default function RolesPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <AdminPageGate permission="role.view" moduleName="Roles & Permissions">
+      <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* Header */}
       <RolesHeader
         stats={stats}
@@ -218,6 +220,7 @@ export default function RolesPage() {
 
       {/* Toast notifications */}
       <ProductToast toasts={toasts} onDismiss={dismissToast} />
-    </div>
+      </div>
+    </AdminPageGate>
   );
 }

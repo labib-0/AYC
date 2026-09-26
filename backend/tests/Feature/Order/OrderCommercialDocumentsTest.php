@@ -39,6 +39,7 @@ class OrderCommercialDocumentsTest extends TestCase
             'email' => 'admin@ayaanclothing.com',
             'name' => 'Export Director',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->product = Product::create([

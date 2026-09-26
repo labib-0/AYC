@@ -30,6 +30,7 @@ class ShippingSettingsTest extends TestCase
             'email' => 'admin-test@ayaan.test',
             'password' => bcrypt('Admin@12345'),
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->customer = User::create([

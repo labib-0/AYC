@@ -19,7 +19,7 @@ class BrandManagementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->admin = User::factory()->create(['role' => 'admin']);
+        $this->admin = User::factory()->create(['role' => 'admin', 'is_super_admin' => true]);
         $this->customer = User::factory()->create(['role' => 'customer']);
     }
 

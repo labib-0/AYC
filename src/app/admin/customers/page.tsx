@@ -15,6 +15,7 @@ import {
 } from "@/components/admin/customers";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { Trash2, AlertTriangle, X } from "lucide-react";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 const PER_PAGE = 20;
 
@@ -120,9 +121,10 @@ export default function AdminCustomersPage() {
   const hasFilters = search.trim() !== "";
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* 1. Header */}
-      <CustomerListHeader onRefresh={handleRefresh} isLoading={isRefreshing} />
+    <AdminPageGate permission="customer.view" moduleName="Customers Management">
+      <div className="space-y-6 max-w-7xl mx-auto">
+        {/* 1. Header */}
+        <CustomerListHeader onRefresh={handleRefresh} isLoading={isRefreshing} />
 
       {/* 2. Real Backend Metrics */}
       <CustomerKpis
@@ -234,6 +236,7 @@ export default function AdminCustomersPage() {
 
       {/* 7. Toast Notifications */}
       <ProductToast toasts={toasts} onDismiss={removeToast} />
-    </div>
+      </div>
+    </AdminPageGate>
   );
 }

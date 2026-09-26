@@ -29,6 +29,7 @@ class CustomerManagementTest extends TestCase
             'name' => 'System Admin',
             'email' => 'admin@ayaan.local',
             'role' => User::ROLE_ADMIN,
+            'is_super_admin' => true,
         ]);
 
         $this->customer = User::factory()->create([

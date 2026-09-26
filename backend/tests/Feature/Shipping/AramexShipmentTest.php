@@ -20,7 +20,7 @@ class AramexShipmentTest extends TestCase
     {
         parent::setUp();
 
-        $this->admin = User::factory()->create(['role' => 'admin']);
+        $this->admin = User::factory()->create(['role' => 'admin', 'is_super_admin' => true]);
         $this->customer = User::factory()->create(['role' => 'customer']);
 
         $this->order = Order::create([

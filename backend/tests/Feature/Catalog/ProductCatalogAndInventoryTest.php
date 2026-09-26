@@ -30,6 +30,7 @@ class ProductCatalogAndInventoryTest extends TestCase
         $this->admin = User::factory()->create([
             'email' => 'admin@ayaan-demo.local',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->customer = User::factory()->create([

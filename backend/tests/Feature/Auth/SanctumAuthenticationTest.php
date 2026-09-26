@@ -132,6 +132,7 @@ class SanctumAuthenticationTest extends TestCase
     {
         $admin = User::factory()->create([
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $response = $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/dashboard');

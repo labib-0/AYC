@@ -47,30 +47,36 @@ In addition to authenticated users, the system defines explicit access boundarie
 
 ## 3. Comprehensive Permissions Matrix
 
-| Platform Area | Feature / Operation | Guest | Customer | Admin | Enforcing Mechanism |
-|---|---|:---:|:---:|:---:|---|
-| **Catalog** | View Products, Categories, Brands | ✅ | ✅ | ✅ | Public Route |
-| **Catalog** | Search & Filter Products | ✅ | ✅ | ✅ | Public Route |
-| **Catalog** | Create / Edit / Delete Products | ❌ | ❌ | ✅ | `role:admin` Middleware |
-| **Catalog** | Upload & Reorder Product Images | ❌ | ❌ | ✅ | `role:admin` Middleware |
-| **Merchandising**| Manage Homepage Banner & Rails | ❌ | ❌ | ✅ | `role:admin` Middleware |
-| **Cart** | Add Items, Update Quantities | ✅ | ✅ | ❌ | Client & `CartController` |
-| **Checkout** | Place Wholesale Order | ❌ | ✅ | ❌ | `auth:sanctum`, `role:customer` |
-| **Orders** | View Personal Order History | ❌ | ✅ | ❌ | `OrderController@index` (scoped by `user_id`) |
-| **Orders** | Upload Bank Wire Payment Proof | ❌ | ✅ | ❌ | `OrderController@uploadPaymentProof` |
-| **Orders** | View All Platform Orders | ❌ | ❌ | ✅ | `Admin\OrderController@index` |
-| **Orders** | Verify / Reject Payment Proof | ❌ | ❌ | ✅ | `Admin\OrderController@reviewPaymentProof` |
-| **Orders** | Trigger Aramex International Waybill | ❌ | ❌ | ✅ | `Admin\OrderController@createAramexShipment` |
-| **RFQ** | Submit Initial RFQ Inquiry | ✅ | ✅ | ❌ | `RfqController@store` |
-| **RFQ** | Post Message in RFQ Thread | ❌ | ✅ | ✅ | `RfqController@addMessage` (owner or admin) |
-| **Quotations** | View Received Quotations | ❌ | ✅ | ❌ | `QuotationController@index` (scoped by `user_id`) |
-| **Quotations** | Accept / Decline Quotation | ❌ | ✅ | ❌ | `QuotationController@respond` |
-| **Quotations** | Create Formal Commercial Quote | ❌ | ❌ | ✅ | `Admin\QuotationController@store` |
-| **Documents** | Download Proforma / Commercial Invoice| ❌ | ✅ | ✅ | `OrderController@document` / `QuotationController@document` |
-| **Inventory** | View Stock Balances by Warehouse | ❌ | ❌ | ✅ | `Admin\InventoryController@index` |
-| **Inventory** | Perform Stock Adjustment | ❌ | ❌ | ✅ | `Admin\InventoryController@adjust` |
-| **Analytics** | View Sales, Profit & COGS Dashboards| ❌ | ❌ | ✅ | `AdminAnalyticsController@salesProfit` |
-| **Audit** | View System Activity Logs | ❌ | ❌ | ✅ | `AdminActivityController@index` |
+| Platform Area | Feature / Operation | Guest | Customer | Admin RBAC Permission | Enforcing Mechanism |
+|---|---|:---:|:---:|---|---|
+| **Catalog** | View Products, Categories, Brands | ✅ | ✅ | `product.view`, `category.view`, `brand.view` | Public storefront or Admin API with `permission:*` |
+| **Catalog** | Create Product Draft | ❌ | ❌ | `product.create`, `product.save_draft` | `permission:product.create`, `AdminAuthorizationService` |
+| **Catalog** | Edit Product Content & Specs | ❌ | ❌ | `product.edit` | `permission:product.edit` |
+| **Catalog** | Edit Pricing & Bulk Tier Pricing | ❌ | ❌ | `product.pricing.manage` | `AdminAuthorizationService` in `ProductController` |
+| **Catalog** | Publish / Unpublish Product | ❌ | ❌ | `product.publish` | `permission:product.publish`, `AdminAuthorizationService` |
+| **Catalog** | Archive Product | ❌ | ❌ | `product.archive` | `permission:product.archive` |
+| **Catalog** | Delete Product | ❌ | ❌ | `product.delete` | `permission:product.delete` |
+| **Catalog** | Upload Media to Products/Brands | ❌ | ❌ | `product.image.upload`, `brand.edit` | `UploadController` folder permission gate |
+| **Merchandising**| Manage Landing Page Banner & Rails | ❌ | ❌ | `homepage.banner.edit`, `homepage.brand.manage` | `permission:homepage.banner.edit` |
+| **Cart** | Add Items, Update Quantities | ✅ | ✅ | ❌ (Client/Customer only) | Client & `CartController` |
+| **Checkout** | Place Wholesale Order | ❌ | ✅ | ❌ (Customer only) | `auth:sanctum`, `role:customer` |
+| **Orders** | View Personal Order History | ❌ | ✅ | ❌ (Scoped to user) | `OrderController@index` (scoped by `user_id`) |
+| **Orders** | View All Platform Orders | ❌ | ❌ | `order.view` | `permission:order.view` |
+| **Orders** | View Customer PII / Items / Label | ❌ | ❌ | `order.view_customer`, `order.view_items`, `shipment.label.view` | `OrderResource` selective masking |
+| **Orders** | Confirm / Cancel Order | ❌ | ❌ | `order.confirm`, `order.cancel` | `AdminAuthorizationService` in `updateStatus()` |
+| **Orders** | Verify / Reject Payment Proof | ❌ | ❌ | `payment.receipt.verify`, `payment.receipt.reject` | `permission:payment.receipt.verify`, `OrderController` |
+| **Orders** | Trigger Aramex International Waybill | ❌ | ❌ | `shipment.create` | `permission:shipment.create` |
+| **RFQ** | Submit Initial RFQ Inquiry | ✅ | ✅ | ❌ (Customer only) | `RfqController@store` |
+| **RFQ** | Manage & Reply to RFQ Thread | ❌ | ✅ | `rfq.message.send` | `RfqController@addMessage` & `permission:rfq.message.send` |
+| **Quotations** | View Received Quotations | ❌ | ✅ | ❌ (Customer only) | `QuotationController@index` (scoped by `user_id`) |
+| **Quotations** | Create Formal Commercial Quote | ❌ | ❌ | `quotation.create` | `permission:quotation.create` |
+| **Documents** | Download Proforma / Commercial Invoice| ❌ | ✅ | `document.download` | `permission:document.download` |
+| **Inventory** | View Stock Balances by Warehouse | ❌ | ❌ | `inventory.view`, `inventory.view_warehouse` | `permission:inventory.view` |
+| **Inventory** | Perform Stock Adjustment | ❌ | ❌ | `inventory.adjust` | `permission:inventory.adjust` |
+| **Analytics** | View Operational Dashboard Metrics | ❌ | ❌ | `analytics.dashboard.view` | `permission:analytics.dashboard.view` (zero-leakage) |
+| **Analytics** | View Sales Revenue Analytics | ❌ | ❌ | `analytics.sales.view` | `permission:analytics.sales.view` |
+| **Analytics** | View Gross Profit & COGS Analytics | ❌ | ❌ | `analytics.profit.view`, `analytics.cogs.view` | `AnalyticsController` selective profit/COGS masking |
+| **Audit** | View System Activity Logs & IP Trail | ❌ | ❌ | `audit.view`, `audit.view_sensitive` | `permission:audit.view`, `ActivityResource` masking |
 
 ---
 
@@ -192,4 +198,87 @@ All mutations are recorded through `ActivityLogger` with sensitive credentials (
 - `role.updated`: Role metadata edits.
 - `role.deleted`: Safe removal of custom role.
 - `role.permissions_synced`: Modification of permissions on a role.
+
+---
+
+## 6. End-to-End Granular RBAC Enforcement (Master Prompt 3)
+
+The broad assumption that `role:admin` grants universal administrative authority has been replaced by granular, atomic authorization enforced across all backend routes, domain controller mutations, API response resources, and frontend Next.js pages/components.
+
+### 6.1 Backend Route Protection (`backend/routes/api.php`)
+Every administrative route in `api.php` under `prefix('admin')` and all admin catalog mutations are wrapped with the granular `permission:<slug>` middleware:
+- **Products Catalog**:
+  - `GET /products` -> `permission:product.view`
+  - `POST /products` -> `permission:product.create`
+  - `PUT/PATCH /products/{id}` -> `permission:product.edit`
+  - `DELETE /products/{id}` -> `permission:product.delete`
+  - `POST /products/{id}/publish` & `unpublish` -> `permission:product.publish`
+  - `POST /products/{id}/duplicate` -> `permission:product.create`
+- **Orders & Payments**:
+  - `GET /admin/orders` & `/admin/orders/{id}` -> `permission:order.view`
+  - `PATCH /admin/orders/{id}/status` -> `permission:order.update_status`
+  - `POST /admin/orders/{id}/payment/verify` & `review-payment-proof` (`approve`) -> `permission:payment.receipt.verify`
+  - `POST /admin/orders/{id}/payment/reject` & `review-payment-proof` (`reject`) -> `permission:payment.receipt.reject`
+  - `POST /admin/orders/{id}/aramex/shipment` -> `permission:shipment.create`
+  - `POST /admin/orders/{id}/aramex/track` -> `permission:tracking.refresh`
+- **Inventory & Warehouses**:
+  - `GET /admin/inventory` & `/admin/inventory/summary` -> `permission:inventory.view`
+  - `POST /admin/inventory/adjust` -> `permission:inventory.adjust`
+  - `GET /admin/inventory/{id}/history` -> `permission:inventory.audit`
+- **Analytics & Financials**:
+  - `GET /admin/dashboard/metrics` -> `permission:analytics.dashboard.view`
+  - `GET /admin/analytics/sales-profit` & `/overview` -> `permission:analytics.sales.view`
+- **Commercial Documents**:
+  - `GET /admin/orders/{id}/document/{type}` & `/quotations/{id}/document/{type}` -> `permission:document.download`
+- **Media Uploads (`/upload`)**:
+  - Folder `products/` requires `product.image.upload`
+  - Folder `brands/` requires `brand.edit` or `brand.create`
+  - Folder `categories/` requires `category.edit` or `category.create`
+  - Folder `banners/` requires `homepage.banner.edit`
+
+### 6.2 Domain Controller Mutation Integrity
+1. **Product Mutation Verification**:
+   - Saving a draft requires `product.save_draft` (or `product.create`).
+   - Changing status to `published` requires `product.publish` (cannot publish with only draft/edit permissions).
+   - Changing pricing (`wholesale_price`, `cost_price`, `bulk_price`, `full_stock_price`) requires `product.pricing.manage`.
+   - Modifying packages or variants requires `product.package.manage` or `product.variant.manage`.
+2. **Order Lifecycle State Transition Verification**:
+   - Transition to `CONFIRMED` verifies `order.confirm`.
+   - Transition to `CANCELLED` verifies `order.cancel`.
+   - Transition to `PROCESSING` verifies `order.mark_processing`.
+   - Transition to `SHIPPED` verifies `order.mark_shipped`.
+   - Transition to `DELIVERED` verifies `order.mark_delivered`.
+3. **Payment Proof Review**:
+   - Approving/verifying bank-wire payment proof strictly requires `payment.receipt.verify`.
+   - Rejecting payment proof strictly requires `payment.receipt.reject`.
+
+### 6.3 Zero Data Leakage & Resource Masking
+1. **Executive Dashboard Aggregations (`DashboardController`)**:
+   - `total_products` & `active_products` masked to `0` if lacking `product.view`.
+   - `total_orders` & `pending_orders` masked to `0`, and `recent_orders` to empty array if lacking `order.view`.
+   - `total_customers` masked to `0` if lacking `customer.view`.
+   - `low_stock_items` masked to `0` if lacking `inventory.view`.
+   - `recent_rfqs` masked to empty array if lacking `rfq.view`.
+2. **Financial Profit & COGS Masking (`AnalyticsController`)**:
+   - `cogs`, `gross_profit`, and `profit_margin` are completely redacted across `summary`, `timeline`, and `series` if the administrator lacks `analytics.profit.view` or `analytics.cogs.view`.
+3. **Order Resource Masking (`OrderResource`)**:
+   - Customer name, email, phone, and addresses are masked to `[REDACTED]` if missing `order.view_customer`.
+   - Line items are masked to `[]` if missing `order.view_items`.
+   - Payment receipt URL and metadata are masked to `null` if missing `payment.receipt.view`.
+   - Carrier shipping label URL is masked to `null` if missing `shipment.label.view`.
+4. **Customer Resource Masking (`CustomerController`)**:
+   - `total_spent` masked to `0` if missing `customer.view_spending`.
+   - `orders` and `purchased_products` masked to `[]` if missing `customer.view_orders`.
+5. **Activity Log Masking (`ActivityResource`)**:
+   - User IP address and user-agent string masked to `[REDACTED]` if missing `audit.view_sensitive`.
+
+### 6.4 Frontend Layer Enforcement
+1. **Dynamic Navigation (`AdminSidebar.tsx`)**:
+   - Navigation links (Products, Orders, Inventory, RFQs, Quotations, Customers, Coupons, Documents, Settings, Administrators, Roles, Permissions) dynamically check `can(permission)`. Navigation sections are completely hidden if the admin has no permissions in that module.
+2. **Page-Level Direct URL Protection (`AdminPageGate.tsx`)**:
+   - All admin pages (`/admin`, `/admin/products`, `/admin/products/new`, `/admin/products/[id]/edit`, `/admin/categories`, `/admin/brands`, `/admin/inventory`, `/admin/orders`, `/admin/orders/[id]`, `/admin/customers`, `/admin/coupons`, `/admin/homepage`, `/admin/documents`, `/admin/rfq-quotes`, `/admin/administrators`, `/admin/roles`, `/admin/permissions`, `/admin/settings`) are guarded by `AdminPageGate`. Manually typing restricted URLs renders a clean `403 Forbidden: Insufficient Administrative Permissions` screen without executing data fetches.
+3. **Action-Level UI Gating (`PermissionGate.tsx`)**:
+   - Action buttons (Add Product, Publish, Duplicate, Delete, Adjust Stock, Verify/Reject Payment Proof, Confirm Order, Cancel Order, Create Shipment) are gated or disabled with tooltips indicating missing permissions.
+4. **Context Hook API (`useAdminAuth()`)**:
+   - Centralized authorization helpers: `can(slug)`, `canAny([slugs])`, `canAll([slugs])`, `isSuperAdmin`, and `rbacProfile`. All frontend components use this single source of truth.
 

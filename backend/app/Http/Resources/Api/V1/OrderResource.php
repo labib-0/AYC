@@ -21,6 +21,22 @@ class OrderResource extends JsonResource
         $discountAmount = (float) $this->discount_amount;
         $totalAmount = (float) $this->total_amount;
 
+        $user = $request->user();
+        $isAdmin = $user && $user->isAdmin();
+
+        $canViewCustomer = true;
+        $canViewItems = true;
+        $canViewReceipt = true;
+        $canViewLabel = true;
+
+        if ($isAdmin) {
+            $authorization = app(\App\Services\Rbac\AdminAuthorizationService::class);
+            $canViewCustomer = $authorization->can($user, 'order.view_customer');
+            $canViewItems = $authorization->can($user, 'order.view_items');
+            $canViewReceipt = $authorization->can($user, 'payment.receipt.view');
+            $canViewLabel = $authorization->can($user, 'shipment.label.view');
+        }
+
         return [
             'id' => (string) $this->id,
             'order_number' => $this->order_number,
@@ -42,21 +58,21 @@ class OrderResource extends JsonResource
             'discount_cents' => (int) round($discountAmount * 100),
             'total_amount' => $totalAmount,
             'total_cents' => (int) round($totalAmount * 100),
-            'email' => $this->email,
-            'shipping_name' => $this->shipping_name,
-            'shipping_phone' => $this->shipping_phone,
-            'shipping_address1' => $this->shipping_address1,
-            'shipping_address2' => $this->shipping_address2,
-            'shipping_city' => $this->shipping_city,
-            'shipping_region' => $this->shipping_region,
-            'shipping_postal_code' => $this->shipping_postal_code,
+            'email' => $canViewCustomer ? $this->email : null,
+            'shipping_name' => $canViewCustomer ? $this->shipping_name : 'Customer Details Restricted',
+            'shipping_phone' => $canViewCustomer ? $this->shipping_phone : null,
+            'shipping_address1' => $canViewCustomer ? $this->shipping_address1 : 'Address Restricted',
+            'shipping_address2' => $canViewCustomer ? $this->shipping_address2 : null,
+            'shipping_city' => $canViewCustomer ? $this->shipping_city : null,
+            'shipping_region' => $canViewCustomer ? $this->shipping_region : null,
+            'shipping_postal_code' => $canViewCustomer ? $this->shipping_postal_code : null,
             'shipping_country_code' => $this->shipping_country_code ?: 'US',
             'shipping_method' => $this->shipping_method,
             'carrier' => $this->carrier,
             'tracking_number' => $this->tracking_number,
             'shipment_id' => $this->shipment_id,
             'shipment_reference' => $this->shipment_reference,
-            'shipment_label_url' => $this->shipment_label_url,
+            'shipment_label_url' => $canViewLabel ? $this->shipment_label_url : null,
             'carrier_status' => $this->carrier_status,
             'last_carrier_update' => $this->last_carrier_update?->toISOString(),
             'last_shipment_error' => $this->last_shipment_error,
@@ -64,9 +80,9 @@ class OrderResource extends JsonResource
             'shipping_snapshot' => $this->shipping_snapshot,
             'direct_tracking_url' => $this->getDirectTrackingUrl(),
             'can_create_aramex_shipment' => $this->canCreateAramexShipment(),
-            'billing_address' => $this->billing_address,
+            'billing_address' => $canViewCustomer ? $this->billing_address : null,
             'payment_method' => $this->payment_method ?: 'card',
-            'payment_proof_url' => $this->payment_proof_url,
+            'payment_proof_url' => $canViewReceipt ? $this->payment_proof_url : null,
             'notes' => $this->notes,
             'payment_details' => $this->when($this->payment_details !== null, function () use ($request) {
                 if (!$request->user() || $request->user()->role !== 'admin') {
@@ -83,7 +99,7 @@ class OrderResource extends JsonResource
             'placed_at' => $this->placed_at?->toISOString() ?: $this->created_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
-            'items' => OrderItemResource::collection($this->whenLoaded('items')),
+            'items' => $canViewItems ? OrderItemResource::collection($this->whenLoaded('items')) : [],
             'status_events' => $this->whenLoaded('statusEvents', function () {
                 return $this->statusEvents->map(function ($event) {
                     return [
@@ -96,8 +112,8 @@ class OrderResource extends JsonResource
                     ];
                 });
             }),
-            'payments' => $this->whenLoaded('payments', function () {
-                return $this->payments->map(function ($payment) {
+            'payments' => $this->whenLoaded('payments', function () use ($canViewReceipt) {
+                return $this->payments->map(function ($payment) use ($canViewReceipt) {
                     return [
                         'id' => (string) $payment->id,
                         'order_id' => (string) $payment->order_id,
@@ -113,9 +129,9 @@ class OrderResource extends JsonResource
                         'account_number' => $payment->account_number,
                         'payment_date' => $payment->payment_date?->format('Y-m-d') ?: null,
                         'notes' => $payment->notes,
-                        'receipt_url' => $payment->receipt_url,
-                        'receipt_original_name' => $payment->receipt_original_name,
-                        'receipt_mime_type' => $payment->receipt_mime_type,
+                        'receipt_url' => $canViewReceipt ? $payment->receipt_url : null,
+                        'receipt_original_name' => $canViewReceipt ? $payment->receipt_original_name : null,
+                        'receipt_mime_type' => $canViewReceipt ? $payment->receipt_mime_type : null,
                         'submitted_at' => $payment->submitted_at?->toISOString(),
                         'confirmed_at' => $payment->confirmed_at?->toISOString(),
                         'created_at' => $payment->created_at?->toISOString(),

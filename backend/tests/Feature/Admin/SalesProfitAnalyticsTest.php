@@ -27,6 +27,7 @@ class SalesProfitAnalyticsTest extends TestCase
             'name' => 'Admin User',
             'email' => 'admin@ayaan.test',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $this->customer = User::factory()->create([

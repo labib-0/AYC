@@ -30,7 +30,7 @@ class RoleAuthorizationTest extends TestCase
 
     public function test_admin_can_access_admin_endpoints(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['is_super_admin' => true]);
         $token = $admin->createToken('auth_token')->plainTextToken;
 
         $response = $this->withHeader('Authorization', 'Bearer ' . $token)

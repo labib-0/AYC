@@ -11,6 +11,7 @@ use App\Models\HomepageFeaturedProduct;
 use App\Models\HomepageHotSaleCategory;
 use App\Models\Product;
 use App\Services\Cache\CatalogCacheService;
+use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,10 @@ use Illuminate\Support\Facades\Storage;
 
 class HomepageManagementController extends ApiController
 {
+    public function __construct(
+        private readonly AdminAuthorizationService $authorization
+    ) {}
+
     /**
      * GET /api/v1/admin/homepage
      *
@@ -129,6 +134,14 @@ class HomepageManagementController extends ApiController
         }
 
         $isActive = isset($validated['is_active']) ? (bool) $validated['is_active'] : true;
+
+        $user = $request->user();
+        if (!$this->authorization->can($user, 'homepage.banner.edit')) {
+            return $this->forbidden("Forbidden: you do not have the 'homepage.banner.edit' permission.");
+        }
+        if ($isActive && !$this->authorization->can($user, 'homepage.banner.publish')) {
+            return $this->forbidden("Forbidden: you do not have the 'homepage.banner.publish' permission to publish banners.");
+        }
 
         DB::beginTransaction();
         try {

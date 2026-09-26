@@ -38,6 +38,7 @@ class PaymentReceiptVerificationWorkflowTest extends TestCase
 
         $this->admin = User::factory()->create([
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $product = Product::factory()->create([

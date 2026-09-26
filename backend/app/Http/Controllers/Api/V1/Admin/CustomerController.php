@@ -6,35 +6,43 @@ use App\Http\Controllers\Api\ApiController;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\Audit\ActivityLogger;
+use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class CustomerController extends ApiController
 {
+    public function __construct(
+        private readonly AdminAuthorizationService $authorization
+    ) {}
+
     /**
      * GET /api/v1/admin/customers/summary
      * Calculate customer statistics strictly from customer accounts only.
      * Administrators are strictly excluded.
      */
-    public function summary(): JsonResponse
+    public function summary(Request $request): JsonResponse
     {
+        $admin = $request->user();
+        $canViewSpending = $admin && $this->authorization->can($admin, 'customer.view_spending');
+
         $base = User::where('role', User::ROLE_CUSTOMER);
 
         $totalCustomers = (clone $base)->count();
         $totalOrders = Order::whereHas('user', function ($q) {
             $q->where('role', User::ROLE_CUSTOMER);
         })->count();
-        $totalSpent = (float) Order::whereHas('user', function ($q) {
+        $totalSpent = $canViewSpending ? (float) Order::whereHas('user', function ($q) {
             $q->where('role', User::ROLE_CUSTOMER);
         })->where(function ($q) {
             $q->where('payment_status', 'paid')->orWhere('status', 'delivered');
-        })->sum('total_amount');
+        })->sum('total_amount') : null;
 
         return $this->success([
             'totalCustomers' => $totalCustomers,
             'totalOrders' => $totalOrders,
-            'totalSpent' => round($totalSpent, 2),
+            'totalSpent' => $totalSpent !== null ? round($totalSpent, 2) : null,
         ], 'Customer summary metrics retrieved successfully');
     }
 
@@ -76,8 +84,11 @@ class CustomerController extends ApiController
         $perPage = min((int) $request->input('per_page', 20), 100);
         $customers = $query->paginate($perPage);
 
+        $admin = $request->user();
+        $canViewSpending = $admin && $this->authorization->can($admin, 'customer.view_spending');
+
         // Transform collection to ensure clean customer attributes
-        $customers->getCollection()->transform(function ($user) {
+        $customers->getCollection()->transform(function ($user) use ($canViewSpending) {
             return [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -87,7 +98,7 @@ class CustomerController extends ApiController
                 'company_name' => $user->company_name,
                 'avatar_url' => $user->avatar_url,
                 'orders_count' => (int) $user->orders_count,
-                'total_spent' => round((float) ($user->total_spent ?? 0), 2),
+                'total_spent' => $canViewSpending ? round((float) ($user->total_spent ?? 0), 2) : null,
                 'created_at' => $user->created_at?->toISOString(),
             ];
         });
@@ -100,8 +111,12 @@ class CustomerController extends ApiController
      * Retrieve single customer details with addresses, orders, and purchased products.
      * Administrators cannot be fetched via this endpoint.
      */
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
+        $admin = $request->user();
+        $canViewSpending = $admin && $this->authorization->can($admin, 'customer.view_spending');
+        $canViewOrders = $admin && $this->authorization->can($admin, 'customer.view_orders');
+
         $user = User::where('role', User::ROLE_CUSTOMER)
             ->with([
                 'addresses',
@@ -125,7 +140,7 @@ class CustomerController extends ApiController
         }
 
         // Format orders and purchased products
-        $orders = $user->orders->map(function ($order) {
+        $orders = $canViewOrders ? $user->orders->map(function ($order) {
             return [
                 'id' => $order->id,
                 'order_number' => $order->order_number,
@@ -150,24 +165,26 @@ class CustomerController extends ApiController
                     ];
                 }),
             ];
-        });
+        }) : [];
 
         // Collect all purchased products across orders
         $purchasedProducts = [];
-        foreach ($user->orders as $order) {
-            foreach ($order->items as $item) {
-                $purchasedProducts[] = [
-                    'id' => $item->id,
-                    'product_id' => $item->product_id,
-                    'product_name' => $item->product_name ?? $item->product?->name ?? 'Product',
-                    'sku' => $item->variant?->sku ?? $item->product?->sku ?? 'N/A',
-                    'quantity' => (int) $item->quantity,
-                    'unit_price' => round((float) $item->unit_price, 2),
-                    'line_total' => round((float) ($item->total_price ?? ($item->unit_price * $item->quantity)), 2),
-                    'order_number' => $order->order_number,
-                    'order_id' => $order->id,
-                    'order_date' => $order->created_at?->toISOString(),
-                ];
+        if ($canViewOrders) {
+            foreach ($user->orders as $order) {
+                foreach ($order->items as $item) {
+                    $purchasedProducts[] = [
+                        'id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'product_name' => $item->product_name ?? $item->product?->name ?? 'Product',
+                        'sku' => $item->variant?->sku ?? $item->product?->sku ?? 'N/A',
+                        'quantity' => (int) $item->quantity,
+                        'unit_price' => round((float) $item->unit_price, 2),
+                        'line_total' => round((float) ($item->total_price ?? ($item->unit_price * $item->quantity)), 2),
+                        'order_number' => $order->order_number,
+                        'order_id' => $order->id,
+                        'order_date' => $order->created_at?->toISOString(),
+                    ];
+                }
             }
         }
 
@@ -182,9 +199,9 @@ class CustomerController extends ApiController
             'avatar_url' => $user->avatar_url,
             'orders_count' => (int) $user->orders_count,
             'quotes_count' => (int) ($user->quotes_count ?? $user->quotes->count()),
-            'total_spent' => round((float) ($user->total_spent ?? 0), 2),
+            'total_spent' => $canViewSpending ? round((float) ($user->total_spent ?? 0), 2) : null,
             'addresses' => $user->addresses,
-            'recent_orders' => $orders,
+            'recent_orders' => $canViewOrders ? $orders : [],
             'purchased_products' => $purchasedProducts,
             'recent_quotes' => $user->quotes,
             'created_at' => $user->created_at?->toISOString(),

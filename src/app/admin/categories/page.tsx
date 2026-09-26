@@ -14,6 +14,8 @@ import {
   CategoryPagination,
 } from "@/components/admin/categories";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
+import { PermissionGate } from "@/components/admin/auth/PermissionGate";
 
 const PER_PAGE = 20;
 
@@ -228,130 +230,134 @@ export default function AdminCategoriesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
-            Product Categories
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Manage the product categories used across your catalog.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleOpenCreate}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-xs self-start sm:self-auto cursor-pointer"
-        >
-          <Plus size={15} />
-          <span>+ Add Category</span>
-        </button>
-      </div>
-
-      {/* ── Read-Only Fixed Audience Reference ── */}
-      <AudienceReference />
-
-      {/* ── Error State with Retry ── */}
-      {error ? (
-        <div className="p-6 rounded-2xl bg-card border border-destructive/30 space-y-3 text-center">
-          <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
-            <AlertCircle size={20} />
-          </div>
+    <AdminPageGate permission="category.view" moduleName="Product Categories">
+      <div className="space-y-6">
+        {/* ── Page Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-bold text-foreground">Unable to load product categories</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
+            <h1 className="text-2xl sm:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
+              Product Categories
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              Manage the product categories used across your catalog.
+            </p>
           </div>
-          <div>
+
+          <PermissionGate permission="category.create">
             <button
               type="button"
-              onClick={() => loadCategories()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-card hover:bg-secondary text-xs font-bold uppercase tracking-wider text-foreground transition-colors cursor-pointer"
+              onClick={handleOpenCreate}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-xs self-start sm:self-auto cursor-pointer"
             >
-              <RefreshCw size={13} />
-              <span>Retry</span>
+              <Plus size={15} />
+              <span>+ Add Category</span>
             </button>
-          </div>
+          </PermissionGate>
         </div>
-      ) : (
-        <>
-          {/* ── Category Management Toolbar ── */}
-          <CategoryToolbar
-            search={search}
-            onSearchChange={handleSearchChange}
-            statusFilter={statusFilter}
-            onStatusFilterChange={handleStatusFilterChange}
-            totalCategories={categories.length}
-            activeCount={activeCount}
-            inactiveCount={inactiveCount}
-            onRefresh={() => loadCategories(true)}
-            isRefreshing={isRefreshing}
-          />
 
-          {/* ── Category Table & Responsive Mobile Cards ── */}
-          <CategoryTable
-            categories={paginatedCategories}
-            loading={loading}
-            isFiltered={Boolean(search || statusFilter !== "ALL")}
-            onEdit={handleOpenEdit}
-            onToggleStatus={handlePromptToggleStatus}
-            onDelete={handlePromptDelete}
-            onAddCategory={handleOpenCreate}
-            onClearFilters={handleClearFilters}
-          />
+        {/* ── Read-Only Fixed Audience Reference ── */}
+        <AudienceReference />
 
-          {/* ── Category Pagination ── */}
-          {!loading && filteredCategories.length > 0 && (
-            <CategoryPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredCategories.length}
-              perPage={PER_PAGE}
-              onPageChange={setCurrentPage}
+        {/* ── Error State with Retry ── */}
+        {error ? (
+          <div className="p-6 rounded-2xl bg-card border border-destructive/30 space-y-3 text-center">
+            <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+              <AlertCircle size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Unable to load product categories</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => loadCategories()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-card hover:bg-secondary text-xs font-bold uppercase tracking-wider text-foreground transition-colors cursor-pointer"
+              >
+                <RefreshCw size={13} />
+                <span>Retry</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* ── Category Management Toolbar ── */}
+            <CategoryToolbar
+              search={search}
+              onSearchChange={handleSearchChange}
+              statusFilter={statusFilter}
+              onStatusFilterChange={handleStatusFilterChange}
+              totalCategories={categories.length}
+              activeCount={activeCount}
+              inactiveCount={inactiveCount}
+              onRefresh={() => loadCategories(true)}
+              isRefreshing={isRefreshing}
             />
-          )}
-        </>
-      )}
 
-      {/* ── Add / Edit Category Modal ── */}
-      <CategoryModal
-        isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditingCategory(null);
-        }}
-        category={editingCategory}
-        onSuccess={handleCategorySaved}
-        defaultSortOrder={nextSortOrder}
-      />
+            {/* ── Category Table & Responsive Mobile Cards ── */}
+            <CategoryTable
+              categories={paginatedCategories}
+              loading={loading}
+              isFiltered={Boolean(search || statusFilter !== "ALL")}
+              onEdit={handleOpenEdit}
+              onToggleStatus={handlePromptToggleStatus}
+              onDelete={handlePromptDelete}
+              onAddCategory={handleOpenCreate}
+              onClearFilters={handleClearFilters}
+            />
 
-      {/* ── Status Change Confirmation Dialog ── */}
-      <CategoryStatusDialog
-        open={statusDialogOpen}
-        category={targetStatusCategory}
-        onConfirm={handleConfirmToggleStatus}
-        onCancel={() => {
-          setStatusDialogOpen(false);
-          setTargetStatusCategory(null);
-        }}
-        loading={statusLoading}
-      />
+            {/* ── Category Pagination ── */}
+            {!loading && filteredCategories.length > 0 && (
+              <CategoryPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredCategories.length}
+                perPage={PER_PAGE}
+                onPageChange={setCurrentPage}
+              />
+            )}
+          </>
+        )}
 
-      {/* ── Safe Delete Confirmation Dialog ── */}
-      <CategoryDeleteDialog
-        open={deleteDialogOpen}
-        category={targetDeleteCategory}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => {
-          setDeleteDialogOpen(false);
-          setTargetDeleteCategory(null);
-        }}
-        loading={deleteLoading}
-      />
+        {/* ── Add / Edit Category Modal ── */}
+        <CategoryModal
+          isOpen={modalOpen}
+          onClose={() => {
+            setModalOpen(false);
+            setEditingCategory(null);
+          }}
+          category={editingCategory}
+          onSuccess={handleCategorySaved}
+          defaultSortOrder={nextSortOrder}
+        />
 
-      {/* ── Toast Feedback Notifications ── */}
-      <ProductToast toasts={toasts} onDismiss={dismissToast} />
-    </div>
+        {/* ── Status Change Confirmation Dialog ── */}
+        <CategoryStatusDialog
+          open={statusDialogOpen}
+          category={targetStatusCategory}
+          onConfirm={handleConfirmToggleStatus}
+          onCancel={() => {
+            setStatusDialogOpen(false);
+            setTargetStatusCategory(null);
+          }}
+          loading={statusLoading}
+        />
+
+        {/* ── Safe Delete Confirmation Dialog ── */}
+        <CategoryDeleteDialog
+          open={deleteDialogOpen}
+          category={targetDeleteCategory}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            setDeleteDialogOpen(false);
+            setTargetDeleteCategory(null);
+          }}
+          loading={deleteLoading}
+        />
+
+        {/* ── Toast Feedback Notifications ── */}
+        <ProductToast toasts={toasts} onDismiss={dismissToast} />
+      </div>
+    </AdminPageGate>
   );
 }

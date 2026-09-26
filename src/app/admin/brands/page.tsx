@@ -13,6 +13,8 @@ import {
   BrandPagination,
 } from "@/components/admin/brands";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
+import { PermissionGate } from "@/components/admin/auth/PermissionGate";
 
 const PER_PAGE = 20;
 
@@ -227,124 +229,128 @@ export default function AdminBrandsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
-            Brands
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Manage your clothing brands, logos and availability.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleOpenCreate}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-xs self-start sm:self-auto cursor-pointer"
-        >
-          <Plus size={15} />
-          <span>Add Brand</span>
-        </button>
-      </div>
-
-      {/* ── Error State with Retry ── */}
-      {error ? (
-        <div className="p-6 rounded-2xl bg-card border border-destructive/30 space-y-3 text-center">
-          <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
-            <AlertCircle size={20} />
-          </div>
+    <AdminPageGate permission="brand.view" moduleName="Brands">
+      <div className="space-y-6">
+        {/* ── Page Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-bold text-foreground">Unable to load brands</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
+            <h1 className="text-2xl sm:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
+              Brands
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              Manage your clothing brands, logos and availability.
+            </p>
           </div>
-          <div>
+
+          <PermissionGate permission="brand.create">
             <button
               type="button"
-              onClick={() => loadBrands()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-card hover:bg-secondary text-xs font-bold uppercase tracking-wider text-foreground transition-colors cursor-pointer"
+              onClick={handleOpenCreate}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-xs self-start sm:self-auto cursor-pointer"
             >
-              <RefreshCw size={13} />
-              <span>Retry</span>
+              <Plus size={15} />
+              <span>Add Brand</span>
             </button>
-          </div>
+          </PermissionGate>
         </div>
-      ) : (
-        <>
-          {/* ── Brand Management Toolbar ── */}
-          <BrandToolbar
-            search={search}
-            onSearchChange={handleSearchChange}
-            statusFilter={statusFilter}
-            onStatusFilterChange={handleStatusFilterChange}
-            totalBrands={brands.length}
-            activeCount={activeCount}
-            inactiveCount={inactiveCount}
-            onRefresh={() => loadBrands(true)}
-            isRefreshing={isRefreshing}
-          />
 
-          {/* ── Brand Table & Responsive Mobile Cards ── */}
-          <BrandTable
-            brands={paginatedBrands}
-            loading={loading}
-            isFiltered={Boolean(search || statusFilter !== "ALL")}
-            onEdit={handleOpenEdit}
-            onToggleStatus={handlePromptToggleStatus}
-            onDelete={handlePromptDelete}
-            onAddBrand={handleOpenCreate}
-            onClearFilters={handleClearFilters}
-          />
-
-          {/* ── Brand Pagination ── */}
-          {!loading && filteredBrands.length > 0 && (
-            <BrandPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredBrands.length}
-              perPage={PER_PAGE}
-              onPageChange={setCurrentPage}
+        {/* ── Error State with Retry ── */}
+        {error ? (
+          <div className="p-6 rounded-2xl bg-card border border-destructive/30 space-y-3 text-center">
+            <div className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+              <AlertCircle size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Unable to load brands</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => loadBrands()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-card hover:bg-secondary text-xs font-bold uppercase tracking-wider text-foreground transition-colors cursor-pointer"
+              >
+                <RefreshCw size={13} />
+                <span>Retry</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* ── Brand Management Toolbar ── */}
+            <BrandToolbar
+              search={search}
+              onSearchChange={handleSearchChange}
+              statusFilter={statusFilter}
+              onStatusFilterChange={handleStatusFilterChange}
+              totalBrands={brands.length}
+              activeCount={activeCount}
+              inactiveCount={inactiveCount}
+              onRefresh={() => loadBrands(true)}
+              isRefreshing={isRefreshing}
             />
-          )}
-        </>
-      )}
 
-      {/* ── Add / Edit Brand Modal ── */}
-      <BrandModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        brand={editingBrand}
-        onSuccess={handleBrandSaved}
-        defaultSortOrder={nextSortOrder}
-      />
+            {/* ── Brand Table & Responsive Mobile Cards ── */}
+            <BrandTable
+              brands={paginatedBrands}
+              loading={loading}
+              isFiltered={Boolean(search || statusFilter !== "ALL")}
+              onEdit={handleOpenEdit}
+              onToggleStatus={handlePromptToggleStatus}
+              onDelete={handlePromptDelete}
+              onAddBrand={handleOpenCreate}
+              onClearFilters={handleClearFilters}
+            />
 
-      {/* ── Status Change Confirmation Dialog ── */}
-      <BrandStatusDialog
-        open={statusDialogOpen}
-        brand={targetStatusBrand}
-        onConfirm={handleConfirmToggleStatus}
-        onCancel={() => {
-          setStatusDialogOpen(false);
-          setTargetStatusBrand(null);
-        }}
-        loading={statusLoading}
-      />
+            {/* ── Brand Pagination ── */}
+            {!loading && filteredBrands.length > 0 && (
+              <BrandPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredBrands.length}
+                perPage={PER_PAGE}
+                onPageChange={setCurrentPage}
+              />
+            )}
+          </>
+        )}
 
-      {/* ── Safe Delete Confirmation Dialog ── */}
-      <BrandDeleteDialog
-        open={deleteDialogOpen}
-        brand={targetDeleteBrand}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => {
-          setDeleteDialogOpen(false);
-          setTargetDeleteBrand(null);
-        }}
-        loading={deleteLoading}
-      />
+        {/* ── Add / Edit Brand Modal ── */}
+        <BrandModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          brand={editingBrand}
+          onSuccess={handleBrandSaved}
+          defaultSortOrder={nextSortOrder}
+        />
 
-      {/* ── Toast Feedback Notifications ── */}
-      <ProductToast toasts={toasts} onDismiss={dismissToast} />
-    </div>
+        {/* ── Status Change Confirmation Dialog ── */}
+        <BrandStatusDialog
+          open={statusDialogOpen}
+          brand={targetStatusBrand}
+          onConfirm={handleConfirmToggleStatus}
+          onCancel={() => {
+            setStatusDialogOpen(false);
+            setTargetStatusBrand(null);
+          }}
+          loading={statusLoading}
+        />
+
+        {/* ── Safe Delete Confirmation Dialog ── */}
+        <BrandDeleteDialog
+          open={deleteDialogOpen}
+          brand={targetDeleteBrand}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            setDeleteDialogOpen(false);
+            setTargetDeleteBrand(null);
+          }}
+          loading={deleteLoading}
+        />
+
+        {/* ── Toast Feedback Notifications ── */}
+        <ProductToast toasts={toasts} onDismiss={dismissToast} />
+      </div>
+    </AdminPageGate>
   );
 }

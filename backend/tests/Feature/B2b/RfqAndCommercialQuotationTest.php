@@ -53,6 +53,7 @@ class RfqAndCommercialQuotationTest extends TestCase
             'name' => 'Export Director',
             'email' => 'director@ayaanclothing.com',
             'role' => 'admin',
+            'is_super_admin' => true,
         ]);
 
         $brand = Brand::create(['name' => 'Ayaan Signature', 'slug' => 'ayaan-sig', 'is_active' => true]);

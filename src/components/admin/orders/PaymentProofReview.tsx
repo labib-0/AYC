@@ -2,11 +2,13 @@
 
 import React, { useState } from "react";
 import { OrderRecord } from "@/services/order.service";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 import PaymentStatusBadge from "./PaymentStatusBadge";
 import {
   FileCheck,
   ExternalLink,
   Download,
+  Lock,
   AlertTriangle,
   ZoomIn,
   ZoomOut,
@@ -47,6 +49,10 @@ export default function PaymentProofReview({
   onReject,
   isLoading = false,
 }: PaymentProofReviewProps) {
+  const { can, isSuperAdmin } = useAdminAuth();
+  const canVerify = isSuperAdmin || can("payment.receipt.verify");
+  const canReject = isSuperAdmin || can("payment.receipt.reject");
+
   // Extract latest payment submission if present
   const latestPayment = Array.isArray(order.payments) && order.payments.length > 0
     ? order.payments[order.payments.length - 1]
@@ -473,26 +479,35 @@ export default function PaymentProofReview({
             {/* Confirmation Controls */}
             <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2">
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50"
-                  id="btn-confirm-payment-order"
-                >
-                  <CheckCircle2 size={16} />
-                  <span>{isLoading ? "Processing..." : "Confirm Payment & Order"}</span>
-                </button>
+                {canVerify ? (
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                    id="btn-confirm-payment-order"
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>{isLoading ? "Processing..." : "Confirm Payment & Order"}</span>
+                  </button>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary/50 border border-border text-muted-foreground text-xs font-medium">
+                    <Lock size={13} className="text-amber-500" />
+                    <span>Verification requires <code className="font-mono text-foreground">payment.receipt.verify</code></span>
+                  </div>
+                )}
 
-                <button
-                  type="button"
-                  onClick={() => setShowRejectBox(!showRejectBox)}
-                  disabled={isLoading}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold uppercase text-xs tracking-wider transition-colors cursor-pointer"
-                  id="btn-toggle-reject-box"
-                >
-                  <XCircle size={15} />
-                  <span>Reject Payment</span>
-                </button>
+                {canReject && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRejectBox(!showRejectBox)}
+                    disabled={isLoading}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold uppercase text-xs tracking-wider transition-colors cursor-pointer"
+                    id="btn-toggle-reject-box"
+                  >
+                    <XCircle size={15} />
+                    <span>Reject Payment</span>
+                  </button>
+                )}
               </div>
 
               <span className="text-[11px] text-muted-foreground italic">

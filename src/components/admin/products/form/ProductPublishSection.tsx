@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, Circle, Globe, FileText } from "lucide-react";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 interface ProductPublishSectionProps {
   status: "published" | "draft";
@@ -19,6 +20,8 @@ export default function ProductPublishSection({
   onStatusChange,
   checklist,
 }: ProductPublishSectionProps) {
+  const { can, isSuperAdmin } = useAdminAuth();
+  const canPublish = isSuperAdmin || can("product.publish");
   const isPublished = status === "published";
 
   return (
@@ -37,11 +40,17 @@ export default function ProductPublishSection({
         {/* Published */}
         <button
           type="button"
-          onClick={() => onStatusChange("published")}
+          disabled={!canPublish}
+          onClick={() => {
+            if (canPublish) onStatusChange("published");
+          }}
+          title={!canPublish ? "Requires 'product.publish' permission" : undefined}
           className={`p-3.5 rounded-xl border text-left transition-all ${
-            isPublished
-              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs"
-              : "border-border hover:bg-secondary/60 text-muted-foreground"
+            !canPublish
+              ? "opacity-40 cursor-not-allowed border-border/60 bg-secondary/30"
+              : isPublished
+              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs cursor-pointer"
+              : "border-border hover:bg-secondary/60 text-muted-foreground cursor-pointer"
           }`}
         >
           <div className="flex items-center justify-between mb-1">
@@ -51,7 +60,11 @@ export default function ProductPublishSection({
             />
             <span
               className={`w-2 h-2 rounded-full ${
-                isPublished ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"
+                !canPublish
+                  ? "bg-gray-400"
+                  : isPublished
+                  ? "bg-emerald-500 animate-pulse"
+                  : "bg-muted-foreground/40"
               }`}
             />
           </div>
@@ -62,7 +75,9 @@ export default function ProductPublishSection({
           >
             Published
           </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Live on storefront</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {!canPublish ? "Publishing unauthorized" : "Live on storefront"}
+          </p>
         </button>
 
         {/* Draft */}

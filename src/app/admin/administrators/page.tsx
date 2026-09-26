@@ -20,6 +20,7 @@ import {
   AdminRoleAssignModal,
 } from "@/components/admin/administrators";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 export default function AdministratorsPage() {
   const { user: currentUser } = useAuth();
@@ -197,7 +198,8 @@ export default function AdministratorsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <AdminPageGate permission="admin.view" moduleName="Administrator Accounts">
+      <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* Header with stats */}
       <AdminHeader
         stats={stats}
@@ -280,6 +282,7 @@ export default function AdministratorsPage() {
 
       {/* Toast notifications */}
       <ProductToast toasts={toasts} onDismiss={dismissToast} />
-    </div>
+      </div>
+    </AdminPageGate>
   );
 }
