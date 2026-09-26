@@ -18,6 +18,7 @@ import {
   Files,
   Settings,
   ShieldCheck,
+  KeyRound,
   ChevronRight,
   PlusCircle,
   TrendingUp,
@@ -73,9 +74,16 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: "ADMINISTRATION",
+    items: [
+      { label: "Administrators", href: "/admin/administrators", icon: ShieldCheck },
+      { label: "RBAC Roles", href: "/admin/roles", icon: Layers },
+      { label: "Permissions Matrix", href: "/admin/permissions", icon: KeyRound },
+    ],
+  },
+  {
     title: "SYSTEM",
     items: [
-      { label: "Admin Management", href: "/admin/settings?tab=users", icon: ShieldCheck },
       { label: "Settings & Config", href: "/admin/settings", icon: Settings },
     ],
   },

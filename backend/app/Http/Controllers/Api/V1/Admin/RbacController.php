@@ -61,10 +61,12 @@ class RbacController extends ApiController
         $this->requireSuperAdmin($request);
 
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:100'],
-            'slug'        => ['required', 'string', 'max:100', 'unique:roles,slug', 'regex:/^[a-z0-9_]+$/'],
-            'description' => ['nullable', 'string', 'max:500'],
-            'is_active'   => ['nullable', 'boolean'],
+            'name'             => ['required', 'string', 'max:100'],
+            'slug'             => ['required', 'string', 'max:100', 'unique:roles,slug', 'regex:/^[a-z0-9_]+$/'],
+            'description'      => ['nullable', 'string', 'max:500'],
+            'is_active'        => ['nullable', 'boolean'],
+            'permission_slugs' => ['nullable', 'array'],
+            'permission_slugs.*' => ['string', Rule::exists('permissions', 'slug')],
         ]);
 
         $role = Role::create([
@@ -77,11 +79,20 @@ class RbacController extends ApiController
             'updated_by'  => $request->user()->id,
         ]);
 
+        if (! empty($validated['permission_slugs'])) {
+            $permissionIds = Permission::whereIn('slug', $validated['permission_slugs'])->pluck('id')->all();
+            $role->permissions()->sync($permissionIds);
+        }
+
         ActivityLogger::log('role.created', $role, [
-            'role' => ['slug' => $role->slug, 'name' => $role->name],
+            'role' => [
+                'slug'        => $role->slug,
+                'name'        => $role->name,
+                'permissions' => $validated['permission_slugs'] ?? [],
+            ],
         ]);
 
-        return $this->success($this->formatRole($role->load('permissions')), 'Role created successfully', 201);
+        return $this->success($this->formatRole($role->fresh()->load('permissions')), 'Role created successfully', 201);
     }
 
     /**
@@ -148,6 +159,12 @@ class RbacController extends ApiController
 
         if ($role->is_system) {
             return $this->error('System roles cannot be deleted.', 422);
+        }
+
+        // Safety check: verify no admins are currently assigned to this role
+        $adminCount = $role->admins()->count();
+        if ($adminCount > 0) {
+            return $this->error("Cannot delete role '{$role->name}': it is currently assigned to {$adminCount} administrator(s). Remove this role from all administrators first.", 422);
         }
 
         $this->authorization->invalidateRole($role);
@@ -374,27 +391,80 @@ class RbacController extends ApiController
 
     private function formatRole(Role $role, bool $detailed = false): array
     {
+        $directPerms = $role->permissions ? $role->permissions->map(fn ($p) => [
+            'id'     => $p->id,
+            'slug'   => $p->slug,
+            'name'   => $p->name,
+            'module' => $p->module,
+            'action' => $p->action ?? 'view',
+        ])->values() : collect();
+
+        $directSlugs = $directPerms->pluck('slug')->all();
+        $adminCount = $role->relationLoaded('admins') ? $role->admins->count() : $role->admins()->count();
+
         $data = [
-            'id'          => $role->id,
-            'name'        => $role->name,
-            'slug'        => $role->slug,
-            'description' => $role->description,
-            'is_system'   => $role->is_system,
-            'is_active'   => $role->is_active,
-            'permissions' => $role->permissions ? $role->permissions->map(fn ($p) => [
-                'slug'   => $p->slug,
-                'name'   => $p->name,
-                'module' => $p->module,
-            ])->values() : [],
-            'created_at'  => $role->created_at?->toISOString(),
+            'id'               => $role->id,
+            'name'             => $role->name,
+            'slug'             => $role->slug,
+            'description'      => $role->description,
+            'is_system'        => (bool) $role->is_system,
+            'is_active'        => (bool) $role->is_active,
+            'permissions'      => $directPerms,
+            'permission_count' => $directPerms->count(),
+            'admin_count'      => $adminCount,
+            'created_at'       => $role->created_at?->toISOString(),
+            'updated_at'       => $role->updated_at?->toISOString(),
         ];
 
-        if ($detailed && isset($role->admins)) {
-            $data['admins'] = $role->admins->map(fn ($a) => [
-                'id'    => $a->id,
-                'name'  => $a->name,
-                'email' => $a->email,
-            ])->values();
+        if ($detailed) {
+            // Compute effective permissions with dependency expansion
+            $allPerms = Permission::with('dependencies')->get()->keyBy('slug');
+            $expandedSlugs = [];
+            $queue = $directSlugs;
+            $visited = [];
+
+            while (! empty($queue)) {
+                $curr = array_shift($queue);
+                if (in_array($curr, $visited, true)) {
+                    continue;
+                }
+                $visited[] = $curr;
+                $expandedSlugs[] = $curr;
+
+                $p = $allPerms->get($curr);
+                if ($p && $p->dependencies->isNotEmpty()) {
+                    foreach ($p->dependencies as $dep) {
+                        if (! in_array($dep->slug, $visited, true)) {
+                            $queue[] = $dep->slug;
+                        }
+                    }
+                }
+            }
+
+            $effectiveList = [];
+            foreach ($expandedSlugs as $slug) {
+                $p = $allPerms->get($slug);
+                $effectiveList[] = [
+                    'slug'         => $slug,
+                    'name'         => $p ? $p->name : $slug,
+                    'module'       => $p ? $p->module : 'General',
+                    'action'       => $p ? $p->action : 'action',
+                    'description'  => $p ? $p->description : null,
+                    'is_direct'    => in_array($slug, $directSlugs, true),
+                    'is_inherited' => ! in_array($slug, $directSlugs, true),
+                ];
+            }
+
+            $data['effective_permissions'] = $effectiveList;
+            $data['effective_permissions_count'] = count($effectiveList);
+
+            if ($role->relationLoaded('admins')) {
+                $data['admins'] = $role->admins->map(fn ($a) => [
+                    'id'    => $a->id,
+                    'name'  => $a->name,
+                    'email' => $a->email,
+                ])->values();
+            }
         }
 
         return $data;

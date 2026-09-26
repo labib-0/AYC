@@ -253,6 +253,8 @@ Route::prefix('v1')->group(function () {
         Route::put('/users/{id}', [AdminUserController::class, 'update']);
         Route::patch('/users/{id}/status', [AdminUserController::class, 'toggleStatus']);
         Route::delete('/users/{id}', [AdminUserController::class, 'destroy']);
+        Route::post('/users/{id}/reset-password', [AdminUserController::class, 'resetPassword']);
+        Route::get('/users/{id}/permissions', [AdminUserController::class, 'permissions']);
 
         Route::get('/administrators', [AdminUserController::class, 'index']);
         Route::post('/administrators', [AdminUserController::class, 'store']);
@@ -260,6 +262,8 @@ Route::prefix('v1')->group(function () {
         Route::put('/administrators/{id}', [AdminUserController::class, 'update']);
         Route::patch('/administrators/{id}/status', [AdminUserController::class, 'toggleStatus']);
         Route::delete('/administrators/{id}', [AdminUserController::class, 'destroy']);
+        Route::post('/administrators/{id}/reset-password', [AdminUserController::class, 'resetPassword']);
+        Route::get('/administrators/{id}/permissions', [AdminUserController::class, 'permissions']);
 
         // Order Management & Transitions
         Route::get('/orders', [AdminOrderController::class, 'index']);

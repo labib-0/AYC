@@ -253,6 +253,117 @@ class AdminAuthorizationService
         Log::info('RBAC: system-wide cache invalidation requested (individual user caches expire per TTL)');
     }
 
+    /**
+     * Return a detailed map of effective permissions with their provenance (sources).
+     * Distinguishes directly assigned permissions from those inherited as dependencies.
+     *
+     * Format:
+     * [
+     *   'product.view' => [
+     *     'slug' => 'product.view',
+     *     'name' => 'View Products',
+     *     'module' => 'Catalog',
+     *     'description' => '...',
+     *     'is_direct' => true,
+     *     'direct_roles' => ['Product Draft Editor'],
+     *     'is_inherited' => false,
+     *     'inherited_from' => [],
+     *   ],
+     *   ...
+     * ]
+     *
+     * @return array<string, array>
+     */
+    public function getPermissionSourceMap(User $user): array
+    {
+        if (! $user->isAdmin()) {
+            return [];
+        }
+
+        // All system permissions indexed by slug
+        $allPermissions = Permission::with('dependencies')->get()->keyBy('slug');
+
+        if ($user->isSuperAdmin()) {
+            $result = [];
+            foreach ($allPermissions as $slug => $perm) {
+                $result[$slug] = [
+                    'slug'           => $slug,
+                    'name'           => $perm->name,
+                    'module'         => $perm->module,
+                    'action'         => $perm->action,
+                    'description'    => $perm->description,
+                    'is_direct'      => true,
+                    'direct_roles'   => ['Super Admin Authority'],
+                    'is_inherited'   => false,
+                    'inherited_from' => [],
+                ];
+            }
+            return $result;
+        }
+
+        if (! $user->isActiveAdmin()) {
+            return [];
+        }
+
+        // 1. Direct assignments from active roles
+        $directMap = []; // slug => [role_names]
+        $roles = $user->rbacRoles()->where('roles.is_active', true)->with('permissions')->get();
+
+        foreach ($roles as $role) {
+            foreach ($role->permissions as $perm) {
+                $directMap[$perm->slug][] = $role->name;
+            }
+        }
+
+        // 2. Expand dependencies and record parent -> required links
+        $inheritedMap = []; // required_slug => [parent_slugs]
+        $queue = array_keys($directMap);
+        $visited = [];
+
+        while (! empty($queue)) {
+            $currentSlug = array_shift($queue);
+            if (in_array($currentSlug, $visited, true)) {
+                continue;
+            }
+            $visited[] = $currentSlug;
+
+            $permModel = $allPermissions->get($currentSlug);
+            if ($permModel && $permModel->dependencies->isNotEmpty()) {
+                foreach ($permModel->dependencies as $dep) {
+                    $depSlug = $dep->slug;
+                    $inheritedMap[$depSlug][] = $currentSlug;
+                    if (! in_array($depSlug, $visited, true)) {
+                        $queue[] = $depSlug;
+                    }
+                }
+            }
+        }
+
+        // 3. Build combined effective permission descriptors
+        $allEffectiveSlugs = array_unique(array_merge(array_keys($directMap), array_keys($inheritedMap)));
+        $result = [];
+
+        foreach ($allEffectiveSlugs as $slug) {
+            $perm = $allPermissions->get($slug);
+            $directRoles = array_values(array_unique($directMap[$slug] ?? []));
+            $parents = array_values(array_unique($inheritedMap[$slug] ?? []));
+
+            $result[$slug] = [
+                'slug'           => $slug,
+                'name'           => $perm ? $perm->name : $slug,
+                'module'         => $perm ? $perm->module : 'General',
+                'action'         => $perm ? $perm->action : 'action',
+                'description'    => $perm ? $perm->description : null,
+                'is_direct'      => ! empty($directRoles),
+                'direct_roles'   => $directRoles,
+                'is_inherited'   => ! empty($parents),
+                'inherited_from' => $parents,
+            ];
+        }
+
+        return $result;
+    }
+
     // ── Bulk helpers for API responses ───────────────────────────────────────
 
     /**

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function AdminsRedirectPage() {
-  redirect("/admin/settings?tab=users");
+  redirect("/admin/administrators");
 }

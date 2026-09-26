@@ -1,6 +1,15 @@
 import { apiClient } from "@/services/api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { mockStore } from "@/lib/mock-data/mock-store";
+import { AdminPermissionsProvenance } from "./rbac.service";
+
+export interface AdminRoleItem {
+  id: number;
+  name: string;
+  slug: string;
+  is_system: boolean;
+  is_active?: boolean;
+}
 
 export interface AdminUserRecord {
   id: number | string;
@@ -8,12 +17,16 @@ export interface AdminUserRecord {
   email: string;
   role: "admin";
   status: "active" | "inactive";
-  access_level: "super_admin" | "admin" | "manager" | "editor" | string;
-  permissions?: string[];
+  is_super_admin: boolean;
+  access_level?: string;
   phone?: string;
   company_name?: string;
   avatar_url?: string;
   is_demo?: boolean;
+  roles?: AdminRoleItem[];
+  role_count?: number;
+  effective_permissions_count?: number;
+  effective_permissions?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -24,8 +37,8 @@ export interface CreateAdminUserInput {
   password: string;
   phone?: string;
   status?: "active" | "inactive";
-  access_level?: "super_admin" | "admin" | "manager" | "editor" | string;
-  permissions?: string[];
+  role_slugs?: string[];
+  access_level?: string;
 }
 
 export interface UpdateAdminUserInput {
@@ -34,33 +47,37 @@ export interface UpdateAdminUserInput {
   password?: string;
   phone?: string;
   status?: "active" | "inactive";
-  access_level?: "super_admin" | "admin" | "manager" | "editor" | string;
-  permissions?: string[];
+  role_slugs?: string[];
+  access_level?: string;
 }
 
 export class AdminUserService {
   /**
-   * GET /api/v1/admin/users
-   * Fetch dedicated list of system administrators only.
+   * GET /api/v1/admin/administrators
+   * Fetch dedicated list of system administrators with RBAC roles and effective permissions.
    */
-  async getAdminUsers(params?: { search?: string; status?: string; access_level?: string }): Promise<AdminUserRecord[]> {
+  async getAdminUsers(params?: { search?: string; status?: string; role?: string }): Promise<AdminUserRecord[]> {
     if (!isFrontendOnly()) {
       try {
-        const res = await apiClient.get<any>("/admin/users", { params });
+        const res = await apiClient.get<any>("/admin/administrators", { params });
         const list = res?.data || res;
         if (Array.isArray(list)) {
           return list.map((a: any) => ({
             id: a.id,
             name: a.name,
             email: a.email,
-            role: "admin",
+            role: "admin" as const,
             status: a.status || "active",
-            access_level: a.access_level || "super_admin",
-            permissions: Array.isArray(a.permissions) ? a.permissions : ["all"],
+            is_super_admin: Boolean(a.is_super_admin),
+            access_level: a.access_level || (a.is_super_admin ? "super_admin" : "admin"),
             phone: a.phone || "",
             company_name: a.company_name || "Ayaan Sourcing Ltd.",
             avatar_url: a.avatar_url,
             is_demo: Boolean(a.is_demo),
+            roles: Array.isArray(a.roles) ? a.roles : [],
+            role_count: a.role_count ?? (Array.isArray(a.roles) ? a.roles.length : 0),
+            effective_permissions_count: a.effective_permissions_count ?? (a.effective_permissions ? a.effective_permissions.length : 0),
+            effective_permissions: Array.isArray(a.effective_permissions) ? a.effective_permissions : [],
             created_at: a.created_at,
             updated_at: a.updated_at,
           }));
@@ -87,26 +104,37 @@ export class AdminUserService {
       id: a.id,
       name: a.name,
       email: a.email,
-      role: "admin",
-      status: (a as any).status || "active",
+      role: "admin" as const,
+      status: ((a as any).status as "active" | "inactive") || "active",
+      is_super_admin: Boolean((a as any).is_super_admin),
       access_level: (a as any).access_level || "super_admin",
-      permissions: (a as any).permissions || ["all"],
       phone: a.phone || "",
       company_name: a.company_name || "Ayaan Sourcing Ltd.",
       avatar_url: a.avatar_url,
       is_demo: Boolean((a as any).is_demo),
+      roles: [],
+      role_count: 0,
+      effective_permissions_count: 0,
+      effective_permissions: [],
       created_at: a.created_at || new Date().toISOString(),
       updated_at: (a as any).updated_at || new Date().toISOString(),
     }));
   }
 
   /**
-   * GET /api/v1/admin/users/{id}
+   * Alias for getAdminUsers
+   */
+  async getAdministrators(params?: { search?: string; status?: string; role?: string }): Promise<AdminUserRecord[]> {
+    return this.getAdminUsers(params);
+  }
+
+  /**
+   * GET /api/v1/admin/administrators/{id}
    */
   async getAdminUserById(id: number | string): Promise<AdminUserRecord> {
     if (!isFrontendOnly()) {
       try {
-        const res = await apiClient.get<any>(`/admin/users/${id}`);
+        const res = await apiClient.get<any>(`/admin/administrators/${id}`);
         const data = res?.data || res;
         return {
           id: data.id,
@@ -114,11 +142,15 @@ export class AdminUserService {
           email: data.email,
           role: "admin",
           status: data.status || "active",
-          access_level: data.access_level || "super_admin",
-          permissions: Array.isArray(data.permissions) ? data.permissions : ["all"],
+          is_super_admin: Boolean(data.is_super_admin),
+          access_level: data.access_level || (data.is_super_admin ? "super_admin" : "admin"),
           phone: data.phone || "",
           company_name: data.company_name,
           avatar_url: data.avatar_url,
+          roles: Array.isArray(data.roles) ? data.roles : [],
+          role_count: data.role_count ?? (Array.isArray(data.roles) ? data.roles.length : 0),
+          effective_permissions_count: data.effective_permissions_count ?? (data.effective_permissions ? data.effective_permissions.length : 0),
+          effective_permissions: Array.isArray(data.effective_permissions) ? data.effective_permissions : [],
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -137,150 +169,182 @@ export class AdminUserService {
       name: u.name,
       email: u.email,
       role: "admin",
-      status: (u as any).status || "active",
+      status: ((u as any).status as "active" | "inactive") || "active",
+      is_super_admin: Boolean((u as any).is_super_admin),
       access_level: (u as any).access_level || "super_admin",
-      permissions: (u as any).permissions || ["all"],
       phone: u.phone || "",
       company_name: u.company_name,
       avatar_url: u.avatar_url,
+      roles: [],
+      role_count: 0,
+      effective_permissions_count: 0,
+      effective_permissions: [],
       created_at: u.created_at,
     };
   }
 
   /**
-   * POST /api/v1/admin/users
-   * Create a new administrator account.
+   * POST /api/v1/admin/administrators
    */
-  async createAdminUser(data: CreateAdminUserInput): Promise<AdminUserRecord> {
+  async createAdminUser(payload: CreateAdminUserInput): Promise<AdminUserRecord> {
     if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.post<any>("/admin/users", data);
-        const created = res?.data || res;
-        return {
-          id: created.id,
-          name: created.name,
-          email: created.email,
-          role: "admin",
-          status: created.status || "active",
-          access_level: created.access_level || "super_admin",
-          permissions: Array.isArray(created.permissions) ? created.permissions : ["all"],
-          phone: created.phone || "",
-          created_at: created.created_at,
-        };
-      } catch (err) {
-        throw err;
-      }
+      const res = await apiClient.post<any>("/admin/administrators", payload);
+      const data = res?.data || res;
+      return {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        role: "admin",
+        status: data.status || "active",
+        is_super_admin: Boolean(data.is_super_admin),
+        access_level: data.access_level || "admin",
+        phone: data.phone || "",
+        roles: Array.isArray(data.roles) ? data.roles : [],
+        role_count: data.role_count ?? (Array.isArray(data.roles) ? data.roles.length : 0),
+        effective_permissions_count: data.effective_permissions_count ?? 0,
+        effective_permissions: Array.isArray(data.effective_permissions) ? data.effective_permissions : [],
+        created_at: data.created_at,
+      };
     }
 
-    const saved = mockStore.saveUser({
-      name: data.name,
-      email: data.email,
+    const newAdmin = mockStore.saveUser({
+      name: payload.name,
+      email: payload.email,
       role: "admin",
-      phone: data.phone,
+      phone: payload.phone,
       company_name: "Ayaan Sourcing Ltd.",
-      status: data.status || "active",
-      access_level: data.access_level || "super_admin",
-      permissions: data.permissions || ["all"],
+      status: payload.status || "active",
+      is_super_admin: false,
     } as any);
 
     return {
-      id: saved.id,
-      name: saved.name,
-      email: saved.email,
+      id: newAdmin.id,
+      name: newAdmin.name,
+      email: newAdmin.email,
       role: "admin",
-      status: (saved as any).status || "active",
-      access_level: (saved as any).access_level || "super_admin",
-      permissions: (saved as any).permissions || ["all"],
-      phone: saved.phone || "",
-      created_at: saved.created_at,
+      status: ((newAdmin as any).status as "active" | "inactive") || "active",
+      is_super_admin: false,
+      access_level: "admin",
+      phone: newAdmin.phone,
+      roles: [],
+      role_count: 0,
+      effective_permissions_count: 0,
+      effective_permissions: [],
+      created_at: newAdmin.created_at,
     };
   }
 
   /**
-   * PUT /api/v1/admin/users/{id}
-   * Update existing administrator.
+   * PUT /api/v1/admin/administrators/{id}
    */
-  async updateAdminUser(id: number | string, data: UpdateAdminUserInput): Promise<AdminUserRecord> {
+  async updateAdminUser(id: number | string, payload: UpdateAdminUserInput): Promise<AdminUserRecord> {
     if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.put<any>(`/admin/users/${id}`, data);
-        const updated = res?.data || res;
-        return {
-          id: updated.id,
-          name: updated.name,
-          email: updated.email,
-          role: "admin",
-          status: updated.status || "active",
-          access_level: updated.access_level || "super_admin",
-          permissions: Array.isArray(updated.permissions) ? updated.permissions : ["all"],
-          phone: updated.phone || "",
-          updated_at: updated.updated_at,
-        };
-      } catch (err) {
-        throw err;
-      }
+      const res = await apiClient.put<any>(`/admin/administrators/${id}`, payload);
+      const data = res?.data || res;
+      return {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        role: "admin",
+        status: data.status,
+        is_super_admin: Boolean(data.is_super_admin),
+        access_level: data.access_level,
+        phone: data.phone || "",
+        roles: Array.isArray(data.roles) ? data.roles : [],
+        role_count: data.role_count ?? (Array.isArray(data.roles) ? data.roles.length : 0),
+        effective_permissions_count: data.effective_permissions_count ?? 0,
+        effective_permissions: Array.isArray(data.effective_permissions) ? data.effective_permissions : [],
+        updated_at: data.updated_at,
+      };
     }
 
-    const saved = mockStore.saveUser({
-      id: String(id),
-      ...data,
-      role: "admin",
+    const updated = mockStore.saveUser({
+      id,
+      ...(payload.name && { name: payload.name }),
+      ...(payload.email && { email: payload.email }),
+      ...(payload.phone !== undefined && { phone: payload.phone }),
+      ...(payload.status && { status: payload.status }),
     } as any);
 
+    if (!updated) {
+      throw new Error("Failed to update administrator account in local store");
+    }
+
     return {
-      id: saved.id,
-      name: saved.name,
-      email: saved.email,
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
       role: "admin",
-      status: (saved as any).status || "active",
-      access_level: (saved as any).access_level || "super_admin",
-      permissions: (saved as any).permissions || ["all"],
-      phone: saved.phone || "",
-      updated_at: new Date().toISOString(),
+      status: ((updated as any).status as "active" | "inactive") || "active",
+      is_super_admin: Boolean((updated as any).is_super_admin),
+      access_level: "admin",
+      phone: updated.phone,
+      roles: [],
+      role_count: 0,
+      effective_permissions_count: 0,
+      effective_permissions: [],
+      updated_at: (updated as any).updated_at,
     };
   }
 
   /**
-   * PATCH /api/v1/admin/users/{id}/status
-   * Activate or deactivate administrator account.
+   * PATCH /api/v1/admin/administrators/{id}/status
    */
-  async toggleAdminStatus(id: number | string, status?: "active" | "inactive"): Promise<{ id: number | string; status: string }> {
+  async toggleStatus(id: number | string, status?: "active" | "inactive"): Promise<{ id: number | string; status: "active" | "inactive" }> {
     if (!isFrontendOnly()) {
-      try {
-        const res = await apiClient.patch<any>(`/admin/users/${id}/status`, { status });
-        return (res?.data || res) as { id: number | string; status: string };
-      } catch (err) {
-        throw err;
-      }
+      const res = await apiClient.patch<any>(`/admin/administrators/${id}/status`, { status });
+      const data = res?.data || res;
+      return {
+        id: data.id,
+        status: data.status,
+      };
     }
 
     const user = mockStore.getUserById(id);
-    if (!user) throw new Error("Administrator not found");
-    const nextStatus = status || ((user as any).status === "active" ? "inactive" : "active");
-    mockStore.saveUser({ ...user, status: nextStatus } as any);
-    return { id, status: nextStatus };
+    if (!user) throw new Error("Administrator account not found");
+    const newStatus = status || ((user as any).status === "active" ? "inactive" : "active");
+    mockStore.saveUser({ id, status: newStatus } as any);
+    return { id, status: newStatus };
   }
 
   /**
-   * DELETE /api/v1/admin/users/{id}
-   * Remove administrator account where permitted.
+   * Alias for toggleStatus
    */
-  async deleteAdminUser(id: number | string): Promise<boolean> {
+  async toggleAdminStatus(id: number | string, status?: "active" | "inactive"): Promise<{ id: number | string; status: "active" | "inactive" }> {
+    return this.toggleStatus(id, status);
+  }
+
+  /**
+   * POST /api/v1/admin/administrators/{id}/reset-password
+   */
+  async resetPassword(id: number | string, password: string): Promise<void> {
     if (!isFrontendOnly()) {
-      try {
-        await apiClient.delete(`/admin/users/${id}`);
-        return true;
-      } catch (err) {
-        throw err;
-      }
+      await apiClient.post<any>(`/admin/administrators/${id}/reset-password`, { password });
+      return;
+    }
+  }
+
+  /**
+   * GET /api/v1/admin/administrators/{id}/permissions
+   */
+  async getEffectivePermissions(id: number | string): Promise<AdminPermissionsProvenance> {
+    const res = await apiClient.get<any>(`/admin/administrators/${id}/permissions`);
+    return res?.data || res;
+  }
+
+  /**
+   * DELETE /api/v1/admin/administrators/{id}
+   */
+  async deleteAdminUser(id: number | string): Promise<void> {
+    if (!isFrontendOnly()) {
+      await apiClient.delete<any>(`/admin/administrators/${id}`);
+      return;
     }
 
-    const allAdmins = mockStore.getUsers().filter((u) => u.role === "admin");
-    if (allAdmins.length <= 1) {
-      throw new Error("Cannot delete the only remaining administrator account.");
+    const success = mockStore.deleteUser(id);
+    if (!success) {
+      throw new Error("Failed to delete administrator in local store");
     }
-
-    return mockStore.deleteUser(id);
   }
 }
 

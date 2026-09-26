@@ -19,12 +19,13 @@ class AdminUserManagementTest extends TestCase
         parent::setUp();
 
         $this->admin = User::factory()->create([
-            'name' => 'Main System Admin',
-            'email' => 'sysadmin@ayaan.local',
-            'role' => User::ROLE_ADMIN,
-            'status' => 'active',
-            'access_level' => 'super_admin',
-            'company_name' => 'Ayaan Management Ltd.',
+            'name'           => 'Main System Admin',
+            'email'          => 'sysadmin@ayaan.local',
+            'role'           => User::ROLE_ADMIN,
+            'is_super_admin' => true,
+            'status'         => 'active',
+            'access_level'   => 'super_admin',
+            'company_name'   => 'Ayaan Management Ltd.',
         ]);
 
         $this->customer = User::factory()->create([
