@@ -26,12 +26,26 @@ $$\text{MaxCompletePackages} = \min_{i \in \text{Allocations}} \left( \text{Avai
 *If no specific package allocations are defined, the maximum packages fallback to $\lfloor \text{TotalStock} / \max(1, \text{MOQ}) \rfloor$.*
 
 ### 1.3 Full-Stock Clearance Liquidation Formula
-When a wholesale buyer opts for **Full-Stock Clearance**, the garment must have `is_full_stock_eligible = true` and positive warehouse balance ($Q_{\text{stock}} > 0$).
-$$Q_{\text{order}} = Q_{\text{stock}}$$
-$$\text{LineTotal}_{\text{fullstock}} = Q_{\text{stock}} \times P_{\text{fullstock}}$$
-Where $P_{\text{fullstock}}$ is strictly capped to protect buyers:
-$$P_{\text{fullstock}} = \min(P_{\text{fullstock\_configured}}, P_{\text{tier3}})$$
-*Guarantees the liquidation price never exceeds the lowest regular wholesale tier price.*
+The **Full Stock** option is **ALWAYS VISIBLE** on the product page and is never conditionally hidden based on inventory.
+
+#### Quantity Determination
+The purchasable Full Stock quantity obeys the garment package assortment and available inventory rules:
+$$Q_{\text{fullstock}} = \text{MaxCompletePackages} \times \text{MOQ}$$
+Where:
+- Available Inventory = $\text{OnHandStock} - \text{ReservedStock}$
+- $Q_{\text{fullstock}}$ never exceeds the current available inventory of complete packages.
+
+#### Conditional Price Selection
+While the Full Stock option is always visible, its applied unit price is strictly conditional:
+$$\text{UnitPrice}_{\text{fullstock}} = \begin{cases} 
+P_{\text{fullstock}}, & \text{if } \text{AvailableInventory} > \text{MinimumBulkOrderQuantity} \\
+P_{\text{moq}}, & \text{if } \text{AvailableInventory} \le \text{MinimumBulkOrderQuantity}
+\end{cases}$$
+
+Where:
+- $P_{\text{moq}}$ is the normal MOQ / standard applicable wholesale price (the base wholesale tier price that applies to standard purchases).
+- $P_{\text{fullstock}}$ is the configured liquidation price, strictly capped to not exceed the lowest applicable volume price: $\min(P_{\text{fullstock\_configured}}, P_{\text{tier3}})$.
+- **Dynamic Live Evaluation**: Both frontend and backend (`Product.php`, `OrderCalculationService.php`, `CartController.php`) re-evaluate pricing based on live Available Inventory ($\text{OnHand} - \text{Reserved}$). Client-provided prices are never trusted.
 
 ### 1.4 Volumetric CBM & Carton Specifications
 In garment export shipping, freight costs depend on both physical gross weight and volumetric weight (CBM):
@@ -46,6 +60,30 @@ $$\text{COGS}_{\text{order}} = \sum_{i=1}^{n} (Q_i \times \text{buying\_price\_a
 $$\text{GrossProfit}_{\text{order}} = \text{Subtotal}_{\text{order}} - \text{COGS}_{\text{order}}$$
 $$\text{GrossMarginPercentage} = \frac{\text{GrossProfit}}{\text{Subtotal}} \times 100$$
 > **Crucial Audit Rule**: `buying_price_at_sale` is permanently snapshotted into `order_items` during the checkout transaction. If an administrator later changes a product's cost price in the inventory management view, historical order profitability remains completely immutable.
+
+### 1.6 Product Initial Stock, Warehouse Allocation & Complete MOQ Availability
+Implemented in `ProductController@store`, `Product.php`, and `ProductInventorySection.tsx`:
+When an administrator creates a product in the administrative portal:
+$$\text{AvailableStock} = \text{OnHandStock} - \text{ReservedStock}$$
+$$\text{AvailableCompleteMOQs} = \left\lfloor \frac{\text{AvailableStock}}{\text{MOQ}} \right\rfloor$$
+
+#### Invariants & Single Source of Truth
+1. **No Duplicate Stock Architecture**: The system does NOT use arbitrary unlinked stock columns on the `products` table. The real warehouse `inventories` table (keyed by `[product_variant_id, warehouse_id]`) is the sole authoritative source of truth.
+2. **Mandatory Positive MOQ**: Product MOQ must be strictly greater than 0 ($\text{MOQ} \ge 1$). Inputs of 0 or negative values are strictly rejected with 422 Unprocessable Content.
+3. **Audited Initialization**: Every initial stock allocation writes directly to `inventories` for the chosen active warehouse and immediately records an `admin_inventory_adjustments` audit log entry with `reason: 'Initial stock on product creation'` and the creating administrator's `admin_user_id`.
+4. **Automatic Default Variant Generation**: For simple products without explicit variant matrices (colors $\times$ sizes), a standard default variant is automatically generated and linked to the warehouse inventory record.
+5. **Dynamic Availability Preview**: As the administrator inputs stock or changes MOQ, complete MOQs available are calculated live:
+   - Example 1: Stock = 250 pcs, MOQ = 50 pcs $\to$ 5 complete MOQs available.
+   - Example 2: Stock = 220 pcs, MOQ = 50 pcs $\to$ 4 complete MOQs available (+ 20 pcs partial unbundled stock).
+   - Example 3: Stock = 0 pcs $\to$ 0 complete MOQs available (Product displays as Out of Stock).
+6. **Edit Safeguard**: In product edit mode, physical warehouse stock quantities are read-only and protected by the audit integrity safeguard. Stock modifications must be executed via the audited `/admin/inventory` workflow. Updating MOQ recalculates complete orderable MOQs dynamically.
+
+### 1.7 Product Deletion & Slug/SKU Recycling
+When a product is deleted from the wholesale catalog:
+1. **Slug & SKU Release**: To ensure administrators can recreate or reuse URLs and identifiers (e.g., recreating `test-resilience-shirt`), the deleted record's `slug` and `sku` are automatically suffixed (e.g., `{$slug}-deleted-{$id}-{$timestamp}`).
+2. **Model Lifecycle Hook**: Handled at the Eloquent lifecycle layer (`Product::booted() static::deleting`) and in `ProductController@destroy`, ensuring that both soft deletes and direct model deletions release the identifier.
+3. **Uniqueness Scope**: Validation rules check `Rule::unique('products', 'slug')->whereNull('deleted_at')` and `Rule::unique('products', 'sku')->whereNull('deleted_at')`. Deleted items never prevent new or existing products from claiming the slug.
+4. **Order Item Snapshot Integrity**: Because historical quotes and orders preserve historical slugs, SKUs, and names via immutable snapshot columns (`order_items.product_slug`, `order_items.sku`), deleting a product does not alter or corrupt historical export documentation.
 
 ---
 

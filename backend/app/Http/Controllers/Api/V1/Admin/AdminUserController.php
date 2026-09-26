@@ -9,6 +9,7 @@ use App\Services\Audit\ActivityLogger;
 use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -99,49 +100,70 @@ class AdminUserController extends ApiController
             'role_slugs.*' => ['string', Rule::exists('roles', 'slug')],
         ]);
 
-        // Create user record strictly as admin
-        $admin = User::create([
-            'name'                => trim($validated['name']),
-            'email'               => strtolower(trim($validated['email'])),
-            'password'            => Hash::make($validated['password']),
-            'role'                => User::ROLE_ADMIN,
-            'status'              => $validated['status'] ?? 'active',
-            'access_level'        => $validated['access_level'] ?? 'admin',
-            'is_super_admin'      => false, // New admins are never Super Admin via API
-            'phone'               => $validated['phone'] ?? null,
-            'company_name'        => 'Ayaan Sourcing Ltd.',
-            'b2b_approval_status' => 'approved',
-            'is_demo'             => false,
-        ]);
-
-        // Assign initial RBAC roles if provided
-        $assignedRoleNames = [];
+        // Role assignment authorization and delegation check upfront
+        $rolesToAssign = collect();
         if (! empty($validated['role_slugs'])) {
-            // Role assignment requires admin.assign_role or Super Admin
-            if ($actor->isSuperAdmin() || $this->authorization->can($actor, 'admin.assign_role')) {
-                $roles = Role::whereIn('slug', $validated['role_slugs'])->get();
+            if (! $actor->isSuperAdmin() && ! $this->authorization->can($actor, 'admin.assign_role')) {
+                return $this->forbidden('You do not have permission to assign roles.');
+            }
+
+            $rolesToAssign = Role::whereIn('slug', $validated['role_slugs'])->with('permissions')->get();
+
+            // Delegation security: an administrator cannot assign roles with permissions exceeding their own
+            if (! $actor->isSuperAdmin()) {
+                $actorPermissions = $this->authorization->getPermissionSlugs($actor);
+                foreach ($rolesToAssign as $role) {
+                    $rolePermissions = $role->permissions->pluck('slug')->all();
+                    $unauthorized = array_diff($rolePermissions, $actorPermissions);
+                    if (! empty($unauthorized)) {
+                        return $this->forbidden("Cannot assign role '{$role->name}': it contains permissions exceeding your administrative authority (" . implode(', ', array_slice($unauthorized, 0, 3)) . ").");
+                    }
+                }
+            }
+        }
+
+        $admin = DB::transaction(function () use ($validated, $actor, $rolesToAssign) {
+            // Create user record strictly as admin
+            $newAdmin = User::create([
+                'name'                => trim($validated['name']),
+                'email'               => strtolower(trim($validated['email'])),
+                'password'            => Hash::make($validated['password']),
+                'role'                => User::ROLE_ADMIN,
+                'status'              => $validated['status'] ?? 'active',
+                'access_level'        => $validated['access_level'] ?? 'admin',
+                'is_super_admin'      => false, // New admins are never Super Admin via API
+                'phone'               => $validated['phone'] ?? null,
+                'company_name'        => 'Ayaan Sourcing Ltd.',
+                'b2b_approval_status' => 'approved',
+                'is_demo'             => false,
+            ]);
+
+            $assignedRoleNames = [];
+            if ($rolesToAssign->isNotEmpty()) {
                 $syncData = [];
-                foreach ($roles as $role) {
+                foreach ($rolesToAssign as $role) {
                     $syncData[$role->id] = [
                         'assigned_by' => $actor->id,
                         'assigned_at' => now(),
                     ];
                     $assignedRoleNames[] = $role->name;
                 }
-                $admin->rbacRoles()->sync($syncData);
-                $this->authorization->invalidateUser($admin);
+                $newAdmin->rbacRoles()->sync($syncData);
+                $this->authorization->invalidateUser($newAdmin);
             }
-        }
 
-        ActivityLogger::log('admin.created', $admin, [
-            'admin' => [
-                'id'         => $admin->id,
-                'name'       => $admin->name,
-                'email'      => $admin->email,
-                'roles'      => $assignedRoleNames,
-                'created_by' => $actor->id,
-            ],
-        ]);
+            ActivityLogger::log('admin.created', $newAdmin, [
+                'admin' => [
+                    'id'         => $newAdmin->id,
+                    'name'       => $newAdmin->name,
+                    'email'      => $newAdmin->email,
+                    'roles'      => $assignedRoleNames,
+                    'created_by' => $actor->id,
+                ],
+            ]);
+
+            return $newAdmin;
+        });
 
         return $this->success(
             $this->formatAdmin($admin->load('rbacRoles'), detailed: true),
@@ -208,6 +230,18 @@ class AdminUserController extends ApiController
             'role_slugs.*' => ['string', Rule::exists('roles', 'slug')],
         ]);
 
+        // Prevent ordinary admins from elevating access_level to super_admin
+        if (isset($validated['access_level']) && $validated['access_level'] === 'super_admin' && ! $actor->isSuperAdmin()) {
+            return $this->forbidden('Only Super Admin can assign super_admin access level.');
+        }
+
+        // Prevent modifying own role assignments if not Super Admin
+        if (array_key_exists('role_slugs', $validated)) {
+            if ($actor->id === $admin->id && ! $actor->isSuperAdmin()) {
+                return $this->forbidden('Administrators cannot modify their own role assignments.');
+            }
+        }
+
         // Prevent deactivating own account
         if ($actor->id === $admin->id && isset($validated['status']) && $validated['status'] === 'inactive') {
             return $this->error('You cannot deactivate your own administrative account.', 422);
@@ -225,54 +259,78 @@ class AdminUserController extends ApiController
             }
         }
 
-        $before = $admin->only('name', 'email', 'phone', 'status', 'access_level');
-
-        if (isset($validated['name'])) $admin->name = trim($validated['name']);
-        if (isset($validated['email'])) $admin->email = strtolower(trim($validated['email']));
-        if (array_key_exists('phone', $validated)) $admin->phone = $validated['phone'];
-        if (isset($validated['status'])) $admin->status = $validated['status'];
-        if (isset($validated['access_level'])) $admin->access_level = $validated['access_level'];
-
-        $admin->save();
-        $after = $admin->fresh()->only('name', 'email', 'phone', 'status', 'access_level');
-
-        // Update role assignments if provided
+        // Validate delegation on roles before executing transaction
+        $rolesToSync = null;
         if (array_key_exists('role_slugs', $validated)) {
-            // Cannot modify Super Admin roles
             if ($admin->isSuperAdmin()) {
-                // Super Admin has all permissions intrinsically; skip or reject if non-super
                 if (! $actor->isSuperAdmin()) {
                     return $this->forbidden('Cannot alter roles for Super Admin.');
                 }
             } else {
-                if ($actor->isSuperAdmin() || $this->authorization->can($actor, 'admin.assign_role')) {
-                    $roles = Role::whereIn('slug', $validated['role_slugs'] ?? [])->get();
-                    $syncData = [];
-                    foreach ($roles as $role) {
-                        $syncData[$role->id] = [
-                            'assigned_by' => $actor->id,
-                            'assigned_at' => now(),
-                        ];
-                    }
-                    $admin->rbacRoles()->sync($syncData);
-                    $this->authorization->invalidateUser($admin);
+                if (! $actor->isSuperAdmin() && ! $this->authorization->can($actor, 'admin.assign_role')) {
+                    return $this->forbidden('You do not have permission to assign roles.');
+                }
 
-                    ActivityLogger::log('admin.roles_synced', $admin, [
-                        'admin_id' => $admin->id,
-                        'roles'    => $roles->pluck('slug')->all(),
-                        'actor_id' => $actor->id,
-                    ]);
+                $rolesToSync = Role::whereIn('slug', $validated['role_slugs'] ?? [])->with('permissions')->get();
+
+                // Delegation security: an administrator cannot assign roles with permissions exceeding their own
+                if (! $actor->isSuperAdmin()) {
+                    $actorPermissions = $this->authorization->getPermissionSlugs($actor);
+                    foreach ($rolesToSync as $role) {
+                        $rolePermissions = $role->permissions->pluck('slug')->all();
+                        $unauthorized = array_diff($rolePermissions, $actorPermissions);
+                        if (! empty($unauthorized)) {
+                            return $this->forbidden("Cannot assign role '{$role->name}': it contains permissions exceeding your administrative authority (" . implode(', ', array_slice($unauthorized, 0, 3)) . ").");
+                        }
+                    }
                 }
             }
         }
 
-        $this->authorization->invalidateUser($admin);
+        DB::transaction(function () use ($admin, $validated, $actor, $rolesToSync) {
+            $before = $admin->only('name', 'email', 'phone', 'status', 'access_level');
 
-        ActivityLogger::log('admin.updated', $admin, [
-            'before'   => $before,
-            'after'    => $after,
-            'actor_id' => $actor->id,
-        ]);
+            if (isset($validated['name'])) $admin->name = trim($validated['name']);
+            if (isset($validated['email'])) $admin->email = strtolower(trim($validated['email']));
+            if (array_key_exists('phone', $validated)) $admin->phone = $validated['phone'];
+            if (isset($validated['status'])) {
+                $admin->status = $validated['status'];
+                if ($validated['status'] === 'inactive') {
+                    $admin->tokens()->delete();
+                }
+            }
+            if (isset($validated['access_level'])) $admin->access_level = $validated['access_level'];
+
+            $admin->save();
+            $after = $admin->fresh()->only('name', 'email', 'phone', 'status', 'access_level');
+
+            // Update role assignments if provided
+            if ($rolesToSync !== null) {
+                $syncData = [];
+                foreach ($rolesToSync as $role) {
+                    $syncData[$role->id] = [
+                        'assigned_by' => $actor->id,
+                        'assigned_at' => now(),
+                    ];
+                }
+                $admin->rbacRoles()->sync($syncData);
+                $this->authorization->invalidateUser($admin);
+
+                ActivityLogger::log('admin.roles_synced', $admin, [
+                    'admin_id' => $admin->id,
+                    'roles'    => $rolesToSync->pluck('slug')->all(),
+                    'actor_id' => $actor->id,
+                ]);
+            }
+
+            $this->authorization->invalidateUser($admin);
+
+            ActivityLogger::log('admin.updated', $admin, [
+                'before'   => $before,
+                'after'    => $after,
+                'actor_id' => $actor->id,
+            ]);
+        });
 
         return $this->success(
             $this->formatAdmin($admin->fresh()->load('rbacRoles'), detailed: true),
@@ -327,19 +385,26 @@ class AdminUserController extends ApiController
             }
         }
 
-        $previousStatus = $admin->status;
-        $admin->status = $newStatus;
-        $admin->save();
+        DB::transaction(function () use ($admin, $newStatus, $actor) {
+            $previousStatus = $admin->status;
+            $admin->status = $newStatus;
+            $admin->save();
 
-        // Invalidate cached permissions for this user immediately
-        $this->authorization->invalidateUser($admin);
+            // Revoke active tokens when deactivated to immediately terminate active sessions
+            if ($newStatus === 'inactive') {
+                $admin->tokens()->delete();
+            }
 
-        $action = ($newStatus === 'active') ? 'admin.activated' : 'admin.deactivated';
-        ActivityLogger::log($action, $admin, [
-            'previous_status' => $previousStatus,
-            'new_status'      => $newStatus,
-            'actor_id'        => $actor->id,
-        ]);
+            // Invalidate cached permissions for this user immediately
+            $this->authorization->invalidateUser($admin);
+
+            $action = ($newStatus === 'active') ? 'admin.activated' : 'admin.deactivated';
+            ActivityLogger::log($action, $admin, [
+                'previous_status' => $previousStatus,
+                'new_status'      => $newStatus,
+                'actor_id'        => $actor->id,
+            ]);
+        });
 
         return $this->success([
             'id'     => $admin->id,
@@ -482,24 +547,26 @@ class AdminUserController extends ApiController
             return $this->error('Cannot delete the only remaining administrator account in the system.', 422);
         }
 
-        // Detach roles
-        $admin->rbacRoles()->detach();
+        DB::transaction(function () use ($admin, $actor) {
+            // Detach roles
+            $admin->rbacRoles()->detach();
 
-        // Invalidate permissions cache and revoke tokens
-        $this->authorization->invalidateUser($admin);
-        $admin->tokens()->delete();
+            // Invalidate permissions cache and revoke tokens
+            $this->authorization->invalidateUser($admin);
+            $admin->tokens()->delete();
 
-        // Soft delete user record to maintain foreign key integrity on orders, activities, etc.
-        $admin->delete();
+            // Soft delete user record to maintain foreign key integrity on orders, activities, etc.
+            $admin->delete();
 
-        ActivityLogger::log('admin.deleted', $admin, [
-            'deleted_admin' => [
-                'id'    => $admin->id,
-                'name'  => $admin->name,
-                'email' => $admin->email,
-            ],
-            'deleted_by'    => $actor->id,
-        ]);
+            ActivityLogger::log('admin.deleted', $admin, [
+                'deleted_admin' => [
+                    'id'    => $admin->id,
+                    'name'  => $admin->name,
+                    'email' => $admin->email,
+                ],
+                'deleted_by'    => $actor->id,
+            ]);
+        });
 
         return $this->success(null, 'Administrator account removed successfully');
     }

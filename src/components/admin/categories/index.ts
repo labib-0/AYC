@@ -3,6 +3,7 @@ export { default as CategoryToolbar } from "./CategoryToolbar";
 export type { CategoryStatusFilter } from "./CategoryToolbar";
 export { default as CategoryTable } from "./CategoryTable";
 export { default as CategoryRow } from "./CategoryRow";
+export { default as CategoryCard } from "./CategoryCard";
 export { default as CategoryModal } from "./CategoryModal";
 export type { CategoryModalProps } from "./CategoryModal";
 export { default as CategoryForm } from "./CategoryForm";

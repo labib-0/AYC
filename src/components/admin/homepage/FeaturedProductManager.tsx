@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import Image from "next/image";
 import { 
   ArrowUp, 
   ArrowDown, 
@@ -22,6 +21,48 @@ import {
   HomepageFeaturedProductModel, 
   ProductSearchResultItem 
 } from "@/services/homepage.service";
+
+function ProductItemThumbnail({
+  src,
+  alt,
+}: {
+  src?: string | null;
+  alt: string;
+}) {
+  const [currentSrc, setCurrentSrc] = useState<string>(() => src || "/placeholder.jpg");
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setCurrentSrc(src || "/placeholder.jpg");
+    setHasError(false);
+  }, [src]);
+
+  const handleError = () => {
+    if (!hasError && currentSrc !== "/placeholder.jpg") {
+      setHasError(true);
+      setCurrentSrc("/placeholder.jpg");
+    } else {
+      setHasError(true);
+    }
+  };
+
+  return (
+    <div className="relative w-12 h-14 rounded-lg overflow-hidden bg-secondary shrink-0 border border-border/60 flex items-center justify-center">
+      {!hasError && currentSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={currentSrc}
+          alt={alt}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          onError={handleError}
+        />
+      ) : (
+        <Package size={20} className="text-muted-foreground/40" />
+      )}
+    </div>
+  );
+}
 
 interface FeaturedProductManagerProps {
   initialProducts: HomepageFeaturedProductModel[];
@@ -263,15 +304,10 @@ export default function FeaturedProductManager({
                   </span>
 
                   {/* Thumbnail */}
-                  <div className="relative w-12 h-14 rounded-lg overflow-hidden bg-secondary shrink-0 border border-border/60">
-                    <Image
-                      src={imgSrc}
-                      alt={p?.name || "Product"}
-                      fill
-                      sizes="48px"
-                      className="object-cover"
-                    />
-                  </div>
+                  <ProductItemThumbnail
+                    src={imgSrc}
+                    alt={p?.name || "Product"}
+                  />
 
                   {/* Details */}
                   <div className="min-w-0 space-y-0.5">
@@ -399,15 +435,10 @@ export default function FeaturedProductManager({
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="relative w-12 h-14 rounded-lg overflow-hidden bg-secondary shrink-0 border border-border/60">
-                          <Image
-                            src={imgSrc}
-                            alt={item.name}
-                            fill
-                            sizes="48px"
-                            className="object-cover"
-                          />
-                        </div>
+                        <ProductItemThumbnail
+                          src={imgSrc}
+                          alt={item.name}
+                        />
                         <div className="min-w-0 space-y-0.5">
                           <span className="text-[10px] font-bold text-muted-foreground uppercase font-mono tracking-wider">
                             {brandName}

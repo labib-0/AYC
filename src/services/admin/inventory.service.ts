@@ -95,10 +95,15 @@ export interface Warehouse {
 
 export interface InventorySummary {
   totalItems: number;
+  totalProducts?: number;
+  totalRecords?: number;
   inStock: number;
   lowStock: number;
   outOfStock: number;
   totalQuantity: number;
+  inStockRecords?: number;
+  lowStockRecords?: number;
+  outOfStockRecords?: number;
 }
 
 export interface InventoryQueryParams {
@@ -155,17 +160,25 @@ export class AdminInventoryService {
     try {
       const res = await apiClient.get<any>("/admin/inventory/summary");
       const data = res?.data || res;
-      if (data && typeof data.totalItems === "number") {
+      if (data && (typeof data.totalItems === "number" || typeof data.totalProducts === "number")) {
+        const totalProducts = Number(data.totalProducts ?? data.totalItems ?? 0);
         return {
-          totalItems: Number(data.totalItems || 0),
+          totalItems: totalProducts,
+          totalProducts: totalProducts,
+          totalRecords: Number(data.totalRecords ?? data.totalItems ?? 0),
           inStock: Number(data.inStock || 0),
           lowStock: Number(data.lowStock || 0),
           outOfStock: Number(data.outOfStock || 0),
           totalQuantity: Number(data.totalQuantity || 0),
+          inStockRecords: Number(data.inStockRecords ?? data.inStock ?? 0),
+          lowStockRecords: Number(data.lowStockRecords ?? data.lowStock ?? 0),
+          outOfStockRecords: Number(data.outOfStockRecords ?? data.outOfStock ?? 0),
         };
       }
       return {
         totalItems: 0,
+        totalProducts: 0,
+        totalRecords: 0,
         inStock: 0,
         lowStock: 0,
         outOfStock: 0,
@@ -175,6 +188,8 @@ export class AdminInventoryService {
       console.warn("Failed to fetch inventory summary from API, returning zero state:", err);
       return {
         totalItems: 0,
+        totalProducts: 0,
+        totalRecords: 0,
         inStock: 0,
         lowStock: 0,
         outOfStock: 0,

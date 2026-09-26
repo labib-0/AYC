@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Edit3, History, ExternalLink } from "lucide-react";
 import { InventoryRecord } from "@/services/admin/inventory.service";
 import StockStatusBadge from "./StockStatusBadge";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface InventoryRowProps {
   record: InventoryRecord;
@@ -15,6 +16,7 @@ export default function InventoryRow({
   onAdjust,
   onViewHistory,
 }: InventoryRowProps) {
+  const { can } = useAdminAuth();
   const product = record.variant?.product;
   const variant = record.variant;
   const warehouse = record.warehouse;
@@ -130,25 +132,29 @@ export default function InventoryRow({
       {/* Actions */}
       <td className="py-3 px-4 text-right whitespace-nowrap">
         <div className="inline-flex items-center justify-end gap-1.5">
-          <button
-            type="button"
-            onClick={() => onAdjust(record)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary hover:text-primary-foreground text-primary text-xs font-bold transition-all cursor-pointer"
-            title="Adjust stock for this item"
-          >
-            <Edit3 size={12} />
-            <span>Adjust</span>
-          </button>
+          {can("inventory.adjust") && (
+            <button
+              type="button"
+              onClick={() => onAdjust(record)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary hover:text-primary-foreground text-primary text-xs font-bold transition-all cursor-pointer"
+              title="Adjust stock for this item"
+            >
+              <Edit3 size={12} />
+              <span>Adjust</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => onViewHistory(record)}
-            className="inline-flex items-center gap-1 p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            title="View adjustment history"
-            aria-label="View adjustment history"
-          >
-            <History size={13} />
-          </button>
+          {(can("inventory.audit") || can("inventory.view")) && (
+            <button
+              type="button"
+              onClick={() => onViewHistory(record)}
+              className="inline-flex items-center gap-1 p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="View adjustment history"
+              aria-label="View adjustment history"
+            >
+              <History size={13} />
+            </button>
+          )}
 
           {product?.slug && (
             <Link

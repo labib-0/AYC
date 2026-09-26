@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CustomerRecord } from "@/services/admin";
 import CustomerTableRow from "./CustomerTableRow";
 import { Users, AlertCircle, RefreshCw, Trash2, Eye } from "lucide-react";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface CustomerTableProps {
   customers: CustomerRecord[];
@@ -27,6 +28,7 @@ export default function CustomerTable({
   detailBaseUrl = "/admin/customers",
   onDeleteCustomer,
 }: CustomerTableProps) {
+  const { can } = useAdminAuth();
   // Error State
   if (isError) {
     return (
@@ -184,12 +186,18 @@ export default function CustomerTable({
                     </div>
                   )}
                   <div className="min-w-0">
-                    <Link
-                      href={detailHref}
-                      className="font-bold text-foreground text-sm hover:text-primary transition-colors block truncate"
-                    >
-                      {customer.name}
-                    </Link>
+                    {can("customer.view") ? (
+                      <Link
+                        href={detailHref}
+                        className="font-bold text-foreground text-sm hover:text-primary transition-colors block truncate"
+                      >
+                        {customer.name}
+                      </Link>
+                    ) : (
+                      <span className="font-bold text-foreground text-sm block truncate">
+                        {customer.name}
+                      </span>
+                    )}
                     <span className="text-[10px] text-muted-foreground block truncate font-mono">
                       {customer.email} • Joined {createdDate}
                     </span>
@@ -231,20 +239,22 @@ export default function CustomerTable({
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-border/40 grid grid-cols-2 gap-2">
-                <Link
-                  href={detailHref}
-                  className="py-2 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider text-center transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Eye size={12} />
-                  <span>View</span>
-                </Link>
+              <div className="pt-2 border-t border-border/40 flex items-center justify-end gap-2">
+                {can("customer.view") && (
+                  <Link
+                    href={detailHref}
+                    className="flex-1 py-2 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider text-center transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Eye size={12} />
+                    <span>View</span>
+                  </Link>
+                )}
 
-                {onDeleteCustomer && (
+                {can("customer.delete") && onDeleteCustomer && (
                   <button
                     type="button"
                     onClick={() => onDeleteCustomer(customer)}
-                    className="py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="flex-1 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider text-center transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Trash2 size={12} />
                     <span>Delete</span>

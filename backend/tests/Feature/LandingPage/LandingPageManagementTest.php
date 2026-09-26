@@ -319,4 +319,44 @@ class LandingPageManagementTest extends TestCase
         $slugs = collect($storefront->json('data.hot_sale_categories'))->pluck('category.slug');
         $this->assertFalse($slugs->contains('sweaters'));
     }
+
+    public function test_admin_can_update_active_season_for_all_products(): void
+    {
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/season', [
+                'season' => 'Spring / Summer 2027',
+                'apply_to_all_products' => true,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'active_season' => 'Spring / Summer 2027',
+                ],
+            ]);
+
+        // Verify SystemSetting was updated
+        $this->assertEquals('Spring / Summer 2027', \App\Models\SystemSetting::getActiveSeason());
+
+        // Verify all products in database now have the new season
+        $this->assertEquals('Spring / Summer 2027', $this->product1->fresh()->collection_season);
+        $this->assertEquals('Spring / Summer 2027', $this->product2->fresh()->collection_season);
+        $this->assertEquals('Spring / Summer 2027', $this->product3->fresh()->collection_season);
+
+        // Verify public homepage includes active season
+        $storefront = $this->getJson('/api/v1/homepage');
+        $storefront->assertStatus(200);
+        $this->assertEquals('Spring / Summer 2027', $storefront->json('data.active_season'));
+    }
+
+    public function test_customer_cannot_update_active_season(): void
+    {
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/season', [
+                'season' => 'Hacker Season 2099',
+            ]);
+
+        $response->assertStatus(403);
+    }
 }

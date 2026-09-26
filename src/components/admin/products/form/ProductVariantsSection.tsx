@@ -233,26 +233,19 @@ export default function ProductVariantsSection({
       </div>
 
       <div className="space-y-5">
-        {/* Total Stock Input */}
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-            Total Catalog Stock Units <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={stock || ""}
-            onChange={(e) => onStockChange(parseInt(e.target.value, 10) || 0)}
-            placeholder="500"
-            className="w-full sm:w-64 h-10 px-3.5 rounded-xl border border-border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors"
-          />
-          {errors.stock && (
-            <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-              <AlertCircle size={12} />
-              {errors.stock}
+        {/* Total Stock Summary / Variant Allocation Note */}
+        <div className="p-3.5 rounded-xl bg-secondary/30 border border-border/60 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+              Total Stock: {stock.toLocaleString()} pcs
+            </span>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Allocated across {totalVariantCombinations} matrix variant{totalVariantCombinations !== 1 ? "s" : ""} (~{avgStockPerVariant} pcs/variant). Configured in Inventory &amp; MOQ section.
             </p>
-          )}
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-background px-2.5 py-1 rounded-md border border-border/50">
+            Synced with Inventory
+          </span>
         </div>
 
         {/* Colors Selector */}

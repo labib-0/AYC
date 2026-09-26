@@ -8,6 +8,7 @@ use App\Models\Brand;
 use App\Models\HomepageFeaturedBrand;
 use App\Services\Audit\ActivityLogger;
 use App\Services\Cache\CatalogCacheService;
+use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -15,6 +16,9 @@ use Illuminate\Support\Str;
 
 class BrandController extends ApiController
 {
+    public function __construct(
+        private readonly AdminAuthorizationService $authorization
+    ) {}
     /**
      * GET /api/v1/brands
      * 
@@ -117,6 +121,11 @@ class BrandController extends ApiController
      */
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'brand.create')) {
+            return $this->forbidden("Forbidden: you do not have the 'brand.create' permission.");
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255'],
@@ -174,6 +183,11 @@ class BrandController extends ApiController
      */
     public function update(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'brand.edit')) {
+            return $this->forbidden("Forbidden: you do not have the 'brand.edit' permission.");
+        }
+
         $brand = Brand::findOrFail($id);
 
         $validated = $request->validate([
@@ -207,6 +221,29 @@ class BrandController extends ApiController
             $validated['slug'] = $slug;
         }
 
+        // Sub-permission enforcement for activation, featuring, and reordering
+        if (array_key_exists('is_active', $validated) && $validated['is_active'] !== $brand->is_active) {
+            if ($validated['is_active'] && !$this->authorization->can($user, 'brand.activate')) {
+                return $this->forbidden("Forbidden: you do not have the 'brand.activate' permission to activate brands.");
+            }
+            if (!$validated['is_active'] && !$this->authorization->can($user, 'brand.deactivate')) {
+                return $this->forbidden("Forbidden: you do not have the 'brand.deactivate' permission to deactivate brands.");
+            }
+        }
+
+        if (array_key_exists('is_featured_on_landing', $validated) && $validated['is_featured_on_landing'] !== $brand->is_featured_on_landing) {
+            if (!$this->authorization->can($user, 'brand.feature')) {
+                return $this->forbidden("Forbidden: you do not have the 'brand.feature' permission to feature brands.");
+            }
+        }
+
+        if ((array_key_exists('sort_order', $validated) && $validated['sort_order'] !== $brand->sort_order)
+            || (array_key_exists('landing_sort_order', $validated) && $validated['landing_sort_order'] !== $brand->landing_sort_order)) {
+            if (!$this->authorization->can($user, 'brand.reorder')) {
+                return $this->forbidden("Forbidden: you do not have the 'brand.reorder' permission to reorder brands.");
+            }
+        }
+
         $brand->update($validated);
 
         if (isset($validated['is_featured_on_landing'])) {
@@ -234,8 +271,13 @@ class BrandController extends ApiController
      * 
      * Prevents deleting brands that have active product references.
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'brand.delete')) {
+            return $this->forbidden("Forbidden: you do not have the 'brand.delete' permission.");
+        }
+
         $brand = Brand::withCount('products')->findOrFail($id);
 
         if ($brand->products_count > 0) {

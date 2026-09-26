@@ -18,6 +18,7 @@ import {
   RfqTimeline,
 } from "@/components/admin/rfq";
 import { MessageSquare, AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 export default function AdminRfqDetailPage({
   params,
@@ -182,49 +183,54 @@ export default function AdminRfqDetailPage({
   // 1. Loading State
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="h-6 w-36 bg-secondary animate-pulse rounded" />
-        <div className="h-10 w-64 bg-secondary animate-pulse rounded" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="h-64 bg-card border border-border/70 rounded-3xl animate-pulse" />
-            <div className="h-48 bg-card border border-border/70 rounded-3xl animate-pulse" />
-          </div>
-          <div className="space-y-6">
-            <div className="h-48 bg-card border border-border/70 rounded-3xl animate-pulse" />
-            <div className="h-48 bg-card border border-border/70 rounded-3xl animate-pulse" />
+      <AdminPageGate permission="rfq.view">
+        <div className="space-y-6">
+          <div className="h-6 w-36 bg-secondary animate-pulse rounded" />
+          <div className="h-10 w-64 bg-secondary animate-pulse rounded" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="h-64 bg-card border border-border/70 rounded-3xl animate-pulse" />
+              <div className="h-48 bg-card border border-border/70 rounded-3xl animate-pulse" />
+            </div>
+            <div className="space-y-6">
+              <div className="h-48 bg-card border border-border/70 rounded-3xl animate-pulse" />
+              <div className="h-48 bg-card border border-border/70 rounded-3xl animate-pulse" />
+            </div>
           </div>
         </div>
-      </div>
+      </AdminPageGate>
     );
   }
 
   // 2. Not Found State
   if (!rfq || error) {
     return (
-      <div className="min-h-[50vh] flex flex-col items-center justify-center text-center p-6 space-y-4">
-        <div className="w-14 h-14 rounded-full bg-secondary text-muted-foreground flex items-center justify-center">
-          <AlertTriangle size={28} />
+      <AdminPageGate permission="rfq.view">
+        <div className="min-h-[50vh] flex flex-col items-center justify-center text-center p-6 space-y-4">
+          <div className="w-14 h-14 rounded-full bg-secondary text-muted-foreground flex items-center justify-center">
+            <AlertTriangle size={28} />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">RFQ Not Found</h2>
+            <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+              The requested wholesale inquiry reference &ldquo;{id}&rdquo; could not be found or has been removed.
+            </p>
+          </div>
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to All Inquiries</span>
+          </Link>
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-foreground">RFQ Not Found</h2>
-          <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-            The requested wholesale inquiry reference &ldquo;{id}&rdquo; could not be found or has been removed.
-          </p>
-        </div>
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
-        >
-          <ArrowLeft size={14} />
-          <span>Back to All Inquiries</span>
-        </Link>
-      </div>
+      </AdminPageGate>
     );
   }
 
   return (
-    <div className="space-y-6 pb-12">
+    <AdminPageGate permission="rfq.view">
+      <div className="space-y-6 pb-12">
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -317,5 +323,6 @@ export default function AdminRfqDetailPage({
         isLoading={quotationSaving}
       />
     </div>
+    </AdminPageGate>
   );
 }

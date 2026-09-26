@@ -1,5 +1,6 @@
 import React from "react";
 import { OrderRecord } from "@/services/order.service";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { 
   Truck, 
   Ship, 
@@ -28,6 +29,13 @@ export default function CarrierFulfillmentCard({
   onRefreshTracking,
   actionLoading = false,
 }: CarrierFulfillmentCardProps) {
+  const { can, isSuperAdmin } = useAdminAuth();
+  const canCreateShipment = isSuperAdmin || can("shipment.create");
+  const canRefreshTracking = isSuperAdmin || can("tracking.refresh");
+  const canUpdateSeaQuote = isSuperAdmin || can("order.shipping.update");
+  const canUpdateFulfillment = isSuperAdmin || can("order.update_fulfillment");
+  const canViewLabel = isSuperAdmin || can("shipment.label.view");
+
   const snapshot = order.shipping_snapshot;
   const isSea =
     snapshot?.mode === "sea" ||
@@ -82,54 +90,62 @@ export default function CarrierFulfillmentCard({
         {/* Header Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
           {isSea ? (
-            <button
-              type="button"
-              onClick={onOpenSeaQuoteModal}
-              disabled={actionLoading}
-              className="px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
-              id="btn-update-sea-quote"
-            >
-              <DollarSign size={14} />
-              <span>Update Freight Quote</span>
-            </button>
+            canUpdateSeaQuote && (
+              <button
+                type="button"
+                onClick={onOpenSeaQuoteModal}
+                disabled={actionLoading}
+                className="px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                id="btn-update-sea-quote"
+              >
+                <DollarSign size={14} />
+                <span>Update Freight Quote</span>
+              </button>
+            )
           ) : hasAwb ? (
-            <button
-              type="button"
-              onClick={onRefreshTracking}
-              disabled={actionLoading}
-              className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-foreground text-xs font-bold uppercase tracking-wider hover:bg-secondary/80 transition-colors flex items-center gap-1.5 cursor-pointer"
-              id="btn-refresh-carrier-tracking"
-            >
-              <RefreshCw size={13} className={actionLoading ? "animate-spin" : ""} />
-              <span>Refresh Tracking</span>
-            </button>
+            canRefreshTracking && (
+              <button
+                type="button"
+                onClick={onRefreshTracking}
+                disabled={actionLoading}
+                className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-foreground text-xs font-bold uppercase tracking-wider hover:bg-secondary/80 transition-colors flex items-center gap-1.5 cursor-pointer"
+                id="btn-refresh-carrier-tracking"
+              >
+                <RefreshCw size={13} className={actionLoading ? "animate-spin" : ""} />
+                <span>Refresh Tracking</span>
+              </button>
+            )
           ) : (
-            <button
-              type="button"
-              onClick={onOpenAramexShipmentDialog}
-              disabled={actionLoading || !canShip}
-              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs ${
-                canShip
-                  ? "bg-primary text-primary-foreground hover:opacity-90 cursor-pointer"
-                  : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
-              }`}
-              id="btn-open-aramex-dialog"
-            >
-              <Send size={14} />
-              <span>Create Aramex Shipment</span>
-            </button>
+            canCreateShipment && (
+              <button
+                type="button"
+                onClick={onOpenAramexShipmentDialog}
+                disabled={actionLoading || !canShip}
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 shadow-xs ${
+                  canShip
+                    ? "bg-primary text-primary-foreground hover:opacity-90 cursor-pointer"
+                    : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                }`}
+                id="btn-open-aramex-dialog"
+              >
+                <Send size={14} />
+                <span>Create Aramex Shipment</span>
+              </button>
+            )
           )}
 
-          <button
-            type="button"
-            onClick={onOpenFulfillmentModal}
-            className="px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer"
-            id="btn-edit-fulfillment"
-            title="Edit fulfillment status and carrier manually"
-          >
-            <Edit3 size={13} />
-            <span>Edit</span>
-          </button>
+          {canUpdateFulfillment && (
+            <button
+              type="button"
+              onClick={onOpenFulfillmentModal}
+              className="px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer"
+              id="btn-edit-fulfillment"
+              title="Edit fulfillment status and carrier manually"
+            >
+              <Edit3 size={13} />
+              <span>Edit</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -223,7 +239,7 @@ export default function CarrierFulfillmentCard({
             </a>
           )}
 
-          {order.shipment_label_url && (
+          {canViewLabel && order.shipment_label_url && (
             <a
               href={order.shipment_label_url}
               target="_blank"

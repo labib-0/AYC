@@ -68,7 +68,12 @@ export default function ProductTableRow({
   }, []);
 
   const isPublished = product.status === "published";
-  const isLowStock = product.stock < LOW_STOCK_THRESHOLD;
+  const effectiveMoq = Math.max(1, product.moq || 1);
+  const availableStock = product.availableStock !== undefined ? Number(product.availableStock) : Number(product.stock);
+  const completeMoqs = product.availableMoqs !== undefined 
+    ? Number(product.availableMoqs) 
+    : Math.floor(availableStock / effectiveMoq);
+  const isLowStock = availableStock < LOW_STOCK_THRESHOLD;
   const thumbnail = product.images?.[0] || "/placeholder.jpg";
   const brandLogo = getBrandLogoUrl(product.brand);
 
@@ -173,7 +178,15 @@ export default function ProductTableRow({
         </span>
       </td>
 
-      {/* Stock */}
+      {/* MOQ */}
+      <td className="px-3 py-2.5 text-right">
+        <span className="text-xs font-mono font-bold tabular-nums text-foreground">
+          {effectiveMoq}
+        </span>
+        <span className="text-[10px] text-muted-foreground ml-1">pcs</span>
+      </td>
+
+      {/* Available Stock */}
       <td className="px-3 py-2.5 text-right">
         <span
           className={`text-xs font-bold tabular-nums ${
@@ -182,13 +195,27 @@ export default function ProductTableRow({
               : "text-foreground"
           }`}
         >
-          {product.stock.toLocaleString()}
+          {availableStock.toLocaleString()}
         </span>
+        <span className="text-[10px] text-muted-foreground ml-1">pcs</span>
         {isLowStock && (
           <p className="text-[9px] font-bold uppercase text-red-500 dark:text-red-400 mt-0.5">
-            Low
+            {availableStock === 0 ? "Out of Stock" : "Low Stock"}
           </p>
         )}
+      </td>
+
+      {/* Complete MOQs Available */}
+      <td className="px-3 py-2.5 text-right">
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-bold tabular-nums ${
+            completeMoqs > 0
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-200 dark:border-red-900/40"
+          }`}
+        >
+          {completeMoqs} MOQ{completeMoqs !== 1 ? "s" : ""}
+        </span>
       </td>
 
       {/* Status */}

@@ -69,18 +69,31 @@ class InventoryController extends ApiController
             $base->where('warehouse_id', $request->input('warehouse_id'));
         }
 
-        $totalItems = (clone $base)->count();
+        // 1. UNIQUE Products in inventory (COUNT DISTINCT products.id)
+        $productQuery = \App\Models\Product::whereHas('variants.inventories', function ($q) use ($request) {
+            if ($request->filled('warehouse_id')) {
+                $q->where('warehouse_id', $request->input('warehouse_id'));
+            }
+        });
+
+        $totalProducts = (clone $productQuery)->distinct()->count('products.id');
+        $totalRecords = (clone $base)->count();
         $totalQuantity = (int) (clone $base)->sum('quantity');
         $inStock = (clone $base)->where('quantity', '>=', $threshold)->count();
         $lowStock = (clone $base)->where('quantity', '>', 0)->where('quantity', '<', $threshold)->count();
         $outOfStock = (clone $base)->where('quantity', '<=', 0)->count();
 
         return $this->success([
-            'totalItems' => $totalItems,
+            'totalItems' => $totalProducts,
+            'totalProducts' => $totalProducts,
+            'totalRecords' => $totalRecords,
             'totalQuantity' => $totalQuantity,
             'inStock' => $inStock,
             'lowStock' => $lowStock,
             'outOfStock' => $outOfStock,
+            'inStockRecords' => $inStock,
+            'lowStockRecords' => $lowStock,
+            'outOfStockRecords' => $outOfStock,
         ], 'Inventory summary calculated from database');
     }
 

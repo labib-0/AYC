@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Api\ApiController;
+use App\Http\Resources\Api\V1\ProductResource;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\HomepageBanner;
@@ -144,7 +145,7 @@ class HomepageController extends ApiController
                     'product_id' => $item->product_id,
                     'sort_order' => $item->sort_order,
                     'is_active' => $item->is_active,
-                    'product' => $item->product,
+                    'product' => new ProductResource($item->product),
                 ];
             });
 
@@ -173,7 +174,7 @@ class HomepageController extends ApiController
                         'product_id' => $p->id,
                         'sort_order' => $p->featured_sort_order ?? $idx,
                         'is_active' => true,
-                        'product' => $p,
+                        'product' => new ProductResource($p),
                     ];
                 });
             }
@@ -184,6 +185,7 @@ class HomepageController extends ApiController
             'featured_brands' => $featuredBrands,
             'hot_sale_categories' => $hotSaleCategories,
             'featured_products' => $featuredProducts,
+            'active_season' => \App\Models\SystemSetting::getActiveSeason(),
         ], 'Homepage configuration retrieved successfully');
     }
 }

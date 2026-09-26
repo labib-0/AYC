@@ -68,6 +68,24 @@ class Permission extends Model
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    /**
+     * Add a prerequisite dependency to this permission safely, checking for cycles.
+     */
+    public function addDependency(Permission|int $requires): bool
+    {
+        $requiresId = $requires instanceof Permission ? $requires->id : $requires;
+        return app(\App\Services\Rbac\AdminAuthorizationService::class)->addDependency($this->id, $requiresId);
+    }
+
+    /**
+     * Remove a prerequisite dependency from this permission safely.
+     */
+    public function removeDependency(Permission|int $requires): bool
+    {
+        $requiresId = $requires instanceof Permission ? $requires->id : $requires;
+        return app(\App\Services\Rbac\AdminAuthorizationService::class)->removeDependency($this->id, $requiresId);
+    }
+
     public static function findBySlug(string $slug): ?static
     {
         return static::where('slug', $slug)->first();

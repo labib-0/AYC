@@ -136,7 +136,7 @@ class Prompt6PricingTiersAndFullStockTest extends TestCase
      * Verify Full Stock follows the strict "inventory greater than qualifying minimum" rule.
      * When Inventory is exactly 80, inventory is NOT strictly greater than qualifying threshold (80).
      */
-    public function test_case_3_full_stock_unavailable_when_inventory_equals_qualifying_minimum(): void
+    public function test_case_3_full_stock_falls_back_to_normal_moq_price_when_inventory_not_strictly_greater_than_minimum(): void
     {
         $product = $this->createProductWithScenario(
             moq: 80,
@@ -149,7 +149,9 @@ class Prompt6PricingTiersAndFullStockTest extends TestCase
 
         $this->assertEquals(80, $product->getTotalAvailableStock());
         $this->assertFalse($product->isFullStockEligible());
-        $this->assertEquals(0, $product->getEligibleFullStockQuantity());
+        $this->assertEquals(80, $product->getEligibleFullStockQuantity());
+        $this->assertEquals(28.00, $product->getResolvedFullStockPrice());
+        $this->assertEquals(2240.00, $product->getEligibleFullStockTotal());
 
         // Even if bulkThreshold is omitted (threshold defaults to MOQ = 80), 80 is not strictly greater than 80
         $productNoBulk = $this->createProductWithScenario(
@@ -161,7 +163,8 @@ class Prompt6PricingTiersAndFullStockTest extends TestCase
             wholesalePrice: 28.00
         );
         $this->assertFalse($productNoBulk->isFullStockEligible());
-        $this->assertEquals(0, $productNoBulk->getEligibleFullStockQuantity());
+        $this->assertEquals(80, $productNoBulk->getEligibleFullStockQuantity());
+        $this->assertEquals(28.00, $productNoBulk->getResolvedFullStockPrice());
     }
 
     /**

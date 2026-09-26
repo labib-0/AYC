@@ -20,3 +20,4 @@ export type { BannerEmptyStateProps } from "./BannerEmptyState";
 export { default as HotSaleCategoryManager } from "./HotSaleCategoryManager";
 export { default as FeaturedProductManager } from "./FeaturedProductManager";
 export { default as ShopByBrandManager } from "./ShopByBrandManager";
+export { default as SeasonManager } from "./SeasonManager";

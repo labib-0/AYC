@@ -85,6 +85,12 @@ export default function ProductTable({
                     <div className="h-3 w-10 rounded bg-secondary animate-pulse" />
                   </td>
                   <td className="px-3 py-3">
+                    <div className="h-3 w-12 rounded bg-secondary animate-pulse" />
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="h-3 w-14 rounded bg-secondary animate-pulse" />
+                  </td>
+                  <td className="px-3 py-3">
                     <div className="h-5 w-16 rounded-full bg-secondary animate-pulse" />
                   </td>
                   <td className="px-3 py-3">
@@ -163,7 +169,9 @@ export default function ProductTable({
                 <th
                   key={h}
                   className={`px-3 py-2.5 text-left ${
-                    h === "Price" || h === "Stock" ? "text-right" : ""
+                    h === "Price" || h === "Stock" || h === "MOQ" || h === "Available Stock" || h === "Available MOQs"
+                      ? "text-right"
+                      : ""
                   } ${h === "Actions" ? "text-center w-12" : ""}`}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -201,7 +209,9 @@ const TABLE_HEADERS = [
   "Category",
   "Audience",
   "Price",
-  "Stock",
+  "MOQ",
+  "Available Stock",
+  "Available MOQs",
   "Status",
   "Actions",
 ];

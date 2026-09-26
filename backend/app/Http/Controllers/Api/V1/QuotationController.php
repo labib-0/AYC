@@ -16,6 +16,7 @@ use App\Notifications\QuotationStatusNotification;
 use App\Services\Audit\ActivityLogger;
 use App\Services\Documents\OfferSheetService;
 use App\Services\Documents\ProformaInvoiceService;
+use App\Services\Rbac\AdminAuthorizationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,9 @@ use Illuminate\Support\Facades\DB;
 
 class QuotationController extends ApiController
 {
+    public function __construct(
+        private readonly AdminAuthorizationService $authorization
+    ) {}
     /**
      * GET /api/v1/quotations
      * List quotations with customer ownership isolation and admin filtering.
@@ -310,6 +314,18 @@ class QuotationController extends ApiController
         $action = $validated['response'];
         $notes = $validated['notes'] ?? null;
 
+        if ($user->isAdmin()) {
+            if ($action === 'accept' && !$this->authorization->can($user, 'quotation.accept')) {
+                return $this->forbidden("Forbidden: you do not have the 'quotation.accept' permission to accept quotations.");
+            }
+            if ($action === 'reject' && !$this->authorization->can($user, 'quotation.reject')) {
+                return $this->forbidden("Forbidden: you do not have the 'quotation.reject' permission to reject quotations.");
+            }
+            if ($action === 'request_changes' && !$this->authorization->can($user, 'quotation.update_status')) {
+                return $this->forbidden("Forbidden: you do not have the 'quotation.update_status' permission.");
+            }
+        }
+
         DB::transaction(function () use ($quotation, $action, $notes, $user) {
             $year = date('Y');
             $rand = str_pad((string) mt_rand(100000, 999999), 6, '0', STR_PAD_LEFT);
@@ -386,6 +402,10 @@ class QuotationController extends ApiController
             if (!$isOwner) {
                 return $this->forbidden('You are not authorized to view commercial documents for this quotation');
             }
+        } else {
+            if (!$this->authorization->can($user, 'document.view')) {
+                return $this->forbidden("Forbidden: you do not have the 'document.view' permission to view commercial documents.");
+            }
         }
 
         $normalizedType = strtoupper(trim($docType));
@@ -405,6 +425,11 @@ class QuotationController extends ApiController
      */
     public function generateDocumentAsync(Request $request, int|string $id): JsonResponse
     {
+        $user = $request->user() ?: auth('sanctum')->user();
+        if ($user && $user->isAdmin() && !$this->authorization->can($user, 'document.generate')) {
+            return $this->forbidden("Forbidden: you do not have the 'document.generate' permission.");
+        }
+
         $quotation = is_numeric($id) ? Quotation::find((int) $id) : Quotation::where('quotation_number', $id)->first();
         if (!$quotation) {
             return $this->notFound('Quotation not found');

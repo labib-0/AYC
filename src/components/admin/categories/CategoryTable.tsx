@@ -3,6 +3,7 @@
 import React from "react";
 import { CategoryModel } from "@/services/category.service";
 import CategoryRow from "./CategoryRow";
+import CategoryCard from "./CategoryCard";
 import CategoryEmptyState from "./CategoryEmptyState";
 
 interface CategoryTableProps {
@@ -126,7 +127,7 @@ export default function CategoryTable({
       {/* Mobile Card Layout */}
       <div className="md:hidden p-3 space-y-2.5">
         {categories.map((c) => (
-          <CategoryRow
+          <CategoryCard
             key={c.id}
             category={c}
             onEdit={onEdit}

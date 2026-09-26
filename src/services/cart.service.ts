@@ -90,6 +90,7 @@ export interface CartItemData {
   size: string;
   color?: string;
   quantity: number;
+  pricing_mode?: string;
   unit_price: number;
   line_total: number;
   package_breakdown?: import("@/types").PackageBreakdown[];
@@ -109,21 +110,33 @@ export class CartService {
   private localKey = "ayaan_cart";
 
   /**
-   * Determine exact unit price based on three-tier wholesale pricing model
+   * Determine exact unit price based on three-tier wholesale pricing model:
+   * FULL STOCK OPTION:
+   *   Available Inventory > Minimum Bulk Order Quantity
+   *     ├── YES -> full_stock_price
+   *     └── NO  -> normal MOQ / standard applicable price
    */
-  public calculateTierUnitPrice(product: Product, quantity: number): number {
+  public calculateTierUnitPrice(product: Product, quantity: number, pricingMode?: string): number {
     const basePrice = product.wholesalePrice || product.price || 15;
     const bulkThreshold = product.bulkThreshold || 200;
     const bulkPrice = product.bulkPrice || Math.round(basePrice * 0.8 * 100) / 100;
-    const fullStockPrice = product.fullStockPrice || Math.round(basePrice * 0.7 * 100) / 100;
-    const availableStock = product.availableStock || 1000;
+    const configuredFullStockPrice = product.configuredFullStockPrice ?? product.fullStockPrice;
+    const availableStock = product.availableStock ?? 0;
+    const moqVal = product.moq || 1;
+    const maxCompletePackages = product.maxCompletePackages ?? Math.floor(availableStock / moqVal);
+    const completeStock = product.completePackageStock ?? (maxCompletePackages * moqVal);
 
-    if (quantity >= availableStock && availableStock > 0) {
-      return fullStockPrice;
+    if (pricingMode === "full_stock" || (quantity === completeStock && completeStock > 0 && availableStock > bulkThreshold)) {
+      if (availableStock > bulkThreshold && configuredFullStockPrice !== undefined && configuredFullStockPrice !== null && configuredFullStockPrice > 0) {
+        return Math.min(configuredFullStockPrice, basePrice);
+      }
+      return basePrice;
     }
-    if (quantity >= bulkThreshold) {
+
+    if (quantity >= bulkThreshold || pricingMode === "bulk") {
       return bulkPrice;
     }
+
     return basePrice;
   }
 
@@ -172,7 +185,8 @@ export class CartService {
     size: string,
     quantity: number = 1,
     variantId?: string,
-    packageBreakdown?: import("@/types").PackageBreakdown[]
+    packageBreakdown?: import("@/types").PackageBreakdown[],
+    pricingMode?: string
   ): Promise<CartData> {
     const currentCart = await this.getCart();
     const items = [...currentCart.items];
@@ -191,6 +205,7 @@ export class CartService {
           variant_id: variantId,
           size: size || "Standard Assorted",
           quantity: quantity,
+          pricing_mode: pricingMode,
         });
       } catch (err: any) {
         const errorData = err?.data?.data || err?.data;
@@ -232,11 +247,13 @@ export class CartService {
       }
     }
 
-    const unitPrice = this.calculateTierUnitPrice(product, quantity);
+    const unitPrice = this.calculateTierUnitPrice(product, quantity, pricingMode);
 
     if (existingIndex > -1) {
-      const newUnitPrice = this.calculateTierUnitPrice(product, newQty);
+      const effectiveMode = pricingMode ?? items[existingIndex].pricing_mode;
+      const newUnitPrice = this.calculateTierUnitPrice(product, newQty, effectiveMode);
       items[existingIndex].quantity = newQty;
+      if (pricingMode) items[existingIndex].pricing_mode = pricingMode;
       items[existingIndex].unit_price = newUnitPrice;
       items[existingIndex].line_total = newUnitPrice * newQty;
       if (packageBreakdown) items[existingIndex].package_breakdown = packageBreakdown;
@@ -248,6 +265,7 @@ export class CartService {
         product,
         size: size || "Standard Assorted",
         quantity,
+        pricing_mode: pricingMode,
         unit_price: unitPrice,
         line_total: unitPrice * quantity,
         package_breakdown: packageBreakdown,
@@ -455,9 +473,10 @@ export class CartService {
     };
 
     const quantity = Number(raw.quantity) || 1;
+    const pricingMode = raw.pricing_mode || raw.pricingMode || undefined;
     const unitPrice = raw.unit_price !== undefined
       ? Number(raw.unit_price)
-      : this.calculateTierUnitPrice(product, quantity);
+      : this.calculateTierUnitPrice(product, quantity, pricingMode);
 
     return {
       id: String(raw.id || `ci_${Date.now()}`),
@@ -468,6 +487,7 @@ export class CartService {
       size: raw.size || "Standard Assorted",
       color: raw.color,
       quantity,
+      pricing_mode: pricingMode,
       unit_price: unitPrice,
       line_total: raw.line_total !== undefined ? Number(raw.line_total) : unitPrice * quantity,
       package_breakdown: raw.package_breakdown,

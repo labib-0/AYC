@@ -38,8 +38,19 @@ export default function ProductCard({ product }: ProductCardProps) {
     toggleWishlist(product);
   };
 
-  const coverImage = product.images?.[0] || "/placeholder.jpg";
+  const rawCover = product.images?.[0];
+  const coverImage =
+    typeof rawCover === "string"
+      ? rawCover
+      : (rawCover as { image_url?: string } | undefined)?.image_url || "/placeholder.jpg";
   const imageAlt = generateProductImageAlt(product, 0);
+
+  const effectiveMoq = Math.max(1, product.moq || 10);
+  const availableStock = product.availableStock !== undefined ? Number(product.availableStock) : Number(product.stock ?? 0);
+  const availableMoqs = product.availableMoqs !== undefined 
+    ? Number(product.availableMoqs) 
+    : Math.floor(availableStock / effectiveMoq);
+  const isOutOfStock = availableMoqs <= 0 || availableStock <= 0;
 
   return (
     <div className="group relative flex flex-col w-full h-full bg-card rounded-2xl border border-border/80 shadow-[0_1px_4px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:shadow-md hover:border-border transition-all duration-300 overflow-hidden font-sans">
@@ -78,7 +89,8 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Actual Brand Logo Overlay (Top Right) */}
         <ProductBrandLogoOverlay
           brandName={typeof product.brand === "string" ? product.brand : (product.brand as any)?.name || "Ayaan"}
-          brandLogo={product.brandLogo}
+          brandLogo={product.brandLogo || (product as any).brand_logo || (product as any).brand_data?.logo_url || (product as any).brand_data?.logo}
+          brandData={(product as any).brand_data}
           size="card"
         />
 
@@ -99,10 +111,15 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Quick Add Button */}
         <div className="absolute bottom-0 left-0 w-full p-2.5 sm:p-3 translate-y-5 opacity-0 transition-all duration-400 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] z-10 group-hover:translate-y-0 group-hover:opacity-100">
           <button
-            className="w-full bg-background/95 text-foreground border border-transparent p-2 text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-300 backdrop-blur-md rounded-full hover:bg-foreground hover:text-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer shadow-sm"
+            disabled={isOutOfStock}
+            className={`w-full p-2 text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-300 backdrop-blur-md rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none shadow-sm ${
+              isOutOfStock
+                ? "bg-secondary text-muted-foreground cursor-not-allowed border border-border"
+                : "bg-background/95 text-foreground border border-transparent hover:bg-foreground hover:text-background cursor-pointer"
+            }`}
             onClick={handleQuickAdd}
           >
-            Quick Add
+            {isOutOfStock ? "Out of Stock" : "Quick Add"}
           </button>
         </div>
       </div>
@@ -126,9 +143,20 @@ export default function ProductCard({ product }: ProductCardProps) {
               / pc
             </span>
           </div>
-          <p className="text-[13px] font-body text-muted-foreground font-medium mt-0.5">
-            MOQ 1 pkg ({product.moq || 10} pcs)
-          </p>
+          <div className="flex items-center justify-between gap-1 mt-0.5">
+            <p className="text-[13px] font-body text-muted-foreground font-medium">
+              MOQ 1 pkg ({effectiveMoq} pcs)
+            </p>
+            {isOutOfStock ? (
+              <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
+                Out of Stock
+              </span>
+            ) : availableMoqs <= 2 ? (
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                Only {availableMoqs} left
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

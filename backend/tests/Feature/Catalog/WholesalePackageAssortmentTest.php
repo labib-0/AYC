@@ -121,8 +121,11 @@ class WholesalePackageAssortmentTest extends TestCase
 
     public function test_full_stock_price_resolution_never_worse_than_applicable_tier(): void
     {
-        // Case 1: Available stock = 150 (< bulk threshold of 200), configured full_stock_price = $20.00 (lower than standard $28.00)
-        $this->assertEquals(20.00, $this->packageProduct->getResolvedFullStockPrice(150));
+        // Case 1: Available stock = 150 (<= bulk threshold of 200) -> falls back to standard MOQ price $28.00
+        $this->assertEquals(28.00, $this->packageProduct->getResolvedFullStockPrice(150));
+
+        // Case 1b: Available stock = 710 (> bulk threshold of 200), configured full_stock_price = $20.00 -> $20.00
+        $this->assertEquals(20.00, $this->packageProduct->getResolvedFullStockPrice(710));
 
         // Case 2: Available stock = 150 (< bulk threshold of 200), configured full_stock_price = $30.00 (higher than standard $28.00)
         // Must auto-adjust to standard tier $28.00 (never worse)

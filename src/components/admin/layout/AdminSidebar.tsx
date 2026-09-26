@@ -168,46 +168,54 @@ export default function AdminSidebar({ onNavigate }: AdminSidebarProps) {
       </div>
 
       {/* Operational Shortcuts */}
-      <div className="pt-4 border-t border-border/60 space-y-2">
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80 px-3 block font-mono">
-          OPERATIONS
-        </span>
-        <div className="space-y-1">
-          <Link
-            href="/admin/products/new"
-            onClick={onNavigate}
-            className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <PlusCircle size={13} className="text-primary" />
-              <span>Add Product</span>
-            </div>
-            <ChevronRight size={12} />
-          </Link>
-          <Link
-            href="/admin/inventory"
-            onClick={onNavigate}
-            className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Boxes size={13} className="text-emerald-500" />
-              <span>Stock Control</span>
-            </div>
-            <ChevronRight size={12} />
-          </Link>
-          <Link
-            href="/admin/orders"
-            onClick={onNavigate}
-            className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <TrendingUp size={13} className="text-amber-500" />
-              <span>Pending Orders</span>
-            </div>
-            <ChevronRight size={12} />
-          </Link>
+      {(can("product.create") || can("inventory.view") || can("order.view")) && (
+        <div className="pt-4 border-t border-border/60 space-y-2">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80 px-3 block font-mono">
+            OPERATIONS
+          </span>
+          <div className="space-y-1">
+            {can("product.create") && (
+              <Link
+                href="/admin/products/new"
+                onClick={onNavigate}
+                className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <PlusCircle size={13} className="text-primary" />
+                  <span>Add Product</span>
+                </div>
+                <ChevronRight size={12} />
+              </Link>
+            )}
+            {can("inventory.view") && (
+              <Link
+                href="/admin/inventory"
+                onClick={onNavigate}
+                className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Boxes size={13} className="text-emerald-500" />
+                  <span>Stock Control</span>
+                </div>
+                <ChevronRight size={12} />
+              </Link>
+            )}
+            {can("order.view") && (
+              <Link
+                href="/admin/orders"
+                onClick={onNavigate}
+                className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <TrendingUp size={13} className="text-amber-500" />
+                  <span>Pending Orders</span>
+                </div>
+                <ChevronRight size={12} />
+              </Link>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 }

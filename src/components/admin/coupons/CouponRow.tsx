@@ -7,6 +7,7 @@ import {
   Tag 
 } from "lucide-react";
 import { CouponRecord } from "@/services/admin/coupon.service";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface CouponRowProps {
   coupon: CouponRecord;
@@ -21,6 +22,7 @@ export default function CouponRow({
   onToggleActive,
   onDelete,
 }: CouponRowProps) {
+  const { can } = useAdminAuth();
   const isExpired = coupon.expires_at ? new Date(coupon.expires_at) < new Date() : false;
   const isPercentage = coupon.discount_type === "percentage";
 
@@ -87,46 +89,66 @@ export default function CouponRow({
 
       {/* 7. Status */}
       <td className="py-3 px-4 whitespace-nowrap">
-        <button
-          type="button"
-          onClick={() => onToggleActive(coupon)}
-          className="inline-flex items-center gap-1.5 cursor-pointer focus:outline-none"
-          title={`Click to ${coupon.is_active ? "deactivate" : "activate"}`}
-        >
-          {coupon.is_active ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <CheckCircle2 size={11} />
-              <span>Active</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-              <XCircle size={11} />
-              <span>Inactive</span>
-            </span>
-          )}
-        </button>
+        {(can("coupon.activate") || can("coupon.deactivate") || can("coupon.edit")) ? (
+          <button
+            type="button"
+            onClick={() => onToggleActive(coupon)}
+            className="inline-flex items-center gap-1.5 cursor-pointer focus:outline-none"
+            title={`Click to ${coupon.is_active ? "deactivate" : "activate"}`}
+          >
+            {coupon.is_active ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <CheckCircle2 size={11} />
+                <span>Active</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                <XCircle size={11} />
+                <span>Inactive</span>
+              </span>
+            )}
+          </button>
+        ) : (
+          <div className="inline-flex items-center gap-1.5">
+            {coupon.is_active ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <CheckCircle2 size={11} />
+                <span>Active</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                <XCircle size={11} />
+                <span>Inactive</span>
+              </span>
+            )}
+          </div>
+        )}
       </td>
 
       {/* 8. Actions */}
       <td className="py-3 px-4 whitespace-nowrap text-right">
         <div className="flex items-center justify-end gap-1.5">
-          <button
-            type="button"
-            onClick={() => onEdit(coupon)}
-            className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            title="Edit coupon"
-          >
-            <Edit2 size={13} />
-          </button>
+          {can("coupon.edit") && (
+            <button
+              type="button"
+              onClick={() => onEdit(coupon)}
+              className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Edit coupon"
+            >
+              <Edit2 size={13} />
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => onDelete(coupon)}
-            className="p-1.5 rounded-lg border border-red-500/20 bg-card hover:bg-red-500/10 text-red-600 dark:text-red-400 transition-colors cursor-pointer"
-            title="Delete coupon"
-          >
-            <Trash2 size={13} />
-          </button>
+          {can("coupon.delete") && (
+            <button
+              type="button"
+              onClick={() => onDelete(coupon)}
+              className="p-1.5 rounded-lg border border-red-500/20 bg-card hover:bg-red-500/10 text-red-600 dark:text-red-400 transition-colors cursor-pointer"
+              title="Delete coupon"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
         </div>
       </td>
     </tr>

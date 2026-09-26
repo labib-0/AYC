@@ -2,6 +2,7 @@ import React from "react";
 import { Tag, SearchX } from "lucide-react";
 import { CouponRecord } from "@/services/admin/coupon.service";
 import CouponRow from "./CouponRow";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface CouponTableProps {
   coupons: CouponRecord[];
@@ -26,6 +27,7 @@ export default function CouponTable({
   onAddCoupon,
   onResetFilters,
 }: CouponTableProps) {
+  const { can } = useAdminAuth();
   // 1. Loading Skeleton
   if (loading) {
     return (
@@ -76,13 +78,15 @@ export default function CouponTable({
         <p className="text-xs text-muted-foreground max-w-sm">
           Create percentage or flat discount coupons with minimum order requirements.
         </p>
-        <button
-          type="button"
-          onClick={onAddCoupon}
-          className="px-5 py-2 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer"
-        >
-          Create First Coupon
-        </button>
+        {can("coupon.create") && (
+          <button
+            type="button"
+            onClick={onAddCoupon}
+            className="px-5 py-2 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer"
+          >
+            Create First Coupon
+          </button>
+        )}
       </div>
     );
   }
@@ -174,29 +178,35 @@ export default function CouponTable({
                 </span>
 
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onToggleActive(coupon)}
-                    className="px-2.5 py-1 text-xs rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-foreground font-semibold cursor-pointer"
-                  >
-                    {coupon.is_active ? "Deactivate" : "Activate"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onEdit(coupon)}
-                    className="p-1 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
-                    title="Edit"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(coupon)}
-                    className="p-1 rounded-lg border border-red-500/20 bg-card hover:bg-red-500/10 text-red-600 dark:text-red-400 cursor-pointer"
-                    title="Delete"
-                  >
-                    Delete
-                  </button>
+                  {(can("coupon.activate") || can("coupon.deactivate") || can("coupon.edit")) && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleActive(coupon)}
+                      className="px-2.5 py-1 text-xs rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-foreground font-semibold cursor-pointer"
+                    >
+                      {coupon.is_active ? "Deactivate" : "Activate"}
+                    </button>
+                  )}
+                  {can("coupon.edit") && (
+                    <button
+                      type="button"
+                      onClick={() => onEdit(coupon)}
+                      className="p-1 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Edit"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {can("coupon.delete") && (
+                    <button
+                      type="button"
+                      onClick={() => onDelete(coupon)}
+                      className="p-1 rounded-lg border border-red-500/20 bg-card hover:bg-red-500/10 text-red-600 dark:text-red-400 cursor-pointer"
+                      title="Delete"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

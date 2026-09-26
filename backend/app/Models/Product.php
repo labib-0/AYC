@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -93,6 +94,40 @@ class Product extends Model
         'is_demo' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::deleting(function (Product $product) {
+            // When soft-deleting, release the slug and SKU so they can be immediately reused
+            if (!$product->isForceDeleting()) {
+                $uniqueSuffix = '-deleted-' . $product->id . '-' . time();
+                $updates = [];
+                if (!str_contains($product->slug, '-deleted-')) {
+                    $product->slug = substr($product->slug, 0, 200) . $uniqueSuffix;
+                    $updates['slug'] = $product->slug;
+                }
+                if (!str_contains($product->sku, '-del-')) {
+                    $product->sku = substr($product->sku, 0, 200) . '-del-' . $product->id . '-' . time();
+                    $updates['sku'] = $product->sku;
+                }
+                if (!empty($updates)) {
+                    $product->saveQuietly();
+                }
+
+                // Also release variant SKUs so they do not conflict if the same product is recreated
+                $variants = $product->relationLoaded('allVariants')
+                    ? $product->allVariants
+                    : $product->allVariants()->get();
+
+                foreach ($variants as $variant) {
+                    if (!str_contains($variant->sku, '-del-')) {
+                        $variant->sku = substr($variant->sku, 0, 200) . '-del-' . $variant->id . '-' . time();
+                        $variant->saveQuietly();
+                    }
+                }
+            }
+        });
+    }
+
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
@@ -121,6 +156,11 @@ class Product extends Model
     public function allVariants(): HasMany
     {
         return $this->hasMany(ProductVariant::class);
+    }
+
+    public function inventories(): HasManyThrough
+    {
+        return $this->hasManyThrough(Inventory::class, ProductVariant::class);
     }
 
     public function pricingTiers(): HasMany
@@ -183,7 +223,19 @@ class Product extends Model
                 }
             }
 
-            $variantStock = $variant ? (int) $variant->stock : 0;
+            $variantStock = 0;
+            if ($variant) {
+                $invs = $variant->relationLoaded('inventories')
+                    ? $variant->inventories
+                    : $variant->inventories()->get();
+
+                if ($invs->isNotEmpty()) {
+                    $variantStock = max(0, (int) $invs->sum('quantity') - (int) $invs->sum('reserved_quantity'));
+                } else {
+                    $variantStock = (int) ($variant->stock ?? 0);
+                }
+            }
+
             $supportedPackages = (int) floor($variantStock / $neededPerPackage);
 
             if ($maxPackages === null || $supportedPackages < $maxPackages) {
@@ -205,16 +257,14 @@ class Product extends Model
     }
 
     /**
-     * Determine if product qualifies for Full Stock pricing:
+     * Determine if product qualifies for Full Stock discount pricing:
      * 1. Admin configured full_stock_price must exist and be > 0.
      * 2. Authoritative qualifying bulk threshold:
      *    - product bulk_threshold if configured (> 0)
      *    - otherwise product MOQ
-     * 3. Current complete package inventory must be STRICTLY GREATER than the qualifying minimum bulk quantity:
-     *    complete_package_stock > qualifying_threshold
-     * 4. Eligible Full Stock quantity must be the largest valid MOQ multiple supported by complete package inventory:
-     *    max_complete_packages * moq
-     * 5. Eligible Full Stock quantity must be >= qualifying_threshold and strictly > moq.
+     * 3. Current Available Inventory must be STRICTLY GREATER than the qualifying minimum bulk quantity:
+     *    available_inventory > qualifying_threshold
+     * 4. Complete package stock must be > 0.
      */
     public function isFullStockEligible(): bool
     {
@@ -222,7 +272,7 @@ class Product extends Model
             return false;
         }
 
-        $completeStock = $this->getCompletePackageStock();
+        $availableStock = $this->getTotalAvailableStock();
         $moq = max(1, (int) $this->moq);
 
         // Authoritative qualifying bulk threshold
@@ -230,58 +280,77 @@ class Product extends Model
             ? (int) $this->bulk_threshold
             : $moq;
 
-        // Complete available inventory in packages must be strictly greater than qualifying threshold
-        if ($completeStock <= $qualifyingThreshold) {
+        // Available inventory must be strictly greater than qualifying bulk threshold
+        if ($availableStock <= $qualifyingThreshold) {
             return false;
         }
 
-        $eligibleQty = $completeStock;
-
-        return $eligibleQty >= $qualifyingThreshold && $eligibleQty > $moq;
+        return $this->getCompletePackageStock() > 0;
     }
 
     /**
      * Calculate authoritative eligible Full Stock quantity:
      * Number of units in complete packages supported by inventory.
-     * Returns 0 if Full Stock is not eligible.
+     * The Full Stock option is always visible and purchasable in complete package units.
      */
     public function getEligibleFullStockQuantity(): int
     {
-        if (!$this->isFullStockEligible()) {
-            return 0;
-        }
-
         return $this->getCompletePackageStock();
     }
 
     /**
+     * Authoritative Normal MOQ / Standard Applicable Price.
+     * Evaluates the standard wholesale price that applies to the product's MOQ purchase under existing rules.
+     */
+    public function getNormalMoqPrice(): float
+    {
+        $moq = max(1, (int) $this->moq);
+
+        $tiers = $this->relationLoaded('pricingTiers') ? $this->pricingTiers : $this->pricingTiers()->get();
+        if ($tiers && $tiers->isNotEmpty()) {
+            foreach ($tiers as $tier) {
+                if ($moq >= $tier->min_quantity && ($tier->max_quantity === null || $moq <= $tier->max_quantity)) {
+                    return (float) $tier->unit_price;
+                }
+            }
+        }
+
+        return (float) $this->wholesale_price;
+    }
+
+    /**
      * Exact Full Stock Price Resolution:
-     * When eligible:
-     * 1. Compares configured full_stock_price against normal applicable price for eligible quantity.
-     * 2. Core Rule: Full Stock price must NEVER be worse than the valid price for that quantity.
-     * When not eligible:
-     * Falls back to standard wholesale price or applicable bulk price.
+     * FULL STOCK OPTION ALWAYS VISIBLE
+     * Determine current Available Inventory
+     * Compare with Minimum Bulk Order Quantity
+     * IF Available Inventory > Minimum Bulk Order Quantity
+     *     → use full_stock_price
+     * ELSE
+     *     → use normal MOQ / standard applicable price
      */
     public function getResolvedFullStockPrice(?int $customStock = null): float
     {
-        $eligibleQty = $customStock ?? $this->getEligibleFullStockQuantity();
+        $availableStock = $customStock ?? $this->getTotalAvailableStock();
+        $bulkMinimum = ($this->bulk_threshold !== null && (int) $this->bulk_threshold > 0)
+            ? (int) $this->bulk_threshold
+            : max(1, (int) $this->moq);
 
-        // If not eligible and no custom stock passed, fallback to wholesale price
-        if ($eligibleQty <= 0 && $customStock === null) {
-            return (float) $this->wholesale_price;
+        $normalMoqPrice = $this->getNormalMoqPrice();
+
+        // When Available Inventory <= Minimum Bulk Order Quantity:
+        // Always falls back to normal MOQ / standard applicable price.
+        if ($availableStock <= $bulkMinimum) {
+            return $normalMoqPrice;
         }
 
-        $evalQty = $eligibleQty > 0 ? $eligibleQty : $this->getTotalAvailableStock();
+        // When Available Inventory > Minimum Bulk Order Quantity:
+        // Applicable normal price for this volume (bulk price if configured, else normal MOQ price)
+        $applicableNormalPrice = ($this->bulk_threshold !== null && $this->bulk_price !== null && $availableStock >= $this->bulk_threshold)
+            ? (float) $this->bulk_price
+            : $normalMoqPrice;
 
-        // Normal applicable tier for this quantity
-        if ($this->bulk_threshold !== null && $this->bulk_price !== null && $evalQty >= $this->bulk_threshold) {
-            $applicableNormalPrice = (float) $this->bulk_price;
-        } else {
-            $applicableNormalPrice = (float) $this->wholesale_price;
-        }
-
-        // Best valid price check with configured full_stock_price
         if ($this->full_stock_price !== null && (float) $this->full_stock_price > 0) {
+            // Full stock price should never be worse than the applicable normal price
             return (float) min((float) $this->full_stock_price, $applicableNormalPrice);
         }
 
@@ -294,29 +363,43 @@ class Product extends Model
      */
     public function getEligibleFullStockTotal(): float
     {
-        if (!$this->isFullStockEligible()) {
+        $qty = $this->getEligibleFullStockQuantity();
+        if ($qty <= 0) {
             return 0.0;
         }
 
-        return round($this->getEligibleFullStockQuantity() * $this->getResolvedFullStockPrice(), 2);
+        return round($qty * $this->getResolvedFullStockPrice(), 2);
     }
 
     /**
      * Authoritative unit price resolution based on three-price wholesale model:
-     * 1. Full-Stock Price: ONLY when product is full-stock eligible AND quantity is the exact eligible quantity.
-     *    If ineligible or quantity != eligible full stock quantity, full-stock pricing is REJECTED and falls back.
+     * 1. Full-Stock Mode:
+     *    - When pricingMode is explicitly 'full_stock' and quantity matches complete package stock (> 0).
+     *      Price is resolved conditionally:
+     *      If available inventory > bulk minimum: full_stock_price
+     *      Else: normal MOQ / standard price.
+     *    - When pricingMode is null, quantity matches complete package stock, and available inventory > bulk threshold.
      * 2. Bulk Price: When quantity >= bulk_threshold (or pricingMode === 'bulk' with quantity >= bulk_threshold).
      * 3. Fallback to product_pricing_tiers if defined.
      * 4. Standard Wholesale Price (MOQ to Bulk Threshold - 1).
      */
     public function getUnitPriceForQuantity(int $quantity, ?string $pricingMode = null): float
     {
-        $isEligible = $this->isFullStockEligible();
-        $eligibleFullStockQty = $isEligible ? $this->getEligibleFullStockQuantity() : 0;
+        $completeStock = $this->getCompletePackageStock();
+        $availableStock = $this->getTotalAvailableStock();
+        $bulkThreshold = ($this->bulk_threshold !== null && (int) $this->bulk_threshold > 0)
+            ? (int) $this->bulk_threshold
+            : max(1, (int) $this->moq);
 
-        // 1. Full-Stock Mode or exact eligible full-stock quantity match
-        if ($isEligible && $quantity === $eligibleFullStockQty && ($pricingMode === 'full_stock' || $pricingMode === null)) {
-            return $this->getResolvedFullStockPrice($eligibleFullStockQty);
+        // 1. Full-Stock Mode
+        if ($pricingMode === 'full_stock') {
+            if ($completeStock > 0 && $quantity === $completeStock) {
+                return $this->getResolvedFullStockPrice($availableStock);
+            }
+            // If pricingMode is full_stock but quantity does NOT match complete package stock,
+            // fall through to normal bulk/tier/standard pricing.
+        } elseif ($pricingMode === null && $completeStock > 0 && $quantity === $completeStock && $availableStock > $bulkThreshold) {
+            return $this->getResolvedFullStockPrice($availableStock);
         }
 
         // 2. Explicit configured bulk threshold & price
@@ -400,12 +483,109 @@ class Product extends Model
     }
 
     /**
-     * Get total available stock across all active variants
+     * Get total on-hand stock across all active variants and their warehouse inventory records.
+     */
+    public function getOnHandStock(): int
+    {
+        $variants = $this->relationLoaded('variants')
+            ? $this->variants
+            : $this->variants()->with('inventories')->get();
+
+        $totalOnHand = 0;
+        foreach ($variants as $variant) {
+            $invs = $variant->relationLoaded('inventories')
+                ? $variant->inventories
+                : $variant->inventories()->get();
+
+            if ($invs->isNotEmpty()) {
+                $totalOnHand += (int) $invs->sum('quantity');
+            } else {
+                $totalOnHand += (int) ($variant->stock ?? 0);
+            }
+        }
+
+        return max(0, $totalOnHand);
+    }
+
+    /**
+     * Get total reserved stock across all active variants and their warehouse inventory records.
+     */
+    public function getReservedStock(): int
+    {
+        $variants = $this->relationLoaded('variants')
+            ? $this->variants
+            : $this->variants()->with('inventories')->get();
+
+        $totalReserved = 0;
+        foreach ($variants as $variant) {
+            $invs = $variant->relationLoaded('inventories')
+                ? $variant->inventories
+                : $variant->inventories()->get();
+
+            $totalReserved += (int) $invs->sum('reserved_quantity');
+        }
+
+        return max(0, $totalReserved);
+    }
+
+    /**
+     * Get total available stock across all active variants (On Hand minus Reserved).
      */
     public function getTotalAvailableStock(): int
     {
-        $variants = $this->relationLoaded('variants') ? $this->variants : $this->variants()->get();
-        return (int) ($variants->sum('stock') ?: 0);
+        $onHand = $this->getOnHandStock();
+        $reserved = $this->getReservedStock();
+        return max(0, $onHand - $reserved);
+    }
+
+    /**
+     * Get total complete MOQs available based on available stock and product MOQ.
+     * Uses authoritatively defined package allocations if configured, or floor(available / moq).
+     */
+    public function getAvailableMoqs(): int
+    {
+        return $this->getMaxCompletePackages();
+    }
+
+    /**
+     * Return warehouse inventory breakdown with on-hand, reserved, and available quantities.
+     */
+    public function getWarehouseStockBreakdown(): array
+    {
+        $variants = $this->relationLoaded('variants')
+            ? $this->variants
+            : $this->variants()->with('inventories.warehouse')->get();
+
+        $warehouses = [];
+
+        foreach ($variants as $variant) {
+            $invs = $variant->relationLoaded('inventories')
+                ? $variant->inventories
+                : $variant->inventories()->with('warehouse')->get();
+
+            foreach ($invs as $inv) {
+                $whId = $inv->warehouse_id;
+                $whName = $inv->warehouse?->name ?? "Warehouse #{$whId}";
+                $whCode = $inv->warehouse?->code ?? "WH-{$whId}";
+
+                if (!isset($warehouses[$whId])) {
+                    $warehouses[$whId] = [
+                        'warehouse_id' => $whId,
+                        'warehouse_name' => $whName,
+                        'warehouse_code' => $whCode,
+                        'on_hand_quantity' => 0,
+                        'reserved_quantity' => 0,
+                        'available_quantity' => 0,
+                    ];
+                }
+
+                $warehouses[$whId]['on_hand_quantity'] += (int) $inv->quantity;
+                $warehouses[$whId]['reserved_quantity'] += (int) $inv->reserved_quantity;
+                $warehouses[$whId]['available_quantity'] += max(0, (int) $inv->quantity - (int) $inv->reserved_quantity);
+            }
+        }
+
+        return array_values($warehouses);
     }
 
     /**

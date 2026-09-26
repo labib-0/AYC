@@ -280,6 +280,37 @@ class RbacPermissionCatalogSeeder extends Seeder
                     'aramex.tracking.view',
                 ],
             ],
+            [
+                'name'        => 'Inventory Viewer',
+                'slug'        => 'inventory_viewer',
+                'description' => 'View inventory balances and warehouse allocations. Cannot perform stock adjustments.',
+                'permissions' => [
+                    'inventory.view',
+                    'inventory.view_warehouse',
+                    'product.view',
+                ],
+            ],
+            [
+                'name'        => 'Order Viewer',
+                'slug'        => 'order_viewer',
+                'description' => 'View order history, customer details, and line items. Cannot confirm or modify status.',
+                'permissions' => [
+                    'order.view',
+                    'order.view_customer',
+                    'order.view_items',
+                    'customer.view',
+                ],
+            ],
+            [
+                'name'        => 'Sales Revenue Viewer',
+                'slug'        => 'sales_viewer',
+                'description' => 'View sales revenue metrics without access to COGS or gross profit.',
+                'permissions' => [
+                    'analytics.dashboard.view',
+                    'analytics.sales.view',
+                    'analytics.orders.view',
+                ],
+            ],
         ];
 
         foreach ($systemRoles as $roleData) {

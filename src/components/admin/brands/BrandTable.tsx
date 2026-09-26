@@ -3,6 +3,7 @@
 import React from "react";
 import { BrandModel } from "@/services/brand.service";
 import BrandRow from "./BrandRow";
+import BrandCard from "./BrandCard";
 import BrandEmptyState from "./BrandEmptyState";
 
 interface BrandTableProps {
@@ -121,7 +122,7 @@ export default function BrandTable({
       {/* Mobile Card Layout */}
       <div className="md:hidden p-3 space-y-2.5">
         {brands.map((b) => (
-          <BrandRow
+          <BrandCard
             key={b.id}
             brand={b}
             onEdit={onEdit}

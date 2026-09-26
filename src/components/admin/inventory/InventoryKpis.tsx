@@ -35,9 +35,9 @@ export default function InventoryKpis({
   const cards = [
     {
       id: "ALL" as const,
-      label: "Total Items",
-      value: summary.totalItems,
-      subtitle: `${summary.totalQuantity.toLocaleString()} total units`,
+      label: "Products",
+      value: summary.totalProducts ?? summary.totalItems,
+      subtitle: `${summary.totalRecords ? `${summary.totalRecords} records · ` : ""}${summary.totalQuantity.toLocaleString()} total units`,
       icon: Package,
       iconColor: "text-foreground",
       activeRing: "ring-2 ring-foreground/20 border-foreground/40",

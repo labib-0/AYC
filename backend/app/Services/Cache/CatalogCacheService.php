@@ -107,6 +107,20 @@ class CatalogCacheService
     }
 
     /**
+     * Flush all product and collection caches across all products.
+     */
+    public static function flushAllProducts(): void
+    {
+        Cache::forget(self::featuredKey());
+        Cache::forget(self::hotSalesKey());
+
+        $products = Product::select('id', 'slug')->get();
+        foreach ($products as $p) {
+            self::invalidateProduct($p);
+        }
+    }
+
+    /**
      * Invalidate category caches.
      */
     public static function invalidateCategories(): void

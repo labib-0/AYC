@@ -18,6 +18,7 @@ import {
   ShopByBrandManager,
   HotSaleCategoryManager,
   FeaturedProductManager,
+  SeasonManager,
 } from "@/components/admin/homepage";
 import ProductToast, {
   ToastMessage,
@@ -41,6 +42,8 @@ export default function AdminLandingPageManagement() {
   const [featuredBrands, setFeaturedBrands] = useState<HomepageFeaturedBrandModel[]>([]);
   const [hotSaleCategories, setHotSaleCategories] = useState<HomepageHotSaleCategoryModel[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<HomepageFeaturedProductModel[]>([]);
+  const [activeSeason, setActiveSeason] = useState<string>("2026 Core Collection");
+  const [totalProductsCount, setTotalProductsCount] = useState<number>(0);
 
   // Banner Form Draft State
   const [formState, setFormState] = useState<BannerFormState>({
@@ -93,6 +96,10 @@ export default function AdminLandingPageManagement() {
       setFeaturedBrands(data.featured_brands || []);
       setHotSaleCategories(data.hot_sale_categories || []);
       setFeaturedProducts(data.featured_products || []);
+      if (data.active_season) {
+        setActiveSeason(data.active_season);
+      }
+      setTotalProductsCount(data.counts?.total_all_products || data.counts?.total_products || 0);
 
       if (data.banner) {
         setFormState({
@@ -360,7 +367,19 @@ export default function AdminLandingPageManagement() {
       </section>
 
       {/* ==================================================================== */}
-      {/* SECTION 2: SHOP BY BRAND                                             */}
+      {/* SECTION 2: STOREWIDE COLLECTION SEASON                                */}
+      {/* ==================================================================== */}
+      <section>
+        <SeasonManager
+          initialSeason={activeSeason}
+          totalProducts={totalProductsCount}
+          onSaveSuccess={loadHomepageData}
+          showToast={showToast}
+        />
+      </section>
+
+      {/* ==================================================================== */}
+      {/* SECTION 3: SHOP BY BRAND                                             */}
       {/* ==================================================================== */}
       <section>
         <ShopByBrandManager

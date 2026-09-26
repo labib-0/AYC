@@ -343,7 +343,6 @@ async function runLocalFullstackIntegrationTests() {
         items: [
           {
             product_id: sampleProduct.id,
-            variant_id: sampleProduct.variants?.[0]?.id,
             quantity: sampleProduct.moq || 20,
             unit_price: sampleProduct.price || 15.0,
           },
@@ -396,7 +395,6 @@ async function runLocalFullstackIntegrationTests() {
         items: [
           {
             product_id: sampleProduct.id,
-            variant_id: sampleProduct.variants?.[0]?.id,
             quantity: sampleProduct.moq || 20,
             unit_price: sampleProduct.price || 15.0,
           },

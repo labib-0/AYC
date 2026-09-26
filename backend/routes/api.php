@@ -234,6 +234,14 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:rfq.view');
         Route::patch('/rfqs/{id}/status', [RfqController::class, 'updateStatus'])
             ->middleware('permission:rfq.update_status');
+        Route::post('/rfqs/{id}/accept', function ($id, \Illuminate\Http\Request $request) {
+            $request->merge(['status' => 'ACCEPTED']);
+            return app(RfqController::class)->updateStatus($request, $id);
+        })->middleware('permission:rfq.accept');
+        Route::post('/rfqs/{id}/reject', function ($id, \Illuminate\Http\Request $request) {
+            $request->merge(['status' => 'REJECTED']);
+            return app(RfqController::class)->updateStatus($request, $id);
+        })->middleware('permission:rfq.reject');
         Route::get('/rfqs/{id}/messages', [RfqController::class, 'getMessages'])
             ->middleware('permission:rfq.message.view');
         Route::post('/rfqs/{id}/messages', [RfqController::class, 'addMessage'])
@@ -327,22 +335,40 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:order.update_fulfillment');
         Route::patch('/orders/{id}/shipping-quote', [AdminOrderController::class, 'updateShippingQuote'])
             ->middleware('permission:order.shipping.update');
-        Route::post('/orders/{id}/payment-proof/review', [AdminOrderController::class, 'reviewPaymentProof']);
+        Route::post('/orders/{id}/payment-proof/review', [AdminOrderController::class, 'reviewPaymentProof'])
+            ->middleware('permission:payment.receipt.verify');
         Route::post('/orders/{id}/payment/verify', function ($id, \Illuminate\Http\Request $request) {
             $request->merge(['action' => 'verify']);
             return app(AdminOrderController::class)->reviewPaymentProof($request, $id);
-        });
+        })->middleware('permission:payment.receipt.verify');
         Route::post('/orders/{id}/payment/reject', function ($id, \Illuminate\Http\Request $request) {
             $request->merge(['action' => 'reject']);
             return app(AdminOrderController::class)->reviewPaymentProof($request, $id);
-        });
+        })->middleware('permission:payment.receipt.reject');
         Route::post('/orders/{id}/shipment/aramex', [AdminOrderController::class, 'createAramexShipment'])
             ->middleware('permission:shipment.create');
         Route::post('/orders/{id}/tracking/refresh', [AdminOrderController::class, 'refreshTracking'])
             ->middleware('permission:tracking.refresh');
 
-        // Coupons
-        Route::apiResource('coupons', AdminCouponController::class);
+        // Coupons (Granular RBAC Protection)
+        Route::get('/coupons', [AdminCouponController::class, 'index'])
+            ->middleware('permission:coupon.view');
+        Route::post('/coupons', [AdminCouponController::class, 'store'])
+            ->middleware('permission:coupon.create');
+        Route::get('/coupons/{id}', [AdminCouponController::class, 'show'])
+            ->middleware('permission:coupon.view');
+        Route::put('/coupons/{id}', [AdminCouponController::class, 'update'])
+            ->middleware('permission:coupon.edit');
+        Route::patch('/coupons/{id}/activate', function ($id, \Illuminate\Http\Request $request) {
+            $request->merge(['is_active' => true]);
+            return app(AdminCouponController::class)->update($request, (int) $id);
+        })->middleware('permission:coupon.activate');
+        Route::patch('/coupons/{id}/deactivate', function ($id, \Illuminate\Http\Request $request) {
+            $request->merge(['is_active' => false]);
+            return app(AdminCouponController::class)->update($request, (int) $id);
+        })->middleware('permission:coupon.deactivate');
+        Route::delete('/coupons/{id}', [AdminCouponController::class, 'destroy'])
+            ->middleware('permission:coupon.delete');
 
         // Settings & Shipping Configuration
         Route::get('/settings/shipping', [ShippingController::class, 'settings'])
@@ -356,7 +382,8 @@ Route::prefix('v1')->group(function () {
         Route::prefix('homepage')->group(function () {
             Route::get('/', [AdminHomepageManagementController::class, 'index'])
                 ->middleware('permission:homepage.view');
-            Route::post('/banner', [AdminHomepageManagementController::class, 'updateBanner']);
+            Route::post('/banner', [AdminHomepageManagementController::class, 'updateBanner'])
+                ->middleware('permission:homepage.banner.edit');
             Route::post('/brands', [AdminHomepageManagementController::class, 'syncFeaturedBrands'])
                 ->middleware('permission:homepage.brand.manage');
             Route::post('/featured-brands', [AdminHomepageManagementController::class, 'syncFeaturedBrands'])
@@ -369,6 +396,7 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:homepage.product.manage');
             Route::get('/search-products', [AdminHomepageManagementController::class, 'searchProducts'])
                 ->middleware('permission:homepage.view');
+            Route::post('/season', [AdminHomepageManagementController::class, 'updateSeason']);
         });
 
         // ── RBAC Management (Phase 1 Foundation) ────────────────────────────

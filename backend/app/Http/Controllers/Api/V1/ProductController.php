@@ -13,6 +13,7 @@ use App\Services\Shipping\PackageCalculatorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ProductController extends ApiController
 {
@@ -316,8 +317,8 @@ class ProductController extends ApiController
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', 'unique:products,slug'],
-            'sku' => ['required', 'string', 'unique:products,sku'],
+            'slug' => ['required', 'string', Rule::unique('products', 'slug')->whereNull('deleted_at')],
+            'sku' => ['required', 'string', Rule::unique('products', 'sku')->whereNull('deleted_at')],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'brand' => ['nullable', 'string'],
             'new_brand_name' => ['nullable', 'string', 'max:255'],
@@ -339,6 +340,12 @@ class ProductController extends ApiController
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'moq' => ['nullable', 'integer', 'min:1'],
+            'initial_stock' => ['nullable', 'integer', 'min:0'],
+            'stock' => ['nullable', 'integer', 'min:0'],
+            'warehouse_id' => ['nullable', 'exists:warehouses,id'],
+            'initial_inventory' => ['nullable', 'array'],
+            'initial_inventory.warehouse_id' => ['nullable', 'exists:warehouses,id'],
+            'initial_inventory.quantity' => ['nullable', 'integer', 'min:0'],
             'status' => ['nullable', 'string', 'in:draft,published,archived'],
             'is_featured' => ['nullable', 'boolean'],
             'featured_sort_order' => ['nullable', 'integer'],
@@ -406,7 +413,8 @@ class ProductController extends ApiController
         $productData = collect($validated)->except([
             'categories', 'images', 'variants', 'pricing_tiers', 'package_allocations', 'shipping_package_profiles',
             'new_brand_name', 'new_brand_logo', 'brand', 'designType',
-            'featured_duration_days', 'hot_duration_days', 'new_duration_days'
+            'featured_duration_days', 'hot_duration_days', 'new_duration_days',
+            'initial_stock', 'stock', 'warehouse_id', 'initial_inventory',
         ])->toArray();
 
         // Handle Promotional Badge Scheduling
@@ -505,160 +513,57 @@ class ProductController extends ApiController
             }
         }
 
+        // Resolve target warehouse
+        $warehouseId = $validated['warehouse_id'] ?? $validated['initial_inventory']['warehouse_id'] ?? null;
+        if ($warehouseId) {
+            $whCheck = \App\Models\Warehouse::where('id', $warehouseId)->first();
+            if (!$whCheck || !$whCheck->is_active) {
+                return $this->error("The selected warehouse is inactive or does not exist.", 422);
+            }
+            $targetWarehouseId = $whCheck->id;
+        } else {
+            $targetWarehouseId = \App\Models\Warehouse::where('is_active', true)->first()?->id
+                ?? \App\Models\Warehouse::first()?->id;
+        }
+
+        if (!$targetWarehouseId) {
+            $createdWh = \App\Models\Warehouse::create([
+                'name' => 'Main Warehouse (Uttara)',
+                'code' => 'WH-UTTARA-01',
+                'city' => 'Dhaka',
+                'country_code' => 'BD',
+                'is_active' => true,
+            ]);
+            $targetWarehouseId = $createdWh->id;
+        }
+
+        // Resolve initial stock
+        $initialStock = isset($validated['initial_stock'])
+            ? (int) $validated['initial_stock']
+            : (isset($validated['initial_inventory']['quantity'])
+                ? (int) $validated['initial_inventory']['quantity']
+                : (int) ($validated['stock'] ?? $request->input('stock', 0)));
+        if ($initialStock < 0) {
+            return $this->error("Initial stock cannot be negative.", 422);
+        }
+
         // Validate bulk threshold against MOQ
         $moq = (int) ($productData['moq'] ?? 1);
         if (!empty($productData['bulk_threshold']) && (int) $productData['bulk_threshold'] <= $moq) {
             return $this->error("Bulk threshold ({$productData['bulk_threshold']}) must be strictly greater than MOQ ({$moq})", 422);
         }
 
-        $product = DB::transaction(function () use ($productData, $validated, $request, $moq) {
-            $product = Product::create($productData);
-
-            $syncCats = !empty($validated['categories']) ? $validated['categories'] : (!empty($validated['category_id']) ? [$validated['category_id']] : []);
-            if (!empty($syncCats)) {
-                $product->categories()->sync($syncCats);
-            }
-
-            return $product;
-        });
-
-        if ($product->is_featured) {
-            \App\Models\HomepageFeaturedProduct::updateOrCreate(
-                ['product_id' => $product->id],
-                ['sort_order' => $product->featured_sort_order ?? 0, 'is_active' => true]
-            );
-        }
-
-        // Re-read moq after product creation (it may have been derived from package_allocations)
-        $moq = (int) ($product->moq ?? $moq);
-
-        // Sync images if provided
-        if ($request->has('images') && is_array($request->input('images'))) {
-            $order = 0;
-            foreach ($request->input('images') as $img) {
-                if (is_string($img)) {
-                    \App\Models\ProductImage::create([
-                        'product_id' => $product->id,
-                        'image_url' => $img,
-                        'sort_order' => $order,
-                        'is_primary' => $order === 0,
-                    ]);
-                } elseif (is_array($img) && !empty($img['image_url'])) {
-                    \App\Models\ProductImage::create([
-                        'product_id' => $product->id,
-                        'image_url' => $img['image_url'],
-                        'alt_text' => $img['alt_text'] ?? null,
-                        'sort_order' => $img['sort_order'] ?? $order,
-                        'is_primary' => $img['is_primary'] ?? ($order === 0),
-                    ]);
-                }
-                $order++;
-            }
-        }
-
-        // Sync variants if provided
-        $createdVariantsMap = []; // key: "color-size" => ProductVariant
-        if ($request->has('variants') && is_array($request->input('variants'))) {
-            foreach ($request->input('variants') as $var) {
-                $vColor = $var['color'] ?? $product->color_name ?? 'Standard';
-                $vSize = $var['size'] ?? 'Standard';
-                $variantSku = $var['sku'] ?? ($product->sku . '-' . strtoupper(substr($vColor, 0, 3)) . '-' . strtoupper(substr($vSize, 0, 3)));
-                
-                $createdVariant = \App\Models\ProductVariant::create([
-                    'product_id' => $product->id,
-                    'sku' => $variantSku,
-                    'title' => $var['title'] ?? "{$vColor} / {$vSize}",
-                    'size' => $vSize,
-                    'color' => $vColor,
-                    'price' => $var['price'] ?? $product->wholesale_price,
-                    'compare_at_price' => $var['compare_at_price'] ?? $product->msrp_price,
-                    'stock' => $var['stock'] ?? 0,
-                    'is_default' => $var['is_default'] ?? false,
-                    'is_active' => $var['is_active'] ?? true,
-                ]);
-
-                $createdVariantsMap["{$vColor}-{$vSize}"] = $createdVariant;
-
-                // Create initial default warehouse inventory for variant
-                $mainWh = \App\Models\Warehouse::first();
-                if ($mainWh) {
-                    \App\Models\Inventory::create([
-                        'product_variant_id' => $createdVariant->id,
-                        'warehouse_id' => $mainWh->id,
-                        'quantity' => $createdVariant->stock,
-                        'reserved_quantity' => 0,
-                    ]);
-                }
-            }
-        }
-
-        // Sync Pricing Tiers (auto-generated from standard/bulk or custom list)
+        // Validate Pricing Tiers before transaction if provided
         if ($request->has('pricing_tiers') && is_array($request->input('pricing_tiers')) && count($request->input('pricing_tiers')) > 0) {
             try {
                 $this->validatePricingTiers($request->input('pricing_tiers'));
             } catch (\InvalidArgumentException $e) {
                 return $this->error($e->getMessage(), 422);
             }
-
-            foreach ($request->input('pricing_tiers') as $tier) {
-                \App\Models\ProductPricingTier::create([
-                    'product_id' => $product->id,
-                    'min_quantity' => (int) $tier['min_quantity'],
-                    'max_quantity' => isset($tier['max_quantity']) && $tier['max_quantity'] !== null ? (int) $tier['max_quantity'] : null,
-                    'unit_price' => (float) $tier['unit_price'],
-                ]);
-            }
-        } elseif (!empty($product->bulk_threshold) && !empty($product->bulk_price)) {
-            // Auto create standard & bulk tiers
-            \App\Models\ProductPricingTier::create([
-                'product_id' => $product->id,
-                'min_quantity' => $moq,
-                'max_quantity' => (int) $product->bulk_threshold - 1,
-                'unit_price' => (float) $product->wholesale_price,
-            ]);
-            \App\Models\ProductPricingTier::create([
-                'product_id' => $product->id,
-                'min_quantity' => (int) $product->bulk_threshold,
-                'max_quantity' => null,
-                'unit_price' => (float) $product->bulk_price,
-            ]);
         }
 
-        // Sync Package Allocations if provided
-        if ($request->has('package_allocations') && is_array($request->input('package_allocations'))) {
-            foreach ($request->input('package_allocations') as $alloc) {
-                $variantId = $alloc['product_variant_id'] ?? null;
-                $color = $alloc['color'] ?? null;
-                $size = $alloc['size'] ?? null;
-                $packageName = !empty($alloc['package_name']) ? trim($alloc['package_name']) : 'Universal Package';
-
-                if (!$variantId && $color && $size && isset($createdVariantsMap["{$color}-{$size}"])) {
-                    $variantId = $createdVariantsMap["{$color}-{$size}"]->id;
-                }
-
-                if (!$variantId && $color && $size) {
-                    $vMatch = \App\Models\ProductVariant::where('product_id', $product->id)
-                        ->where('color', $color)
-                        ->where('size', $size)
-                        ->first();
-                    $variantId = $vMatch?->id;
-                }
-
-                // Explicit 0 or positive integer is saved; empty/null is skipped (unconfigured)
-                if (isset($alloc['quantity']) && $alloc['quantity'] !== '' && $alloc['quantity'] !== null) {
-                    \App\Models\ProductPackageAllocation::create([
-                        'product_id' => $product->id,
-                        'package_name' => $packageName,
-                        'product_variant_id' => $variantId,
-                        'color' => $color ?? $vMatch?->color,
-                        'size' => $size ?? $vMatch?->size,
-                        'quantity' => (int) $alloc['quantity'],
-                    ]);
-                }
-            }
-        }
-
-        // Sync Shipping Package Profiles if provided
+        // Validate Shipping Package Profiles before transaction if provided
+        $shippingProfiles = null;
         if ($request->has('shipping_package_profiles') && is_array($request->input('shipping_package_profiles'))) {
             $shippingProfiles = array_map(function ($p) use ($moq) {
                 if (empty($p['package_quantity']) && empty($p['min_quantity'])) {
@@ -672,27 +577,250 @@ class ProductController extends ApiController
             } catch (\InvalidArgumentException $e) {
                 return $this->error($e->getMessage(), 422);
             }
-
-            foreach ($shippingProfiles as $p) {
-                ProductShippingPackageProfile::create([
-                    'product_id' => $product->id,
-                    'package_quantity' => (int) ($p['package_quantity'] ?? $p['min_quantity']),
-                    'quantity_max' => isset($p['quantity_max']) && $p['quantity_max'] !== null ? (int) $p['quantity_max'] : null,
-                    'carton_count' => max(1, (int) ($p['carton_count'] ?? 1)),
-                    'carton_length' => (float) ($p['carton_length'] ?? 0),
-                    'carton_width' => (float) ($p['carton_width'] ?? 0),
-                    'carton_height' => (float) ($p['carton_height'] ?? 0),
-                    'dimension_unit' => strtolower(trim($p['dimension_unit'] ?? 'cm')),
-                    'gross_weight' => (float) ($p['gross_weight'] ?? 0),
-                    'net_weight' => isset($p['net_weight']) && $p['net_weight'] !== null ? (float) $p['net_weight'] : null,
-                    'weight_unit' => strtolower(trim($p['weight_unit'] ?? 'kg')),
-                    'notes' => $p['notes'] ?? null,
-                    'is_active' => $p['is_active'] ?? true,
-                ]);
-            }
         }
 
-        $product->load(['brand', 'categories', 'images', 'variants', 'pricingTiers', 'packageAllocations', 'shippingPackageProfiles']);
+        $product = DB::transaction(function () use (
+            $productData, $validated, $request, $moq, $user, $targetWarehouseId, $initialStock, $shippingProfiles
+        ) {
+            $product = Product::create($productData);
+
+            $syncCats = !empty($validated['categories']) ? $validated['categories'] : (!empty($validated['category_id']) ? [$validated['category_id']] : []);
+            if (!empty($syncCats)) {
+                $product->categories()->sync($syncCats);
+            }
+
+            if ($product->is_featured) {
+                \App\Models\HomepageFeaturedProduct::updateOrCreate(
+                    ['product_id' => $product->id],
+                    ['sort_order' => $product->featured_sort_order ?? 0, 'is_active' => true]
+                );
+            }
+
+            // Sync images if provided
+            if ($request->has('images') && is_array($request->input('images'))) {
+                $order = 0;
+                foreach ($request->input('images') as $img) {
+                    if (is_string($img)) {
+                        \App\Models\ProductImage::create([
+                            'product_id' => $product->id,
+                            'image_url' => $img,
+                            'sort_order' => $order,
+                            'is_primary' => $order === 0,
+                        ]);
+                    } elseif (is_array($img) && !empty($img['image_url'])) {
+                        \App\Models\ProductImage::create([
+                            'product_id' => $product->id,
+                            'image_url' => $img['image_url'],
+                            'alt_text' => $img['alt_text'] ?? null,
+                            'sort_order' => $img['sort_order'] ?? $order,
+                            'is_primary' => $img['is_primary'] ?? ($order === 0),
+                        ]);
+                    }
+                    $order++;
+                }
+            }
+
+            // Sync variants & allocate initial stock to the selected warehouse
+            $createdVariantsMap = []; // key: "color-size" => ProductVariant
+            if ($request->has('variants') && is_array($request->input('variants')) && count($request->input('variants')) > 0) {
+                $variantsInput = $request->input('variants');
+                $variantCount = count($variantsInput);
+
+                // Check if any variant has explicit stock set
+                $hasExplicitVariantStock = false;
+                foreach ($variantsInput as $v) {
+                    if (isset($v['stock']) && (int)$v['stock'] > 0) {
+                        $hasExplicitVariantStock = true;
+                        break;
+                    }
+                }
+
+                // If initialStock was provided but variants have 0 stock, distribute initialStock across variants
+                $distributedStock = [];
+                if (!$hasExplicitVariantStock && $initialStock > 0 && $variantCount > 0) {
+                    $baseStock = (int) floor($initialStock / $variantCount);
+                    $remainder = $initialStock % $variantCount;
+                    for ($i = 0; $i < $variantCount; $i++) {
+                        $distributedStock[$i] = $baseStock + ($i === 0 ? $remainder : 0);
+                    }
+                }
+
+                foreach ($variantsInput as $idx => $var) {
+                    $vColor = $var['color'] ?? $product->color_name ?? 'Standard';
+                    $vSize = $var['size'] ?? 'Standard';
+                    $variantSku = $var['sku'] ?? ($product->sku . '-' . strtoupper(substr($vColor, 0, 3)) . '-' . strtoupper(substr($vSize, 0, 3)));
+                    $varStock = isset($var['stock']) && (int)$var['stock'] > 0
+                        ? (int)$var['stock']
+                        : ($distributedStock[$idx] ?? 0);
+
+                    $createdVariant = \App\Models\ProductVariant::create([
+                        'product_id' => $product->id,
+                        'sku' => $variantSku,
+                        'title' => $var['title'] ?? "{$vColor} / {$vSize}",
+                        'size' => $vSize,
+                        'color' => $vColor,
+                        'price' => $var['price'] ?? $product->wholesale_price,
+                        'compare_at_price' => $var['compare_at_price'] ?? $product->msrp_price,
+                        'stock' => $varStock,
+                        'is_default' => $var['is_default'] ?? ($idx === 0),
+                        'is_active' => $var['is_active'] ?? true,
+                    ]);
+
+                    $createdVariantsMap["{$vColor}-{$vSize}"] = $createdVariant;
+
+                    // Create warehouse inventory row
+                    $inv = \App\Models\Inventory::create([
+                        'product_variant_id' => $createdVariant->id,
+                        'warehouse_id' => $targetWarehouseId,
+                        'quantity' => $varStock,
+                        'reserved_quantity' => 0,
+                    ]);
+
+                    // Audit log for stock initialization
+                    if ($varStock > 0) {
+                        \App\Models\AdminInventoryAdjustment::create([
+                            'inventory_id' => $inv->id,
+                            'admin_user_id' => $user->id,
+                            'previous_quantity' => 0,
+                            'adjustment_amount' => $varStock,
+                            'resulting_quantity' => $varStock,
+                            'reason' => 'Initial stock on product creation',
+                        ]);
+                    }
+                }
+            } else {
+                // Simple product without variant matrix: create base/default variant and link initial stock
+                $vColor = $product->color_name ?? 'Standard';
+                $vSize = 'Standard';
+                $variantSku = $product->sku . '-DEF';
+
+                $defaultVariant = \App\Models\ProductVariant::create([
+                    'product_id' => $product->id,
+                    'sku' => $variantSku,
+                    'title' => "Default ({$vColor})",
+                    'size' => $vSize,
+                    'color' => $vColor,
+                    'price' => $product->wholesale_price,
+                    'compare_at_price' => $product->msrp_price,
+                    'stock' => $initialStock,
+                    'is_default' => true,
+                    'is_active' => true,
+                ]);
+
+                $createdVariantsMap["{$vColor}-{$vSize}"] = $defaultVariant;
+
+                // Create warehouse inventory row
+                $inv = \App\Models\Inventory::create([
+                    'product_variant_id' => $defaultVariant->id,
+                    'warehouse_id' => $targetWarehouseId,
+                    'quantity' => $initialStock,
+                    'reserved_quantity' => 0,
+                ]);
+
+                // Audit log for stock initialization
+                if ($initialStock > 0) {
+                    \App\Models\AdminInventoryAdjustment::create([
+                        'inventory_id' => $inv->id,
+                        'admin_user_id' => $user->id,
+                        'previous_quantity' => 0,
+                        'adjustment_amount' => $initialStock,
+                        'resulting_quantity' => $initialStock,
+                        'reason' => 'Initial stock on product creation',
+                    ]);
+                }
+            }
+
+            // Sync Pricing Tiers
+            if ($request->has('pricing_tiers') && is_array($request->input('pricing_tiers')) && count($request->input('pricing_tiers')) > 0) {
+                foreach ($request->input('pricing_tiers') as $tier) {
+                    \App\Models\ProductPricingTier::create([
+                        'product_id' => $product->id,
+                        'min_quantity' => (int) $tier['min_quantity'],
+                        'max_quantity' => isset($tier['max_quantity']) && $tier['max_quantity'] !== null ? (int) $tier['max_quantity'] : null,
+                        'unit_price' => (float) $tier['unit_price'],
+                    ]);
+                }
+            } elseif (!empty($product->bulk_threshold) && !empty($product->bulk_price)) {
+                \App\Models\ProductPricingTier::create([
+                    'product_id' => $product->id,
+                    'min_quantity' => $moq,
+                    'max_quantity' => (int) $product->bulk_threshold - 1,
+                    'unit_price' => (float) $product->wholesale_price,
+                ]);
+                \App\Models\ProductPricingTier::create([
+                    'product_id' => $product->id,
+                    'min_quantity' => (int) $product->bulk_threshold,
+                    'max_quantity' => null,
+                    'unit_price' => (float) $product->bulk_price,
+                ]);
+            }
+
+            // Sync Package Allocations if provided
+            if ($request->has('package_allocations') && is_array($request->input('package_allocations'))) {
+                foreach ($request->input('package_allocations') as $alloc) {
+                    $variantId = $alloc['product_variant_id'] ?? null;
+                    $color = $alloc['color'] ?? null;
+                    $size = $alloc['size'] ?? null;
+                    $packageName = !empty($alloc['package_name']) ? trim($alloc['package_name']) : 'Universal Package';
+
+                    if (!$variantId && $color && $size && isset($createdVariantsMap["{$color}-{$size}"])) {
+                        $variantId = $createdVariantsMap["{$color}-{$size}"]->id;
+                    }
+
+                    if (!$variantId && $color && $size) {
+                        $vMatch = \App\Models\ProductVariant::where('product_id', $product->id)
+                            ->where('color', $color)
+                            ->where('size', $size)
+                            ->first();
+                        $variantId = $vMatch?->id;
+                    }
+
+                    if (isset($alloc['quantity']) && $alloc['quantity'] !== '' && $alloc['quantity'] !== null) {
+                        \App\Models\ProductPackageAllocation::create([
+                            'product_id' => $product->id,
+                            'package_name' => $packageName,
+                            'product_variant_id' => $variantId,
+                            'color' => $color ?? $vMatch?->color,
+                            'size' => $size ?? $vMatch?->size,
+                            'quantity' => (int) $alloc['quantity'],
+                        ]);
+                    }
+                }
+            }
+
+            // Sync Shipping Package Profiles if provided
+            if (!empty($shippingProfiles)) {
+                foreach ($shippingProfiles as $p) {
+                    ProductShippingPackageProfile::create([
+                        'product_id' => $product->id,
+                        'package_quantity' => (int) ($p['package_quantity'] ?? $p['min_quantity']),
+                        'quantity_max' => isset($p['quantity_max']) && $p['quantity_max'] !== null ? (int) $p['quantity_max'] : null,
+                        'carton_count' => max(1, (int) ($p['carton_count'] ?? 1)),
+                        'carton_length' => (float) ($p['carton_length'] ?? 0),
+                        'carton_width' => (float) ($p['carton_width'] ?? 0),
+                        'carton_height' => (float) ($p['carton_height'] ?? 0),
+                        'dimension_unit' => strtolower(trim($p['dimension_unit'] ?? 'cm')),
+                        'gross_weight' => (float) ($p['gross_weight'] ?? 0),
+                        'net_weight' => isset($p['net_weight']) && $p['net_weight'] !== null ? (float) $p['net_weight'] : null,
+                        'weight_unit' => strtolower(trim($p['weight_unit'] ?? 'kg')),
+                        'notes' => $p['notes'] ?? null,
+                        'is_active' => $p['is_active'] ?? true,
+                    ]);
+                }
+            }
+
+            return $product;
+        });
+
+        $product->load([
+            'brand',
+            'categories',
+            'images',
+            'variants.inventories.warehouse',
+            'pricingTiers',
+            'packageAllocations',
+            'shippingPackageProfiles'
+        ]);
 
         CatalogCacheService::invalidateProduct($product);
         ActivityLogger::log('product.created', $product, [
@@ -700,6 +828,8 @@ class ProductController extends ApiController
             'sku' => $product->sku,
             'wholesale_price' => $product->wholesale_price,
             'cost_price' => $product->cost_price,
+            'initial_stock' => $initialStock,
+            'warehouse_id' => $targetWarehouseId,
         ]);
 
         return $this->success(new ProductResource($product), 'Product created successfully', 201);
@@ -720,8 +850,8 @@ class ProductController extends ApiController
 
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'slug' => ['sometimes', 'string', 'unique:products,slug,' . $product->id],
-            'sku' => ['sometimes', 'string', 'unique:products,sku,' . $product->id],
+            'slug' => ['sometimes', 'string', Rule::unique('products', 'slug')->ignore($product->id)->whereNull('deleted_at')],
+            'sku' => ['sometimes', 'string', Rule::unique('products', 'sku')->ignore($product->id)->whereNull('deleted_at')],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'brand' => ['nullable', 'string'],
             'new_brand_name' => ['nullable', 'string', 'max:255'],
@@ -1179,8 +1309,13 @@ class ProductController extends ApiController
     /**
      * DELETE /api/v1/products/{id} (Admin)
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.delete')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.delete' permission to delete products.");
+        }
+
         $product = is_numeric($id)
             ? Product::find((int) $id)
             : Product::where('slug', $id)->orWhere('sku', $id)->first();
@@ -1194,6 +1329,17 @@ class ProductController extends ApiController
             'name' => $product->name,
             'sku' => $product->sku,
         ]);
+
+        // Release the slug and SKU so they can be immediately reused
+        $uniqueSuffix = '-deleted-' . $product->id . '-' . time();
+        if (!str_contains($product->slug, '-deleted-')) {
+            $product->slug = substr($product->slug, 0, 200) . $uniqueSuffix;
+        }
+        if (!str_contains($product->sku, '-del-')) {
+            $product->sku = substr($product->sku, 0, 200) . '-del-' . $product->id . '-' . time();
+        }
+        $product->saveQuietly();
+
         $product->delete();
 
         return $this->success(null, 'Product deleted successfully');
@@ -1205,6 +1351,11 @@ class ProductController extends ApiController
      */
     public function uploadImage(Request $request, string $slugOrId): JsonResponse
     {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.image.upload')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.image.upload' permission to upload product images.");
+        }
+
         $product = Product::where('slug', $slugOrId)
             ->orWhere('id', is_numeric($slugOrId) ? (int) $slugOrId : -1)
             ->firstOrFail();
@@ -1246,6 +1397,11 @@ class ProductController extends ApiController
      */
     public function deleteImage(Request $request, string $slugOrId, int $imageId): JsonResponse
     {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.image.delete')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.image.delete' permission to delete product images.");
+        }
+
         $product = Product::where('slug', $slugOrId)
             ->orWhere('id', is_numeric($slugOrId) ? (int) $slugOrId : -1)
             ->firstOrFail();
@@ -1279,6 +1435,11 @@ class ProductController extends ApiController
      */
     public function reorderImages(Request $request, string $slugOrId): JsonResponse
     {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.image.reorder')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.image.reorder' permission to reorder product images.");
+        }
+
         $product = Product::where('slug', $slugOrId)
             ->orWhere('id', is_numeric($slugOrId) ? (int) $slugOrId : -1)
             ->firstOrFail();

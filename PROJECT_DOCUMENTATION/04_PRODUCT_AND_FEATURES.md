@@ -92,12 +92,15 @@ This document provides a comprehensive inventory of all user-facing, administrat
 ---
 
 ### FEATURE F-05: Full-Stock Bulk Clearance Buyout
-- **Business Purpose**: Allows liquidation or clearance buyers to purchase the entire remaining warehouse inventory of a product at a steep discount in a single transaction.
+- **Business Purpose**: Allows liquidation or clearance buyers to purchase the entire remaining warehouse inventory of a product in complete pre-packed packages.
 - **Rules**:
-  - Only active if `is_full_stock_eligible = true` and `stock_quantity > 0`.
-  - When selected, locks cart quantity to the exact total available warehouse balance.
-  - Applies `full_stock_price` per unit, overriding all standard tier calculations.
-- **Source Files**: `src/services/product.service.ts`, `src/lib/CartContext.tsx`, `backend/app/Services/Order/OrderCalculationService.php`.
+  - **Always Visible**: The Full Stock option is **ALWAYS VISIBLE** on the product page, regardless of stock level or eligibility flag.
+  - **Quantity**: Locks quantity to available complete package stock ($Q = \text{maxCompletePackages} \times \text{MOQ}$), never exceeding live available inventory ($\text{OnHand} - \text{Reserved}$).
+  - **Pricing**:
+    - If $\text{AvailableInventory} > \text{MinimumBulkOrderQuantity}$: applies `full_stock_price`.
+    - If $\text{AvailableInventory} \le \text{MinimumBulkOrderQuantity}$: falls back to the **normal MOQ / standard applicable price** ($P_{\text{moq}}$).
+  - **Dynamic Server-Side Recalculation**: Backend independently re-evaluates live inventory and pricing modes at cart addition, cart update, and checkout (`OrderCalculationService`).
+- **Source Files**: `src/components/product/PricingTierOption.tsx`, `src/app/products/[slug]/ProductDetailView.tsx`, `src/services/product.service.ts`, `src/lib/CartContext.tsx`, `backend/app/Models/Product.php`, `backend/app/Services/Order/OrderCalculationService.php`.
 
 ---
 
@@ -164,13 +167,17 @@ This document provides a comprehensive inventory of all user-facing, administrat
 
 ---
 
-### FEATURE F-13: Multi-Warehouse Inventory Management
-- **Business Purpose**: Tracks physical stock across multiple factory floors and bonded warehouses in Dhaka, Gazipur, and Chattogram.
+### FEATURE F-13: Multi-Warehouse Inventory & Product Creation Allocation
+- **Business Purpose**: Tracks physical stock across multiple factory floors and bonded warehouses in Dhaka, Gazipur, and Chattogram, and seamlessly integrates product creation with authoritative inventory records.
 - **Capabilities**:
-  - Stock allocation by warehouse (`warehouses` table).
-  - Inventory audit adjustments with reason tracking (`admin_inventory_adjustments`).
-  - Reserve stock locking during checkout validation.
-- **Source Files**: `src/app/admin/inventory/page.tsx`, `backend/app/Http/Controllers/Api/V1/Admin/InventoryController.php`.
+  - **Product Creation Allocation**: When creating a product in the admin portal, the administrator explicitly specifies product MOQ, initial stock units, and the target active warehouse.
+  - **Single Source of Truth**: Connects initial stock directly into the real `inventories` table (linked to `product_variants` and `warehouses`). Automatically creates default variant if no variant matrix is provided.
+  - **Audited Stock Initialization**: Every initial stock allocation records an entry in `admin_inventory_adjustments` with `reason: 'Initial stock on product creation'` and the creator's `admin_user_id`.
+  - **Complete MOQs Availability Calculation**: Dynamically computes and displays complete orderable MOQs ($\lfloor \text{Available Stock} / \text{MOQ} \rfloor$) on Admin Product Creation, Admin Product List, and Public Storefront Product Cards.
+  - **Edit Safeguard**: In product edit mode, physical warehouse stock quantities are read-only to preserve audit integrity; adjustments must occur via the audited inventory adjustment view.
+  - **Multi-Warehouse Stock Adjustments**: Supports stock replenishment, physical count corrections, and damage write-offs with reason codes.
+  - **Reserve Stock Locking**: Locks inventory during checkout validation and releases upon cancellation.
+- **Source Files**: `src/components/admin/products/form/ProductInventorySection.tsx`, `src/components/admin/products/form/ProductForm.tsx`, `src/app/admin/inventory/page.tsx`, `backend/app/Http/Controllers/Api/V1/ProductController.php`, `backend/app/Http/Controllers/Api/V1/Admin/InventoryController.php`.
 
 ---
 

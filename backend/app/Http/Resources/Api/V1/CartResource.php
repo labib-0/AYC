@@ -22,7 +22,7 @@ class CartResource extends JsonResource
             $variant = $item->variant;
 
             $unitPrice = $product
-                ? $product->getUnitPriceForQuantity((int) $item->quantity)
+                ? $product->getUnitPriceForQuantity((int) $item->quantity, $item->pricing_mode ?? null)
                 : ($variant && $variant->price !== null ? (float) $variant->price : ($product ? (float) $product->wholesale_price : 0.0));
 
             return round($unitPrice * $item->quantity, 2);

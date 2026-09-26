@@ -158,7 +158,7 @@ export default function ProductQuickAddModal() {
 
   const brandLogo = useMemo(() => {
     if (!product) return undefined;
-    return product.brandLogo || product.brand_logo;
+    return product.brandLogo || product.brand_logo || (product as any).brand_data?.logo_url || (product as any).brand_data?.logo;
   }, [product]);
 
   // Reset state when product opens
@@ -306,6 +306,7 @@ export default function ProductQuickAddModal() {
                       <ProductBrandLogoOverlay
                         brandName={brandName}
                         brandLogo={brandLogo}
+                        brandData={(product as any)?.brand_data}
                         size="modal"
                         className="top-2.5 right-2.5"
                       />
@@ -314,7 +315,7 @@ export default function ProductQuickAddModal() {
                 />
               </div>
 
-              {/* ═══ RIGHT: Information + Universal Package Breakdown + Quantity ═══ */}
+              {/* ═══ RIGHT: Information + Quantity Controls ═══ */}
               <div className="md:w-[56%] flex flex-col justify-between gap-4">
                 
                 {/* Product Information Module */}
@@ -324,6 +325,7 @@ export default function ProductQuickAddModal() {
                   </h3>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 bg-secondary/30 rounded-xl border border-border/50 text-xs font-sans">
                     <InfoItem label="Brand" value={brandName || "—"} />
+                    <InfoItem label="SKU" value={product.sku || "—"} />
                     <InfoItem
                       label="Design Type"
                       value={
@@ -336,55 +338,8 @@ export default function ProductQuickAddModal() {
                       label="Available Stock"
                       value={`${maxCompletePackages} complete ${maxCompletePackages === 1 ? "pkg" : "pkgs"} (${completePackageStock.toLocaleString()} pcs)`}
                     />
-                    <InfoItem label="Universal Package" value={`${moq} pcs / package`} />
+                    <InfoItem label="MOQ" value={`${moq} pcs / package`} />
                   </div>
-                </div>
-
-                {/* ═══ FIXED UNIVERSAL PACKAGE ASSORTMENT (READ-ONLY) ═══ */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                      <Package size={14} className="text-primary" />
-                      Universal Package Assortment
-                    </span>
-                    <span className="text-[10.5px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full tabular-nums">
-                      1 Package = {moq} pcs
-                    </span>
-                  </div>
-
-                  {groupedBreakdown.length > 0 ? (
-                    <div className="rounded-xl border border-border/70 bg-card p-3 space-y-2.5 shadow-2xs">
-                      {groupedBreakdown.map((group) => (
-                        <div key={group.color} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs font-sans border-b border-border/40 pb-2 last:border-0 last:pb-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-foreground">{group.color}:</span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {group.sizes.map((s) => (
-                                <span
-                                  key={s.size}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary/60 border border-border/60 text-[11px] text-foreground font-semibold"
-                                >
-                                  <span>{s.size}</span>
-                                  <span className="text-muted-foreground font-normal">×</span>
-                                  <strong className="text-primary tabular-nums">{s.quantity}</strong>
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                          <span className="text-[11px] font-medium text-muted-foreground self-end sm:self-auto tabular-nums">
-                            {group.subtotal} pcs
-                          </span>
-                        </div>
-                      ))}
-                      <div className="pt-1 text-[11px] text-muted-foreground/85 italic border-t border-border/40">
-                        Fixed distribution. Customers purchase complete packages exactly as configured.
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-border/70 bg-card p-3 text-xs font-sans text-muted-foreground">
-                      Universal assorted package containing {moq} pcs across available color and size runs.
-                    </div>
-                  )}
                 </div>
 
                 {/* ═══ ORDER QUANTITY (PACKAGES ONLY) ═══ */}

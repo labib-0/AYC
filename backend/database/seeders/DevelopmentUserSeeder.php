@@ -14,25 +14,93 @@ class DevelopmentUserSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Primary Demo Administrator
+        // 1. Primary Demo Super Administrator
         $adminAttributes = [
-            'name' => 'Ayaan Demo Admin',
+            'name' => 'Ayaan Super Admin',
             'password' => Hash::make('Admin@12345'),
             'role' => User::ROLE_ADMIN,
+            'status' => 'active',
             'phone' => '+880 1826-304930',
             'company_name' => 'Ayaan Sourcing Ltd.',
             'email_verified_at' => now(),
             'is_demo' => true,
             'is_super_admin' => true,
         ];
-        $admin = User::withTrashed()->where('email', 'admin@ayaan-demo.local')->first();
-        if ($admin) {
-            if ($admin->trashed()) {
-                $admin->restore();
+        $superAdmin = User::withTrashed()->where('email', 'admin@ayaan-demo.local')->first();
+        if ($superAdmin) {
+            if ($superAdmin->trashed()) {
+                $superAdmin->restore();
             }
-            $admin->update($adminAttributes);
+            $superAdmin->update($adminAttributes);
         } else {
-            User::create(array_merge(['email' => 'admin@ayaan-demo.local'], $adminAttributes));
+            $superAdmin = User::create(array_merge(['email' => 'admin@ayaan-demo.local'], $adminAttributes));
+        }
+
+        // 1b. Scoped Local Test Administrators with granular RBAC roles
+        $scopedAdmins = [
+            [
+                'email' => 'product-admin@ayaan-demo.local',
+                'name' => 'Product Draft Administrator',
+                'role_slug' => 'product_draft_editor',
+            ],
+            [
+                'email' => 'payment-reviewer@ayaan-demo.local',
+                'name' => 'Payment Reviewer Admin',
+                'role_slug' => 'payment_reviewer',
+            ],
+            [
+                'email' => 'inventory-viewer@ayaan-demo.local',
+                'name' => 'Inventory Viewer Admin',
+                'role_slug' => 'inventory_viewer',
+            ],
+            [
+                'email' => 'order-viewer@ayaan-demo.local',
+                'name' => 'Order Viewer Admin',
+                'role_slug' => 'order_viewer',
+            ],
+            [
+                'email' => 'analytics-viewer@ayaan-demo.local',
+                'name' => 'Sales Analytics Viewer Admin',
+                'role_slug' => 'sales_viewer',
+            ],
+        ];
+
+        $authz = app(\App\Services\Rbac\AdminAuthorizationService::class);
+
+        foreach ($scopedAdmins as $sAdmin) {
+            $userAttrs = [
+                'name' => $sAdmin['name'],
+                'password' => Hash::make('Admin@12345'),
+                'role' => User::ROLE_ADMIN,
+                'status' => 'active',
+                'phone' => '+880 1826-304930',
+                'company_name' => 'Ayaan Sourcing Ltd.',
+                'email_verified_at' => now(),
+                'is_demo' => true,
+                'is_super_admin' => false,
+            ];
+
+            $user = User::withTrashed()->where('email', $sAdmin['email'])->first();
+            if ($user) {
+                if ($user->trashed()) {
+                    $user->restore();
+                }
+                $user->update($userAttrs);
+            } else {
+                $user = User::create(array_merge(['email' => $sAdmin['email']], $userAttrs));
+            }
+
+            $role = \App\Models\Role::where('slug', $sAdmin['role_slug'])->first();
+            if ($role) {
+                $user->rbacRoles()->syncWithoutDetaching([
+                    $role->id => [
+                        'assigned_by' => $superAdmin->id,
+                        'assigned_at' => now(),
+                    ],
+                ]);
+            }
+
+            $authz->invalidateUser($user);
         }
 
         // 2. Verified Demo B2B Wholesale Customers (5–10 accounts)

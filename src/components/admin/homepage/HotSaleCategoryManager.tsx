@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import Image from "next/image";
 import { 
   ArrowUp, 
   ArrowDown, 
@@ -21,6 +20,61 @@ import {
   HomepageHotSaleCategoryModel 
 } from "@/services/homepage.service";
 import { categoryService, CategoryModel } from "@/services/category.service";
+import { getCategoryImageUrl } from "@/lib/category-images";
+
+function CategoryItemThumbnail({
+  src,
+  alt,
+  fallbackSlug,
+  size = "md",
+}: {
+  src?: string | null;
+  alt: string;
+  fallbackSlug?: string;
+  size?: "sm" | "md";
+}) {
+  const [currentSrc, setCurrentSrc] = useState<string>(() => {
+    return src || getCategoryImageUrl(fallbackSlug || alt);
+  });
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setCurrentSrc(src || getCategoryImageUrl(fallbackSlug || alt));
+    setHasError(false);
+  }, [src, fallbackSlug, alt]);
+
+  const handleError = () => {
+    if (!hasError) {
+      setHasError(true);
+      const fallback = getCategoryImageUrl(fallbackSlug || alt);
+      if (fallback && fallback !== currentSrc) {
+        setCurrentSrc(fallback);
+      }
+    }
+  };
+
+  const containerClasses =
+    size === "sm"
+      ? "relative w-10 h-10 rounded-lg overflow-hidden bg-secondary shrink-0 border border-border/60 flex items-center justify-center"
+      : "relative w-11 h-11 rounded-lg overflow-hidden bg-secondary shrink-0 border border-border/60 flex items-center justify-center";
+
+  return (
+    <div className={containerClasses}>
+      {currentSrc && !hasError ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={currentSrc}
+          alt={alt}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          onError={handleError}
+        />
+      ) : (
+        <Layers size={size === "sm" ? 16 : 18} className="text-muted-foreground/40" />
+      )}
+    </div>
+  );
+}
 
 interface HotSaleCategoryManagerProps {
   initialCategories: HomepageHotSaleCategoryModel[];
@@ -240,7 +294,6 @@ export default function HotSaleCategoryManager({
         <div className="space-y-2.5">
           {categories.map((item, index) => {
             const cat = item.category;
-            const imgSrc = cat?.image_url || "/placeholder.jpg";
             const isFirst = index === 0;
             const isLast = index === categories.length - 1;
 
@@ -256,15 +309,12 @@ export default function HotSaleCategoryManager({
                   </span>
 
                   {/* Thumbnail */}
-                  <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-secondary shrink-0 border border-border/60">
-                    <Image
-                      src={imgSrc}
-                      alt={cat?.name || "Category"}
-                      fill
-                      sizes="44px"
-                      className="object-cover"
-                    />
-                  </div>
+                  <CategoryItemThumbnail
+                    src={cat?.image_url || (cat as { image?: string } | undefined)?.image}
+                    alt={cat?.name || "Category"}
+                    fallbackSlug={cat?.slug || cat?.name}
+                    size="md"
+                  />
 
                   {/* Details */}
                   <div className="min-w-0">
@@ -362,7 +412,6 @@ export default function HotSaleCategoryManager({
               ) : (
                 filteredTaxonomy.map((cat) => {
                   const isSelected = selectedCategoryIds.has(Number(cat.id));
-                  const imgSrc = cat.image_url || cat.image || "/placeholder.jpg";
 
                   return (
                     <div
@@ -374,15 +423,12 @@ export default function HotSaleCategoryManager({
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-secondary shrink-0 border border-border/60">
-                          <Image
-                            src={imgSrc}
-                            alt={cat.name}
-                            fill
-                            sizes="40px"
-                            className="object-cover"
-                          />
-                        </div>
+                        <CategoryItemThumbnail
+                          src={cat.image_url || cat.image}
+                          alt={cat.name}
+                          fallbackSlug={cat.slug || cat.name}
+                          size="sm"
+                        />
                         <div className="min-w-0">
                           <h4 className="text-xs font-bold uppercase tracking-tight text-foreground truncate">
                             {cat.name}

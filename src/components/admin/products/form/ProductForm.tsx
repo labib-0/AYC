@@ -12,8 +12,10 @@ import { generateProductSku } from "@/lib/services/products";
 import { productDraftService } from "@/lib/services/product-draft.service";
 import AdminAuthModal from "@/components/admin/auth/AdminAuthModal";
 import { ApiError } from "@/services/api-client";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 import ProductBasicInfoSection from "./ProductBasicInfoSection";
+import ProductInventorySection from "./ProductInventorySection";
 import ProductImagesSection from "./ProductImagesSection";
 import ProductPricingSection from "./ProductPricingSection";
 import ProductVariantsSection from "./ProductVariantsSection";
@@ -36,6 +38,10 @@ export default function ProductForm({
   const router = useRouter();
   const pathname = usePathname();
   const isEdit = mode === "edit";
+
+  const { can, isSuperAdmin } = useAdminAuth();
+  const canPublish = isSuperAdmin || can("product.publish");
+  const canSaveDraft = isSuperAdmin || can("product.save_draft");
 
   // Navigation back link context
   const isUnderAdminPath = pathname.startsWith("/admin");
@@ -62,6 +68,7 @@ export default function ProductForm({
     return raw === "MASTER COPY" || raw === "REPLICA" || raw === "MC" ? "MASTER COPY" : "ORIGINAL";
   });
   const [material, setMaterial] = useState(initialData?.material || "");
+  const [collectionSeason, setCollectionSeason] = useState(initialData?.collectionSeason || (initialData as any)?.collection_season || "");
   const [description, setDescription] = useState(initialData?.description || "");
 
   // Media
@@ -97,6 +104,12 @@ export default function ProductForm({
     initialData?.sizes && initialData.sizes.length > 0 ? initialData.sizes : ["S", "M", "L", "XL"]
   );
   const [stock, setStock] = useState(initialData?.stock ?? 500);
+  const [warehouseId, setWarehouseId] = useState<string | number | undefined>(
+    initialData?.warehouseId || (initialData as any)?.warehouse_id
+  );
+  const [customMoq, setCustomMoq] = useState<number>(() => {
+    return initialData?.moq && initialData.moq > 0 ? initialData.moq : 50;
+  });
 
   // Authoritative Universal Package Assortment
   const [packageAllocations, setPackageAllocations] = useState<PackageAllocation[]>(() => {
@@ -114,12 +127,12 @@ export default function ProductForm({
     return [];
   });
 
-  // Minimum Order Quantity (MOQ) — Derived automatically from Universal Package Total
+  // Minimum Order Quantity (MOQ) — Derived from Universal Package if configured, else user MOQ
   const packageTotalUnits = useMemo(() => {
     return packageAllocations.reduce((sum, a) => sum + (Number(a.quantity) || 0), 0);
   }, [packageAllocations]);
 
-  const moq = packageTotalUnits > 0 ? packageTotalUnits : (initialData?.moq || 0);
+  const moq = packageTotalUnits > 0 ? packageTotalUnits : customMoq;
 
   // Single Shipping & Packaging Logistics Profile
   const [shippingProfiles, setShippingProfiles] = useState<ShippingPackageProfile[]>(() => {
@@ -229,6 +242,8 @@ export default function ProductForm({
       fullStockPrice,
       msrpPrice,
       stock,
+      warehouseId,
+      moq,
       colors,
       sizes,
       packageAllocations,
@@ -280,6 +295,8 @@ export default function ProductForm({
       if (d.fullStockPrice !== undefined) setFullStockPrice(d.fullStockPrice);
       if (d.msrpPrice !== undefined) setMsrpPrice(d.msrpPrice);
       if (d.stock !== undefined) setStock(d.stock);
+      if (d.warehouseId !== undefined) setWarehouseId(d.warehouseId);
+      if (d.moq !== undefined && d.moq > 0) setCustomMoq(d.moq);
       if (d.colors && d.colors.length > 0) setColors(d.colors);
       if (d.sizes && d.sizes.length > 0) setSizes(d.sizes);
       if (d.packageAllocations && d.packageAllocations.length > 0) setPackageAllocations(d.packageAllocations);
@@ -425,9 +442,7 @@ export default function ProductForm({
 
     if (wholesalePrice <= 0) errs.wholesalePrice = "Wholesale price must be greater than $0.00.";
 
-    if (packageAllocations.length === 0 || packageTotalUnits <= 0) {
-      errs.package_allocations = "Package assortment must have at least one unit configured to determine MOQ.";
-    } else {
+    if (packageAllocations.length > 0) {
       for (const a of packageAllocations) {
         if (!Number.isInteger(a.quantity) || a.quantity < 0) {
           errs.package_allocations = "Package allocation quantities must be non-negative whole integers.";
@@ -436,7 +451,7 @@ export default function ProductForm({
       }
     }
 
-    if (moq <= 0) errs.moq = "Minimum order quantity (MOQ) must be at least 1 unit (configure package assortment).";
+    if (moq <= 0) errs.moq = "Minimum order quantity (MOQ) must be greater than 0.";
 
     if (bulkThreshold <= moq) {
       errs.bulkThreshold = `Bulk threshold (${bulkThreshold}) must be strictly greater than MOQ (${moq}).`;
@@ -448,7 +463,11 @@ export default function ProductForm({
 
     if (sizes.length === 0) errs.sizes = "Select at least one size.";
 
-    if (stock < 0) errs.stock = "Stock quantity cannot be negative.";
+    if (stock < 0) errs.stock = "Initial stock quantity cannot be negative.";
+
+    if (!isEdit && !warehouseId) {
+      errs.warehouse_id = "Please select a warehouse location for initial stock allocation.";
+    }
 
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
@@ -524,6 +543,7 @@ export default function ProductForm({
         seoDescription: seoDescription.trim() || undefined,
         keywords: keywords,
         material: material.trim(),
+        collectionSeason: collectionSeason.trim() || undefined,
         images: images.length > 0 ? images : ["/placeholder.jpg"],
         videoUrl: videoUrl.trim() || undefined,
         video_url: videoUrl.trim() || undefined,
@@ -535,6 +555,10 @@ export default function ProductForm({
         msrpPrice: msrpPrice,
         moq: moq,
         stock: stock,
+        initialStock: stock,
+        initial_stock: stock,
+        warehouseId: warehouseId,
+        warehouse_id: warehouseId,
         status: targetStatus,
         isNew: isNew,
         newUntil: isNew ? newUntil : null,
@@ -657,29 +681,33 @@ export default function ProductForm({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => handleSaveWithStatus("draft")}
-            disabled={isSubmitting}
-            className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-50 flex items-center gap-1.5"
-          >
-            <Save size={13} />
-            Save Draft
-          </button>
+          {canSaveDraft && (
+            <button
+              type="button"
+              onClick={() => handleSaveWithStatus("draft")}
+              disabled={isSubmitting}
+              className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Save size={13} />
+              Save Draft
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => handleSaveWithStatus("published")}
-            disabled={isSubmitting}
-            className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
-          >
-            {isSubmitting ? (
-              <span className="w-3.5 h-3.5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
-            ) : (
-              <Globe size={13} />
-            )}
-            <span>{isEdit ? "Save & Publish" : "Publish Product"}</span>
-          </button>
+          {canPublish && (
+            <button
+              type="button"
+              onClick={() => handleSaveWithStatus("published")}
+              disabled={isSubmitting}
+              className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              {isSubmitting ? (
+                <span className="w-3.5 h-3.5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+              ) : (
+                <Globe size={13} />
+              )}
+              <span>{isEdit ? "Save & Publish" : "Publish Product"}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -732,6 +760,7 @@ export default function ProductForm({
             audience={audience}
             designType={designType}
             material={material}
+            collectionSeason={collectionSeason}
             description={description}
             brands={brands}
             categories={categories}
@@ -751,10 +780,28 @@ export default function ProductForm({
             onAudienceChange={setAudience}
             onDesignTypeChange={setDesignType}
             onMaterialChange={setMaterial}
+            onCollectionSeasonChange={setCollectionSeason}
             onDescriptionChange={setDescription}
             onBrandCreated={(newB) => {
               setBrands((prev) => [...prev, { id: String(newB.id), name: newB.name, logo_url: newB.logo_url || newB.logo }]);
             }}
+          />
+
+          {/* Section 1.5: Dedicated Inventory & MOQ Management */}
+          <ProductInventorySection
+            isEdit={isEdit}
+            moq={moq}
+            stock={stock}
+            warehouseId={warehouseId}
+            onMoqChange={setCustomMoq}
+            onStockChange={setStock}
+            onWarehouseChange={setWarehouseId}
+            errors={errors}
+            onHandStock={initialData?.onHandStock ?? (initialData as any)?.on_hand_stock}
+            reservedStock={initialData?.reservedStock ?? (initialData as any)?.reserved_stock}
+            availableStock={initialData?.availableStock ?? (initialData as any)?.available_stock ?? initialData?.stock}
+            warehouseBreakdown={initialData?.warehouseBreakdown ?? (initialData as any)?.warehouse_breakdown}
+            productId={initialData?.id}
           />
 
           {/* Section 2: Variants & Stock */}

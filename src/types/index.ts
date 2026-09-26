@@ -31,8 +31,15 @@ export interface Product {
   moq?: number;
   quantityStep?: number;
   availableStock?: number;
+  stock?: number;
+  availableMoqs?: number;
+  maxCompletePackages?: number;
+  completePackageStock?: number;
+  onHandStock?: number;
+  reservedStock?: number;
   brand?: string;
   brandLogo?: string;
+  brand_logo?: string;
   colours?: number;
   color?: string;
   colorName?: string;

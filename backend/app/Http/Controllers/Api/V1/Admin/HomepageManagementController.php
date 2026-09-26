@@ -94,12 +94,14 @@ class HomepageManagementController extends ApiController
             'hot_sale_categories' => $hotSaleCategories,
             'all_categories' => $allCategories,
             'featured_products' => $featuredProducts,
+            'active_season' => \App\Models\SystemSetting::getActiveSeason(),
             'counts' => [
                 'total_brands' => Brand::count(),
                 'landing_brands' => $featuredBrands->where('is_active', true)->count(),
                 'total_categories' => Category::count(),
                 'landing_categories' => $hotSaleCategories->where('is_active', true)->count(),
                 'total_products' => Product::where('status', 'published')->count(),
+                'total_all_products' => Product::count(),
                 'featured_products' => $featuredProducts->where('is_active', true)->count(),
             ],
         ], 'Admin landing page configuration retrieved');
@@ -519,5 +521,42 @@ class HomepageManagementController extends ApiController
                 'total' => $paginated->total(),
             ],
         ], 'Products retrieved for landing page selector');
+    }
+
+    /**
+     * POST /api/v1/admin/homepage/season
+     *
+     * Update the storewide active collection season and optionally propagate to all products.
+     */
+    public function updateSeason(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$this->authorization->can($user, 'homepage.banner.edit') &&
+            !$this->authorization->can($user, 'homepage.product.manage') &&
+            !$this->authorization->can($user, 'product.edit')) {
+            return $this->error('Forbidden: You do not possess permission to manage collection season.', 403);
+        }
+
+        $validated = $request->validate([
+            'season' => ['required', 'string', 'max:100'],
+            'apply_to_all_products' => ['nullable', 'boolean'],
+        ]);
+
+        $season = trim($validated['season']);
+        \App\Models\SystemSetting::set('active_season', $season, 'string', 'catalog');
+
+        $applyToAll = $request->boolean('apply_to_all_products', true);
+        $affected = 0;
+
+        if ($applyToAll) {
+            $affected = Product::query()->update(['collection_season' => $season]);
+        }
+
+        CatalogCacheService::flushAllProducts();
+
+        return $this->success([
+            'active_season' => $season,
+            'affected_products_count' => $affected,
+        ], "Storewide collection season updated to '{$season}'" . ($applyToAll ? " for all {$affected} products." : "."));
     }
 }

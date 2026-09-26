@@ -76,6 +76,7 @@ class CartController extends ApiController
             $quantity = (int) $packageCountInput * $effectiveMoq;
         }
         $variantId = $request->input('variant_id') ?? $request->input('product_variant_id');
+        $pricingMode = $request->input('pricing_mode') ?? $request->input('pricingMode');
 
         if ($product->status !== 'published') {
             return $this->error('This product is currently unavailable', 422);
@@ -223,6 +224,7 @@ class CartController extends ApiController
         if ($cartItem) {
             $cartItem->update([
                 'quantity' => $newQuantity,
+                'pricing_mode' => $pricingMode ?? $cartItem->pricing_mode,
                 'package_breakdown' => $packageBreakdown,
                 'product_variant_id' => $hasAllocations ? null : ($variant ? $variant->id : $cartItem->product_variant_id),
                 'size' => $hasAllocations ? 'Assorted' : ($variant ? $variant->size : ($size ?: ($cartItem->size ?: 'Assorted'))),
@@ -233,6 +235,7 @@ class CartController extends ApiController
                 'product_variant_id' => $hasAllocations ? null : ($variant ? $variant->id : null),
                 'size' => $hasAllocations ? 'Assorted' : ($variant ? $variant->size : ($size ?: 'Assorted')),
                 'quantity' => $newQuantity,
+                'pricing_mode' => $pricingMode,
                 'package_breakdown' => $packageBreakdown,
             ]);
         }
@@ -249,6 +252,7 @@ class CartController extends ApiController
     {
         $cart = $this->getActiveCart($request);
         $quantity = (int) $request->input('quantity');
+        $pricingMode = $request->input('pricing_mode') ?? $request->input('pricingMode');
 
         // Locate item
         $cartItem = null;
@@ -361,12 +365,16 @@ class CartController extends ApiController
                         }
                     }
 
-                    $cartItem->update([
+                    $updatePayload = [
                         'quantity' => $quantity,
                         'package_breakdown' => $packageBreakdown,
                         'product_variant_id' => null,
                         'size' => 'Assorted',
-                    ]);
+                    ];
+                    if ($request->has('pricing_mode') || $request->has('pricingMode')) {
+                        $updatePayload['pricing_mode'] = $pricingMode;
+                    }
+                    $cartItem->update($updatePayload);
                 } else {
                     $variant = $cartItem->variant;
                     $availableStock = $variant ? (int) $variant->stock : (int) $product->variants->sum('stock');
@@ -393,10 +401,18 @@ class CartController extends ApiController
                         ], 422);
                     }
 
-                    $cartItem->update(['quantity' => $quantity]);
+                    $updatePayload = ['quantity' => $quantity];
+                    if ($request->has('pricing_mode') || $request->has('pricingMode')) {
+                        $updatePayload['pricing_mode'] = $pricingMode;
+                    }
+                    $cartItem->update($updatePayload);
                 }
             } else {
-                $cartItem->update(['quantity' => $quantity]);
+                $updatePayload = ['quantity' => $quantity];
+                if ($request->has('pricing_mode') || $request->has('pricingMode')) {
+                    $updatePayload['pricing_mode'] = $pricingMode;
+                }
+                $cartItem->update($updatePayload);
             }
         }
 

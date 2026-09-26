@@ -5,6 +5,7 @@ import OrderStatusBadge from "./OrderStatusBadge";
 import PaymentStatusBadge from "./PaymentStatusBadge";
 import FulfillmentStatusBadge from "./FulfillmentStatusBadge";
 import { Eye, FileCheck } from "lucide-react";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface OrderTableRowProps {
   order: OrderRecord;
@@ -17,6 +18,7 @@ export default function OrderTableRow({
   detailBaseUrl = "/admin/orders",
   onReviewPaymentProof,
 }: OrderTableRowProps) {
+  const { can } = useAdminAuth();
   const customerName = order.shipping_name || order.user?.name || "Guest";
   const companyName = order.shipping_company || order.user?.company_name || null;
   const itemCount = order.items?.length || 0;
@@ -40,12 +42,18 @@ export default function OrderTableRow({
     <tr className="border-b border-border/50 hover:bg-secondary/20 transition-colors text-xs">
       {/* 1. Order Number */}
       <td className="py-3 px-4">
-        <Link
-          href={detailHref}
-          className="font-mono font-bold text-foreground hover:text-primary transition-colors block"
-        >
-          {order.order_number}
-        </Link>
+        {can("order.view") ? (
+          <Link
+            href={detailHref}
+            className="font-mono font-bold text-foreground hover:text-primary transition-colors block"
+          >
+            {order.order_number}
+          </Link>
+        ) : (
+          <span className="font-mono font-bold text-foreground block">
+            {order.order_number}
+          </span>
+        )}
         <span className="text-[10px] text-muted-foreground block font-mono">
           {formattedDate}
         </span>
@@ -117,25 +125,29 @@ export default function OrderTableRow({
       {/* 10. Actions */}
       <td className="py-3 px-4 text-right whitespace-nowrap">
         <div className="inline-flex items-center gap-1.5 justify-end">
-          {hasPendingProof && onReviewPaymentProof && (
-            <button
-              type="button"
-              onClick={() => onReviewPaymentProof(order)}
-              className="p-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors cursor-pointer"
-              title="Review Payment Proof"
-            >
-              <FileCheck size={14} />
-            </button>
-          )}
+          {hasPendingProof &&
+            onReviewPaymentProof &&
+            (can("payment.receipt.verify") || can("payment.receipt.view")) && (
+              <button
+                type="button"
+                onClick={() => onReviewPaymentProof(order)}
+                className="p-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors cursor-pointer"
+                title="Review Payment Proof"
+              >
+                <FileCheck size={14} />
+              </button>
+            )}
 
-          <Link
-            href={detailHref}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-            title="View Order Details"
-          >
-            <Eye size={12} className="text-muted-foreground" />
-            <span>View</span>
-          </Link>
+          {can("order.view") && (
+            <Link
+              href={detailHref}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              title="View Order Details"
+            >
+              <Eye size={12} className="text-muted-foreground" />
+              <span>View</span>
+            </Link>
+          )}
         </div>
       </td>
     </tr>

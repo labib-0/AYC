@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Printer, Lock } from "lucide-react";
 import { CommercialDocument } from "@/types/b2b";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface DocumentToolbarProps {
   doc: CommercialDocument;
@@ -18,6 +19,10 @@ export default function DocumentToolbar({
   onDownloadPDF,
   isDownloading = false,
 }: DocumentToolbarProps) {
+  const { can, isSuperAdmin } = useAdminAuth();
+  const canDownload = isSuperAdmin || can("document.download");
+  const canPrint = isSuperAdmin || can("document.print");
+
   const backHref = doc.orderNumber 
     ? `/admin/orders/${doc.order_id || doc.orderNumber}`
     : doc.quotationNumber 
@@ -57,24 +62,28 @@ export default function DocumentToolbar({
           </span>
         )}
 
-        <button
-          type="button"
-          onClick={onDownloadPDF}
-          disabled={isDownloading}
-          className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-opacity shadow-md cursor-pointer"
-        >
-          <Download size={14} />
-          <span>{isDownloading ? "Generating PDF..." : "Download PDF (A4)"}</span>
-        </button>
+        {canDownload && (
+          <button
+            type="button"
+            onClick={onDownloadPDF}
+            disabled={isDownloading}
+            className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-opacity shadow-md cursor-pointer"
+          >
+            <Download size={14} />
+            <span>{isDownloading ? "Generating PDF..." : "Download PDF (A4)"}</span>
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={onPrint}
-          className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-md cursor-pointer"
-        >
-          <Printer size={14} />
-          <span>Print</span>
-        </button>
+        {canPrint && (
+          <button
+            type="button"
+            onClick={onPrint}
+            className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-md cursor-pointer"
+          >
+            <Printer size={14} />
+            <span>Print</span>
+          </button>
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { CustomerRecord } from "@/services/admin";
 import { Eye, Trash2 } from "lucide-react";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface CustomerTableRowProps {
   customer: CustomerRecord;
@@ -14,6 +15,7 @@ export default function CustomerTableRow({
   detailBaseUrl = "/admin/customers",
   onDeleteCustomer,
 }: CustomerTableRowProps) {
+  const { can } = useAdminAuth();
   const detailHref = `${detailBaseUrl}/${customer.id}`;
 
   const createdDate = customer.created_at
@@ -54,12 +56,18 @@ export default function CustomerTableRow({
           )}
 
           <div className="min-w-0">
-            <Link
-              href={detailHref}
-              className="font-bold text-foreground hover:text-primary transition-colors block truncate"
-            >
-              {customer.name}
-            </Link>
+            {can("customer.view") ? (
+              <Link
+                href={detailHref}
+                className="font-bold text-foreground hover:text-primary transition-colors block truncate"
+              >
+                {customer.name}
+              </Link>
+            ) : (
+              <span className="font-bold text-foreground block truncate">
+                {customer.name}
+              </span>
+            )}
             <span className="text-[10px] text-muted-foreground block truncate font-mono">
               ID: {customer.id}
             </span>
@@ -114,17 +122,19 @@ export default function CustomerTableRow({
       {/* 7. Actions */}
       <td className="py-3 px-4 text-right whitespace-nowrap">
         <div className="inline-flex items-center gap-1.5 justify-end">
-          <Link
-            href={detailHref}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-            title="View Customer Profile"
-            id={`btn-view-customer-${customer.id}`}
-          >
-            <Eye size={12} className="text-muted-foreground" />
-            <span>View</span>
-          </Link>
+          {can("customer.view") && (
+            <Link
+              href={detailHref}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              title="View Customer Profile"
+              id={`btn-view-customer-${customer.id}`}
+            >
+              <Eye size={12} className="text-muted-foreground" />
+              <span>View</span>
+            </Link>
+          )}
 
-          {onDeleteCustomer && (
+          {can("customer.delete") && onDeleteCustomer && (
             <button
               type="button"
               onClick={() => onDeleteCustomer(customer)}

@@ -69,6 +69,16 @@ class OrderController extends ApiController
             if ($order->user_id !== $user->id && !$user->isAdmin()) {
                 return $this->forbidden('You are not authorized to view this order');
             }
+        } else {
+            // Guest order: only allowed for admin or matching email
+            if (!$user || !$user->isAdmin()) {
+                $guestEmail = $request->query('email') ?? $request->input('email');
+                if (!$guestEmail || strtolower(trim($guestEmail)) !== strtolower(trim($order->email ?? ''))) {
+                    if (!$user || strtolower(trim($user->email)) !== strtolower(trim($order->email ?? ''))) {
+                        return $this->forbidden('You are not authorized to view this guest order');
+                    }
+                }
+            }
         }
 
         return $this->success(new OrderResource($order), 'Order details retrieved');
@@ -189,6 +199,7 @@ class OrderController extends ApiController
                     'variant_id' => $rawItem['variant_id'] ?? $rawItem['variantId'] ?? null,
                     'size' => $rawItem['size'] ?? null,
                     'quantity' => (int) ($rawItem['quantity'] ?? 1),
+                    'pricing_mode' => $rawItem['pricing_mode'] ?? $rawItem['pricingMode'] ?? null,
                     'package_breakdown' => $rawItem['package_breakdown'] ?? $rawItem['packageBreakdown'] ?? null,
                 ];
             }
@@ -265,6 +276,7 @@ class OrderController extends ApiController
                     $variantId = $item['variant_id'];
                     $size = $item['size'];
                     $quantity = $item['quantity'];
+                    $pricingMode = $item['pricing_mode'] ?? null;
                     $packageBreakdown = $item['package_breakdown'];
 
                     $product = is_numeric($productId)
@@ -329,7 +341,7 @@ class OrderController extends ApiController
 
                     if ($hasAllocations) {
                         // Wholesale Universal Package Assortment Purchase
-                        $isFullStock = ($product->isFullStockEligible() && $quantity === $product->getEligibleFullStockQuantity());
+                        $isFullStock = ($pricingMode === 'full_stock' || $quantity === $product->getCompletePackageStock());
                         $packageBreakdown = $product->getPackageBreakdownForQuantity($quantity, $isFullStock);
 
                         if (is_array($packageBreakdown) && count($packageBreakdown) > 0) {
@@ -425,7 +437,7 @@ class OrderController extends ApiController
                     }
 
                     // Strict Server-Side Tiered Pricing Resolution (USD)
-                    $unitPrice = $product->getUnitPriceForQuantity($quantity);
+                    $unitPrice = $product->getUnitPriceForQuantity($quantity, $pricingMode);
 
                     $lineTotal = round($unitPrice * $quantity, 2);
                     $subtotal += $lineTotal;
@@ -905,14 +917,22 @@ class OrderController extends ApiController
             return $this->notFound('Order not found');
         }
 
-        // Enforce access control: customer owner or admin with document.view
+        // Enforce access control: customer owner or admin with document.view or document.download
         if ($user->role === 'admin') {
             $authorization = app(\App\Services\Rbac\AdminAuthorizationService::class);
-            if (!$authorization->can($user, 'document.view')) {
-                return $this->forbidden("Forbidden: you do not have the 'document.view' permission to view commercial documents.");
+            if (!$authorization->can($user, 'document.view') && !$authorization->can($user, 'document.download')) {
+                return $this->forbidden("Forbidden: you do not have permission to view or download commercial documents.");
             }
-        } elseif ($order->user_id !== null && (int) $order->user_id !== (int) $user->id) {
-            return $this->forbidden('You are not authorized to view commercial documents for this order');
+        } else {
+            $isOwner = false;
+            if ($order->user_id !== null && (int) $order->user_id === (int) $user->id) {
+                $isOwner = true;
+            } elseif ($order->user_id === null && strtolower(trim($order->email ?? '')) === strtolower(trim($user->email ?? ''))) {
+                $isOwner = true;
+            }
+            if (!$isOwner) {
+                return $this->forbidden('You are not authorized to view commercial documents for this order');
+            }
         }
 
         $normalizedType = strtoupper(str_replace('-', '_', trim($docType)));
@@ -962,8 +982,21 @@ class OrderController extends ApiController
             return $this->notFound('Order not found');
         }
 
-        if ($user && $order->user_id !== null && $order->user_id !== $user->id && $user->role !== 'admin') {
-            return $this->forbidden('You are not authorized to view tracking for this order');
+        if ($user && $user->role === 'admin') {
+            // Admin tracking access allowed
+        } else {
+            $isOwner = false;
+            if ($user && $order->user_id !== null && (int) $order->user_id === (int) $user->id) {
+                $isOwner = true;
+            } elseif ($order->user_id === null) {
+                $checkEmail = $request->query('email') ?? ($user?->email);
+                if ($checkEmail && strtolower(trim($checkEmail)) === strtolower(trim($order->email ?? ''))) {
+                    $isOwner = true;
+                }
+            }
+            if (!$isOwner) {
+                return $this->forbidden('You are not authorized to view tracking for this order');
+            }
         }
 
         if (empty($order->tracking_number)) {

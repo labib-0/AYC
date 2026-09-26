@@ -282,3 +282,34 @@ Every administrative route in `api.php` under `prefix('admin')` and all admin ca
 4. **Context Hook API (`useAdminAuth()`)**:
    - Centralized authorization helpers: `can(slug)`, `canAny([slugs])`, `canAll([slugs])`, `isSuperAdmin`, and `rbacProfile`. All frontend components use this single source of truth.
 
+---
+
+## 7. Master 4 Security Hardening & Production Invariants
+
+### 7.1 Super Admin Protection
+1. **Centralized Authority**: Super Admin authority is strictly determined by database-level attributes (`User::isSuperAdmin()` checking `role === 'admin' && (bool) is_super_admin`). Zero email, username, or frontend checks exist.
+2. **Takeover Protection**: Ordinary admins cannot modify, deactivate, delete, or reset the password of a Super Admin account (`AdminUserController` rejects with 403 Forbidden).
+3. **Last Super Admin Invariant**: The system unconditionally blocks deactivating or deleting the last active Super Admin account (422 Unprocessable Entity).
+4. **Non-API Elevation**: New administrator accounts created via API always receive `is_super_admin = false`. Elevation to Super Admin is strictly reserved for the secure CLI command (`php artisan rbac:promote-super-admin`).
+
+### 7.2 Delegation & Privilege Escalation Barriers
+1. **Self-Role Elevation Prevention**: Administrators are strictly blocked from altering their own assigned roles via `PUT /api/v1/admin/administrators/{id}` (403 Forbidden).
+2. **Delegation Boundary**: An administrator cannot grant another administrator a role that contains permissions exceeding the assignor's own effective permissions. Any attempted privilege escalation is rejected with 403 Forbidden.
+3. **Access Level Protection**: Ordinary administrators cannot set `access_level: 'super_admin'`.
+
+### 7.3 Permission Dependency & Graph Integrity
+1. **Deterministic Dependency Resolution**: Recursive expansion (`AdminAuthorizationService::expandDependencies`) resolves all prerequisites (e.g. `product.publish` -> `product.save_draft` + `product.view`).
+2. **Circular Dependency Detection**: `AdminAuthorizationService::wouldCreateCycle()` performs BFS cycle detection before attaching dependencies. Attempting to create a circular graph (e.g. A -> B -> C -> A) throws `InvalidArgumentException` and is blocked.
+3. **Cache Invalidation**: Modifying roles, permissions, or dependencies calls `invalidateRole()` or `invalidateAll()`, clearing cached effective permissions across Redis/cache storage immediately.
+
+### 7.4 Session Lifecycle & Token Revocation
+1. **Deactivation Session Termination**: Deactivating an administrator immediately purges all active Sanctum tokens (`$admin->tokens()->delete()`), invalidates the permission cache, and prevents subsequent requests.
+2. **Deactivation Auth Barrier**: Deactivated accounts cannot obtain new tokens via `/api/v1/auth/login` (validation error: account deactivated).
+3. **Password Reset Revocation**: Resetting a password immediately revokes all prior active tokens.
+
+### 7.5 IDOR & Data Leakage Protections
+1. **Guest Order Authorization**: Unauthenticated and customer users cannot access guest orders without providing the matching order email (`OrderController@show`).
+2. **Commercial Document Downloads**: Synchronous and asynchronous document generation strictly verifies customer order ownership or admin permissions (`document.view` / `document.download`).
+3. **Product Cost Price Masking**: `ProductResource` redacts `costPrice` to `null` unless the administrator possesses `product.pricing.manage` or `analytics.cogs.view`.
+
+

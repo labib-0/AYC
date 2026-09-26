@@ -75,9 +75,18 @@ export interface SearchSuggestionsResult {
  * Normalizes raw product object into B2BProductInput
  */
 export function normalizeToB2BProduct(p: any): B2BProductInput {
-  const images = Array.isArray(p.images) && p.images.length > 0 
+  const rawImages = Array.isArray(p.images) && p.images.length > 0 
     ? p.images 
     : [p.image_url || p.image || "/placeholder.jpg"];
+
+  const images = rawImages.map((img: any) => {
+    if (typeof img === "string") return img;
+    return img?.image_url || img?.url || "";
+  }).filter((url: string) => Boolean(url && url.trim()));
+
+  if (images.length === 0) {
+    images.push(p.image_url || p.image || "/placeholder.jpg");
+  }
 
   let audienceVal: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" = "UNISEX";
   if (p.audience && ["MEN", "WOMEN", "BOYS", "GIRLS", "UNISEX"].includes(String(p.audience).toUpperCase())) {
@@ -183,38 +192,29 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
       configuredFullStockPrice !== null &&
       configuredFullStockPrice > 0 &&
       availableStock > qualifyingThreshold &&
-      derivedEligibleQty >= qualifyingThreshold &&
-      derivedEligibleQty > moqVal
+      derivedEligibleQty > 0
     )
   );
 
-  const fullStockQuantity = isFullStockEligible
-    ? (p.fullStockQuantity !== undefined && p.fullStockQuantity !== null && Number(p.fullStockQuantity) > 0
-        ? Number(p.fullStockQuantity)
-        : p.full_stock_quantity !== undefined && p.full_stock_quantity !== null && Number(p.full_stock_quantity) > 0
-        ? Number(p.full_stock_quantity)
-        : derivedEligibleQty)
-    : 0;
+  const fullStockQuantity = p.fullStockQuantity !== undefined && p.fullStockQuantity !== null
+    ? Number(p.fullStockQuantity)
+    : p.full_stock_quantity !== undefined && p.full_stock_quantity !== null
+    ? Number(p.full_stock_quantity)
+    : derivedEligibleQty;
 
-  const applicableNormalForFullStock = fullStockQuantity >= bulkThreshold ? bulkPrice : wholesalePrice;
-  const resolvedFullStockPrice = isFullStockEligible
-    ? (p.fullStockPrice !== undefined && p.fullStockPrice !== null
-        ? Number(p.fullStockPrice)
-        : configuredFullStockPrice !== null
-        ? Math.min(configuredFullStockPrice, applicableNormalForFullStock)
-        : applicableNormalForFullStock)
-    : wholesalePrice;
+  const normalMoqPrice = wholesalePrice;
+  const resolvedFullStockPrice = availableStock > qualifyingThreshold && configuredFullStockPrice !== null && configuredFullStockPrice > 0
+    ? Math.min(configuredFullStockPrice, normalMoqPrice)
+    : (p.fullStockPrice !== undefined && p.fullStockPrice !== null ? Number(p.fullStockPrice) : normalMoqPrice);
 
-  const fullStockTotal = isFullStockEligible
-    ? (p.fullStockTotal !== undefined && p.fullStockTotal !== null
-        ? Number(p.fullStockTotal)
-        : p.full_stock_total !== undefined && p.full_stock_total !== null
-        ? Number(p.full_stock_total)
-        : Math.round(fullStockQuantity * resolvedFullStockPrice * 100) / 100)
-    : 0;
+  const fullStockTotal = p.fullStockTotal !== undefined && p.fullStockTotal !== null
+    ? Number(p.fullStockTotal)
+    : p.full_stock_total !== undefined && p.full_stock_total !== null
+    ? Number(p.full_stock_total)
+    : Math.round(fullStockQuantity * resolvedFullStockPrice * 100) / 100;
 
   const brandName = typeof p.brand === "string" ? p.brand : p.brand?.name || "";
-  const brandLogo = p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand?.logo_url || (p.brand?.slug ? `/brands/${p.brand.slug}.svg` : undefined);
+  const brandLogo = p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo || (p.brand?.slug ? `/brands/${p.brand.slug}.svg` : undefined);
 
   const rawVideoUrl = (p.videoUrl || p.video_url || "").trim();
   let youtubeVideoId: string | undefined = p.youtubeVideoId || p.youtube_video_id || undefined;
@@ -253,6 +253,36 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
         is_active: sp.is_active !== undefined ? Boolean(sp.is_active) : true,
         total_cbm: sp.total_cbm !== undefined ? Number(sp.total_cbm) : 0.084,
       }))
+    : undefined;
+
+  const onHandStock = p.onHandStock !== undefined && p.onHandStock !== null
+    ? Number(p.onHandStock)
+    : p.on_hand_stock !== undefined && p.on_hand_stock !== null
+    ? Number(p.on_hand_stock)
+    : availableStock;
+
+  const reservedStock = p.reservedStock !== undefined && p.reservedStock !== null
+    ? Number(p.reservedStock)
+    : p.reserved_stock !== undefined && p.reserved_stock !== null
+    ? Number(p.reserved_stock)
+    : 0;
+
+  const realAvailableStock = p.availableStock !== undefined && p.availableStock !== null
+    ? Number(p.availableStock)
+    : p.available_stock !== undefined && p.available_stock !== null
+    ? Number(p.available_stock)
+    : Math.max(0, onHandStock - reservedStock);
+
+  const availableMoqs = p.availableMoqs !== undefined && p.availableMoqs !== null
+    ? Number(p.availableMoqs)
+    : p.available_moqs !== undefined && p.available_moqs !== null
+    ? Number(p.available_moqs)
+    : (moqVal > 0 ? Math.floor(realAvailableStock / moqVal) : 0);
+
+  const warehouseBreakdown = Array.isArray(p.warehouseBreakdown)
+    ? p.warehouseBreakdown
+    : Array.isArray(p.warehouse_breakdown)
+    ? p.warehouse_breakdown
     : undefined;
 
   return {
@@ -301,7 +331,16 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     fullStockTotal: fullStockTotal,
     msrpPrice: msrpPrice,
     moq: moqVal,
-    stock: availableStock,
+    stock: realAvailableStock,
+    onHandStock,
+    on_hand_stock: onHandStock,
+    reservedStock,
+    reserved_stock: reservedStock,
+    availableStock: realAvailableStock,
+    available_stock: realAvailableStock,
+    availableMoqs,
+    available_moqs: availableMoqs,
+    warehouseBreakdown,
     status: status,
     isFeatured: isFeatured,
     featuredUntil: featuredUntil,
@@ -319,8 +358,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     variants: variants,
     pricingTiers: pricingTiers.length > 0 ? pricingTiers : [
       { min_quantity: moqVal, max_quantity: bulkThreshold - 1, unit_price: wholesalePrice },
-      { min_quantity: bulkThreshold, max_quantity: isFullStockEligible && fullStockQuantity > bulkThreshold ? fullStockQuantity - 1 : availableStock, unit_price: bulkPrice },
-      ...(isFullStockEligible && fullStockQuantity > 0 ? [{ min_quantity: fullStockQuantity, max_quantity: fullStockQuantity, unit_price: resolvedFullStockPrice }] : []),
+      { min_quantity: bulkThreshold, max_quantity: fullStockQuantity > bulkThreshold ? fullStockQuantity - 1 : availableStock, unit_price: bulkPrice },
+      ...(fullStockQuantity > 0 ? [{ min_quantity: fullStockQuantity, max_quantity: fullStockQuantity, unit_price: resolvedFullStockPrice }] : []),
     ],
     packageAllocations: packageAllocations,
     shippingPackageProfiles: shippingPackageProfiles,
@@ -330,53 +369,86 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
 }
 
 /**
- * Maps B2B product to standard Storefront Product interface
+ * Maps B2B product or raw API product to standard Storefront Product interface
  */
-export function toStorefrontProduct(p: B2BProductInput): Product {
+export function toStorefrontProduct(p: any): Product {
+  const wholesalePrice = p.wholesalePrice !== undefined && p.wholesalePrice !== null
+    ? Number(p.wholesalePrice)
+    : p.wholesale_price !== undefined && p.wholesale_price !== null
+    ? Number(p.wholesale_price)
+    : p.price !== undefined && p.price !== null
+    ? Number(p.price)
+    : 0;
+
+  const msrpPrice = p.msrpPrice !== undefined && p.msrpPrice !== null
+    ? Number(p.msrpPrice)
+    : p.msrp_price !== undefined && p.msrp_price !== null
+    ? Number(p.msrp_price)
+    : p.oldPrice !== undefined && p.oldPrice !== null
+    ? Number(p.oldPrice)
+    : Math.round(wholesalePrice * 1.6 * 100) / 100;
+
+  const rawImages = Array.isArray(p.images) && p.images.length > 0
+    ? p.images
+    : [p.image_url || p.image || "/placeholder.jpg"];
+
+  const images = rawImages.map((img: any) => {
+    if (typeof img === "string") return img;
+    return img?.image_url || img?.url || "";
+  }).filter((url: string) => Boolean(url && url.trim()));
+
+  if (images.length === 0) {
+    images.push("/placeholder.jpg");
+  }
+
   return {
-    id: p.id,
+    id: String(p.id),
     name: p.name,
     slug: p.slug,
-    price: p.wholesalePrice,
-    oldPrice: p.msrpPrice,
-    wholesalePrice: p.wholesalePrice,
-    standardPrice: p.standardPrice || p.wholesalePrice,
-    bulkThreshold: p.bulkThreshold,
-    bulkPrice: p.bulkPrice,
-    fullStockPrice: p.fullStockPrice,
-    categoryId: p.categoryId || "c_sweaters",
-    categoryName: p.categoryName,
-    audience: p.audience,
-    designType: p.designType || "ORIGINAL",
-    images: p.images,
-    isNew: p.isNew,
+    price: wholesalePrice,
+    oldPrice: msrpPrice,
+    wholesalePrice: wholesalePrice,
+    standardPrice: p.standardPrice || wholesalePrice,
+    bulkThreshold: p.bulkThreshold || p.bulk_threshold,
+    bulkPrice: p.bulkPrice !== undefined ? Number(p.bulkPrice) : (p.bulk_price !== undefined ? Number(p.bulk_price) : undefined),
+    fullStockPrice: p.fullStockPrice !== undefined ? Number(p.fullStockPrice) : (p.full_stock_price !== undefined ? Number(p.full_stock_price) : undefined),
+    categoryId: p.categoryId || p.category_id || (p.categories?.[0]?.id ? String(p.categories[0].id) : "c_sweaters"),
+    categoryName: p.categoryName || (p.categories?.[0]?.name ? String(p.categories[0].name) : undefined),
+    audience: p.audience || "UNISEX",
+    designType: p.designType || p.design_type || "ORIGINAL",
+    images: images,
+    isNew: Boolean(p.isNew ?? p.is_new),
     newUntil: p.newUntil || p.new_until,
-    isHot: p.isHot,
+    isHot: Boolean(p.isHot ?? p.is_hot),
     hotUntil: p.hotUntil || p.hot_until,
-    isFeatured: p.isFeatured,
+    isFeatured: Boolean(p.isFeatured ?? p.is_featured),
     featuredUntil: p.featuredUntil || p.featured_until,
-    isLimitedTimeOffer: p.isLimitedDeal,
-    videoProvider: p.videoProvider,
-    sizes: p.sizes || ["S", "M", "L", "XL", "2XL"],
-    sku: p.sku,
-    moq: p.moq,
-    availableStock: p.stock,
-    brand: p.brand,
-    brandLogo: p.brandLogo,
-    color: p.colorName,
-    description: p.description || p.shortDescription,
-    seoTitle: p.seoTitle,
-    seoDescription: p.seoDescription,
+    isLimitedTimeOffer: Boolean(p.isLimitedDeal ?? p.is_limited_deal),
+    videoProvider: p.videoProvider || p.video_provider,
+    sizes: p.sizes || (Array.isArray(p.variants) && p.variants.length > 0 ? Array.from(new Set(p.variants.map((v: any) => v.size).filter(Boolean))) as string[] : ["S", "M", "L", "XL", "2XL"]),
+    moq: p.moq !== undefined ? Number(p.moq) : 1,
+    stock: p.availableStock !== undefined ? Number(p.availableStock) : (p.stock !== undefined ? Number(p.stock) : (p.inventory_count !== undefined ? Number(p.inventory_count) : 0)),
+    availableStock: p.availableStock !== undefined ? Number(p.availableStock) : (p.stock !== undefined ? Number(p.stock) : (p.inventory_count !== undefined ? Number(p.inventory_count) : 0)),
+    availableMoqs: p.availableMoqs !== undefined ? Number(p.availableMoqs) : (p.available_moqs !== undefined ? Number(p.available_moqs) : ((p.moq && Number(p.moq) > 0) ? Math.floor((Number(p.availableStock ?? p.stock ?? 0)) / Number(p.moq)) : 0)),
+    onHandStock: p.onHandStock !== undefined ? Number(p.onHandStock) : (p.on_hand_stock !== undefined ? Number(p.on_hand_stock) : undefined),
+    reservedStock: p.reservedStock !== undefined ? Number(p.reservedStock) : (p.reserved_stock !== undefined ? Number(p.reserved_stock) : 0),
+    brand: typeof p.brand === "string" ? p.brand : p.brand?.name || "Ayaan",
+    brandLogo: p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo || (p.brand?.slug ? `/brands/${p.brand.slug}.svg` : undefined),
+    brand_logo: p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo || (p.brand?.slug ? `/brands/${p.brand.slug}.svg` : undefined),
+    color: p.colorName || p.color_name,
+    description: p.description || p.shortDescription || p.short_description,
+    seoTitle: p.seoTitle || p.seo_title,
+    seoDescription: p.seoDescription || p.seo_description,
     keywords: p.keywords,
-    pricingTiers: p.pricingTiers,
-    packageAllocations: p.packageAllocations,
-    shippingPackageProfiles: p.shippingPackageProfiles,
-    shipping_package_profiles: p.shipping_package_profiles,
-    isPackageAssortment: p.isPackageAssortment,
-    fullStockQuantity: p.fullStockQuantity,
-    videoUrl: p.videoUrl,
-    youtubeVideoId: p.youtubeVideoId,
-    youtubeEmbedUrl: p.youtubeEmbedUrl,
+    pricingTiers: p.pricingTiers || p.pricing_tiers,
+    packageAllocations: p.packageAllocations || p.package_allocations,
+    shippingPackageProfiles: p.shippingPackageProfiles || p.shipping_package_profiles,
+    shipping_package_profiles: p.shipping_package_profiles || p.shippingPackageProfiles,
+    isPackageAssortment: Boolean(p.isPackageAssortment ?? p.is_package_assortment),
+    fullStockQuantity: p.fullStockQuantity || p.full_stock_quantity,
+    videoUrl: p.videoUrl || p.video_url,
+    youtubeVideoId: p.youtubeVideoId || p.youtube_video_id,
+    youtubeEmbedUrl: p.youtubeEmbedUrl || p.youtube_embed_url,
   };
 }
 

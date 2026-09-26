@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -126,9 +127,15 @@ class AdminAuthorizationService
     {
         $cacheKey = self::KEY_PREFIX . $user->id;
 
-        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user) {
-            return $this->resolveEffectivePermissions($user);
+        $cached = Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user) {
+            return $this->resolveEffectivePermissions($user)->all();
         });
+
+        if ($cached instanceof Collection) {
+            return $cached;
+        }
+
+        return is_array($cached) ? collect($cached) : collect([]);
     }
 
     /**
@@ -200,9 +207,15 @@ class AdminAuthorizationService
      */
     private function allPermissionSlugs(): Collection
     {
-        return Cache::remember('rbac:all_permission_slugs', self::CACHE_TTL, function () {
-            return Permission::pluck('slug')->mapWithKeys(fn ($slug) => [$slug => true]);
+        $cached = Cache::remember('rbac:all_permission_slugs', self::CACHE_TTL, function () {
+            return Permission::pluck('slug')->mapWithKeys(fn ($slug) => [$slug => true])->all();
         });
+
+        if ($cached instanceof Collection) {
+            return $cached;
+        }
+
+        return is_array($cached) ? collect($cached) : collect([]);
     }
 
     // ── Cache Invalidation ───────────────────────────────────────────────────
@@ -246,11 +259,96 @@ class AdminAuthorizationService
      */
     public function invalidateAll(): void
     {
-        // We flush by tag pattern; since Redis is used, scan for the prefix
-        // The implementation deliberately uses Cache::forget per known key
-        // because tags aren't always available. For larger systems, use tagged caching.
         Cache::forget('rbac:all_permission_slugs');
-        Log::info('RBAC: system-wide cache invalidation requested (individual user caches expire per TTL)');
+        $adminIds = User::where('role', User::ROLE_ADMIN)->pluck('id')->all();
+        foreach ($adminIds as $id) {
+            Cache::forget(self::KEY_PREFIX . $id);
+        }
+        Log::info('RBAC: system-wide cache invalidation executed for ' . count($adminIds) . ' admins');
+    }
+
+    /**
+     * Determine whether adding a dependency ($permissionId requires $requiresPermissionId)
+     * would introduce a circular dependency (e.g. A -> B -> C -> A).
+     */
+    public function wouldCreateCycle(int $permissionId, int $requiresPermissionId): bool
+    {
+        if ($permissionId === $requiresPermissionId) {
+            return true;
+        }
+
+        // BFS traversal from $requiresPermissionId to verify if it already depends on $permissionId
+        $visited = [];
+        $queue = [$requiresPermissionId];
+
+        while (! empty($queue)) {
+            $currentId = array_shift($queue);
+            if ($currentId === $permissionId) {
+                return true; // Cycle detected!
+            }
+
+            if (in_array($currentId, $visited, true)) {
+                continue;
+            }
+            $visited[] = $currentId;
+
+            $deps = DB::table('permission_dependencies')
+                ->where('permission_id', $currentId)
+                ->pluck('requires_permission_id')
+                ->all();
+
+            foreach ($deps as $depId) {
+                if (! in_array((int) $depId, $visited, true)) {
+                    $queue[] = (int) $depId;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Add a dependency relationship safely, preventing circular dependencies.
+     * Throws InvalidArgumentException if a cycle is detected.
+     */
+    public function addDependency(int|Permission $permission, int|Permission $requires): bool
+    {
+        $permId = $permission instanceof Permission ? $permission->id : $permission;
+        $reqId = $requires instanceof Permission ? $requires->id : $requires;
+
+        if ($this->wouldCreateCycle($permId, $reqId)) {
+            throw new \InvalidArgumentException("Circular permission dependency detected: cannot make permission #{$permId} require #{$reqId}.");
+        }
+
+        DB::table('permission_dependencies')->updateOrInsert([
+            'permission_id' => $permId,
+            'requires_permission_id' => $reqId,
+        ], [
+            'updated_at' => now(),
+            'created_at' => now(),
+        ]);
+
+        $this->invalidateAll();
+
+        return true;
+    }
+
+    /**
+     * Remove a dependency relationship safely and invalidate relevant caches.
+     */
+    public function removeDependency(int|Permission $permission, int|Permission $requires): bool
+    {
+        $permId = $permission instanceof Permission ? $permission->id : $permission;
+        $reqId = $requires instanceof Permission ? $requires->id : $requires;
+
+        DB::table('permission_dependencies')
+            ->where('permission_id', $permId)
+            ->where('requires_permission_id', $reqId)
+            ->delete();
+
+        $this->invalidateAll();
+
+        return true;
     }
 
     /**

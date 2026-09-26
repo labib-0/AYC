@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import Image from "next/image";
 import { 
   ArrowUp, 
   ArrowDown, 
@@ -21,6 +20,44 @@ import {
 } from "@/services/homepage.service";
 import { brandService, BrandModel } from "@/services/brand.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
+
+function BrandItemLogo({
+  logo,
+  alt,
+  size = "md",
+}: {
+  logo?: string | null;
+  alt: string;
+  size?: "sm" | "md";
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [logo]);
+
+  const containerClasses =
+    size === "sm"
+      ? "w-9 h-9 rounded-lg bg-secondary/50 border border-border/40 overflow-hidden relative shrink-0 flex items-center justify-center p-1"
+      : "w-12 h-12 rounded-xl bg-secondary/40 border border-border/60 overflow-hidden relative shrink-0 flex items-center justify-center p-1.5";
+
+  return (
+    <div className={containerClasses}>
+      {logo && !hasError ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logo}
+          alt={alt}
+          className="max-h-full max-w-full object-contain p-0.5"
+          loading="lazy"
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <Tags size={size === "sm" ? 14 : 20} className="text-muted-foreground" />
+      )}
+    </div>
+  );
+}
 
 interface ShopByBrandManagerProps {
   initialBrands: HomepageFeaturedBrandModel[];
@@ -285,20 +322,11 @@ export default function ShopByBrandManager({
                     #{index + 1}
                   </div>
 
-                  <div className="w-12 h-12 rounded-xl bg-secondary/40 border border-border/60 overflow-hidden relative shrink-0 flex items-center justify-center p-1.5">
-                    {logo ? (
-                      <Image
-                        src={logo}
-                        alt={brand?.name || "Brand logo"}
-                        fill
-                        className="object-contain p-1"
-                        sizes="48px"
-                        unoptimized
-                      />
-                    ) : (
-                      <Tags size={20} className="text-muted-foreground" />
-                    )}
-                  </div>
+                  <BrandItemLogo
+                    logo={logo}
+                    alt={brand?.name || "Brand logo"}
+                    size="md"
+                  />
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -428,20 +456,11 @@ export default function ShopByBrandManager({
                       className="py-2.5 flex items-center justify-between gap-3 hover:bg-secondary/30 px-2 rounded-xl transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-lg bg-secondary/50 border border-border/40 overflow-hidden relative shrink-0 flex items-center justify-center p-1">
-                          {logo ? (
-                            <Image
-                              src={logo}
-                              alt={b.name}
-                              fill
-                              className="object-contain p-0.5"
-                              sizes="36px"
-                              unoptimized
-                            />
-                          ) : (
-                            <Tags size={14} className="text-muted-foreground" />
-                          )}
-                        </div>
+                        <BrandItemLogo
+                          logo={logo}
+                          alt={b.name}
+                          size="sm"
+                        />
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-foreground truncate">{b.name}</p>
                           {b.slug && <p className="text-[11px] font-mono text-muted-foreground truncate">{b.slug}</p>}

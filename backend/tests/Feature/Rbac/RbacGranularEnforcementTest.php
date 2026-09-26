@@ -4,6 +4,7 @@ namespace Tests\Feature\Rbac;
 
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Coupon;
 use App\Models\Inventory;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -11,6 +12,8 @@ use App\Models\Payment;
 use App\Models\Permission;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Quotation;
+use App\Models\Quote;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -577,5 +580,327 @@ class RbacGranularEnforcementTest extends TestCase
         $resSpending = $this->actingAs($spendingViewer, 'sanctum')->getJson("/api/v1/admin/customers/{$this->customer->id}");
         $resSpending->assertStatus(200);
         $this->assertNotNull($resSpending->json('data.total_spent'));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Master Prompt 3 Scenarios A - E
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function test_scenario_a_draft_only_admin_cannot_publish_or_delete(): void
+    {
+        $draftAdmin = $this->createAdminWithPermissions([
+            'product.view',
+            'product.create',
+            'product.save_draft',
+        ], 'Draft Only Admin');
+
+        // 1. Can create draft product
+        $resDraft = $this->actingAs($draftAdmin, 'sanctum')->postJson('/api/v1/products', [
+            'name'            => 'Draft Polo',
+            'slug'            => 'draft-polo-' . uniqid(),
+            'sku'             => 'DP-' . uniqid(),
+            'brand_id'        => $this->brand->id,
+            'category_id'     => $this->category->id,
+            'wholesale_price' => 20.00,
+            'moq'             => 5,
+            'status'          => 'draft',
+        ]);
+        $resDraft->assertStatus(201);
+        $productId = $resDraft->json('data.id');
+
+        // 2. Cannot create published product
+        $resPubFail = $this->actingAs($draftAdmin, 'sanctum')->postJson('/api/v1/products', [
+            'name'            => 'Published Polo Fail',
+            'slug'            => 'pub-polo-' . uniqid(),
+            'sku'             => 'PPF-' . uniqid(),
+            'brand_id'        => $this->brand->id,
+            'category_id'     => $this->category->id,
+            'wholesale_price' => 25.00,
+            'moq'             => 5,
+            'status'          => 'published',
+        ]);
+        $resPubFail->assertStatus(403);
+
+        // 3. Cannot transition draft to published
+        $resUpdatePub = $this->actingAs($draftAdmin, 'sanctum')->putJson("/api/v1/products/{$productId}", [
+            'status' => 'published',
+        ]);
+        $resUpdatePub->assertStatus(403);
+
+        // 4. Cannot delete product
+        $resDel = $this->actingAs($draftAdmin, 'sanctum')->deleteJson("/api/v1/products/{$productId}");
+        $resDel->assertStatus(403);
+    }
+
+    public function test_scenario_b_payment_receipt_verification_and_rejection_granular_flow(): void
+    {
+        $order = Order::create([
+            'order_number'         => 'ORD-' . strtoupper(uniqid()),
+            'user_id'              => $this->customer->id,
+            'email'                => $this->customer->email,
+            'currency'             => 'USD',
+            'subtotal'             => 100.00,
+            'total_amount'         => 100.00,
+            'payment_status'       => 'pending',
+            'payment_proof_url'    => 'https://example.com/receipt.jpg',
+            'fulfillment_status'   => 'unfulfilled',
+            'status'               => 'pending',
+            'shipping_name'        => 'Elena Customer',
+            'shipping_phone'       => '+15551234567',
+            'shipping_address1'    => '100 Broadway',
+            'shipping_city'        => 'New York',
+            'shipping_postal_code' => '10001',
+            'shipping_country_code'=> 'US',
+            'placed_at'            => now(),
+        ]);
+
+        $orderViewer = $this->createAdminWithPermissions([
+            'order.view',
+        ], 'Order Viewer');
+
+        // Order viewer can view order
+        $this->actingAs($orderViewer, 'sanctum')
+            ->getJson("/api/v1/admin/orders/{$order->id}")
+            ->assertStatus(200);
+
+        // Order viewer cannot verify payment
+        $this->actingAs($orderViewer, 'sanctum')
+            ->postJson("/api/v1/admin/orders/{$order->id}/payment/verify", [
+                'action' => 'verify',
+            ])
+            ->assertStatus(403);
+
+        // Order viewer cannot reject payment
+        $this->actingAs($orderViewer, 'sanctum')
+            ->postJson("/api/v1/admin/orders/{$order->id}/payment/reject", [
+                'action' => 'reject',
+            ])
+            ->assertStatus(403);
+
+        // Admin with payment.receipt.verify
+        $verifier = $this->createAdminWithPermissions([
+            'order.view',
+            'payment.receipt.verify',
+        ], 'Payment Verifier');
+
+        $this->actingAs($verifier, 'sanctum')
+            ->postJson("/api/v1/admin/orders/{$order->id}/payment/verify", [
+                'action' => 'verify',
+                'note'   => 'Verified by accounts',
+            ])
+            ->assertStatus(200);
+
+        // Order 2 for rejection test
+        $order2 = Order::create([
+            'order_number'         => 'ORD-' . strtoupper(uniqid()),
+            'user_id'              => $this->customer->id,
+            'email'                => $this->customer->email,
+            'currency'             => 'USD',
+            'subtotal'             => 150.00,
+            'total_amount'         => 150.00,
+            'payment_status'       => 'pending',
+            'payment_proof_url'    => 'https://example.com/receipt2.jpg',
+            'fulfillment_status'   => 'unfulfilled',
+            'status'               => 'pending',
+            'shipping_name'        => 'Elena Customer',
+            'shipping_phone'       => '+15551234567',
+            'shipping_address1'    => '100 Broadway',
+            'shipping_city'        => 'New York',
+            'shipping_postal_code' => '10001',
+            'shipping_country_code'=> 'US',
+            'placed_at'            => now(),
+        ]);
+
+        $rejector = $this->createAdminWithPermissions([
+            'order.view',
+            'payment.receipt.reject',
+        ], 'Payment Rejector');
+
+        $this->actingAs($rejector, 'sanctum')
+            ->postJson("/api/v1/admin/orders/{$order2->id}/payment/reject", [
+                'action' => 'reject',
+                'note'   => 'Receipt image illegible',
+            ])
+            ->assertStatus(200);
+    }
+
+    public function test_scenario_c_coupon_lifecycle_granular_permissions(): void
+    {
+        $coupon = Coupon::create([
+            'code'           => 'TESTCOUPON_' . uniqid(),
+            'discount_type'  => 'percentage',
+            'discount_value' => 10.00,
+            'is_active'      => true,
+        ]);
+
+        $couponViewer = $this->createAdminWithPermissions([
+            'coupon.view',
+        ], 'Coupon Viewer');
+
+        // Can list
+        $this->actingAs($couponViewer, 'sanctum')
+            ->getJson('/api/v1/admin/coupons')
+            ->assertStatus(200);
+
+        // Cannot create
+        $this->actingAs($couponViewer, 'sanctum')
+            ->postJson('/api/v1/admin/coupons', [
+                'code'           => 'NEW_COUPON',
+                'discount_type'  => 'percentage',
+                'discount_value' => 15.00,
+            ])
+            ->assertStatus(403);
+
+        // Cannot update
+        $this->actingAs($couponViewer, 'sanctum')
+            ->putJson("/api/v1/admin/coupons/{$coupon->id}", [
+                'discount_value' => 20.00,
+            ])
+            ->assertStatus(403);
+
+        // Cannot deactivate
+        $this->actingAs($couponViewer, 'sanctum')
+            ->patchJson("/api/v1/admin/coupons/{$coupon->id}/deactivate")
+            ->assertStatus(403);
+
+        // Cannot delete
+        $this->actingAs($couponViewer, 'sanctum')
+            ->deleteJson("/api/v1/admin/coupons/{$coupon->id}")
+            ->assertStatus(403);
+
+        // Admin with coupon.create
+        $couponCreator = $this->createAdminWithPermissions([
+            'coupon.view',
+            'coupon.create',
+        ], 'Coupon Creator');
+
+        $resCreate = $this->actingAs($couponCreator, 'sanctum')->postJson('/api/v1/admin/coupons', [
+            'code'           => 'ALLOWED_' . uniqid(),
+            'discount_type'  => 'percentage',
+            'discount_value' => 15.00,
+        ]);
+        $resCreate->assertStatus(201);
+        $newCouponId = $resCreate->json('data.id');
+
+        // Admin with coupon.deactivate
+        $couponDeactivator = $this->createAdminWithPermissions([
+            'coupon.view',
+            'coupon.edit',
+            'coupon.deactivate',
+        ], 'Coupon Deactivator');
+
+        $this->actingAs($couponDeactivator, 'sanctum')
+            ->patchJson("/api/v1/admin/coupons/{$newCouponId}/deactivate")
+            ->assertStatus(200);
+
+        // Admin with coupon.delete
+        $couponDeleter = $this->createAdminWithPermissions([
+            'coupon.view',
+            'coupon.delete',
+        ], 'Coupon Deleter');
+
+        $this->actingAs($couponDeleter, 'sanctum')
+            ->deleteJson("/api/v1/admin/coupons/{$newCouponId}")
+            ->assertStatus(200);
+    }
+
+    public function test_scenario_d_category_and_brand_sub_permissions(): void
+    {
+        $catViewer = $this->createAdminWithPermissions([
+            'category.view',
+        ], 'Category Viewer');
+
+        // Cannot toggle active status
+        $this->actingAs($catViewer, 'sanctum')
+            ->putJson("/api/v1/categories/{$this->category->id}", [
+                'is_active' => false,
+            ])
+            ->assertStatus(403);
+
+        // Cannot feature category
+        $this->actingAs($catViewer, 'sanctum')
+            ->putJson("/api/v1/categories/{$this->category->id}", [
+                'is_featured' => true,
+            ])
+            ->assertStatus(403);
+
+        $catActivator = $this->createAdminWithPermissions([
+            'category.view',
+            'category.edit',
+            'category.activate',
+            'category.deactivate',
+        ], 'Category Activator');
+
+        $this->actingAs($catActivator, 'sanctum')
+            ->putJson("/api/v1/categories/{$this->category->id}", [
+                'is_active' => false,
+            ])
+            ->assertStatus(200);
+
+        // Brand sub-permissions
+        $brandViewer = $this->createAdminWithPermissions([
+            'brand.view',
+        ], 'Brand Viewer');
+
+        $this->actingAs($brandViewer, 'sanctum')
+            ->putJson("/api/v1/brands/{$this->brand->id}", [
+                'is_active' => false,
+            ])
+            ->assertStatus(403);
+
+        $brandActivator = $this->createAdminWithPermissions([
+            'brand.view',
+            'brand.edit',
+            'brand.activate',
+            'brand.deactivate',
+        ], 'Brand Activator');
+
+        $this->actingAs($brandActivator, 'sanctum')
+            ->putJson("/api/v1/brands/{$this->brand->id}", [
+                'is_active' => false,
+            ])
+            ->assertStatus(200);
+    }
+
+    public function test_scenario_e_rfq_granular_permissions(): void
+    {
+        $quote = Quote::create([
+            'rfq_number'    => 'RFQ-' . strtoupper(uniqid()),
+            'user_id'       => $this->customer->id,
+            'buyer_name'    => 'Test Buyer',
+            'buyer_email'   => 'buyer@test.local',
+            'company_name'  => 'Acme Apparel Corp',
+            'request_title' => 'Bulk Polo Inquiry',
+            'status'        => 'pending',
+        ]);
+
+        $rfqViewer = $this->createAdminWithPermissions([
+            'rfq.view',
+        ], 'RFQ Viewer');
+
+        // Can view RFQ
+        $this->actingAs($rfqViewer, 'sanctum')
+            ->getJson("/api/v1/admin/rfqs/{$quote->id}")
+            ->assertStatus(200);
+
+        // Cannot accept RFQ
+        $this->actingAs($rfqViewer, 'sanctum')
+            ->postJson("/api/v1/admin/rfqs/{$quote->id}/accept")
+            ->assertStatus(403);
+
+        // Cannot reject RFQ
+        $this->actingAs($rfqViewer, 'sanctum')
+            ->postJson("/api/v1/admin/rfqs/{$quote->id}/reject")
+            ->assertStatus(403);
+
+        // Admin with rfq.accept
+        $rfqAcceptor = $this->createAdminWithPermissions([
+            'rfq.view',
+            'rfq.accept',
+        ], 'RFQ Acceptor');
+
+        $this->actingAs($rfqAcceptor, 'sanctum')
+            ->postJson("/api/v1/admin/rfqs/{$quote->id}/accept")
+            ->assertStatus(200);
     }
 }

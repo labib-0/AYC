@@ -3,6 +3,7 @@ import { Package, SearchX, CheckCircle2, History } from "lucide-react";
 import { InventoryRecord, LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
 import InventoryRow from "./InventoryRow";
 import StockStatusBadge from "./StockStatusBadge";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface InventoryTableProps {
   records: InventoryRecord[];
@@ -23,6 +24,7 @@ export default function InventoryTable({
   onViewHistory,
   onResetFilters,
 }: InventoryTableProps) {
+  const { can } = useAdminAuth();
   // Render loading skeleton
   if (isLoading) {
     return (
@@ -221,22 +223,26 @@ export default function InventoryTable({
                   📍 {warehouse?.name || "Uttara"} ({warehouse?.code || "WH-UTT-01"})
                 </span>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => onAdjust(record)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                  >
-                    <span>Adjust</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onViewHistory(record)}
-                    className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    title="View history"
-                    aria-label="View history"
-                  >
-                    <History size={13} />
-                  </button>
+                  {can("inventory.adjust") && (
+                    <button
+                      type="button"
+                      onClick={() => onAdjust(record)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                    >
+                      <span>Adjust</span>
+                    </button>
+                  )}
+                  {(can("inventory.audit") || can("inventory.view")) && (
+                    <button
+                      type="button"
+                      onClick={() => onViewHistory(record)}
+                      className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      title="View history"
+                      aria-label="View history"
+                    >
+                      <History size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

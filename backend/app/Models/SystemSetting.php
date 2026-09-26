@@ -61,4 +61,13 @@ class SystemSetting extends Model
     {
         return (bool) static::get('aramex_enabled', false);
     }
+
+    /**
+     * Get the active storewide collection season.
+     * Default: "2026 Core Collection"
+     */
+    public static function getActiveSeason(): string
+    {
+        return (string) static::get('active_season', '2026 Core Collection');
+    }
 }

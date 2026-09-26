@@ -5,6 +5,7 @@ import OrderStatusBadge from "./OrderStatusBadge";
 import PaymentStatusBadge from "./PaymentStatusBadge";
 import FulfillmentStatusBadge from "./FulfillmentStatusBadge";
 import { ArrowLeft, RefreshCw, FileText, Printer, Package } from "lucide-react";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface OrderDetailHeaderProps {
   order: OrderRecord;
@@ -19,6 +20,7 @@ export default function OrderDetailHeader({
   onRefresh,
   isLoading = false,
 }: OrderDetailHeaderProps) {
+  const { can } = useAdminAuth();
   const createdDate = order.placed_at || order.created_at;
   const formattedDate = createdDate
     ? new Date(createdDate).toLocaleDateString("en-US", {
@@ -63,45 +65,49 @@ export default function OrderDetailHeader({
 
       {/* Commercial Document Action Bar & Refresh */}
       <div className="flex items-center gap-2 flex-wrap shrink-0">
-        <Link
-          href={`/admin/documents/ORDER_SHEET/order_${order.id}`}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
-          title="Commercial Order Sheet"
-          id="btn-doc-order-sheet"
-        >
-          <FileText size={13} className="text-primary" />
-          <span>Order Sheet</span>
-        </Link>
+        {can("document.view") && (
+          <>
+            <Link
+              href={`/admin/documents/ORDER_SHEET/order_${order.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
+              title="Commercial Order Sheet"
+              id="btn-doc-order-sheet"
+            >
+              <FileText size={13} className="text-primary" />
+              <span>Order Sheet</span>
+            </Link>
 
-        <Link
-          href={`/admin/documents/PROFORMA_INVOICE/order_${order.id}`}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
-          title="Proforma Invoice"
-          id="btn-doc-pi"
-        >
-          <FileText size={13} className="text-primary" />
-          <span>PI</span>
-        </Link>
+            <Link
+              href={`/admin/documents/PROFORMA_INVOICE/order_${order.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
+              title="Proforma Invoice"
+              id="btn-doc-pi"
+            >
+              <FileText size={13} className="text-primary" />
+              <span>PI</span>
+            </Link>
 
-        <Link
-          href={`/admin/documents/COMMERCIAL_INVOICE/order_${order.id}`}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
-          title="Commercial Invoice"
-          id="btn-doc-commercial-invoice"
-        >
-          <Printer size={13} />
-          <span>Commercial Invoice</span>
-        </Link>
+            <Link
+              href={`/admin/documents/COMMERCIAL_INVOICE/order_${order.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
+              title="Commercial Invoice"
+              id="btn-doc-commercial-invoice"
+            >
+              <Printer size={13} />
+              <span>Commercial Invoice</span>
+            </Link>
 
-        <Link
-          href={`/admin/documents/PACKING_LIST/order_${order.id}`}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
-          title="Packing List"
-          id="btn-doc-packing-list"
-        >
-          <Package size={13} className="text-primary" />
-          <span>Packing List</span>
-        </Link>
+            <Link
+              href={`/admin/documents/PACKING_LIST/order_${order.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
+              title="Packing List"
+              id="btn-doc-packing-list"
+            >
+              <Package size={13} className="text-primary" />
+              <span>Packing List</span>
+            </Link>
+          </>
+        )}
 
         <button
           type="button"

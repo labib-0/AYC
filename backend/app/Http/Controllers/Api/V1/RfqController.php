@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\RfqCreatedNotification;
 use App\Notifications\RfqMessageNotification;
 use App\Services\Audit\ActivityLogger;
+use App\Services\Rbac\AdminAuthorizationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,9 @@ use Illuminate\Support\Facades\Notification;
 
 class RfqController extends ApiController
 {
+    public function __construct(
+        private readonly AdminAuthorizationService $authorization
+    ) {}
     /**
      * GET /api/v1/rfq
      * List RFQs with date/time, status, and search filters.
@@ -329,6 +333,19 @@ class RfqController extends ApiController
             return $this->error("Invalid RFQ status '{$newStatus}'", 422);
         }
 
+        // Granular RBAC enforcement for administrative status updates
+        if ($user->isAdmin()) {
+            if (!$this->authorization->can($user, 'rfq.update_status')) {
+                return $this->forbidden("Forbidden: you do not have the 'rfq.update_status' permission.");
+            }
+            if ($newStatus === 'ACCEPTED' && !$this->authorization->can($user, 'rfq.accept')) {
+                return $this->forbidden("Forbidden: you do not have the 'rfq.accept' permission to accept RFQs.");
+            }
+            if ($newStatus === 'REJECTED' && !$this->authorization->can($user, 'rfq.reject')) {
+                return $this->forbidden("Forbidden: you do not have the 'rfq.reject' permission to reject RFQs.");
+            }
+        }
+
         // Customer Permission Constraint: Customers can only cancel, accept, or reject
         if (!$user->isAdmin() && !in_array($newStatus, ['CANCELLED', 'REJECTED', 'ACCEPTED', 'CLOSED'])) {
             return $this->forbidden("Customers cannot set administrative status '{$newStatus}'");
@@ -377,6 +394,10 @@ class RfqController extends ApiController
             if (!$isOwner) {
                 return $this->forbidden('You are not authorized to view messages for this RFQ');
             }
+        } else {
+            if (!$this->authorization->can($user, 'rfq.message.view')) {
+                return $this->forbidden("Forbidden: you do not have the 'rfq.message.view' permission to view internal messages.");
+            }
         }
 
         $messages = $rfq->messages()->orderBy('created_at', 'asc')->get();
@@ -405,6 +426,10 @@ class RfqController extends ApiController
                        ($rfq->buyer_email && strtolower($rfq->buyer_email) === strtolower($user->email));
             if (!$isOwner) {
                 return $this->forbidden('You are not authorized to post messages on this RFQ');
+            }
+        } else {
+            if (!$this->authorization->can($user, 'rfq.message.send')) {
+                return $this->forbidden("Forbidden: you do not have the 'rfq.message.send' permission to send internal messages.");
             }
         }
 

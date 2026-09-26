@@ -20,7 +20,7 @@ class CartItemResource extends JsonResource
         $variant = $this->variant;
 
         $unitPrice = $product 
-            ? $product->getUnitPriceForQuantity((int) $this->quantity)
+            ? $product->getUnitPriceForQuantity((int) $this->quantity, $this->pricing_mode ?? null)
             : ($variant && $variant->price !== null ? (float) $variant->price : 0.0);
 
         $lineTotal = round($unitPrice * $this->quantity, 2);
@@ -38,6 +38,7 @@ class CartItemResource extends JsonResource
             'size' => $this->size,
             'color' => $variant ? $variant->color : ($product ? $product->color_name : null),
             'quantity' => (int) $this->quantity,
+            'pricing_mode' => $this->pricing_mode,
             'unit_price' => $unitPrice,
             'line_total' => $lineTotal,
             'product' => $product ? [

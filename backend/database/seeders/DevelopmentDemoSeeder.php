@@ -25,8 +25,12 @@ class DevelopmentDemoSeeder extends Seeder
         $this->command?->info('==================================================');
 
         DB::transaction(function () {
-            // 1. Roles & Users (1 Admin, 7 B2B Customers with strictly 2 roles)
-            $this->command?->info('[1/9] Seeding development users & credentials...');
+            // 0. RBAC System Roles & Permissions
+            $this->command?->info('[0/10] Seeding RBAC permission catalog & system roles...');
+            $this->call(RbacPermissionCatalogSeeder::class);
+
+            // 1. Roles & Users (Super Admin, Scoped Admins, B2B Customers)
+            $this->command?->info('[1/10] Seeding development users & credentials...');
             $this->call(DevelopmentUserSeeder::class);
 
             // 2. Fictional / Demo Brands

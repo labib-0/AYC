@@ -98,7 +98,7 @@ class OrderCalculationService
 
             if ($hasAllocations) {
                 // Wholesale universal package assortment breakdown
-                $isFullStock = ($product->isFullStockEligible() && $quantity === $product->getEligibleFullStockQuantity());
+                $isFullStock = ($pricingMode === 'full_stock' || $quantity === $product->getCompletePackageStock());
                 $packageBreakdown = $product->getPackageBreakdownForQuantity($quantity, $isFullStock);
 
                 if (is_array($packageBreakdown) && count($packageBreakdown) > 0) {
@@ -173,6 +173,7 @@ class OrderCalculationService
                 'product_image_url' => $image,
                 'unit_price' => $unitPrice,
                 'buying_price_at_sale' => $product->cost_price !== null ? (float) $product->cost_price : null,
+                'pricing_mode' => $pricingMode,
                 'quantity' => $quantity,
                 'line_total' => $lineTotal,
                 'package_breakdown' => $packageBreakdown,

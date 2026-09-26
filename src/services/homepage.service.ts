@@ -71,6 +71,7 @@ export interface StorefrontHomepageData {
   featured_brands: HomepageFeaturedBrandModel[];
   hot_sale_categories: HomepageHotSaleCategoryModel[];
   featured_products: HomepageFeaturedProductModel[];
+  active_season?: string;
 }
 
 export interface AdminHomepageData {
@@ -81,12 +82,14 @@ export interface AdminHomepageData {
   hot_sale_categories: HomepageHotSaleCategoryModel[];
   all_categories?: HomepageCategoryRecord[];
   featured_products: HomepageFeaturedProductModel[];
+  active_season?: string;
   counts?: {
     total_brands?: number;
     landing_brands?: number;
     total_categories: number;
     landing_categories?: number;
     total_products: number;
+    total_all_products?: number;
     featured_products?: number;
   };
 }
@@ -258,6 +261,25 @@ export class HomepageService {
         total: 0,
       },
     };
+  }
+
+  /**
+   * Update the active collection season for all products.
+   */
+  async updateActiveSeason(
+    season: string,
+    applyToAllProducts: boolean = true
+  ): Promise<{ active_season: string; affected_products_count: number }> {
+    const res = await apiClient.post<any>("/admin/homepage/season", {
+      season,
+      apply_to_all_products: applyToAllProducts,
+    });
+    const data = res?.data || res;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("ayaan:season-updated", { detail: { season } }));
+      window.dispatchEvent(new CustomEvent("ayaan:data-updated", { detail: { entity: "products" } }));
+    }
+    return data;
   }
 
   /**

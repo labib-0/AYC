@@ -206,8 +206,25 @@ Authorization Header: Authenticated endpoints require `Authorization: Bearer {sa
 - **Purpose**: Specific carton dimensions, gross/net weight, and CBM profile for freight estimation.
 
 ### Administrative Product CRUD (`role: admin`)
-- **`POST /api/v1/products`**: Creates new product garment style.
-- **`PUT /api/v1/products/{id}`**: Updates garment specs, prices, and status (`draft`, `published`, `archived`).
+- **`POST /api/v1/products`**: Creates new product garment style with initial warehouse stock and MOQ availability.
+  - **Auth**: Protected (`role: admin`, permission: `product.create`).
+  - **Key Request Body Fields**:
+    - `name` (string, required): Product title.
+    - `slug` (string, required, unique): SEO URL slug.
+    - `sku` (string, required, unique): Product style code / SKU.
+    - `wholesale_price` (numeric, required, min: 0): Base wholesale price per piece.
+    - `moq` (integer, nullable, min: 1): Minimum order quantity (must be strictly > 0).
+    - `initial_stock` (integer, nullable, min: 0): Initial physical stock units (must be >= 0).
+    - `warehouse_id` (integer, nullable, exists:warehouses,id): Target active warehouse for initial stock booking.
+    - `variants` (array, optional): Variant combinations (color, size, price, stock). If omitted, a standard default variant is generated automatically.
+  - **Response (201 Created)**:
+    - Returns serialized `ProductResource` including:
+      - `stock` / `available_stock`: Net available units (`on_hand - reserved`).
+      - `on_hand_stock`: Physical units in warehouse.
+      - `reserved_stock`: Committed units.
+      - `available_moqs`: Number of complete MOQs available ($\lfloor \text{available\_stock} / \text{moq} \rfloor$).
+      - `warehouse_breakdown`: Detailed breakdown by warehouse location.
+- **`PUT /api/v1/products/{id}`**: Updates garment specs, prices, MOQ, and status (`draft`, `published`, `archived`). (Physical inventory quantities are protected and adjusted via `/admin/inventory/adjust`).
 - **`DELETE /api/v1/products/{id}`**: Soft-deletes product (retains historical order integrity).
 - **`POST /api/v1/products/{id}/images`**: Uploads and attaches gallery image.
 - **`DELETE /api/v1/products/{id}/images/{imageId}`**: Removes gallery image.

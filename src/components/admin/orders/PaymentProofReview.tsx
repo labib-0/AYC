@@ -52,6 +52,8 @@ export default function PaymentProofReview({
   const { can, isSuperAdmin } = useAdminAuth();
   const canVerify = isSuperAdmin || can("payment.receipt.verify");
   const canReject = isSuperAdmin || can("payment.receipt.reject");
+  const canViewReceipt = isSuperAdmin || can("payment.receipt.view");
+  const canDownloadReceipt = isSuperAdmin || can("payment.receipt.download");
 
   // Extract latest payment submission if present
   const latestPayment = Array.isArray(order.payments) && order.payments.length > 0
@@ -223,24 +225,28 @@ export default function PaymentProofReview({
                 <span className="text-[11px] text-muted-foreground/80 font-mono">({receiptOriginalName})</span>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsLightboxOpen(true)}
-                  className="px-3 py-1.5 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-foreground font-bold uppercase text-[11px] tracking-wider transition-colors cursor-pointer"
-                  id="btn-view-receipt-confirmed"
-                >
-                  View Receipt
-                </button>
-                <a
-                  href={receiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={receiptOriginalName}
-                  className="p-1.5 rounded-lg border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                  title="Download / Open Original"
-                >
-                  <Download size={14} />
-                </a>
+                {canViewReceipt && (
+                  <button
+                    type="button"
+                    onClick={() => setIsLightboxOpen(true)}
+                    className="px-3 py-1.5 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-foreground font-bold uppercase text-[11px] tracking-wider transition-colors cursor-pointer"
+                    id="btn-view-receipt-confirmed"
+                  >
+                    View Receipt
+                  </button>
+                )}
+                {canDownloadReceipt && (
+                  <a
+                    href={receiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={receiptOriginalName}
+                    className="p-1.5 rounded-lg border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    title="Download / Open Original"
+                  >
+                    <Download size={14} />
+                  </a>
+                )}
               </div>
             </div>
           )}
@@ -255,14 +261,22 @@ export default function PaymentProofReview({
             </h3>
 
             {receiptUrl ? (
-              <div className="p-4 rounded-2xl border border-border bg-secondary/30 flex flex-col sm:flex-row items-center gap-4">
-                {/* Visual Thumbnail */}
-                {isPdf ? (
-                  <div className="w-24 h-24 rounded-xl bg-destructive/10 border border-destructive/20 flex flex-col items-center justify-center text-destructive shrink-0">
-                    <FileText size={28} />
-                    <span className="text-[10px] font-bold mt-1 uppercase">PDF File</span>
-                  </div>
-                ) : (
+              !canViewReceipt ? (
+                <div className="p-4 rounded-2xl bg-secondary/30 border border-border text-xs flex items-center gap-3">
+                  <Lock size={16} className="text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground">
+                    Customer payment receipt is attached ({receiptOriginalName}), but viewing is restricted. (Requires &apos;payment.receipt.view&apos; permission)
+                  </span>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl border border-border bg-secondary/30 flex flex-col sm:flex-row items-center gap-4">
+                  {/* Visual Thumbnail */}
+                  {isPdf ? (
+                    <div className="w-24 h-24 rounded-xl bg-destructive/10 border border-destructive/20 flex flex-col items-center justify-center text-destructive shrink-0">
+                      <FileText size={28} />
+                      <span className="text-[10px] font-bold mt-1 uppercase">PDF File</span>
+                    </div>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => setIsLightboxOpen(true)}
@@ -311,17 +325,20 @@ export default function PaymentProofReview({
                       <ExternalLink size={12} />
                       <span>Open New Tab</span>
                     </a>
-                    <a
-                      href={receiptUrl}
-                      download={receiptOriginalName}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground font-bold uppercase text-[11px] tracking-wider transition-colors"
-                    >
-                      <Download size={12} />
-                      <span>Download</span>
-                    </a>
+                    {canDownloadReceipt && (
+                      <a
+                        href={receiptUrl}
+                        download={receiptOriginalName}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground font-bold uppercase text-[11px] tracking-wider transition-colors"
+                      >
+                        <Download size={12} />
+                        <span>Download</span>
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
+              )
             ) : (
               /* NO PAYMENT RECEIPT UPLOADED */
               <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-1.5">
@@ -612,14 +629,16 @@ export default function PaymentProofReview({
                   </button>
                 </>
               )}
-              <a
-                href={receiptUrl}
-                download={receiptOriginalName}
-                className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground"
-                title="Download Receipt"
-              >
-                <Download size={16} />
-              </a>
+              {canDownloadReceipt && (
+                <a
+                  href={receiptUrl}
+                  download={receiptOriginalName}
+                  className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground"
+                  title="Download Receipt"
+                >
+                  <Download size={16} />
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => {

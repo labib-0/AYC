@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { CustomerDetail } from "@/services/admin";
 import { ArrowLeft, RefreshCw, Trash2, User } from "lucide-react";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface CustomerDetailHeaderProps {
   customer: CustomerDetail;
@@ -18,6 +19,7 @@ export default function CustomerDetailHeader({
   onDeleteCustomer,
   isLoading = false,
 }: CustomerDetailHeaderProps) {
+  const { can } = useAdminAuth();
   const createdDate = customer.created_at
     ? new Date(customer.created_at).toLocaleDateString("en-US", {
         month: "short",
@@ -82,7 +84,7 @@ export default function CustomerDetailHeader({
 
       {/* Action Controls */}
       <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-        {onDeleteCustomer && (
+        {onDeleteCustomer && can("customer.delete") && (
           <button
             type="button"
             onClick={onDeleteCustomer}

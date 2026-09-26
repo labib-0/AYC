@@ -6,6 +6,7 @@ import OrderStatusBadge from "./OrderStatusBadge";
 import PaymentStatusBadge from "./PaymentStatusBadge";
 import FulfillmentStatusBadge from "./FulfillmentStatusBadge";
 import { ShoppingBag, AlertCircle, RefreshCw } from "lucide-react";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface OrderTableProps {
   orders: OrderRecord[];
@@ -30,6 +31,7 @@ export default function OrderTable({
   detailBaseUrl = "/admin/orders",
   onReviewPaymentProof,
 }: OrderTableProps) {
+  const { can } = useAdminAuth();
   // Error State
   if (isError) {
     return (
@@ -172,12 +174,18 @@ export default function OrderTable({
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <Link
-                    href={detailHref}
-                    className="font-mono font-bold text-foreground text-sm hover:text-primary transition-colors"
-                  >
-                    {order.order_number}
-                  </Link>
+                  {can("order.view") ? (
+                    <Link
+                      href={detailHref}
+                      className="font-mono font-bold text-foreground text-sm hover:text-primary transition-colors"
+                    >
+                      {order.order_number}
+                    </Link>
+                  ) : (
+                    <span className="font-mono font-bold text-foreground text-sm">
+                      {order.order_number}
+                    </span>
+                  )}
                   <span className="text-[10px] text-muted-foreground block font-mono">
                     {formattedDate}
                   </span>
@@ -213,14 +221,16 @@ export default function OrderTable({
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-border/40 flex items-center justify-end gap-2">
-                <Link
-                  href={detailHref}
-                  className="w-full py-2 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider text-center transition-colors block"
-                >
-                  View Order Details
-                </Link>
-              </div>
+              {can("order.view") && (
+                <div className="pt-2 border-t border-border/40 flex items-center justify-end gap-2">
+                  <Link
+                    href={detailHref}
+                    className="w-full py-2 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider text-center transition-colors block"
+                  >
+                    View Order Details
+                  </Link>
+                </div>
+              )}
             </div>
           );
         })}

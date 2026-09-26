@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\HomepageHotSaleCategory;
 use App\Services\Audit\ActivityLogger;
 use App\Services\Cache\CatalogCacheService;
+use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -15,6 +16,9 @@ use Illuminate\Support\Str;
 
 class CategoryController extends ApiController
 {
+    public function __construct(
+        private readonly AdminAuthorizationService $authorization
+    ) {}
     /**
      * GET /api/v1/categories
      * 
@@ -118,6 +122,11 @@ class CategoryController extends ApiController
      */
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'category.create')) {
+            return $this->forbidden("Forbidden: you do not have the 'category.create' permission.");
+        }
+
         if ($request->filled('image') && !$request->filled('image_url')) {
             $request->merge(['image_url' => $request->input('image')]);
         }
@@ -177,6 +186,11 @@ class CategoryController extends ApiController
      */
     public function update(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'category.edit')) {
+            return $this->forbidden("Forbidden: you do not have the 'category.edit' permission.");
+        }
+
         $category = Category::findOrFail($id);
 
         if ($request->filled('image') && !$request->filled('image_url')) {
@@ -224,6 +238,29 @@ class CategoryController extends ApiController
             }
         }
 
+        // Sub-permission enforcement for activation, featuring, and reordering
+        if (array_key_exists('is_active', $validated) && $validated['is_active'] !== $category->is_active) {
+            if ($validated['is_active'] && !$this->authorization->can($user, 'category.activate')) {
+                return $this->forbidden("Forbidden: you do not have the 'category.activate' permission to activate categories.");
+            }
+            if (!$validated['is_active'] && !$this->authorization->can($user, 'category.deactivate')) {
+                return $this->forbidden("Forbidden: you do not have the 'category.deactivate' permission to deactivate categories.");
+            }
+        }
+
+        if (array_key_exists('is_featured_on_landing', $validated) && $validated['is_featured_on_landing'] !== $category->is_featured_on_landing) {
+            if (!$this->authorization->can($user, 'category.feature')) {
+                return $this->forbidden("Forbidden: you do not have the 'category.feature' permission to feature categories.");
+            }
+        }
+
+        if ((array_key_exists('sort_order', $validated) && $validated['sort_order'] !== $category->sort_order)
+            || (array_key_exists('landing_sort_order', $validated) && $validated['landing_sort_order'] !== $category->landing_sort_order)) {
+            if (!$this->authorization->can($user, 'category.reorder')) {
+                return $this->forbidden("Forbidden: you do not have the 'category.reorder' permission to reorder categories.");
+            }
+        }
+
         $category->update($validated);
 
         if (isset($validated['is_featured_on_landing'])) {
@@ -251,8 +288,13 @@ class CategoryController extends ApiController
      * 
      * Prevents deleting categories that have active product relationships or child categories.
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'category.delete')) {
+            return $this->forbidden("Forbidden: you do not have the 'category.delete' permission.");
+        }
+
         $category = Category::withCount(['products', 'children'])->findOrFail($id);
 
         if ($category->products_count > 0) {

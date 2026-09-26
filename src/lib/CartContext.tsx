@@ -11,6 +11,7 @@ export interface CartItem {
   size: string;
   color?: string;
   quantity: number;
+  pricingMode?: string;
   unitPrice?: number;
   lineTotal?: number;
   packageBreakdown?: import("@/types").PackageBreakdown[];
@@ -18,7 +19,14 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (product: Product, size: string, quantity?: number, variantId?: string, packageBreakdown?: import("@/types").PackageBreakdown[]) => Promise<void>;
+  addToCart: (
+    product: Product,
+    size: string,
+    quantity?: number,
+    variantId?: string,
+    packageBreakdown?: import("@/types").PackageBreakdown[],
+    pricingMode?: string
+  ) => Promise<void>;
   removeFromCart: (productId: string, size: string, itemId?: string) => Promise<void>;
   updateQuantity: (productId: string, size: string, quantity: number, itemId?: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -52,6 +60,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       size: i.size,
       color: i.color,
       quantity: i.quantity,
+      pricingMode: i.pricing_mode,
       unitPrice: i.unit_price,
       lineTotal: i.line_total,
       packageBreakdown: i.package_breakdown,
@@ -115,11 +124,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     size: string,
     quantity: number = 1,
     variantId?: string,
-    packageBreakdown?: import("@/types").PackageBreakdown[]
+    packageBreakdown?: import("@/types").PackageBreakdown[],
+    pricingMode?: string
   ) => {
     try {
       setError(null);
-      const data = await cartService.addToCart(product, size, quantity, variantId, packageBreakdown);
+      const data = await cartService.addToCart(product, size, quantity, variantId, packageBreakdown, pricingMode);
       applyCartData(data);
       revalidateCart();
     } catch (err: any) {

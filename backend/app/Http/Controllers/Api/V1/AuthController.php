@@ -58,6 +58,12 @@ class AuthController extends ApiController
             ]);
         }
 
+        if ($user->status === 'inactive') {
+            throw ValidationException::withMessages([
+                'email' => ['This account has been deactivated. Please contact an administrator.'],
+            ]);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return $this->success([
@@ -112,6 +118,9 @@ class AuthController extends ApiController
                     'password' => Hash::make($password),
                     'remember_token' => Str::random(60),
                 ])->save();
+
+                // Revoke all existing tokens upon password reset
+                $user->tokens()->delete();
 
                 event(new PasswordReset($user));
             }

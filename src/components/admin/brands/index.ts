@@ -3,6 +3,7 @@ export type { BrandStatusFilter } from "./BrandToolbar";
 
 export { default as BrandTable } from "./BrandTable";
 export { default as BrandRow } from "./BrandRow";
+export { default as BrandCard } from "./BrandCard";
 export { default as BrandModal } from "./BrandModal";
 export type { BrandModalProps } from "./BrandModal";
 export { default as BrandForm } from "./BrandForm";

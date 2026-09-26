@@ -6,6 +6,7 @@ import { AlertCircle, ArrowLeft } from "lucide-react";
 import { getCommercialDocument } from "@/lib/services/quotations";
 import { CommercialDocument, CommercialDocType } from "@/types/b2b";
 import DocumentViewer from "@/components/admin/documents/DocumentViewer";
+import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
 export default function CommercialDocumentPage({
   params,
@@ -48,41 +49,39 @@ export default function CommercialDocumentPage({
     };
   }, [type, id]);
 
-  if (loading) {
-    return (
-      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs text-muted-foreground font-medium">Generating commercial document...</span>
-      </div>
-    );
-  }
-
-  if (errorMsg || !doc) {
-    return (
-      <div className="max-w-md mx-auto my-20 p-8 rounded-3xl bg-card border border-border text-center space-y-4 shadow-xl">
-        <AlertCircle size={40} className="text-destructive mx-auto" />
-        <h2 className="text-lg font-bold uppercase text-foreground">Document Unavailable</h2>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          {errorMsg || "The requested commercial document could not be found."}
-        </p>
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            href="/admin/documents"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
-          >
-            <ArrowLeft size={13} />
-            <span>Documents Hub</span>
-          </Link>
-          <Link
-            href="/admin/orders"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-foreground text-xs font-bold uppercase tracking-wider hover:bg-secondary/80 transition-colors"
-          >
-            <span>Orders List</span>
-          </Link>
+  return (
+    <AdminPageGate permission="document.view">
+      {loading ? (
+        <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-3">
+          <div className="w-8 h-8 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-muted-foreground font-medium">Generating commercial document...</span>
         </div>
-      </div>
-    );
-  }
-
-  return <DocumentViewer doc={doc} />;
+      ) : errorMsg || !doc ? (
+        <div className="max-w-md mx-auto my-20 p-8 rounded-3xl bg-card border border-border text-center space-y-4 shadow-xl">
+          <AlertCircle size={40} className="text-destructive mx-auto" />
+          <h2 className="text-lg font-bold uppercase text-foreground">Document Unavailable</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {errorMsg || "The requested commercial document could not be found."}
+          </p>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/admin/documents"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
+            >
+              <ArrowLeft size={13} />
+              <span>Documents Hub</span>
+            </Link>
+            <Link
+              href="/admin/orders"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-foreground text-xs font-bold uppercase tracking-wider hover:bg-secondary/80 transition-colors"
+            >
+              <span>Orders List</span>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <DocumentViewer doc={doc} />
+      )}
+    </AdminPageGate>
+  );
 }
