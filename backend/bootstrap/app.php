@@ -22,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') || $request->expectsJson() ? null : '/login');
         $middleware->append(\App\Http\Middleware\SecurityHeadersMiddleware::class);
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+        ]);
         $middleware->alias([
             'role'       => \App\Http\Middleware\EnsureUserHasRole::class,
             'permission' => \App\Http\Middleware\RequirePermission::class,
