@@ -45,7 +45,7 @@ export default function OrderToolbar({
     fulfillmentStatus !== "all";
 
   return (
-    <div className="bg-card border border-border/70 rounded-2xl p-4 shadow-xs flex flex-col lg:flex-row items-center gap-3">
+    <div className="bg-card border border-border/70 rounded-2xl p-4 shadow-xs flex flex-col lg:flex-row items-stretch lg:items-center gap-3 relative z-20">
       {/* Search Input */}
       <div className="relative flex-1 w-full">
         <Search
@@ -73,7 +73,7 @@ export default function OrderToolbar({
       </div>
 
       {/* Filter Selects */}
-      <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 shrink-0">
+      <div className="flex items-center flex-wrap sm:flex-nowrap gap-2 w-full lg:w-auto shrink-0">
         {/* Date Filter */}
         <OrderDateFilter
           datePreset={datePreset}

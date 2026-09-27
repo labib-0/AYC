@@ -184,7 +184,7 @@ export default function OrderDateFilter({
         <div
           role="dialog"
           aria-label="Date range filter menu"
-          className="absolute left-0 mt-2 w-72 sm:w-80 p-3 rounded-2xl border border-border/80 bg-card shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100"
+          className="absolute left-0 top-full mt-2 w-72 sm:w-80 p-3 rounded-2xl border border-border/80 bg-card shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/60">
