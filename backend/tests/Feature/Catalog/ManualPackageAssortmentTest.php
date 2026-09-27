@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductPackageAllocation;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,6 +19,7 @@ class ManualPackageAssortmentTest extends TestCase
     private User $admin;
     private Brand $brand;
     private Category $category;
+    private Warehouse $warehouse;
 
     protected function setUp(): void
     {
@@ -32,6 +34,13 @@ class ManualPackageAssortmentTest extends TestCase
 
         $this->brand = Brand::create(['name' => 'Ayaan Luxury', 'slug' => 'ayaan-luxury']);
         $this->category = Category::create(['name' => 'Knitwear', 'slug' => 'knitwear']);
+        $this->warehouse = Warehouse::create([
+            'name' => 'Dhaka WH',
+            'code' => 'WH-DHK',
+            'city' => 'Dhaka',
+            'country_code' => 'BD',
+            'is_active' => true,
+        ]);
     }
 
     /**
@@ -48,6 +57,8 @@ class ManualPackageAssortmentTest extends TestCase
             'wholesale_price' => 45.00,
             'bulk_threshold' => 100,
             'bulk_price' => 38.00,
+            'full_stock_price' => 32.00,
+            'warehouse_id' => $this->warehouse->id,
             'moq' => 20,
             'status' => 'published',
             'variants' => [
@@ -205,6 +216,10 @@ class ManualPackageAssortmentTest extends TestCase
             'sku' => 'AYN-SWT-002',
             'brand_id' => $this->brand->id,
             'wholesale_price' => 25.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 20.00,
+            'full_stock_price' => 18.00,
+            'warehouse_id' => $this->warehouse->id,
             'moq' => 10,
             'status' => 'published',
             'package_allocations' => [

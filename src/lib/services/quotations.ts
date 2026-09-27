@@ -268,13 +268,29 @@ export async function getCommercialDocument(
   const cleanId = id.startsWith("order_") ? id.replace("order_", "") : id;
 
   if (!isFrontendOnly()) {
-    const endpoint = cleanId.startsWith("QT-") || cleanId.startsWith("qt_")
+    const isExplicitQuotation = cleanId.startsWith("QT-") || cleanId.startsWith("qt_") || docType.toUpperCase() === "QUOTATION";
+    const primaryEndpoint = isExplicitQuotation
       ? `/quotations/${cleanId}/documents/${docType}`
       : `/orders/${cleanId}/documents/${docType}`;
-    const res = await apiClient.get<any>(endpoint);
-    const data = res?.data || res;
-    if (data && (data.docNumber || data.doc_number)) {
-      return data;
+
+    try {
+      const res = await apiClient.get<any>(primaryEndpoint);
+      const data = res?.data || res;
+      if (data && (data.docNumber || data.doc_number)) {
+        return data;
+      }
+    } catch {
+      if (!isExplicitQuotation) {
+        try {
+          const fallbackRes = await apiClient.get<any>(`/quotations/${cleanId}/documents/${docType}`);
+          const fallbackData = fallbackRes?.data || fallbackRes;
+          if (fallbackData && (fallbackData.docNumber || fallbackData.doc_number)) {
+            return fallbackData;
+          }
+        } catch {
+          // Ignore
+        }
+      }
     }
     return null;
   }

@@ -28,7 +28,7 @@ export const SITE_CONFIG = {
   contact: {
     email: "info@ayaanclothing.com",
     phone: "+880 1842-786000",
-    whatsApp: "+880 1842-786000",
+    whatsApp: "+880 1982-183886",
   },
   social: {
     facebook: "https://facebook.com",

@@ -9,6 +9,7 @@ use App\Models\ProductPackageAllocation;
 use App\Models\ProductShippingPackageProfile;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,6 +20,7 @@ class RebuildAssortmentMoqLogisticsTest extends TestCase
     private User $admin;
     private Brand $brand;
     private Category $category;
+    private Warehouse $warehouse;
 
     protected function setUp(): void
     {
@@ -33,6 +35,13 @@ class RebuildAssortmentMoqLogisticsTest extends TestCase
 
         $this->brand = Brand::create(['name' => 'Ayaan Manufacturing', 'slug' => 'ayaan-mfg']);
         $this->category = Category::create(['name' => 'Polos', 'slug' => 'polos']);
+        $this->warehouse = Warehouse::create([
+            'name' => 'Main WH',
+            'code' => 'WH-MAIN',
+            'city' => 'Dhaka',
+            'country_code' => 'BD',
+            'is_active' => true,
+        ]);
     }
 
     /**
@@ -52,6 +61,8 @@ class RebuildAssortmentMoqLogisticsTest extends TestCase
             'wholesale_price' => 18.50,
             'bulk_threshold' => 100,
             'bulk_price' => 15.00,
+            'full_stock_price' => 14.00,
+            'warehouse_id' => $this->warehouse->id,
             // Notice: No manual moq submitted! Derived from allocations sum.
             'status' => 'published',
             'variants' => [
@@ -257,6 +268,8 @@ class RebuildAssortmentMoqLogisticsTest extends TestCase
             'wholesale_price' => 25.00,
             'bulk_threshold' => 150,
             'bulk_price' => 20.00,
+            'full_stock_price' => 18.00,
+            'warehouse_id' => $this->warehouse->id,
             'status' => 'published',
             'variants' => [
                 ['color' => 'Heather Grey', 'size' => 'S', 'stock' => 80],

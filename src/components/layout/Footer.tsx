@@ -309,7 +309,7 @@ export default function Footer() {
                     rel="noopener noreferrer"
                     className="hover:text-white transition-colors underline-offset-4 hover:underline"
                   >
-                    WhatsApp: {BUSINESS_PROFILE.contact.phone}
+                    WhatsApp: {BUSINESS_PROFILE.contact.whatsappDisplay || BUSINESS_PROFILE.contact.phone || "+880 1982-183886"}
                   </a>
                 </div>
               </div>

@@ -49,6 +49,7 @@ export interface B2BProductInput {
   bulkThreshold?: number;
   bulkPrice?: number;
   fullStockPrice?: number;
+  full_stock_price?: number;
   configuredFullStockPrice?: number;
   isFullStockEligible?: boolean;
   fullStockTotal?: number;
@@ -108,7 +109,12 @@ export interface B2BProductInput {
 
 export type RfqStatus = 
   | "SUBMITTED" 
+  | "RFQ_RECEIVED"
   | "UNDER_REVIEW" 
+  | "APPROVED"
+  | "QUOTATION_GENERATED"
+  | "QUOTATION_APPROVED"
+  | "PAID"
   | "NEED_INFORMATION" 
   | "QUOTATION_PREPARED" 
   | "SENT_TO_BUYER" 
@@ -138,6 +144,8 @@ export interface RfqItem {
   unitPrice?: number;
   targetPrice?: number;
   buyerNotes?: string;
+  package_breakdown?: any;
+  packageBreakdown?: any;
 }
 
 export interface RfqMessage {
@@ -207,6 +215,8 @@ export interface QuotationItem {
   unitPrice: number;
   discountAmount?: number;
   lineTotal: number;
+  package_breakdown?: any;
+  packageBreakdown?: any;
 }
 
 export interface QuotationRecord {

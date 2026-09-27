@@ -14,6 +14,7 @@ use App\Jobs\GenerateCommercialDocumentJob;
 use App\Notifications\QuotationCreatedNotification;
 use App\Notifications\QuotationStatusNotification;
 use App\Services\Audit\ActivityLogger;
+use App\Services\Documents\CommercialInvoiceService;
 use App\Services\Documents\OfferSheetService;
 use App\Services\Documents\ProformaInvoiceService;
 use App\Services\Rbac\AdminAuthorizationService;
@@ -148,6 +149,7 @@ class QuotationController extends ApiController
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'items.*.unit_price' => ['nullable', 'numeric', 'min:0'],
             'items.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'items.*.package_breakdown' => ['nullable'],
         ]);
 
         $rfq = null;
@@ -257,7 +259,7 @@ class QuotationController extends ApiController
             }
 
             if ($rfq) {
-                $rfq->update(['status' => 'QUOTATION_PREPARED']);
+                $rfq->update(['status' => 'QUOTATION_GENERATED']);
             }
 
             return $quoteRecord;
@@ -382,7 +384,8 @@ class QuotationController extends ApiController
         int|string $id,
         string $docType,
         OfferSheetService $offerSheetService,
-        ProformaInvoiceService $piService
+        ProformaInvoiceService $piService,
+        CommercialInvoiceService $ciService
     ): JsonResponse {
         $user = $request->user() ?: auth('sanctum')->user();
         if (!$user) {
@@ -410,6 +413,20 @@ class QuotationController extends ApiController
 
         $normalizedType = strtoupper(trim($docType));
 
+        if ($normalizedType === 'COMMERCIAL_INVOICE') {
+            $isPaid = in_array(strtoupper($quotation->status ?? ''), ['PAID', 'CONFIRMED'])
+                || ($quotation->payment_status === 'paid')
+                || ($quotation->convertedOrder && in_array($quotation->convertedOrder->payment_status, ['paid']));
+            if (!$isPaid) {
+                return $this->error('Commercial Invoice is only available after payment has been marked as PAID', 403, [
+                    'is_gated' => true,
+                    'status' => $quotation->status,
+                    'payment_status' => $quotation->payment_status ?? 'pending',
+                ]);
+            }
+            return $this->success($ciService->generateForQuotation($quotation), "Commercial document '{$docType}' generated successfully");
+        }
+
         $payload = match ($normalizedType) {
             'PROFORMA_INVOICE' => $piService->generateForQuotation($quotation),
             'OFFER_SHEET', 'QUOTATION' => $offerSheetService->generateForQuotation($quotation),
@@ -417,6 +434,175 @@ class QuotationController extends ApiController
         };
 
         return $this->success($payload, "Commercial document '{$docType}' generated successfully");
+    }
+
+    /**
+     * PUT/PATCH /api/v1/admin/quotations/{id}
+     * Update quotation values (Admin custom prices, quantities, shipping fee, package breakdown).
+     */
+    public function update(Request $request, int|string $id): JsonResponse
+    {
+        $user = $request->user() ?: auth('sanctum')->user();
+        if (!$user || !$user->isAdmin()) {
+            return $this->forbidden('Only administrators can update commercial quotations');
+        }
+        if (!$this->authorization->can($user, 'quotation.edit')) {
+            return $this->forbidden("Forbidden: you do not have the 'quotation.edit' permission.");
+        }
+
+        $query = Quotation::with('items');
+        $quotation = is_numeric($id) ? $query->find((int) $id) : $query->where('quotation_number', $id)->first();
+        if (!$quotation) {
+            return $this->notFound('Quotation not found');
+        }
+
+        if (in_array(strtoupper($quotation->status ?? ''), ['ACCEPTED', 'APPROVED', 'PAID'])) {
+            return $this->error('Approved quotation is immutable and cannot be edited.', 422);
+        }
+
+        $validated = $request->validate([
+            'buyer_name' => ['nullable', 'string', 'max:255'],
+            'buyer_email' => ['nullable', 'email'],
+            'company_name' => ['nullable', 'string', 'max:255'],
+            'shipping_fee' => ['nullable', 'numeric', 'min:0'],
+            'discount_total' => ['nullable', 'numeric', 'min:0'],
+            'admin_notes' => ['nullable', 'string'],
+            'payment_terms' => ['nullable', 'string'],
+            'shipping_terms' => ['nullable', 'string'],
+            'valid_until' => ['nullable', 'date'],
+            'items' => ['nullable', 'array', 'min:1'],
+            'items.*.id' => ['nullable'],
+            'items.*.product_id' => ['nullable'],
+            'items.*.product_name' => ['nullable', 'string'],
+            'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.unit_price' => ['required_with:items', 'numeric', 'min:0'],
+            'items.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'items.*.package_breakdown' => ['nullable'],
+        ]);
+
+        DB::transaction(function () use ($quotation, $validated) {
+            $shippingFee = isset($validated['shipping_fee']) ? (float) $validated['shipping_fee'] : (float) $quotation->shipping_fee;
+            $discountTotal = isset($validated['discount_total']) ? (float) $validated['discount_total'] : (float) $quotation->discount_total;
+
+            if (!empty($validated['items'])) {
+                $quotation->items()->delete();
+                $subtotal = 0.0;
+                foreach ($validated['items'] as $itemData) {
+                    $qty = (int) $itemData['quantity'];
+                    $price = (float) $itemData['unit_price'];
+                    $discount = isset($itemData['discount_amount']) ? (float) $itemData['discount_amount'] : 0.0;
+                    $lineTotal = round(($qty * $price) - $discount, 2);
+                    $subtotal += $lineTotal;
+
+                    QuotationItem::create([
+                        'quotation_id' => $quotation->id,
+                        'product_id' => $itemData['product_id'] ?? null,
+                        'product_name' => $itemData['product_name'] ?? 'Product',
+                        'quantity' => $qty,
+                        'unit_price' => $price,
+                        'discount_amount' => $discount,
+                        'line_total' => $lineTotal,
+                        'package_breakdown' => $itemData['package_breakdown'] ?? null,
+                    ]);
+                }
+                $quotation->subtotal = $subtotal;
+                $quotation->grand_total = max(0.0, round($subtotal - $discountTotal + $shippingFee, 2));
+            } else {
+                $quotation->grand_total = max(0.0, round((float) $quotation->subtotal - $discountTotal + $shippingFee, 2));
+            }
+
+            $quotation->shipping_fee = $shippingFee;
+            $quotation->discount_total = $discountTotal;
+            if (isset($validated['admin_notes'])) $quotation->admin_notes = $validated['admin_notes'];
+            if (isset($validated['payment_terms'])) $quotation->payment_terms = $validated['payment_terms'];
+            if (isset($validated['shipping_terms'])) $quotation->shipping_terms = $validated['shipping_terms'];
+            if (!empty($validated['valid_until'])) $quotation->valid_until = Carbon::parse($validated['valid_until']);
+            $quotation->save();
+        });
+
+        return $this->success(new QuotationResource($quotation->fresh()->load('items')), 'Quotation updated successfully');
+    }
+
+    /**
+     * POST /api/v1/admin/quotations/{id}/approve
+     * Mark quotation as APPROVED and generate official Proforma Invoice identifier.
+     */
+    public function approve(Request $request, int|string $id): JsonResponse
+    {
+        $user = $request->user() ?: auth('sanctum')->user();
+        if (!$user || !$user->isAdmin()) {
+            return $this->forbidden('Only administrators can approve commercial quotations');
+        }
+        if (!$this->authorization->can($user, 'quotation.accept')) {
+            return $this->forbidden("Forbidden: you do not have the 'quotation.accept' permission.");
+        }
+
+        $query = Quotation::with('quote');
+        $quotation = is_numeric($id) ? $query->find((int) $id) : $query->where('quotation_number', $id)->first();
+        if (!$quotation) {
+            return $this->notFound('Quotation not found');
+        }
+
+        $year = date('Y');
+        $rand = str_pad((string) mt_rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+        $quotation->status = 'APPROVED';
+        if (empty($quotation->proforma_invoice_id)) {
+            $quotation->proforma_invoice_id = "PI-AYN-{$year}-{$rand}";
+        }
+        $quotation->save();
+
+        if ($quotation->quote) {
+            $quotation->quote->update(['status' => 'QUOTATION_APPROVED']);
+        }
+
+        ActivityLogger::log('quotation.approved', $quotation, [
+            'quotation_number' => $quotation->quotation_number,
+            'approved_by' => $user->id,
+            'grand_total' => $quotation->grand_total,
+        ]);
+
+        return $this->success(new QuotationResource($quotation->fresh()->load('items')), 'Quotation approved successfully');
+    }
+
+    /**
+     * POST /api/v1/admin/quotations/{id}/payment
+     * Update quotation payment status to PAID or PENDING.
+     */
+    public function updatePaymentStatus(Request $request, int|string $id): JsonResponse
+    {
+        $user = $request->user() ?: auth('sanctum')->user();
+        if (!$user || !$user->isAdmin()) {
+            return $this->forbidden('Only administrators can update payment status');
+        }
+        if (!$this->authorization->can($user, 'payment.receipt.verify') && !$this->authorization->can($user, 'quotation.edit')) {
+            return $this->forbidden("Forbidden: you do not have permission to update payment status.");
+        }
+
+        $query = Quotation::with('quote');
+        $quotation = is_numeric($id) ? $query->find((int) $id) : $query->where('quotation_number', $id)->first();
+        if (!$quotation) {
+            return $this->notFound('Quotation not found');
+        }
+
+        $validated = $request->validate([
+            'payment_status' => ['required', 'string', 'in:paid,PAID,pending,PENDING'],
+            'note' => ['nullable', 'string'],
+        ]);
+
+        $status = strtoupper($validated['payment_status']);
+        $quotation->status = $status === 'PAID' ? 'PAID' : $quotation->status;
+        $quotation->save();
+
+        if ($quotation->quote) {
+            $quotation->quote->update(['status' => $status === 'PAID' ? 'PAID' : $quotation->quote->status]);
+        }
+
+        ActivityLogger::log('quotation.payment_status_updated', $quotation, [
+            'quotation_number' => $quotation->quotation_number,
+            'payment_status' => $status,
+        ]);
+
+        return $this->success(new QuotationResource($quotation->fresh()->load('items')), 'Payment status updated successfully');
     }
 
     /**

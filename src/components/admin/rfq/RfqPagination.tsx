@@ -4,8 +4,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 export interface RfqPaginationProps {
   currentPage: number;
   totalPages: number;
-  totalItems: number;
-  pageSize: number;
+  totalRfqs: number;
+  perPage: number;
   onPageChange: (page: number) => void;
   isLoading?: boolean;
 }
@@ -13,48 +13,45 @@ export interface RfqPaginationProps {
 export default function RfqPagination({
   currentPage,
   totalPages,
-  totalItems,
-  pageSize,
+  totalRfqs,
+  perPage,
   onPageChange,
-  isLoading,
+  isLoading = false,
 }: RfqPaginationProps) {
-  if (totalItems <= pageSize && currentPage === 1) {
+  if (totalPages <= 1 && totalRfqs <= perPage) {
     return null;
   }
 
-  const start = Math.min((currentPage - 1) * pageSize + 1, totalItems);
-  const end = Math.min(currentPage * pageSize, totalItems);
+  const startRecord = Math.min((currentPage - 1) * perPage + 1, totalRfqs);
+  const endRecord = Math.min(currentPage * perPage, totalRfqs);
 
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
+    const maxButtons = 5;
+
+    if (totalPages <= maxButtons) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       pages.push(1);
-      if (currentPage > 3) {
-        pages.push("...");
-      }
-      const midStart = Math.max(2, currentPage - 1);
-      const midEnd = Math.min(totalPages - 1, currentPage + 1);
-      for (let i = midStart; i <= midEnd; i++) {
-        pages.push(i);
-      }
-      if (currentPage < totalPages - 2) {
-        pages.push("...");
-      }
+      if (currentPage > 3) pages.push("...");
+
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+
+      for (let i = start; i <= end; i++) pages.push(i);
+
+      if (currentPage < totalPages - 2) pages.push("...");
       pages.push(totalPages);
     }
     return pages;
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground pt-2">
-      <div>
-        Showing <strong className="text-foreground">{start}</strong> to{" "}
-        <strong className="text-foreground">{end}</strong> of{" "}
-        <strong className="text-foreground">{totalItems}</strong> inquiries
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 text-xs">
+      <div className="text-muted-foreground font-mono text-[11px]">
+        Showing <strong className="text-foreground">{startRecord}</strong> to{" "}
+        <strong className="text-foreground">{endRecord}</strong> of{" "}
+        <strong className="text-foreground">{totalRfqs}</strong> RFQs
       </div>
 
       <div className="flex items-center gap-1.5">
@@ -62,35 +59,40 @@ export default function RfqPagination({
           type="button"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1 || isLoading}
+          className="p-2 rounded-xl border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+          title="Previous Page"
           aria-label="Previous Page"
-          className="p-2 rounded-xl border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors"
+          id="btn-rfq-pagination-prev"
         >
           <ChevronLeft size={14} />
         </button>
 
         <div className="flex items-center gap-1">
-          {getPageNumbers().map((p, i) => {
+          {getPageNumbers().map((p, idx) => {
             if (p === "...") {
               return (
-                <span key={`dots-${i}`} className="px-2 py-1 text-xs">
-                  …
+                <span key={`dots-${idx}`} className="px-2 text-muted-foreground font-mono">
+                  ...
                 </span>
               );
             }
-            const isCurrent = p === currentPage;
+
+            const pageNum = Number(p);
+            const isCurrent = pageNum === currentPage;
+
             return (
               <button
-                key={`page-${p}`}
+                key={pageNum}
                 type="button"
-                onClick={() => onPageChange(Number(p))}
+                onClick={() => onPageChange(pageNum)}
                 disabled={isLoading}
-                className={`min-w-[32px] h-8 rounded-xl font-mono text-xs font-bold transition-colors ${
+                className={`min-w-[32px] h-8 px-2 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
                   isCurrent
-                    ? "bg-foreground text-background"
+                    ? "bg-primary text-primary-foreground shadow-xs"
                     : "border border-border bg-card hover:bg-secondary text-foreground"
                 }`}
               >
-                {p}
+                {pageNum}
               </button>
             );
           })}
@@ -100,8 +102,10 @@ export default function RfqPagination({
           type="button"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages || isLoading}
+          className="p-2 rounded-xl border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+          title="Next Page"
           aria-label="Next Page"
-          className="p-2 rounded-xl border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors"
+          id="btn-rfq-pagination-next"
         >
           <ChevronRight size={14} />
         </button>

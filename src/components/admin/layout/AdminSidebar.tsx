@@ -61,7 +61,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Orders & Fulfillment", href: "/admin/orders", icon: ShoppingBag, permission: ADMIN_PERMISSIONS.ORDER_VIEW },
       { label: "Customer Accounts", href: "/admin/customers", icon: Users, permission: ADMIN_PERMISSIONS.CUSTOMER_VIEW },
-      { label: "B2B RFQs & Quotes", href: "/admin/rfq-quotes", icon: FileText, permission: ADMIN_PERMISSIONS.RFQ_VIEW },
+      { label: "RFQ", href: "/admin/rfq", icon: FileText, permission: ADMIN_PERMISSIONS.RFQ_VIEW },
     ],
   },
   {
@@ -136,7 +136,7 @@ export default function AdminSidebar({ onNavigate }: AdminSidebarProps) {
                 } else {
                   isActive = pathname === item.href ||
                     pathname.startsWith(item.href + "/") ||
-                    (item.href === "/admin/rfq-quotes" && (pathname.startsWith("/admin/rfq") || pathname.startsWith("/admin/quotations")));
+                    (item.href === "/admin/rfq" && (pathname.startsWith("/admin/rfq") || pathname.startsWith("/admin/rfq-quotes") || pathname.startsWith("/admin/quotations")));
                 }
 
                 return (

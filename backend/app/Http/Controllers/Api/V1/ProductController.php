@@ -333,16 +333,16 @@ class ProductController extends ApiController
             'designType' => ['nullable', 'string'],
             'product_type' => ['nullable', 'string'],
             'collection_season' => ['nullable', 'string'],
-            'wholesale_price' => ['required', 'numeric', 'min:0'],
+            'wholesale_price' => ['required', 'numeric', 'min:0.01'],
             'bulk_threshold' => ['nullable', 'integer', 'min:1'],
-            'bulk_price' => ['nullable', 'numeric', 'min:0'],
-            'full_stock_price' => ['nullable', 'numeric', 'min:0'],
+            'bulk_price' => ['nullable', 'numeric', 'min:0.01'],
+            'full_stock_price' => ['required', 'numeric', 'gt:0'],
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'moq' => ['nullable', 'integer', 'min:1'],
             'initial_stock' => ['nullable', 'integer', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
-            'warehouse_id' => ['nullable', 'exists:warehouses,id'],
+            'warehouse_id' => ['required_without:initial_inventory.warehouse_id', 'nullable', 'exists:warehouses,id'],
             'initial_inventory' => ['nullable', 'array'],
             'initial_inventory.warehouse_id' => ['nullable', 'exists:warehouses,id'],
             'initial_inventory.quantity' => ['nullable', 'integer', 'min:0'],
@@ -381,6 +381,10 @@ class ProductController extends ApiController
             'pricing_tiers' => ['nullable', 'array'],
             'package_allocations' => ['nullable', 'array'],
             'shipping_package_profiles' => ['nullable', 'array'],
+        ], [
+            'warehouse_id.required_without' => 'Initial warehouse is required.',
+            'full_stock_price.required' => 'Full stock price is required.',
+            'full_stock_price.gt' => 'Full stock price must be greater than 0.',
         ]);
 
         $user = $request->user();
@@ -513,31 +517,25 @@ class ProductController extends ApiController
             }
         }
 
-        // Resolve target warehouse
+        // Enforce MOQ >= 1
+        $effectiveMoq = isset($productData['moq']) ? (int) $productData['moq'] : null;
+        if (($effectiveMoq === null || $effectiveMoq < 1) && empty($validated['package_allocations'])) {
+            return $this->error("The MOQ (Minimum Order Quantity) is required and must be at least 1.", 422);
+        }
+        $moq = (int) ($productData['moq'] ?? 1);
+
+        // Resolve target warehouse (Required)
         $warehouseId = $validated['warehouse_id'] ?? $validated['initial_inventory']['warehouse_id'] ?? null;
-        if ($warehouseId) {
-            $whCheck = \App\Models\Warehouse::where('id', $warehouseId)->first();
-            if (!$whCheck || !$whCheck->is_active) {
-                return $this->error("The selected warehouse is inactive or does not exist.", 422);
-            }
-            $targetWarehouseId = $whCheck->id;
-        } else {
-            $targetWarehouseId = \App\Models\Warehouse::where('is_active', true)->first()?->id
-                ?? \App\Models\Warehouse::first()?->id;
+        if (!$warehouseId) {
+            return $this->error("Initial warehouse is required.", 422);
         }
-
-        if (!$targetWarehouseId) {
-            $createdWh = \App\Models\Warehouse::create([
-                'name' => 'Main Warehouse (Uttara)',
-                'code' => 'WH-UTTARA-01',
-                'city' => 'Dhaka',
-                'country_code' => 'BD',
-                'is_active' => true,
-            ]);
-            $targetWarehouseId = $createdWh->id;
+        $whCheck = \App\Models\Warehouse::where('id', $warehouseId)->first();
+        if (!$whCheck || !$whCheck->is_active) {
+            return $this->error("The selected warehouse is inactive or does not exist.", 422);
         }
+        $targetWarehouseId = $whCheck->id;
 
-        // Resolve initial stock
+        // Resolve initial stock (>= 0)
         $initialStock = isset($validated['initial_stock'])
             ? (int) $validated['initial_stock']
             : (isset($validated['initial_inventory']['quantity'])
@@ -547,14 +545,27 @@ class ProductController extends ApiController
             return $this->error("Initial stock cannot be negative.", 422);
         }
 
-        // Validate bulk threshold against MOQ
-        $moq = (int) ($productData['moq'] ?? 1);
-        if (!empty($productData['bulk_threshold']) && (int) $productData['bulk_threshold'] <= $moq) {
-            return $this->error("Bulk threshold ({$productData['bulk_threshold']}) must be strictly greater than MOQ ({$moq})", 422);
+        // Validate bulk tier pricing: at least one valid bulk pricing tier is required
+        $hasDirectBulkTier = !empty($productData['bulk_threshold']) && !empty($productData['bulk_price']) && (float) $productData['bulk_price'] > 0;
+        $hasPricingTiers = $request->has('pricing_tiers') && is_array($request->input('pricing_tiers')) && count($request->input('pricing_tiers')) > 0;
+
+        if (!$hasDirectBulkTier && !$hasPricingTiers) {
+            return $this->error("At least one valid bulk pricing tier is required.", 422);
+        }
+
+        if (!empty($productData['bulk_threshold'])) {
+            if (empty($productData['bulk_price']) || (float) $productData['bulk_price'] <= 0) {
+                return $this->error("Bulk tier price must be greater than 0.", 422);
+            }
+            if ((int) $productData['bulk_threshold'] <= $moq) {
+                return $this->error("Bulk threshold ({$productData['bulk_threshold']}) must be strictly greater than MOQ ({$moq}).", 422);
+            }
+        } elseif (!empty($productData['bulk_price']) && (float) $productData['bulk_price'] > 0) {
+            return $this->error("Bulk quantity threshold is required when bulk price is provided.", 422);
         }
 
         // Validate Pricing Tiers before transaction if provided
-        if ($request->has('pricing_tiers') && is_array($request->input('pricing_tiers')) && count($request->input('pricing_tiers')) > 0) {
+        if ($hasPricingTiers) {
             try {
                 $this->validatePricingTiers($request->input('pricing_tiers'));
             } catch (\InvalidArgumentException $e) {
@@ -866,10 +877,10 @@ class ProductController extends ApiController
             'designType' => ['nullable', 'string'],
             'product_type' => ['nullable', 'string'],
             'collection_season' => ['nullable', 'string'],
-            'wholesale_price' => ['sometimes', 'numeric', 'min:0'],
+            'wholesale_price' => ['sometimes', 'numeric', 'min:0.01'],
             'bulk_threshold' => ['nullable', 'integer', 'min:1'],
-            'bulk_price' => ['nullable', 'numeric', 'min:0'],
-            'full_stock_price' => ['nullable', 'numeric', 'min:0'],
+            'bulk_price' => ['nullable', 'numeric', 'min:0.01'],
+            'full_stock_price' => ['sometimes', 'required', 'numeric', 'gt:0'],
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'moq' => ['nullable', 'integer', 'min:1'],

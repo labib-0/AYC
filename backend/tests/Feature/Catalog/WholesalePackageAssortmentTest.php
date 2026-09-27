@@ -10,6 +10,7 @@ use App\Models\ProductPackageAllocation;
 use App\Models\ProductPricingTier;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,6 +20,7 @@ class WholesalePackageAssortmentTest extends TestCase
 
     private User $buyer;
     private User $admin;
+    private Warehouse $warehouse;
     private Product $packageProduct;
     private array $variants = [];
 
@@ -43,6 +45,13 @@ class WholesalePackageAssortmentTest extends TestCase
 
         $brand = Brand::create(['name' => 'Ayaan Export', 'slug' => 'ayaan-export', 'logo_url' => '/brands/ayaan.png']);
         $category = Category::create(['name' => 'Tops', 'slug' => 'tops']);
+        $this->warehouse = Warehouse::create([
+            'name' => 'Main Warehouse',
+            'code' => 'WH-MAIN',
+            'city' => 'Dhaka',
+            'country_code' => 'BD',
+            'is_active' => true,
+        ]);
 
         // 1. Create Product with 3-Price Model:
         // MOQ = 10, Standard Price = $28.00
@@ -276,6 +285,7 @@ class WholesalePackageAssortmentTest extends TestCase
             'bulk_price' => 28.00,
             'full_stock_price' => 25.00,
             'moq' => 10,
+            'warehouse_id' => $this->warehouse->id,
             'package_allocations' => [
                 ['color' => 'Black', 'size' => 'M', 'quantity' => 4],
                 ['color' => 'Black', 'size' => 'L', 'quantity' => 4],
@@ -298,6 +308,7 @@ class WholesalePackageAssortmentTest extends TestCase
             'bulk_price' => 28.00,
             'full_stock_price' => 25.00,
             'moq' => 10,
+            'warehouse_id' => $this->warehouse->id,
             'variants' => [
                 ['color' => 'Black', 'size' => 'M', 'stock' => 100],
                 ['color' => 'Black', 'size' => 'L', 'stock' => 100],

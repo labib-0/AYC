@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\ProductPricingTier;
 use App\Models\Quote;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -21,6 +22,7 @@ class TwoRoleModelTest extends TestCase
     protected User $customer;
     protected User $admin;
     protected Product $product;
+    protected Warehouse $warehouse;
 
     protected function setUp(): void
     {
@@ -45,6 +47,13 @@ class TwoRoleModelTest extends TestCase
 
         $brand = Brand::create(['name' => 'Ayaan Export', 'slug' => 'ayaan-export', 'logo_url' => '/brands/ayaan.png']);
         $category = Category::create(['name' => 'Tops', 'slug' => 'tops']);
+        $this->warehouse = Warehouse::create([
+            'name' => 'Dhaka WH',
+            'code' => 'WH-DHK',
+            'city' => 'Dhaka',
+            'country_code' => 'BD',
+            'is_active' => true,
+        ]);
 
         $this->product = Product::create([
             'name' => 'Premium Combed Cotton Tee',
@@ -329,6 +338,11 @@ class TwoRoleModelTest extends TestCase
                 'slug' => 'admin-oxford-shirt',
                 'sku' => 'ADM-OXF-001',
                 'wholesale_price' => 22.00,
+                'bulk_threshold' => 100,
+                'bulk_price' => 18.00,
+                'full_stock_price' => 15.00,
+                'moq' => 20,
+                'warehouse_id' => $this->warehouse->id,
             ]);
 
         $response->assertStatus(201);

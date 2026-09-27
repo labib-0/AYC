@@ -6,6 +6,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,6 +17,7 @@ class ProductSlugReuseTest extends TestCase
     private User $admin;
     private Brand $brand;
     private Category $category;
+    private Warehouse $warehouse;
 
     protected function setUp(): void
     {
@@ -30,6 +32,13 @@ class ProductSlugReuseTest extends TestCase
 
         $this->brand = Brand::create(['name' => 'Test Brand', 'slug' => 'test-brand']);
         $this->category = Category::create(['name' => 'Shirts', 'slug' => 'shirts']);
+        $this->warehouse = Warehouse::create([
+            'name' => 'Main WH',
+            'code' => 'WH-MAIN',
+            'city' => 'Dhaka',
+            'country_code' => 'BD',
+            'is_active' => true,
+        ]);
     }
 
     /**
@@ -44,7 +53,11 @@ class ProductSlugReuseTest extends TestCase
             'slug' => 'test-resilience-shirt',
             'sku' => 'RES-SHIRT-001',
             'wholesale_price' => 22.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 18.00,
+            'full_stock_price' => 15.00,
             'moq' => 20,
+            'warehouse_id' => $this->warehouse->id,
             'brand_id' => $this->brand->id,
             'category_ids' => [$this->category->id],
         ]);
@@ -57,7 +70,11 @@ class ProductSlugReuseTest extends TestCase
             'slug' => 'test-resilience-shirt',
             'sku' => 'RES-SHIRT-DUP',
             'wholesale_price' => 22.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 18.00,
+            'full_stock_price' => 15.00,
             'moq' => 20,
+            'warehouse_id' => $this->warehouse->id,
         ]);
         $dupRes->assertStatus(422);
         $dupRes->assertJsonValidationErrors(['slug']);
@@ -78,7 +95,11 @@ class ProductSlugReuseTest extends TestCase
             'slug' => 'test-resilience-shirt',
             'sku' => 'RES-SHIRT-002',
             'wholesale_price' => 25.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 20.00,
+            'full_stock_price' => 17.00,
             'moq' => 20,
+            'warehouse_id' => $this->warehouse->id,
             'brand_id' => $this->brand->id,
             'category_ids' => [$this->category->id],
         ]);

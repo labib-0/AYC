@@ -22,6 +22,7 @@ class ProductCatalogAndInventoryTest extends TestCase
     protected User $customer;
     protected Brand $brand;
     protected Category $category;
+    protected Warehouse $warehouse;
 
     protected function setUp(): void
     {
@@ -47,6 +48,14 @@ class ProductCatalogAndInventoryTest extends TestCase
         $this->category = Category::create([
             'name' => 'Premium Knitwear',
             'slug' => 'premium-knitwear',
+            'is_active' => true,
+        ]);
+
+        $this->warehouse = Warehouse::create([
+            'name' => 'Dhaka WH',
+            'code' => 'WH-DHK',
+            'city' => 'Dhaka',
+            'country_code' => 'BD',
             'is_active' => true,
         ]);
     }
@@ -221,8 +230,12 @@ class ProductCatalogAndInventoryTest extends TestCase
             'audience' => 'MEN',
             'design_type' => 'MASTER COPY',
             'wholesale_price' => 95.00,
+            'bulk_threshold' => 50,
+            'bulk_price' => 85.00,
+            'full_stock_price' => 75.00,
             'cost_price' => 45.00,
             'moq' => 5,
+            'warehouse_id' => $this->warehouse->id,
             'status' => 'published',
         ]);
 

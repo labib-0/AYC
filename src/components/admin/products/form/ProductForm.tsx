@@ -79,7 +79,9 @@ export default function ProductForm({
   const [wholesalePrice, setWholesalePrice] = useState(initialData?.wholesalePrice || 25.0);
   const [bulkThreshold, setBulkThreshold] = useState(initialData?.bulkThreshold || 100);
   const [bulkPrice, setBulkPrice] = useState(initialData?.bulkPrice || 20.0);
-  const [fullStockPrice, setFullStockPrice] = useState<number | undefined>(initialData?.fullStockPrice);
+  const [fullStockPrice, setFullStockPrice] = useState<number | undefined>(
+    initialData?.fullStockPrice ?? (initialData as any)?.full_stock_price ?? (isEdit ? undefined : 18.0)
+  );
   const [msrpPrice, setMsrpPrice] = useState<number | undefined>(initialData?.msrpPrice);
 
   // Promotion with Independent Scheduling
@@ -459,6 +461,10 @@ export default function ProductForm({
 
     if (bulkPrice <= 0) errs.bulkPrice = "Bulk tier price must be greater than $0.00.";
 
+    if (fullStockPrice === undefined || fullStockPrice === null || fullStockPrice <= 0) {
+      errs.fullStockPrice = "Full Stock Price is required and must be greater than $0.00.";
+    }
+
     if (colors.length === 0) errs.colors = "Select at least one color.";
 
     if (sizes.length === 0) errs.sizes = "Select at least one size.";
@@ -552,6 +558,7 @@ export default function ProductForm({
         bulkThreshold: bulkThreshold,
         bulkPrice: bulkPrice,
         fullStockPrice: fullStockPrice,
+        full_stock_price: fullStockPrice,
         msrpPrice: msrpPrice,
         moq: moq,
         stock: stock,
@@ -862,7 +869,16 @@ export default function ProductForm({
             onMoqChange={() => {}}
             onBulkThresholdChange={setBulkThreshold}
             onBulkPriceChange={setBulkPrice}
-            onFullStockPriceChange={setFullStockPrice}
+            onFullStockPriceChange={(val) => {
+              setFullStockPrice(val);
+              if (errors.fullStockPrice) {
+                setErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.fullStockPrice;
+                  return next;
+                });
+              }
+            }}
             onMsrpPriceChange={setMsrpPrice}
             onIsNewChange={(val, until) => {
               setIsNew(val);

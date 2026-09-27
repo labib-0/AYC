@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CouponController;
+use App\Http\Controllers\Api\V1\GoogleAuthController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Admin\HomepageManagementController as AdminHomepageManagementController;
 use App\Http\Controllers\Api\V1\HomepageController;
@@ -60,6 +61,14 @@ Route::prefix('v1')->group(function () {
         Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:password-reset');
         Route::post('/password/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
         Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
+
+        // Google OAuth Endpoints (Customer Only)
+        Route::middleware(['web'])->group(function () {
+            Route::get('/google/redirect', [GoogleAuthController::class, 'redirect'])
+                ->middleware('throttle:30,1');
+            Route::get('/google/callback', [GoogleAuthController::class, 'callback'])
+                ->middleware('throttle:30,1');
+        });
 
         Route::middleware('auth:sanctum')->group(function () {
             Route::post('/logout', [AuthController::class, 'logout']);
@@ -256,6 +265,16 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:quotation.view');
         Route::get('/quotations/{id}/documents/{docType}', [QuotationController::class, 'document'])
             ->middleware('permission:document.view');
+        Route::get('/quotations/{id}/document/{docType}', [QuotationController::class, 'document'])
+            ->middleware('permission:document.view');
+        Route::put('/quotations/{id}', [QuotationController::class, 'update'])
+            ->middleware('permission:quotation.edit');
+        Route::patch('/quotations/{id}', [QuotationController::class, 'update'])
+            ->middleware('permission:quotation.edit');
+        Route::post('/quotations/{id}/approve', [QuotationController::class, 'approve'])
+            ->middleware('permission:quotation.accept');
+        Route::post('/quotations/{id}/payment', [QuotationController::class, 'updatePaymentStatus'])
+            ->middleware('permission:payment.receipt.verify');
         Route::post('/quotations/{id}/generate-document-async', [QuotationController::class, 'generateDocumentAsync'])
             ->middleware('permission:document.generate');
 

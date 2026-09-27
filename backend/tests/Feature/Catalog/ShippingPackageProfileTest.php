@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductShippingPackageProfile;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Models\Warehouse;
 use App\Services\Shipping\PackageCalculatorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -20,6 +21,7 @@ class ShippingPackageProfileTest extends TestCase
     protected User $admin;
     protected Brand $brand;
     protected Category $category;
+    protected Warehouse $warehouse;
 
     protected function setUp(): void
     {
@@ -40,6 +42,14 @@ class ShippingPackageProfileTest extends TestCase
         $this->category = Category::create([
             'name' => 'T-Shirts',
             'slug' => 't-shirts',
+        ]);
+
+        $this->warehouse = Warehouse::create([
+            'name' => 'Dhaka WH',
+            'code' => 'WH-DHK',
+            'city' => 'Dhaka',
+            'country_code' => 'BD',
+            'is_active' => true,
         ]);
     }
 
@@ -76,7 +86,11 @@ class ShippingPackageProfileTest extends TestCase
             'brand_id' => $this->brand->id,
             'categories' => [$this->category->id],
             'wholesale_price' => 35.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 30.00,
+            'full_stock_price' => 25.00,
             'moq' => 50,
+            'warehouse_id' => $this->warehouse->id,
             'status' => 'published',
             'shipping_package_profiles' => [
                 [

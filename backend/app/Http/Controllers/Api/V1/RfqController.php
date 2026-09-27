@@ -73,8 +73,12 @@ class RfqController extends ApiController
             match ($dateFilter) {
                 'today' => $query->whereDate('created_at', Carbon::today()),
                 'yesterday' => $query->whereDate('created_at', Carbon::yesterday()),
+                'last_7_days', '7_days', '7days' => $query->where('created_at', '>=', Carbon::now()->subDays(7)->startOfDay()),
+                'last_30_days', '30_days', '30days' => $query->where('created_at', '>=', Carbon::now()->subDays(30)->startOfDay()),
                 'this_week' => $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]),
                 'this_month' => $query->whereBetween('created_at', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()]),
+                'last_month' => $query->whereBetween('created_at', [Carbon::now()->subMonth()->startOfMonth(), Carbon::now()->subMonth()->endOfMonth()]),
+                'all', 'all_dates' => null,
                 default => null,
             };
         }
@@ -105,7 +109,32 @@ class RfqController extends ApiController
             }
         }
 
-        $rfqs = $query->orderBy('created_at', 'desc')->get();
+        // Sorting
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortOrder = strtolower($request->input('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSorts = ['created_at', 'updated_at', 'rfq_number', 'buyer_name', 'status', 'company_name', 'id'];
+        if (in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // Optional Pagination
+        if ($request->has('page') || $request->has('per_page') || $request->boolean('paginate')) {
+            $perPage = max(1, min(100, (int) $request->input('per_page', 20)));
+            $paginated = $query->paginate($perPage);
+            return $this->success([
+                'data' => RfqResource::collection($paginated->items()),
+                'meta' => [
+                    'current_page' => $paginated->currentPage(),
+                    'last_page' => $paginated->lastPage(),
+                    'per_page' => $paginated->perPage(),
+                    'total' => $paginated->total(),
+                ],
+            ], 'RFQs retrieved successfully');
+        }
+
+        $rfqs = $query->get();
 
         return $this->success(RfqResource::collection($rfqs), 'RFQs retrieved successfully');
     }
@@ -324,9 +353,9 @@ class RfqController extends ApiController
 
         $newStatus = strtoupper($validated['status']);
         $validStatuses = [
-            'PENDING', 'SUBMITTED', 'UNDER_REVIEW', 'NEED_INFORMATION', 'QUOTATION_PREPARED',
-            'ISSUED', 'QUOTED', 'SENT_TO_BUYER', 'NEGOTIATION', 'ACCEPTED', 'REJECTED', 'EXPIRED',
-            'CONVERTED_TO_ORDER', 'CANCELLED', 'CLOSED',
+            'PENDING', 'SUBMITTED', 'RFQ_RECEIVED', 'UNDER_REVIEW', 'APPROVED', 'NEED_INFORMATION', 'QUOTATION_PREPARED',
+            'QUOTATION_GENERATED', 'QUOTATION_APPROVED', 'PAID', 'ISSUED', 'QUOTED', 'SENT_TO_BUYER', 'NEGOTIATION',
+            'ACCEPTED', 'REJECTED', 'EXPIRED', 'CONVERTED_TO_ORDER', 'CANCELLED', 'CLOSED',
         ];
 
         if (!in_array($newStatus, $validStatuses)) {

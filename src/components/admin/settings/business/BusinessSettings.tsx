@@ -39,7 +39,7 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
     setCountry(data.address.country || "Bangladesh");
     setPhone(data.contact.phone || "");
     setEmail(data.contact.email || "export@ayaanclothing.com");
-    setWhatsapp(data.contact.whatsappNumber || "8801826304930");
+    setWhatsapp(data.contact.whatsappNumber || "8801982183886");
     setWebsite(data.contact.website || "www.ayaanclothing.com");
   }, []);
 
@@ -251,7 +251,7 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
                 type="text"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
-                placeholder="8801826304930"
+                placeholder="8801982183886"
                 className="w-full pl-9 pr-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono"
               />
               <MessageSquare size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />

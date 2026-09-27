@@ -2,8 +2,8 @@ import React from "react";
 import Link from "next/link";
 import { RfqRecord } from "@/types/b2b";
 import RfqStatusBadge from "./RfqStatusBadge";
-import { Eye, Globe2 } from "lucide-react";
-import { formatRfqDate, formatRfqTime } from "@/lib/rfq-datetime";
+import { Eye } from "lucide-react";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 
 export interface RfqTableRowProps {
   rfq: RfqRecord;
@@ -12,119 +12,97 @@ export interface RfqTableRowProps {
 
 export default function RfqTableRow({
   rfq,
-  detailBaseUrl = "/rfq",
+  detailBaseUrl = "/admin/rfq",
 }: RfqTableRowProps) {
+  const { can } = useAdminAuth();
+  const customerName = rfq.buyerName || "Guest Buyer";
+  const companyName = rfq.companyName || null;
+  const totalUnits = (rfq.items || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+  const createdDate = rfq.createdAt;
+  const formattedDate = createdDate
+    ? new Date(createdDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "—";
+
   const detailHref = `${detailBaseUrl}/${rfq.id}`;
-  const totalUnits = (rfq.items || []).reduce((sum, it) => sum + (it.quantity || 0), 0);
-  const itemsCount = (rfq.items || []).length;
-
-  const initials = rfq.buyerName
-    ? rfq.buyerName
-        .split(" ")
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase()
-    : "BY";
-
-  const formattedDate = formatRfqDate(rfq.createdAt);
-  const formattedTime = formatRfqTime(rfq.createdAt);
 
   return (
-    <tr className="border-b border-border/60 hover:bg-secondary/20 transition-colors group">
-      {/* RFQ Number */}
+    <tr className="border-b border-border/50 hover:bg-secondary/20 transition-colors text-xs">
+      {/* 1. RFQ # */}
       <td className="py-3 px-4">
-        <Link
-          href={detailHref}
-          className="font-mono font-bold text-foreground text-xs hover:text-primary transition-colors block"
-        >
-          {rfq.rfqNumber}
-        </Link>
-        {rfq.requestTitle && (
-          <span className="text-[10px] text-muted-foreground block truncate max-w-[200px]">
-            {rfq.requestTitle}
+        {can("rfq.view") ? (
+          <Link
+            href={detailHref}
+            className="font-mono font-bold text-foreground hover:text-primary transition-colors block"
+          >
+            {rfq.rfqNumber}
+          </Link>
+        ) : (
+          <span className="font-mono font-bold text-foreground block">
+            {rfq.rfqNumber}
           </span>
         )}
       </td>
 
-      {/* Buyer */}
-      <td className="py-3 px-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-[10px] shrink-0">
-            {initials}
-          </div>
-          <div className="min-w-0">
-            <span className="text-foreground font-semibold text-xs block truncate max-w-[140px]">
-              {rfq.buyerName}
-            </span>
-            <span className="text-[10px] text-muted-foreground block truncate font-mono max-w-[140px]">
-              {rfq.buyerEmail}
-            </span>
-          </div>
-        </div>
-      </td>
-
-      {/* Company */}
-      <td className="py-3 px-3">
-        <span className="text-foreground font-medium text-xs truncate block max-w-[150px]">
-          {rfq.companyName || "—"}
+      {/* 2. Customer */}
+      <td className="py-3 px-4">
+        <span className="font-bold text-foreground block truncate max-w-[150px]">
+          {customerName}
         </span>
-        {rfq.businessType && (
-          <span className="text-[10px] text-muted-foreground block truncate max-w-[150px]">
-            {rfq.businessType}
-          </span>
-        )}
-      </td>
-
-      {/* Country */}
-      <td className="py-3 px-3">
-        <div className="flex items-center gap-1.5 text-xs text-foreground font-medium">
-          <Globe2 size={13} className="text-muted-foreground shrink-0" />
-          <span className="truncate max-w-[120px]">{rfq.destinationCountry}</span>
-        </div>
-        {rfq.destinationCity && (
-          <span className="text-[10px] text-muted-foreground block pl-5 truncate max-w-[120px]">
-            {rfq.destinationCity}
-          </span>
-        )}
-      </td>
-
-      {/* Items Count */}
-      <td className="py-3 px-3 text-center">
-        <span className="font-mono text-xs text-muted-foreground font-medium">
-          {itemsCount} {itemsCount === 1 ? "item" : "items"}
+        <span className="text-[10px] text-muted-foreground block truncate max-w-[150px]">
+          {rfq.buyerEmail}
         </span>
       </td>
 
-      {/* Total Units */}
-      <td className="py-3 px-3 text-right">
-        <span className="font-mono font-bold text-xs text-foreground">
+      {/* 3. Company */}
+      <td className="py-3 px-4">
+        {companyName ? (
+          <span className="text-foreground font-medium block truncate max-w-[140px]">
+            {companyName}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </td>
+
+      {/* 4. Date */}
+      <td className="py-3 px-4">
+        <span className="text-muted-foreground block font-mono">
+          {formattedDate}
+        </span>
+      </td>
+
+      {/* 5. Total Units */}
+      <td className="py-3 px-4">
+        <span className="font-mono font-bold text-foreground block">
           {totalUnits.toLocaleString()} pcs
         </span>
+        <span className="text-[10px] text-muted-foreground block font-mono">
+          {rfq.items?.length || 0} {rfq.items?.length === 1 ? "line" : "lines"}
+        </span>
       </td>
 
-      {/* Status */}
-      <td className="py-3 px-3 text-center">
+      {/* 6. Status */}
+      <td className="py-3 px-4">
         <RfqStatusBadge status={rfq.status} size="sm" />
       </td>
 
-      {/* Submitted Date & Time */}
-      <td className="py-3 px-3 text-right whitespace-nowrap">
-        <div className="flex flex-col items-end">
-          <span className="font-medium text-foreground text-xs">{formattedDate}</span>
-          <span className="text-[10px] text-muted-foreground font-mono">{formattedTime}</span>
-        </div>
-      </td>
-
-      {/* Actions */}
+      {/* 7. Action */}
       <td className="py-3 px-4 text-right">
-        <Link
-          href={detailHref}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold transition-all shadow-2xs group-hover:border-primary/50"
-        >
-          <Eye size={12} className="text-primary" />
-          <span>View</span>
-        </Link>
+        {can("rfq.view") && (
+          <Link
+            href={detailHref}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-xs"
+            title="View RFQ details"
+          >
+            <Eye size={12} />
+            <span>View</span>
+          </Link>
+        )}
       </td>
     </tr>
   );

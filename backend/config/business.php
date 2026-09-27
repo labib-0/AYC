@@ -38,9 +38,10 @@ return [
     'contact' => [
         'phone' => env('BUSINESS_PHONE', null),
         'email' => env('BUSINESS_EMAIL', null),
-        'whatsapp' => env('BUSINESS_WHATSAPP', '+8801826304930'),
-        'whatsapp_number' => env('BUSINESS_WHATSAPP_NUMBER', '8801826304930'),
-        'whatsapp_url' => env('BUSINESS_WHATSAPP_URL', 'https://wa.me/8801826304930'),
+        'whatsapp' => env('BUSINESS_WHATSAPP', '+880 1982-183886'),
+        'whatsapp_display' => env('BUSINESS_WHATSAPP_DISPLAY', '+880 1982-183886'),
+        'whatsapp_number' => env('BUSINESS_WHATSAPP_NUMBER', '8801982183886'),
+        'whatsapp_url' => env('BUSINESS_WHATSAPP_URL', 'https://wa.me/8801982183886'),
         'website' => env('BUSINESS_WEBSITE', 'www.ayaanclothing.com'),
     ],
 

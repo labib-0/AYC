@@ -46,7 +46,7 @@ export default function RecentRfqsTable({ rfqs }: RecentRfqsTableProps) {
           </h2>
         </div>
         <Link
-          href="/admin/rfq-quotes?tab=rfqs"
+          href="/admin/rfq"
           className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 font-sans"
         >
           <span>View All</span>

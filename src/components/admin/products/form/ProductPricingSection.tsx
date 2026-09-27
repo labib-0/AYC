@@ -170,40 +170,54 @@ export default function ProductPricingSection({
           </div>
         </div>
 
-        {/* Volume Tier: Bulk Threshold & Bulk Price */}
+        {/* Bulk Pricing / Volume Tiers */}
         <div className="p-4 rounded-xl bg-secondary/40 border border-border/60 space-y-3">
-          <div className="flex items-center gap-2">
-            <TrendingDown size={14} className="text-primary" />
-            <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Volume Discount Tier
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingDown size={14} className="text-primary" />
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Bulk Pricing / Volume Tiers
+              </span>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Tier: Minimum Quantity | Unit Price
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Bulk Quantity Threshold (pcs)
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
+                Minimum Quantity (Threshold) <span className="text-red-500">*</span>
               </label>
-              <input
-                type="number"
-                step="1"
-                min={moq + 1}
-                value={bulkThreshold || ""}
-                onChange={(e) => onBulkThresholdChange(parseInt(e.target.value, 10) || 0)}
-                placeholder="100"
-                className={plainInputClass(Boolean(errors.bulkThreshold))}
-              />
-              {errors.bulkThreshold && (
+              <div className="relative">
+                <input
+                  type="number"
+                  step="1"
+                  min={moq + 1}
+                  value={bulkThreshold || ""}
+                  onChange={(e) => onBulkThresholdChange(parseInt(e.target.value, 10) || 0)}
+                  placeholder="100"
+                  className={plainInputClass(Boolean(errors.bulkThreshold))}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  PCS
+                </span>
+              </div>
+              {errors.bulkThreshold ? (
                 <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
                   <AlertCircle size={12} />
                   {errors.bulkThreshold}
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Volume order threshold (must be strictly greater than MOQ).
                 </p>
               )}
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Bulk Tier Unit Price ($)
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
+                Unit Price ($) <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
@@ -215,69 +229,77 @@ export default function ProductPricingSection({
                   min="0.01"
                   value={bulkPrice || ""}
                   onChange={(e) => onBulkPriceChange(parseFloat(e.target.value) || 0)}
-                  placeholder="20.02"
+                  placeholder="20.00"
                   className={inputClass(Boolean(errors.bulkPrice))}
                 />
               </div>
-              {errors.bulkPrice && (
+              {errors.bulkPrice ? (
                 <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
                   <AlertCircle size={12} />
                   {errors.bulkPrice}
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Discounted unit price for volume tier purchase.
                 </p>
               )}
             </div>
           </div>
         </div>
 
-        {/* Commercial Secondary Pricing: MSRP & Optional Full-Stock Price */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          {/* MSRP / Retail Price */}
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-              MSRP / Retail RRP ($)
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                $
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={msrpPrice ?? ""}
-                onChange={(e) =>
-                  onMsrpPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)
-                }
-                placeholder="226.00"
-                className={inputClass()}
-              />
-            </div>
+        {/* Separately: Full Stock Price (REQUIRED) */}
+        <div className="p-4 rounded-xl bg-card border border-border/90 space-y-2">
+          <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
+            Full Stock Price ($/pc) <span className="text-red-500">*</span>
+          </label>
+          <div className="relative max-w-sm">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+              $
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={fullStockPrice ?? ""}
+              onChange={(e) =>
+                onFullStockPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)
+              }
+              placeholder="18.00"
+              className={inputClass(Boolean(errors.fullStockPrice || errors.full_stock_price))}
+            />
           </div>
-
-          {/* Full Stock Price (Optional) */}
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-              Full-Stock Price ($/pc) <span className="text-[10px] lowercase text-muted-foreground/70">(optional)</span>
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                $
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={fullStockPrice ?? ""}
-                onChange={(e) =>
-                  onFullStockPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)
-                }
-                placeholder="18.00"
-                className={inputClass()}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Per-unit selling price for full-stock purchase. Quantity and total are auto-derived from inventory and MOQ rules.
+          {errors.fullStockPrice || errors.full_stock_price ? (
+            <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+              <AlertCircle size={12} />
+              {errors.fullStockPrice || errors.full_stock_price}
             </p>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">
+              Required per-unit price. Applied to Full Stock orders when available stock exceeds the bulk threshold.
+            </p>
+          )}
+        </div>
+
+        {/* Optional Secondary Pricing: MSRP */}
+        <div className="max-w-sm pt-1">
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+            MSRP / Retail RRP ($) <span className="text-[10px] lowercase text-muted-foreground/70">(optional)</span>
+          </label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+              $
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={msrpPrice ?? ""}
+              onChange={(e) =>
+                onMsrpPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)
+              }
+              placeholder="226.00"
+              className={inputClass()}
+            />
           </div>
         </div>
 

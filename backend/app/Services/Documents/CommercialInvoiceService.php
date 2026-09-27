@@ -4,6 +4,7 @@ namespace App\Services\Documents;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Quotation;
 
 class CommercialInvoiceService
 {
@@ -125,4 +126,122 @@ class CommercialInvoiceService
             'notes' => 'Official Commercial Invoice. All merchandise manufactured in Bangladesh.',
         ];
     }
+
+    /**
+     * Build Commercial Invoice representation from a Quotation
+     */
+    public function generateForQuotation(Quotation $quotation): array
+    {
+        $year = date('Y', strtotime($quotation->created_at ?: now()));
+        $docSuffix = substr($quotation->quotation_number, -6);
+        $invNumber = "INV-{$year}-{$docSuffix}";
+        $plNumber = "PL-{$year}-{$docSuffix}";
+
+        $allGalleryImages = [];
+        $items = $quotation->items->map(function ($item, $idx) use ($quotation, &$allGalleryImages) {
+            $product = $item->product_id ? Product::with('images')->find($item->product_id) : null;
+            $gallery = DocumentHelper::getProductGallery($product, $item->product_image_url);
+
+            foreach ($gallery as $g) {
+                if (!in_array($g, $allGalleryImages)) {
+                    $allGalleryImages[] = $g;
+                }
+            }
+
+            return [
+                'id' => (string) $item->id,
+                'item_no' => $idx + 1,
+                'product_id' => (string) $item->product_id,
+                'product_name' => $item->product_name,
+                'description' => $item->product_name . ($item->selected_size ? " (Size: {$item->selected_size})" : " (Assorted Package)"),
+                'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
+                'hs_code' => '6105.10.00',
+                'marks_and_numbers' => "AYN/{$quotation->quotation_number}/ITEM-" . ($idx + 1),
+                'product_image_url' => $gallery[0] ?? ($item->product_image_url ?: '/placeholder.jpg'),
+                'product_images' => $gallery,
+                'quantity' => (int) $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'line_total' => (float) $item->line_total,
+                'size' => $item->selected_size,
+                'color' => $item->selected_color,
+                'package_breakdown' => $item->package_breakdown,
+                'details' => $item->variant_title,
+            ];
+        })->toArray();
+
+        $cartonCount = max(1, (int) ceil($quotation->items->sum('quantity') / 50));
+        $grossWeight = round($quotation->items->sum('quantity') * 0.4, 2);
+        $netWeight = round($quotation->items->sum('quantity') * 0.36, 2);
+        $cbm = round($quotation->items->sum('quantity') * 0.0014, 3);
+
+        $isPaid = in_array(strtoupper($quotation->status ?? ''), ['PAID', 'CONFIRMED'])
+            || ($quotation->payment_status === 'paid')
+            || ($quotation->convertedOrder && in_array($quotation->convertedOrder->payment_status, ['paid']));
+
+        return [
+            'id' => "doc_COMMERCIAL_INVOICE_QT_{$quotation->id}",
+            'docNumber' => $invNumber,
+            'docType' => 'COMMERCIAL_INVOICE',
+            'title' => 'COMMERCIAL INVOICE',
+            'date' => date('Y-m-d', strtotime($quotation->created_at ?: now())),
+            'validUntil' => $quotation->valid_until ? $quotation->valid_until->format('Y-m-d') : date('Y-m-d', strtotime('+30 days')),
+            'quotationNumber' => $quotation->quotation_number,
+            'quotation_id' => (string) $quotation->id,
+            'related_packing_list' => $plNumber,
+            'is_payment_verified' => $isPaid,
+            'is_gated' => !$isPaid,
+            'companyName' => $quotation->company_name,
+            'buyerName' => $quotation->buyer_name,
+            'buyerEmail' => $quotation->buyer_email,
+            'buyerPhone' => $quotation->buyer_phone,
+            'buyerAddress' => "{$quotation->destination_city}, {$quotation->destination_country}",
+            'buyerCountry' => $quotation->destination_country,
+            'exporter' => DocumentHelper::getExporterProfile(),
+            'buyer' => [
+                'name' => $quotation->buyer_name,
+                'company_name' => $quotation->company_name,
+                'email' => $quotation->buyer_email,
+                'phone' => $quotation->buyer_phone,
+                'address' => "{$quotation->destination_city}, {$quotation->destination_country}",
+                'city' => $quotation->destination_city,
+                'country' => $quotation->destination_country,
+            ],
+            'items' => $items,
+            'financials' => [
+                'currency' => $quotation->currency ?: 'USD',
+                'subtotal' => (float) $quotation->subtotal,
+                'goods_value' => (float) $quotation->subtotal,
+                'shipping_charge' => (float) $quotation->shipping_fee,
+                'tax_amount' => (float) $quotation->tax_amount,
+                'discount_amount' => (float) $quotation->discount_total,
+                'grand_total' => (float) $quotation->grand_total,
+                'total_payable' => (float) $quotation->grand_total,
+                'amount_in_words' => DocumentHelper::numberToWords((float) $quotation->grand_total),
+            ],
+            'estimated_shipping_data' => [
+                'carrier' => 'Aramex Priority Air Express',
+                'shipping_method' => $quotation->shipping_terms ?: 'FOB Dhaka (Export)',
+                'carton_count' => $cartonCount,
+                'gross_weight' => $grossWeight,
+                'net_weight' => $netWeight,
+                'total_cbm' => $cbm,
+                'country_of_origin' => 'Bangladesh',
+                'port_of_loading' => 'Hazrat Shahjalal International Airport (DAC), Dhaka',
+                'destination_port' => ($quotation->destination_city ?: 'Destination') . ' Airport / Hub',
+            ],
+            'subtotal' => (float) $quotation->subtotal,
+            'shipping' => (float) $quotation->shipping_fee,
+            'shipping_fee' => (float) $quotation->shipping_fee,
+            'tax' => (float) $quotation->tax_amount,
+            'discount' => (float) $quotation->discount_total,
+            'grandTotal' => (float) $quotation->grand_total,
+            'currency' => $quotation->currency ?: 'USD',
+            'paymentTerms' => $quotation->payment_terms ?: 'Paid in Full (T/T Confirmed)',
+            'shippingTerms' => $quotation->shipping_terms ?: 'FOB Dhaka (Export)',
+            'incoterm' => $quotation->incoterm ?: 'FOB',
+            'bankDetails' => DocumentHelper::getBankDetails(),
+            'notes' => 'Commercial Invoice. Official customs and clearance document.',
+        ];
+    }
 }
+

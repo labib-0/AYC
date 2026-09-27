@@ -6,6 +6,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\Warehouse;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -17,6 +18,7 @@ class RefinePricingPromotionMediaTest extends TestCase
     private User $admin;
     private Brand $brand;
     private Category $category;
+    private Warehouse $warehouse;
 
     protected function setUp(): void
     {
@@ -31,6 +33,13 @@ class RefinePricingPromotionMediaTest extends TestCase
 
         $this->brand = Brand::create(['name' => 'Ayaan Wholesale', 'slug' => 'ayaan-wholesale']);
         $this->category = Category::create(['name' => 'Hoodies', 'slug' => 'hoodies']);
+        $this->warehouse = Warehouse::create([
+            'name' => 'Dhaka WH',
+            'code' => 'WH-DHK',
+            'city' => 'Dhaka',
+            'country_code' => 'BD',
+            'is_active' => true,
+        ]);
     }
 
     /**
@@ -47,6 +56,8 @@ class RefinePricingPromotionMediaTest extends TestCase
             'wholesale_price' => 25.00,
             'bulk_threshold' => 100,
             'bulk_price' => 20.02,
+            'full_stock_price' => 17.50,
+            'warehouse_id' => $this->warehouse->id,
             'msrp_price' => 226.00,
             'status' => 'published',
             'package_allocations' => [
@@ -81,6 +92,10 @@ class RefinePricingPromotionMediaTest extends TestCase
             'sku' => 'AYN-BLS-001',
             'brand_id' => $this->brand->id,
             'wholesale_price' => 30.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 25.00,
+            'full_stock_price' => 20.00,
+            'warehouse_id' => $this->warehouse->id,
             'is_new' => true,
             'new_duration_days' => 7,
             'is_hot' => true,
@@ -136,6 +151,10 @@ class RefinePricingPromotionMediaTest extends TestCase
             'sku' => 'AYN-YT-001',
             'brand_id' => $this->brand->id,
             'wholesale_price' => 30.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 25.00,
+            'full_stock_price' => 20.00,
+            'warehouse_id' => $this->warehouse->id,
             'video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             'package_allocations' => [['color' => 'Navy', 'size' => 'M', 'quantity' => 10]],
         ];
@@ -151,6 +170,10 @@ class RefinePricingPromotionMediaTest extends TestCase
             'sku' => 'AYN-VIM-001',
             'brand_id' => $this->brand->id,
             'wholesale_price' => 30.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 25.00,
+            'full_stock_price' => 20.00,
+            'warehouse_id' => $this->warehouse->id,
             'video_url' => 'https://vimeo.com/76979871',
             'package_allocations' => [['color' => 'Navy', 'size' => 'M', 'quantity' => 10]],
         ];
@@ -167,6 +190,10 @@ class RefinePricingPromotionMediaTest extends TestCase
             'sku' => 'AYN-MP4-001',
             'brand_id' => $this->brand->id,
             'wholesale_price' => 30.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 25.00,
+            'full_stock_price' => 20.00,
+            'warehouse_id' => $this->warehouse->id,
             'video_url' => 'https://cdn.example.com/videos/product-preview.mp4',
             'package_allocations' => [['color' => 'Navy', 'size' => 'M', 'quantity' => 10]],
         ];
@@ -181,6 +208,10 @@ class RefinePricingPromotionMediaTest extends TestCase
             'sku' => 'AYN-INV-001',
             'brand_id' => $this->brand->id,
             'wholesale_price' => 30.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 25.00,
+            'full_stock_price' => 20.00,
+            'warehouse_id' => $this->warehouse->id,
             'video_url' => 'https://random-unsupported-site.com/watch?id=123',
             'package_allocations' => [['color' => 'Navy', 'size' => 'M', 'quantity' => 10]],
         ];

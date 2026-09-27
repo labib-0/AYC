@@ -1,269 +1,116 @@
 import React from "react";
-import { FileText, Clock, FileCheck, CheckCircle2, Package, CalendarClock } from "lucide-react";
-import { DateQuickFilter } from "@/lib/rfq-datetime";
-
-export interface RfqKpiCounts {
-  total: number;
-  needsReview: number;
-  quoted: number;
-  accepted: number;
-  totalUnits: number;
-}
-
-export interface RfqTodaySummaryData {
-  todayTotal: number;
-  todayNew: number;
-  latestRfqDateFormatted: string;
-  latestRfqNumber?: string;
-}
+import { FileText, Clock, FileSearch, CheckCircle2, FileCheck } from "lucide-react";
+import { RfqSummaryMetrics } from "@/services/admin/rfq.service";
 
 export interface RfqKpisProps {
-  counts: RfqKpiCounts;
-  todaySummary?: RfqTodaySummaryData;
-  activeStatusFilter?: string;
-  onSelectStatusFilter?: (status: string) => void;
-  activeDateFilter?: DateQuickFilter;
-  onSelectDateFilter?: (filter: DateQuickFilter) => void;
+  metrics: RfqSummaryMetrics | null;
+  activeStatusFilter: string;
+  onSelectStatusFilter: (status: string) => void;
   isLoading?: boolean;
 }
 
 export default function RfqKpis({
-  counts,
-  todaySummary,
+  metrics,
   activeStatusFilter,
   onSelectStatusFilter,
-  activeDateFilter,
-  onSelectDateFilter,
-  isLoading,
+  isLoading = false,
 }: RfqKpisProps) {
-  const isTodayActive = activeDateFilter === "TODAY";
+  if (isLoading || !metrics) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className="p-4 rounded-2xl border border-border/60 bg-card/60 animate-pulse space-y-2.5"
+          >
+            <div className="w-16 h-3 bg-secondary rounded" />
+            <div className="w-12 h-6 bg-secondary rounded" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const items = [
+    {
+      label: "Total RFQs",
+      value: metrics.totalRfqs,
+      icon: <FileText size={16} className="text-primary" />,
+      active: activeStatusFilter === "all",
+      onClick: () => onSelectStatusFilter("all"),
+      borderColor: "border-border/70",
+    },
+    {
+      label: "Received",
+      value: metrics.received,
+      icon: <Clock size={16} className="text-blue-500" />,
+      active: activeStatusFilter === "SUBMITTED" || activeStatusFilter === "RFQ_RECEIVED",
+      onClick: () =>
+        onSelectStatusFilter(
+          activeStatusFilter === "SUBMITTED" || activeStatusFilter === "RFQ_RECEIVED" ? "all" : "SUBMITTED"
+        ),
+      borderColor: "border-blue-500/30",
+    },
+    {
+      label: "Under Review",
+      value: metrics.underReview,
+      icon: <FileSearch size={16} className="text-amber-500" />,
+      active: activeStatusFilter === "UNDER_REVIEW",
+      onClick: () =>
+        onSelectStatusFilter(activeStatusFilter === "UNDER_REVIEW" ? "all" : "UNDER_REVIEW"),
+      borderColor: "border-amber-500/30",
+    },
+    {
+      label: "Approved",
+      value: metrics.approved,
+      icon: <CheckCircle2 size={16} className="text-emerald-500" />,
+      active: activeStatusFilter === "APPROVED",
+      onClick: () =>
+        onSelectStatusFilter(activeStatusFilter === "APPROVED" ? "all" : "APPROVED"),
+      borderColor: "border-emerald-500/30",
+    },
+    {
+      label: "Quotation Generated",
+      value: metrics.quotationGenerated,
+      icon: <FileCheck size={16} className="text-indigo-500" />,
+      active:
+        activeStatusFilter === "QUOTATION_GENERATED" ||
+        activeStatusFilter === "QUOTATION_APPROVED" ||
+        activeStatusFilter === "PAID",
+      onClick: () =>
+        onSelectStatusFilter(
+          activeStatusFilter === "QUOTATION_GENERATED" ? "all" : "QUOTATION_GENERATED"
+        ),
+      borderColor: "border-indigo-500/30",
+    },
+  ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
-      {/* 1. Today's Activity Tile */}
-      <button
-        type="button"
-        disabled={isLoading || !onSelectDateFilter}
-        onClick={() => {
-          if (onSelectDateFilter) {
-            onSelectDateFilter(isTodayActive ? "ALL" : "TODAY");
-          }
-        }}
-        className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative overflow-hidden group cursor-pointer ${
-          isTodayActive
-            ? "bg-blue-500/10 border-blue-500/50 ring-2 ring-blue-500/30 shadow-xs"
-            : "bg-card border-border/70 hover:border-blue-500/40 hover:bg-secondary/10 shadow-2xs"
-        }`}
-      >
-        <div className="flex items-center justify-between gap-1 mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
-            Today&apos;s RFQs
-          </span>
-          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
-            Today
-          </span>
-        </div>
-
-        {isLoading ? (
-          <div className="h-7 w-12 bg-secondary animate-pulse rounded mt-1" />
-        ) : (
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-display font-bold text-foreground tracking-tight">
-              {todaySummary?.todayTotal ?? 0}
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      {items.map((item, idx) => (
+        <button
+          key={idx}
+          type="button"
+          onClick={item.onClick}
+          className={`p-4 rounded-2xl border text-left transition-all cursor-pointer shadow-xs ${
+            item.active
+              ? "bg-card border-primary ring-2 ring-primary/20 shadow-sm"
+              : `bg-card/70 hover:bg-card hover:border-foreground/30 ${item.borderColor}`
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+              {item.label}
             </span>
-            <CalendarClock size={16} className="text-blue-600 dark:text-blue-400 opacity-90 shrink-0" />
+            <div className="p-1 rounded-md bg-secondary/60 shrink-0">
+              {item.icon}
+            </div>
           </div>
-        )}
-
-        <div className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
-          {todaySummary?.todayNew ? (
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-              {todaySummary.todayNew} New
-            </span>
-          ) : (
-            <span>0 New</span>
-          )}
-          <span className="mx-1">•</span>
-          <span>Latest: {todaySummary?.latestRfqDateFormatted || "—"}</span>
-        </div>
-
-        {isTodayActive && (
-          <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mt-1 block">
-            ● Filter Active
-          </span>
-        )}
-      </button>
-
-      {/* 2. Total Inquiries */}
-      <button
-        type="button"
-        disabled={isLoading || !onSelectStatusFilter}
-        onClick={() => {
-          if (onSelectStatusFilter) onSelectStatusFilter("all");
-          if (onSelectDateFilter && activeDateFilter === "TODAY") onSelectDateFilter("ALL");
-        }}
-        className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative overflow-hidden group cursor-pointer ${
-          activeStatusFilter === "all" && !isTodayActive
-            ? "bg-secondary/20 border-foreground/30 ring-1 ring-foreground/20 shadow-xs"
-            : "bg-card border-border/70 hover:border-foreground/30 hover:bg-secondary/10 shadow-2xs"
-        }`}
-      >
-        <div className="flex items-center justify-between gap-1 mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
-            Total Inquiries
-          </span>
-          <FileText size={14} className="text-foreground opacity-70 shrink-0" />
-        </div>
-
-        {isLoading ? (
-          <div className="h-7 w-12 bg-secondary animate-pulse rounded mt-1" />
-        ) : (
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-display font-bold text-foreground tracking-tight">
-              {counts.total}
-            </span>
+          <div className="text-xl sm:text-2xl font-bold font-display tracking-tight text-foreground">
+            {item.value}
           </div>
-        )}
-
-        <div className="text-[10px] text-muted-foreground mt-1 truncate">
-          All-time inquiries
-        </div>
-      </button>
-
-      {/* 3. Needs Review */}
-      <button
-        type="button"
-        disabled={isLoading || !onSelectStatusFilter}
-        onClick={() => {
-          if (onSelectStatusFilter) {
-            onSelectStatusFilter(activeStatusFilter === "UNDER_REVIEW" ? "all" : "UNDER_REVIEW");
-          }
-        }}
-        className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative overflow-hidden group cursor-pointer ${
-          activeStatusFilter === "UNDER_REVIEW"
-            ? "bg-amber-500/10 border-amber-500/50 ring-2 ring-amber-500/30 shadow-xs"
-            : "bg-card border-border/70 hover:border-amber-500/40 hover:bg-secondary/10 shadow-2xs"
-        }`}
-      >
-        <div className="flex items-center justify-between gap-1 mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
-            Needs Review
-          </span>
-          <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-        </div>
-
-        {isLoading ? (
-          <div className="h-7 w-12 bg-secondary animate-pulse rounded mt-1" />
-        ) : (
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-display font-bold text-amber-600 dark:text-amber-400 tracking-tight">
-              {counts.needsReview}
-            </span>
-          </div>
-        )}
-
-        <div className="text-[10px] text-muted-foreground mt-1 truncate">
-          Action required
-        </div>
-      </button>
-
-      {/* 4. Quoted */}
-      <button
-        type="button"
-        disabled={isLoading || !onSelectStatusFilter}
-        onClick={() => {
-          if (onSelectStatusFilter) {
-            onSelectStatusFilter(activeStatusFilter === "QUOTATION_PREPARED" ? "all" : "QUOTATION_PREPARED");
-          }
-        }}
-        className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative overflow-hidden group cursor-pointer ${
-          activeStatusFilter === "QUOTATION_PREPARED"
-            ? "bg-purple-500/10 border-purple-500/50 ring-2 ring-purple-500/30 shadow-xs"
-            : "bg-card border-border/70 hover:border-purple-500/40 hover:bg-secondary/10 shadow-2xs"
-        }`}
-      >
-        <div className="flex items-center justify-between gap-1 mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
-            Quoted
-          </span>
-          <FileCheck size={14} className="text-purple-600 dark:text-purple-400 shrink-0" />
-        </div>
-
-        {isLoading ? (
-          <div className="h-7 w-12 bg-secondary animate-pulse rounded mt-1" />
-        ) : (
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-display font-bold text-purple-600 dark:text-purple-400 tracking-tight">
-              {counts.quoted}
-            </span>
-          </div>
-        )}
-
-        <div className="text-[10px] text-muted-foreground mt-1 truncate">
-          Prepared / Sent
-        </div>
-      </button>
-
-      {/* 5. Accepted */}
-      <button
-        type="button"
-        disabled={isLoading || !onSelectStatusFilter}
-        onClick={() => {
-          if (onSelectStatusFilter) {
-            onSelectStatusFilter(activeStatusFilter === "ACCEPTED" ? "all" : "ACCEPTED");
-          }
-        }}
-        className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative overflow-hidden group cursor-pointer ${
-          activeStatusFilter === "ACCEPTED"
-            ? "bg-emerald-500/10 border-emerald-500/50 ring-2 ring-emerald-500/30 shadow-xs"
-            : "bg-card border-border/70 hover:border-emerald-500/40 hover:bg-secondary/10 shadow-2xs"
-        }`}
-      >
-        <div className="flex items-center justify-between gap-1 mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
-            Accepted
-          </span>
-          <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-        </div>
-
-        {isLoading ? (
-          <div className="h-7 w-12 bg-secondary animate-pulse rounded mt-1" />
-        ) : (
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-display font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">
-              {counts.accepted}
-            </span>
-          </div>
-        )}
-
-        <div className="text-[10px] text-muted-foreground mt-1 truncate">
-          Won export orders
-        </div>
-      </button>
-
-      {/* 6. Total Units */}
-      <div className="p-3.5 sm:p-4 rounded-2xl border border-border/70 bg-card text-left shadow-2xs">
-        <div className="flex items-center justify-between gap-1 mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
-            Total Units Req.
-          </span>
-          <Package size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
-        </div>
-
-        {isLoading ? (
-          <div className="h-7 w-16 bg-secondary animate-pulse rounded mt-1" />
-        ) : (
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-display font-bold text-foreground tracking-tight">
-              {counts.totalUnits.toLocaleString()}
-            </span>
-          </div>
-        )}
-
-        <div className="text-[10px] text-muted-foreground mt-1 truncate">
-          Aggregate volume
-        </div>
-      </div>
+        </button>
+      ))}
     </div>
   );
 }

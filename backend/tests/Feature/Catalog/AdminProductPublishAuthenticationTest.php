@@ -6,6 +6,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,6 +18,7 @@ class AdminProductPublishAuthenticationTest extends TestCase
     private User $customer;
     private Category $category;
     private Brand $brand;
+    private Warehouse $warehouse;
 
     protected function setUp(): void
     {
@@ -42,6 +44,14 @@ class AdminProductPublishAuthenticationTest extends TestCase
         $this->brand = Brand::factory()->create([
             'name' => 'Ayaan Premium',
             'slug' => 'ayaan-premium',
+            'is_active' => true,
+        ]);
+
+        $this->warehouse = Warehouse::create([
+            'name' => 'Dhaka WH',
+            'code' => 'WH-DHK',
+            'city' => 'Dhaka',
+            'country_code' => 'BD',
             'is_active' => true,
         ]);
     }
@@ -117,6 +127,8 @@ class AdminProductPublishAuthenticationTest extends TestCase
             'wholesale_price' => 32.50,
             'bulk_threshold' => 75,
             'bulk_price' => 26.00,
+            'full_stock_price' => 22.00,
+            'warehouse_id' => $this->warehouse->id,
             'msrp_price' => 85.00,
             'status' => 'published',
             'package_allocations' => [
@@ -156,6 +168,8 @@ class AdminProductPublishAuthenticationTest extends TestCase
             'wholesale_price' => 28.00,
             'bulk_threshold' => 100,
             'bulk_price' => 22.00,
+            'full_stock_price' => 18.00,
+            'warehouse_id' => $this->warehouse->id,
             'status' => 'draft',
             'package_allocations' => [
                 ['color' => 'White', 'size' => 'S', 'quantity' => 10],

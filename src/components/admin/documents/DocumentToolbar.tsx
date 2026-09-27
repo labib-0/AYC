@@ -26,13 +26,13 @@ export default function DocumentToolbar({
   const backHref = doc.orderNumber 
     ? `/admin/orders/${doc.order_id || doc.orderNumber}`
     : doc.quotationNumber 
-    ? `/admin/rfq-quotes?tab=quotes` 
+    ? `/admin/rfq` 
     : `/admin/documents`;
 
   const backLabel = doc.orderNumber
     ? `Back to Order #${doc.orderNumber}`
     : doc.quotationNumber
-    ? "Back to Quotations"
+    ? "Back to RFQ"
     : "Back to Documents";
 
   return (

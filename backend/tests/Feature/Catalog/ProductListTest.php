@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -230,6 +231,13 @@ class ProductListTest extends TestCase
     public function test_admin_can_create_update_delete_product(): void
     {
         $admin = User::factory()->admin()->create(['is_super_admin' => true]);
+        $warehouse = Warehouse::create([
+            'name' => 'Test Hub',
+            'code' => 'WH-HUB',
+            'city' => 'Dhaka',
+            'country_code' => 'BD',
+            'is_active' => true,
+        ]);
 
         // Create
         $createResponse = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/products', [
@@ -237,7 +245,11 @@ class ProductListTest extends TestCase
             'slug' => 'new-b2b-jacket',
             'sku' => 'AYN-JKT-999',
             'wholesale_price' => 85.00,
+            'bulk_threshold' => 100,
+            'bulk_price' => 75.00,
+            'full_stock_price' => 65.00,
             'moq' => 10,
+            'warehouse_id' => $warehouse->id,
             'status' => 'published',
         ]);
 

@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { X, Eye, EyeOff, Lock, Mail, User as UserIcon, AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { authService } from "@/services/auth.service";
+import { apiClient } from "@/services/api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
 import BrandName from "@/components/common/BrandName";
 
 export type AuthView = "signin" | "signup" | "forgot-password";
@@ -161,10 +163,16 @@ export default function AuthModal({
   };
 
   const handleGoogleAuth = () => {
-    setStatusMessage({
-      type: "info",
-      text: "Google OAuth sign-in is not available in frontend demo mode. Please sign in with email credentials.",
-    });
+    if (isFrontendOnly()) {
+      setStatusMessage({
+        type: "info",
+        text: "Google OAuth sign-in is not available in frontend demo mode. Please sign in with email credentials.",
+      });
+      return;
+    }
+    const currentPath = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/dashboard";
+    const apiBase = apiClient.getBaseUrl();
+    window.location.href = `${apiBase}/auth/google/redirect?redirect=${encodeURIComponent(currentPath)}`;
   };
 
   return (
