@@ -16,9 +16,11 @@ function CallbackHandler() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
-    const token = searchParams.get("token");
+    let isMounted = true;
     const error = searchParams.get("error");
     const rawRedirect = searchParams.get("redirect");
+    const legacyToken = searchParams.get("token");
+    const ticket = searchParams.get("ticket");
 
     if (error) {
       setErrorMessage(decodeURIComponent(error));
@@ -28,37 +30,75 @@ function CallbackHandler() {
       return () => clearTimeout(timer);
     }
 
-    if (!token) {
-      setErrorMessage("No authentication token provided.");
-      const timer = setTimeout(() => {
-        router.replace("/login");
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
-
     // Sanitize redirect target to prevent open redirect attacks
     let target = "/dashboard";
-    if (rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") && !rawRedirect.startsWith("/\\") && !rawRedirect.includes("\\")) {
+    if (
+      rawRedirect &&
+      rawRedirect.startsWith("/") &&
+      !rawRedirect.startsWith("//") &&
+      !rawRedirect.startsWith("/\\") &&
+      !rawRedirect.includes("\\")
+    ) {
       target = rawRedirect;
     }
 
-    // Complete token registration and session hydration
-    try {
-      apiClient.setToken(token);
-      setIsSuccess(true);
+    const completeAuthentication = async () => {
+      try {
+        let tokenToSet: string | null = null;
 
-      refreshSession()
-        .then(() => {
+        // Secure exchange handoff (HttpOnly cookie / session ticket)
+        if (!legacyToken) {
+          const res = await apiClient.post<any>("/auth/google/exchange", {
+            ticket: ticket || undefined,
+          });
+          const authData = "data" in res && res.data ? res.data : res;
+          if (authData?.token) {
+            tokenToSet = authData.token;
+            if (authData.redirect) {
+              target = authData.redirect;
+            }
+          } else {
+            throw new Error(authData?.message || "Invalid authentication exchange response from server.");
+          }
+        } else {
+          // Backward compatibility fallback if legacy token was provided
+          tokenToSet = legacyToken;
+        }
+
+        if (!tokenToSet) {
+          throw new Error("No authentication token received.");
+        }
+
+        // Register token in API client
+        apiClient.setToken(tokenToSet);
+        if (isMounted) setIsSuccess(true);
+
+        // Hydrate customer profile
+        try {
+          await refreshSession();
+        } catch (refreshErr) {
+          console.warn("Failed to refresh user profile post-OAuth:", refreshErr);
+        }
+
+        if (isMounted) {
           router.replace(target);
-        })
-        .catch((err) => {
-          console.warn("Failed to refresh user profile post-OAuth:", err);
-          router.replace(target);
-        });
-    } catch (err: any) {
-      console.error("Failed to store authentication token:", err);
-      setErrorMessage(err?.message || "Failed to finalize session.");
-    }
+        }
+      } catch (err: any) {
+        if (!isMounted) return;
+        console.error("Failed to store authentication token:", err);
+        const msg = err?.message || "Failed to finalize authentication session.";
+        setErrorMessage(msg);
+        setTimeout(() => {
+          router.replace(`/login?error=${encodeURIComponent(msg)}`);
+        }, 3000);
+      }
+    };
+
+    completeAuthentication();
+
+    return () => {
+      isMounted = false;
+    };
   }, [searchParams, router, refreshSession]);
 
   if (errorMessage) {

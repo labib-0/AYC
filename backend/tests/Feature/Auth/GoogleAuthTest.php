@@ -101,11 +101,34 @@ class GoogleAuthTest extends TestCase
 
         $response = $this->get('/api/v1/auth/google/callback');
 
-        // Should redirect to frontend auth callback
+        // Should redirect to frontend auth callback WITHOUT bearer token in URL
         $response->assertStatus(302);
         $location = $response->headers->get('Location');
         $this->assertStringContainsString('https://ayaanclothing.com/auth/callback', $location);
-        $this->assertStringContainsString('token=', $location);
+        $this->assertStringNotContainsString('token=', $location);
+        $response->assertCookie('google_auth_ticket');
+
+        // Verify one-time exchange succeeds
+        $ticket = $response->getCookie('google_auth_ticket')->getValue();
+        $exchangeRes = $this->withCookie('google_auth_ticket', $ticket)
+            ->postJson('/api/v1/auth/google/exchange');
+
+        $exchangeRes->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'user' => [
+                        'email' => 'newbuyer@ayaanclothing.com',
+                        'role' => User::ROLE_CUSTOMER,
+                    ],
+                ],
+            ]);
+        $this->assertNotEmpty($exchangeRes->json('data.token'));
+
+        // Verify ticket is single-use (burned immediately)
+        $secondExchange = $this->withCookie('google_auth_ticket', $ticket)
+            ->postJson('/api/v1/auth/google/exchange');
+        $secondExchange->assertStatus(401);
 
         // Verify database user
         $user = User::where('email', 'newbuyer@ayaanclothing.com')->first();
@@ -117,6 +140,27 @@ class GoogleAuthTest extends TestCase
         $this->assertFalse((bool) $user->is_super_admin);
         $this->assertNotNull($user->email_verified_at);
         $this->assertEquals('https://images.example.com/avatar.png', $user->avatar_url);
+    }
+
+    public function test_production_environment_never_redirects_to_localhost(): void
+    {
+        Config::set('app.env', 'production');
+        Config::set('app.customer_frontend_url', 'http://localhost:3000');
+        Config::set('app.frontend_url', 'http://localhost:3000');
+
+        $this->mockSocialiteUser(
+            id: 'google-prod-check',
+            email: 'produser@ayaanclothing.com'
+        );
+
+        $response = $this->get('/api/v1/auth/google/callback');
+
+        $response->assertStatus(302);
+        $location = $response->headers->get('Location');
+        $this->assertStringStartsWith('https://ayaanclothing.com/auth/callback', $location);
+        $this->assertStringNotContainsString('localhost', $location);
+        $this->assertStringNotContainsString('127.0.0.1', $location);
+        $this->assertStringNotContainsString('token=', $location);
     }
 
     public function test_successful_google_callback_returns_json_when_requested(): void

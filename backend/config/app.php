@@ -56,6 +56,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URLs
+    |--------------------------------------------------------------------------
+    |
+    | Canonical origins for customer storefront, admin portal, and general
+    | frontend redirects. In production, these should never default to localhost.
+    |
+    */
+
+    'customer_frontend_url' => env('CUSTOMER_FRONTEND_URL', env('FRONTEND_URL', env('APP_ENV') === 'production' ? 'https://ayaanclothing.com' : 'http://localhost:3000')),
+
+    'frontend_url' => env('FRONTEND_URL', env('CUSTOMER_FRONTEND_URL', env('APP_ENV') === 'production' ? 'https://ayaanclothing.com' : 'http://localhost:3000')),
+
+    'admin_frontend_url' => env('ADMIN_FRONTEND_URL', env('APP_ENV') === 'production' ? 'https://ayaanclothing.com/admin' : 'http://localhost:3001'),
+
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

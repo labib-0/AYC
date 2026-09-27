@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -182,11 +183,99 @@ class GoogleAuthController extends ApiController
             ], 'Login successful');
         }
 
-        // Redirect browser to customer frontend auth callback handler
-        $frontendUrl = $this->getFrontendBaseUrl();
-        $callbackUrl = rtrim($frontendUrl, '/') . '/auth/callback?token=' . urlencode($token) . '&redirect=' . urlencode($intended);
+        // SECURE HANDOFF (No tokens in callback URL):
+        // Generate a single-use exchange ticket with a strict 2-minute lifetime
+        $ticket = Str::random(64);
+        Cache::put("google_auth_ticket:{$ticket}", [
+            'token' => $token,
+            'user_id' => $user->id,
+            'intended' => $intended,
+        ], now()->addMinutes(2));
 
-        return redirect()->away($callbackUrl);
+        // Store ticket in session
+        $request->session()->put('google_auth_ticket', $ticket);
+
+        $frontendUrl = $this->getFrontendBaseUrl();
+        $isProduction = config('app.env') === 'production' || str_starts_with($frontendUrl, 'https://');
+
+        // In production: NEVER include tokens or tickets in the browser URL.
+        // In local/testing development: include ?ticket= for cross-origin local port support.
+        if ($isProduction) {
+            $callbackUrl = rtrim($frontendUrl, '/') . '/auth/callback?redirect=' . urlencode($intended);
+        } else {
+            $callbackUrl = rtrim($frontendUrl, '/') . '/auth/callback?ticket=' . urlencode($ticket) . '&redirect=' . urlencode($intended);
+        }
+
+        // Attach secure HttpOnly, SameSite=Lax cookie for first-party session handoff
+        $cookie = cookie(
+            'google_auth_ticket',
+            $ticket,
+            2,
+            '/',
+            null,
+            $isProduction,
+            true,
+            false,
+            'lax'
+        );
+
+        return redirect()->away($callbackUrl)->withCookie($cookie);
+    }
+
+    /**
+     * Securely exchange a one-time Google OAuth ticket or session cookie for Sanctum token and profile.
+     * POST|GET /api/v1/auth/google/exchange
+     */
+    public function exchange(Request $request): JsonResponse
+    {
+        // 1. Resolve ticket from HttpOnly cookie, session, or request input
+        $ticket = $request->cookie('google_auth_ticket')
+            ?: $request->session()->pull('google_auth_ticket')
+            ?: $request->input('ticket');
+
+        if (empty($ticket) || !is_string($ticket)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active Google authentication session found. Please sign in again.',
+            ], 401);
+        }
+
+        // 2. Retrieve ticket payload from cache and immediately burn it (single-use)
+        $cached = Cache::pull("google_auth_ticket:{$ticket}");
+        $forgetCookie = cookie()->forget('google_auth_ticket');
+
+        if (!$cached || empty($cached['token']) || empty($cached['user_id'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication session expired or already used. Please sign in again.',
+            ], 401)->withCookie($forgetCookie);
+        }
+
+        $user = User::find($cached['user_id']);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User account not found.',
+            ], 404)->withCookie($forgetCookie);
+        }
+
+        // Ensure user is still a customer
+        if ($user->isAdmin() || $user->role !== User::ROLE_CUSTOMER) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Google Sign-In is restricted to customer accounts only.',
+            ], 403)->withCookie($forgetCookie);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Authentication successful.',
+            'data' => [
+                'token' => $cached['token'],
+                'user' => $user,
+                'redirect' => $cached['intended'] ?? '/dashboard',
+            ],
+        ])->withCookie($forgetCookie);
     }
 
     /**
@@ -215,10 +304,13 @@ class GoogleAuthController extends ApiController
     protected function getFrontendBaseUrl(): string
     {
         $url = config('app.customer_frontend_url')
-            ?? env('CUSTOMER_FRONTEND_URL')
-            ?? config('app.frontend_url')
-            ?? env('FRONTEND_URL')
-            ?? 'https://ayaanclothing.com';
+            ?: config('app.frontend_url')
+            ?: (config('app.env') === 'production' ? 'https://ayaanclothing.com' : 'http://localhost:3000');
+
+        // Hard Defensive Guard: Production MUST NEVER redirect to localhost or loopback
+        if (config('app.env') === 'production' && (str_contains($url, 'localhost') || str_contains($url, '127.0.0.1'))) {
+            $url = 'https://ayaanclothing.com';
+        }
 
         return rtrim($url, '/');
     }

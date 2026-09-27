@@ -178,6 +178,7 @@ class ApiClient {
     };
 
     const config: RequestInit = {
+      credentials: "include",
       ...customConfig,
       headers: requestHeaders,
       body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),

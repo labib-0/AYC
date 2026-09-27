@@ -68,6 +68,8 @@ Route::prefix('v1')->group(function () {
                 ->middleware('throttle:30,1');
             Route::get('/google/callback', [GoogleAuthController::class, 'callback'])
                 ->middleware('throttle:30,1');
+            Route::match(['GET', 'POST'], '/google/exchange', [GoogleAuthController::class, 'exchange'])
+                ->middleware('throttle:30,1');
         });
 
         Route::middleware('auth:sanctum')->group(function () {
