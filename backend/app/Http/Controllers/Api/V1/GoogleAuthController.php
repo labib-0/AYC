@@ -26,10 +26,12 @@ class GoogleAuthController extends ApiController
             return $this->handleError($request, 'Google Sign-In is not currently configured on this server.');
         }
 
-        // Store sanitized intended destination in session
+        // Store sanitized intended destination in session if session store is active
         $target = $request->query('redirect', '/dashboard');
         $safeTarget = $this->sanitizeRedirectTarget($target);
-        $request->session()->put('google_oauth_redirect', $safeTarget);
+        if ($request->hasSession()) {
+            $request->session()->put('google_oauth_redirect', $safeTarget);
+        }
 
         return Socialite::driver('google')->redirect();
     }
@@ -172,7 +174,8 @@ class GoogleAuthController extends ApiController
         $token = $user->createToken('auth_token')->plainTextToken;
 
         // Retrieve sanitized intended redirect
-        $intended = $this->sanitizeRedirectTarget($request->session()->pull('google_oauth_redirect', '/dashboard'));
+        $rawRedirect = $request->hasSession() ? $request->session()->pull('google_oauth_redirect', '/dashboard') : '/dashboard';
+        $intended = $this->sanitizeRedirectTarget($rawRedirect);
 
         // If client requested JSON response (e.g., API testing or headless client)
         if ($request->wantsJson()) {
@@ -192,8 +195,10 @@ class GoogleAuthController extends ApiController
             'intended' => $intended,
         ], now()->addMinutes(2));
 
-        // Store ticket in session
-        $request->session()->put('google_auth_ticket', $ticket);
+        // Store ticket in session if session store is active
+        if ($request->hasSession()) {
+            $request->session()->put('google_auth_ticket', $ticket);
+        }
 
         $frontendUrl = $this->getFrontendBaseUrl();
         $isProduction = config('app.env') === 'production' || str_starts_with($frontendUrl, 'https://');
@@ -229,8 +234,9 @@ class GoogleAuthController extends ApiController
     public function exchange(Request $request): JsonResponse
     {
         // 1. Resolve ticket from HttpOnly cookie, session, or request input
+        $sessionTicket = $request->hasSession() ? $request->session()->pull('google_auth_ticket') : null;
         $ticket = $request->cookie('google_auth_ticket')
-            ?: $request->session()->pull('google_auth_ticket')
+            ?: $sessionTicket
             ?: $request->input('ticket');
 
         if (empty($ticket) || !is_string($ticket)) {
