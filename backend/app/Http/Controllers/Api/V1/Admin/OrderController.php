@@ -9,9 +9,11 @@ use App\Models\OrderStatusEvent;
 use App\Models\Payment;
 use App\Models\ProductVariant;
 use App\Services\Audit\ActivityLogger;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class OrderController extends ApiController
 {
@@ -30,14 +32,15 @@ class OrderController extends ApiController
         // Search by order number, customer name, email, or shipping name
         if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('order_number', 'ilike', "%{$search}%")
-                  ->orWhere('email', 'ilike', "%{$search}%")
-                  ->orWhere('shipping_name', 'ilike', "%{$search}%")
-                  ->orWhereHas('user', function ($uq) use ($search) {
-                      $uq->where('name', 'ilike', "%{$search}%")
-                         ->orWhere('email', 'ilike', "%{$search}%")
-                         ->orWhere('company_name', 'ilike', "%{$search}%");
+            $likeOp = DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $likeOp) {
+                $q->where('order_number', $likeOp, "%{$search}%")
+                  ->orWhere('email', $likeOp, "%{$search}%")
+                  ->orWhere('shipping_name', $likeOp, "%{$search}%")
+                  ->orWhereHas('user', function ($uq) use ($search, $likeOp) {
+                      $uq->where('name', $likeOp, "%{$search}%")
+                         ->orWhere('email', $likeOp, "%{$search}%")
+                         ->orWhere('company_name', $likeOp, "%{$search}%");
                   });
             });
         }
@@ -62,12 +65,76 @@ class OrderController extends ApiController
             $query->where('payment_method', $request->input('payment_method'));
         }
 
-        // Date range
-        if ($request->filled('start_date')) {
-            $query->whereDate('created_at', '>=', $request->input('start_date'));
+        // Date range filtering & validation (supports preset: today, yesterday, last_7_days, last_30_days, this_month, last_month, custom, and date_from / date_to)
+        $dateFrom = $request->input('date_from', $request->input('start_date'));
+        $dateTo = $request->input('date_to', $request->input('end_date'));
+        $datePreset = $request->input('date_preset');
+
+        $validator = Validator::make([
+            'date_preset' => $datePreset,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+        ], [
+            'date_preset' => ['nullable', 'string', 'in:all,today,yesterday,last_7_days,7days,last_30_days,30days,this_month,last_month,custom'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('Invalid date filter parameters.', 422, $validator->errors());
         }
-        if ($request->filled('end_date')) {
-            $query->whereDate('created_at', '<=', $request->input('end_date'));
+
+        $tz = config('business.timezone', 'Asia/Dhaka');
+        $now = Carbon::now($tz);
+        $startDate = null;
+        $endDate = null;
+
+        if ($datePreset && !in_array(strtolower($datePreset), ['all', 'custom'], true)) {
+            match (strtolower($datePreset)) {
+                'today' => [
+                    $startDate = $now->copy()->startOfDay(),
+                    $endDate = $now->copy()->endOfDay(),
+                ],
+                'yesterday' => [
+                    $startDate = $now->copy()->subDay()->startOfDay(),
+                    $endDate = $now->copy()->subDay()->endOfDay(),
+                ],
+                'last_7_days', '7days' => [
+                    $startDate = $now->copy()->subDays(6)->startOfDay(),
+                    $endDate = $now->copy()->endOfDay(),
+                ],
+                'last_30_days', '30days' => [
+                    $startDate = $now->copy()->subDays(29)->startOfDay(),
+                    $endDate = $now->copy()->endOfDay(),
+                ],
+                'this_month' => [
+                    $startDate = $now->copy()->startOfMonth(),
+                    $endDate = $now->copy()->endOfMonth(),
+                ],
+                'last_month' => [
+                    $startDate = $now->copy()->subMonthNoOverflow()->startOfMonth(),
+                    $endDate = $now->copy()->subMonthNoOverflow()->endOfMonth(),
+                ],
+                default => null,
+            };
+        } elseif ($dateFrom || $dateTo) {
+            if ($dateFrom) {
+                $startDate = Carbon::parse($dateFrom, $tz)->startOfDay();
+            }
+            if ($dateTo) {
+                $endDate = Carbon::parse($dateTo, $tz)->endOfDay();
+            }
+        }
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [
+                $startDate->copy()->setTimezone('UTC'),
+                $endDate->copy()->setTimezone('UTC'),
+            ]);
+        } elseif ($startDate) {
+            $query->where('created_at', '>=', $startDate->copy()->setTimezone('UTC'));
+        } elseif ($endDate) {
+            $query->where('created_at', '<=', $endDate->copy()->setTimezone('UTC'));
         }
 
         // Sorting

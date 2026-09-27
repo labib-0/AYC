@@ -13,6 +13,9 @@ export interface AdminOrderQueryParams {
   payment_method?: string;
   start_date?: string;
   end_date?: string;
+  date_preset?: string;
+  date_from?: string;
+  date_to?: string;
   sort?: string;
   direction?: "asc" | "desc";
 }

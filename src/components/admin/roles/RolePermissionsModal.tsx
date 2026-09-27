@@ -91,7 +91,7 @@ export default function RolePermissionsModal({
 
   // Recursively collect all prerequisites for a given slug
   const getAllPrerequisites = useCallback(
-    (slug: string, visited: Set<string> = new Set()): string[] => {
+    function getPrereqs(slug: string, visited: Set<string> = new Set()): string[] {
       const result: string[] = [];
       const perm = catalogMap.get(slug);
       if (!perm || !perm.requires) return result;
@@ -100,7 +100,7 @@ export default function RolePermissionsModal({
         if (!visited.has(reqSlug)) {
           visited.add(reqSlug);
           result.push(reqSlug);
-          result.push(...getAllPrerequisites(reqSlug, visited));
+          result.push(...getPrereqs(reqSlug, visited));
         }
       }
       return Array.from(new Set(result));

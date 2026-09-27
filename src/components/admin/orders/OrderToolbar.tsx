@@ -1,9 +1,14 @@
 import React from "react";
 import { Search, X } from "lucide-react";
+import OrderDateFilter, { DateFilterPreset } from "./OrderDateFilter";
 
 export interface OrderToolbarProps {
   search: string;
   onSearchChange: (val: string) => void;
+  datePreset: DateFilterPreset;
+  dateFrom?: string;
+  dateTo?: string;
+  onDateChange: (preset: DateFilterPreset, dateFrom?: string, dateTo?: string) => void;
   status: string;
   onStatusChange: (val: string) => void;
   paymentStatus: string;
@@ -17,6 +22,10 @@ export interface OrderToolbarProps {
 export default function OrderToolbar({
   search,
   onSearchChange,
+  datePreset,
+  dateFrom,
+  dateTo,
+  onDateChange,
   status,
   onStatusChange,
   paymentStatus,
@@ -28,6 +37,9 @@ export default function OrderToolbar({
 }: OrderToolbarProps) {
   const hasActiveFilters =
     search.trim() !== "" ||
+    datePreset !== "all" ||
+    Boolean(dateFrom) ||
+    Boolean(dateTo) ||
     status !== "all" ||
     paymentStatus !== "all" ||
     fulfillmentStatus !== "all";
@@ -62,6 +74,14 @@ export default function OrderToolbar({
 
       {/* Filter Selects */}
       <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 shrink-0">
+        {/* Date Filter */}
+        <OrderDateFilter
+          datePreset={datePreset}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onChange={onDateChange}
+        />
+
         {/* Order Status */}
         <select
           value={status}

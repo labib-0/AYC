@@ -5,6 +5,8 @@ export { default as FulfillmentStatusBadge } from "./FulfillmentStatusBadge";
 export { default as OrderListHeader } from "./OrderListHeader";
 export { default as OrderKpis } from "./OrderKpis";
 export { default as OrderToolbar } from "./OrderToolbar";
+export { default as OrderDateFilter } from "./OrderDateFilter";
+export * from "./OrderDateFilter";
 export { default as OrderTableRow } from "./OrderTableRow";
 export { default as OrderTable } from "./OrderTable";
 export { default as OrderPagination } from "./OrderPagination";
