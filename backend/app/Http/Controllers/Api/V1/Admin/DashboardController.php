@@ -50,11 +50,20 @@ class DashboardController extends ApiController
               ->orWhere('status', 'delivered');
         })->sum('total_amount') : 0.0;
         
-        // Low stock based on unified LOW_STOCK_THRESHOLD
-        $lowStockItems = $canViewInventory ? ProductVariant::whereHas('product')
-            ->where('stock', '>', 0)
-            ->where('stock', '<', InventoryController::LOW_STOCK_THRESHOLD)
-            ->count() : 0;
+        // Low Stock: count of unique products whose current Available Inventory is below MOQ
+        $lowStockItems = 0;
+        if ($canViewInventory) {
+            Product::with(['variants.inventories'])
+                ->chunk(200, function ($products) use (&$lowStockItems) {
+                    foreach ($products as $product) {
+                        $available = $product->getTotalAvailableStock();
+                        $moq = max(1, (int) ($product->moq ?? 1));
+                        if ($available < $moq) {
+                            $lowStockItems++;
+                        }
+                    }
+                });
+        }
 
         $recentOrders = $canViewOrders ? Order::with('user')
             ->orderByDesc('created_at')
