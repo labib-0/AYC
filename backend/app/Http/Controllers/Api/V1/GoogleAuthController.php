@@ -273,13 +273,15 @@ class GoogleAuthController extends ApiController
             ], 403)->withCookie($forgetCookie);
         }
 
+        $safeRedirect = $this->sanitizeRedirectTarget($cached['intended'] ?? '/dashboard');
+
         return response()->json([
             'success' => true,
             'message' => 'Authentication successful.',
             'data' => [
                 'token' => $cached['token'],
                 'user' => $user,
-                'redirect' => $cached['intended'] ?? '/dashboard',
+                'redirect' => $safeRedirect,
             ],
         ])->withCookie($forgetCookie);
     }
@@ -290,6 +292,11 @@ class GoogleAuthController extends ApiController
     protected function sanitizeRedirectTarget(?string $target): string
     {
         if (empty($target)) {
+            return '/dashboard';
+        }
+
+        // Google OAuth is customer-only: never redirect to admin paths!
+        if ($target === '/admin' || str_starts_with($target, '/admin')) {
             return '/dashboard';
         }
 

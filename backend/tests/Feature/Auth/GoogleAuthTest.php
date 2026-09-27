@@ -478,7 +478,24 @@ class GoogleAuthTest extends TestCase
             ->getJson('/api/v1/auth/me');
 
         $afterLogoutResponse->assertStatus(401);
+    }
 
+    public function test_google_oauth_sanitizes_admin_redirect_to_dashboard(): void
+    {
+        $this->mockSocialiteUser(
+            id: 'google-admin-sanitize-check',
+            email: 'adminredirect@ayaanclothing.com',
+            name: 'Customer Redirect'
+        );
 
+        // Attempting to pass ?redirect=/admin
+        $this->withSession(['google_oauth_redirect' => '/admin']);
+
+        $response = $this->get('/api/v1/auth/google/callback');
+        $response->assertStatus(302);
+
+        $location = $response->headers->get('Location');
+        $this->assertStringContainsString('redirect=%2Fdashboard', $location);
+        $this->assertStringNotContainsString('redirect=%2Fadmin', $location);
     }
 }

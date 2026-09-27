@@ -129,9 +129,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const refreshSession = async () => {
+  const refreshSession = useCallback(async () => {
     await fetchSession();
-  };
+  }, [fetchSession]);
 
   return (
     <AuthContext.Provider

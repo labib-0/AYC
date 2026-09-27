@@ -201,7 +201,11 @@ class ApiClient {
         // 1. Handle 401 Unauthorized with safe, bounded recovery
         if (response.status === 401) {
           // If we had a token and this is the first attempt, try to revalidate once
-          const isAuthPath = path.includes("/auth/login") || path.includes("/auth/register");
+          const isAuthPath =
+            path.includes("/auth/login") ||
+            path.includes("/auth/register") ||
+            path.includes("/auth/google") ||
+            path.includes("/auth/password");
           if (!isAuthPath && activeToken && _retryCount === 0) {
             // Re-fetch token once in case it was refreshed in another tab/context
             const freshToken = this.getToken();

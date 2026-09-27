@@ -80,7 +80,13 @@ export default function LoginPage() {
   const handleGoogleSignIn = () => {
     setError("");
     setGoogleLoading(true);
-    const target = getRedirectUrl();
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("ayaan_session_expired_message");
+    }
+    let target = getRedirectUrl();
+    if (target === "/admin" || target.startsWith("/admin")) {
+      target = "/dashboard";
+    }
     const apiBase = apiClient.getBaseUrl();
     window.location.href = `${apiBase}/auth/google/redirect?redirect=${encodeURIComponent(target)}`;
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiClient } from "@/services/api-client";
 import { useAuth } from "@/lib/AuthContext";
@@ -14,6 +14,7 @@ function CallbackHandler() {
   const { refreshSession } = useAuth();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const executingRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -30,14 +31,25 @@ function CallbackHandler() {
       return () => clearTimeout(timer);
     }
 
-    // Sanitize redirect target to prevent open redirect attacks
+    if (executingRef.current) {
+      return;
+    }
+    executingRef.current = true;
+
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("ayaan_session_expired_message");
+    }
+
+    // Sanitize redirect target to prevent open redirect attacks and protect customer boundary
     let target = "/dashboard";
     if (
       rawRedirect &&
       rawRedirect.startsWith("/") &&
       !rawRedirect.startsWith("//") &&
       !rawRedirect.startsWith("/\\") &&
-      !rawRedirect.includes("\\")
+      !rawRedirect.includes("\\") &&
+      !rawRedirect.startsWith("/admin") &&
+      rawRedirect !== "/admin"
     ) {
       target = rawRedirect;
     }
@@ -48,17 +60,32 @@ function CallbackHandler() {
 
         // Secure exchange handoff (HttpOnly cookie / session ticket)
         if (!legacyToken) {
-          const res = await apiClient.post<any>("/auth/google/exchange", {
-            ticket: ticket || undefined,
-          });
-          const authData = "data" in res && res.data ? res.data : res;
-          if (authData?.token) {
-            tokenToSet = authData.token;
-            if (authData.redirect) {
-              target = authData.redirect;
+          try {
+            const res = await apiClient.post<any>("/auth/google/exchange", {
+              ticket: ticket || undefined,
+            });
+            const authData = "data" in res && res.data ? res.data : res;
+            if (authData?.token) {
+              tokenToSet = authData.token;
+              if (
+                authData.redirect &&
+                !authData.redirect.startsWith("/admin") &&
+                authData.redirect !== "/admin"
+              ) {
+                target = authData.redirect;
+              }
+            } else {
+              throw new Error(authData?.message || "Invalid authentication exchange response from server.");
             }
-          } else {
-            throw new Error(authData?.message || "Invalid authentication exchange response from server.");
+          } catch (exchangeErr: any) {
+            // Graceful fallback: If exchange fails (e.g. ticket was consumed in an earlier request),
+            // check if token is already established in apiClient.
+            const existingToken = apiClient.getToken();
+            if (existingToken) {
+              tokenToSet = existingToken;
+            } else {
+              throw exchangeErr;
+            }
           }
         } else {
           // Backward compatibility fallback if legacy token was provided
