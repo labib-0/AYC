@@ -619,7 +619,7 @@ export default function ProductPricingSection({
                   />
                   <div className="flex items-center gap-1.5">
                     <Clock size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
-                    <span className="text-xs font-bold text-foreground">Preorder Product</span>
+                    <span className="text-xs font-bold text-foreground">PRE-ORDER</span>
                   </div>
                 </label>
                 {isPreorder && (

@@ -2,7 +2,7 @@ export type ProductStatus = "draft" | "active" | "archived" | "published" | "unp
 
 export interface B2BProductVariant {
   id?: string;
-  sku: string;
+  sku?: string;
   title: string;
   optionSummary?: string;
   color?: string;
@@ -82,6 +82,8 @@ export interface B2BProductInput {
     available_quantity: number;
   }>;
   status: "published" | "draft" | "unpublished";
+  isHiddenFromStorefront?: boolean;
+  is_hidden_from_storefront?: boolean;
   isFeatured?: boolean;
   featuredUntil?: string | null;
   featured_until?: string | null;

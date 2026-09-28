@@ -172,6 +172,8 @@ class ProductResource extends JsonResource
             'purchasePriceUpdatedAt' => $this->purchase_price_updated_at?->toISOString(),
             'productId' => $this->product_id,
             'product_id' => $this->product_id,
+            'isHiddenFromStorefront' => (bool) ($this->is_hidden_from_storefront ?? false),
+            'is_hidden_from_storefront' => (bool) ($this->is_hidden_from_storefront ?? false),
         ] : []);
     }
 }

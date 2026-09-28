@@ -11,6 +11,8 @@ import {
   ArrowDownCircle,
   Copy,
   Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
@@ -22,6 +24,7 @@ interface ProductTableRowProps {
   selected: boolean;
   onSelect: (id: string, selected: boolean) => void;
   onTogglePublish: (product: B2BProductInput) => void;
+  onToggleStorefrontVisibility?: (product: B2BProductInput) => void;
   onDuplicate: (product: B2BProductInput) => void;
   onDelete: (product: B2BProductInput) => void;
 }
@@ -31,6 +34,7 @@ export default function ProductTableRow({
   selected,
   onSelect,
   onTogglePublish,
+  onToggleStorefrontVisibility,
   onDuplicate,
   onDelete,
 }: ProductTableRowProps) {
@@ -68,6 +72,9 @@ export default function ProductTableRow({
   }, []);
 
   const isPublished = product.status === "published";
+  const isHiddenFromStorefront = Boolean(
+    product.isHiddenFromStorefront || (product as any).is_hidden_from_storefront
+  );
   const effectiveMoq = Math.max(1, product.moq || 1);
   const availableStock = product.availableStock !== undefined ? Number(product.availableStock) : Number(product.stock);
   const completeMoqs = product.availableMoqs !== undefined 
@@ -235,15 +242,22 @@ export default function ProductTableRow({
 
       {/* Status */}
       <td className="px-3 py-2.5">
-        <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-            isPublished
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-              : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
-          }`}
-        >
-          {product.status}
-        </span>
+        <div className="flex flex-col gap-1 items-start">
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+              isPublished
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
+            }`}
+          >
+            {product.status}
+          </span>
+          {isHiddenFromStorefront && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700">
+              HIDDEN FROM STOREFRONT
+            </span>
+          )}
+        </div>
       </td>
 
       {/* Actions */}
@@ -251,14 +265,14 @@ export default function ProductTableRow({
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
             aria-label={`Actions for ${product.name}`}
           >
             <MoreHorizontal size={15} />
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-8 z-30 w-44 rounded-xl border border-border/80 bg-card p-1 shadow-lg">
+            <div className="absolute right-0 top-8 z-30 w-48 rounded-xl border border-border/80 bg-card p-1 shadow-lg">
               {can("product.edit") && (
                 <Link
                   href={editHref}
@@ -281,6 +295,28 @@ export default function ProductTableRow({
                 View Storefront
               </a>
 
+              {onToggleStorefrontVisibility && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onToggleStorefrontVisibility(product);
+                  }}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
+                >
+                  {isHiddenFromStorefront ? (
+                    <>
+                      <Eye size={13} className="text-emerald-600" />
+                      Show on Storefront
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff size={13} className="text-amber-600" />
+                      Hide from Storefront
+                    </>
+                  )}
+                </button>
+              )}
+
               {can("product.publish") && (
                 <>
                   <div className="h-px bg-border/60 my-1" />
@@ -289,7 +325,7 @@ export default function ProductTableRow({
                       setMenuOpen(false);
                       onTogglePublish(product);
                     }}
-                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left"
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
                   >
                     {isPublished ? (
                       <>

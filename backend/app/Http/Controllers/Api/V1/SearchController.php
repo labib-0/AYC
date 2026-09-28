@@ -29,6 +29,7 @@ class SearchController extends ApiController
         $likeOp = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
 
         $products = Product::where('status', 'published')
+            ->where('is_hidden_from_storefront', false)
             ->where(function ($query) use ($q, $likeOp) {
                 $query->where('name', $likeOp, "%{$q}%")
                       ->orWhere('sku', $likeOp, "%{$q}%")

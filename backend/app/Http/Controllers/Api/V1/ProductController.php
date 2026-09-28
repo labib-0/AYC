@@ -33,11 +33,19 @@ class ProductController extends ApiController
         $user = $request->user() ?: auth('sanctum')->user();
         $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
 
-        // Status filter (defaults to 'published' for public storefront; non-admins can ONLY view published)
+        // Status filter (defaults to 'published' for public storefront; non-admins can ONLY view published & non-hidden products)
         if (!$isAdmin) {
-            $query->where('status', 'published');
-        } elseif ($request->filled('status') && $request->input('status') !== 'all') {
-            $query->where('status', $request->input('status'));
+            $query->where('status', 'published')
+                  ->where('is_hidden_from_storefront', false);
+        } else {
+            if ($request->filled('status') && $request->input('status') !== 'all') {
+                $query->where('status', $request->input('status'));
+            }
+            if ($request->filled('is_hidden_from_storefront')) {
+                $query->where('is_hidden_from_storefront', $request->boolean('is_hidden_from_storefront'));
+            } elseif ($request->filled('hidden')) {
+                $query->where('is_hidden_from_storefront', $request->boolean('hidden'));
+            }
         }
 
         $likeOp = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
@@ -268,6 +276,7 @@ class ProductController extends ApiController
 
         $query = Product::query()
             ->where('status', 'published')
+            ->where('is_hidden_from_storefront', false)
             ->where('is_featured', true)
             ->whereNull('deleted_at')
             ->with([
@@ -307,6 +316,7 @@ class ProductController extends ApiController
         if (!$isAdmin) {
             $cached = CatalogCacheService::rememberProduct($slugOrId, (bool) $isCustomer, function () use ($slugOrId) {
                 $p = Product::with(['brand', 'categories', 'images', 'variants.inventories.warehouse', 'pricingTiers', 'packageAllocations.variant', 'shippingPackageProfiles'])
+                    ->where('is_hidden_from_storefront', false)
                     ->where(function ($q) use ($slugOrId) {
                         $q->where('slug', $slugOrId);
                         $q->orWhere('sku', $slugOrId);
@@ -403,6 +413,7 @@ class ProductController extends ApiController
             'initial_inventory.warehouse_id' => ['nullable', 'exists:warehouses,id'],
             'initial_inventory.quantity' => ['nullable', 'integer', 'min:0'],
             'status' => ['nullable', 'string', 'in:draft,published,archived'],
+            'is_hidden_from_storefront' => ['nullable', 'boolean'],
             'is_featured' => ['nullable', 'boolean'],
             'featured_sort_order' => ['nullable', 'integer'],
             'featured_until' => ['nullable', 'date'],
@@ -777,14 +788,13 @@ class ProductController extends ApiController
                 foreach ($variantsInput as $idx => $var) {
                     $vColor = $var['color'] ?? $product->color_name ?? 'Standard';
                     $vSize = $var['size'] ?? 'Standard';
-                    $variantSku = $var['sku'] ?? ($product->sku . '-' . strtoupper(substr($vColor, 0, 3)) . '-' . strtoupper(substr($vSize, 0, 3)));
                     $varStock = isset($var['stock']) && (int)$var['stock'] > 0
                         ? (int)$var['stock']
                         : ($distributedStock[$idx] ?? 0);
 
                     $createdVariant = \App\Models\ProductVariant::create([
                         'product_id' => $product->id,
-                        'sku' => $variantSku,
+                        'sku' => null,
                         'title' => $var['title'] ?? "{$vColor} / {$vSize}",
                         'size' => $vSize,
                         'color' => $vColor,
@@ -1008,6 +1018,7 @@ class ProductController extends ApiController
             'cost_price' => ['nullable', 'numeric', 'min:0.01'],
             'moq' => ['nullable', 'integer', 'min:1'],
             'status' => ['sometimes', 'string', 'in:draft,published,archived'],
+            'is_hidden_from_storefront' => ['sometimes', 'boolean'],
             'is_featured' => ['sometimes', 'boolean'],
             'featured_sort_order' => ['nullable', 'integer'],
             'featured_until' => ['nullable', 'date'],
@@ -1301,7 +1312,6 @@ class ProductController extends ApiController
 
                     if ($existingVar) {
                         $existingVar->update([
-                            'sku' => $var['sku'] ?? $existingVar->sku,
                             'title' => $var['title'] ?? $existingVar->title,
                             'size' => $vSize,
                             'color' => $vColor,
@@ -1313,10 +1323,9 @@ class ProductController extends ApiController
                         ]);
                         $variantsMap["{$vColor}-{$vSize}"] = $existingVar;
                     } else {
-                        $variantSku = $var['sku'] ?? ($product->sku . '-' . strtoupper(substr($vColor, 0, 3)) . '-' . strtoupper(substr($vSize, 0, 3)));
                         $newVar = \App\Models\ProductVariant::create([
                             'product_id' => $product->id,
-                            'sku' => $variantSku,
+                            'sku' => null,
                             'title' => $var['title'] ?? "{$vColor} / {$vSize}",
                             'size' => $vSize,
                             'color' => $vColor,
@@ -1466,14 +1475,23 @@ class ProductController extends ApiController
      */
     public function shippingSpecs(Request $request, string $slugOrId): JsonResponse
     {
-        $product = Product::with('shippingPackageProfiles')
+        $user = auth('sanctum')->user() ?: $request->user();
+        $isAdmin = $user && $user->isAdmin();
+
+        $query = Product::with('shippingPackageProfiles')
             ->where(function ($q) use ($slugOrId) {
                 $q->where('slug', $slugOrId);
                 if (is_numeric($slugOrId)) {
                     $q->orWhere('id', (int) $slugOrId);
                 }
-            })
-            ->first();
+            });
+
+        if (!$isAdmin) {
+            $query->where('status', 'published')
+                  ->where('is_hidden_from_storefront', false);
+        }
+
+        $product = $query->first();
 
         if (!$product) {
             return $this->notFound('Product not found');
@@ -1523,6 +1541,39 @@ class ProductController extends ApiController
         $product->delete();
 
         return $this->success(null, 'Product deleted successfully');
+    }
+
+    /**
+     * PATCH /api/v1/products/{id}/toggle-storefront-visibility (Admin)
+     * Toggles whether the product is hidden from customer storefront without altering status or data
+     */
+    public function toggleStorefrontVisibility(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.edit')) {
+            return $this->forbidden("Forbidden: you do not have the 'product.edit' permission to modify product storefront visibility.");
+        }
+
+        $product = is_numeric($id)
+            ? Product::find((int) $id)
+            : Product::where('slug', $id)->orWhere('sku', $id)->first();
+
+        if (!$product) {
+            return $this->notFound('Product not found');
+        }
+
+        $product->is_hidden_from_storefront = !$product->is_hidden_from_storefront;
+        $product->save();
+
+        CatalogCacheService::invalidateProduct($product);
+
+        ActivityLogger::log('product.storefront_visibility_toggled', $product, [
+            'name' => $product->name,
+            'sku' => $product->sku,
+            'is_hidden_from_storefront' => $product->is_hidden_from_storefront,
+        ]);
+
+        return $this->success(new ProductResource($product), 'Product storefront visibility updated successfully');
     }
 
     /**

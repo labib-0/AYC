@@ -19,7 +19,12 @@ export async function generateMetadata({
 
   try {
     const product = await getProductBySlugOrId(slug);
-    if (!product || product.status === "draft") {
+    if (
+      !product ||
+      product.status === "draft" ||
+      product.isHiddenFromStorefront ||
+      (product as any).is_hidden_from_storefront
+    ) {
       return generateProductMetadata(null, slug);
     }
     return generateProductMetadata(product, slug);
@@ -34,7 +39,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
   let product = null;
   try {
     const fetched = await getProductBySlugOrId(slug);
-    if (fetched && fetched.status !== "draft") {
+    if (
+      fetched &&
+      fetched.status !== "draft" &&
+      !fetched.isHiddenFromStorefront &&
+      !(fetched as any).is_hidden_from_storefront
+    ) {
       product = fetched;
     }
   } catch (err) {

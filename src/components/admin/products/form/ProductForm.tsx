@@ -19,8 +19,7 @@ import ProductBasicInfoSection from "./ProductBasicInfoSection";
 import ProductInventorySection from "./ProductInventorySection";
 import ProductImagesSection from "./ProductImagesSection";
 import ProductPricingSection from "./ProductPricingSection";
-import ProductVariantsSection from "./ProductVariantsSection";
-import ProductPackageAssortmentSection from "./ProductPackageAssortmentSection";
+import ProductPackageBreakdownSection from "./ProductPackageBreakdownSection";
 import ProductShippingSection from "./ProductShippingSection";
 import ProductSeoSection from "./ProductSeoSection";
 import ProductPublishSection from "./ProductPublishSection";
@@ -59,6 +58,11 @@ export default function ProductForm({
   const [name, setName] = useState(initialData?.name || "");
   const [slug, setSlug] = useState(initialData?.slug || "");
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [sku, setSku] = useState(initialData?.sku || "");
+  const [skuManuallyEdited, setSkuManuallyEdited] = useState(Boolean(initialData?.sku));
+  const [isHiddenFromStorefront, setIsHiddenFromStorefront] = useState<boolean>(
+    Boolean(initialData?.isHiddenFromStorefront || (initialData as any)?.is_hidden_from_storefront)
+  );
   const [brand, setBrand] = useState(initialData?.brand || "");
   const [brandId, setBrandId] = useState<string | number | undefined>(initialData?.brand_id);
   const [brandLogo, setBrandLogo] = useState<string | undefined>(initialData?.brandLogo);
@@ -256,10 +260,6 @@ export default function ProductForm({
   const isMountedRef = useRef<boolean>(false);
   const persistDraftRef = useRef<((opts?: { isAutosave?: boolean }) => Promise<boolean>) | null>(null);
 
-  // Package Assortment Section — collapsed by default unless allocations and variants exist
-  const [packageSectionOpen, setPackageSectionOpen] = useState(
-    () => packageAllocations.length > 0 && colors.length > 0 && sizes.length > 0
-  );
 
   // Submission & Validation States
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -274,6 +274,9 @@ export default function ProductForm({
       product_id: productId.trim(),
       name,
       slug,
+      sku: sku.trim(),
+      isHiddenFromStorefront,
+      is_hidden_from_storefront: isHiddenFromStorefront,
       brand,
       brand_id: brandId ? String(brandId) : undefined,
       brandLogo,
@@ -311,7 +314,7 @@ export default function ProductForm({
       status: "draft",
     };
   }, [
-    productId, name, slug, brand, brandId, brandLogo, categoryId, categoryName,
+    productId, name, slug, sku, isHiddenFromStorefront, brand, brandId, brandLogo, categoryId, categoryName,
     audience, designType, material, description, seoTitle, seoDescription,
     keywords, images, videoUrl, wholesalePrice, bulkThreshold, bulkPrice,
     fullStockPrice, costPrice, stock, warehouseId, moq, colors, sizes,
@@ -369,7 +372,9 @@ export default function ProductForm({
         product_id: data.productId.trim(),
         name: data.name?.trim() || "Untitled Draft",
         slug: data.slug?.trim() || `draft-${data.productId.trim().toLowerCase()}-${Date.now().toString(36)}`,
-        sku: generatedSku,
+        sku: sku.trim() || generatedSku,
+        isHiddenFromStorefront: isHiddenFromStorefront,
+        is_hidden_from_storefront: isHiddenFromStorefront,
         brand: data.brand || "General",
         categoryId: data.categoryId || (categories.length > 0 ? categories[0].id : "c_tops"),
         categoryName: activeCat?.name || categoryName || "Apparel",
@@ -436,6 +441,13 @@ export default function ProductForm({
         setSlug(d.slug);
         setSlugManuallyEdited(true);
       }
+      if (d.sku) {
+        setSku(d.sku);
+        setSkuManuallyEdited(true);
+      }
+      if (d.isHiddenFromStorefront !== undefined || (d as any).is_hidden_from_storefront !== undefined) {
+        setIsHiddenFromStorefront(Boolean(d.isHiddenFromStorefront || (d as any).is_hidden_from_storefront));
+      }
       if (d.brand) setBrand(d.brand);
       if (d.brand_id) setBrandId(d.brand_id);
       if (d.brandLogo) setBrandLogo(d.brandLogo);
@@ -467,7 +479,6 @@ export default function ProductForm({
       if (d.sizes && d.sizes.length > 0) setSizes(d.sizes);
       if (d.packageAllocations && d.packageAllocations.length > 0) {
         setPackageAllocations(d.packageAllocations);
-        setPackageSectionOpen(true);
       }
       if (d.shippingPackageProfiles && d.shippingPackageProfiles.length > 0) setShippingProfiles(d.shippingPackageProfiles);
       if (d.isNew !== undefined) setIsNew(d.isNew);
@@ -596,7 +607,7 @@ export default function ProductForm({
     loadRefs();
   }, [brand, categoryId, draftKey, isEdit]);
 
-  // Auto-generate slug from name in Create mode (unless manually edited)
+  // Auto-generate slug and SKU from name in Create mode (unless manually edited)
   const handleNameChange = (val: string) => {
     setName(val);
     if (!isEdit && !slugManuallyEdited) {
@@ -606,6 +617,10 @@ export default function ProductForm({
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
       setSlug(generated);
+    }
+    if (!isEdit && !skuManuallyEdited) {
+      const activeCat = categories.find((c) => String(c.id) === String(categoryId));
+      setSku(generateProductSku(brand || "AY", activeCat?.name || "APP", val || "PROD"));
     }
     if (errors.name) {
       setErrors((prev) => {
@@ -627,6 +642,18 @@ export default function ProductForm({
       setErrors((prev) => {
         const next = { ...prev };
         delete next.slug;
+        return next;
+      });
+    }
+  };
+
+  const handleSkuChange = (val: string) => {
+    setSkuManuallyEdited(true);
+    setSku(val);
+    if (errors.sku) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.sku;
         return next;
       });
     }
@@ -658,8 +685,8 @@ export default function ProductForm({
       errs.name = "Product name is required to save a draft.";
     }
 
-    // Package breakdown is strictly optional. Only validate if section is OPEN and rows exist
-    if (packageSectionOpen && packageAllocations.length > 0) {
+    // Package breakdown is strictly optional. Only validate if rows exist
+    if (packageAllocations.length > 0) {
       for (const a of packageAllocations) {
         if (!Number.isInteger(a.quantity) || a.quantity < 0) {
           errs.package_allocations = "Package allocation quantities must be non-negative whole integers.";
@@ -699,7 +726,7 @@ export default function ProductForm({
     if (wholesalePrice <= 0) errs.wholesalePrice = "Wholesale price must be greater than $0.00.";
 
     // Package breakdown is optional for publishing unless configured
-    if (packageSectionOpen && packageAllocations.length > 0) {
+    if (packageAllocations.length > 0) {
       for (const a of packageAllocations) {
         if (!Number.isInteger(a.quantity) || a.quantity < 0) {
           errs.package_allocations = "Package allocation quantities must be non-negative whole integers.";
@@ -753,7 +780,7 @@ export default function ProductForm({
         initialData?.sku ||
         generateProductSku(brand || "AY", activeCat?.name || "APP", name || "PROD");
 
-      // Generate variant combinations
+      // Generate variant combinations (no variant SKU)
       const variants: B2BProductVariant[] = [];
       const totalVariants = colors.length * sizes.length;
       const stockPerVar = totalVariants > 0 ? Math.floor(stock / totalVariants) : stock;
@@ -761,7 +788,6 @@ export default function ProductForm({
       colors.forEach((c) => {
         sizes.forEach((s) => {
           variants.push({
-            sku: `${generatedSku}-${c.substring(0, 3).toUpperCase()}-${s.toUpperCase()}`,
             title: `${c} / ${s}`,
             color: c,
             size: s,
@@ -792,7 +818,9 @@ export default function ProductForm({
         product_id: productId.trim(),
         name: name.trim(),
         slug: slug.trim(),
-        sku: generatedSku,
+        sku: sku.trim() || generatedSku,
+        isHiddenFromStorefront: isHiddenFromStorefront,
+        is_hidden_from_storefront: isHiddenFromStorefront,
         brand: brand.trim(),
         brandLogo: activeBrand?.logo_url || brandLogo,
         brand_id: activeBrand?.id ? String(activeBrand.id) : undefined,
@@ -1074,6 +1102,7 @@ export default function ProductForm({
             productId={productId}
             name={name}
             slug={slug}
+            sku={sku}
             brand={brand}
             brandId={brandId}
             categoryId={categoryId}
@@ -1088,6 +1117,7 @@ export default function ProductForm({
             onProductIdChange={setProductId}
             onNameChange={handleNameChange}
             onSlugChange={handleSlugChange}
+            onSkuChange={handleSkuChange}
             onBrandChange={(bName, bId, bLogo) => {
               setBrand(bName);
               setBrandId(bId);
@@ -1123,55 +1153,19 @@ export default function ProductForm({
             productId={initialData?.id}
           />
 
-          {/* Section 2: Variants & Stock */}
-          <ProductVariantsSection
+          {/* Section 2: Unified Package Breakdown */}
+          <ProductPackageBreakdownSection
+            isHiddenFromStorefront={isHiddenFromStorefront}
+            onIsHiddenFromStorefrontChange={setIsHiddenFromStorefront}
             colors={colors}
             sizes={sizes}
+            allocations={packageAllocations}
             stock={stock}
-            sku={initialData?.sku || "AY-PROD"}
             errors={errors}
             onColorsChange={setColors}
             onSizesChange={setSizes}
-            onStockChange={setStock}
+            onAllocationsChange={handlePackageAllocationsChange}
           />
-
-          {/* Section 2.5: Optional Package Breakdown (collapsible) */}
-          <div className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden" id="section-package-breakdown">
-            <div className="w-full flex items-center justify-between px-4 py-3 bg-secondary/20">
-              <span className="text-sm font-bold text-foreground uppercase tracking-wider">
-                PACKAGE BREAKDOWN
-              </span>
-              <div className="flex items-center gap-2.5">
-                {colors.length > 0 && sizes.length > 0 && packageAllocations.length > 0 && (
-                  <span className="text-[11px] font-semibold text-primary tabular-nums">
-                    {packageAllocations.length} variant{packageAllocations.length !== 1 ? "s" : ""} configured
-                  </span>
-                )}
-                <button
-                  type="button"
-                  id="toggle-package-breakdown-btn"
-                  onClick={() => setPackageSectionOpen((v) => !v)}
-                  className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border border-border bg-background hover:bg-secondary text-foreground transition-colors cursor-pointer"
-                  aria-expanded={packageSectionOpen}
-                >
-                  {packageSectionOpen ? "[HIDE]" : "[SHOW]"}
-                </button>
-              </div>
-            </div>
-
-            {packageSectionOpen && (
-              <div className="border-t border-border/60">
-                <ProductPackageAssortmentSection
-                  colors={colors}
-                  sizes={sizes}
-                  allocations={packageAllocations}
-                  moq={moq}
-                  onAllocationsChange={handlePackageAllocationsChange}
-                  errors={errors}
-                />
-              </div>
-            )}
-          </div>
 
           {/* Section 3: Shipping Logistics */}
           <ProductShippingSection

@@ -61,6 +61,7 @@ class Product extends Model
         'bulk_price',
         'full_stock_price',
         'status',
+        'is_hidden_from_storefront',
         'is_featured',
         'featured_sort_order',
         'featured_until',
@@ -87,6 +88,7 @@ class Product extends Model
         'bulk_threshold' => 'integer',
         'bulk_price' => 'decimal:2',
         'full_stock_price' => 'decimal:2',
+        'is_hidden_from_storefront' => 'boolean',
         'is_featured' => 'boolean',
         'featured_sort_order' => 'integer',
         'featured_until' => 'datetime',
@@ -101,6 +103,17 @@ class Product extends Model
         'weight_grams' => 'integer',
         'is_demo' => 'boolean',
     ];
+
+    public function scopeStorefrontVisible($query)
+    {
+        return $query->where('status', 'published')
+                     ->where('is_hidden_from_storefront', false);
+    }
+
+    public function isStorefrontVisible(): bool
+    {
+        return $this->status === 'published' && !$this->is_hidden_from_storefront;
+    }
 
     protected static function booted(): void
     {

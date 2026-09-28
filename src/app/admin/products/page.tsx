@@ -14,6 +14,7 @@ import {
 import { getBrands } from "@/lib/services/brands";
 import { categoryService } from "@/services/category.service";
 import { productDraftService } from "@/lib/services/product-draft.service";
+import { toggleProductStorefrontVisibility } from "@/services/product.service";
 
 import {
   ProductSummaryMetrics,
@@ -224,6 +225,20 @@ export default function AdminProductsPage() {
     }
   };
 
+  const handleToggleStorefrontVisibility = async (product: B2BProductInput) => {
+    const isHidden = Boolean(product.isHiddenFromStorefront || (product as any).is_hidden_from_storefront);
+    try {
+      await toggleProductStorefrontVisibility(product.id, !isHidden);
+      addToast(
+        "success",
+        `Product is now ${!isHidden ? "hidden from" : "visible on"} storefront.`
+      );
+      await loadProducts();
+    } catch {
+      addToast("error", "Failed to update storefront visibility.");
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     setModalLoading(true);
@@ -373,6 +388,7 @@ export default function AdminProductsPage() {
           onSelect={handleSelect}
           onSelectAll={handleSelectAll}
           onTogglePublish={handleTogglePublish}
+          onToggleStorefrontVisibility={handleToggleStorefrontVisibility}
           onDuplicate={(p) => setDuplicateTarget(p)}
           onDelete={(p) => setDeleteTarget(p)}
           onRetry={loadProducts}

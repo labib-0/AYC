@@ -12,6 +12,7 @@ interface ProductTableProps {
   onSelect: (id: string, selected: boolean) => void;
   onSelectAll: (selected: boolean) => void;
   onTogglePublish: (product: B2BProductInput) => void;
+  onToggleStorefrontVisibility?: (product: B2BProductInput) => void;
   onDuplicate: (product: B2BProductInput) => void;
   onDelete: (product: B2BProductInput) => void;
   onRetry: () => void;
@@ -27,6 +28,7 @@ export default function ProductTable({
   onSelect,
   onSelectAll,
   onTogglePublish,
+  onToggleStorefrontVisibility,
   onDuplicate,
   onDelete,
   onRetry,
@@ -192,6 +194,7 @@ export default function ProductTable({
                 selected={selectedIds.has(product.id)}
                 onSelect={onSelect}
                 onTogglePublish={onTogglePublish}
+                onToggleStorefrontVisibility={onToggleStorefrontVisibility}
                 onDuplicate={onDuplicate}
                 onDelete={onDelete}
               />

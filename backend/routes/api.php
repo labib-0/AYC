@@ -111,6 +111,8 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:product.create');
             Route::put('/{id}', [ProductController::class, 'update'])
                 ->middleware('permission:product.edit');
+            Route::patch('/{id}/toggle-storefront-visibility', [ProductController::class, 'toggleStorefrontVisibility'])
+                ->middleware('permission:product.edit');
             Route::delete('/{id}', [ProductController::class, 'destroy'])
                 ->middleware('permission:product.delete');
             Route::post('/{id}/images', [ProductController::class, 'uploadImage'])

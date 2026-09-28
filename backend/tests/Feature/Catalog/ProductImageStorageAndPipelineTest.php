@@ -62,7 +62,7 @@ class ProductImageStorageAndPipelineTest extends TestCase
         $this->assertNotEmpty($data['url']);
         $this->assertNotEmpty($data['path']);
         $this->assertStringContainsString('products/', $data['path']);
-        $this->assertStringEndsWith('.jpg', $data['path']);
+        $this->assertTrue(str_ends_with($data['path'], '.jpg') || str_ends_with($data['path'], '.webp'));
         $this->assertNotEquals(asset('storage'), $data['url']);
         $this->assertStringContainsString('/storage/products/', $data['url']);
 

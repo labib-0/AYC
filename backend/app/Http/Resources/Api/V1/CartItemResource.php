@@ -60,7 +60,6 @@ class CartItemResource extends JsonResource
             ] : null,
             'variant' => $variant ? [
                 'id' => (string) $variant->id,
-                'sku' => $variant->sku,
                 'title' => $variant->title,
                 'size' => $variant->size,
                 'color' => $variant->color,

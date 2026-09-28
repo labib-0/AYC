@@ -341,6 +341,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     available_moqs: availableMoqs,
     warehouseBreakdown,
     status: status,
+    isHiddenFromStorefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
+    is_hidden_from_storefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     isFeatured: isFeatured,
     featuredUntil: featuredUntil,
     featured_until: featuredUntil,
@@ -448,6 +450,10 @@ export function toStorefrontProduct(p: any): Product {
     videoUrl: p.videoUrl || p.video_url,
     youtubeVideoId: p.youtubeVideoId || p.youtube_video_id,
     youtubeEmbedUrl: p.youtubeEmbedUrl || p.youtube_embed_url,
+    productId: p.productId || p.product_id || undefined,
+    product_id: p.productId || p.product_id || undefined,
+    isHiddenFromStorefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
+    is_hidden_from_storefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     status: p.status || "draft",
     isDraft: (p.status || "draft") === "draft",
   };
@@ -679,6 +685,9 @@ export class ProductService {
     if (input.colorName !== undefined) payload.color_name = input.colorName;
     if (input.colorHex !== undefined) payload.color_hex = input.colorHex;
 
+    if (input.isHiddenFromStorefront !== undefined) payload.is_hidden_from_storefront = input.isHiddenFromStorefront;
+    if (input.is_hidden_from_storefront !== undefined) payload.is_hidden_from_storefront = input.is_hidden_from_storefront;
+
     if (input.isFeatured !== undefined) payload.is_featured = input.isFeatured;
     if (input.featuredUntil !== undefined) payload.featured_until = input.featuredUntil;
     if (input.isHot !== undefined) payload.is_hot = input.isHot;
@@ -726,6 +735,28 @@ export class ProductService {
     }
 
     return mockStore.saveProduct({ ...updates, id });
+  }
+
+  /**
+   * Toggle storefront visibility (Admin)
+   */
+  async toggleProductStorefrontVisibility(id: string, isHidden?: boolean): Promise<B2BProductInput | null> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.patch<any>(`/products/${id}/toggle-storefront-visibility`);
+      const item = res?.data || res;
+      return item ? normalizeToB2BProduct(item) : null;
+    }
+
+    const current = mockStore.getProductByIdOrSlug(id);
+    if (!current) return null;
+    const targetHidden = isHidden !== undefined ? isHidden : !current.isHiddenFromStorefront;
+    const updated: B2BProductInput = {
+      ...current,
+      isHiddenFromStorefront: targetHidden,
+      is_hidden_from_storefront: targetHidden,
+    };
+    mockStore.saveProduct(updated);
+    return updated;
   }
 
   /**
@@ -934,3 +965,5 @@ export class ProductService {
 }
 
 export const productService = new ProductService();
+export const toggleProductStorefrontVisibility = (id: string, isHidden?: boolean) =>
+  productService.toggleProductStorefrontVisibility(id, isHidden);

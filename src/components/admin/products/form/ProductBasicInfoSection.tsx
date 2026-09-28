@@ -20,6 +20,7 @@ interface ProductBasicInfoSectionProps {
   productId: string;
   name: string;
   slug: string;
+  sku: string;
   brand: string;
   brandId?: string | number;
   categoryId: string;
@@ -34,6 +35,7 @@ interface ProductBasicInfoSectionProps {
   onProductIdChange: (val: string) => void;
   onNameChange: (val: string) => void;
   onSlugChange: (val: string) => void;
+  onSkuChange: (val: string) => void;
   onBrandChange: (brandName: string, brandId?: string, brandLogo?: string) => void;
   onCategoryChange: (catId: string, catName?: string) => void;
   onAudienceChange: (val: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX") => void;
@@ -60,6 +62,7 @@ export default function ProductBasicInfoSection({
   productId,
   name,
   slug,
+  sku,
   brand,
   categoryId,
   audience,
@@ -73,6 +76,7 @@ export default function ProductBasicInfoSection({
   onProductIdChange,
   onNameChange,
   onSlugChange,
+  onSkuChange,
   onBrandChange,
   onCategoryChange,
   onAudienceChange,
@@ -121,7 +125,7 @@ export default function ProductBasicInfoSection({
       </div>
 
       <div className="space-y-4">
-        {/* Product ID */}
+        {/* 1. Product ID */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
             Product ID <span className="text-red-500">*</span>
@@ -144,7 +148,7 @@ export default function ProductBasicInfoSection({
           )}
         </div>
 
-        {/* Product Name */}
+        {/* 2. Product Name */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
             Product Name <span className="text-red-500">*</span>
@@ -164,31 +168,42 @@ export default function ProductBasicInfoSection({
           )}
         </div>
 
-        {/* Slug */}
+        {/* 3. Slug */}
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
-              Slug / URL Key <span className="text-red-500">*</span>
-            </label>
-            {!isEdit && (
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Sparkles size={11} className="text-primary" /> Auto-generated from name
-              </span>
-            )}
-          </div>
-          <div className="relative">
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => onSlugChange(e.target.value)}
-              placeholder="heavyweight-pullover-fleece-hoodie"
-              className={`font-mono text-[11px] ${inputClass(Boolean(errors.slug))}`}
-            />
-          </div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+            Slug <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={slug}
+            onChange={(e) => onSlugChange(e.target.value)}
+            placeholder="heavyweight-pullover-fleece-hoodie"
+            className={`font-mono text-[11px] ${inputClass(Boolean(errors.slug))}`}
+          />
           {errors.slug && (
             <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
               <AlertCircle size={12} />
               {errors.slug}
+            </p>
+          )}
+        </div>
+
+        {/* 4. SKU */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+            SKU
+          </label>
+          <input
+            type="text"
+            value={sku}
+            onChange={(e) => onSkuChange(e.target.value)}
+            placeholder="e.g. AYC-XXXX-001"
+            className={`font-mono ${inputClass(Boolean(errors.sku))}`}
+          />
+          {errors.sku && (
+            <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+              <AlertCircle size={12} />
+              {errors.sku}
             </p>
           )}
         </div>

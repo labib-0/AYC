@@ -59,7 +59,12 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         setLoading(true);
         try {
           const p = await getProductBySlugOrId(slug);
-          if (p) {
+          if (
+            p &&
+            p.status !== "draft" &&
+            !p.isHiddenFromStorefront &&
+            !(p as any).is_hidden_from_storefront
+          ) {
             setProduct(p);
             const pMoq = p.moq || 10;
             const pAvail = Number(p.availableStock ?? (p as any).available_stock ?? p.stock ?? 0);

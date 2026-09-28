@@ -53,6 +53,8 @@ export interface Product {
   shortDescription?: string;
   status?: string;
   isDraft?: boolean;
+  isHiddenFromStorefront?: boolean;
+  is_hidden_from_storefront?: boolean;
   description?: string;
   createdAt?: string;
   addedAt?: string;

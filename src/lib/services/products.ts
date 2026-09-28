@@ -5,13 +5,14 @@ import {
   generateProductSku, 
   ProductQueryParams,
   SearchSuggestionsResult,
-  PaginatedProductsResult
+  PaginatedProductsResult,
+  toggleProductStorefrontVisibility,
 } from "@/services/product.service";
 import { B2BProductInput } from "@/types/b2b";
 import { Product } from "@/types";
 import { homepageService } from "@/services/homepage.service";
 
-export { normalizeToB2BProduct, toStorefrontProduct, generateProductSku };
+export { normalizeToB2BProduct, toStorefrontProduct, generateProductSku, toggleProductStorefrontVisibility };
 export type { ProductQueryParams, SearchSuggestionsResult, PaginatedProductsResult };
 
 export async function getProducts(options?: ProductQueryParams): Promise<B2BProductInput[]> {
