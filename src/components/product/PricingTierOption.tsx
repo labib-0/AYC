@@ -55,8 +55,8 @@ export default function PricingTierOption({
       onKeyDown={handleKeyDown}
       className={`group w-full grid grid-cols-[30%_35%_35%] items-center px-3.5 py-2.5 rounded-lg cursor-pointer transition-all duration-150 text-left select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
         isSelected
-          ? "bg-secondary/40 ring-2 ring-foreground/90 border border-foreground/30 shadow-xs"
-          : "bg-card border border-border/80 hover:bg-secondary/25 hover:border-border hover:shadow-2xs text-muted-foreground"
+          ? "bg-secondary/50 ring-1 ring-foreground/60 border border-foreground/20 shadow-xs"
+          : "hover:bg-secondary/30 text-muted-foreground"
       } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
     >
       {/* Col 1: Selection Indicator + Tier Name */}
@@ -87,12 +87,12 @@ export default function PricingTierOption({
         </span>
       </div>
 
-      {/* Col 3: Unit Price + Optional Discount Badge + Optional Estimated Total */}
+      {/* Col 3: Unit Price + Optional Estimated Total */}
       <div className="flex flex-col items-end justify-center text-right pr-0.5">
         <div className="flex items-center justify-end gap-1.5 sm:gap-2">
-          {(discountPercent && discountPercent > 0) || badgeLabel ? (
-            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 tabular-nums shrink-0">
-              {badgeLabel || `${discountPercent}% OFF`}
+          {badgeLabel ? (
+            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary/80 text-foreground border border-border/60 tabular-nums shrink-0">
+              {badgeLabel}
             </span>
           ) : null}
           <span

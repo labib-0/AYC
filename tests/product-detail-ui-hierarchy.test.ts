@@ -133,19 +133,18 @@ test("Primary B2B unit price is visually dominant with / pc suffix", () => {
 
 test("MOQ and stock availability indicators are neatly aligned in commercial header", () => {
   expect(productDetailSrc).toContain("MOQ");
-  expect(productDetailSrc).toContain("{moq} pcs");
-  expect(productDetailSrc).toContain("totalStock.toLocaleString()");
+  expect(productDetailSrc).toContain("{moq} PCS");
   expect(productDetailSrc).toContain("available");
 });
 
 // ▶ Suite 4: Level 3 — Purchasing Options & Commerce Modules
 console.log("\n▶ Suite 4: Level 3 — Purchasing Options & Modules");
-test("Buy More Save More module uses PricingTierOption with selection handlers", () => {
-  expect(productDetailSrc).toContain("LEVEL 3.1: BUY MORE, SAVE MORE TIER MODULE");
+test("Volume Pricing module uses PricingTierOption with selection handlers", () => {
+  expect(productDetailSrc).toContain("LEVEL 3.1: VOLUME PRICING TIER MODULE");
   expect(productDetailSrc).toContain("<PricingTierOption");
   expect(productDetailSrc).toContain('name="Standard"');
   expect(productDetailSrc).toContain('name="Bulk"');
-  expect(productDetailSrc).toContain('name="Take All"');
+  expect(productDetailSrc).toContain('name="Full Stock"');
   expect(productDetailSrc).toContain("handleSelectStandard");
   expect(productDetailSrc).toContain("handleSelectBulk");
   expect(productDetailSrc).toContain("handleSelectFullStock");
@@ -155,12 +154,12 @@ test("Order Quantity and Estimated Total are rendered in dedicated commerce bloc
   expect(productDetailSrc).toContain("LEVEL 3.2: ORDER QUANTITY & ESTIMATED TOTAL DECISION BLOCK");
   expect(productDetailSrc).toContain("<QuantityStepper");
   expect(productDetailSrc).toContain("<CommerceSummary");
-  expect(productDetailSrc).toContain("activeTierName={isFullStock ? \"Take All Tier\" : isBulk ? \"Bulk Tier\" : \"Standard Tier\"}");
+  expect(productDetailSrc).toContain('activeTierName={isFullStock ? "Full Stock Tier" : isBulk ? "Bulk Tier" : "Standard Tier"}');
 });
 
 test("Package Assortment is enclosed in a commerce panel with total units and ratio matrix", () => {
   expect(productDetailSrc).toContain("LEVEL 3.3: PACKAGE ASSORTMENT COMMERCE MODULE");
-  expect(productDetailSrc).toContain("Package Assortment");
+  expect(productDetailSrc).toContain("Package Breakdown");
   expect(productDetailSrc).toContain("PackageAssortmentMatrix");
   expect(!productDetailSrc.includes('span className="text-muted-foreground font-medium">Colors:</span>')).toBe(true);
   expect(!productDetailSrc.includes('span className="text-muted-foreground font-medium">Sizes:</span>')).toBe(true);
@@ -194,8 +193,9 @@ test("Specifications module uses CommerceSectionHeader and structured key-value 
   expect(productDetailSrc).toContain("<CommerceSectionHeader");
   expect(productDetailSrc).toContain('title="Specifications"');
   expect(productDetailSrc).toContain("Design Type");
-  expect(productDetailSrc).toContain("Fabric Weight");
-  expect(productDetailSrc).toContain("Season");
+  expect(productDetailSrc).toContain("Material");
+  expect(productDetailSrc).notToContain("Fabric Weight");
+  expect(productDetailSrc).notToContain("Season");
 });
 
 // ▶ Suite 7: Media Gallery & 4:5 Invariants

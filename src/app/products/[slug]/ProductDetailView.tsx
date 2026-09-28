@@ -229,15 +229,6 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     ? resolvedFullStockPrice 
     : (isBulk ? bulkPrice : standardPrice);
 
-  // Savings Percentages
-  const bulkSavingsPercent = standardPrice > bulkPrice 
-    ? Math.round(((standardPrice - bulkPrice) / standardPrice) * 100) 
-    : 0;
-
-  const fullStockSavingsPercent = standardPrice > resolvedFullStockPrice 
-    ? Math.round(((standardPrice - resolvedFullStockPrice) / standardPrice) * 100) 
-    : 0;
-
   // Extract YouTube Video
   const youtubeEmbedUrl = useMemo(() => {
     if (product?.youtubeEmbedUrl) return product.youtubeEmbedUrl;
@@ -266,32 +257,24 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   const matrixData = useMemo(() => {
     if (!product) return null;
 
-    // 1. Determine active colors and sizes dynamically from allocations/variants
-    let colors: string[] = [];
-    let sizes: string[] = [];
-
-    if (isFullStock && variants.length > 0) {
-      const variantColors = Array.from(new Set(variants.map(v => v.color).filter((c): c is string => Boolean(c))));
-      const variantSizes = Array.from(new Set(variants.map(v => v.size).filter((s): s is string => Boolean(s))));
-      
-      colors = colorsList.filter(c => variantColors.includes(c));
-      variantColors.forEach(c => { if (!colors.includes(c)) colors.push(c); });
-
-      sizes = sizesList.filter(s => variantSizes.includes(s));
-      variantSizes.forEach(s => { if (!sizes.includes(s)) sizes.push(s); });
-    } else if (packageAllocations.length > 0) {
-      const allocColors = Array.from(new Set(packageAllocations.map(a => a.color).filter((c): c is string => Boolean(c))));
-      const allocSizes = Array.from(new Set(packageAllocations.map(a => a.size).filter((s): s is string => Boolean(s))));
-
-      colors = colorsList.filter(c => allocColors.includes(c));
-      allocColors.forEach(c => { if (!colors.includes(c)) colors.push(c); });
-
-      sizes = sizesList.filter(s => allocSizes.includes(s));
-      allocSizes.forEach(s => { if (!sizes.includes(s)) sizes.push(s); });
+    // A product without package breakdown must NEVER display an empty matrix, zero package units, or fake package data.
+    // Package breakdown only exists when packageAllocations are defined and non-empty.
+    if (!packageAllocations || packageAllocations.length === 0) {
+      return null;
     }
 
-    if (colors.length === 0) colors = colorsList;
-    if (sizes.length === 0) sizes = sizesList;
+    // 1. Determine active colors and sizes dynamically strictly from allocations
+    const allocColors = Array.from(new Set(packageAllocations.map(a => a.color).filter((c): c is string => Boolean(c))));
+    const allocSizes = Array.from(new Set(packageAllocations.map(a => a.size).filter((s): s is string => Boolean(s))));
+
+    let colors = colorsList.filter(c => allocColors.includes(c));
+    allocColors.forEach(c => { if (!colors.includes(c)) colors.push(c); });
+
+    let sizes = sizesList.filter(s => allocSizes.includes(s));
+    allocSizes.forEach(s => { if (!sizes.includes(s)) sizes.push(s); });
+
+    if (colors.length === 0) colors = allocColors;
+    if (sizes.length === 0) sizes = allocSizes;
 
     if (colors.length === 0 || sizes.length === 0) {
       return null;
@@ -311,7 +294,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         if (!cellMap[c]) cellMap[c] = {};
         cellMap[c][s] = (cellMap[c][s] || 0) + (v.stock || 0);
       });
-    } else if (packageAllocations.length > 0) {
+    } else {
       // Standard package allocation scaled proportionally by quantity / moq
       const mult = quantity / moq;
       let runningTotal = 0;
@@ -337,10 +320,6 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         if (!cellMap[item.color]) cellMap[item.color] = {};
         cellMap[item.color][item.size] = (cellMap[item.color][item.size] || 0) + item.count;
       });
-
-    } else {
-      // Do NOT auto-calculate assortment if unconfigured
-      return null;
     }
 
     const rowTotals: Record<string, number> = {};
@@ -358,6 +337,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         grandTotal += val;
       });
     });
+
+    // If grandTotal is 0 or less, do NOT show an empty matrix or zero package total
+    if (grandTotal <= 0) {
+      return null;
+    }
 
     return { colors, sizes, cellMap, rowTotals, colTotals, grandTotal };
   }, [product, quantity, isFullStock, moq, colorsList, sizesList, variants, packageAllocations]);
@@ -601,12 +585,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               <CommerceSectionHeader
                 title="Specifications"
                 icon={<Sliders size={14} />}
-                subtitle="Product Details"
               />
               
-              {product.description && (
+              {product.description && product.description.trim().length > 0 && (
                 <div className="rounded-lg bg-secondary/15 border border-border/60 p-3 sm:p-3.5 text-muted-foreground text-[12.5px] sm:text-[13px] leading-relaxed">
-                  {product.description}
+                  {product.description.trim()}
                 </div>
               )}
 
@@ -665,20 +648,6 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 >
                   {(product.designType || "").toUpperCase() === "MASTER COPY" ? "Master Copy" : "Original"}
                 </span>
-
-                {/* Audience Tag */}
-                {product.audience && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-secondary/50 text-[10.5px] sm:text-[11px] font-medium uppercase tracking-wider text-muted-foreground border border-border/40">
-                    {product.audience}
-                  </span>
-                )}
-
-                {/* Category Tag */}
-                {product.categoryName && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-secondary/50 text-[10.5px] sm:text-[11px] font-medium uppercase tracking-wider text-muted-foreground border border-border/40">
-                    {product.categoryName}
-                  </span>
-                )}
 
                 {/* SKU (Muted secondary monospace) */}
                 {product.sku && (
@@ -759,13 +728,12 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             </div>
 
             {/* ========================================================= */}
-            {/* LEVEL 3.1: BUY MORE, SAVE MORE TIER MODULE */}
+            {/* LEVEL 3.1: VOLUME PRICING TIER MODULE */}
             {/* ========================================================= */}
             <div className="space-y-2">
               <CommerceSectionHeader
-                title="Buy More, Save More"
+                title="Volume Pricing"
                 icon={<TrendingDown size={15} />}
-                subtitle="Select a tier to update order quantity"
               />
 
               <div className="rounded-xl border border-border/80 bg-card p-3 sm:p-3.5 space-y-1.5 shadow-2xs" role="radiogroup" aria-label="Pricing Tiers">
@@ -790,7 +758,6 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   name="Bulk"
                   quantityRange={`${bulkThreshold}+ pcs`}
                   unitPrice={bulkPrice}
-                  discountPercent={bulkSavingsPercent}
                   isSelected={isBulk}
                   onSelect={handleSelectBulk}
                 />
@@ -801,7 +768,6 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   quantityRange={`${fullStockQuantity.toLocaleString()} pcs`}
                   unitPrice={resolvedFullStockPrice}
                   estimatedTotal={fullStockTotal > 0 ? fullStockTotal : undefined}
-                  discountPercent={fullStockSavingsPercent > 0 ? fullStockSavingsPercent : undefined}
                   isSelected={isFullStock}
                   onSelect={handleSelectFullStock}
                   disabled={fullStockQuantity <= 0}
@@ -881,7 +847,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     icon={<Package size={15} />}
                   />
                   <p className="text-xs text-muted-foreground font-medium pl-6">
-                    See product images for package details.
+                    See product images.
                   </p>
                 </div>
               </div>

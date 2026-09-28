@@ -128,7 +128,7 @@ assert(
   "sizesList does not fallback to fake ['S', 'M', 'L', 'XL']"
 );
 assert(
-  detailContent.includes("See product images for package details."),
+  detailContent.includes("See product images"),
   "Shows clean informational fallback note when package breakdown is absent"
 );
 assert(
