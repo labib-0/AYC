@@ -33,7 +33,7 @@ class ProductResource extends JsonResource
 
         $firstCategory = $this->categories && $this->categories->isNotEmpty() ? $this->categories->first() : null;
 
-        $user = $request->user();
+        $user = $request->user() ?: auth('sanctum')->user();
         $isAdmin = $user && $user->isAdmin();
         $isB2b = $user && ($user->isCustomer() || $user->isAdmin());
         $effectivePrice = $isB2b 
