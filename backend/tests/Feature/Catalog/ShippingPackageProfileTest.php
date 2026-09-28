@@ -80,6 +80,7 @@ class ShippingPackageProfileTest extends TestCase
         Sanctum::actingAs($this->admin);
 
         $payload = [
+            'product_id' => 'AYC-EXP-001',
             'name' => 'Heavyweight Export Hoodies',
             'slug' => 'heavyweight-export-hoodies',
             'sku' => 'HD-EXP-001',

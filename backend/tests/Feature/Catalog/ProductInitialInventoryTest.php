@@ -68,6 +68,14 @@ class ProductInitialInventoryTest extends TestCase
         ]);
     }
 
+    public function postJson($uri, array $data = [], array $headers = [], $options = 0)
+    {
+        if ($uri === '/api/v1/products' && !isset($data['product_id'])) {
+            $data['product_id'] = 'AYC-TEST-' . strtoupper(uniqid());
+        }
+        return parent::postJson($uri, $data, $headers, $options);
+    }
+
     public function test_admin_can_create_product_with_initial_stock_and_warehouse(): void
     {
         $payload = [

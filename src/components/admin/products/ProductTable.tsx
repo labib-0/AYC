@@ -62,6 +62,9 @@ export default function ProductTable({
                   <td className="px-2 py-2 w-14">
                     <div className="w-10 h-[53px] rounded-lg bg-secondary animate-pulse" />
                   </td>
+                  <td className="px-3 py-3 w-28">
+                    <div className="h-4 w-24 rounded bg-secondary animate-pulse" />
+                  </td>
                   <td className="px-3 py-3">
                     <div className="h-3 w-32 rounded bg-secondary animate-pulse mb-1.5" />
                     <div className="h-2.5 w-20 rounded bg-secondary/60 animate-pulse" />
@@ -203,6 +206,7 @@ export default function ProductTable({
 const TABLE_HEADERS = [
   "",
   "Thumbnail",
+  "Product ID",
   "Product",
   "SKU",
   "Brand",

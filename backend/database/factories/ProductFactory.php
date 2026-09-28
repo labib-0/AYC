@@ -21,6 +21,7 @@ class ProductFactory extends Factory
 
         return [
             'brand_id' => Brand::factory(),
+            'product_id' => 'AYC-' . date('Y') . '-' . fake()->unique()->numerify('####'),
             'name' => ucwords($name),
             'slug' => Str::slug($name) . '-' . fake()->unique()->numberBetween(100, 999),
             'sku' => 'AYN-' . strtoupper(fake()->unique()->lexify('???-???')),

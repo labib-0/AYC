@@ -34,6 +34,8 @@ export interface ProductQueryParams {
   sort?: string;
   sort_by?: "price_asc" | "price_desc" | "newest" | "popular" | "hot" | "featured" | "name_asc" | "name_desc";
   isAdmin?: boolean;
+  product_id?: string;
+  productId?: string;
   purchase_price_status?: string;
 }
 
@@ -887,13 +889,15 @@ export class ProductService {
         const sku = (p.sku || "").toLowerCase();
         const cat = (p.categoryName || p.categoryId || "").toLowerCase();
         const desc = (p.description || p.shortDescription || "").toLowerCase();
+        const prodId = options?.isAdmin ? ((p.productId || (p as any).product_id || "").toLowerCase()) : "";
         const match = terms.every(
           (t) =>
             name.includes(t) ||
             brand.includes(t) ||
             sku.includes(t) ||
             cat.includes(t) ||
-            desc.includes(t)
+            desc.includes(t) ||
+            (prodId && prodId.includes(t))
         );
         if (!match) return false;
       }

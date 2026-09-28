@@ -152,6 +152,7 @@ class AdminApiTest extends TestCase
         $brand = Brand::create(['name' => 'Polo', 'slug' => 'polo']);
 
         $payload = [
+            'product_id' => 'AYC-SWT-001',
             'name' => 'Cashmere Knit Sweater',
             'slug' => 'cashmere-knit-sweater',
             'sku' => 'POL-SWT-001',

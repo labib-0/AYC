@@ -57,6 +57,7 @@ class PurchasePriceTrackingTest extends TestCase
     {
         $uid = strtolower(substr(uniqid(), -6));
         return array_merge([
+            'product_id' => 'AYC-PPT-' . strtoupper($uid),
             'name' => 'Test Tee ' . $uid,
             'slug' => 'test-tee-' . $uid,
             'sku' => 'AYN-TEST-' . strtoupper($uid),

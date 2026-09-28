@@ -16,6 +16,8 @@ export interface B2BProductVariant {
 
 export interface B2BProductInput {
   id: string;
+  productId?: string;
+  product_id?: string;
   name: string;
   slug: string;
   sku: string;

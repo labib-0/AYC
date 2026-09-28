@@ -48,6 +48,7 @@ class RefinePricingPromotionMediaTest extends TestCase
     public function test_pricing_and_b2b_volume_tiers_persist_cleanly(): void
     {
         $payload = [
+            'product_id' => 'AYC-HOD-001',
             'name' => 'Heavyweight Oversized Hoodie',
             'slug' => 'heavyweight-oversized-hoodie',
             'sku' => 'AYN-HOD-001',
@@ -87,6 +88,7 @@ class RefinePricingPromotionMediaTest extends TestCase
     {
         // 1. Create with New Arrival (7 days duration) & Hot Sale (Until Changed = null end date)
         $payload = [
+            'product_id' => 'AYC-BLS-001',
             'name' => 'Scheduled Promo Blouse',
             'slug' => 'scheduled-promo-blouse',
             'sku' => 'AYN-BLS-001',
@@ -146,6 +148,7 @@ class RefinePricingPromotionMediaTest extends TestCase
     {
         // 1. YouTube watch URL
         $ytPayload = [
+            'product_id' => 'AYC-YT-001',
             'name' => 'YouTube Showcase Blouse',
             'slug' => 'youtube-showcase-blouse',
             'sku' => 'AYN-YT-001',
@@ -165,6 +168,7 @@ class RefinePricingPromotionMediaTest extends TestCase
 
         // 2. Vimeo URL
         $vimeoPayload = [
+            'product_id' => 'AYC-VIM-001',
             'name' => 'Vimeo Showcase Blouse',
             'slug' => 'vimeo-showcase-blouse',
             'sku' => 'AYN-VIM-001',
@@ -185,6 +189,7 @@ class RefinePricingPromotionMediaTest extends TestCase
 
         // 3. Direct MP4 URL
         $mp4Payload = [
+            'product_id' => 'AYC-MP4-001',
             'name' => 'Direct MP4 Blouse',
             'slug' => 'direct-mp4-blouse',
             'sku' => 'AYN-MP4-001',
@@ -203,6 +208,7 @@ class RefinePricingPromotionMediaTest extends TestCase
 
         // 4. Invalid Video URL rejection
         $invalidPayload = [
+            'product_id' => 'AYC-INV-001',
             'name' => 'Invalid Video Blouse',
             'slug' => 'invalid-video-blouse',
             'sku' => 'AYN-INV-001',

@@ -223,6 +223,7 @@ class ProductCatalogAndInventoryTest extends TestCase
     public function test_admin_can_create_product_with_design_type(): void
     {
         $response = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-JKT-01',
             'name' => 'Admin Created Denim Jacket',
             'slug' => 'admin-created-denim-jacket',
             'sku' => 'ADM-JKT-01',

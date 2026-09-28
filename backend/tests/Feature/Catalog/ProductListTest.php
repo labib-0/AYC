@@ -241,6 +241,7 @@ class ProductListTest extends TestCase
 
         // Create
         $createResponse = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-JKT-999',
             'name' => 'New B2B Jacket',
             'slug' => 'new-b2b-jacket',
             'sku' => 'AYN-JKT-999',

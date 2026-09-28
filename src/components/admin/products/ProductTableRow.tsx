@@ -109,6 +109,16 @@ export default function ProductTableRow({
         </div>
       </td>
 
+      {/* Product ID */}
+      <td className="px-3 py-2.5">
+        <span
+          className="text-[11px] font-mono font-bold text-foreground bg-secondary/80 px-2 py-0.5 rounded border border-border/60 truncate inline-block max-w-[130px]"
+          title={product.productId || (product as any).product_id || ""}
+        >
+          {product.productId || (product as any).product_id || "—"}
+        </span>
+      </td>
+
       {/* Product Name */}
       <td className="px-3 py-2.5 min-w-[180px]">
         <div className="min-w-0">

@@ -49,6 +49,7 @@ class ManualPackageAssortmentTest extends TestCase
     public function test_create_product_with_manual_package_assortment_persists_exact_values(): void
     {
         $payload = [
+            'product_id' => 'AYC-CSH-001',
             'name' => 'Manual Assorted Cashmere Knit',
             'slug' => 'manual-assorted-cashmere-knit',
             'sku' => 'AYN-CSH-001',
@@ -211,6 +212,7 @@ class ManualPackageAssortmentTest extends TestCase
     public function test_distinction_between_zero_and_unconfigured_cells(): void
     {
         $payload = [
+            'product_id' => 'AYC-SWT-002',
             'name' => 'Fleece Crewneck Sweatshirt',
             'slug' => 'fleece-crewneck-sweatshirt',
             'sku' => 'AYN-SWT-002',

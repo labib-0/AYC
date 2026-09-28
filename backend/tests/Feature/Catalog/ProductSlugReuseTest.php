@@ -49,6 +49,7 @@ class ProductSlugReuseTest extends TestCase
     {
         // 1. Create initial product with slug 'test-resilience-shirt'
         $createRes1 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-REUSE-001',
             'name' => 'Original Resilience Shirt',
             'slug' => 'test-resilience-shirt',
             'sku' => 'RES-SHIRT-001',
@@ -66,6 +67,7 @@ class ProductSlugReuseTest extends TestCase
 
         // 2. Attempting to create duplicate slug while active fails with 422
         $dupRes = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-REUSE-002',
             'name' => 'Another Shirt',
             'slug' => 'test-resilience-shirt',
             'sku' => 'RES-SHIRT-DUP',
@@ -91,6 +93,7 @@ class ProductSlugReuseTest extends TestCase
 
         // 4. NOW REUSE THE EXACT SAME SLUG 'test-resilience-shirt'
         $createRes2 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-REUSE-003',
             'name' => 'New Resilience Shirt',
             'slug' => 'test-resilience-shirt',
             'sku' => 'RES-SHIRT-002',

@@ -17,6 +17,7 @@ interface BrandOption {
 }
 
 interface ProductBasicInfoSectionProps {
+  productId: string;
   name: string;
   slug: string;
   brand: string;
@@ -30,6 +31,7 @@ interface ProductBasicInfoSectionProps {
   categories: CategoryOption[];
   isEdit?: boolean;
   errors: Record<string, string>;
+  onProductIdChange: (val: string) => void;
   onNameChange: (val: string) => void;
   onSlugChange: (val: string) => void;
   onBrandChange: (brandName: string, brandId?: string, brandLogo?: string) => void;
@@ -55,6 +57,7 @@ const DESIGN_TYPE_OPTIONS: Array<"ORIGINAL" | "MASTER COPY"> = [
 ];
 
 export default function ProductBasicInfoSection({
+  productId,
   name,
   slug,
   brand,
@@ -67,6 +70,7 @@ export default function ProductBasicInfoSection({
   categories,
   isEdit,
   errors,
+  onProductIdChange,
   onNameChange,
   onSlugChange,
   onBrandChange,
@@ -117,6 +121,29 @@ export default function ProductBasicInfoSection({
       </div>
 
       <div className="space-y-4">
+        {/* Product ID */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+            Product ID <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={productId}
+            onChange={(e) => onProductIdChange(e.target.value)}
+            placeholder="e.g. AYC-2026-0001"
+            className={`font-mono ${inputClass(Boolean(errors.productId))}`}
+          />
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Unique internal reference identifier. Visible only to Admins.
+          </p>
+          {errors.productId && (
+            <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+              <AlertCircle size={12} />
+              {errors.productId}
+            </p>
+          )}
+        </div>
+
         {/* Product Name */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">

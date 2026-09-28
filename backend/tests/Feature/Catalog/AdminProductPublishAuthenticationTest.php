@@ -120,6 +120,7 @@ class AdminProductPublishAuthenticationTest extends TestCase
     public function test_authenticated_admin_can_publish_product_directly(): void
     {
         $payload = [
+            'product_id' => 'AYC-OXF-01',
             'name' => 'Admin Oxford Shirt',
             'slug' => 'admin-oxford-shirt',
             'sku' => 'AYN-OXF-01',
@@ -161,6 +162,7 @@ class AdminProductPublishAuthenticationTest extends TestCase
     public function test_authenticated_admin_can_save_product_as_draft(): void
     {
         $payload = [
+            'product_id' => 'AYC-DRF-01',
             'name' => 'Admin Draft Shirt',
             'slug' => 'admin-draft-shirt',
             'sku' => 'AYN-DRF-01',

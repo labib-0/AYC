@@ -52,6 +52,7 @@ export default function ProductForm({
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
 
   // Form State
+  const [productId, setProductId] = useState(initialData?.productId || (initialData as any)?.product_id || "");
   const [name, setName] = useState(initialData?.name || "");
   const [slug, setSlug] = useState(initialData?.slug || "");
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
@@ -450,9 +451,15 @@ export default function ProductForm({
     [name, brand, wholesalePrice, images, moq]
   );
 
-  // Draft validation — permissive, only requires a product name to save progress
+  // Draft validation — requires Product ID and product name to save progress
   const validateDraft = (): boolean => {
     const errs: Record<string, string> = {};
+
+    if (!productId.trim()) {
+      errs.productId = "Product ID is required to save a draft.";
+    } else if (!/^[A-Za-z0-9_\-]+$/.test(productId.trim())) {
+      errs.productId = "Product ID may only contain letters, numbers, hyphens, and underscores.";
+    }
 
     if (!name.trim()) errs.name = "Product name is required to save a draft.";
     else if (name.trim().length < 3) errs.name = "Product name must be at least 3 characters.";
@@ -479,6 +486,12 @@ export default function ProductForm({
   // Publish validation — strict, enforces all required fields for a live product
   const validatePublish = (): boolean => {
     const errs: Record<string, string> = {};
+
+    if (!productId.trim()) {
+      errs.productId = "Product ID is required.";
+    } else if (!/^[A-Za-z0-9_\-]+$/.test(productId.trim())) {
+      errs.productId = "Product ID may only contain letters, numbers, hyphens, and underscores.";
+    }
 
     if (!name.trim()) errs.name = "Product name is required.";
     else if (name.trim().length < 3) errs.name = "Product name must be at least 3 characters.";
@@ -584,6 +597,8 @@ export default function ProductForm({
 
       const payload: B2BProductInput = {
         id: initialData?.id || `prod_${Date.now()}`,
+        productId: productId.trim(),
+        product_id: productId.trim(),
         name: name.trim(),
         slug: slug.trim(),
         sku: generatedSku,
@@ -815,6 +830,7 @@ export default function ProductForm({
         <div className="lg:col-span-7 space-y-6">
           {/* Section 1: Basic Information */}
           <ProductBasicInfoSection
+            productId={productId}
             name={name}
             slug={slug}
             brand={brand}
@@ -828,6 +844,7 @@ export default function ProductForm({
             categories={categories}
             isEdit={isEdit}
             errors={errors}
+            onProductIdChange={setProductId}
             onNameChange={handleNameChange}
             onSlugChange={handleSlugChange}
             onBrandChange={(bName, bId, bLogo) => {

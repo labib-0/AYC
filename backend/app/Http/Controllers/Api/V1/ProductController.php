@@ -29,10 +29,13 @@ class ProductController extends ApiController
         $validated = $request->validated();
         $query = Product::with(['brand', 'categories', 'images', 'variants', 'pricingTiers', 'shippingPackageProfiles']);
 
+        $user = $request->user();
+        $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
+
         // Status filter (defaults to 'published' for public storefront)
         if ($request->filled('status') && $request->input('status') !== 'all') {
             $query->where('status', $request->input('status'));
-        } elseif (!$request->boolean('isAdmin')) {
+        } elseif (!$isAdmin) {
             $query->where('status', 'published');
         }
 
@@ -42,7 +45,7 @@ class ProductController extends ApiController
         $searchTerm = $request->input('q') ?? $request->input('search');
         if (!empty($searchTerm)) {
             $searchTerm = trim($searchTerm);
-            $query->where(function ($q) use ($searchTerm, $likeOp) {
+            $query->where(function ($q) use ($searchTerm, $likeOp, $isAdmin) {
                 $q->where('name', $likeOp, "%{$searchTerm}%")
                   ->orWhere('description', $likeOp, "%{$searchTerm}%")
                   ->orWhere('short_description', $likeOp, "%{$searchTerm}%")
@@ -53,7 +56,17 @@ class ProductController extends ApiController
                   ->orWhereHas('categories', function ($cq) use ($searchTerm, $likeOp) {
                       $cq->where('name', $likeOp, "%{$searchTerm}%");
                   });
+
+                // Product ID search is internal and authoritative for Admins
+                if ($isAdmin) {
+                    $q->orWhere('product_id', $likeOp, "%{$searchTerm}%");
+                }
             });
+        }
+
+        // Direct product_id filter for Admins
+        if ($isAdmin && $request->filled('product_id')) {
+            $query->where('product_id', $likeOp, '%' . trim($request->input('product_id')) . '%');
         }
 
         // Category filter (slug, id, or comma-separated list)
@@ -310,6 +323,7 @@ class ProductController extends ApiController
             ->where(function ($q) use ($slugOrId) {
                 $q->where('slug', $slugOrId);
                 $q->orWhere('sku', $slugOrId);
+                $q->orWhere('product_id', $slugOrId);
                 if (is_numeric($slugOrId)) {
                     $q->orWhere('id', (int) $slugOrId);
                 }
@@ -328,7 +342,19 @@ class ProductController extends ApiController
      */
     public function store(Request $request): JsonResponse
     {
+        if ($request->has('product_id')) {
+            $request->merge(['product_id' => trim((string) $request->input('product_id'))]);
+        }
+        $productIdInput = (string) $request->input('product_id');
+
         $validated = $request->validate([
+            'product_id' => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^[A-Za-z0-9_\-]+$/',
+                Rule::unique('products', 'product_id')->whereNull('deleted_at'),
+            ],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', Rule::unique('products', 'slug')->whereNull('deleted_at')],
             'sku' => ['required', 'string', Rule::unique('products', 'sku')->whereNull('deleted_at')],
@@ -397,6 +423,9 @@ class ProductController extends ApiController
             'package_allocations' => ['nullable', 'array'],
             'shipping_package_profiles' => ['nullable', 'array'],
         ], [
+            'product_id.required' => 'Product ID is required.',
+            'product_id.unique' => "Product ID {$productIdInput} is already in use.",
+            'product_id.regex' => 'Product ID may only contain letters, numbers, hyphens, and underscores.',
             'warehouse_id.required_without' => 'Initial warehouse is required.',
             'full_stock_price.required' => 'Full stock price is required.',
             'full_stock_price.gt' => 'Full stock price must be greater than 0.',
@@ -892,7 +921,20 @@ class ProductController extends ApiController
         $effectiveStatus = $request->input('status', $product->status);
         $isPreorderPublish = $effectivePreorder && $effectiveStatus === 'published';
 
+        if ($request->has('product_id')) {
+            $request->merge(['product_id' => trim((string) $request->input('product_id'))]);
+        }
+        $productIdInput = (string) ($request->input('product_id') ?? $product->product_id);
+
         $validated = $request->validate([
+            'product_id' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:100',
+                'regex:/^[A-Za-z0-9_\-]+$/',
+                Rule::unique('products', 'product_id')->ignore($product->id)->whereNull('deleted_at'),
+            ],
             'name' => ['sometimes', 'string', 'max:255'],
             'slug' => ['sometimes', 'string', Rule::unique('products', 'slug')->ignore($product->id)->whereNull('deleted_at')],
             'sku' => ['sometimes', 'string', Rule::unique('products', 'sku')->ignore($product->id)->whereNull('deleted_at')],
@@ -953,6 +995,10 @@ class ProductController extends ApiController
             'pricing_tiers' => ['nullable', 'array'],
             'package_allocations' => ['nullable', 'array'],
             'shipping_package_profiles' => ['nullable', 'array'],
+        ], [
+            'product_id.required' => 'Product ID is required.',
+            'product_id.unique' => "Product ID {$productIdInput} is already in use.",
+            'product_id.regex' => 'Product ID may only contain letters, numbers, hyphens, and underscores.',
         ]);
 
         $user = $request->user();

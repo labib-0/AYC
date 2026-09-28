@@ -298,6 +298,7 @@ class WholesalePackageAssortmentTest extends TestCase
 
         // 2. Valid package matrix (allocations sum = 10, MOQ = 10) -> Succeeded 201
         $validPayload = [
+            'product_id' => 'AYC-JOG-001',
             'name' => 'New B2B Cargo Jogger',
             'slug' => 'new-b2b-cargo-jogger',
             'sku' => 'AYN-JOG-001',

@@ -123,6 +123,7 @@ class RbacGranularEnforcementTest extends TestCase
 
         // 1. Can create draft product
         $resDraft = $this->actingAs($draftAdmin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id'      => 'AYC-RBAC-001',
             'name'            => 'Sample Draft Polo',
             'slug'            => 'sample-draft-polo',
             'sku'             => 'SDP-01',
@@ -141,6 +142,7 @@ class RbacGranularEnforcementTest extends TestCase
 
         // 2. Cannot publish during creation
         $resPubCreate = $this->actingAs($draftAdmin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id'      => 'AYC-RBAC-PUB-FAIL',
             'name'            => 'Sample Published Polo',
             'slug'            => 'sample-published-polo',
             'sku'             => 'SPP-01',
@@ -197,6 +199,7 @@ class RbacGranularEnforcementTest extends TestCase
 
         // 1. Can create published product directly
         $res = $this->actingAs($publisher, 'sanctum')->postJson('/api/v1/products', [
+            'product_id'      => 'AYC-RBAC-002',
             'name'            => 'Publisher Direct Polo',
             'slug'            => 'publisher-direct-polo',
             'sku'             => 'PDP-01',
@@ -480,6 +483,7 @@ class RbacGranularEnforcementTest extends TestCase
     {
         // 1. Can create published product directly
         $resPub = $this->actingAs($this->superAdmin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id'      => 'AYC-RBAC-003',
             'name'            => 'Super Admin Polo',
             'slug'            => 'super-admin-polo',
             'sku'             => 'SAP-01',
@@ -612,6 +616,7 @@ class RbacGranularEnforcementTest extends TestCase
 
         // 1. Can create draft product
         $resDraft = $this->actingAs($draftAdmin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id'      => 'AYC-RBAC-' . uniqid(),
             'name'            => 'Draft Polo',
             'slug'            => 'draft-polo-' . uniqid(),
             'sku'             => 'DP-' . uniqid(),
@@ -630,6 +635,7 @@ class RbacGranularEnforcementTest extends TestCase
 
         // 2. Cannot create published product
         $resPubFail = $this->actingAs($draftAdmin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id'      => 'AYC-RBAC-PUB-' . uniqid(),
             'name'            => 'Published Polo Fail',
             'slug'            => 'pub-polo-' . uniqid(),
             'sku'             => 'PPF-' . uniqid(),

@@ -52,6 +52,7 @@ class PreorderProductTest extends TestCase
     {
         $uid = strtolower(substr(uniqid(), -6));
         return array_merge([
+            'product_id' => 'AYC-PO-' . strtoupper($uid),
             'name' => 'Preorder Test Item ' . $uid,
             'slug' => 'preorder-test-item-' . $uid,
             'sku' => 'SKU-PO-' . $uid,
@@ -198,6 +199,7 @@ class PreorderProductTest extends TestCase
         $admin = $this->adminUser();
         $uid = uniqid();
         $payload = [
+            'product_id' => 'AYC-DRF-' . strtoupper($uid),
             'name' => 'Minimal Draft ' . $uid,
             'slug' => 'minimal-draft-' . $uid,
             'sku' => 'SKU-DRF-' . $uid,

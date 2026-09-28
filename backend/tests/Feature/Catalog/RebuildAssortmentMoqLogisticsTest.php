@@ -53,6 +53,7 @@ class RebuildAssortmentMoqLogisticsTest extends TestCase
     public function test_moq_is_automatically_derived_from_package_assortment(): void
     {
         $payload = [
+            'product_id' => 'AYC-POL-001',
             'name' => 'Universal Package Pique Polo',
             'slug' => 'universal-package-pique-polo',
             'sku' => 'AYN-POL-001',
@@ -260,6 +261,7 @@ class RebuildAssortmentMoqLogisticsTest extends TestCase
     public function test_reload_and_edit_published_product_persists_all_fields(): void
     {
         $payload = [
+            'product_id' => 'AYC-OXF-001',
             'name' => 'Fully Configured Oxford Shirt',
             'slug' => 'fully-configured-oxford-shirt',
             'sku' => 'OXF-001',

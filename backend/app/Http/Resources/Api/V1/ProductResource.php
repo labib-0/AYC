@@ -34,12 +34,13 @@ class ProductResource extends JsonResource
         $firstCategory = $this->categories && $this->categories->isNotEmpty() ? $this->categories->first() : null;
 
         $user = $request->user();
+        $isAdmin = $user && $user->isAdmin();
         $isB2b = $user && ($user->isCustomer() || $user->isAdmin());
         $effectivePrice = $isB2b 
             ? (float) $this->wholesale_price 
             : ($this->msrp_price !== null ? (float) $this->msrp_price : (float) $this->wholesale_price);
 
-        return [
+        return array_merge([
             'id' => (int) $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
@@ -80,9 +81,6 @@ class ProductResource extends JsonResource
             'full_stock_total' => (float) $this->getEligibleFullStockTotal(),
             'msrpPrice' => $this->msrp_price !== null ? (float) $this->msrp_price : null,
             'isB2bTier' => $isB2b,
-            'costPrice' => ($user && $user->isAdmin() && ($user->isSuperAdmin() || app(\App\Services\Rbac\AdminAuthorizationService::class)->can($user, 'product.pricing.manage') || app(\App\Services\Rbac\AdminAuthorizationService::class)->can($user, 'analytics.cogs.view')) && $this->cost_price !== null) ? (float) $this->cost_price : null,
-            'purchasePriceUpdated' => ($user && $user->isAdmin()) ? ($this->purchase_price_updated_at !== null) : null,
-            'purchasePriceUpdatedAt' => ($user && $user->isAdmin() && $this->purchase_price_updated_at !== null) ? $this->purchase_price_updated_at->toISOString() : null,
             'moq' => (int) ($this->moq ?? 1),
             'stock' => (int) $this->getTotalAvailableStock(),
             'on_hand_stock' => (int) $this->getOnHandStock(),
@@ -171,6 +169,13 @@ class ProductResource extends JsonResource
             }),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
-        ];
+        ], $isAdmin ? [
+            'costPrice' => ($user && ($user->isSuperAdmin() || app(\App\Services\Rbac\AdminAuthorizationService::class)->can($user, 'product.pricing.manage') || app(\App\Services\Rbac\AdminAuthorizationService::class)->can($user, 'analytics.cogs.view')) && $this->cost_price !== null) ? (float) $this->cost_price : null,
+            'cost_price' => ($user && ($user->isSuperAdmin() || app(\App\Services\Rbac\AdminAuthorizationService::class)->can($user, 'product.pricing.manage') || app(\App\Services\Rbac\AdminAuthorizationService::class)->can($user, 'analytics.cogs.view')) && $this->cost_price !== null) ? (float) $this->cost_price : null,
+            'purchasePriceUpdated' => $this->purchase_price_updated_at !== null,
+            'purchasePriceUpdatedAt' => $this->purchase_price_updated_at?->toISOString(),
+            'productId' => $this->product_id,
+            'product_id' => $this->product_id,
+        ] : []);
     }
 }

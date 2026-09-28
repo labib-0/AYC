@@ -104,7 +104,7 @@ export default function ProductSearchFilters({
           />
           <input
             type="text"
-            placeholder="Search products by name or SKU…"
+            placeholder="Search products by name, SKU, or Product ID…"
             value={filters.search}
             onChange={(e) => update("search", e.target.value)}
             className="w-full h-9 pl-9 pr-9 rounded-lg border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors"

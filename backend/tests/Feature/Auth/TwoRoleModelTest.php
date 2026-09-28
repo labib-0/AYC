@@ -334,6 +334,7 @@ class TwoRoleModelTest extends TestCase
     {
         $response = $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/v1/products', [
+                'product_id' => 'AYC-ADM-001',
                 'name' => 'Admin Oxford Shirt',
                 'slug' => 'admin-oxford-shirt',
                 'sku' => 'ADM-OXF-001',
