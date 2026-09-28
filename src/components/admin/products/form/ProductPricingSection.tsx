@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { AlertCircle, TrendingDown, Sparkles, Flame, Star, Calendar, Clock } from "lucide-react";
+import { AlertCircle, TrendingDown, Sparkles, Flame, Star, Clock } from "lucide-react";
 
 interface ProductPricingSectionProps {
   wholesalePrice: number;
@@ -10,12 +9,16 @@ interface ProductPricingSectionProps {
   bulkPrice: number;
   fullStockPrice?: number;
   msrpPrice?: number;
+  costPrice?: number;
+  purchasePriceUpdated?: boolean | null;
   isNew?: boolean;
   newUntil?: string | null;
   isHot?: boolean;
   hotUntil?: string | null;
   isFeatured?: boolean;
   featuredUntil?: string | null;
+  isPreorder?: boolean;
+  estimatedDeliveryDate?: string | null;
   errors: Record<string, string>;
   onWholesalePriceChange: (val: number) => void;
   onMoqChange: (val: number) => void;
@@ -23,9 +26,11 @@ interface ProductPricingSectionProps {
   onBulkPriceChange: (val: number) => void;
   onFullStockPriceChange: (val: number | undefined) => void;
   onMsrpPriceChange: (val: number | undefined) => void;
+  onCostPriceChange: (val: number | undefined) => void;
   onIsNewChange: (val: boolean, until?: string | null) => void;
   onIsHotChange: (val: boolean, until?: string | null) => void;
   onIsFeaturedChange: (val: boolean, until?: string | null) => void;
+  onIsPreorderChange?: (val: boolean, date?: string | null) => void;
 }
 
 export default function ProductPricingSection({
@@ -35,22 +40,28 @@ export default function ProductPricingSection({
   bulkPrice,
   fullStockPrice,
   msrpPrice,
+  costPrice,
+  purchasePriceUpdated,
   isNew,
   newUntil,
   isHot,
   hotUntil,
   isFeatured,
   featuredUntil,
+  isPreorder,
+  estimatedDeliveryDate,
   errors,
   onWholesalePriceChange,
-  onMoqChange,
+  onMoqChange: _onMoqChange,
   onBulkThresholdChange,
   onBulkPriceChange,
   onFullStockPriceChange,
   onMsrpPriceChange,
+  onCostPriceChange,
   onIsNewChange,
   onIsHotChange,
   onIsFeaturedChange,
+  onIsPreorderChange,
 }: ProductPricingSectionProps) {
   const inputClass = (hasError?: boolean) =>
     `w-full h-10 pl-8 pr-3.5 rounded-xl border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-colors tabular-nums ${
@@ -280,7 +291,49 @@ export default function ProductPricingSection({
           )}
         </div>
 
-        {/* Optional Secondary Pricing: MSRP */}
+        {/* Purchase Price (Internal COGS) */}
+        <div className="p-4 rounded-xl bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/50 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
+              Purchase Price ($)
+              <span className="ml-2 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700">
+                Internal
+              </span>
+            </label>
+            {purchasePriceUpdated === false && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Pending
+              </span>
+            )}
+            {purchasePriceUpdated === true && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                ✓ Updated
+              </span>
+            )}
+          </div>
+          <div className="relative max-w-sm">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+              $
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={costPrice ?? ""}
+              onChange={(e) =>
+                onCostPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)
+              }
+              placeholder="e.g. 8.50"
+              className={inputClass()}
+            />
+          </div>
+          <p className="text-[10.5px] text-muted-foreground">
+            Internal cost of goods sold (COGS). Never shown to customers. Required for margin analytics.
+          </p>
+        </div>
+
+        {/* Optional Secondary Pricing: MSRP / Retail RRP */}
         <div className="max-w-sm pt-1">
           <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
             MSRP / Retail RRP ($) <span className="text-[10px] lowercase text-muted-foreground/70">(optional)</span>
@@ -301,6 +354,9 @@ export default function ProductPricingSection({
               className={inputClass()}
             />
           </div>
+          <p className="text-[10.5px] text-muted-foreground mt-1">
+            Customer-facing compare-at / retail suggested price. Used to display discount badges on the storefront.
+          </p>
         </div>
 
         {/* Promotional Badges with Independent Scheduling */}
@@ -572,6 +628,96 @@ export default function ProductPricingSection({
                       className="h-7 px-2 text-[11px] rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* 4. Preorder Card */}
+            <div
+              className={`p-3.5 rounded-xl border transition-all ${
+                isPreorder
+                  ? "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-800/80"
+                  : "bg-card border-border hover:bg-secondary/40"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isPreorder)}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      onIsPreorderChange?.(enabled, enabled ? (estimatedDeliveryDate || getDaysFromNow(30).split("T")[0]) : null);
+                    }}
+                    className="w-4 h-4 rounded border-border text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                    <span className="text-xs font-bold text-foreground">Preorder Product</span>
+                  </div>
+                </label>
+                {isPreorder && (
+                  <span className="text-[10px] font-sans font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/50 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
+                    {estimatedDeliveryDate ? `Est. delivery: ${new Date(estimatedDeliveryDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}` : "Delivery date required"}
+                  </span>
+                )}
+              </div>
+
+              {isPreorder && (
+                <div className="mt-3 pt-3 border-t border-indigo-200/60 dark:border-indigo-800/40 space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <label className="text-[11px] font-bold text-foreground flex items-center gap-1">
+                      <span>ESTIMATED DELIVERY DATE</span>
+                      <span className="text-red-500 text-xs">* Required</span>
+                    </label>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-muted-foreground mr-0.5">Presets:</span>
+                      <button
+                        type="button"
+                        onClick={() => onIsPreorderChange?.(true, getDaysFromNow(14).split("T")[0])}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-bold border border-indigo-300 dark:border-indigo-700 bg-card hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                      >
+                        +14 Days
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onIsPreorderChange?.(true, getDaysFromNow(30).split("T")[0])}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-bold border border-indigo-300 dark:border-indigo-700 bg-card hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                      >
+                        +30 Days
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onIsPreorderChange?.(true, getDaysFromNow(60).split("T")[0])}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-bold border border-indigo-300 dark:border-indigo-700 bg-card hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                      >
+                        +60 Days
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="date"
+                      required
+                      min={new Date().toISOString().split("T")[0]}
+                      value={estimatedDeliveryDate ? estimatedDeliveryDate.split("T")[0] : ""}
+                      onChange={(e) => {
+                        onIsPreorderChange?.(true, e.target.value || null);
+                      }}
+                      className={`h-8 px-2.5 text-xs rounded-lg border bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        errors.estimatedDeliveryDate ? "border-red-500 ring-1 ring-red-500/30" : "border-border"
+                      }`}
+                    />
+                    <span className="text-[11px] text-muted-foreground">
+                      Expected delivery date to customer
+                    </span>
+                  </div>
+                  {errors.estimatedDeliveryDate && (
+                    <p className="text-[11px] text-red-600 dark:text-red-400 font-medium flex items-center gap-1 mt-1">
+                      <AlertCircle size={12} />
+                      {errors.estimatedDeliveryDate}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

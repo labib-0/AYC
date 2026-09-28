@@ -131,6 +131,11 @@ export default function ProductTableRow({
                 Hot
               </span>
             )}
+            {(product as any).purchasePriceUpdated === false && (
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-700" title="Purchase Price not yet set">
+                $ Pending
+              </span>
+            )}
           </div>
         </div>
       </td>

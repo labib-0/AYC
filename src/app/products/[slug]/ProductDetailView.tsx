@@ -11,6 +11,7 @@ import ProductCard from "@/components/product/ProductCard";
 import ProductGallery from "@/components/product/ProductGallery";
 import ProductBrandLogoOverlay from "@/components/common/ProductBrandLogoOverlay";
 import ProductPromotionBadges from "@/components/common/ProductPromotionBadges";
+import ProductBadge from "@/components/common/ProductBadge";
 
 import { 
   ShoppingCart, 
@@ -30,6 +31,7 @@ import PricingTierOption from "@/components/product/PricingTierOption";
 import QuantityStepper from "@/components/product/QuantityStepper";
 import CommerceSummary from "@/components/product/CommerceSummary";
 import PackageAssortmentMatrix from "@/components/product/PackageAssortmentMatrix";
+import ProductLogisticsSummary from "@/components/product/ProductLogisticsSummary";
 
 interface ProductDetailViewProps {
   initialProduct?: B2BProductInput | null;
@@ -631,28 +633,6 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     </span>
                   </div>
                 )}
-                
-                {product.weightGrams && (
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-0.5 shadow-2xs">
-                    <span className="text-[10px] sm:text-[10.5px] text-muted-foreground block uppercase font-bold tracking-wider">
-                      Fabric Weight
-                    </span>
-                    <span className="font-semibold text-foreground block truncate">
-                      {product.weightGrams} g/m²
-                    </span>
-                  </div>
-                )}
-                
-                {product.collectionSeason && (
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-0.5 shadow-2xs">
-                    <span className="text-[10px] sm:text-[10.5px] text-muted-foreground block uppercase font-bold tracking-wider">
-                      Season
-                    </span>
-                    <span className="font-semibold text-foreground block truncate">
-                      {product.collectionSeason}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -715,6 +695,27 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 {product.name}
               </h1>
 
+              {/* Preorder Merchandising Strip */}
+              {(product.isPreorder || (product as any).is_preorder) && (
+                <div className="flex items-center gap-2.5 p-2.5 px-3 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-xs font-sans mt-2">
+                  <ProductBadge variant="preorder">
+                    PREORDER
+                  </ProductBadge>
+                  {(product.estimatedDeliveryDate || (product as any).estimated_delivery_date) && (
+                    <span className="font-medium text-foreground">
+                      Estimated delivery:{" "}
+                      <strong className="text-indigo-700 dark:text-indigo-300 font-semibold">
+                        {new Date(product.estimatedDeliveryDate || (product as any).estimated_delivery_date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </strong>
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* LEVEL 2: CORE COMMERCIAL DATA — DEDICATED PRICE BLOCK */}
               <div className="pt-2 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2.5">
                 <div className="flex items-baseline gap-2">
@@ -729,7 +730,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 <div className="flex items-center gap-2 sm:gap-2.5 text-[12px] sm:text-[12.5px] font-sans">
                   <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-border/80 bg-secondary/30 text-foreground font-semibold">
                     <span className="text-muted-foreground font-normal">MOQ</span>
-                    <span className="tabular-nums font-bold">1 pkg ({moq} pcs)</span>
+                    <span className="tabular-nums font-bold">{moq} PCS</span>
                   </div>
                   <span className="text-muted-foreground/40 select-none">|</span>
                   <div className="inline-flex items-center gap-1.5 text-muted-foreground">
@@ -742,9 +743,9 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                       {maxCompletePackages > 0 ? (
                         <>
                           <strong className="text-foreground font-semibold tabular-nums">
-                            {maxCompletePackages} {maxCompletePackages === 1 ? "pkg" : "packages"}
+                            {completePackageStock.toLocaleString()} PCS
                           </strong>{" "}
-                          ({completePackageStock.toLocaleString()} pcs) available
+                          available
                         </>
                       ) : (
                         <strong className="text-red-600 dark:text-red-400 font-semibold uppercase tracking-wider text-[11px]">
@@ -798,7 +799,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 {/* FULL STOCK TIER - ALWAYS VISIBLE */}
                 <PricingTierOption
                   name="Full Stock"
-                  quantityRange={`${fullStockPackages} ${fullStockPackages === 1 ? "package" : "packages"} · ${fullStockQuantity.toLocaleString()} pcs`}
+                  quantityRange={`${fullStockQuantity.toLocaleString()} pcs`}
                   unitPrice={resolvedFullStockPrice}
                   estimatedTotal={fullStockTotal > 0 ? fullStockTotal : undefined}
                   discountPercent={fullStockSavingsPercent > 0 ? fullStockSavingsPercent : undefined}
@@ -820,7 +821,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   title="Order Quantity"
                   badge={
                     <span className="text-[11px] font-sans font-bold text-primary tabular-nums">
-                      {Math.round(quantity / moq)} {Math.round(quantity / moq) === 1 ? "Package" : "Packages"} = {quantity.toLocaleString()} pcs
+                      {quantity.toLocaleString()} PCS
                     </span>
                   }
                 />
@@ -833,7 +834,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   onDecrement={handleDecrement}
                   isDecrementDisabled={quantity <= moq}
                   isIncrementDisabled={totalStock > 0 && quantity + moq > totalStock}
-                  helperText={`${Math.round(quantity / moq)} package(s) × ${moq} pcs = ${quantity.toLocaleString()} pcs total`}
+                  helperText={`Qty: ${quantity.toLocaleString()} pcs · MOQ: ${moq} pcs`}
                 />
               </div>
 
@@ -872,6 +873,15 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 </div>
               </div>
             )}
+
+            {/* LEVEL 3.4: LOGISTICS SUMMARY (after Package Assortment, before Add to Cart) */}
+            {(() => {
+              const profiles = product?.shippingPackageProfiles ?? product?.shipping_package_profiles ?? [];
+              const activeProfile = profiles.find((p) => p.is_active !== false) ?? profiles[0];
+              return activeProfile ? (
+                <ProductLogisticsSummary profile={activeProfile} moq={moq} />
+              ) : null;
+            })()}
 
             {/* ========================================================= */}
             {/* LEVEL 4: PRIMARY ACTION (ADD TO CART) & SECONDARY CTAS */}

@@ -215,8 +215,8 @@ export default function ProductShippingSection({
           </div>
         </div>
 
-        {/* Row 3: CBM Readouts */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Row 3: Derived Readouts — Single Carton CBM · Total CBM · Total Gross Weight */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Single Carton CBM */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
@@ -241,7 +241,25 @@ export default function ProductShippingSection({
             <div className="h-10 px-3.5 rounded-xl bg-primary/8 border border-primary/20 flex items-center justify-between font-mono font-bold text-xs text-foreground tabular-nums">
               <span className="text-primary">{totalCbm.toFixed(4)} m³</span>
               <span className="text-[10px] font-sans font-medium uppercase tracking-wider text-muted-foreground">
-                Shipment Volume
+                Shipment Vol
+              </span>
+            </div>
+          </div>
+
+          {/* Total Gross Weight */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+              Total Gross Weight
+              <span className="ml-1 text-muted-foreground font-normal normal-case tracking-normal">
+                ({cartonCount} × {profile.gross_weight || 0} {(profile.weight_unit || "kg").toUpperCase()})
+              </span>
+            </label>
+            <div className="h-10 px-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 flex items-center justify-between font-mono font-bold text-xs text-foreground tabular-nums">
+              <span className="text-amber-700 dark:text-amber-400">
+                {((profile.gross_weight || 0) * cartonCount).toFixed(1)} {(profile.weight_unit || "kg").toUpperCase()}
+              </span>
+              <span className="text-[10px] font-sans font-medium uppercase tracking-wider text-muted-foreground">
+                Shipment Wt
               </span>
             </div>
           </div>
@@ -251,7 +269,8 @@ export default function ProductShippingSection({
           This packaging configuration uses{" "}
           <strong>{cartonCount}</strong> identical carton{cartonCount !== 1 ? "s" : ""} for the current
           MOQ of <strong>{moq > 0 ? moq : profile.package_quantity || "—"} pcs</strong>.
-          Total CBM = {singleCartonCbm.toFixed(4)} × {cartonCount} = {totalCbm.toFixed(4)} m³.
+          Total CBM = {singleCartonCbm.toFixed(4)} × {cartonCount} = {totalCbm.toFixed(4)} m³ ·{" "}
+          Total Weight = {profile.gross_weight || 0} × {cartonCount} = {((profile.gross_weight || 0) * cartonCount).toFixed(1)} {(profile.weight_unit || "kg").toUpperCase()}.
         </p>
       </div>
     </div>

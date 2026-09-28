@@ -8,6 +8,8 @@ export interface ProductPromotionState {
   isHot: boolean;
   isFeatured: boolean;
   isLimitedDeal: boolean;
+  isPreorder: boolean;
+  estimatedDeliveryDate: string | null;
   discountPercent: number | null;
   hasPromotions: boolean;
 }
@@ -19,6 +21,8 @@ export function getNormalizedPromotion(product: any): ProductPromotionState {
       isHot: false,
       isFeatured: false,
       isLimitedDeal: false,
+      isPreorder: false,
+      estimatedDeliveryDate: null,
       discountPercent: null,
       hasPromotions: false,
     };
@@ -39,6 +43,8 @@ export function getNormalizedPromotion(product: any): ProductPromotionState {
   const isHot = Boolean(product.isHot ?? product.is_hot ?? false) && !isHotExpired;
   const isFeatured = Boolean(product.isFeatured ?? product.is_featured ?? product.featured ?? false) && !isFeaturedExpired;
   const isLimitedDeal = Boolean(product.isLimitedTimeOffer ?? product.isLimitedDeal ?? product.is_limited_deal ?? false);
+  const isPreorder = Boolean(product.isPreorder ?? product.is_preorder ?? false);
+  const estimatedDeliveryDate = product.estimatedDeliveryDate ?? product.estimated_delivery_date ?? null;
 
   // Compute discount percentage from various product representations
   let discountPercent: number | null = null;
@@ -62,13 +68,15 @@ export function getNormalizedPromotion(product: any): ProductPromotionState {
     }
   }
 
-  const hasPromotions = isNew || isHot || isFeatured || isLimitedDeal || (discountPercent !== null && discountPercent > 0);
+  const hasPromotions = isNew || isHot || isFeatured || isLimitedDeal || isPreorder || (discountPercent !== null && discountPercent > 0);
 
   return {
     isNew,
     isHot,
     isFeatured,
     isLimitedDeal,
+    isPreorder,
+    estimatedDeliveryDate,
     discountPercent,
     hasPromotions,
   };

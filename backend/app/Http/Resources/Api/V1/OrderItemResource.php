@@ -38,6 +38,10 @@ class OrderItemResource extends JsonResource
             'line_total' => $lineTotal,
             'line_total_cents' => (int) round($lineTotal * 100),
             'package_breakdown' => $this->package_breakdown,
+            'is_preorder' => (bool) ($this->product?->is_preorder ?? false),
+            'isPreorder' => (bool) ($this->product?->is_preorder ?? false),
+            'estimated_delivery_date' => $this->product?->estimated_delivery_date?->format('Y-m-d'),
+            'estimatedDeliveryDate' => $this->product?->estimated_delivery_date?->format('Y-m-d'),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

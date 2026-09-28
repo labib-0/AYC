@@ -28,10 +28,13 @@ export interface ProductQueryParams {
   is_new?: boolean;
   is_best_deal?: boolean;
   is_limited_deal?: boolean;
+  is_preorder?: boolean;
+  isPreorder?: boolean;
   in_stock?: boolean;
   sort?: string;
   sort_by?: "price_asc" | "price_desc" | "newest" | "popular" | "hot" | "featured" | "name_asc" | "name_desc";
   isAdmin?: boolean;
+  purchase_price_status?: string;
 }
 
 /** Shape returned by the paginated endpoint */
@@ -153,6 +156,9 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     isHot ||
     (msrpPrice > wholesalePrice)
   );
+
+  const isPreorder = Boolean(p.isPreorder ?? p.is_preorder);
+  const estimatedDeliveryDate = p.estimatedDeliveryDate ?? p.estimated_delivery_date ?? null;
 
   let status: "published" | "draft" | "unpublished" = "published";
   if (p.status === "draft") status = "draft";
@@ -298,7 +304,6 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     audience: audienceVal,
     designType: designTypeVal,
     productType: p.productType || p.product_type || "Ready-Made Garments",
-    collectionSeason: p.collectionSeason || p.collection_season || "2026 Core Collection",
     shortDescription: p.shortDescription || p.short_description || `Premium quality ${p.name} direct from Dhaka export facilities.`,
     description: p.description || `Premium apparel manufactured with high-tensile combed yarn and reactive dye technology. Compliant with international export standards (AQL 2.5).`,
     seoTitle: p.seoTitle || p.seo_title || p.name || undefined,
@@ -311,7 +316,6 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     material: p.material || "100% Cotton",
     colorName: p.colorName || p.color_name || p.color || "Black",
     colorHex: p.colorHex || p.color_hex || "#111827",
-    weightGrams: p.weightGrams || p.weight_grams || 250,
     videoUrl: rawVideoUrl || undefined,
     video_url: rawVideoUrl || undefined,
     youtubeVideoId: youtubeVideoId,
@@ -320,6 +324,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     vimeoVideoId: p.vimeoVideoId || p.vimeo_video_id || null,
     images: images,
     costPrice: costPrice,
+    purchasePriceUpdated: p.purchasePriceUpdated !== undefined ? p.purchasePriceUpdated : null,
+    purchasePriceUpdatedAt: p.purchasePriceUpdatedAt || p.purchase_price_updated_at || null,
     wholesalePrice: wholesalePrice,
     standardPrice: wholesalePrice,
     bulkThreshold: bulkThreshold,
@@ -353,6 +359,10 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     hot_until: hotUntil,
     isLimitedDeal: isLimitedDeal,
     isBestDeal: isBestDeal,
+    isPreorder: isPreorder,
+    is_preorder: isPreorder,
+    estimatedDeliveryDate: estimatedDeliveryDate,
+    estimated_delivery_date: estimatedDeliveryDate,
     sizes: p.sizes || ["S", "M", "L", "XL", "2XL"],
     colors: p.colors || [p.color_name || p.color || "Black"],
     variants: variants,
@@ -424,6 +434,10 @@ export function toStorefrontProduct(p: any): Product {
     isFeatured: Boolean(p.isFeatured ?? p.is_featured),
     featuredUntil: p.featuredUntil || p.featured_until,
     isLimitedTimeOffer: Boolean(p.isLimitedDeal ?? p.is_limited_deal),
+    isPreorder: Boolean(p.isPreorder ?? p.is_preorder),
+    is_preorder: Boolean(p.isPreorder ?? p.is_preorder),
+    estimatedDeliveryDate: p.estimatedDeliveryDate ?? p.estimated_delivery_date ?? null,
+    estimated_delivery_date: p.estimatedDeliveryDate ?? p.estimated_delivery_date ?? null,
     videoProvider: p.videoProvider || p.video_provider,
     sizes: p.sizes || (Array.isArray(p.variants) && p.variants.length > 0 ? Array.from(new Set(p.variants.map((v: any) => v.size).filter(Boolean))) as string[] : ["S", "M", "L", "XL", "2XL"]),
     moq: p.moq !== undefined ? Number(p.moq) : 1,
@@ -673,10 +687,8 @@ export class ProductService {
       payload.designType = input.designType;
     }
     if (input.productType !== undefined) payload.product_type = input.productType;
-    if (input.collectionSeason !== undefined) payload.collection_season = input.collectionSeason;
     if (input.colorName !== undefined) payload.color_name = input.colorName;
     if (input.colorHex !== undefined) payload.color_hex = input.colorHex;
-    if (input.weightGrams !== undefined) payload.weight_grams = input.weightGrams;
 
     if (input.isFeatured !== undefined) payload.is_featured = input.isFeatured;
     if (input.featuredUntil !== undefined) payload.featured_until = input.featuredUntil;
@@ -686,6 +698,8 @@ export class ProductService {
     if (input.newUntil !== undefined) payload.new_until = input.newUntil;
     if (input.isLimitedDeal !== undefined) payload.is_limited_deal = input.isLimitedDeal;
     if (input.isBestDeal !== undefined) payload.is_best_deal = input.isBestDeal;
+    if (input.isPreorder !== undefined) payload.is_preorder = input.isPreorder;
+    if (input.estimatedDeliveryDate !== undefined) payload.estimated_delivery_date = input.estimatedDeliveryDate;
 
     if (input.packageAllocations !== undefined) payload.package_allocations = input.packageAllocations;
     if (input.shippingPackageProfiles !== undefined) payload.shipping_package_profiles = input.shippingPackageProfiles;
@@ -902,6 +916,7 @@ export class ProductService {
       if (options?.is_new && !p.isNew) return false;
       if (options?.is_best_deal && !p.isBestDeal) return false;
       if (options?.is_limited_deal && !p.isLimitedDeal) return false;
+      if (options?.is_preorder && !p.isPreorder) return false;
       return true;
     });
 

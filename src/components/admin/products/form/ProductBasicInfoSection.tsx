@@ -25,7 +25,6 @@ interface ProductBasicInfoSectionProps {
   audience: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX";
   designType: "ORIGINAL" | "MASTER COPY";
   material: string;
-  collectionSeason?: string;
   description: string;
   brands: BrandOption[];
   categories: CategoryOption[];
@@ -38,7 +37,6 @@ interface ProductBasicInfoSectionProps {
   onAudienceChange: (val: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX") => void;
   onDesignTypeChange: (val: "ORIGINAL" | "MASTER COPY") => void;
   onMaterialChange: (val: string) => void;
-  onCollectionSeasonChange?: (val: string) => void;
   onDescriptionChange: (val: string) => void;
   onBrandCreated?: (newBrand: BrandModel) => void;
 }
@@ -64,7 +62,6 @@ export default function ProductBasicInfoSection({
   audience,
   designType,
   material,
-  collectionSeason,
   description,
   brands,
   categories,
@@ -77,7 +74,6 @@ export default function ProductBasicInfoSection({
   onAudienceChange,
   onDesignTypeChange,
   onMaterialChange,
-  onCollectionSeasonChange,
   onDescriptionChange,
   onBrandCreated,
 }: ProductBasicInfoSectionProps) {
@@ -281,36 +277,18 @@ export default function ProductBasicInfoSection({
           </div>
         </div>
 
-        {/* Material & Collection Season */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Material Composition
-            </label>
-            <input
-              type="text"
-              value={material}
-              onChange={(e) => onMaterialChange(e.target.value)}
-              placeholder="e.g. 100% Combed Cotton, 280 GSM Brushed Fleece"
-              className={inputClass()}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Collection Season
-            </label>
-            <input
-              type="text"
-              value={collectionSeason || ""}
-              onChange={(e) => onCollectionSeasonChange?.(e.target.value)}
-              placeholder="Defaults to storewide active season"
-              className={inputClass()}
-            />
-            <p className="text-[10.5px] text-muted-foreground mt-1">
-              Leave blank to automatically follow the active season set in Homepage Management.
-            </p>
-          </div>
+        {/* Material */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+            Material Composition
+          </label>
+          <input
+            type="text"
+            value={material}
+            onChange={(e) => onMaterialChange(e.target.value)}
+            placeholder="e.g. 100% Combed Cotton, 280 GSM Brushed Fleece"
+            className={inputClass()}
+          />
         </div>
 
         {/* Description */}

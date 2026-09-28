@@ -193,9 +193,9 @@ export default function ProductQuickAddModal() {
 
   const handleAddToCart = useCallback(async () => {
     if (!product) return;
-    if (maxCompletePackages > 0 && packageCount > maxCompletePackages) {
+    if (completePackageStock > 0 && totalQuantity > completePackageStock) {
       setStockError(
-        `Requested ${packageCount} packages (${totalQuantity} pcs) exceeds available stock of ${maxCompletePackages} complete packages (${completePackageStock} pcs).`
+        `Requested ${totalQuantity.toLocaleString()} pcs exceeds available stock of ${completePackageStock.toLocaleString()} pcs.`
       );
       return;
     }
@@ -216,8 +216,8 @@ export default function ProductQuickAddModal() {
     if (!product) return;
     addToRfq(product, totalQuantity, {
       size: "Assorted",
-      color: "Universal Package",
-      buyerNotes: `${packageCount} Universal Package(s) (${totalQuantity} pcs total)`,
+      color: "Standard",
+      buyerNotes: `Quantity: ${totalQuantity.toLocaleString()} pcs`,
     });
     setAddedRfqSuccess(true);
     setTimeout(() => {
@@ -281,7 +281,7 @@ export default function ProductQuickAddModal() {
                 <span className="text-xs font-sans font-normal text-muted-foreground ml-1">/ pc</span>
               </div>
               <span className="text-[10.5px] font-sans font-semibold text-muted-foreground block">
-                MOQ: 1 pkg ({moq} pcs)
+                MOQ: {moq} pcs
               </span>
             </div>
           </div>
@@ -336,21 +336,21 @@ export default function ProductQuickAddModal() {
                     />
                     <InfoItem
                       label="Available Stock"
-                      value={`${maxCompletePackages} complete ${maxCompletePackages === 1 ? "pkg" : "pkgs"} (${completePackageStock.toLocaleString()} pcs)`}
+                      value={completePackageStock > 0 ? `${completePackageStock.toLocaleString()} PCS` : "Out of Stock"}
                     />
-                    <InfoItem label="MOQ" value={`${moq} pcs / package`} />
+                    <InfoItem label="MOQ" value={`${moq} pcs`} />
                   </div>
                 </div>
 
-                {/* ═══ ORDER QUANTITY (PACKAGES ONLY) ═══ */}
+                {/* ═══ ORDER QUANTITY (PCS) ═══ */}
                 <div className="space-y-3 pt-1">
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-[11px] font-sans font-semibold uppercase tracking-wider text-muted-foreground block">
                         Order Quantity
                       </label>
-                      <span className="text-[11px] font-bold text-foreground">
-                        {packageCount} {packageCount === 1 ? "Package" : "Packages"} · <span className="text-primary tabular-nums">{totalQuantity} pcs total</span>
+                      <span className="text-[11px] font-bold text-foreground tabular-nums">
+                        <span className="text-primary">{totalQuantity.toLocaleString()} PCS</span>
                       </span>
                     </div>
 
@@ -361,30 +361,30 @@ export default function ProductQuickAddModal() {
                           onClick={decreasePackages}
                           disabled={packageCount <= 1}
                           className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-l-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
-                          aria-label="Decrease packages"
+                          aria-label="Decrease quantity"
                         >
                           <Minus size={15} strokeWidth={2} />
                         </button>
-                        <span className="w-14 sm:w-16 text-center text-sm sm:text-base font-bold tabular-nums font-sans select-none border-x border-border/50">
-                          {packageCount}
+                        <span className="min-w-16 px-2 text-center text-sm sm:text-base font-bold tabular-nums font-sans select-none border-x border-border/50">
+                          {totalQuantity.toLocaleString()}
                         </span>
                         <button
                           type="button"
                           onClick={increasePackages}
                           disabled={maxCompletePackages > 0 && packageCount >= maxCompletePackages}
                           className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-r-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
-                          aria-label="Increase packages"
+                          aria-label="Increase quantity"
                         >
                           <Plus size={15} strokeWidth={2} />
                         </button>
                       </div>
                       <span className="text-xs sm:text-sm font-semibold text-muted-foreground font-sans">
-                        packages
+                        PCS
                       </span>
                     </div>
 
                     <p className="text-[11px] text-muted-foreground mt-1.5 font-sans">
-                      {packageCount} package(s) × {moq} pcs = <strong className="text-foreground">{totalQuantity} pcs</strong> · Max available: {maxCompletePackages} complete {maxCompletePackages === 1 ? "pkg" : "pkgs"} ({completePackageStock} pcs)
+                      <strong className="text-foreground">{totalQuantity.toLocaleString()} pcs</strong> · MOQ: {moq} pcs · Available: {completePackageStock.toLocaleString()} pcs
                     </p>
                   </div>
 

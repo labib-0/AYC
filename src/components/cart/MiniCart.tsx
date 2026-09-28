@@ -76,14 +76,13 @@ export default function MiniCart() {
                 const itemMoq = item.product.moq || 1;
                 const unitPrice = item.unitPrice || item.product.price;
                 const lineTotal = item.lineTotal || (unitPrice * item.quantity);
-                const pkgCount = Math.max(1, Math.round(item.quantity / itemMoq));
                 const itemViolation = stockViolations.find((v) =>
                   (v.item_id && v.item_id === item.id) ||
                   (String(v.product_id) === String(item.product.id) && (v.size === item.size || (!v.size && !item.size)))
                 );
 
                 return (
-                  <div key={`${item.product.id}-${item.size || 'pkg'}`} className={`flex flex-col gap-2 p-3 rounded-xl bg-card border shadow-xs ${
+                  <div key={`${item.product.id}-${item.size || 'item'}`} className={`flex flex-col gap-2 p-3 rounded-xl bg-card border shadow-xs ${
                     itemViolation ? "border-amber-500/50 bg-amber-500/5" : "border-border/60"
                   }`}>
                     <div className="flex gap-3.5 items-start">
@@ -96,8 +95,20 @@ export default function MiniCart() {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-body font-semibold text-[14px] sm:text-[15px] uppercase tracking-tight truncate text-foreground">{item.product.name}</h3>
                         <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate">
-                          {item.product.brand ? `${item.product.brand} · ` : ""}Universal Package ({pkgCount} {pkgCount === 1 ? "pkg" : "pkgs"} · {item.quantity} pcs)
+                          {item.product.brand ? `${item.product.brand} · ` : ""}{item.quantity.toLocaleString()} pcs
                         </p>
+                        {(item.product.isPreorder || (item.product as any).is_preorder) && (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold tracking-wider uppercase bg-indigo-600/90 text-white shadow-2xs leading-none">
+                              Preorder
+                            </span>
+                            {(item.product.estimatedDeliveryDate || (item.product as any).estimated_delivery_date) && (
+                              <span className="text-[10.5px] text-muted-foreground font-medium">
+                                Est. delivery: {new Date(item.product.estimatedDeliveryDate || (item.product as any).estimated_delivery_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         
                         <div className="flex items-baseline justify-between mt-1 font-sans">
                           <span className="text-sm font-bold text-foreground tabular-nums">
@@ -115,20 +126,18 @@ export default function MiniCart() {
                                 className="w-7 h-full flex items-center justify-center hover:bg-secondary rounded-l-lg transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                                 onClick={() => updateQuantity(item.product.id, item.size, Math.max(itemMoq, item.quantity - itemMoq), item.id)}
                                 disabled={item.quantity <= itemMoq}
-                                aria-label="Decrease packages"
+                                aria-label="Decrease quantity"
                               >−</button>
                               <span className="px-2 text-center text-xs font-bold tabular-nums">
-                                {pkgCount} <span className="text-[10px] text-muted-foreground font-normal">pkgs</span>
+                                {item.quantity.toLocaleString()} <span className="text-[10px] text-muted-foreground font-normal">pcs</span>
                               </span>
                               <button 
                                 className="w-7 h-full flex items-center justify-center hover:bg-secondary rounded-r-lg transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-bold text-xs cursor-pointer"
                                 onClick={() => updateQuantity(item.product.id, item.size, item.quantity + itemMoq, item.id)}
-                                aria-label="Increase packages"
+                                aria-label="Increase quantity"
                               >+</button>
                             </div>
-                            <span className="text-[11px] text-muted-foreground tabular-nums">
-                              ({item.quantity} pcs)
-                            </span>
+
                           </div>
                           <button 
                             className="text-xs uppercase tracking-wider font-semibold text-muted-foreground hover:text-rose-600 transition-colors cursor-pointer"

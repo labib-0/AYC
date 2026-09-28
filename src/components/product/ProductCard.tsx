@@ -145,7 +145,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
           <div className="flex items-center justify-between gap-1 mt-0.5">
             <p className="text-[13px] font-body text-muted-foreground font-medium">
-              MOQ 1 pkg ({effectiveMoq} pcs)
+              MOQ {effectiveMoq} pcs
             </p>
             {isOutOfStock ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">

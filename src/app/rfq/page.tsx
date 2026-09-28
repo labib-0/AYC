@@ -262,12 +262,10 @@ export default function RfqPage() {
                               {item.productName}
                             </h3>
                             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
-                              <span>Assortment: <strong className="text-foreground">Universal Package</strong></span>
-                              <span>•</span>
-                              <span>MOQ: <strong className="text-foreground">1 pkg ({item.moq} pcs)</strong></span>
+                              <span>MOQ: <strong className="text-foreground">{item.moq} pcs</strong></span>
                             </div>
                             <span className="text-xs text-muted-foreground block mt-0.5">
-                              Wholesale Est: ${item.unitPrice?.toFixed(2)}/pc • {Math.max(1, Math.round(item.quantity / item.moq))} {Math.max(1, Math.round(item.quantity / item.moq)) === 1 ? "pkg" : "pkgs"} ({item.quantity} pcs total)
+                              Wholesale Est: ${item.unitPrice?.toFixed(2)}/pc · {item.quantity.toLocaleString()} pcs total
                             </span>
                           </div>
                         </div>
@@ -275,26 +273,26 @@ export default function RfqPage() {
                         {/* Quantity & Actions */}
                         <div className="flex sm:flex-col items-end gap-2 self-stretch sm:self-auto justify-between sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0 border-border/50">
                           <div className="flex items-center gap-2">
-                            <label className="text-xs font-semibold text-muted-foreground">Packages:</label>
+                            <label className="text-xs font-semibold text-muted-foreground">Qty (PCS):</label>
                             <div className="flex items-center border border-border rounded-lg h-7 bg-card">
                               <button
                                 type="button"
                                 className="w-7 h-full flex items-center justify-center hover:bg-secondary rounded-l-lg transition-colors font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                                 onClick={() => updateRfqItemQuantity(item.id, Math.max(item.moq, item.quantity - item.moq))}
                                 disabled={item.quantity <= item.moq}
-                                aria-label="Decrease packages"
+                                aria-label="Decrease quantity"
                               >−</button>
                               <span className="px-2 text-center text-xs font-bold tabular-nums">
-                                {Math.max(1, Math.round(item.quantity / item.moq))}
+                                {item.quantity.toLocaleString()}
                               </span>
                               <button
                                 type="button"
                                 className="w-7 h-full flex items-center justify-center hover:bg-secondary rounded-r-lg transition-colors font-bold text-xs cursor-pointer"
                                 onClick={() => updateRfqItemQuantity(item.id, item.quantity + item.moq)}
-                                aria-label="Increase packages"
+                                aria-label="Increase quantity"
                               >+</button>
                             </div>
-                            <span className="text-xs text-muted-foreground tabular-nums">({item.quantity} pcs)</span>
+                            <span className="text-xs text-muted-foreground tabular-nums">pcs</span>
                           </div>
 
                           {isBelowMoq && (

@@ -10,6 +10,7 @@ export interface ProductFilters {
   status: string;
   category: string;
   designType: string;
+  purchasePriceStatus: string;
 }
 
 interface ProductSearchFiltersProps {
@@ -34,6 +35,12 @@ const STATUSES = [
   { value: "draft", label: "Draft" },
 ];
 
+const PURCHASE_PRICE_STATUSES = [
+  { value: "all", label: "All Purchase Prices" },
+  { value: "pending", label: "Purchase Price Pending" },
+  { value: "updated", label: "Purchase Price Updated" },
+];
+
 const DESIGN_TYPES = [
   { value: "all", label: "All Design Types" },
   { value: "original", label: "Original" },
@@ -54,6 +61,7 @@ export default function ProductSearchFilters({
     filters.status !== "all" ||
     filters.category !== "all" ||
     filters.designType !== "all" ||
+    filters.purchasePriceStatus !== "all" ||
     filters.search.trim() !== "";
 
   const activeFilterCount = [
@@ -62,6 +70,7 @@ export default function ProductSearchFilters({
     filters.status !== "all",
     filters.category !== "all",
     filters.designType !== "all",
+    filters.purchasePriceStatus !== "all",
   ].filter(Boolean).length;
 
   const update = (key: keyof ProductFilters, value: string) => {
@@ -76,6 +85,7 @@ export default function ProductSearchFilters({
       status: "all",
       category: "all",
       designType: "all",
+      purchasePriceStatus: "all",
     });
   };
 
@@ -208,6 +218,19 @@ export default function ProductSearchFilters({
             {DESIGN_TYPES.map((d) => (
               <option key={d.value} value={d.value}>
                 {d.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.purchasePriceStatus}
+            onChange={(e) => update("purchasePriceStatus", e.target.value)}
+            className={`${selectClasses} ${filters.purchasePriceStatus === "pending" ? "text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700" : ""}`}
+            aria-label="Filter by purchase price status"
+          >
+            {PURCHASE_PRICE_STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
               </option>
             ))}
           </select>

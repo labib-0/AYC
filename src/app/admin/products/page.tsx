@@ -45,6 +45,7 @@ export default function AdminProductsPage() {
     status: "all",
     category: "all",
     designType: "all",
+    purchasePriceStatus: "all",
   });
 
   // ── Pagination ──
@@ -108,6 +109,7 @@ export default function AdminProductsPage() {
         audience: filters.audience !== "all" ? filters.audience : undefined,
         status: filters.status !== "all" ? filters.status : undefined,
         category: filters.category !== "all" ? filters.category : undefined,
+        purchase_price_status: filters.purchasePriceStatus !== "all" ? filters.purchasePriceStatus : undefined,
       });
 
       // Apply design type filter locally
@@ -147,6 +149,7 @@ export default function AdminProductsPage() {
   const publishedCount = allProducts.filter((p) => p.status === "published").length;
   const draftCount = allProducts.filter((p) => p.status === "draft").length;
   const lowStockCount = allProducts.filter((p) => p.stock < LOW_STOCK_THRESHOLD).length;
+  const purchasePricePendingCount = allProducts.filter((p) => (p as any).purchasePriceUpdated === false).length;
 
   const totalPages = Math.max(1, Math.ceil(totalProducts / ITEMS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
@@ -159,7 +162,8 @@ export default function AdminProductsPage() {
     filters.audience !== "all" ||
     filters.status !== "all" ||
     filters.category !== "all" ||
-    filters.designType !== "all";
+    filters.designType !== "all" ||
+    filters.purchasePriceStatus !== "all";
 
   // ── Selection Handlers ──
   const handleSelect = (id: string, selected: boolean) => {
@@ -273,6 +277,7 @@ export default function AdminProductsPage() {
       status: "all",
       category: "all",
       designType: "all",
+      purchasePriceStatus: "all",
     });
   };
 
@@ -308,6 +313,10 @@ export default function AdminProductsPage() {
           published={publishedCount}
           draft={draftCount}
           lowStock={lowStockCount}
+          purchasePricePending={purchasePricePendingCount}
+          onPurchasePricePendingClick={() =>
+            setFilters((f) => ({ ...f, purchasePriceStatus: f.purchasePriceStatus === "pending" ? "all" : "pending" }))
+          }
         />
 
         {/* Search & Filters */}

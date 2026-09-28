@@ -24,12 +24,16 @@ export const PRODUCT_BADGE_HOT_CLASS =
 export const PRODUCT_BADGE_FEATURED_CLASS =
   "bg-amber-500/90 text-white border border-amber-600/30 dark:border-amber-400/30";
 
+// PREORDER badge surface (distinct indigo/violet surface)
+export const PRODUCT_BADGE_PREORDER_CLASS =
+  "bg-indigo-600/90 text-white border border-indigo-700/30 dark:border-indigo-400/30";
+
 // Brand logo container surface (shares identical background fill, border, corner radius, and subtle shadow)
 export const BRAND_LOGO_CONTAINER_SURFACE_CLASS =
   "bg-background/85 dark:bg-slate-900/85 backdrop-blur-xs border border-border/50 shadow-2xs rounded";
 
 export interface ProductBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "neutral" | "hot" | "featured";
+  variant?: "neutral" | "hot" | "featured" | "preorder";
   children: React.ReactNode;
 }
 
@@ -44,6 +48,8 @@ export function ProductBadge({
       ? PRODUCT_BADGE_HOT_CLASS
       : variant === "featured"
       ? PRODUCT_BADGE_FEATURED_CLASS
+      : variant === "preorder"
+      ? PRODUCT_BADGE_PREORDER_CLASS
       : PRODUCT_BADGE_NEUTRAL_CLASS;
 
   return (

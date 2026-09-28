@@ -28,14 +28,12 @@ export interface B2BProductInput {
   audience: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX";
   designType?: "ORIGINAL" | "MASTER COPY";
   productType?: string;
-  collectionSeason?: string;
   shortDescription?: string;
   description?: string;
   material?: string;
   color?: string;
   colorName?: string;
   colorHex?: string;
-  weightGrams?: number;
   videoUrl?: string;
   video_url?: string;
   youtubeVideoId?: string;
@@ -44,6 +42,8 @@ export interface B2BProductInput {
   vimeoVideoId?: string | null;
   images: string[];
   costPrice?: number;
+  purchasePriceUpdated?: boolean | null;
+  purchasePriceUpdatedAt?: string | null;
   wholesalePrice: number;
   standardPrice?: number;
   bulkThreshold?: number;
@@ -92,6 +92,10 @@ export interface B2BProductInput {
   hot_until?: string | null;
   isLimitedDeal?: boolean;
   isBestDeal?: boolean;
+  isPreorder?: boolean;
+  is_preorder?: boolean;
+  estimatedDeliveryDate?: string | null;
+  estimated_delivery_date?: string | null;
   sizes?: string[];
   colors?: string[];
   variants?: B2BProductVariant[];

@@ -515,10 +515,10 @@ export default function CustomerReorderPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                        Reorder Packages:
+                        Reorder Quantity:
                       </span>
                       <span className="text-[10.5px] text-slate-500 font-medium tabular-nums">
-                        {currentQty} pcs total
+                        MOQ: {item.moq} pcs
                       </span>
                     </div>
                     <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl p-1 border border-slate-200 dark:border-white/10">
@@ -533,13 +533,13 @@ export default function CustomerReorderPage() {
                         }
                         disabled={currentQty <= item.moq}
                         className="w-7 h-7 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-                        aria-label="Decrease packages"
+                        aria-label="Decrease quantity"
                       >
                         <Minus size={12} />
                       </button>
 
-                      <span className="w-14 text-center font-bold font-mono text-xs text-slate-900 dark:text-white">
-                        {Math.max(1, Math.round(currentQty / item.moq))} pkgs
+                      <span className="w-20 text-center font-bold font-mono text-xs text-slate-900 dark:text-white">
+                        {currentQty.toLocaleString()} pcs
                       </span>
 
                       <button
@@ -552,7 +552,7 @@ export default function CustomerReorderPage() {
                           )
                         }
                         className="w-7 h-7 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-white flex items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
-                        aria-label="Increase packages"
+                        aria-label="Increase quantity"
                       >
                         <Plus size={12} />
                       </button>

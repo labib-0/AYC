@@ -25,6 +25,10 @@ export interface Product {
   isFeatured?: boolean;
   featuredUntil?: string | null;
   isLimitedTimeOffer?: boolean;
+  isPreorder?: boolean;
+  is_preorder?: boolean;
+  estimatedDeliveryDate?: string | null;
+  estimated_delivery_date?: string | null;
   promotionType?: "limited-time" | "featured" | "clearance" | string;
   sizes: string[];
   sku?: string;
@@ -75,12 +79,14 @@ export interface ShippingPackageProfile {
   carton_width: number;
   carton_height: number;
   dimension_unit: "cm" | "in" | "m";
-  gross_weight: number;
+  gross_weight: number;        // per carton
+  total_gross_weight?: number; // gross_weight × carton_count (derived)
   net_weight?: number | null;
   weight_unit: "kg" | "lbs" | "g";
   notes?: string | null;
   is_active?: boolean;
-  total_cbm?: number;
+  single_carton_cbm?: number;  // volume of one carton (derived)
+  total_cbm?: number;          // single_carton_cbm × carton_count (derived)
 }
 
 export interface PricingTier {

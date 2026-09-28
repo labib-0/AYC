@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Globe, AlertCircle, CheckCircle2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Save, Globe, AlertCircle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { B2BProductInput, B2BProductVariant } from "@/types/b2b";
 import { ShippingPackageProfile, PackageAllocation } from "@/types";
 import { getBrands } from "@/lib/services/brands";
@@ -68,7 +68,6 @@ export default function ProductForm({
     return raw === "MASTER COPY" || raw === "REPLICA" || raw === "MC" ? "MASTER COPY" : "ORIGINAL";
   });
   const [material, setMaterial] = useState(initialData?.material || "");
-  const [collectionSeason, setCollectionSeason] = useState(initialData?.collectionSeason || (initialData as any)?.collection_season || "");
   const [description, setDescription] = useState(initialData?.description || "");
 
   // Media
@@ -83,6 +82,13 @@ export default function ProductForm({
     initialData?.fullStockPrice ?? (initialData as any)?.full_stock_price ?? (isEdit ? undefined : 18.0)
   );
   const [msrpPrice, setMsrpPrice] = useState<number | undefined>(initialData?.msrpPrice);
+  const [costPrice, setCostPrice] = useState<number | undefined>(
+    (initialData as any)?.costPrice !== undefined ? Number((initialData as any).costPrice) :
+    (initialData as any)?.cost_price !== undefined ? Number((initialData as any).cost_price) : undefined
+  );
+  const purchasePriceUpdated = isEdit
+    ? ((initialData as any)?.purchasePriceUpdated ?? (costPrice !== undefined && costPrice > 0))
+    : (costPrice !== undefined && costPrice > 0);
 
   // Promotion with Independent Scheduling
   const [isNew, setIsNew] = useState(Boolean(initialData?.isNew));
@@ -96,6 +102,10 @@ export default function ProductForm({
   const [isFeatured, setIsFeatured] = useState(Boolean(initialData?.isFeatured));
   const [featuredUntil, setFeaturedUntil] = useState<string | null>(
     (initialData as any)?.featuredUntil || (initialData as any)?.featured_until || null
+  );
+  const [isPreorder, setIsPreorder] = useState(Boolean(initialData?.isPreorder || (initialData as any)?.is_preorder));
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState<string | null>(
+    (initialData as any)?.estimatedDeliveryDate || (initialData as any)?.estimated_delivery_date || null
   );
 
   // Variants & Stock
@@ -213,6 +223,11 @@ export default function ProductForm({
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"published" | "draft" | null>(null);
 
+  // Package Assortment Section — collapsed by default (optional feature)
+  const [packageSectionOpen, setPackageSectionOpen] = useState(
+    () => packageAllocations.length > 0
+  );
+
   // Submission & Validation States
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -243,6 +258,7 @@ export default function ProductForm({
       bulkPrice,
       fullStockPrice,
       msrpPrice,
+      costPrice,
       stock,
       warehouseId,
       moq,
@@ -256,15 +272,17 @@ export default function ProductForm({
       hotUntil,
       isFeatured,
       featuredUntil,
+      isPreorder,
+      estimatedDeliveryDate,
       status,
     };
   }, [
     name, slug, brand, brandId, brandLogo, categoryId, categoryName,
     audience, designType, material, description, seoTitle, seoDescription,
     keywords, images, videoUrl, wholesalePrice, bulkThreshold, bulkPrice,
-    fullStockPrice, msrpPrice, stock, colors, sizes, packageAllocations,
+    fullStockPrice, msrpPrice, costPrice, stock, colors, sizes, packageAllocations,
     shippingProfiles, isNew, newUntil, isHot, hotUntil, isFeatured,
-    featuredUntil, status
+    featuredUntil, isPreorder, estimatedDeliveryDate, status
   ]);
 
   // Restore unsaved draft on mount if available
@@ -296,6 +314,7 @@ export default function ProductForm({
       if (d.bulkPrice !== undefined) setBulkPrice(d.bulkPrice);
       if (d.fullStockPrice !== undefined) setFullStockPrice(d.fullStockPrice);
       if (d.msrpPrice !== undefined) setMsrpPrice(d.msrpPrice);
+      if ((d as any).costPrice !== undefined) setCostPrice((d as any).costPrice);
       if (d.stock !== undefined) setStock(d.stock);
       if (d.warehouseId !== undefined) setWarehouseId(d.warehouseId);
       if (d.moq !== undefined && d.moq > 0) setCustomMoq(d.moq);
@@ -309,6 +328,8 @@ export default function ProductForm({
       if (d.hotUntil !== undefined) setHotUntil(d.hotUntil);
       if (d.isFeatured !== undefined) setIsFeatured(d.isFeatured);
       if (d.featuredUntil !== undefined) setFeaturedUntil(d.featuredUntil);
+      if (d.isPreorder !== undefined) setIsPreorder(d.isPreorder);
+      if (d.estimatedDeliveryDate !== undefined) setEstimatedDeliveryDate(d.estimatedDeliveryDate);
       if ((d.status === "draft" || d.status === "published") && initialData?.status !== "published") {
         setStatus(d.status);
       }
@@ -429,8 +450,34 @@ export default function ProductForm({
     [name, brand, wholesalePrice, images, moq]
   );
 
-  // Validate form before submission
-  const validateForm = (): boolean => {
+  // Draft validation — permissive, only requires a product name to save progress
+  const validateDraft = (): boolean => {
+    const errs: Record<string, string> = {};
+
+    if (!name.trim()) errs.name = "Product name is required to save a draft.";
+    else if (name.trim().length < 3) errs.name = "Product name must be at least 3 characters.";
+
+    // Validate package allocations if the admin has added any
+    if (packageAllocations.length > 0) {
+      for (const a of packageAllocations) {
+        if (!Number.isInteger(a.quantity) || a.quantity < 0) {
+          errs.package_allocations = "Package allocation quantities must be non-negative whole integers.";
+          break;
+        }
+      }
+    }
+
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setGeneralError("Please review the highlighted fields before saving.");
+      return false;
+    }
+    setGeneralError(null);
+    return true;
+  };
+
+  // Publish validation — strict, enforces all required fields for a live product
+  const validatePublish = (): boolean => {
     const errs: Record<string, string> = {};
 
     if (!name.trim()) errs.name = "Product name is required.";
@@ -475,9 +522,13 @@ export default function ProductForm({
       errs.warehouse_id = "Please select a warehouse location for initial stock allocation.";
     }
 
+    if (isPreorder && !estimatedDeliveryDate) {
+      errs.estimatedDeliveryDate = "Estimated delivery date is required when publishing a Preorder product.";
+    }
+
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      setGeneralError("Please review the highlighted fields before saving.");
+      setGeneralError("Please review the highlighted fields before publishing.");
       return false;
     }
     setGeneralError(null);
@@ -485,7 +536,8 @@ export default function ProductForm({
   };
 
   const handleSaveWithStatus = async (targetStatus: "published" | "draft") => {
-    if (!validateForm()) return;
+    const isValid = targetStatus === "draft" ? validateDraft() : validatePublish();
+    if (!isValid) return;
 
     setIsSubmitting(true);
     setGeneralError(null);
@@ -549,7 +601,6 @@ export default function ProductForm({
         seoDescription: seoDescription.trim() || undefined,
         keywords: keywords,
         material: material.trim(),
-        collectionSeason: collectionSeason.trim() || undefined,
         images: images.length > 0 ? images : ["/placeholder.jpg"],
         videoUrl: videoUrl.trim() || undefined,
         video_url: videoUrl.trim() || undefined,
@@ -560,6 +611,7 @@ export default function ProductForm({
         fullStockPrice: fullStockPrice,
         full_stock_price: fullStockPrice,
         msrpPrice: msrpPrice,
+        costPrice: costPrice,
         moq: moq,
         stock: stock,
         initialStock: stock,
@@ -576,6 +628,10 @@ export default function ProductForm({
         isFeatured: isFeatured,
         featuredUntil: isFeatured ? featuredUntil : null,
         featured_until: isFeatured ? featuredUntil : null,
+        isPreorder: isPreorder,
+        is_preorder: isPreorder,
+        estimatedDeliveryDate: isPreorder ? estimatedDeliveryDate : null,
+        estimated_delivery_date: isPreorder ? estimatedDeliveryDate : null,
         colors: colors,
         sizes: sizes,
         variants: variants,
@@ -767,7 +823,6 @@ export default function ProductForm({
             audience={audience}
             designType={designType}
             material={material}
-            collectionSeason={collectionSeason}
             description={description}
             brands={brands}
             categories={categories}
@@ -787,7 +842,6 @@ export default function ProductForm({
             onAudienceChange={setAudience}
             onDesignTypeChange={setDesignType}
             onMaterialChange={setMaterial}
-            onCollectionSeasonChange={setCollectionSeason}
             onDescriptionChange={setDescription}
             onBrandCreated={(newB) => {
               setBrands((prev) => [...prev, { id: String(newB.id), name: newB.name, logo_url: newB.logo_url || newB.logo }]);
@@ -823,15 +877,44 @@ export default function ProductForm({
             onStockChange={setStock}
           />
 
-          {/* Section 2.5: Authoritative Manual Package Assortment Matrix */}
-          <ProductPackageAssortmentSection
-            colors={colors}
-            sizes={sizes}
-            allocations={packageAllocations}
-            moq={moq}
-            onAllocationsChange={handlePackageAllocationsChange}
-            errors={errors}
-          />
+          {/* Section 2.5: Optional Package Breakdown (collapsible) */}
+          <div className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setPackageSectionOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-secondary/40 transition-colors"
+            >
+              <div>
+                <span className="text-sm font-bold text-foreground uppercase tracking-wider">
+                  Package Breakdown
+                </span>
+                <span className="ml-2 text-[11px] text-muted-foreground font-normal">
+                  Optional — define color/size assortment per package
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                {packageAllocations.length > 0 && (
+                  <span className="text-[11px] font-semibold text-primary tabular-nums">
+                    {packageAllocations.length} variant{packageAllocations.length !== 1 ? "s" : ""} configured
+                  </span>
+                )}
+                {packageSectionOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+              </div>
+            </button>
+
+            {packageSectionOpen && (
+              <div className="border-t border-border/60">
+                <ProductPackageAssortmentSection
+                  colors={colors}
+                  sizes={sizes}
+                  allocations={packageAllocations}
+                  moq={moq}
+                  onAllocationsChange={handlePackageAllocationsChange}
+                  errors={errors}
+                />
+              </div>
+            )}
+          </div>
 
           {/* Section 3: Shipping Logistics */}
           <ProductShippingSection
@@ -858,17 +941,32 @@ export default function ProductForm({
             bulkPrice={bulkPrice}
             fullStockPrice={fullStockPrice}
             msrpPrice={msrpPrice}
+            costPrice={costPrice}
+            purchasePriceUpdated={purchasePriceUpdated}
             isNew={isNew}
             newUntil={newUntil}
             isHot={isHot}
             hotUntil={hotUntil}
             isFeatured={isFeatured}
             featuredUntil={featuredUntil}
+            isPreorder={isPreorder}
+            estimatedDeliveryDate={estimatedDeliveryDate}
             errors={errors}
             onWholesalePriceChange={setWholesalePrice}
             onMoqChange={() => {}}
             onBulkThresholdChange={setBulkThreshold}
             onBulkPriceChange={setBulkPrice}
+            onIsPreorderChange={(val, date) => {
+              setIsPreorder(val);
+              setEstimatedDeliveryDate(val ? (date ?? null) : null);
+              if (errors.estimatedDeliveryDate) {
+                setErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.estimatedDeliveryDate;
+                  return next;
+                });
+              }
+            }}
             onFullStockPriceChange={(val) => {
               setFullStockPrice(val);
               if (errors.fullStockPrice) {
@@ -880,6 +978,7 @@ export default function ProductForm({
               }
             }}
             onMsrpPriceChange={setMsrpPrice}
+            onCostPriceChange={setCostPrice}
             onIsNewChange={(val, until) => {
               setIsNew(val);
               setNewUntil(val ? (until ?? null) : null);

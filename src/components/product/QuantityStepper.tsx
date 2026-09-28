@@ -59,13 +59,11 @@ export default function QuantityStepper({
             aria-atomic="true"
           >
             <span className="font-display font-bold text-[14px] sm:text-[15px] text-foreground tabular-nums select-none leading-none">
-              {moq > 0 ? `${Math.round(quantity / moq)} ${Math.round(quantity / moq) === 1 ? "pkg" : "pkgs"}` : quantity.toLocaleString()}
+              {quantity.toLocaleString()}
             </span>
-            {moq > 1 && (
-              <span className="text-[10.5px] font-sans font-medium text-muted-foreground tabular-nums select-none leading-none mt-0.5">
-                {quantity.toLocaleString()} pcs
-              </span>
-            )}
+            <span className="text-[10.5px] font-sans font-medium text-muted-foreground tabular-nums select-none leading-none mt-0.5">
+              PCS
+            </span>
           </div>
 
           {/* Increment Button */}
@@ -86,7 +84,7 @@ export default function QuantityStepper({
         </div>
 
         <span className="text-[12px] font-sans font-semibold text-muted-foreground uppercase tracking-wider">
-          {moq > 0 ? "Packages" : unitLabel}
+          PCS
         </span>
       </div>
 

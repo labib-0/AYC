@@ -165,12 +165,25 @@ class ProductController extends ApiController
         if ($request->boolean('is_limited_deal')) {
             $query->where('is_limited_deal', true);
         }
+        if ($request->boolean('is_preorder')) {
+            $query->where('is_preorder', true);
+        }
 
         // In Stock filter
         if ($request->boolean('in_stock')) {
             $query->whereHas('variants', function ($vq) {
                 $vq->where('stock', '>', 0);
             });
+        }
+
+        // Purchase Price status filter (admin-only)
+        if ($request->filled('purchase_price_status')) {
+            $pps = $request->input('purchase_price_status');
+            if ($pps === 'pending') {
+                $query->whereNull('purchase_price_updated_at');
+            } elseif ($pps === 'updated') {
+                $query->whereNotNull('purchase_price_updated_at');
+            }
         }
 
         // Sorting whitelist
@@ -332,13 +345,12 @@ class ProductController extends ApiController
             'design_type' => ['nullable', 'string'],
             'designType' => ['nullable', 'string'],
             'product_type' => ['nullable', 'string'],
-            'collection_season' => ['nullable', 'string'],
             'wholesale_price' => ['required', 'numeric', 'min:0.01'],
             'bulk_threshold' => ['nullable', 'integer', 'min:1'],
             'bulk_price' => ['nullable', 'numeric', 'min:0.01'],
             'full_stock_price' => ['required', 'numeric', 'gt:0'],
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
-            'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'cost_price' => ['nullable', 'numeric', 'min:0.01'],
             'moq' => ['nullable', 'integer', 'min:1'],
             'initial_stock' => ['nullable', 'integer', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
@@ -359,8 +371,11 @@ class ProductController extends ApiController
             'new_duration_days' => ['nullable', 'integer', 'min:1'],
             'is_limited_deal' => ['nullable', 'boolean'],
             'is_best_deal' => ['nullable', 'boolean'],
+            'is_preorder' => ['nullable', 'boolean'],
+            'estimated_delivery_date' => ($request->boolean('is_preorder') && $request->input('status') === 'published')
+                ? ['required', 'date', 'after_or_equal:today']
+                : ['nullable', 'date', 'after_or_equal:today'],
             'video_url' => ['nullable', 'string', 'max:1000'],
-            'weight_grams' => ['nullable', 'integer', 'min:0'],
             'category_id' => ['nullable', 'exists:categories,id'],
             'categories' => ['nullable', 'array'],
             'categories.*' => ['exists:categories,id'],
@@ -463,6 +478,11 @@ class ProductController extends ApiController
             $productData['video_url'] = null;
         }
 
+        // Preorder: clear estimated_delivery_date when preorder is explicitly disabled
+        if (isset($validated['is_preorder']) && !$validated['is_preorder']) {
+            $productData['estimated_delivery_date'] = null;
+        }
+
         $rawDesignType = $validated['design_type'] ?? $validated['designType'] ?? null;
         if ($rawDesignType) {
             $dt = strtoupper(trim($rawDesignType));
@@ -519,10 +539,12 @@ class ProductController extends ApiController
 
         // Enforce MOQ >= 1
         $effectiveMoq = isset($productData['moq']) ? (int) $productData['moq'] : null;
-        if (($effectiveMoq === null || $effectiveMoq < 1) && empty($validated['package_allocations'])) {
+        $isPublished = ($request->input('status') ?? 'draft') === 'published';
+        if ($isPublished && ($effectiveMoq === null || $effectiveMoq < 1) && empty($validated['package_allocations'])) {
             return $this->error("The MOQ (Minimum Order Quantity) is required and must be at least 1.", 422);
         }
         $moq = (int) ($productData['moq'] ?? 1);
+        $productData['moq'] = $moq;
 
         // Resolve target warehouse (Required)
         $warehouseId = $validated['warehouse_id'] ?? $validated['initial_inventory']['warehouse_id'] ?? null;
@@ -593,6 +615,11 @@ class ProductController extends ApiController
         $product = DB::transaction(function () use (
             $productData, $validated, $request, $moq, $user, $targetWarehouseId, $initialStock, $shippingProfiles
         ) {
+            // Set purchase_price_updated_at when cost_price > 0 is provided
+            if (isset($productData['cost_price']) && (float) $productData['cost_price'] > 0) {
+                $productData['purchase_price_updated_at'] = now();
+            }
+
             $product = Product::create($productData);
 
             $syncCats = !empty($validated['categories']) ? $validated['categories'] : (!empty($validated['category_id']) ? [$validated['category_id']] : []);
@@ -859,6 +886,12 @@ class ProductController extends ApiController
             return $this->notFound('Product not found');
         }
 
+        $effectivePreorder = $request->has('is_preorder')
+            ? $request->boolean('is_preorder')
+            : (bool) $product->is_preorder;
+        $effectiveStatus = $request->input('status', $product->status);
+        $isPreorderPublish = $effectivePreorder && $effectiveStatus === 'published';
+
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'slug' => ['sometimes', 'string', Rule::unique('products', 'slug')->ignore($product->id)->whereNull('deleted_at')],
@@ -876,13 +909,12 @@ class ProductController extends ApiController
             'design_type' => ['nullable', 'string'],
             'designType' => ['nullable', 'string'],
             'product_type' => ['nullable', 'string'],
-            'collection_season' => ['nullable', 'string'],
             'wholesale_price' => ['sometimes', 'numeric', 'min:0.01'],
             'bulk_threshold' => ['nullable', 'integer', 'min:1'],
             'bulk_price' => ['nullable', 'numeric', 'min:0.01'],
             'full_stock_price' => ['sometimes', 'required', 'numeric', 'gt:0'],
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
-            'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'cost_price' => ['nullable', 'numeric', 'min:0.01'],
             'moq' => ['nullable', 'integer', 'min:1'],
             'status' => ['sometimes', 'string', 'in:draft,published,archived'],
             'is_featured' => ['sometimes', 'boolean'],
@@ -897,8 +929,11 @@ class ProductController extends ApiController
             'new_duration_days' => ['nullable', 'integer', 'min:1'],
             'is_limited_deal' => ['nullable', 'boolean'],
             'is_best_deal' => ['nullable', 'boolean'],
+            'is_preorder' => ['nullable', 'boolean'],
+            'estimated_delivery_date' => $isPreorderPublish
+                ? ['required', 'date', 'after_or_equal:today']
+                : ['nullable', 'date', 'after_or_equal:today'],
             'video_url' => ['nullable', 'string', 'max:1000'],
-            'weight_grams' => ['nullable', 'integer', 'min:0'],
             'category_id' => ['nullable', 'exists:categories,id'],
             'categories' => ['nullable', 'array'],
             'images' => ['nullable', 'array'],
@@ -989,6 +1024,11 @@ class ProductController extends ApiController
             $productData['new_until'] = null;
         }
 
+        // Preorder: clear estimated_delivery_date when preorder is explicitly disabled
+        if (isset($validated['is_preorder']) && !$validated['is_preorder']) {
+            $productData['estimated_delivery_date'] = null;
+        }
+
         // Validate Video URL if provided
         if (array_key_exists('video_url', $validated)) {
             if (!empty($validated['video_url'])) {
@@ -1061,6 +1101,11 @@ class ProductController extends ApiController
 
         if ($effectiveBulkThresh > 0 && $effectiveBulkThresh <= $effectiveMoq) {
             return $this->error("Bulk threshold ({$effectiveBulkThresh}) must be strictly greater than MOQ ({$effectiveMoq})", 422);
+        }
+
+        // Update purchase_price_updated_at when a valid cost_price > 0 is being saved
+        if (isset($productData['cost_price']) && (float) $productData['cost_price'] > 0) {
+            $productData['purchase_price_updated_at'] = $product->purchase_price_updated_at ?? now();
         }
 
         $product->update($productData);
