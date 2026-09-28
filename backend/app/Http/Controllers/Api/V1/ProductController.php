@@ -29,7 +29,7 @@ class ProductController extends ApiController
         $validated = $request->validated();
         $query = Product::with(['brand', 'categories', 'images', 'variants', 'pricingTiers', 'shippingPackageProfiles']);
 
-        $user = $request->user();
+        $user = $request->user() ?: auth('sanctum')->user();
         $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
 
         // Status filter (defaults to 'published' for public storefront)
