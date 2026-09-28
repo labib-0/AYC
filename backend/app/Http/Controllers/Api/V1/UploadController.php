@@ -56,6 +56,10 @@ class UploadController extends ApiController
 
         // Store in the public disk under the named subfolder
         $path = $file->store($folder, 'public');
+        if (!$path || !is_string($path) || !Storage::disk('public')->exists($path)) {
+            return $this->serverError('Failed to store uploaded file on disk. Please verify filesystem permissions.');
+        }
+
         $url  = asset('storage/' . $path);
 
         return $this->success([

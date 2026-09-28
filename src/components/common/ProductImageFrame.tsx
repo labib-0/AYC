@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Package } from "lucide-react";
+import { normalizeImageUrl, isValidImageUrl } from "@/lib/media";
 
 export type ProductImageReferenceSize =
   | "listing"   // 750 × 1000 px reference (3:4)
@@ -57,7 +58,7 @@ export default function ProductImageFrame({
 }: ProductImageFrameProps) {
   const [hasError, setHasError] = useState(false);
 
-  const cleanSrc = src && typeof src === "string" && src.trim() !== "" ? src.trim() : null;
+  const cleanSrc = src && isValidImageUrl(src) ? normalizeImageUrl(src) : null;
   const isBroken = hasError || !cleanSrc;
 
   return (

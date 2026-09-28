@@ -1,5 +1,6 @@
 import { apiClient } from "@/services/api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
+import { isValidImageUrl, normalizeImageUrl } from "@/lib/media";
 
 export interface UploadResult {
   url: string;
@@ -27,12 +28,12 @@ export async function uploadProductImage(file: File): Promise<UploadResult> {
     formData.append("folder", "products");
 
     const res = await apiClient.post<any>("/upload", formData);
-    const url = res?.url || res?.data?.url;
+    const rawUrl = res?.url || res?.data?.url;
     const key = res?.key || res?.data?.key || res?.path || file.name;
-    if (url) {
-      return { url, key };
+    if (rawUrl && isValidImageUrl(rawUrl)) {
+      return { url: normalizeImageUrl(rawUrl), key };
     }
-    throw new Error("Upload succeeded but server returned no URL.");
+    throw new Error(res?.message || "Upload succeeded but server returned an invalid or incomplete storage URL.");
   } catch (err: any) {
     if (!frontendOnly) {
       // In fullstack mode, always surface the real error so the admin knows the upload failed.
@@ -89,10 +90,11 @@ export async function uploadBrandLogo(file: File): Promise<UploadResult> {
     formData.append("folder", "brands");
 
     const res = await apiClient.post<any>("/upload", formData);
-    if (res?.url || res?.data?.url) {
+    const rawUrl = res?.url || res?.data?.url;
+    if (rawUrl && isValidImageUrl(rawUrl)) {
       return {
-        url: res.url || res.data.url,
-        key: res.key || res.data.key || file.name,
+        url: normalizeImageUrl(rawUrl),
+        key: res.key || res.data?.key || file.name,
       };
     }
   } catch {
@@ -139,10 +141,11 @@ export async function uploadCategoryImage(file: File): Promise<UploadResult> {
     formData.append("folder", "categories");
 
     const res = await apiClient.post<any>("/upload", formData);
-    if (res?.url || res?.data?.url) {
+    const rawUrl = res?.url || res?.data?.url;
+    if (rawUrl && isValidImageUrl(rawUrl)) {
       return {
-        url: res.url || res.data.url,
-        key: res.key || res.data.key || file.name,
+        url: normalizeImageUrl(rawUrl),
+        key: res.key || res.data?.key || file.name,
       };
     }
   } catch {
@@ -252,9 +255,10 @@ export async function uploadBannerImage(file: File): Promise<UploadResult> {
     formData.append("folder", "banners");
 
     const res = await apiClient.post<{ url?: string; data?: { url?: string; key?: string }; key?: string }>("/upload", formData);
-    if (res?.url || res?.data?.url) {
+    const rawUrl = res?.url || res?.data?.url;
+    if (rawUrl && isValidImageUrl(rawUrl)) {
       return {
-        url: res.url || res.data?.url || "",
+        url: normalizeImageUrl(rawUrl),
         key: res.key || res.data?.key || file.name,
       };
     }

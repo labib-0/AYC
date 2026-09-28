@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { X, ChevronLeft, ChevronRight, Download as DownloadIcon, Play } from "lucide-react";
+import { normalizeImageUrl, isValidImageUrl } from "@/lib/media";
 
 export interface ProductGalleryProps {
   images: string[];
@@ -41,6 +42,13 @@ export default function ProductGallery({
   const [internalIndex, setInternalIndex] = useState(0);
   const [mediaMode, setMediaMode] = useState<"image" | "video">("image");
   const currentIndex = controlledIndex ?? internalIndex;
+
+  const cleanImages = useMemo(() => {
+    const valid = (images || [])
+      .filter((u) => isValidImageUrl(u))
+      .map((u) => normalizeImageUrl(u));
+    return valid.length > 0 ? valid : ["/placeholder.jpg"];
+  }, [images]);
 
   // Resolve Video Info (YouTube, Vimeo, Direct MP4)
   const videoInfo = useMemo(() => {
@@ -368,15 +376,15 @@ export default function ProductGallery({
     activeThumb?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }, [currentIndex]);
 
-  const hasMultiple = images.length > 1;
-  const hasMediaRail = images.length > 1 || (images.length > 0 && (!!videoInfo || !!videoThumbnail));
+  const hasMultiple = cleanImages.length > 1;
+  const hasMediaRail = cleanImages.length > 1 || (cleanImages.length > 0 && (!!videoInfo || !!videoThumbnail));
 
   const isModal = variant === "modal";
   const mainRadiusClass = isModal ? "rounded-xl" : "rounded-2xl";
   const thumbSizeClass = isModal ? "w-11 sm:w-12 rounded-lg" : "w-12 sm:w-14 rounded-lg";
   const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "";
 
-  if (images.length === 0 && !videoInfo) {
+  if (cleanImages.length === 0 && !videoInfo) {
     return (
       <div className={`relative aspect-[3/4] aspect-product ${mainRadiusClass} overflow-hidden bg-secondary border border-border/70 shadow-sm flex items-center justify-center`}>
         <span className="text-xs text-muted-foreground font-sans uppercase tracking-wider">No images</span>
@@ -434,17 +442,20 @@ export default function ProductGallery({
               ref={lightboxTriggerRef}
               type="button"
               className={`w-full h-full cursor-zoom-in touch-pan-y select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${mainRadiusClass}`}
-              aria-label={`View ${productName} image ${currentIndex + 1} of ${images.length} — click to enlarge`}
+              aria-label={`View ${productName} image ${currentIndex + 1} of ${cleanImages.length} — click to enlarge`}
               {...mainSwipe}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={images[currentIndex] || "/placeholder.jpg"}
+                src={cleanImages[currentIndex] || "/placeholder.jpg"}
                 alt={`${productName} — image ${currentIndex + 1}`}
                 loading={currentIndex === 0 ? "eager" : "lazy"}
                 decoding="async"
                 className="w-full h-full object-contain object-center transition-transform duration-200 group-hover:scale-[1.02] pointer-events-none"
                 draggable={false}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";
+                }}
               />
             </button>
 
@@ -530,7 +541,7 @@ export default function ProductGallery({
               onPointerUp={onThumbPointerUp}
               onPointerCancel={onThumbPointerUp}
             >
-              {images.map((img, idx) => {
+              {cleanImages.map((img, idx) => {
                 const isActive = mediaMode === "image" && idx === currentIndex;
                 return (
                   <button
@@ -558,8 +569,10 @@ export default function ProductGallery({
                       src={img}
                       alt={`${productName} thumbnail ${idx + 1}`}
                       loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-contain object-center pointer-events-none"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";
+                      }}
+                      className="w-full h-full object-contain pointer-events-none select-none"
                       draggable={false}
                     />
                   </button>
@@ -626,14 +639,14 @@ export default function ProductGallery({
           <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
             {/* Counter */}
             <span className="text-xs sm:text-sm font-sans font-semibold text-white/80 tracking-wider">
-              {lightboxIndex + 1} / {images.length}
+              {lightboxIndex + 1} / {cleanImages.length}
             </span>
 
             {/* Actions */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => handleDownload(images[lightboxIndex], lightboxIndex)}
+                onClick={() => handleDownload(cleanImages[lightboxIndex], lightboxIndex)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-[11px] sm:text-xs font-sans font-bold uppercase tracking-wider text-white bg-white/15 hover:bg-white/25 border border-white/20 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 aria-label={`Download image ${lightboxIndex + 1}`}
               >
@@ -659,10 +672,13 @@ export default function ProductGallery({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={images[lightboxIndex]}
+              src={cleanImages[lightboxIndex] || "/placeholder.jpg"}
               alt={`${productName} — enlarged view ${lightboxIndex + 1}`}
               className="max-w-full max-h-full object-contain rounded-lg pointer-events-none"
               draggable={false}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";
+              }}
             />
           </div>
 
@@ -697,7 +713,7 @@ export default function ProductGallery({
           {/* Dot Indicators (bottom) */}
           {hasMultiple && (
             <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
-              {images.map((_, idx) => (
+              {cleanImages.map((_, idx) => (
                 <button
                   key={idx}
                   type="button"

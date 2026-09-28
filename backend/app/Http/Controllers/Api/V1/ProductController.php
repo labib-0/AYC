@@ -13,6 +13,7 @@ use App\Services\Shipping\PackageCalculatorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ProductController extends ApiController
@@ -407,15 +408,20 @@ class ProductController extends ApiController
             'categories.*' => ['exists:categories,id'],
             'images' => ['nullable', 'array'],
             'images.*' => ['nullable', function ($attr, $value, $fail) {
+                $checkUrl = function ($url) use ($fail) {
+                    if (!is_string($url)) return;
+                    if (str_starts_with($url, 'data:')) {
+                        $fail('Image URLs must be HTTP/HTTPS URLs, not base64 data URIs. Please upload the image first via the upload endpoint.');
+                    }
+                    $trimmed = trim($url);
+                    if ($trimmed === '/storage' || $trimmed === '/storage/' || $trimmed === 'storage' || preg_match('#^https?://[^/]+/storage/?$#i', $trimmed)) {
+                        $fail('Image URL must point to a specific stored file, not the root storage directory.');
+                    }
+                };
                 if (is_string($value)) {
-                    if (str_starts_with($value, 'data:')) {
-                        $fail('Image URLs must be HTTP/HTTPS URLs, not base64 data URIs. Please upload the image first via the upload endpoint.');
-                    }
+                    $checkUrl($value);
                 } elseif (is_array($value)) {
-                    $url = $value['image_url'] ?? $value['url'] ?? null;
-                    if (is_string($url) && str_starts_with($url, 'data:')) {
-                        $fail('Image URLs must be HTTP/HTTPS URLs, not base64 data URIs. Please upload the image first via the upload endpoint.');
-                    }
+                    $checkUrl($value['image_url'] ?? $value['url'] ?? null);
                 }
             }],
             'variants' => ['nullable', 'array'],
@@ -667,17 +673,22 @@ class ProductController extends ApiController
             if ($request->has('images') && is_array($request->input('images'))) {
                 $order = 0;
                 foreach ($request->input('images') as $img) {
+                    $imageUrl = is_string($img) ? trim($img) : (is_array($img) ? trim($img['image_url'] ?? $img['url'] ?? '') : '');
+                    if (empty($imageUrl) || $imageUrl === '/storage' || $imageUrl === '/storage/' || preg_match('#^https?://[^/]+/storage/?$#i', $imageUrl)) {
+                        continue;
+                    }
+
                     if (is_string($img)) {
                         \App\Models\ProductImage::create([
                             'product_id' => $product->id,
-                            'image_url' => $img,
+                            'image_url' => $imageUrl,
                             'sort_order' => $order,
                             'is_primary' => $order === 0,
                         ]);
-                    } elseif (is_array($img) && !empty($img['image_url'])) {
+                    } elseif (is_array($img)) {
                         \App\Models\ProductImage::create([
                             'product_id' => $product->id,
-                            'image_url' => $img['image_url'],
+                            'image_url' => $imageUrl,
                             'alt_text' => $img['alt_text'] ?? null,
                             'sort_order' => $img['sort_order'] ?? $order,
                             'is_primary' => $img['is_primary'] ?? ($order === 0),
@@ -980,15 +991,20 @@ class ProductController extends ApiController
             'categories' => ['nullable', 'array'],
             'images' => ['nullable', 'array'],
             'images.*' => ['nullable', function ($attr, $value, $fail) {
+                $checkUrl = function ($url) use ($fail) {
+                    if (!is_string($url)) return;
+                    if (str_starts_with($url, 'data:')) {
+                        $fail('Image URLs must be HTTP/HTTPS URLs, not base64 data URIs. Please upload the image first via the upload endpoint.');
+                    }
+                    $trimmed = trim($url);
+                    if ($trimmed === '/storage' || $trimmed === '/storage/' || $trimmed === 'storage' || preg_match('#^https?://[^/]+/storage/?$#i', $trimmed)) {
+                        $fail('Image URL must point to a specific stored file, not the root storage directory.');
+                    }
+                };
                 if (is_string($value)) {
-                    if (str_starts_with($value, 'data:')) {
-                        $fail('Image URLs must be HTTP/HTTPS URLs, not base64 data URIs. Please upload the image first via the upload endpoint.');
-                    }
+                    $checkUrl($value);
                 } elseif (is_array($value)) {
-                    $url = $value['image_url'] ?? $value['url'] ?? null;
-                    if (is_string($url) && str_starts_with($url, 'data:')) {
-                        $fail('Image URLs must be HTTP/HTTPS URLs, not base64 data URIs. Please upload the image first via the upload endpoint.');
-                    }
+                    $checkUrl($value['image_url'] ?? $value['url'] ?? null);
                 }
             }],
             'variants' => ['nullable', 'array'],
@@ -1182,17 +1198,22 @@ class ProductController extends ApiController
             $product->images()->delete();
             $order = 0;
             foreach ($request->input('images') as $img) {
+                $imageUrl = is_string($img) ? trim($img) : (is_array($img) ? trim($img['image_url'] ?? $img['url'] ?? '') : '');
+                if (empty($imageUrl) || $imageUrl === '/storage' || $imageUrl === '/storage/' || preg_match('#^https?://[^/]+/storage/?$#i', $imageUrl)) {
+                    continue;
+                }
+
                 if (is_string($img)) {
                     \App\Models\ProductImage::create([
                         'product_id' => $product->id,
-                        'image_url' => $img,
+                        'image_url' => $imageUrl,
                         'sort_order' => $order,
                         'is_primary' => $order === 0,
                     ]);
-                } elseif (is_array($img) && !empty($img['image_url'])) {
+                } elseif (is_array($img)) {
                     \App\Models\ProductImage::create([
                         'product_id' => $product->id,
-                        'image_url' => $img['image_url'],
+                        'image_url' => $imageUrl,
                         'alt_text' => $img['alt_text'] ?? null,
                         'sort_order' => $img['sort_order'] ?? $order,
                         'is_primary' => $img['is_primary'] ?? ($order === 0),
@@ -1470,6 +1491,9 @@ class ProductController extends ApiController
 
         $file = $request->file('image');
         $path = $file->store('products', 'public');
+        if (!$path || !is_string($path) || !Storage::disk('public')->exists($path)) {
+            return $this->serverError('Failed to store product image on disk. Please verify filesystem permissions.');
+        }
         $url = asset('storage/' . $path);
 
         $isPrimary = $request->boolean('is_primary');

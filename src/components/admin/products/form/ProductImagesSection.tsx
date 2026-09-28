@@ -13,9 +13,10 @@ import {
   Video,
   Play,
   ExternalLink,
-  Film
+  Loader2
 } from "lucide-react";
 import { uploadProductImage } from "@/lib/services/storage";
+import { normalizeImageUrl, isValidImageUrl } from "@/lib/media";
 
 interface ProductImagesSectionProps {
   images: string[];
@@ -23,6 +24,12 @@ interface ProductImagesSectionProps {
   onChange: (images: string[]) => void;
   onVideoUrlChange?: (videoUrl: string) => void;
   error?: string;
+}
+
+interface UploadingPreview {
+  id: string;
+  name: string;
+  previewUrl: string;
 }
 
 export default function ProductImagesSection({
@@ -37,7 +44,14 @@ export default function ProductImagesSection({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadingPreviews, setUploadingPreviews] = useState<UploadingPreview[]>([]);
+  const [failedUrls, setFailedUrls] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Automatically filter out any invalid bare /storage or empty strings passed in images
+  const cleanImages = useMemo(() => {
+    return (images || []).filter((u) => isValidImageUrl(u));
+  }, [images]);
 
   // Helper to detect video info
   const videoDetails = useMemo(() => {
@@ -89,28 +103,57 @@ export default function ProductImagesSection({
     setIsUploading(true);
     setUploadError(null);
 
+    const validFiles: { file: File; preview: UploadingPreview }[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith("image/")) {
+        setUploadError(`"${file.name}" is not a supported image file.`);
+        continue;
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        setUploadError(`"${file.name}" exceeds 15MB file size limit.`);
+        continue;
+      }
+      const previewUrl = URL.createObjectURL(file);
+      validFiles.push({
+        file,
+        preview: {
+          id: `upl_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
+          name: file.name,
+          previewUrl,
+        },
+      });
+    }
+
+    if (validFiles.length === 0) {
+      setIsUploading(false);
+      return;
+    }
+
+    setUploadingPreviews((prev) => [...prev, ...validFiles.map((v) => v.preview)]);
+
     const newUrls: string[] = [];
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (!file.type.startsWith("image/")) {
-          setUploadError(`"${file.name}" is not a supported image file.`);
-          continue;
-        }
-        if (file.size > 15 * 1024 * 1024) {
-          setUploadError(`"${file.name}" exceeds 15MB file size limit.`);
-          continue;
-        }
-        const res = await uploadProductImage(file);
-        if (res?.url) {
-          newUrls.push(res.url);
+      for (const item of validFiles) {
+        try {
+          const res = await uploadProductImage(item.file);
+          if (res?.url && isValidImageUrl(res.url)) {
+            newUrls.push(normalizeImageUrl(res.url));
+          }
+        } catch (itemErr) {
+          const msg = itemErr instanceof Error ? itemErr.message : "Failed to upload image.";
+          setUploadError(`Upload failed for "${item.file.name}": ${msg}`);
+        } finally {
+          URL.revokeObjectURL(item.preview.previewUrl);
+          setUploadingPreviews((prev) => prev.filter((p) => p.id !== item.preview.id));
         }
       }
+
       if (newUrls.length > 0) {
-        onChange([...images, ...newUrls]);
+        onChange([...cleanImages, ...newUrls]);
       }
     } catch (err: unknown) {
-      setUploadError(err instanceof Error ? err.message : "Failed to upload image. Please try again.");
+      setUploadError(err instanceof Error ? err.message : "Failed to upload images. Please try again.");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -145,22 +188,27 @@ export default function ProductImagesSection({
     } else {
       // Image URL
       setUploadError(null);
-      onChange([...images, trimmed]);
+      const normalized = normalizeImageUrl(trimmed);
+      if (!isValidImageUrl(normalized)) {
+        setUploadError("The entered image URL is invalid. Please provide a direct file link.");
+        return;
+      }
+      onChange([...cleanImages, normalized]);
       setUrlInput("");
     }
   };
 
   const handleSetPrimary = (index: number) => {
     if (index === 0) return;
-    const copy = [...images];
+    const copy = [...cleanImages];
     const [selected] = copy.splice(index, 1);
     onChange([selected, ...copy]);
   };
 
   const handleMove = (index: number, direction: "left" | "right") => {
     const targetIndex = direction === "left" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= images.length) return;
-    const copy = [...images];
+    if (targetIndex < 0 || targetIndex >= cleanImages.length) return;
+    const copy = [...cleanImages];
     const temp = copy[index];
     copy[index] = copy[targetIndex];
     copy[targetIndex] = temp;
@@ -168,14 +216,15 @@ export default function ProductImagesSection({
   };
 
   const handleRemove = (index: number) => {
-    onChange(images.filter((_, i) => i !== index));
+    onChange(cleanImages.filter((_, i) => i !== index));
   };
 
   const handleRemoveVideo = () => {
     onVideoUrlChange?.("");
   };
 
-  const totalMediaCount = images.length + (videoUrl ? 1 : 0);
+  const totalImageCount = cleanImages.length + uploadingPreviews.length;
+  const totalMediaCount = totalImageCount + (videoUrl ? 1 : 0);
 
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
@@ -195,7 +244,7 @@ export default function ProductImagesSection({
             </span>
           )}
           <span className="text-xs font-bold text-muted-foreground tabular-nums">
-            {images.length} Image{images.length !== 1 ? "s" : ""}
+            {totalImageCount} Image{totalImageCount !== 1 ? "s" : ""}
           </span>
         </div>
       </div>
@@ -222,7 +271,7 @@ export default function ProductImagesSection({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
           multiple
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
@@ -230,7 +279,7 @@ export default function ProductImagesSection({
         <div className="flex flex-col items-center gap-2">
           <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-foreground">
             {isUploading ? (
-              <span className="w-5 h-5 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
+              <Loader2 size={18} className="animate-spin text-primary" />
             ) : (
               <Upload size={18} />
             )}
@@ -298,7 +347,7 @@ export default function ProductImagesSection({
           <button
             type="button"
             onClick={handleAddUrl}
-            className="h-9 px-3.5 rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-foreground text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shrink-0"
+            className="h-9 px-3.5 rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-foreground text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
           >
             <Plus size={13} />
             {urlType === "video" ? "Add Video" : "Add URL"}
@@ -323,9 +372,12 @@ export default function ProductImagesSection({
       {/* Media Gallery Grid (Images First, Video Strictly at the End) */}
       {totalMediaCount > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-2">
-          {/* Images 1..N */}
-          {images.map((imgUrl, index) => {
+          {/* Persisted / Uploaded Images 1..N */}
+          {cleanImages.map((imgUrl, index) => {
             const isPrimary = index === 0;
+            const normalizedSrc = normalizeImageUrl(imgUrl);
+            const isFailed = failedUrls[imgUrl] || false;
+
             return (
               <div
                 key={`${imgUrl}-${index}`}
@@ -337,23 +389,40 @@ export default function ProductImagesSection({
               >
                 {/* 3:4 Thumbnail Container */}
                 <div className="aspect-[3/4] w-full bg-secondary/50 dark:bg-white/5 relative overflow-hidden flex items-center justify-center p-1">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imgUrl}
-                    alt={`Product preview ${index + 1}`}
-                    className="w-full h-full object-contain"
-                    loading="lazy"
-                  />
+                  {!isFailed ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={normalizedSrc}
+                      alt={`Product preview ${index + 1}`}
+                      className="w-full h-full object-contain"
+                      loading="lazy"
+                      onError={() => {
+                        setFailedUrls((prev) => ({ ...prev, [imgUrl]: true }));
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-secondary/70 text-muted-foreground select-none">
+                      <ImageIcon size={22} className="opacity-30 mb-1.5 text-foreground" />
+                      <span className="text-[10px] font-semibold text-foreground/70">Image Unavailable</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(index)}
+                        className="mt-1 text-[10px] text-red-500 hover:text-red-600 font-semibold underline cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
 
                   {/* Primary Badge */}
                   {isPrimary && (
-                    <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shadow-xs flex items-center gap-1">
+                    <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shadow-xs flex items-center gap-1 z-10">
                       <Star size={10} fill="currentColor" /> Primary
                     </div>
                   )}
 
                   {/* Hover Controls Overlay */}
-                  <div className="absolute inset-0 bg-ink/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                  <div className="absolute inset-0 bg-ink/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2 z-20">
                     <div className="flex items-center justify-between">
                       {!isPrimary && (
                         <button
@@ -391,7 +460,7 @@ export default function ProductImagesSection({
                       </span>
                       <button
                         type="button"
-                        disabled={index === images.length - 1}
+                        disabled={index === cleanImages.length - 1}
                         onClick={() => handleMove(index, "right")}
                         className="p-1 rounded bg-card/90 text-foreground hover:bg-card disabled:opacity-30 disabled:cursor-not-allowed shadow-xs cursor-pointer"
                         title="Move Right"
@@ -404,6 +473,28 @@ export default function ProductImagesSection({
               </div>
             );
           })}
+
+          {/* Immediate Local Previews for Currently Uploading Files */}
+          {uploadingPreviews.map((upl) => (
+            <div
+              key={upl.id}
+              className="relative rounded-xl overflow-hidden border border-dashed border-primary/60 bg-secondary/30 animate-pulse"
+            >
+              <div className="aspect-[3/4] w-full relative overflow-hidden flex flex-col items-center justify-center p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={upl.previewUrl}
+                  alt={upl.name}
+                  className="w-full h-full object-contain opacity-50 blur-[0.5px]"
+                />
+                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-2 text-center text-white">
+                  <Loader2 size={22} className="animate-spin text-white mb-1.5" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Uploading...</span>
+                  <span className="text-[9px] text-white/75 truncate max-w-[120px] mt-0.5">{upl.name}</span>
+                </div>
+              </div>
+            </div>
+          ))}
 
           {/* Video Media Card — Strictly Placed at the END */}
           {videoUrl && videoDetails && (

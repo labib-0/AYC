@@ -13,6 +13,7 @@ import { productDraftService } from "@/lib/services/product-draft.service";
 import AdminAuthModal from "@/components/admin/auth/AdminAuthModal";
 import { ApiError } from "@/services/api-client";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { normalizeImageUrl, isValidImageUrl } from "@/lib/media";
 
 import ProductBasicInfoSection from "./ProductBasicInfoSection";
 import ProductInventorySection from "./ProductInventorySection";
@@ -72,7 +73,11 @@ export default function ProductForm({
   const [description, setDescription] = useState(initialData?.description || "");
 
   // Media
-  const [images, setImages] = useState<string[]>(initialData?.images || []);
+  const [images, setImages] = useState<string[]>(() => {
+    return (initialData?.images || [])
+      .map((u) => normalizeImageUrl(u))
+      .filter((u) => isValidImageUrl(u));
+  });
   const [videoUrl, setVideoUrl] = useState<string>(initialData?.videoUrl || (initialData as any)?.video_url || "");
 
   // Pricing
@@ -308,7 +313,12 @@ export default function ProductForm({
       if (d.seoTitle) setSeoTitle(d.seoTitle);
       if (d.seoDescription) setSeoDescription(d.seoDescription);
       if (d.keywords) setKeywords(d.keywords);
-      if (d.images && d.images.length > 0) setImages(d.images);
+      if (d.images && Array.isArray(d.images)) {
+        const clean = d.images
+          .map((u: string) => normalizeImageUrl(u))
+          .filter((u: string) => isValidImageUrl(u));
+        if (clean.length > 0) setImages(clean);
+      }
       if (d.videoUrl !== undefined) setVideoUrl(d.videoUrl);
       if (d.wholesalePrice !== undefined) setWholesalePrice(d.wholesalePrice);
       if (d.bulkThreshold !== undefined) setBulkThreshold(d.bulkThreshold);
@@ -616,7 +626,10 @@ export default function ProductForm({
         seoDescription: seoDescription.trim() || undefined,
         keywords: keywords,
         material: material.trim(),
-        images: images.length > 0 ? images : ["/placeholder.jpg"],
+        images: (() => {
+          const clean = images.map((u) => normalizeImageUrl(u)).filter((u) => isValidImageUrl(u));
+          return clean.length > 0 ? clean : ["/placeholder.jpg"];
+        })(),
         videoUrl: videoUrl.trim() || undefined,
         video_url: videoUrl.trim() || undefined,
         wholesalePrice: wholesalePrice,
