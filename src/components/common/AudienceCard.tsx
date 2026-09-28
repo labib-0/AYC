@@ -147,11 +147,15 @@ export function AudienceTiles({
   onToggleAllCategories,
   className = "",
 }: AudienceTilesProps) {
+  const hasCategoriesToggle = Boolean(onToggleAllCategories);
+
   return (
     <div
-      className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 lg:gap-2.5 xl:gap-3 ${className}`}
+      className={`grid grid-cols-2 sm:grid-cols-3 ${
+        hasCategoriesToggle ? "lg:grid-cols-6" : "lg:grid-cols-5"
+      } gap-2 sm:gap-2.5 lg:gap-2.5 xl:gap-3 ${className}`}
       role="group"
-      aria-label="Audience and Category navigation"
+      aria-label="Audience navigation"
     >
       {AUDIENCE_OPTIONS.map((audience) => {
         const isSelected = selectedAudiences.includes(audience.name.toUpperCase());

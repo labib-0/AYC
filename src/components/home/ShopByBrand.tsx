@@ -4,8 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { brandService, BrandModel } from "@/services/brand.service";
 import { categoryService, CategoryModel } from "@/services/category.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
-import { ChevronDown, LayoutGrid, SlidersHorizontal, RotateCcw, X, Loader2 } from "lucide-react";
-import AllCategoriesPanel from "./AllCategoriesPanel";
+import { ChevronDown, SlidersHorizontal, RotateCcw, X, Loader2 } from "lucide-react";
 import BrandLogoTile from "@/components/common/BrandLogoTile";
 import ProductCard from "../product/ProductCard";
 import GlobalFilterRail from "@/components/common/GlobalFilterRail";
@@ -34,7 +33,6 @@ const CONTINUOUS_BATCH_LIMIT = 21; // Next batch limit
 export default function ShopByBrand() {
   const [dbBrands, setDbBrands] = useState<Brand[]>([]);
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_BRAND_TILES_DISPLAY_COUNT);
-  const [isAllCategoriesOpen, setIsAllCategoriesOpen] = useState(false);
 
   // Metadata for filter options
   const [availableBrands, setAvailableBrands] = useState<BrandModel[]>([]);
@@ -374,7 +372,6 @@ export default function ShopByBrand() {
     setIsContinuousMode(false);
     isContinuousModeRef.current = false;
     setHasLoadedMore(false);
-    setIsAllCategoriesOpen(false);
   };
 
   // Subscribe to explorer coordination: Close Shop By Brand expansion when another section is active
@@ -421,10 +418,6 @@ export default function ShopByBrand() {
     }
   };
 
-  const handleAllCategoriesClick = () => {
-    setIsAllCategoriesOpen((prev) => !prev);
-  };
-
   const totalActiveFilters =
     selectedBrands.length +
     selectedDesignTypes.length +
@@ -439,64 +432,12 @@ export default function ShopByBrand() {
     >
       <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         
-        {/* Left-Aligned Section Heading with ALL CATEGORIES Action */}
-        <div className="mb-2.5 sm:mb-3.5 flex items-center justify-between gap-2">
-          {/* Left-Aligned Heading */}
+        {/* Left-Aligned Section Heading */}
+        <div className="mb-2.5 sm:mb-3.5">
           <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none">
             SHOP BY BRAND
           </h2>
-
-          {/* Action: ALL CATEGORIES */}
-          <button
-            type="button"
-            onClick={handleAllCategoriesClick}
-            aria-expanded={isAllCategoriesOpen}
-            aria-controls="shop-by-brand-categories"
-            className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
-              isAllCategoriesOpen
-                ? "bg-foreground text-background border border-foreground shadow-xs"
-                : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-border/60 hover:border-foreground/30"
-            }`}
-            aria-label="All Categories"
-          >
-            <LayoutGrid
-              size={13}
-              className={
-                isAllCategoriesOpen
-                  ? "text-background"
-                  : "text-foreground/70 group-hover:text-foreground transition-colors"
-              }
-            />
-            <span>ALL CATEGORIES</span>
-          </button>
         </div>
-
-        {/* ── Inline Expanded Category Panel (Shared AllCategoriesPanel) ── */}
-        <AllCategoriesPanel
-          isOpen={isAllCategoriesOpen}
-          id="shop-by-brand-categories"
-          selectedAudiences={selectedAudiences}
-          selectedDesignTypes={selectedDesignTypes}
-          selectedCategories={selectedCategories}
-          onSelectAudience={(aud) => {
-            const next = selectedAudiences.includes(aud)
-              ? selectedAudiences.filter((a) => a !== aud)
-              : [...selectedAudiences, aud];
-            handleFilterUpdate(selectedBrands, selectedDesignTypes, next, selectedCategories);
-          }}
-          onSelectDesignType={(dt) => {
-            const next = selectedDesignTypes.includes(dt)
-              ? selectedDesignTypes.filter((d) => d !== dt)
-              : [...selectedDesignTypes, dt];
-            handleFilterUpdate(selectedBrands, next, selectedAudiences, selectedCategories);
-          }}
-          onSelectCategory={(cat) => {
-            const next = selectedCategories.includes(cat)
-              ? selectedCategories.filter((c) => c !== cat)
-              : [...selectedCategories, cat];
-            handleFilterUpdate(selectedBrands, selectedDesignTypes, selectedAudiences, next);
-          }}
-        />
 
         {/* 
           Compact Responsive Brand Navigation Grid:
