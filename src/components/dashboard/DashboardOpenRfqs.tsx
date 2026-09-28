@@ -72,29 +72,19 @@ export function DashboardOpenRfqs({ rfqs, loading = false }: OpenRfqsProps) {
       <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 dark:border-white/10">
         <div>
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-            Custom RFQs & Quotations
+            RFQs & Quotations
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Bulk pricing negotiations and proforma estimates
+            Commercial sourcing inquiries, custom tech packs, and factory volume estimates
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/rfq"
-            className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300"
-          >
-            <Plus size={13} />
-            <span>New RFQ</span>
-          </Link>
-          <span className="text-slate-200 dark:text-slate-700">|</span>
-          <Link
-            href="/dashboard/rfq"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-          >
-            <span>All ({rfqs.length})</span>
-            <ArrowRight size={13} />
-          </Link>
-        </div>
+        <Link
+          href="/dashboard/rfq"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+        >
+          <span>View All RFQs ({rfqs.length})</span>
+          <ArrowRight size={13} />
+        </Link>
       </div>
 
       {activeRfqs.length === 0 ? (
@@ -103,7 +93,7 @@ export function DashboardOpenRfqs({ rfqs, loading = false }: OpenRfqsProps) {
             <FileText size={22} />
           </div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-            No Active Inquiries or RFQs
+            No Active RFQs or Quotations
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1 mb-4">
             Need custom fabric specs, container packaging, or volume discounts? Request a commercial quotation.

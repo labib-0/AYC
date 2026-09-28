@@ -9,18 +9,18 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardMobileNav } from "@/components/dashboard/DashboardMobileNav";
 
 function getBreadcrumbLabel(pathname: string): string {
-  if (pathname === "/dashboard") return "Overview";
+  if (pathname === "/dashboard") return "Dashboard";
   if (pathname.startsWith("/dashboard/orders/")) return "Order Details";
   if (pathname.startsWith("/dashboard/orders")) return "Orders";
   if (pathname.startsWith("/dashboard/rfq/")) return "RFQ Details";
-  if (pathname.startsWith("/dashboard/rfq")) return "RFQs & Inquiries";
+  if (pathname.startsWith("/dashboard/rfq")) return "RFQ";
   if (pathname.startsWith("/dashboard/quotes/")) return "Quotation Details";
   if (pathname.startsWith("/dashboard/quotes")) return "Commercial Quotes";
   if (pathname.startsWith("/dashboard/reorder")) return "Quick Reorder";
   if (pathname.startsWith("/dashboard/company")) return "Company Profile";
   if (pathname.startsWith("/dashboard/addresses")) return "Address Book";
   if (pathname.startsWith("/dashboard/documents")) return "Document Center";
-  if (pathname.startsWith("/dashboard/settings")) return "Settings";
+  if (pathname.startsWith("/dashboard/settings")) return "Profile & Security";
   return "Customer Portal";
 }
 

@@ -125,7 +125,6 @@ export default function ProductVariantsSection({
 
   const toggleColor = (colorName: string) => {
     if (colors.includes(colorName)) {
-      if (colors.length === 1) return; // keep at least 1
       onColorsChange(colors.filter((c) => c !== colorName));
     } else {
       onColorsChange([...colors, colorName]);
@@ -160,7 +159,6 @@ export default function ProductVariantsSection({
 
   const toggleSize = (sizeName: string) => {
     if (sizes.includes(sizeName)) {
-      if (sizes.length === 1) return; // keep at least 1
       onSizesChange(sizes.filter((s) => s !== sizeName));
     } else {
       onSizesChange([...sizes, sizeName]);
@@ -188,40 +186,21 @@ export default function ProductVariantsSection({
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
       <div className="border-b border-border/60 pb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
-            Variants &amp; Stock Configuration
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Configure product colors, size range, and warehouse inventory.
-          </p>
-        </div>
+        <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
+          VARIANTS
+        </h2>
         <span className="text-xs font-bold text-muted-foreground tabular-nums">
           {totalVariantCombinations} Variant{totalVariantCombinations !== 1 ? "s" : ""}
         </span>
       </div>
 
       <div className="space-y-5">
-        {/* Total Stock Summary / Variant Allocation Note */}
-        <div className="p-3.5 rounded-xl bg-secondary/30 border border-border/60 flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Total Stock: {stock.toLocaleString()} pcs
-            </span>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Allocated across {totalVariantCombinations} matrix variant{totalVariantCombinations !== 1 ? "s" : ""} (~{avgStockPerVariant} pcs/variant). Configured in Inventory &amp; MOQ section.
-            </p>
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-background px-2.5 py-1 rounded-md border border-border/50">
-            Synced with Inventory
-          </span>
-        </div>
 
         {/* Colors Selector */}
         <div className="space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
-              Colors <span className="text-red-500">*</span> ({colors.length} selected)
+              COLORS ({colors.length} selected)
             </label>
 
             <button
@@ -248,10 +227,9 @@ export default function ProductVariantsSection({
                 <button
                   type="button"
                   onClick={() => toggleColor(c)}
-                  disabled={colors.length <= 1}
-                  className="hover:opacity-75 p-0.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="hover:opacity-75 p-0.5 cursor-pointer"
                   aria-label={`Remove color ${c}`}
-                  title={colors.length <= 1 ? "At least one color required" : `Remove ${c}`}
+                  title={`Remove ${c}`}
                 >
                   <X size={12} />
                 </button>
@@ -358,7 +336,7 @@ export default function ProductVariantsSection({
         <div className="space-y-2.5 pt-2 border-t border-border/60">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
-              Sizes <span className="text-red-500">*</span> ({sizes.length} selected)
+              SIZES ({sizes.length} selected)
             </label>
 
             {/* Presets */}
@@ -455,25 +433,33 @@ export default function ProductVariantsSection({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
-                    {colors.map((c) =>
-                      sizes.map((s) => {
-                        const vSku = `${sku || "AY-PROD"}-${c.substring(0, 3).toUpperCase()}-${s.toUpperCase()}`;
-                        return (
-                          <tr key={`${c}-${s}`} className="hover:bg-secondary/30">
-                            <td className="px-3 py-2 font-semibold text-foreground">
-                              <span>
-                                {c} / {s}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
-                              {vSku}
-                            </td>
-                            <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                              {avgStockPerVariant} pcs
-                            </td>
-                          </tr>
-                        );
-                      })
+                    {totalVariantCombinations === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-3 py-4 text-center text-muted-foreground">
+                          No variants configured.
+                        </td>
+                      </tr>
+                    ) : (
+                      colors.map((c) =>
+                        sizes.map((s) => {
+                          const vSku = `${sku || "AY-PROD"}-${c.substring(0, 3).toUpperCase()}-${s.toUpperCase()}`;
+                          return (
+                            <tr key={`${c}-${s}`} className="hover:bg-secondary/30">
+                              <td className="px-3 py-2 font-semibold text-foreground">
+                                <span>
+                                  {c} / {s}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
+                                {vSku}
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                                {avgStockPerVariant} pcs
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )
                     )}
                   </tbody>
                 </table>

@@ -173,41 +173,36 @@ export default function ProductPackageAssortmentSection({
     };
   }, [colors, sizes, cellMap]);
 
+  if (colors.length === 0 || sizes.length === 0) {
+    return (
+      <div className="py-6 px-4 text-center">
+        <p className="text-xs text-muted-foreground font-medium">
+          Add colors or sizes to configure package breakdown.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
-      {/* Header */}
-      <div className="border-b border-border/60 pb-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-            <Package size={17} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
-                Package Assortment Configuration
-              </h2>
-              <span className="text-[10px] font-sans font-bold px-2 py-0.5 rounded-full bg-secondary text-foreground/80 border border-border/60">
-                Universal Package
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Enter the exact units of each Color &amp; Size in ONE package. Minimum Order Quantity (MOQ) is derived automatically.
-            </p>
-          </div>
-        </div>
+    <div className="space-y-4">
+      {/* Header Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-border/60">
+        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          Assortment Ratio Matrix
+        </span>
 
         {/* Action & Total summary badge */}
         <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={handleClearAllCells}
-            className="text-[11px] font-sans font-medium text-muted-foreground hover:text-foreground underline cursor-pointer"
+            className="text-[11px] font-medium text-muted-foreground hover:text-foreground underline cursor-pointer"
           >
             Clear Cells
           </button>
           <div className="px-3 py-1.5 rounded-xl bg-background border border-border/80 flex items-center gap-2 shadow-2xs">
-            <span className="text-[11px] font-sans font-semibold text-muted-foreground uppercase">
-              Package Total (MOQ):
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase">
+              Package Total:
             </span>
             <span className="text-xs font-mono font-bold text-primary tabular-nums">
               {summaries.totalPackageUnits} PCS

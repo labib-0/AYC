@@ -2,58 +2,40 @@
 
 import React from "react";
 import Link from "next/link";
-import { Search, RefreshCw, FilePlus, Package, ArrowUpRight } from "lucide-react";
+import { RefreshCw, FilePlus, ArrowUpRight } from "lucide-react";
 
 export function DashboardQuickActions() {
   const actions = [
     {
-      title: "Explore Catalog",
-      description: "Search export-grade garments with volume tier pricing.",
-      href: "/search",
-      icon: Search,
-      badge: "Catalog",
+      title: "Request RFQ",
+      description: "Submit custom specs, tech packs, export packaging requirements, or target FOB prices.",
+      href: "/rfq",
+      icon: FilePlus,
+      badge: "Custom Quote",
       iconColor: "text-amber-600 dark:text-amber-400",
       bgColor: "bg-amber-50 dark:bg-amber-950/30",
     },
     {
       title: "Quick Reorder",
-      description: "Replenish previous wholesale purchases with 1-click MOQ validation.",
+      description: "Replenish previous wholesale purchases with 1-click MOQ and tier pricing validation.",
       href: "/dashboard/reorder",
       icon: RefreshCw,
       badge: "Fast Replenish",
       iconColor: "text-emerald-600 dark:text-emerald-400",
       bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
     },
-    {
-      title: "Request Custom RFQ",
-      description: "Submit custom specs, packaging, tech packs, or target FOB prices.",
-      href: "/rfq",
-      icon: FilePlus,
-      badge: "Custom Quote",
-      iconColor: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-50 dark:bg-blue-950/30",
-    },
-    {
-      title: "Manage Orders",
-      description: "Inspect shipments, proforma invoices, tracking, and payment proofs.",
-      href: "/dashboard/orders",
-      icon: Package,
-      badge: "Shipments",
-      iconColor: "text-purple-600 dark:text-purple-400",
-      bgColor: "bg-purple-50 dark:bg-purple-950/30",
-    },
   ];
 
   return (
-    <div className="mb-8">
+    <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-          Buyer Actions & Tools
+          Quick Actions
         </h2>
-        <span className="text-xs text-slate-400">Direct shortcuts</span>
+        <span className="text-xs text-slate-400">Primary shortcuts</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
         {actions.map((act) => {
           const Icon = act.icon;
 
@@ -61,7 +43,7 @@ export function DashboardQuickActions() {
             <Link
               key={act.title}
               href={act.href}
-              className="group p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 hover:border-amber-400 dark:hover:border-amber-600 shadow-2xs hover:shadow-sm transition-all flex flex-col justify-between"
+              className="group p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 hover:border-amber-400 dark:hover:border-amber-600 shadow-2xs hover:shadow-sm transition-all flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -82,7 +64,7 @@ export function DashboardQuickActions() {
               </div>
 
               <div className="mt-4 pt-2.5 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 group-hover:text-amber-600 dark:group-hover:text-amber-400">
-                <span>Access</span>
+                <span>Start</span>
                 <ArrowUpRight size={13} className="text-slate-400 group-hover:text-amber-600 transition-colors" />
               </div>
             </Link>

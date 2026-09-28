@@ -296,7 +296,7 @@ class OrderController extends ApiController
                         throw new \Exception("Product '{$product->name}' is currently unavailable.", 422);
                     }
 
-                    $totalStock = (int) $product->variants->sum('stock');
+                    $totalStock = $product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock();
 
                     // Server-Side Authoritative MOQ and Increment Enforcement
                     $effectiveMoq = max(1, (int) $product->moq);
@@ -625,11 +625,20 @@ class OrderController extends ApiController
                     ]);
 
                     // Decrement variant stock AND warehouse inventory atomically
-                    foreach ($line['locked_variants'] as $lv) {
-                        $lv['variant']->decrement('stock', $lv['deduct_qty']);
-                        $inv = Inventory::where('product_variant_id', $lv['variant']->id)->lockForUpdate()->first();
+                    if (!empty($line['locked_variants'])) {
+                        foreach ($line['locked_variants'] as $lv) {
+                            $lv['variant']->decrement('stock', $lv['deduct_qty']);
+                            $inv = Inventory::where('product_variant_id', $lv['variant']->id)->lockForUpdate()->first();
+                            if ($inv) {
+                                $inv->decrement('quantity', min($inv->quantity, $lv['deduct_qty']));
+                            }
+                        }
+                    } else {
+                        $p = $line['product'];
+                        $p->decrement('stock', $line['quantity']);
+                        $inv = Inventory::where('product_id', $p->id)->lockForUpdate()->first();
                         if ($inv) {
-                            $inv->decrement('quantity', min($inv->quantity, $lv['deduct_qty']));
+                            $inv->decrement('quantity', min($inv->quantity, $line['quantity']));
                         }
                     }
                 }
@@ -759,6 +768,12 @@ class OrderController extends ApiController
                 } else if ($item->product_variant_id) {
                     ProductVariant::where('id', $item->product_variant_id)->increment('stock', $item->quantity);
                     $inv = Inventory::where('product_variant_id', $item->product_variant_id)->lockForUpdate()->first();
+                    if ($inv) {
+                        $inv->increment('quantity', $item->quantity);
+                    }
+                } else if ($item->product_id) {
+                    Product::where('id', $item->product_id)->increment('stock', $item->quantity);
+                    $inv = Inventory::where('product_id', $item->product_id)->lockForUpdate()->first();
                     if ($inv) {
                         $inv->increment('quantity', $item->quantity);
                     }

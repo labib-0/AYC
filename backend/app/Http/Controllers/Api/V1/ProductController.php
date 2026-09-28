@@ -185,8 +185,13 @@ class ProductController extends ApiController
 
         // In Stock filter
         if ($request->boolean('in_stock')) {
-            $query->whereHas('variants', function ($vq) {
-                $vq->where('stock', '>', 0);
+            $query->where(function ($sq) {
+                $sq->whereHas('variants', function ($vq) {
+                    $vq->where('stock', '>', 0);
+                })->orWhere(function ($vq) {
+                    $vq->where('stock', '>', 0)
+                       ->whereDoesntHave('variants');
+                });
             });
         }
 
@@ -813,29 +818,14 @@ class ProductController extends ApiController
                     }
                 }
             } else {
-                // Simple product without variant matrix: create base/default variant and link initial stock
-                $vColor = $product->color_name ?? 'Standard';
-                $vSize = 'Standard';
-                $variantSku = $product->sku . '-DEF';
+                // Product has zero variants: store stock at product level and direct warehouse inventory
+                $product->stock = $initialStock;
+                $product->save();
 
-                $defaultVariant = \App\Models\ProductVariant::create([
-                    'product_id' => $product->id,
-                    'sku' => $variantSku,
-                    'title' => "Default ({$vColor})",
-                    'size' => $vSize,
-                    'color' => $vColor,
-                    'price' => $product->wholesale_price,
-                    'compare_at_price' => null,
-                    'stock' => $initialStock,
-                    'is_default' => true,
-                    'is_active' => true,
-                ]);
-
-                $createdVariantsMap["{$vColor}-{$vSize}"] = $defaultVariant;
-
-                // Create warehouse inventory row
+                // Create product-level warehouse inventory row
                 $inv = \App\Models\Inventory::create([
-                    'product_variant_id' => $defaultVariant->id,
+                    'product_id' => $product->id,
+                    'product_variant_id' => null,
                     'warehouse_id' => $targetWarehouseId,
                     'quantity' => $initialStock,
                     'reserved_quantity' => 0,
@@ -1272,61 +1262,82 @@ class ProductController extends ApiController
         // Update variants if provided
         $variantsMap = [];
         if ($request->has('variants') && is_array($request->input('variants'))) {
-            foreach ($request->input('variants') as $var) {
-                $vColor = $var['color'] ?? $product->color_name ?? 'Standard';
-                $vSize = $var['size'] ?? 'Standard';
+            $inputVariants = $request->input('variants');
+            if (count($inputVariants) === 0) {
+                // Deselecting all variants: mark all existing variants as inactive
+                $product->allVariants()->update(['is_active' => false]);
+                // Remove product draft package allocations
+                $product->packageAllocations()->delete();
 
-                $existingVar = null;
-                if (!empty($var['id'])) {
-                    $existingVar = \App\Models\ProductVariant::where('id', $var['id'])
-                        ->where('product_id', $product->id)
-                        ->first();
+                // If stock provided, update product stock and direct warehouse inventory
+                $stockVal = (int) ($request->input('stock') ?? $request->input('initial_stock') ?? $product->stock ?? 0);
+                $product->stock = $stockVal;
+                $product->save();
+
+                $mainWh = \App\Models\Warehouse::where('is_active', true)->first();
+                if ($mainWh) {
+                    \App\Models\Inventory::updateOrCreate(
+                        ['product_id' => $product->id, 'product_variant_id' => null, 'warehouse_id' => $mainWh->id],
+                        ['quantity' => $stockVal, 'reserved_quantity' => 0]
+                    );
                 }
-                if (!$existingVar && !empty($vColor) && !empty($vSize)) {
-                    $existingVar = \App\Models\ProductVariant::where('product_id', $product->id)
-                        ->where('color', $vColor)
-                        ->where('size', $vSize)
-                        ->first();
-                }
+            } else {
+                foreach ($inputVariants as $var) {
+                    $vColor = $var['color'] ?? $product->color_name ?? 'Standard';
+                    $vSize = $var['size'] ?? 'Standard';
 
-                if ($existingVar) {
-                    $existingVar->update([
-                        'sku' => $var['sku'] ?? $existingVar->sku,
-                        'title' => $var['title'] ?? $existingVar->title,
-                        'size' => $vSize,
-                        'color' => $vColor,
-                        'price' => $var['price'] ?? $existingVar->price,
-                        'compare_at_price' => $var['compare_at_price'] ?? $existingVar->compare_at_price,
-                        'stock' => $var['stock'] ?? $existingVar->stock,
-                        'is_default' => $var['is_default'] ?? $existingVar->is_default,
-                        'is_active' => $var['is_active'] ?? $existingVar->is_active,
-                    ]);
-                    $variantsMap["{$vColor}-{$vSize}"] = $existingVar;
-                } else {
-                    $variantSku = $var['sku'] ?? ($product->sku . '-' . strtoupper(substr($vColor, 0, 3)) . '-' . strtoupper(substr($vSize, 0, 3)));
-                    $newVar = \App\Models\ProductVariant::create([
-                        'product_id' => $product->id,
-                        'sku' => $variantSku,
-                        'title' => $var['title'] ?? "{$vColor} / {$vSize}",
-                        'size' => $vSize,
-                        'color' => $vColor,
-                        'price' => $var['price'] ?? $product->wholesale_price,
-                        'compare_at_price' => $var['compare_at_price'] ?? null,
-                        'stock' => $var['stock'] ?? 0,
-                        'is_default' => $var['is_default'] ?? false,
-                        'is_active' => $var['is_active'] ?? true,
-                    ]);
+                    $existingVar = null;
+                    if (!empty($var['id'])) {
+                        $existingVar = \App\Models\ProductVariant::where('id', $var['id'])
+                            ->where('product_id', $product->id)
+                            ->first();
+                    }
+                    if (!$existingVar && !empty($vColor) && !empty($vSize)) {
+                        $existingVar = \App\Models\ProductVariant::where('product_id', $product->id)
+                            ->where('color', $vColor)
+                            ->where('size', $vSize)
+                            ->first();
+                    }
 
-                    $variantsMap["{$vColor}-{$vSize}"] = $newVar;
-
-                    $mainWh = \App\Models\Warehouse::first();
-                    if ($mainWh) {
-                        \App\Models\Inventory::create([
-                            'product_variant_id' => $newVar->id,
-                            'warehouse_id' => $mainWh->id,
-                            'quantity' => $newVar->stock,
-                            'reserved_quantity' => 0,
+                    if ($existingVar) {
+                        $existingVar->update([
+                            'sku' => $var['sku'] ?? $existingVar->sku,
+                            'title' => $var['title'] ?? $existingVar->title,
+                            'size' => $vSize,
+                            'color' => $vColor,
+                            'price' => $var['price'] ?? $existingVar->price,
+                            'compare_at_price' => $var['compare_at_price'] ?? $existingVar->compare_at_price,
+                            'stock' => $var['stock'] ?? $existingVar->stock,
+                            'is_default' => $var['is_default'] ?? $existingVar->is_default,
+                            'is_active' => $var['is_active'] ?? true,
                         ]);
+                        $variantsMap["{$vColor}-{$vSize}"] = $existingVar;
+                    } else {
+                        $variantSku = $var['sku'] ?? ($product->sku . '-' . strtoupper(substr($vColor, 0, 3)) . '-' . strtoupper(substr($vSize, 0, 3)));
+                        $newVar = \App\Models\ProductVariant::create([
+                            'product_id' => $product->id,
+                            'sku' => $variantSku,
+                            'title' => $var['title'] ?? "{$vColor} / {$vSize}",
+                            'size' => $vSize,
+                            'color' => $vColor,
+                            'price' => $var['price'] ?? $product->wholesale_price,
+                            'compare_at_price' => $var['compare_at_price'] ?? null,
+                            'stock' => $var['stock'] ?? 0,
+                            'is_default' => $var['is_default'] ?? false,
+                            'is_active' => $var['is_active'] ?? true,
+                        ]);
+
+                        $variantsMap["{$vColor}-{$vSize}"] = $newVar;
+
+                        $mainWh = \App\Models\Warehouse::first();
+                        if ($mainWh) {
+                            \App\Models\Inventory::create([
+                                'product_variant_id' => $newVar->id,
+                                'warehouse_id' => $mainWh->id,
+                                'quantity' => $newVar->stock,
+                                'reserved_quantity' => 0,
+                            ]);
+                        }
                     }
                 }
             }

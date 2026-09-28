@@ -2,13 +2,12 @@
 
 import React from "react";
 import Link from "next/link";
-import { Package, FileText, RefreshCw, Bookmark, ArrowRight } from "lucide-react";
+import { Package, FileText, RefreshCw, ArrowRight } from "lucide-react";
 
 interface KPICardsProps {
   ordersCount: number;
   quotesCount: number;
   reorderCount: number;
-  savedCount: number;
   loading?: boolean;
 }
 
@@ -16,12 +15,11 @@ export function DashboardKPICards({
   ordersCount,
   quotesCount,
   reorderCount,
-  savedCount,
   loading = false,
 }: KPICardsProps) {
   const cards = [
     {
-      title: "Wholesale Orders",
+      title: "Orders",
       value: ordersCount,
       label: ordersCount === 1 ? "Order Placed" : "Orders Placed",
       href: "/dashboard/orders",
@@ -31,14 +29,14 @@ export function DashboardKPICards({
       cta: "View order history",
     },
     {
-      title: "Active Quotes & RFQs",
+      title: "Active RFQs",
       value: quotesCount,
       label: quotesCount === 1 ? "Active Request" : "Active Requests",
-      href: "/dashboard/quotes",
+      href: "/dashboard/rfq",
       icon: FileText,
       iconBg: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
       accent: "hover:border-amber-300 dark:hover:border-amber-700",
-      cta: "Review inquiries",
+      cta: "Review requests & quotes",
     },
     {
       title: "Reorder Ready",
@@ -50,20 +48,10 @@ export function DashboardKPICards({
       accent: "hover:border-emerald-300 dark:hover:border-emerald-700",
       cta: "Fast replenishment",
     },
-    {
-      title: "Saved Wholesale Items",
-      value: savedCount,
-      label: savedCount === 1 ? "Saved Item" : "Saved Items",
-      href: "/profile",
-      icon: Bookmark,
-      iconBg: "bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400",
-      accent: "hover:border-purple-300 dark:hover:border-purple-700",
-      cta: "View saved items",
-    },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 mb-6">
       {cards.map((card) => {
         const Icon = card.icon;
 

@@ -11,6 +11,7 @@ class Inventory extends Model
     use HasFactory;
 
     protected $fillable = [
+        'product_id',
         'product_variant_id',
         'warehouse_id',
         'quantity',
@@ -21,6 +22,11 @@ class Inventory extends Model
         'quantity' => 'integer',
         'reserved_quantity' => 'integer',
     ];
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
 
     public function variant(): BelongsTo
     {

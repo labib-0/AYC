@@ -2,10 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, SlidersHorizontal, RotateCcw, X, LayoutGrid } from "lucide-react";
+import { Loader2, SlidersHorizontal, RotateCcw, X } from "lucide-react";
 import ProductCard from "../product/ProductCard";
 import GlobalFilterRail from "@/components/common/GlobalFilterRail";
-import AllCategoriesPanel from "./AllCategoriesPanel";
 import { Product } from "@/types";
 import {
   getFeaturedProducts,
@@ -27,7 +26,6 @@ export default function FeaturedProducts() {
   const searchParams = useSearchParams();
   const sectionRef = useRef<HTMLElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const [isAllCategoriesOpen, setIsAllCategoriesOpen] = useState(false);
 
   // ── State Machine: Modes & Filter (Section 17) ───────────────────────────
   // Mode A: Manual Load More (isContinuousMode = false)
@@ -510,16 +508,6 @@ export default function FeaturedProducts() {
     selectedAudiences.length +
     selectedCategories.length;
 
-  const handleAllCategoriesClick = () => {
-    setIsAllCategoriesOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        notifyExplorerActive("featured", "open");
-      }
-      return next;
-    });
-  };
-
   // Subscribe to explorer coordinator: Keep Featured in collapsed/default state when another section is active
   useEffect(() => {
     return subscribeToExplorerActive((detail) => {
@@ -527,7 +515,6 @@ export default function FeaturedProducts() {
         setIsFilterOpen(false);
         setIsContinuousMode(false);
         isContinuousModeRef.current = false;
-        setIsAllCategoriesOpen(false);
         setHasLoadedMore(false);
         setProducts((prev) => (prev.length > INITIAL_PRODUCT_LIMIT ? prev.slice(0, INITIAL_PRODUCT_LIMIT) : prev));
       }
@@ -550,7 +537,7 @@ export default function FeaturedProducts() {
             </h2>
           </div>
 
-          {/* Sub Row: Tabs on Left, Filters + Counter + ALL CATEGORIES on Right */}
+          {/* Sub Row: Tabs on Left, Filters + Counter on Right */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
             <div className="flex items-center gap-2">
               {/* Tab 1: BEST DEALS */}
@@ -590,7 +577,7 @@ export default function FeaturedProducts() {
                 of {totalCount} items
               </div>
 
-              {/* Action Buttons Group: [FILTERS] [ALL CATEGORIES] */}
+              {/* Action Buttons Group: [FILTERS] */}
               <div className="flex items-center gap-2 shrink-0">
                 {/* Filter Toggle Button: ALWAYS VISIBLE */}
                 <button
@@ -618,61 +605,10 @@ export default function FeaturedProducts() {
                     </span>
                   )}
                 </button>
-
-                {/* Action: ALL CATEGORIES */}
-                <button
-                  type="button"
-                  onClick={handleAllCategoriesClick}
-                  aria-expanded={isAllCategoriesOpen}
-                  aria-controls="featured-products-categories"
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer group shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
-                    isAllCategoriesOpen
-                      ? "bg-foreground text-background border border-foreground shadow-xs"
-                      : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-border/60 hover:border-foreground/30"
-                  }`}
-                  aria-label="All Categories"
-                >
-                  <LayoutGrid
-                    size={13}
-                    className={
-                      isAllCategoriesOpen
-                        ? "text-background"
-                        : "text-foreground/70 group-hover:text-foreground transition-colors"
-                    }
-                  />
-                  <span>ALL CATEGORIES</span>
-                </button>
               </div>
             </div>
           </div>
         </div>
-
-        {/* ── Inline Expanded Category Panel (Shared AllCategoriesPanel) ── */}
-        <AllCategoriesPanel
-          isOpen={isAllCategoriesOpen}
-          id="featured-products-categories"
-          selectedAudiences={selectedAudiences}
-          selectedDesignTypes={selectedDesignTypes}
-          selectedCategories={selectedCategories}
-          onSelectAudience={(aud) => {
-            const next = selectedAudiences.includes(aud)
-              ? selectedAudiences.filter((a) => a !== aud)
-              : [...selectedAudiences, aud];
-            handleFilterUpdate(selectedBrands, selectedDesignTypes, next, selectedCategories);
-          }}
-          onSelectDesignType={(dt) => {
-            const next = selectedDesignTypes.includes(dt)
-              ? selectedDesignTypes.filter((d) => d !== dt)
-              : [...selectedDesignTypes, dt];
-            handleFilterUpdate(selectedBrands, next, selectedAudiences, selectedCategories);
-          }}
-          onSelectCategory={(cat) => {
-            const next = selectedCategories.includes(cat)
-              ? selectedCategories.filter((c) => c !== cat)
-              : [...selectedCategories, cat];
-            handleFilterUpdate(selectedBrands, selectedDesignTypes, selectedAudiences, next);
-          }}
-        />
 
         {/* ── Active Filter Badges Strip ── */}
         {totalActiveFilters > 0 && (

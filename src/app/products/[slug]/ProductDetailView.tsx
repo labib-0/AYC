@@ -31,7 +31,7 @@ import PricingTierOption from "@/components/product/PricingTierOption";
 import QuantityStepper from "@/components/product/QuantityStepper";
 import CommerceSummary from "@/components/product/CommerceSummary";
 import PackageAssortmentMatrix from "@/components/product/PackageAssortmentMatrix";
-import ProductLogisticsSummary from "@/components/product/ProductLogisticsSummary";
+import ProductSelectedLogisticsRow from "@/components/product/ProductSelectedLogisticsRow";
 
 interface ProductDetailViewProps {
   initialProduct?: B2BProductInput | null;
@@ -250,16 +250,16 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
   // Informational Colors & Sizes Lists
   const colorsList = useMemo(() => {
-    if (!product) return ["Black"];
+    if (!product) return [];
     if (product.colors && product.colors.length > 0) return product.colors;
     if (product.colorName) return [product.colorName];
-    return ["Black"];
+    return [];
   }, [product]);
 
   const sizesList = useMemo(() => {
-    if (!product) return ["S", "M", "L", "XL"];
+    if (!product) return [];
     if (product.sizes && product.sizes.length > 0) return product.sizes;
-    return ["S", "M", "L", "XL"];
+    return [];
   }, [product]);
 
   // Package Assortment Matrix Computation (Display-only)
@@ -292,6 +292,10 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
     if (colors.length === 0) colors = colorsList;
     if (sizes.length === 0) sizes = sizesList;
+
+    if (colors.length === 0 || sizes.length === 0) {
+      return null;
+    }
 
     const cellMap: Record<string, Record<string, number>> = {};
     colors.forEach(c => {
@@ -478,7 +482,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           isNew: product.isNew,
           moq: moq,
         } as any,
-        "Assorted",
+        sizesList.length > 0 ? (sizesList.length === 1 ? sizesList[0] : "Assorted") : "",
         quantity,
         undefined,
         packageBreakdown,
@@ -502,8 +506,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     if (!product) return;
     const tierName = isFullStock ? "Full Stock" : isBulk ? "Bulk" : "Standard";
     addToRfq(product, quantity, {
-      color: colorsList[0] || "Standard",
-      size: sizesList[0] || "Assorted",
+      color: colorsList.length > 0 ? colorsList[0] : "",
+      size: sizesList.length > 0 ? sizesList[0] : "",
       targetPrice: currentPrice,
       buyerNotes: `Tier: ${tierName}, Quantity: ${quantity} pcs`,
     });
@@ -808,49 +812,53 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             {/* LEVEL 3.2: ORDER QUANTITY & ESTIMATED TOTAL DECISION BLOCK */}
             {/* ========================================================= */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-stretch">
-              
-              {/* Order Quantity Stepper Module */}
-              <div className="sm:col-span-6 rounded-xl border border-border/80 bg-card p-3.5 sm:p-4 flex flex-col justify-between space-y-2 shadow-2xs">
-                <CommerceSectionHeader
-                  title="Order Quantity"
-                  badge={
-                    <span className="text-[11px] font-sans font-bold text-primary tabular-nums">
-                      {quantity.toLocaleString()} PCS
-                    </span>
-                  }
-                />
-                <QuantityStepper
-                  quantity={quantity}
-                  moq={moq}
-                  step={moq}
-                  maxStock={fullStockQuantity}
-                  onIncrement={handleIncrement}
-                  onDecrement={handleDecrement}
-                  isDecrementDisabled={quantity <= Math.min(moq, fullStockQuantity > 0 ? fullStockQuantity : moq)}
-                  isIncrementDisabled={fullStockQuantity > 0 && quantity >= fullStockQuantity}
-                  helperText={`Qty: ${quantity.toLocaleString()} pcs · MOQ: ${moq} pcs`}
-                />
+            <div className="space-y-2.5 sm:space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-stretch">
+                
+                {/* Order Quantity Stepper Module */}
+                <div className="sm:col-span-6 rounded-xl border border-border/80 bg-card p-3 sm:p-3.5 flex flex-col justify-between space-y-2 shadow-2xs">
+                  <CommerceSectionHeader
+                    title="Order Quantity"
+                  />
+                  <QuantityStepper
+                    quantity={quantity}
+                    moq={moq}
+                    step={moq}
+                    maxStock={fullStockQuantity}
+                    onIncrement={handleIncrement}
+                    onDecrement={handleDecrement}
+                    isDecrementDisabled={quantity <= Math.min(moq, fullStockQuantity > 0 ? fullStockQuantity : moq)}
+                    isIncrementDisabled={fullStockQuantity > 0 && quantity >= fullStockQuantity}
+                  />
+                </div>
+
+                {/* Estimated Total Commercial Summary Module */}
+                <div className="sm:col-span-6">
+                  <CommerceSummary
+                    totalAmount={currentPrice * quantity}
+                    quantity={quantity}
+                    unitPrice={currentPrice}
+                    activeTierName={isFullStock ? "Full Stock Tier" : isBulk ? "Bulk Tier" : "Standard Tier"}
+                    className="h-full shadow-2xs"
+                  />
+                </div>
               </div>
 
-              {/* Estimated Total Commercial Summary Module */}
-              <div className="sm:col-span-6">
-                <CommerceSummary
-                  totalAmount={currentPrice * quantity}
-                  quantity={quantity}
-                  unitPrice={currentPrice}
-                  activeTierName={isFullStock ? "Full Stock Tier" : isBulk ? "Bulk Tier" : "Standard Tier"}
-                  className="h-full shadow-2xs"
-                />
-              </div>
+              {/* Real-time Selected-Quantity Logistics Impact Row */}
+              <ProductSelectedLogisticsRow
+                quantity={quantity}
+                profiles={product?.shippingPackageProfiles ?? product?.shipping_package_profiles ?? []}
+                moq={moq}
+                packageAllocations={packageAllocations}
+              />
             </div>
 
             {/* LEVEL 3.3: PACKAGE ASSORTMENT COMMERCE MODULE */}
-            {matrixData && (
+            {matrixData ? (
               <div>
-                <div className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 sm:p-4 space-y-3 shadow-2xs">
+                <div className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
                   <CommerceSectionHeader
-                    title={isFullStock ? "Warehouse Inventory Matrix" : "Package Assortment"}
+                    title="Package Breakdown"
                     icon={<Package size={15} />}
                     badge={
                       <span className="text-[11px] font-sans font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-background border border-border/70 text-foreground tabular-nums">
@@ -862,20 +870,22 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   {/* Ratio Matrix Component (Colors = Rows, Sizes = Columns, No Redundant Summary Pills) */}
                   <PackageAssortmentMatrix
                     matrixData={matrixData}
-                    title={isFullStock ? "Warehouse Inventory Matrix" : "Ratio Matrix"}
                   />
                 </div>
               </div>
+            ) : (
+              <div>
+                <div className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 sm:p-4 space-y-1.5 shadow-2xs">
+                  <CommerceSectionHeader
+                    title="Package Details"
+                    icon={<Package size={15} />}
+                  />
+                  <p className="text-xs text-muted-foreground font-medium pl-6">
+                    See product images for package details.
+                  </p>
+                </div>
+              </div>
             )}
-
-            {/* LEVEL 3.4: LOGISTICS SUMMARY (after Package Assortment, before Add to Cart) */}
-            {(() => {
-              const profiles = product?.shippingPackageProfiles ?? product?.shipping_package_profiles ?? [];
-              const activeProfile = profiles.find((p) => p.is_active !== false) ?? profiles[0];
-              return activeProfile ? (
-                <ProductLogisticsSummary profile={activeProfile} moq={moq} />
-              ) : null;
-            })()}
 
             {/* ========================================================= */}
             {/* LEVEL 4: PRIMARY ACTION (ADD TO CART) & SECONDARY CTAS */}

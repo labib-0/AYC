@@ -27,11 +27,13 @@ interface NavItem {
   badge?: string;
 }
 
+const OVERVIEW_NAV: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
+];
+
 const BUYING_NAV: NavItem[] = [
-  { label: "Overview", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Orders", href: "/dashboard/orders", icon: Package, exact: false },
-  { label: "RFQs & Inquiries", href: "/dashboard/rfq", icon: FileText, exact: false },
-  { label: "Commercial Quotes", href: "/dashboard/quotes", icon: FileText, exact: false },
+  { label: "RFQ", href: "/dashboard/rfq", icon: FileText, exact: false },
   { label: "Quick Reorder", href: "/dashboard/reorder", icon: RefreshCw, exact: false },
 ];
 
@@ -101,6 +103,48 @@ export function DashboardSidebar() {
 
           {/* Navigation Groups */}
           <div className="p-2 space-y-4">
+            {/* Overview section */}
+            <div>
+              <p className="px-3 pb-1 text-[0.625rem] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Overview
+              </p>
+              <nav className="flex flex-col gap-0.5" aria-label="Overview navigation">
+                {OVERVIEW_NAV.map((item) => {
+                  const Icon = item.icon;
+                  const active = isLinkActive(item);
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={[
+                        "flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-150 h-[40px]",
+                        active
+                          ? "bg-amber-500 text-white font-semibold shadow-xs"
+                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:text-slate-900 dark:hover:text-white",
+                      ].join(" ")}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Icon
+                          size={16}
+                          className={
+                            active
+                              ? "text-white shrink-0"
+                              : "text-slate-400 dark:text-slate-500 shrink-0"
+                          }
+                        />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {active ? (
+                        <ChevronRight size={14} className="text-white/80 shrink-0" />
+                      ) : null}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+
             {/* Buying section */}
             <div>
               <p className="px-3 pb-1 text-[0.625rem] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">

@@ -117,10 +117,10 @@ export default function ProductForm({
 
   // Variants & Stock
   const [colors, setColors] = useState<string[]>(
-    initialData?.colors && initialData.colors.length > 0 ? initialData.colors : ["Black", "White"]
+    initialData?.colors && Array.isArray(initialData.colors) ? initialData.colors : []
   );
   const [sizes, setSizes] = useState<string[]>(
-    initialData?.sizes && initialData.sizes.length > 0 ? initialData.sizes : ["S", "M", "L", "XL"]
+    initialData?.sizes && Array.isArray(initialData.sizes) ? initialData.sizes : []
   );
   const [stock, setStock] = useState(initialData?.stock ?? 500);
   const [warehouseId, setWarehouseId] = useState<string | number | undefined>(
@@ -256,9 +256,9 @@ export default function ProductForm({
   const isMountedRef = useRef<boolean>(false);
   const persistDraftRef = useRef<((opts?: { isAutosave?: boolean }) => Promise<boolean>) | null>(null);
 
-  // Package Assortment Section — collapsed by default unless allocations exist
+  // Package Assortment Section — collapsed by default unless allocations and variants exist
   const [packageSectionOpen, setPackageSectionOpen] = useState(
-    () => packageAllocations.length > 0
+    () => packageAllocations.length > 0 && colors.length > 0 && sizes.length > 0
   );
 
   // Submission & Validation States
@@ -377,12 +377,12 @@ export default function ProductForm({
         wholesalePrice: wholesalePrice || 0,
         fullStockPrice: fullStockPrice || wholesalePrice || 0,
         moq: moq || 1,
-        colors: colors.length > 0 ? colors : ["Standard"],
-        sizes: sizes.length > 0 ? sizes : ["Assorted"],
+        colors: colors,
+        sizes: sizes,
         stock: stock >= 0 ? stock : 0,
         warehouseId: warehouseId || undefined,
         images: images.length > 0 ? images : ["/placeholder.jpg"],
-        packageAllocations: packageAllocations,
+        packageAllocations: colors.length > 0 && sizes.length > 0 ? packageAllocations : [],
         shippingPackageProfiles: shippingProfiles,
         isPreorder: isPreorder,
         estimatedDeliveryDate: isPreorder ? estimatedDeliveryDate : null,
@@ -720,10 +720,6 @@ export default function ProductForm({
       errs.fullStockPrice = "Full Stock Price is required and must be greater than $0.00.";
     }
 
-    if (colors.length === 0) errs.colors = "Select at least one color.";
-
-    if (sizes.length === 0) errs.sizes = "Select at least one size.";
-
     if (stock < 0) errs.stock = "Initial stock quantity cannot be negative.";
 
     if (!isEdit && !warehouseId) {
@@ -848,8 +844,8 @@ export default function ProductForm({
         sizes: sizes,
         variants: variants,
         pricingTiers: pricingTiers,
-        packageAllocations: packageAllocations,
-        package_allocations: packageAllocations,
+        packageAllocations: colors.length > 0 && sizes.length > 0 ? packageAllocations : [],
+        package_allocations: colors.length > 0 && sizes.length > 0 ? packageAllocations : [],
         shippingPackageProfiles: shippingProfiles,
         shipping_package_profiles: shippingProfiles,
       };
@@ -1142,16 +1138,11 @@ export default function ProductForm({
           {/* Section 2.5: Optional Package Breakdown (collapsible) */}
           <div className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden" id="section-package-breakdown">
             <div className="w-full flex items-center justify-between px-4 py-3 bg-secondary/20">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-foreground uppercase tracking-wider">
-                  PACKAGE BREAKDOWN
-                </span>
-                <span className="text-[11px] text-muted-foreground font-normal hidden sm:inline">
-                  (Optional — define color/size assortment per package)
-                </span>
-              </div>
+              <span className="text-sm font-bold text-foreground uppercase tracking-wider">
+                PACKAGE BREAKDOWN
+              </span>
               <div className="flex items-center gap-2.5">
-                {packageAllocations.length > 0 && (
+                {colors.length > 0 && sizes.length > 0 && packageAllocations.length > 0 && (
                   <span className="text-[11px] font-semibold text-primary tabular-nums">
                     {packageAllocations.length} variant{packageAllocations.length !== 1 ? "s" : ""} configured
                   </span>
@@ -1163,7 +1154,7 @@ export default function ProductForm({
                   className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border border-border bg-background hover:bg-secondary text-foreground transition-colors cursor-pointer"
                   aria-expanded={packageSectionOpen}
                 >
-                  {packageSectionOpen ? "[ Hide ]" : "[ Show ]"}
+                  {packageSectionOpen ? "[HIDE]" : "[SHOW]"}
                 </button>
               </div>
             </div>

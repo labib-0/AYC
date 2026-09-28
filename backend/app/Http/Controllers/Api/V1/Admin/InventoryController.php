@@ -63,17 +63,25 @@ class InventoryController extends ApiController
 
         $threshold = (int) $request->input('threshold', self::LOW_STOCK_THRESHOLD);
 
-        $base = Inventory::whereHas('variant.product');
+        $base = Inventory::where(function ($q) {
+            $q->whereHas('variant.product')->orWhereHas('product');
+        });
 
         if ($request->filled('warehouse_id')) {
             $base->where('warehouse_id', $request->input('warehouse_id'));
         }
 
         // 1. UNIQUE Products in inventory (COUNT DISTINCT products.id)
-        $productQuery = \App\Models\Product::whereHas('variants.inventories', function ($q) use ($request) {
-            if ($request->filled('warehouse_id')) {
-                $q->where('warehouse_id', $request->input('warehouse_id'));
-            }
+        $productQuery = \App\Models\Product::where(function ($pq) use ($request) {
+            $pq->whereHas('variants.inventories', function ($q) use ($request) {
+                if ($request->filled('warehouse_id')) {
+                    $q->where('warehouse_id', $request->input('warehouse_id'));
+                }
+            })->orWhereHas('directInventories', function ($q) use ($request) {
+                if ($request->filled('warehouse_id')) {
+                    $q->where('warehouse_id', $request->input('warehouse_id'));
+                }
+            });
         });
 
         $totalProducts = (clone $productQuery)->distinct()->count('products.id');
@@ -105,20 +113,26 @@ class InventoryController extends ApiController
     {
         $this->ensureInventorySync();
 
-        $query = Inventory::whereHas('variant.product')
-            ->with(['variant.product.images', 'warehouse', 'adjustments.adminUser']);
+        $query = Inventory::where(function ($q) {
+            $q->whereHas('variant.product')->orWhereHas('product');
+        })->with(['variant.product.images', 'product.images', 'warehouse', 'adjustments.adminUser']);
 
         // Search by Product name or Variant SKU
         if ($request->filled('search')) {
             $search = $request->input('search');
             $likeOp = DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
-            $query->whereHas('variant', function ($vq) use ($search, $likeOp) {
-                $vq->where('sku', $likeOp, "%{$search}%")
-                    ->orWhere('title', $likeOp, "%{$search}%")
-                    ->orWhereHas('product', function ($pq) use ($search, $likeOp) {
-                        $pq->where('name', $likeOp, "%{$search}%")
-                           ->orWhere('sku', $likeOp, "%{$search}%");
-                    });
+            $query->where(function ($sq) use ($search, $likeOp) {
+                $sq->whereHas('variant', function ($vq) use ($search, $likeOp) {
+                    $vq->where('sku', $likeOp, "%{$search}%")
+                        ->orWhere('title', $likeOp, "%{$search}%")
+                        ->orWhereHas('product', function ($pq) use ($search, $likeOp) {
+                            $pq->where('name', $likeOp, "%{$search}%")
+                               ->orWhere('sku', $likeOp, "%{$search}%");
+                        });
+                })->orWhereHas('product', function ($pq) use ($search, $likeOp) {
+                    $pq->where('name', $likeOp, "%{$search}%")
+                       ->orWhere('sku', $likeOp, "%{$search}%");
+                });
             });
         }
 
@@ -197,9 +211,9 @@ class InventoryController extends ApiController
                     $inventory = Inventory::where('id', $validated['inventory_id'])
                         ->lockForUpdate()
                         ->firstOrFail();
-                    $variant = ProductVariant::where('id', $inventory->product_variant_id)
-                        ->lockForUpdate()
-                        ->firstOrFail();
+                    $variant = $inventory->product_variant_id
+                        ? ProductVariant::where('id', $inventory->product_variant_id)->lockForUpdate()->first()
+                        : null;
                 } else {
                     $warehouseId = $validated['warehouse_id'] ?? Warehouse::firstOrCreate(
                         ['code' => 'WH-UTTARA-01'],
@@ -243,9 +257,14 @@ class InventoryController extends ApiController
                 // Update inventory quantity
                 $inventory->update(['quantity' => $resultingQuantity]);
 
-                // Update variant total stock to reflect actual sum of all warehouse inventory
-                $totalStock = Inventory::where('product_variant_id', $variant->id)->sum('quantity');
-                $variant->update(['stock' => $totalStock]);
+                // Update variant or product total stock to reflect actual sum of all warehouse inventory
+                if ($variant) {
+                    $totalStock = Inventory::where('product_variant_id', $variant->id)->sum('quantity');
+                    $variant->update(['stock' => $totalStock]);
+                } elseif ($inventory->product_id) {
+                    $totalStock = Inventory::where('product_id', $inventory->product_id)->sum('quantity');
+                    \App\Models\Product::where('id', $inventory->product_id)->update(['stock' => $totalStock]);
+                }
 
                 // Record audit log
                 $adjustment = AdminInventoryAdjustment::create([

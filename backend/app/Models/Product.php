@@ -56,6 +56,7 @@ class Product extends Model
         'cost_price',
         'purchase_price_updated_at',
         'moq',
+        'stock',
         'bulk_threshold',
         'bulk_price',
         'full_stock_price',
@@ -82,6 +83,7 @@ class Product extends Model
         'cost_price' => 'decimal:2',
         'purchase_price_updated_at' => 'datetime',
         'moq' => 'integer',
+        'stock' => 'integer',
         'bulk_threshold' => 'integer',
         'bulk_price' => 'decimal:2',
         'full_stock_price' => 'decimal:2',
@@ -167,6 +169,11 @@ class Product extends Model
     public function inventories(): HasManyThrough
     {
         return $this->hasManyThrough(Inventory::class, ProductVariant::class);
+    }
+
+    public function directInventories(): HasMany
+    {
+        return $this->hasMany(Inventory::class);
     }
 
     public function pricingTiers(): HasMany
@@ -489,13 +496,21 @@ class Product extends Model
     }
 
     /**
-     * Get total on-hand stock across all active variants and their warehouse inventory records.
+     * Get total on-hand stock across all active variants or direct product inventories.
      */
     public function getOnHandStock(): int
     {
         $variants = $this->relationLoaded('variants')
             ? $this->variants
             : $this->variants()->with('inventories')->get();
+
+        if ($variants->isEmpty()) {
+            $directInvs = Inventory::where('product_id', $this->id)->get();
+            if ($directInvs->isNotEmpty()) {
+                return max(0, (int) $directInvs->sum('quantity'));
+            }
+            return max(0, (int) ($this->stock ?? 0));
+        }
 
         $totalOnHand = 0;
         foreach ($variants as $variant) {
@@ -514,13 +529,21 @@ class Product extends Model
     }
 
     /**
-     * Get total reserved stock across all active variants and their warehouse inventory records.
+     * Get total reserved stock across all active variants or direct product inventories.
      */
     public function getReservedStock(): int
     {
         $variants = $this->relationLoaded('variants')
             ? $this->variants
             : $this->variants()->with('inventories')->get();
+
+        if ($variants->isEmpty()) {
+            $directInvs = Inventory::where('product_id', $this->id)->get();
+            if ($directInvs->isNotEmpty()) {
+                return max(0, (int) $directInvs->sum('reserved_quantity'));
+            }
+            return 0;
+        }
 
         $totalReserved = 0;
         foreach ($variants as $variant) {
@@ -563,6 +586,31 @@ class Product extends Model
             : $this->variants()->with('inventories.warehouse')->get();
 
         $warehouses = [];
+
+        if ($variants->isEmpty()) {
+            $directInvs = Inventory::where('product_id', $this->id)->with('warehouse')->get();
+            foreach ($directInvs as $inv) {
+                $whId = $inv->warehouse_id;
+                $whName = $inv->warehouse?->name ?? "Warehouse #{$whId}";
+                $whCode = $inv->warehouse?->code ?? "WH-{$whId}";
+
+                if (!isset($warehouses[$whId])) {
+                    $warehouses[$whId] = [
+                        'warehouse_id' => $whId,
+                        'warehouse_name' => $whName,
+                        'warehouse_code' => $whCode,
+                        'on_hand_quantity' => 0,
+                        'reserved_quantity' => 0,
+                        'available_quantity' => 0,
+                    ];
+                }
+
+                $warehouses[$whId]['on_hand_quantity'] += (int) $inv->quantity;
+                $warehouses[$whId]['reserved_quantity'] += (int) $inv->reserved_quantity;
+                $warehouses[$whId]['available_quantity'] += max(0, (int) $inv->quantity - (int) $inv->reserved_quantity);
+            }
+            return array_values($warehouses);
+        }
 
         foreach ($variants as $variant) {
             $invs = $variant->relationLoaded('inventories')

@@ -17,15 +17,12 @@ export interface CommerceSummaryProps {
  */
 export default function CommerceSummary({
   totalAmount,
-  quantity,
-  unitPrice,
   activeTierName,
-  unitLabel = "pcs",
   className = "",
 }: CommerceSummaryProps) {
   return (
     <div
-      className={`rounded-lg border border-border/80 bg-secondary/25 p-3 sm:p-3.5 flex flex-col justify-center space-y-1 transition-all ${className}`}
+      className={`rounded-xl border border-border/80 bg-secondary/25 p-3 sm:p-3.5 flex flex-col justify-between space-y-1.5 transition-all ${className}`}
       aria-label="Order estimated commercial total"
     >
       <div className="flex items-center justify-between gap-2">
@@ -41,12 +38,6 @@ export default function CommerceSummary({
 
       <div className="text-2xl sm:text-[26px] font-display font-extrabold text-foreground tabular-nums tracking-tight leading-tight">
         {formatPrice(totalAmount)}
-      </div>
-
-      <div className="text-[11px] sm:text-[12px] font-sans text-muted-foreground tabular-nums flex items-center gap-1">
-        <span>
-          {quantity.toLocaleString()} {unitLabel} × {formatPrice(unitPrice)} / {unitLabel.replace(/s$/, "")}
-        </span>
       </div>
     </div>
   );

@@ -116,7 +116,7 @@ class CartController extends ApiController
                 $variant = ProductVariant::where('product_id', $productId)->where('size', $size)->first();
             }
 
-            $availableStock = $variant ? (int) $variant->stock : (int) $product->variants->sum('stock');
+            $availableStock = $variant ? (int) $variant->stock : ($product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock());
             if ($newQuantity > $availableStock) {
                 $sizeLabel = $variant ? " size {$variant->size}" : (!empty($size) && $size !== 'Assorted' ? " size {$size}" : "");
                 return response()->json([
@@ -377,7 +377,7 @@ class CartController extends ApiController
                     $cartItem->update($updatePayload);
                 } else {
                     $variant = $cartItem->variant;
-                    $availableStock = $variant ? (int) $variant->stock : (int) $product->variants->sum('stock');
+                    $availableStock = $variant ? (int) $variant->stock : ($product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock());
                     
                     if ($quantity > $availableStock) {
                         $sizeLabel = $variant ? " size {$variant->size}" : (!empty($cartItem->size) && $cartItem->size !== 'Assorted' ? " size {$cartItem->size}" : "");
@@ -494,7 +494,7 @@ class CartController extends ApiController
                 foreach ($guestCart->items as $guestItem) {
                     $availableStock = $guestItem->variant 
                         ? (int) $guestItem->variant->stock 
-                        : (int) ($guestItem->product ? $guestItem->product->variants->sum('stock') : 9999);
+                        : (int) ($guestItem->product ? ($guestItem->product->variants->isNotEmpty() ? $guestItem->product->variants->sum('stock') : $guestItem->product->getTotalAvailableStock()) : 9999);
 
                     $existing = $userCart->items()
                         ->where('product_id', $guestItem->product_id)
@@ -605,7 +605,7 @@ class CartController extends ApiController
                 $variant = $product->variants->firstWhere('size', $size);
             }
 
-            $availableStock = $variant ? (int) $variant->stock : (int) $product->variants->sum('stock');
+            $availableStock = $variant ? (int) $variant->stock : ($product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock());
             $effectiveMoq = max(1, (int) $product->moq);
             $isBelowMoq = $effectiveMoq > 1 && $requestedQty < $effectiveMoq;
             $isInvalidMultiple = $effectiveMoq > 1 && ($requestedQty % $effectiveMoq !== 0);

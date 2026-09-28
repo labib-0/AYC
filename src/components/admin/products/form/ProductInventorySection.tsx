@@ -116,13 +116,8 @@ export default function ProductInventorySection({
           </div>
           <div>
             <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
-              Inventory &amp; MOQ
+              INVENTORY
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {isEdit
-                ? "Warehouse inventory metrics and minimum order requirement."
-                : "Enter initial stock, MOQ, and warehouse location."}
-            </p>
           </div>
         </div>
       </div>

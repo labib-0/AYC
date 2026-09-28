@@ -11,7 +11,7 @@
  * - When Hot Sale opens, it becomes active while Featured remains collapsed/default.
  * - When Load More is clicked in Hot Sale, Hot Sale becomes the ONLY active explorer,
  *   auto-pagination starts, filter rail appears, and other sections close.
- * - When Featured Products is activated (filters, load more, tabs, all categories),
+ * - When Featured Products is activated (filters, load more, tabs),
  *   Hot Sale closes, and Featured becomes the ONLY active explorer.
  */
 

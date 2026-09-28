@@ -245,11 +245,13 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
         carton_height: Number(sp.carton_height || 35),
         dimension_unit: (sp.dimension_unit || "cm") as "cm" | "in" | "m",
         gross_weight: Number(sp.gross_weight || 15),
+        total_gross_weight: sp.total_gross_weight !== undefined ? Number(sp.total_gross_weight) : Number(sp.gross_weight || 15) * Number(sp.carton_count || 1),
         net_weight: sp.net_weight !== undefined && sp.net_weight !== null ? Number(sp.net_weight) : 13.5,
         weight_unit: (sp.weight_unit || "kg") as "kg" | "lbs" | "g",
         notes: sp.notes || null,
         is_active: sp.is_active !== undefined ? Boolean(sp.is_active) : true,
-        total_cbm: sp.total_cbm !== undefined ? Number(sp.total_cbm) : 0.084,
+        single_carton_cbm: sp.single_carton_cbm !== undefined ? Number(sp.single_carton_cbm) : undefined,
+        total_cbm: sp.total_cbm !== undefined ? Number(sp.total_cbm) : undefined,
       }))
     : undefined;
 

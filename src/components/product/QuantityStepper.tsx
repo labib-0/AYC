@@ -52,17 +52,14 @@ export default function QuantityStepper({
             <Minus size={15} strokeWidth={2.5} />
           </button>
 
-          {/* Quantity Display (Prominent Package Count with Total Pieces) */}
+          {/* Quantity Display */}
           <div
-            className="min-w-24 px-3 py-1 flex flex-col items-center justify-center border-x border-border/60"
+            className="min-w-20 px-3.5 py-1 flex items-center justify-center border-x border-border/60"
             aria-live="polite"
             aria-atomic="true"
           >
             <span className="font-display font-bold text-[14px] sm:text-[15px] text-foreground tabular-nums select-none leading-none">
               {quantity.toLocaleString()}
-            </span>
-            <span className="text-[10.5px] font-sans font-medium text-muted-foreground tabular-nums select-none leading-none mt-0.5">
-              PCS
             </span>
           </div>
 
@@ -84,13 +81,15 @@ export default function QuantityStepper({
         </div>
 
         <span className="text-[12px] font-sans font-semibold text-muted-foreground uppercase tracking-wider">
-          PCS
+          {unitLabel.toUpperCase()}
         </span>
       </div>
 
-      <div className="text-[11px] sm:text-[11.5px] font-sans text-muted-foreground/85 leading-tight">
-        {helperText || `Multiples of ${moq} ${unitLabel}`}
-      </div>
+      {helperText ? (
+        <div className="text-[11px] sm:text-[11.5px] font-sans text-muted-foreground/85 leading-tight">
+          {helperText}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -43,7 +43,7 @@ export function DashboardRecentOrders({ orders, loading = false }: RecentOrdersP
       <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 dark:border-white/10">
         <div>
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-            Recent Wholesale Orders
+            Recent Orders
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Active shipments and commercial transactions
@@ -53,7 +53,7 @@ export function DashboardRecentOrders({ orders, loading = false }: RecentOrdersP
           href="/dashboard/orders"
           className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
         >
-          <span>View All ({orders.length})</span>
+          <span>View All Orders ({orders.length})</span>
           <ArrowRight size={13} />
         </Link>
       </div>

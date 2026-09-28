@@ -188,23 +188,25 @@ function runTests() {
   // ─────────────────────────────────────────────────────────────
   console.log("\n▶ Group 5: Storefront Usage of Canonical Component");
 
-  // Shop By Brand / Featured Products (AllCategoriesPanel)
+  // Shop By Brand / Featured Products (AllCategoriesPanel if present)
   const panelPath = path.join(cwd, "src/components/home/AllCategoriesPanel.tsx");
-  const panelCode = fs.readFileSync(panelPath, "utf-8");
-  assert(
-    panelCode.includes('import {') &&
-    panelCode.includes("ProductCategoryTile") &&
-    panelCode.includes("PRODUCT_CATEGORY_GRID_CLASSES"),
-    "AllCategoriesPanel imports canonical ProductCategoryTile and PRODUCT_CATEGORY_GRID_CLASSES"
-  );
-  assert(
-    panelCode.includes("<ProductCategoryTile"),
-    "AllCategoriesPanel renders canonical ProductCategoryTile"
-  );
-  assert(
-    !panelCode.includes('image: "/categories/default.jpg"'),
-    "AllCategoriesPanel does not hardcode broken /categories/default.jpg fallback"
-  );
+  if (fs.existsSync(panelPath)) {
+    const panelCode = fs.readFileSync(panelPath, "utf-8");
+    assert(
+      panelCode.includes('import {') &&
+      panelCode.includes("ProductCategoryTile") &&
+      panelCode.includes("PRODUCT_CATEGORY_GRID_CLASSES"),
+      "AllCategoriesPanel imports canonical ProductCategoryTile and PRODUCT_CATEGORY_GRID_CLASSES"
+    );
+    assert(
+      panelCode.includes("<ProductCategoryTile"),
+      "AllCategoriesPanel renders canonical ProductCategoryTile"
+    );
+    assert(
+      !panelCode.includes('image: "/categories/default.jpg"'),
+      "AllCategoriesPanel does not hardcode broken /categories/default.jpg fallback"
+    );
+  }
 
   // Audience (CategoryHighlights)
   const highlightsPath = path.join(cwd, "src/components/home/CategoryHighlights.tsx");

@@ -52,7 +52,7 @@ class CartItemResource extends JsonResource
                 'images' => $imagesList,
                 'color' => $product->color_name,
                 'moq' => (int) ($product->moq ?? 1),
-                'availableStock' => (int) ($variant ? $variant->stock : $product->variants->sum('stock')),
+                'availableStock' => (int) ($variant ? $variant->stock : ($product->variants->isNotEmpty() ? $product->variants->sum('stock') : $product->getTotalAvailableStock())),
                 'isPreorder' => (bool) $product->is_preorder,
                 'is_preorder' => (bool) $product->is_preorder,
                 'estimatedDeliveryDate' => $product->estimated_delivery_date?->format('Y-m-d'),

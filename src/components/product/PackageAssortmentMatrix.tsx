@@ -32,7 +32,7 @@ export interface PackageAssortmentMatrixProps {
  */
 export default function PackageAssortmentMatrix({
   matrixData,
-  title = "RATIO MATRIX",
+  title,
   className = "",
 }: PackageAssortmentMatrixProps) {
   if (!matrixData || matrixData.colors.length === 0 || matrixData.sizes.length === 0) {
@@ -40,7 +40,7 @@ export default function PackageAssortmentMatrix({
   }
 
   return (
-    <div className={`space-y-1.5 pt-1 ${className}`}>
+    <div className={`space-y-1.5 ${title ? "pt-1" : ""} ${className}`}>
       {/* Matrix Subheading */}
       {title && (
         <div className="flex items-center justify-between text-[10.5px] sm:text-[11px]">

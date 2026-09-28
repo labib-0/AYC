@@ -240,6 +240,16 @@ class OrderController extends ApiController
                 foreach ($order->items as $item) {
                     if ($item->product_variant_id) {
                         ProductVariant::where('id', $item->product_variant_id)->increment('stock', $item->quantity);
+                        $inv = \App\Models\Inventory::where('product_variant_id', $item->product_variant_id)->first();
+                        if ($inv) {
+                            $inv->increment('quantity', $item->quantity);
+                        }
+                    } elseif ($item->product_id) {
+                        \App\Models\Product::where('id', $item->product_id)->increment('stock', $item->quantity);
+                        $inv = \App\Models\Inventory::where('product_id', $item->product_id)->first();
+                        if ($inv) {
+                            $inv->increment('quantity', $item->quantity);
+                        }
                     }
                 }
             }

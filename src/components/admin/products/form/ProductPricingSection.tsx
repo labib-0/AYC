@@ -108,14 +108,9 @@ export default function ProductPricingSection({
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
       <div className="border-b border-border/60 pb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
-            Pricing &amp; B2B Volume Tiers
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            B2B wholesale pricing structure. All values in USD ($).
-          </p>
-        </div>
+        <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
+          PRICING
+        </h2>
         <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-secondary text-foreground">
           USD ($)
         </span>

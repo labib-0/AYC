@@ -109,11 +109,10 @@ class ProductInitialInventoryTest extends TestCase
 
         // Assert database inventory record exists for the selected warehouse
         $product = Product::where('sku', 'AYN-HD-001')->firstOrFail();
-        $variant = $product->variants()->firstOrFail();
-
-        $inventory = Inventory::where('product_variant_id', $variant->id)
-            ->where('warehouse_id', $this->activeWarehouse->id)
-            ->firstOrFail();
+        $inventory = Inventory::where(function ($q) use ($product) {
+            $q->where('product_id', $product->id)
+              ->orWhereIn('product_variant_id', $product->variants()->pluck('id'));
+        })->where('warehouse_id', $this->activeWarehouse->id)->firstOrFail();
 
         $this->assertEquals(250, $inventory->quantity);
         $this->assertEquals(0, $inventory->reserved_quantity);
@@ -185,9 +184,8 @@ class ProductInitialInventoryTest extends TestCase
         $this->assertEquals(0, $data['available_moqs']);
 
         $product = Product::where('sku', 'AYN-TEE-003')->firstOrFail();
-        $variant = $product->variants()->firstOrFail();
         $this->assertDatabaseHas('inventories', [
-            'product_variant_id' => $variant->id,
+            'product_id' => $product->id,
             'warehouse_id' => $this->activeWarehouse->id,
             'quantity' => 0,
         ]);
@@ -463,8 +461,7 @@ class ProductInitialInventoryTest extends TestCase
         $response->assertStatus(201);
 
         $product = Product::where('sku', 'SKU-AVAIL-01')->firstOrFail();
-        $variant = $product->variants()->firstOrFail();
-        $inventory = Inventory::where('product_variant_id', $variant->id)->firstOrFail();
+        $inventory = Inventory::where('product_id', $product->id)->firstOrFail();
 
         // Simulate 40 pcs reserved
         $inventory->update(['reserved_quantity' => 40]);
@@ -698,8 +695,7 @@ class ProductInitialInventoryTest extends TestCase
         $response->assertStatus(201);
 
         $product = Product::where('sku', 'SKU-PERST-01')->firstOrFail();
-        $variant = $product->variants()->firstOrFail();
-        $inventory = Inventory::where('product_variant_id', $variant->id)->firstOrFail();
+        $inventory = Inventory::where('product_id', $product->id)->firstOrFail();
 
         // 1. Initial: Available 150 > 100 -> price is 20.00
         $this->assertEquals(20.00, $product->getResolvedFullStockPrice());

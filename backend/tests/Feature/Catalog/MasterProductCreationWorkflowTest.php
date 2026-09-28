@@ -286,7 +286,7 @@ class MasterProductCreationWorkflowTest extends TestCase
         $this->assertEquals(50, $product->moq, 'MOQ must be 50 PCS');
 
         // Check inventory record directly
-        $inv = \App\Models\Inventory::whereHas('variant', function ($q) use ($productId) {
+        $inv = \App\Models\Inventory::where('product_id', $productId)->orWhereHas('variant', function ($q) use ($productId) {
             $q->where('product_id', $productId);
         })->first();
 

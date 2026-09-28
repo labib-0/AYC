@@ -18,16 +18,14 @@ class ProductResource extends JsonResource
             ? $this->images->pluck('image_url')->filter()->values()->all()
             : [];
 
-        $variantsCollection = $this->variants ?? collect();
-        $totalStock = $variantsCollection->sum('stock');
+        $variantsCollection = $this->relationLoaded('variants') 
+            ? ($this->variants ?? collect()) 
+            : ($this->variants()->exists() ? $this->variants : collect());
         
         $sizes = $variantsCollection->pluck('size')->filter()->unique()->values()->all();
-        if (empty($sizes)) {
-            $sizes = ['S', 'M', 'L', 'XL', 'XXL'];
-        }
 
         $colors = $variantsCollection->pluck('color')->filter()->unique()->values()->all();
-        if (empty($colors) && $this->color_name) {
+        if (empty($colors) && !empty($this->color_name)) {
             $colors = [$this->color_name];
         }
 
@@ -58,7 +56,7 @@ class ProductResource extends JsonResource
             'shortDescription' => $this->short_description ?: '',
             'description' => $this->description ?: '',
             'material' => $this->material ?: '100% Cotton',
-            'colorName' => $this->color_name ?: 'Black',
+            'colorName' => $this->color_name ?: null,
             'videoUrl' => $this->video_url ?: '',
             'videoProvider' => $this->getVideoProvider(),
             'videoEmbedUrl' => $this->getVideoEmbedUrl(),
@@ -122,8 +120,10 @@ class ProductResource extends JsonResource
             'estimatedDeliveryDate' => $this->estimated_delivery_date?->format('Y-m-d'),
             'estimated_delivery_date' => $this->estimated_delivery_date?->format('Y-m-d'),
             'sizes' => $sizes,
-            'colors' => !empty($colors) ? $colors : ['Black'],
-            'variants' => ProductVariantResource::collection($this->whenLoaded('variants')),
+            'colors' => $colors,
+            'variants' => $this->relationLoaded('variants')
+                ? ProductVariantResource::collection($this->variants)
+                : ($this->variants()->exists() ? ProductVariantResource::collection($this->variants) : []),
             'pricing_tiers' => $this->whenLoaded('pricingTiers', function () {
                 return $this->pricingTiers->map(fn($t) => [
                     'min_quantity' => $t->min_quantity,
@@ -161,7 +161,7 @@ class ProductResource extends JsonResource
                     'total_cbm' => $p->calculateTotalCbm(),
                     'notes' => $p->notes,
                     'is_active' => (bool) $p->is_active,
-                ]);
+                ])->values()->all();
             }),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

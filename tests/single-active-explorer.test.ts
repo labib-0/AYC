@@ -101,17 +101,11 @@ assert(
 );
 
 assert(
-  featuredSource.includes('notifyExplorerActive("featured", "open")'),
-  "FeaturedProducts notifies coordinator when All Categories is opened"
-);
-
-assert(
   featuredSource.includes("subscribeToExplorerActive") &&
     featuredSource.includes('detail.activeSection !== "featured"') &&
     featuredSource.includes("setIsFilterOpen(false)") &&
-    featuredSource.includes("setIsContinuousMode(false)") &&
-    featuredSource.includes("setIsAllCategoriesOpen(false)"),
-  "FeaturedProducts collapses to default (closes filter rail, continuous mode, all categories) when another section is active"
+    featuredSource.includes("setIsContinuousMode(false)"),
+  "FeaturedProducts collapses to default (closes filter rail, continuous mode) when another section is active"
 );
 
 // ── GROUP 4: Shop By Brand Integration Audit ─────────────────────────────────
@@ -147,7 +141,6 @@ console.log("\n▶ Group 5: Full State Machine & Exclusivity Simulation");
   interface FeaturedState {
     isFilterOpen: boolean;
     isContinuousMode: boolean;
-    isAllCategoriesOpen: boolean;
     displayedCount: number;
   }
 
@@ -167,7 +160,6 @@ console.log("\n▶ Group 5: Full State Machine & Exclusivity Simulation");
   const featured: FeaturedState = {
     isFilterOpen: false,
     isContinuousMode: false,
-    isAllCategoriesOpen: false,
     displayedCount: 21,
   };
 
@@ -195,7 +187,6 @@ console.log("\n▶ Group 5: Full State Machine & Exclusivity Simulation");
       if (detail.activeSection !== "featured") {
         featured.isFilterOpen = false;
         featured.isContinuousMode = false;
-        featured.isAllCategoriesOpen = false;
         featured.displayedCount = 21;
       }
     });
@@ -243,8 +234,7 @@ console.log("\n▶ Group 5: Full State Machine & Exclusivity Simulation");
   );
   assert(
     !featuredIsOpen() &&
-      !featuredIsContinuous() &&
-      featured.isAllCategoriesOpen === false,
+      !featuredIsContinuous(),
     "Step 1: Featured remains in collapsed/default state"
   );
   assert(

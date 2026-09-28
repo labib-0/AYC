@@ -25,11 +25,10 @@ interface NavItem {
 }
 
 const MOBILE_NAV: NavItem[] = [
-  { label: "Overview", href: "/dashboard", icon: LayoutDashboard, exact: true },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Orders", href: "/dashboard/orders", icon: Package, exact: false },
-  { label: "RFQs", href: "/dashboard/rfq", icon: FileText, exact: false },
-  { label: "Quotes", href: "/dashboard/quotes", icon: FileText, exact: false },
-  { label: "Reorder", href: "/dashboard/reorder", icon: RefreshCw, exact: false },
+  { label: "RFQ", href: "/dashboard/rfq", icon: FileText, exact: false },
+  { label: "Quick Reorder", href: "/dashboard/reorder", icon: RefreshCw, exact: false },
   { label: "Documents", href: "/dashboard/documents", icon: FolderOpen, exact: false },
   { label: "Addresses", href: "/dashboard/addresses", icon: MapPin, exact: false },
   { label: "Company", href: "/dashboard/company", icon: Building2, exact: false },

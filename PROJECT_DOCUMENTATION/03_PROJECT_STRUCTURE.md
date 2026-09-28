@@ -71,7 +71,7 @@ The Ayaan Clothing project is organized in a clean, dual-system monorepo structu
 - **Architectural Role**: Modular, reusable React components split into presentation, domain-specific features, and administrative tools.
 - **Categorization**:
   - `components/layout/`: StorefrontShell, Header, Footer, Navigation, CategoryDropdown.
-  - `components/home/`: BannerHero, ShopByBrand, HotSales, FeaturedProducts, AllCategoriesPanel.
+  - `components/home/`: BannerHero, ShopByBrand, HotSales, FeaturedProducts.
   - `components/product/`: ProductCard, ProductGallery, PricingTierOption, QuantityStepper, ProductQuickAddModal.
   - `components/admin/`: AdminSidebar, AdminHeader, ShopByBrandManager, HotSaleCategoryManager, FeaturedProductManager, BrandModal, CategoryModal.
 

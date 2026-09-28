@@ -2,12 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { useWishlist } from "@/lib/WishlistContext";
 import { getUserOrders, OrderRecord } from "@/lib/services/orders";
 import { getAllRfqs } from "@/lib/services/rfq";
-import { productService } from "@/services/product.service";
 import { RfqRecord } from "@/types/b2b";
-import { Product } from "@/types";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardKPICards } from "@/components/dashboard/DashboardKPICards";
 import { DashboardQuickActions } from "@/components/dashboard/DashboardQuickActions";
@@ -17,11 +14,9 @@ import { DashboardReorderPreview } from "@/components/dashboard/DashboardReorder
 
 export default function DashboardOverviewPage() {
   const { user } = useAuth();
-  const { totalWishlistItems } = useWishlist();
 
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [rfqs, setRfqs] = useState<RfqRecord[]>([]);
-  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,10 +27,9 @@ export default function DashboardOverviewPage() {
       setLoading(true);
 
       try {
-        const [ordersData, allRfqs, productsRes] = await Promise.all([
+        const [ordersData, allRfqs] = await Promise.all([
           getUserOrders(user.id),
           getAllRfqs(),
-          productService.getProducts({ limit: 40 }),
         ]);
 
         if (!isMounted) return;
@@ -56,7 +50,6 @@ export default function DashboardOverviewPage() {
 
         setOrders(customerOrders);
         setRfqs(customerRfqs);
-        setCatalogProducts((productsRes as any) || []);
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
       } finally {
@@ -97,7 +90,6 @@ export default function DashboardOverviewPage() {
         ordersCount={orders.length}
         quotesCount={activeQuotesCount}
         reorderCount={uniquePurchasedProductIds.size}
-        savedCount={totalWishlistItems}
         loading={loading}
       />
 
@@ -105,7 +97,7 @@ export default function DashboardOverviewPage() {
       <DashboardQuickActions />
 
       {/* Reorder Shelf Preview (if user has orders) */}
-      <DashboardReorderPreview orders={orders} catalogProducts={catalogProducts} />
+      <DashboardReorderPreview orders={orders} />
 
       {/* Recent Orders Grid/Table */}
       <DashboardRecentOrders orders={orders} loading={loading} />
