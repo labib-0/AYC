@@ -37,28 +37,28 @@ export default function QuantityStepper({
   const stepAmount = step || moq;
 
   return (
-    <div className="space-y-1.5" id={id}>
+    <div className="space-y-1" id={id}>
       <div className="flex items-center gap-2">
-        <div className="flex items-center h-10 border border-border/90 rounded-lg bg-card shadow-2xs overflow-hidden focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
+        <div className="flex items-center h-8 sm:h-8.5 border border-border/90 rounded-md bg-card shadow-2xs overflow-hidden focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
           {/* Decrement Button */}
           <button
             type="button"
             onClick={onDecrement}
             disabled={isDecrementDisabled}
-            className="w-10 h-full flex items-center justify-center text-foreground hover:bg-secondary/70 active:bg-secondary transition-colors cursor-pointer select-none disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            className="w-8 sm:w-8.5 h-full flex items-center justify-center text-foreground hover:bg-secondary/70 active:bg-secondary transition-colors cursor-pointer select-none disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             aria-label={`Decrease quantity by ${stepAmount}`}
             title={isDecrementDisabled ? `Minimum order quantity is ${moq} ${unitLabel}` : undefined}
           >
-            <Minus size={15} strokeWidth={2.5} />
+            <Minus size={13} strokeWidth={2.5} />
           </button>
 
           {/* Quantity Display */}
           <div
-            className="min-w-20 px-3.5 py-1 flex items-center justify-center border-x border-border/60"
+            className="min-w-16 px-2.5 py-0.5 flex items-center justify-center border-x border-border/60"
             aria-live="polite"
             aria-atomic="true"
           >
-            <span className="font-display font-bold text-[14px] sm:text-[15px] text-foreground tabular-nums select-none leading-none">
+            <span className="font-display font-bold text-[13px] sm:text-[14px] text-foreground tabular-nums select-none leading-none">
               {quantity.toLocaleString()}
             </span>
           </div>
@@ -68,7 +68,7 @@ export default function QuantityStepper({
             type="button"
             onClick={onIncrement}
             disabled={isIncrementDisabled}
-            className="w-10 h-full flex items-center justify-center text-foreground hover:bg-secondary/70 active:bg-secondary transition-colors cursor-pointer select-none disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            className="w-8 sm:w-8.5 h-full flex items-center justify-center text-foreground hover:bg-secondary/70 active:bg-secondary transition-colors cursor-pointer select-none disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             aria-label={`Increase quantity by ${stepAmount}`}
             title={
               isIncrementDisabled && maxStock
@@ -76,11 +76,11 @@ export default function QuantityStepper({
                 : undefined
             }
           >
-            <Plus size={15} strokeWidth={2.5} />
+            <Plus size={13} strokeWidth={2.5} />
           </button>
         </div>
 
-        <span className="text-[12px] font-sans font-semibold text-muted-foreground uppercase tracking-wider">
+        <span className="text-[11px] sm:text-[11.5px] font-sans font-semibold text-muted-foreground uppercase tracking-wider">
           {unitLabel.toUpperCase()}
         </span>
       </div>

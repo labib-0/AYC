@@ -380,9 +380,9 @@ export default function ProductGallery({
   const hasMediaRail = cleanImages.length > 1 || (cleanImages.length > 0 && (!!videoInfo || !!videoThumbnail));
 
   const isModal = variant === "modal";
-  const mainRadiusClass = isModal ? "rounded-xl" : "rounded-2xl";
-  const thumbSizeClass = isModal ? "w-11 sm:w-12 rounded-lg" : "w-12 sm:w-14 rounded-lg";
-  const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "";
+  const mainRadiusClass = isModal ? "rounded-xl" : "rounded-xl";
+  const thumbSizeClass = isModal ? "w-9 sm:w-10 rounded-md" : "w-9 sm:w-10 lg:w-9 xl:w-10 rounded-md";
+  const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "lg:max-h-[340px] xl:max-h-[360px]";
 
   if (cleanImages.length === 0 && !videoInfo) {
     return (
@@ -395,7 +395,7 @@ export default function ProductGallery({
   return (
     <>
       {/* ── MAIN GALLERY CONTAINER ── */}
-      <div className={`space-y-2.5 w-full ${isModal ? "max-w-[340px] mx-auto" : ""}`}>
+      <div className={`space-y-1.5 sm:space-y-2 w-full ${isModal ? "max-w-[340px] mx-auto" : ""}`}>
         {/* Video Mode: YouTube, Vimeo, or Direct HTML5 Video */}
         {mediaMode === "video" && videoInfo ? (
           <div className={`relative aspect-[3/4] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-black border border-border/70 shadow-sm group`}>
@@ -535,7 +535,7 @@ export default function ProductGallery({
 
             <div
               ref={thumbContainerRef}
-              className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 no-scrollbar select-none touch-pan-x"
+              className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar select-none touch-pan-x"
               onPointerDown={onThumbPointerDown}
               onPointerMove={onThumbPointerMove}
               onPointerUp={onThumbPointerUp}

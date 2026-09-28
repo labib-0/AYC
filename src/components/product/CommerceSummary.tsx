@@ -22,21 +22,21 @@ export default function CommerceSummary({
 }: CommerceSummaryProps) {
   return (
     <div
-      className={`rounded-xl border border-border/80 bg-secondary/25 p-3 sm:p-3.5 flex flex-col justify-between space-y-1.5 transition-all ${className}`}
+      className={`rounded-lg border border-border/80 bg-secondary/25 p-2 sm:p-2.5 flex flex-col justify-between space-y-1 transition-all ${className}`}
       aria-label="Order estimated commercial total"
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] sm:text-[11.5px] font-display font-bold uppercase tracking-wider text-muted-foreground">
+      <div className="flex items-center justify-between gap-1.5">
+        <span className="text-[10px] sm:text-[10.5px] font-display font-bold uppercase tracking-wider text-muted-foreground">
           Est. Total
         </span>
         {activeTierName && (
-          <span className="text-[10px] font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+          <span className="text-[9.5px] font-display font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-primary/10 text-primary border border-primary/20">
             {activeTierName}
           </span>
         )}
       </div>
 
-      <div className="text-2xl sm:text-[26px] font-display font-extrabold text-foreground tabular-nums tracking-tight leading-tight">
+      <div className="text-xl sm:text-[22px] font-display font-extrabold text-foreground tabular-nums tracking-tight leading-tight">
         {formatPrice(totalAmount)}
       </div>
     </div>

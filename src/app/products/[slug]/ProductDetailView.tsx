@@ -521,8 +521,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   }
 
   return (
-    <div className="w-full bg-background min-h-screen py-4 sm:py-6">
-      <div className="mx-auto w-full max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8 space-y-4 sm:space-y-5">
+    <div className="w-full bg-background min-h-screen py-2 sm:py-4">
+      <div className="mx-auto w-full max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8 space-y-2.5 sm:space-y-3">
         
         {/* Breadcrumb Navigation */}
         <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -550,10 +550,10 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         )}
 
         {/* MAIN PRODUCT GRID (Balanced ~35-40% Left Gallery, ~60-65% Right Purchase Hierarchy) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 xl:gap-8">
           
           {/* LEFT: GALLERY / MEDIA + SPECIFICATIONS (Compact 3:4 portrait column, sensible desktop max-width, natural mobile width) */}
-          <div className="lg:col-span-5 xl:col-span-4 space-y-3.5 w-full max-w-lg lg:max-w-[420px] xl:max-w-[440px] mx-auto lg:mx-0">
+          <div className="lg:col-span-5 xl:col-span-4 space-y-2.5 w-full max-w-lg lg:max-w-[380px] xl:max-w-[400px] mx-auto lg:mx-0">
             {/* Unified Media Experience (Images + Video + Lightbox) */}
             <ProductGallery
               images={product.images}
@@ -581,7 +581,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             />
 
             {/* Specifications Section — Structured information module underneath gallery */}
-            <div className="pt-4 mt-4 border-t border-border/70 font-sans space-y-2.5">
+            <div className="pt-2.5 mt-2.5 border-t border-border/70 font-sans space-y-2">
               <CommerceSectionHeader
                 title="Specifications"
                 icon={<Sliders size={14} />}
@@ -620,12 +620,12 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           </div>
 
           {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (7 Cols / 8 Cols on XL+ — Sticky on Desktop) */}
-          <div className="lg:col-span-7 xl:col-span-8 lg:sticky lg:top-[80px] lg:self-start w-full flex flex-col space-y-4 sm:space-y-4.5">
+          <div className="lg:col-span-7 xl:col-span-8 lg:sticky lg:top-[72px] lg:self-start w-full flex flex-col space-y-2.5 sm:space-y-3">
             
             {/* ========================================================= */}
             {/* LEVEL 1: PRODUCT IDENTITY & METADATA STRIP */}
             {/* ========================================================= */}
-            <div className="space-y-2 pb-4 border-b border-border/70">
+            <div className="space-y-1.5 pb-2.5 border-b border-border/70">
               
               {/* Compact Metadata Strip */}
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-[12px] font-sans">
@@ -659,7 +659,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               </div>
 
               {/* Product Title (Controlled Manrope Heading) */}
-              <h1 className="text-2xl sm:text-3xl lg:text-[30px] font-display font-extrabold uppercase tracking-tight text-foreground leading-tight pt-1">
+              <h1 className="text-xl sm:text-2xl lg:text-[26px] font-display font-extrabold uppercase tracking-tight text-foreground leading-tight pt-0.5">
                 {product.name}
               </h1>
 
@@ -685,12 +685,12 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               )}
 
               {/* LEVEL 2: CORE COMMERCIAL DATA — DEDICATED PRICE BLOCK */}
-              <div className="pt-2 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2.5">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl sm:text-4xl font-display font-extrabold text-foreground tabular-nums tracking-tight">
+              <div className="pt-1.5 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl sm:text-3xl font-display font-extrabold text-foreground tabular-nums tracking-tight">
                     {formatPrice(currentPrice)}
                   </span>
-                  <span className="text-sm sm:text-base font-sans font-medium text-muted-foreground uppercase tracking-wider">
+                  <span className="text-sm font-sans font-medium text-muted-foreground uppercase tracking-wider">
                     / pc
                   </span>
                 </div>
@@ -730,15 +730,15 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             {/* LEVEL 3.1: VOLUME PRICING TIER MODULE */}
             {/* ========================================================= */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <CommerceSectionHeader
                 title="Volume Pricing"
-                icon={<TrendingDown size={15} />}
+                icon={<TrendingDown size={14} />}
               />
 
-              <div className="rounded-xl border border-border/80 bg-card p-3 sm:p-3.5 space-y-1.5 shadow-2xs" role="radiogroup" aria-label="Pricing Tiers">
+              <div className="rounded-lg border border-border/80 bg-card p-2 sm:p-2.5 space-y-0.5 shadow-2xs" role="radiogroup" aria-label="Pricing Tiers">
                 {/* Column Legend */}
-                <div className="grid grid-cols-[30%_35%_35%] px-3.5 pb-1 text-[10.5px] font-display font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
+                <div className="grid grid-cols-[30%_35%_35%] px-2.5 pb-1 text-[9.5px] font-display font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
                   <div>Tier</div>
                   <div>Quantity</div>
                   <div className="text-right">Unit Price</div>
@@ -778,11 +778,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             {/* LEVEL 3.2: ORDER QUANTITY & ESTIMATED TOTAL DECISION BLOCK */}
             {/* ========================================================= */}
-            <div className="space-y-2.5 sm:space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-stretch">
+            <div className="space-y-2 sm:space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-2.5 items-stretch">
                 
                 {/* Order Quantity Stepper Module */}
-                <div className="sm:col-span-6 rounded-xl border border-border/80 bg-card p-3 sm:p-3.5 flex flex-col justify-between space-y-2 shadow-2xs">
+                <div className="sm:col-span-6 rounded-lg border border-border/80 bg-card p-2 sm:p-2.5 flex flex-col justify-between space-y-1.5 shadow-2xs">
                   <CommerceSectionHeader
                     title="Order Quantity"
                   />
@@ -822,7 +822,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* LEVEL 3.3: PACKAGE ASSORTMENT COMMERCE MODULE */}
             {matrixData ? (
               <div>
-                <div className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
+                <div className="rounded-lg border border-border/80 bg-secondary/15 p-2.5 sm:p-3 space-y-2 shadow-2xs">
                   <CommerceSectionHeader
                     title="Package Breakdown"
                     icon={<Package size={15} />}
@@ -841,12 +841,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               </div>
             ) : (
               <div>
-                <div className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 sm:p-4 space-y-1.5 shadow-2xs">
+                <div className="rounded-lg border border-border/80 bg-secondary/15 px-3 py-2 sm:px-3.5 sm:py-2 flex items-center gap-2.5 shadow-2xs">
                   <CommerceSectionHeader
                     title="Package Details"
-                    icon={<Package size={15} />}
+                    icon={<Package size={13} />}
+                    className="pb-0 mb-0 flex-1"
                   />
-                  <p className="text-xs text-muted-foreground font-medium pl-6">
+                  <p className="text-xs text-muted-foreground font-medium shrink-0">
                     See product images.
                   </p>
                 </div>
@@ -856,13 +857,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             {/* LEVEL 4: PRIMARY ACTION (ADD TO CART) & SECONDARY CTAS */}
             {/* ========================================================= */}
-            <div className="space-y-3 pt-2 font-sans">
-              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+            <div className="space-y-2 pt-1 font-sans">
+              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-2.5">
                 <button
                   type="button"
                   id="add-to-cart-button"
                   onClick={handleAddToCart}
-                  className="w-full sm:flex-1 h-12 sm:h-13 px-5 rounded-xl bg-foreground text-background font-display font-extrabold text-[13px] sm:text-[14px] uppercase tracking-wider hover:bg-foreground/90 active:scale-[0.99] transition-all duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2 group"
+                  className="w-full sm:flex-1 h-10 lg:h-11 px-5 rounded-xl bg-foreground text-background font-display font-extrabold text-[13px] sm:text-[14px] uppercase tracking-wider hover:bg-foreground/90 active:scale-[0.99] transition-all duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2 group"
                 >
                   <ShoppingCart size={17} className="group-hover:scale-110 transition-transform" />
                   <span>Add to Cart</span>
@@ -872,7 +873,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   type="button"
                   id="add-to-rfq-button"
                   onClick={handleAddToRfq}
-                  className={`w-full sm:flex-1 h-12 sm:h-13 px-5 rounded-xl font-display font-extrabold text-[13px] sm:text-[14px] uppercase tracking-wider transition-all duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2 border ${
+                  className={`w-full sm:flex-1 h-10 lg:h-11 px-5 rounded-xl font-display font-extrabold text-[13px] sm:text-[14px] uppercase tracking-wider transition-all duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2 border ${
                     addedRfqSuccess
                       ? "bg-emerald-600 text-white border-emerald-600"
                       : "bg-card text-foreground border-border hover:bg-secondary/60 active:scale-[0.99]"
@@ -900,7 +901,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                       toggleWishlist(toStorefrontProduct(product));
                     }
                   }}
-                  className={`h-12 sm:h-13 w-12 sm:w-13 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-2xs self-end sm:self-auto ${
+                  className={`h-10 lg:h-11 w-10 lg:w-11 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-2xs self-end sm:self-auto ${
                     product && isInWishlist(product.id)
                       ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/30 dark:border-rose-800"
                       : "border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/40 hover:border-border"

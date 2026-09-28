@@ -183,18 +183,18 @@ export default function ProductSelectedLogisticsRow({
 
   return (
     <div
-      className={`rounded-xl border border-border/70 bg-secondary/15 px-3.5 py-2 sm:px-4 sm:py-2.5 shadow-2xs ${className}`}
+      className={`rounded-lg border border-border/70 bg-secondary/15 px-3 py-1.5 sm:px-3.5 sm:py-2 shadow-2xs ${className}`}
       aria-label="Order quantity logistics impact"
     >
-      <div className="grid grid-cols-2 gap-3 divide-x divide-border/60">
+      <div className="grid grid-cols-2 gap-2.5 divide-x divide-border/60">
         {/* CBM Metric */}
-        <div className="flex flex-col pl-1 sm:pl-2">
-          <span className="text-[10px] sm:text-[10.5px] font-display font-bold uppercase tracking-wider text-muted-foreground leading-none">
+        <div className="flex flex-col pl-1 sm:pl-1.5">
+          <span className="text-[9.5px] sm:text-[10px] font-display font-bold uppercase tracking-wider text-muted-foreground leading-none">
             CBM
           </span>
           <span
-            className={`text-[13px] sm:text-[14px] font-sans font-bold tabular-nums leading-tight mt-1 ${
-              isConfigured ? "text-foreground" : "text-muted-foreground text-xs font-normal"
+            className={`text-[12px] sm:text-[13px] font-sans font-bold tabular-nums leading-tight mt-0.5 ${
+              isConfigured ? "text-foreground" : "text-muted-foreground text-[11px] font-normal"
             }`}
           >
             {isConfigured && cbm !== null ? `${cbm.toFixed(3)} m³` : "Not configured"}
@@ -202,13 +202,13 @@ export default function ProductSelectedLogisticsRow({
         </div>
 
         {/* Gross Weight Metric */}
-        <div className="flex flex-col pl-3 sm:pl-4">
-          <span className="text-[10px] sm:text-[10.5px] font-display font-bold uppercase tracking-wider text-muted-foreground leading-none">
+        <div className="flex flex-col pl-2.5 sm:pl-3">
+          <span className="text-[9.5px] sm:text-[10px] font-display font-bold uppercase tracking-wider text-muted-foreground leading-none">
             GROSS WEIGHT
           </span>
           <span
-            className={`text-[13px] sm:text-[14px] font-sans font-bold tabular-nums leading-tight mt-1 ${
-              isConfigured ? "text-foreground" : "text-muted-foreground text-xs font-normal"
+            className={`text-[12px] sm:text-[13px] font-sans font-bold tabular-nums leading-tight mt-0.5 ${
+              isConfigured ? "text-foreground" : "text-muted-foreground text-[11px] font-normal"
             }`}
           >
             {isConfigured && formattedWeight !== null
