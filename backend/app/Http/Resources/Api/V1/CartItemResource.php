@@ -48,7 +48,7 @@ class CartItemResource extends JsonResource
                 'sku' => $product->sku,
                 'brand' => $product->brand ? $product->brand->name : 'Ayaan',
                 'price' => (float) $product->wholesale_price,
-                'oldPrice' => $product->msrp_price !== null ? (float) $product->msrp_price : null,
+                'oldPrice' => null,
                 'images' => $imagesList,
                 'color' => $product->color_name,
                 'moq' => (int) ($product->moq ?? 1),

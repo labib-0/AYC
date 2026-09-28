@@ -33,11 +33,11 @@ class ProductController extends ApiController
         $user = $request->user() ?: auth('sanctum')->user();
         $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
 
-        // Status filter (defaults to 'published' for public storefront)
-        if ($request->filled('status') && $request->input('status') !== 'all') {
-            $query->where('status', $request->input('status'));
-        } elseif (!$isAdmin) {
+        // Status filter (defaults to 'published' for public storefront; non-admins can ONLY view published)
+        if (!$isAdmin) {
             $query->where('status', 'published');
+        } elseif ($request->filled('status') && $request->input('status') !== 'all') {
+            $query->where('status', $request->input('status'));
         }
 
         $likeOp = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
@@ -343,8 +343,20 @@ class ProductController extends ApiController
      */
     public function store(Request $request): JsonResponse
     {
+        $targetStatus = $request->input('status', 'published');
+        $isPublished = $targetStatus === 'published';
+
+        // Repeated autosave protection: if id of an existing draft is passed, update that draft instead of creating duplicate
+        if ($request->filled('id') && is_numeric($request->input('id'))) {
+            $existing = Product::find((int) $request->input('id'));
+            if ($existing && $existing->status === 'draft') {
+                return $this->update($request, (string) $existing->id);
+            }
+        }
+
         if ($request->has('product_id')) {
-            $request->merge(['product_id' => trim((string) $request->input('product_id'))]);
+            $trimmedPid = trim((string) $request->input('product_id'));
+            $request->merge(['product_id' => $trimmedPid !== '' ? $trimmedPid : null]);
         }
         $productIdInput = (string) $request->input('product_id');
 
@@ -357,8 +369,8 @@ class ProductController extends ApiController
                 Rule::unique('products', 'product_id')->whereNull('deleted_at'),
             ],
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', Rule::unique('products', 'slug')->whereNull('deleted_at')],
-            'sku' => ['required', 'string', Rule::unique('products', 'sku')->whereNull('deleted_at')],
+            'slug' => ['nullable', 'string', Rule::unique('products', 'slug')->whereNull('deleted_at')],
+            'sku' => ['nullable', 'string', Rule::unique('products', 'sku')->whereNull('deleted_at')],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'brand' => ['nullable', 'string'],
             'new_brand_name' => ['nullable', 'string', 'max:255'],
@@ -372,16 +384,16 @@ class ProductController extends ApiController
             'design_type' => ['nullable', 'string'],
             'designType' => ['nullable', 'string'],
             'product_type' => ['nullable', 'string'],
-            'wholesale_price' => ['required', 'numeric', 'min:0.01'],
+            'wholesale_price' => [$isPublished ? 'required' : 'nullable', 'numeric', $isPublished ? 'min:0.01' : 'min:0'],
             'bulk_threshold' => ['nullable', 'integer', 'min:1'],
             'bulk_price' => ['nullable', 'numeric', 'min:0.01'],
-            'full_stock_price' => ['required', 'numeric', 'gt:0'],
+            'full_stock_price' => [$isPublished ? 'required' : 'nullable', 'numeric', $isPublished ? 'gt:0' : 'min:0'],
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0.01'],
             'moq' => ['nullable', 'integer', 'min:1'],
             'initial_stock' => ['nullable', 'integer', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
-            'warehouse_id' => ['required_without:initial_inventory.warehouse_id', 'nullable', 'exists:warehouses,id'],
+            'warehouse_id' => [$isPublished ? 'required_without:initial_inventory.warehouse_id' : 'nullable', 'nullable', 'exists:warehouses,id'],
             'initial_inventory' => ['nullable', 'array'],
             'initial_inventory.warehouse_id' => ['nullable', 'exists:warehouses,id'],
             'initial_inventory.quantity' => ['nullable', 'integer', 'min:0'],
@@ -399,7 +411,7 @@ class ProductController extends ApiController
             'is_limited_deal' => ['nullable', 'boolean'],
             'is_best_deal' => ['nullable', 'boolean'],
             'is_preorder' => ['nullable', 'boolean'],
-            'estimated_delivery_date' => ($request->boolean('is_preorder') && $request->input('status') === 'published')
+            'estimated_delivery_date' => ($request->boolean('is_preorder') && $isPublished)
                 ? ['required', 'date', 'after_or_equal:today']
                 : ['nullable', 'date', 'after_or_equal:today'],
             'video_url' => ['nullable', 'string', 'max:1000'],
@@ -471,6 +483,35 @@ class ProductController extends ApiController
             'initial_stock', 'stock', 'warehouse_id', 'initial_inventory',
         ])->toArray();
 
+        // Autogenerate unique slug for drafts if not provided
+        if (empty($productData['slug'])) {
+            $baseSlug = \Illuminate\Support\Str::slug($validated['name']) ?: 'draft-' . \Illuminate\Support\Str::random(8);
+            $slugCandidate = $baseSlug;
+            $sCount = 1;
+            while (Product::where('slug', $slugCandidate)->whereNull('deleted_at')->exists()) {
+                $slugCandidate = $baseSlug . '-' . (++$sCount);
+            }
+            $productData['slug'] = $slugCandidate;
+        }
+
+        // Autogenerate unique SKU for drafts if not provided
+        if (empty($productData['sku'])) {
+            $baseSku = 'AYN-DFT-' . strtoupper(\Illuminate\Support\Str::random(6));
+            while (Product::where('sku', $baseSku)->whereNull('deleted_at')->exists()) {
+                $baseSku = 'AYN-DFT-' . strtoupper(\Illuminate\Support\Str::random(6));
+            }
+            $productData['sku'] = $baseSku;
+        }
+
+        // Default wholesale price for drafts if omitted
+        if (!isset($productData['wholesale_price']) || $productData['wholesale_price'] === null) {
+            $productData['wholesale_price'] = 0.00;
+        }
+
+        if (!array_key_exists('full_stock_price', $productData)) {
+            $productData['full_stock_price'] = null;
+        }
+
         // Handle Promotional Badge Scheduling
         if (isset($validated['featured_duration_days']) && !empty($validated['featured_duration_days'])) {
             $productData['featured_until'] = now()->addDays((int) $validated['featured_duration_days']);
@@ -499,14 +540,12 @@ class ProductController extends ApiController
             $productData['new_until'] = null;
         }
 
-        // Validate Video URL if provided
+        // Validate Video URL if provided (YouTube ONLY)
         if (!empty($validated['video_url'])) {
             $vUrl = trim($validated['video_url']);
-            $isYt = preg_match('#(youtu\.be/|youtube\.com/)#i', $vUrl);
-            $isVimeo = preg_match('#(vimeo\.com/)#i', $vUrl);
-            $isDirect = preg_match('#\.(mp4|webm|ogg|mov)(\?.*)?$#i', $vUrl);
-            if (!$isYt && !$isVimeo && !$isDirect) {
-                return $this->error("Video URL must be a valid YouTube, Vimeo, or direct video file (.mp4, .webm) link.", 422);
+            $isYt = preg_match('#^(?:https?://)?(?:www\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})#i', $vUrl);
+            if (!$isYt) {
+                return $this->error("Video URL must be a valid YouTube link (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...).", 422);
             }
             $productData['video_url'] = $vUrl;
         } else {
@@ -574,23 +613,27 @@ class ProductController extends ApiController
 
         // Enforce MOQ >= 1
         $effectiveMoq = isset($productData['moq']) ? (int) $productData['moq'] : null;
-        $isPublished = ($request->input('status') ?? 'draft') === 'published';
         if ($isPublished && ($effectiveMoq === null || $effectiveMoq < 1) && empty($validated['package_allocations'])) {
             return $this->error("The MOQ (Minimum Order Quantity) is required and must be at least 1.", 422);
         }
         $moq = (int) ($productData['moq'] ?? 1);
         $productData['moq'] = $moq;
 
-        // Resolve target warehouse (Required)
+        // Resolve target warehouse
         $warehouseId = $validated['warehouse_id'] ?? $validated['initial_inventory']['warehouse_id'] ?? null;
         if (!$warehouseId) {
-            return $this->error("Initial warehouse is required.", 422);
+            if ($isPublished) {
+                return $this->error("Initial warehouse is required.", 422);
+            }
+            $whCheck = \App\Models\Warehouse::where('is_active', true)->first();
+            $targetWarehouseId = $whCheck ? $whCheck->id : 1;
+        } else {
+            $whCheck = \App\Models\Warehouse::where('id', $warehouseId)->first();
+            if (!$whCheck || !$whCheck->is_active) {
+                return $this->error("The selected warehouse is inactive or does not exist.", 422);
+            }
+            $targetWarehouseId = $whCheck->id;
         }
-        $whCheck = \App\Models\Warehouse::where('id', $warehouseId)->first();
-        if (!$whCheck || !$whCheck->is_active) {
-            return $this->error("The selected warehouse is inactive or does not exist.", 422);
-        }
-        $targetWarehouseId = $whCheck->id;
 
         // Resolve initial stock (>= 0)
         $initialStock = isset($validated['initial_stock'])
@@ -602,23 +645,26 @@ class ProductController extends ApiController
             return $this->error("Initial stock cannot be negative.", 422);
         }
 
-        // Validate bulk tier pricing: at least one valid bulk pricing tier is required
-        $hasDirectBulkTier = !empty($productData['bulk_threshold']) && !empty($productData['bulk_price']) && (float) $productData['bulk_price'] > 0;
         $hasPricingTiers = $request->has('pricing_tiers') && is_array($request->input('pricing_tiers')) && count($request->input('pricing_tiers')) > 0;
 
-        if (!$hasDirectBulkTier && !$hasPricingTiers) {
-            return $this->error("At least one valid bulk pricing tier is required.", 422);
-        }
+        // Validate bulk tier pricing: only required when publishing
+        if ($isPublished) {
+            $hasDirectBulkTier = !empty($productData['bulk_threshold']) && !empty($productData['bulk_price']) && (float) $productData['bulk_price'] > 0;
 
-        if (!empty($productData['bulk_threshold'])) {
-            if (empty($productData['bulk_price']) || (float) $productData['bulk_price'] <= 0) {
-                return $this->error("Bulk tier price must be greater than 0.", 422);
+            if (!$hasDirectBulkTier && !$hasPricingTiers) {
+                return $this->error("At least one valid bulk pricing tier is required.", 422);
             }
-            if ((int) $productData['bulk_threshold'] <= $moq) {
-                return $this->error("Bulk threshold ({$productData['bulk_threshold']}) must be strictly greater than MOQ ({$moq}).", 422);
+
+            if (!empty($productData['bulk_threshold'])) {
+                if (empty($productData['bulk_price']) || (float) $productData['bulk_price'] <= 0) {
+                    return $this->error("Bulk tier price must be greater than 0.", 422);
+                }
+                if ((int) $productData['bulk_threshold'] <= $moq) {
+                    return $this->error("Bulk threshold ({$productData['bulk_threshold']}) must be strictly greater than MOQ ({$moq}).", 422);
+                }
+            } elseif (!empty($productData['bulk_price']) && (float) $productData['bulk_price'] > 0) {
+                return $this->error("Bulk quantity threshold is required when bulk price is provided.", 422);
             }
-        } elseif (!empty($productData['bulk_price']) && (float) $productData['bulk_price'] > 0) {
-            return $this->error("Bulk quantity threshold is required when bulk price is provided.", 422);
         }
 
         // Validate Pricing Tiers before transaction if provided
@@ -738,7 +784,7 @@ class ProductController extends ApiController
                         'size' => $vSize,
                         'color' => $vColor,
                         'price' => $var['price'] ?? $product->wholesale_price,
-                        'compare_at_price' => $var['compare_at_price'] ?? $product->msrp_price,
+                        'compare_at_price' => $var['compare_at_price'] ?? null,
                         'stock' => $varStock,
                         'is_default' => $var['is_default'] ?? ($idx === 0),
                         'is_active' => $var['is_active'] ?? true,
@@ -779,7 +825,7 @@ class ProductController extends ApiController
                     'size' => $vSize,
                     'color' => $vColor,
                     'price' => $product->wholesale_price,
-                    'compare_at_price' => $product->msrp_price,
+                    'compare_at_price' => null,
                     'stock' => $initialStock,
                     'is_default' => true,
                     'is_active' => true,
@@ -920,7 +966,7 @@ class ProductController extends ApiController
     {
         $product = is_numeric($id)
             ? Product::find((int) $id)
-            : Product::where('slug', $id)->orWhere('sku', $id)->first();
+            : Product::where('product_id', $id)->orWhere('slug', $id)->orWhere('sku', $id)->first();
 
         if (!$product) {
             return $this->notFound('Product not found');
@@ -930,17 +976,19 @@ class ProductController extends ApiController
             ? $request->boolean('is_preorder')
             : (bool) $product->is_preorder;
         $effectiveStatus = $request->input('status', $product->status);
-        $isPreorderPublish = $effectivePreorder && $effectiveStatus === 'published';
+        $isPublished = $effectiveStatus === 'published';
+        $isPreorderPublish = $effectivePreorder && $isPublished;
 
         if ($request->has('product_id')) {
-            $request->merge(['product_id' => trim((string) $request->input('product_id'))]);
+            $trimmedPid = trim((string) $request->input('product_id'));
+            $request->merge(['product_id' => $trimmedPid !== '' ? $trimmedPid : null]);
         }
         $productIdInput = (string) ($request->input('product_id') ?? $product->product_id);
 
         $validated = $request->validate([
             'product_id' => [
                 'sometimes',
-                'required',
+                $isPublished ? 'required' : 'nullable',
                 'string',
                 'max:100',
                 'regex:/^[A-Za-z0-9_\-]+$/',
@@ -962,10 +1010,10 @@ class ProductController extends ApiController
             'design_type' => ['nullable', 'string'],
             'designType' => ['nullable', 'string'],
             'product_type' => ['nullable', 'string'],
-            'wholesale_price' => ['sometimes', 'numeric', 'min:0.01'],
+            'wholesale_price' => ['sometimes', 'numeric', $isPublished ? 'min:0.01' : 'min:0'],
             'bulk_threshold' => ['nullable', 'integer', 'min:1'],
             'bulk_price' => ['nullable', 'numeric', 'min:0.01'],
-            'full_stock_price' => ['sometimes', 'required', 'numeric', 'gt:0'],
+            'full_stock_price' => ['sometimes', $isPublished ? 'required' : 'nullable', 'numeric', $isPublished ? 'gt:0' : 'min:0'],
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0.01'],
             'moq' => ['nullable', 'integer', 'min:1'],
@@ -1037,7 +1085,7 @@ class ProductController extends ApiController
         }
 
         // Pricing protection
-        $hasPricingChanges = $request->hasAny(['wholesale_price', 'bulk_price', 'bulk_threshold', 'cost_price', 'full_stock_price', 'msrp_price', 'pricing_tiers']);
+        $hasPricingChanges = $request->hasAny(['wholesale_price', 'bulk_price', 'bulk_threshold', 'cost_price', 'full_stock_price', 'pricing_tiers']);
         if ($hasPricingChanges && !$this->authorization->can($user, 'product.pricing.manage')) {
             return $this->forbidden("Forbidden: you do not have the 'product.pricing.manage' permission to update pricing.");
         }
@@ -1091,15 +1139,13 @@ class ProductController extends ApiController
             $productData['estimated_delivery_date'] = null;
         }
 
-        // Validate Video URL if provided
+        // Validate Video URL if provided (YouTube ONLY)
         if (array_key_exists('video_url', $validated)) {
             if (!empty($validated['video_url'])) {
                 $vUrl = trim($validated['video_url']);
-                $isYt = preg_match('#(youtu\.be/|youtube\.com/)#i', $vUrl);
-                $isVimeo = preg_match('#(vimeo\.com/)#i', $vUrl);
-                $isDirect = preg_match('#\.(mp4|webm|ogg|mov)(\?.*)?$#i', $vUrl);
-                if (!$isYt && !$isVimeo && !$isDirect) {
-                    return $this->error("Video URL must be a valid YouTube, Vimeo, or direct video file (.mp4, .webm) link.", 422);
+                $isYt = preg_match('#^(?:https?://)?(?:www\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})#i', $vUrl);
+                if (!$isYt) {
+                    return $this->error("Video URL must be a valid YouTube link (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...).", 422);
                 }
                 $productData['video_url'] = $vUrl;
             } else {
@@ -1161,7 +1207,7 @@ class ProductController extends ApiController
         $effectiveMoq = (int) ($productData['moq'] ?? $product->moq ?? 1);
         $effectiveBulkThresh = isset($productData['bulk_threshold']) ? (int)$productData['bulk_threshold'] : (int)$product->bulk_threshold;
 
-        if ($effectiveBulkThresh > 0 && $effectiveBulkThresh <= $effectiveMoq) {
+        if ($isPublished && $effectiveBulkThresh > 0 && $effectiveBulkThresh <= $effectiveMoq) {
             return $this->error("Bulk threshold ({$effectiveBulkThresh}) must be strictly greater than MOQ ({$effectiveMoq})", 422);
         }
 
@@ -1265,7 +1311,7 @@ class ProductController extends ApiController
                         'size' => $vSize,
                         'color' => $vColor,
                         'price' => $var['price'] ?? $product->wholesale_price,
-                        'compare_at_price' => $var['compare_at_price'] ?? $product->msrp_price,
+                        'compare_at_price' => $var['compare_at_price'] ?? null,
                         'stock' => $var['stock'] ?? 0,
                         'is_default' => $var['is_default'] ?? false,
                         'is_active' => $var['is_active'] ?? true,
@@ -1484,17 +1530,26 @@ class ProductController extends ApiController
             ->firstOrFail();
 
         $request->validate([
-            'image' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,webp,svg', 'max:5120'],
+            'image' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
             'is_primary' => ['nullable', 'boolean'],
             'alt_text' => ['nullable', 'string', 'max:255'],
+        ], [
+            'image.required' => 'Please select an image file to upload.',
+            'image.image' => 'The file must be a valid image (JPG, PNG, or WebP).',
+            'image.mimes' => 'Unsupported format. Only JPG, PNG, and WebP images are supported.',
+            'image.max' => 'The image exceeds the 5MB maximum file size limit. Please upload an image under 5MB.',
         ]);
 
         $file = $request->file('image');
-        $path = $file->store('products', 'public');
-        if (!$path || !is_string($path) || !Storage::disk('public')->exists($path)) {
-            return $this->serverError('Failed to store product image on disk. Please verify filesystem permissions.');
+        try {
+            $pipeline = app(\App\Services\Media\ProductImagePipelineService::class);
+            $result = $pipeline->processAndStore($file, 'products');
+            $url = $result['url'];
+        } catch (\InvalidArgumentException $e) {
+            return $this->error($e->getMessage(), 422);
+        } catch (\Throwable $e) {
+            return $this->serverError('Image processing failed: ' . $e->getMessage());
         }
-        $url = asset('storage/' . $path);
 
         $isPrimary = $request->boolean('is_primary');
         if ($isPrimary) {

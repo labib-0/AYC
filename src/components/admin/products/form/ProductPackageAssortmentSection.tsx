@@ -258,9 +258,8 @@ export default function ProductPackageAssortmentSection({
               return (
                 <tr key={color} className="hover:bg-secondary/10 transition-colors">
                   {/* Color Label */}
-                  <td className="py-2 px-3.5 font-semibold text-foreground flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0 bg-muted-foreground/30" />
-                    <span className="truncate max-w-[120px]">{color}</span>
+                  <td className="py-2 px-3.5 font-semibold text-foreground">
+                    <span className="truncate max-w-[140px] block">{color}</span>
                   </td>
 
                   {/* Size Input Cells with [ − ] [ quantity ] [ + ] and direct editing */}

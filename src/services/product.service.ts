@@ -118,15 +118,6 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     ? p.price_cents / 100
     : Number(p.price) || 15;
 
-  const msrpPrice = p.msrpPrice !== undefined && p.msrpPrice !== null
-    ? Number(p.msrpPrice)
-    : p.msrp_price !== undefined && p.msrp_price !== null
-    ? Number(p.msrp_price)
-    : p.compare_at_price_cents !== undefined && p.compare_at_price_cents !== null
-    ? p.compare_at_price_cents / 100
-    : p.oldPrice !== undefined && p.oldPrice !== null
-    ? Number(p.oldPrice)
-    : Math.round(wholesalePrice * 1.6 * 100) / 100;
 
   const stock = p.stock !== undefined
     ? Number(p.stock)
@@ -155,8 +146,7 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     p.isLimitedDeal ||
     p.isLimitedTimeOffer ||
     isFeatured ||
-    isHot ||
-    (msrpPrice > wholesalePrice)
+    isHot
   );
 
   const isPreorder = Boolean(p.isPreorder ?? p.is_preorder);
@@ -337,7 +327,6 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     isFullStockEligible: isFullStockEligible,
     fullStockQuantity: fullStockQuantity,
     fullStockTotal: fullStockTotal,
-    msrpPrice: msrpPrice,
     moq: moqVal,
     stock: realAvailableStock,
     onHandStock,
@@ -392,13 +381,6 @@ export function toStorefrontProduct(p: any): Product {
     ? Number(p.price)
     : 0;
 
-  const msrpPrice = p.msrpPrice !== undefined && p.msrpPrice !== null
-    ? Number(p.msrpPrice)
-    : p.msrp_price !== undefined && p.msrp_price !== null
-    ? Number(p.msrp_price)
-    : p.oldPrice !== undefined && p.oldPrice !== null
-    ? Number(p.oldPrice)
-    : Math.round(wholesalePrice * 1.6 * 100) / 100;
 
   const rawImages = Array.isArray(p.images) && p.images.length > 0
     ? p.images
@@ -418,7 +400,6 @@ export function toStorefrontProduct(p: any): Product {
     name: p.name,
     slug: p.slug,
     price: wholesalePrice,
-    oldPrice: msrpPrice,
     wholesalePrice: wholesalePrice,
     standardPrice: p.standardPrice || wholesalePrice,
     bulkThreshold: p.bulkThreshold || p.bulk_threshold,
@@ -465,6 +446,8 @@ export function toStorefrontProduct(p: any): Product {
     videoUrl: p.videoUrl || p.video_url,
     youtubeVideoId: p.youtubeVideoId || p.youtube_video_id,
     youtubeEmbedUrl: p.youtubeEmbedUrl || p.youtube_embed_url,
+    status: p.status || "draft",
+    isDraft: (p.status || "draft") === "draft",
   };
 }
 
@@ -667,11 +650,13 @@ export class ProductService {
   private toBackendPayload(input: Partial<B2BProductInput>): Record<string, any> {
     const payload: Record<string, any> = { ...input };
 
+    if ((input as any).productId !== undefined) payload.product_id = (input as any).productId;
+    if ((input as any).product_id !== undefined) payload.product_id = (input as any).product_id;
+
     if (input.wholesalePrice !== undefined) payload.wholesale_price = input.wholesalePrice;
     if (input.bulkPrice !== undefined) payload.bulk_price = input.bulkPrice;
     if (input.bulkThreshold !== undefined) payload.bulk_threshold = input.bulkThreshold;
     if (input.fullStockPrice !== undefined) payload.full_stock_price = input.fullStockPrice;
-    if (input.msrpPrice !== undefined) payload.msrp_price = input.msrpPrice;
     if (input.costPrice !== undefined) payload.cost_price = input.costPrice;
 
     if (input.shortDescription !== undefined) payload.short_description = input.shortDescription;

@@ -78,9 +78,9 @@ export default function ProductTableRow({
   const brandLogo = getBrandLogoUrl(product.brand);
 
   const isUnderAdminPath = pathname.startsWith("/admin");
-  const editHref = isUnderAdminPath
-    ? `/admin/products/${product.id}/edit`
-    : `/products/${product.id}/edit`;
+  const editHref = product.id === "draft_local_new"
+    ? (isUnderAdminPath ? "/admin/products/new?resume=true" : "/products/new?resume=true")
+    : (isUnderAdminPath ? `/admin/products/${product.id}/edit` : `/products/${product.id}/edit`);
   const storefrontHref = `${storefrontBase}/products/${product.slug}`;
 
   return (

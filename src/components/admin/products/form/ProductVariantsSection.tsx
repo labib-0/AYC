@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, X, Layers, AlertCircle, Check, Pipette } from "lucide-react";
+import { Plus, X, Layers, AlertCircle, Check } from "lucide-react";
 
 export const PREDEFINED_PALETTE = [
   { name: "Black", hex: "#111827", dark: true },
@@ -21,17 +21,6 @@ export const PREDEFINED_PALETTE = [
   { name: "Olive", hex: "#556B2F", dark: true },
   { name: "Charcoal", hex: "#374151", dark: true },
   { name: "Teal", hex: "#0D9488", dark: true },
-];
-
-export const QUICK_CUSTOM_PALETTE = [
-  { name: "Heather Grey", hex: "#D9D9D9" },
-  { name: "Burgundy", hex: "#800020" },
-  { name: "Sage Green", hex: "#9CAF88" },
-  { name: "Coral", hex: "#FF7F50" },
-  { name: "Khaki", hex: "#C3B091" },
-  { name: "Indigo", hex: "#4B0082" },
-  { name: "Dusty Rose", hex: "#DCAE96" },
-  { name: "Slate", hex: "#708090" },
 ];
 
 export const SIZE_PRESETS = [
@@ -59,11 +48,6 @@ export function parseSizesInput(input: string): string[] {
   });
 }
 
-interface CustomColorItem {
-  name: string;
-  hex: string;
-}
-
 interface ProductVariantsSectionProps {
   colors: string[];
   sizes: string[];
@@ -85,12 +69,17 @@ export default function ProductVariantsSection({
   onSizesChange,
   onStockChange,
 }: ProductVariantsSectionProps) {
-  // Custom Color State
-  const [customColorsList, setCustomColorsList] = useState<CustomColorItem[]>(() => {
+  // Custom Color Names List (saved to localStorage for reuse)
+  const [customColorsList, setCustomColorsList] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("ayaan_admin_custom_colors");
-        if (stored) return JSON.parse(stored);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            return parsed.map((item) => (typeof item === "string" ? item : item.name)).filter(Boolean);
+          }
+        }
       } catch {
         // Fallback
       }
@@ -98,10 +87,9 @@ export default function ProductVariantsSection({
     return [];
   });
 
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [pickerHex, setPickerHex] = useState("#D9D9D9");
-  const [pickerName, setPickerName] = useState("");
-  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [showAddCustom, setShowAddCustom] = useState(false);
+  const [customColorInput, setCustomColorInput] = useState("");
+  const [customColorError, setCustomColorError] = useState<string | null>(null);
 
   // Custom Size Input State
   const [customSize, setCustomSize] = useState("");
@@ -114,19 +102,17 @@ export default function ProductVariantsSection({
         (p) => p.name.toLowerCase() === c.toLowerCase()
       );
       const isCustomKnown = customColorsList.some(
-        (cc) => cc.name.toLowerCase() === c.toLowerCase()
+        (cc) => cc.toLowerCase() === c.toLowerCase()
       );
       if (!isPredefined && !isCustomKnown) {
-        // Add default entry for this color
-        const newItem: CustomColorItem = { name: c, hex: "#6B7280" };
-        setCustomColorsList((prev) => [...prev, newItem]);
+        setCustomColorsList((prev) => [...prev, c]);
       }
     });
   }, [colors, customColorsList]);
 
   // Save custom colors to localStorage when updated
-  const saveCustomColor = (name: string, hex: string) => {
-    const next = [...customColorsList.filter((c) => c.name.toLowerCase() !== name.toLowerCase()), { name, hex }];
+  const saveCustomColorName = (name: string) => {
+    const next = [...customColorsList.filter((c) => c.toLowerCase() !== name.toLowerCase()), name];
     setCustomColorsList(next);
     if (typeof window !== "undefined") {
       try {
@@ -135,18 +121,6 @@ export default function ProductVariantsSection({
         // Ignore
       }
     }
-  };
-
-  const getColorHex = (colorName: string): string => {
-    const predefined = PREDEFINED_PALETTE.find(
-      (p) => p.name.toLowerCase() === colorName.toLowerCase()
-    );
-    if (predefined) return predefined.hex;
-    const custom = customColorsList.find(
-      (c) => c.name.toLowerCase() === colorName.toLowerCase()
-    );
-    if (custom) return custom.hex;
-    return "#6B7280";
   };
 
   const toggleColor = (colorName: string) => {
@@ -159,10 +133,10 @@ export default function ProductVariantsSection({
   };
 
   const handleAddCustomColor = () => {
-    setPickerError(null);
-    const trimmedName = pickerName.trim();
+    setCustomColorError(null);
+    const trimmedName = customColorInput.trim();
     if (!trimmedName) {
-      setPickerError("Please enter a name for the color (e.g. Heather Grey).");
+      setCustomColorError("Please enter a color name (e.g. Wine Red).");
       return;
     }
 
@@ -170,23 +144,18 @@ export default function ProductVariantsSection({
     const predefinedMatch = PREDEFINED_PALETTE.find(
       (p) => p.name.toLowerCase() === trimmedName.toLowerCase()
     );
-    if (predefinedMatch) {
-      if (!colors.includes(predefinedMatch.name)) {
-        onColorsChange([...colors, predefinedMatch.name]);
-      }
-      setShowColorPicker(false);
-      setPickerName("");
-      return;
+    const resolvedName = predefinedMatch ? predefinedMatch.name : trimmedName;
+
+    if (!colors.includes(resolvedName)) {
+      onColorsChange([...colors, resolvedName]);
     }
 
-    // Save custom color and select it
-    saveCustomColor(trimmedName, pickerHex);
-    if (!colors.includes(trimmedName)) {
-      onColorsChange([...colors, trimmedName]);
+    if (!predefinedMatch) {
+      saveCustomColorName(resolvedName);
     }
 
-    setShowColorPicker(false);
-    setPickerName("");
+    setShowAddCustom(false);
+    setCustomColorInput("");
   };
 
   const toggleSize = (sizeName: string) => {
@@ -249,7 +218,7 @@ export default function ProductVariantsSection({
         </div>
 
         {/* Colors Selector */}
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
               Colors <span className="text-red-500">*</span> ({colors.length} selected)
@@ -258,180 +227,122 @@ export default function ProductVariantsSection({
             <button
               type="button"
               onClick={() => {
-                setShowColorPicker(!showColorPicker);
-                setPickerError(null);
+                setShowAddCustom(!showAddCustom);
+                setCustomColorError(null);
               }}
-              className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
             >
               <Plus size={12} />
-              {showColorPicker ? "Close Color Picker" : "Add Custom Color"}
+              {showAddCustom ? "Cancel" : "Add Custom Color"}
             </button>
           </div>
 
-          {/* Palette Swatches (Predefined + Custom) */}
-          <div className="flex flex-wrap gap-2">
-            {PREDEFINED_PALETTE.map((p) => {
-              const isSelected = colors.includes(p.name);
-              return (
+          {/* Active Selected Color Pills (Text tags with remove X) */}
+          <div className="flex flex-wrap gap-1.5">
+            {colors.map((c) => (
+              <span
+                key={c}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-foreground text-background border border-foreground shadow-xs"
+              >
+                <span>{c}</span>
                 <button
-                  key={p.name}
                   type="button"
-                  onClick={() => toggleColor(p.name)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                    isSelected
-                      ? "bg-foreground text-background border-foreground shadow-xs scale-[1.02]"
-                      : "bg-card text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
-                  }`}
+                  onClick={() => toggleColor(c)}
+                  disabled={colors.length <= 1}
+                  className="hover:opacity-75 p-0.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label={`Remove color ${c}`}
+                  title={colors.length <= 1 ? "At least one color required" : `Remove ${c}`}
                 >
-                  <span
-                    className="w-3 h-3 rounded-full border border-black/20 shrink-0"
-                    style={{ backgroundColor: p.hex }}
-                  />
-                  <span>{p.name}</span>
-                  {isSelected && <Check size={12} />}
+                  <X size={12} />
                 </button>
-              );
-            })}
-
-            {/* Custom Created Colors */}
-            {customColorsList.map((c) => {
-              const isSelected = colors.includes(c.name);
-              return (
-                <button
-                  key={c.name}
-                  type="button"
-                  onClick={() => toggleColor(c.name)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                    isSelected
-                      ? "bg-foreground text-background border-foreground shadow-xs scale-[1.02]"
-                      : "bg-card text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
-                  }`}
-                >
-                  <span
-                    className="w-3 h-3 rounded-full border border-black/20 shrink-0 shadow-2xs"
-                    style={{ backgroundColor: c.hex }}
-                  />
-                  <span>{c.name}</span>
-                  {isSelected && <Check size={12} />}
-                </button>
-              );
-            })}
+              </span>
+            ))}
           </div>
 
-          {/* Visual Color Selection Interface (Picker Popover Card) */}
-          {showColorPicker && (
-            <div className="p-4 rounded-xl border border-border bg-secondary/30 space-y-3.5 max-w-md animate-in fade-in slide-in-from-top-2 duration-150 shadow-sm">
-              <div className="flex items-center justify-between border-b border-border/60 pb-2">
-                <div className="flex items-center gap-2">
-                  <Pipette size={14} className="text-primary" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                    Custom Color Palette &amp; Picker
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowColorPicker(false)}
-                  className="text-muted-foreground hover:text-foreground p-0.5"
-                >
-                  <X size={14} />
-                </button>
-              </div>
+          {/* Preset Color Names (Clean text buttons, no dots) */}
+          <div className="space-y-1.5 pt-1">
+            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+              Preset Colors:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {PREDEFINED_PALETTE.map((p) => {
+                const isSelected = colors.includes(p.name);
+                return (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => toggleColor(p.name)}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-secondary text-foreground border-foreground/50 shadow-2xs font-bold"
+                        : "bg-card text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
+                    }`}
+                  >
+                    <span>{p.name}</span>
+                    {isSelected && <Check size={12} className="text-primary shrink-0" />}
+                  </button>
+                );
+              })}
 
-              {/* Quick swatch suggestions */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  Quick Palette Suggestions:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {QUICK_CUSTOM_PALETTE.map((qp) => (
+              {/* Previously Saved Custom Colors (Text Buttons) */}
+              {customColorsList
+                .filter((c) => !PREDEFINED_PALETTE.some((p) => p.name.toLowerCase() === c.toLowerCase()))
+                .map((c) => {
+                  const isSelected = colors.includes(c);
+                  return (
                     <button
-                      key={qp.name}
+                      key={c}
                       type="button"
-                      onClick={() => {
-                        setPickerHex(qp.hex);
-                        if (!pickerName) setPickerName(qp.name);
-                      }}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border bg-background text-[11px] font-medium text-foreground hover:border-primary transition-colors"
+                      onClick={() => toggleColor(c)}
+                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-secondary text-foreground border-foreground/50 shadow-2xs font-bold"
+                          : "bg-card text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
+                      }`}
                     >
-                      <span
-                        className="w-2.5 h-2.5 rounded-full border border-black/20 shrink-0"
-                        style={{ backgroundColor: qp.hex }}
-                      />
-                      <span>{qp.name}</span>
+                      <span>{c}</span>
+                      {isSelected && <Check size={12} className="text-primary shrink-0" />}
                     </button>
-                  ))}
-                </div>
-              </div>
+                  );
+                })}
+            </div>
+          </div>
 
-              {/* Visual Color Input and Color Name */}
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                {/* Visual Picker */}
-                <div className="sm:col-span-4 flex items-center gap-2">
-                  <label className="relative flex items-center cursor-pointer">
-                    <input
-                      type="color"
-                      value={pickerHex}
-                      onChange={(e) => setPickerHex(e.target.value)}
-                      className="w-10 h-10 rounded-xl cursor-pointer border border-border bg-transparent p-0.5"
-                      title="Choose custom color visually"
-                    />
-                  </label>
-                  <div className="space-y-0.5">
-                    <span className="text-[9px] uppercase font-bold text-muted-foreground block">
-                      Hex Value
-                    </span>
-                    <span className="text-xs font-mono font-bold text-foreground">
-                      {pickerHex.toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Color Name */}
-                <div className="sm:col-span-8">
-                  <input
-                    type="text"
-                    value={pickerName}
-                    onChange={(e) => setPickerName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddCustomColor();
-                      }
-                    }}
-                    placeholder="Color Name (e.g. Heather Grey)"
-                    className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                  />
-                </div>
-              </div>
-
-              {pickerError && (
-                <p className="text-[11px] text-red-500 flex items-center gap-1 font-medium">
-                  <AlertCircle size={12} />
-                  {pickerError}
-                </p>
-              )}
-
-              {/* Save Button */}
-              <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40">
-                <button
-                  type="button"
-                  onClick={() => setShowColorPicker(false)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground"
-                >
-                  Cancel
-                </button>
+          {/* Add Custom Color Name Input (No color picker, no hex, no dots) */}
+          {showAddCustom && (
+            <div className="p-3.5 rounded-xl border border-border bg-secondary/30 space-y-2 max-w-md animate-in fade-in slide-in-from-top-1 duration-150 shadow-xs">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-foreground block">
+                Enter Custom Color Name
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={customColorInput}
+                  onChange={(e) => setCustomColorInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddCustomColor();
+                    }
+                  }}
+                  placeholder="Color Name (e.g. Wine Red)"
+                  className="flex-1 h-9 px-3 rounded-xl border border-border bg-background text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  autoFocus
+                />
                 <button
                   type="button"
                   onClick={handleAddCustomColor}
-                  className="px-4 py-1.5 rounded-lg bg-foreground text-background text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center gap-1 shadow-xs"
+                  className="h-9 px-4 rounded-xl bg-foreground text-background text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center gap-1 shrink-0 cursor-pointer shadow-xs"
                 >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full border border-black/20"
-                    style={{ backgroundColor: pickerHex }}
-                  />
-                  <span>Add Color</span>
+                  <Plus size={12} /> Add
                 </button>
               </div>
+              {customColorError && (
+                <p className="text-[11px] text-red-500 flex items-center gap-1 font-medium">
+                  <AlertCircle size={12} />
+                  {customColorError}
+                </p>
+              )}
             </div>
           )}
 
@@ -549,11 +460,7 @@ export default function ProductVariantsSection({
                         const vSku = `${sku || "AY-PROD"}-${c.substring(0, 3).toUpperCase()}-${s.toUpperCase()}`;
                         return (
                           <tr key={`${c}-${s}`} className="hover:bg-secondary/30">
-                            <td className="px-3 py-2 font-semibold text-foreground flex items-center gap-2">
-                              <span
-                                className="w-2.5 h-2.5 rounded-full border border-black/20 shrink-0"
-                                style={{ backgroundColor: getColorHex(c) }}
-                              />
+                            <td className="px-3 py-2 font-semibold text-foreground">
                               <span>
                                 {c} / {s}
                               </span>

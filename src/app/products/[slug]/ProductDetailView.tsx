@@ -38,38 +38,6 @@ interface ProductDetailViewProps {
   slug: string;
 }
 
-const COLOR_MAP: Record<string, string> = {
-  black: "#111827",
-  white: "#FFFFFF",
-  navy: "#1E3A8A",
-  blue: "#2563EB",
-  red: "#DC2626",
-  green: "#16A34A",
-  yellow: "#EAB308",
-  orange: "#EA580C",
-  purple: "#9333EA",
-  pink: "#EC4899",
-  brown: "#78350F",
-  grey: "#6B7280",
-  gray: "#6B7280",
-  beige: "#D4C5B9",
-  maroon: "#881337",
-  olive: "#556B2F",
-  charcoal: "#374151",
-  peach: "#FFCBA4",
-  teal: "#0D9488",
-  cream: "#FFFDD0",
-  khaki: "#C3B091",
-  standard: "#111827",
-  assorted: "#6366F1",
-};
-
-function getColorHex(colorName?: string): string {
-  if (!colorName) return "#6B7280";
-  const normalized = colorName.trim().toLowerCase();
-  return COLOR_MAP[normalized] || "#94A3B8";
-}
-
 export default function ProductDetailView({ initialProduct, slug }: ProductDetailViewProps) {
   const { addToCart, setIsCartOpen } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
@@ -93,7 +61,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           const p = await getProductBySlugOrId(slug);
           if (p) {
             setProduct(p);
-            setQuantity(p.moq || 10);
+            const pMoq = p.moq || 10;
+            const pAvail = Number(p.availableStock ?? (p as any).available_stock ?? p.stock ?? 0);
+            const initQty = pAvail > 0 && pAvail < pMoq ? pAvail : pMoq;
+            setQuantity(initQty);
+            if (pAvail > 0 && initQty === pAvail) {
+              setSelectedTier("full_stock");
+            }
 
             try {
               const related = await getRelatedProducts(p, 5);
@@ -112,7 +86,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         }
       } else {
         setProduct(initialProduct);
-        setQuantity(initialProduct.moq || 10);
+        const initMoq = initialProduct.moq || 10;
+        const initAvail = Number(initialProduct.availableStock ?? (initialProduct as any).available_stock ?? initialProduct.stock ?? 0);
+        const startQty = initAvail > 0 && initAvail < initMoq ? initAvail : initMoq;
+        setQuantity(startQty);
+        if (initAvail > 0 && startQty === initAvail) {
+          setSelectedTier("full_stock");
+        }
         setLoading(false);
         try {
           const related = await getRelatedProducts(initialProduct, 5);
@@ -198,16 +178,18 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     return maxCompletePackages * moq;
   }, [product, maxCompletePackages, moq]);
 
-  const totalStock = completePackageStock;
+  // 4. Authoritative Available Inventory & Full Stock Calculation
+  // Authoritative AVAILABLE INVENTORY in PCS
+  const availableInventory = Number(product?.availableStock ?? (product as any)?.available_stock ?? product?.stock ?? 0);
+  const fullStockQuantity = availableInventory;
+  const totalStock = availableInventory;
+  const fullStockPackages = maxCompletePackages;
 
-  // 4. Full Stock Calculation & Rule (Authoritative Business Rule)
   // FULL STOCK OPTION IS ALWAYS VISIBLE
   // Price is conditional:
   // IF Available Inventory > Minimum Bulk Order Quantity -> full_stock_price
   // ELSE -> normal MOQ / standard applicable price
   const bulkMinimum = (bulkThreshold !== undefined && bulkThreshold > 0) ? bulkThreshold : moq;
-  const fullStockQuantity = completePackageStock;
-  const fullStockPackages = maxCompletePackages;
 
   const configuredFullStockPrice = product?.configuredFullStockPrice !== undefined && product?.configuredFullStockPrice !== null
     ? Number(product.configuredFullStockPrice)
@@ -218,30 +200,28 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   // Authoritative Normal MOQ Price
   const normalMoqPrice = standardPrice;
 
-  // Determine current Available Inventory
-  const currentAvailableInventory = Number(product?.availableStock ?? (product as any)?.available_stock ?? totalStock);
-
   // Authoritative Full Stock Price selection:
   // Available Inventory > Minimum Bulk Order Quantity
   //   YES -> full_stock_price
   //   NO  -> normal MOQ / standard applicable price
   const resolvedFullStockPrice = useMemo(() => {
-    if (currentAvailableInventory > bulkMinimum && configuredFullStockPrice !== null && configuredFullStockPrice > 0) {
-      return Math.min(configuredFullStockPrice, normalMoqPrice);
-    }
-    // Check if backend already resolved fullStockPrice
-    if (product?.fullStockPrice !== undefined && product?.fullStockPrice !== null) {
-      return Number(product.fullStockPrice);
+    if (availableInventory > bulkMinimum) {
+      if (configuredFullStockPrice !== null && configuredFullStockPrice > 0) {
+        return Math.min(configuredFullStockPrice, normalMoqPrice);
+      }
+      if (product?.fullStockPrice !== undefined && product?.fullStockPrice !== null) {
+        return Number(product.fullStockPrice);
+      }
     }
     return normalMoqPrice;
-  }, [currentAvailableInventory, bulkMinimum, configuredFullStockPrice, normalMoqPrice, product?.fullStockPrice]);
+  }, [availableInventory, bulkMinimum, configuredFullStockPrice, normalMoqPrice, product?.fullStockPrice]);
 
-  const isFullStockEligible = currentAvailableInventory > bulkMinimum && configuredFullStockPrice !== null && configuredFullStockPrice > 0;
+  const isFullStockEligible = availableInventory > bulkMinimum && configuredFullStockPrice !== null && configuredFullStockPrice > 0;
 
   const fullStockTotal = Math.round(fullStockQuantity * resolvedFullStockPrice * 100) / 100;
 
-  // Purchasing Mode Resolution
-  const isFullStock = selectedTier === "full_stock" && (fullStockQuantity === 0 ? quantity === 0 : quantity === fullStockQuantity);
+  // Purchasing Mode Resolution: Full Stock is automatically selected when quantity === available inventory
+  const isFullStock = fullStockQuantity > 0 && quantity === fullStockQuantity;
   const isBulk = !isFullStock && quantity >= bulkThreshold;
   const isStandard = !isFullStock && !isBulk;
 
@@ -381,45 +361,61 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   // Pricing Row Click Handlers
   const handleSelectStandard = () => {
     setSelectedTier("standard");
-    setQuantity(moq);
+    const targetQty = fullStockQuantity > 0 ? Math.min(moq, fullStockQuantity) : moq;
+    setQuantity(targetQty);
+    if (fullStockQuantity > 0 && targetQty === fullStockQuantity) {
+      setSelectedTier("full_stock");
+    }
   };
 
   const handleSelectBulk = () => {
     setSelectedTier("bulk");
-    // Select nearest valid multiple of MOQ >= bulkThreshold
     const validBulkQty = Math.ceil(bulkThreshold / moq) * moq;
-    const maxOrderable = totalStock > 0 ? Math.floor(totalStock / moq) * moq : validBulkQty;
-    setQuantity(Math.min(validBulkQty, maxOrderable > 0 ? maxOrderable : validBulkQty));
+    const targetQty = fullStockQuantity > 0 ? Math.min(validBulkQty, fullStockQuantity) : validBulkQty;
+    setQuantity(targetQty);
+    if (fullStockQuantity > 0 && targetQty === fullStockQuantity) {
+      setSelectedTier("full_stock");
+    }
   };
 
   const handleSelectFullStock = () => {
     setSelectedTier("full_stock");
-    // Select complete package stock within available inventory
     if (fullStockQuantity > 0) {
       setQuantity(fullStockQuantity);
     }
   };
 
   const handleIncrement = () => {
-    const maxOrderable = totalStock > 0 ? Math.floor(totalStock / moq) * moq : Infinity;
-    const nextQty = quantity + moq;
-    if (nextQty <= maxOrderable) {
-      setQuantity(nextQty);
-      if (nextQty === fullStockQuantity && selectedTier === "full_stock") {
-        // preserve full_stock tier selection
-      } else if (nextQty >= bulkThreshold) {
-        setSelectedTier("bulk");
-      } else {
-        setSelectedTier("standard");
-      }
+    if (fullStockQuantity <= 0) return;
+    if (quantity >= fullStockQuantity) return;
+
+    const nextQty = Math.min(fullStockQuantity, quantity + moq);
+    setQuantity(nextQty);
+    if (nextQty === fullStockQuantity) {
+      setSelectedTier("full_stock");
+    } else if (nextQty >= bulkThreshold) {
+      setSelectedTier("bulk");
+    } else {
+      setSelectedTier("standard");
     }
   };
 
   const handleDecrement = () => {
-    if (quantity <= moq) return;
-    const prevQty = Math.max(moq, quantity - moq);
+    const minQty = Math.min(moq, fullStockQuantity > 0 ? fullStockQuantity : moq);
+    if (quantity <= minQty) return;
+
+    let prevQty: number;
+    if (quantity === fullStockQuantity && quantity % moq !== 0) {
+      // Step down from non-multiple full stock to the highest valid MOQ multiple below full stock
+      prevQty = Math.max(minQty, Math.floor((quantity - 1) / moq) * moq);
+    } else {
+      prevQty = Math.max(minQty, quantity - moq);
+    }
+
     setQuantity(prevQty);
-    if (prevQty >= bulkThreshold) {
+    if (fullStockQuantity > 0 && prevQty === fullStockQuantity) {
+      setSelectedTier("full_stock");
+    } else if (prevQty >= bulkThreshold) {
       setSelectedTier("bulk");
     } else {
       setSelectedTier("standard");
@@ -433,16 +429,16 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     setErrorMessage("");
 
     // Authoritative client-side pre-validation
-    if (quantity < moq) {
+    if (!isFullStock && quantity < moq) {
       setErrorMessage(`Order quantity must be at least the minimum order quantity (${moq} pcs).`);
       return;
     }
-    if (quantity % moq !== 0) {
+    if (!isFullStock && quantity % moq !== 0) {
       setErrorMessage(`Order quantity must be an exact multiple of the MOQ (${moq} pcs).`);
       return;
     }
-    if (totalStock > 0 && quantity > totalStock) {
-      setErrorMessage(`Requested quantity (${quantity} pcs) exceeds available stock (${totalStock} pcs).`);
+    if (fullStockQuantity > 0 && quantity > fullStockQuantity) {
+      setErrorMessage(`Requested quantity (${quantity} pcs) exceeds available stock (${fullStockQuantity} pcs).`);
       return;
     }
 
@@ -475,7 +471,6 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           brand: product.brand,
           categoryId: product.categoryId || "c_tops",
           price: currentPrice,
-          oldPrice: product.msrpPrice,
           images: product.images,
           badge: product.isHot ? "Hot" : undefined,
           sizes: sizesList,
@@ -526,7 +521,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     );
   }
 
-  if (!product) {
+  if (!product || product.status === "draft") {
     return (
       <div className="w-full min-h-[70vh] py-20 text-center">
         <h2 className="text-xl font-bold uppercase font-display">Product Not Found</h2>
@@ -829,11 +824,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   quantity={quantity}
                   moq={moq}
                   step={moq}
-                  maxStock={totalStock}
+                  maxStock={fullStockQuantity}
                   onIncrement={handleIncrement}
                   onDecrement={handleDecrement}
-                  isDecrementDisabled={quantity <= moq}
-                  isIncrementDisabled={totalStock > 0 && quantity + moq > totalStock}
+                  isDecrementDisabled={quantity <= Math.min(moq, fullStockQuantity > 0 ? fullStockQuantity : moq)}
+                  isIncrementDisabled={fullStockQuantity > 0 && quantity >= fullStockQuantity}
                   helperText={`Qty: ${quantity.toLocaleString()} pcs · MOQ: ${moq} pcs`}
                 />
               </div>
@@ -868,7 +863,6 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   <PackageAssortmentMatrix
                     matrixData={matrixData}
                     title={isFullStock ? "Warehouse Inventory Matrix" : "Ratio Matrix"}
-                    getColorHex={getColorHex}
                   />
                 </div>
               </div>

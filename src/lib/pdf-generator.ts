@@ -151,7 +151,6 @@ export interface OfferSheetProductInput {
   categoryId?: string;
   audience?: string;
   price: number;
-  msrpPrice?: number;
   moq?: number;
   fabric?: string;
   gsm?: number | string;

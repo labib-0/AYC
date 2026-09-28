@@ -38,10 +38,14 @@ export async function uploadProductImage(file: File): Promise<UploadResult> {
     if (!frontendOnly) {
       // In fullstack mode, always surface the real error so the admin knows the upload failed.
       // Do NOT silently convert to base64 — base64 data URIs exceed varchar(500) and will corrupt the DB.
-      const msg =
+      const firstError =
+        err?.errors?.file?.[0] ||
+        (err?.errors && typeof err.errors === "object"
+          ? (Object.values(err.errors).flat()[0] as string | undefined)
+          : null) ||
         err?.message ||
         "Image upload failed. Please check your connection and try again.";
-      throw new Error(msg);
+      throw new Error(String(firstError));
     }
 
     // Frontend-only / demo mode only: use local Data URL for in-browser preview.

@@ -19,6 +19,9 @@ export async function generateMetadata({
 
   try {
     const product = await getProductBySlugOrId(slug);
+    if (!product || product.status === "draft") {
+      return generateProductMetadata(null, slug);
+    }
     return generateProductMetadata(product, slug);
   } catch {
     return generateProductMetadata(null, slug);
@@ -30,7 +33,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   let product = null;
   try {
-    product = await getProductBySlugOrId(slug);
+    const fetched = await getProductBySlugOrId(slug);
+    if (fetched && fetched.status !== "draft") {
+      product = fetched;
+    }
   } catch (err) {
     console.warn("Server product fetch notice:", err);
   }

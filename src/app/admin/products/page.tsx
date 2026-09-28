@@ -13,6 +13,7 @@ import {
 } from "@/lib/services/products";
 import { getBrands } from "@/lib/services/brands";
 import { categoryService } from "@/services/category.service";
+import { productDraftService } from "@/lib/services/product-draft.service";
 
 import {
   ProductSummaryMetrics,
@@ -124,6 +125,34 @@ export default function AdminProductsPage() {
           }
           return pDt === "ORIGINAL";
         });
+      }
+
+      // Include unsynced local draft if present and matching status
+      const localDraft = productDraftService.getDraft("new");
+      if (localDraft?.data && localDraft.data.name?.trim()) {
+        const d = localDraft.data;
+        const exists = data.some((p) => (d.productId && p.productId === d.productId) || p.name === d.name);
+        if (!exists && (filters.status === "all" || filters.status === "draft")) {
+          const pseudoDraft: B2BProductInput = {
+            id: "draft_local_new",
+            name: d.name || "Untitled Draft",
+            slug: d.slug || "draft-local-new",
+            sku: d.sku || "DRAFT-LOCAL",
+            productId: d.productId || "DRAFT-LOCAL",
+            brand: d.brand || "General",
+            status: "draft",
+            wholesalePrice: d.wholesalePrice || 0,
+            stock: d.stock || 0,
+            moq: d.moq || 1,
+            colors: d.colors || ["Standard"],
+            sizes: d.sizes || ["Assorted"],
+            images: d.images || ["/placeholder.jpg"],
+            categoryName: d.categoryName || "Apparel",
+            categoryId: d.categoryId || "c_tops",
+            audience: (d.audience || "UNISEX") as any,
+          };
+          filtered = [pseudoDraft, ...filtered];
+        }
       }
 
       setAllProducts(filtered);

@@ -65,7 +65,6 @@ const productData = {
   wholesale_price: 25.00,
   bulk_threshold: 100,
   bulk_price: 20.02,
-  msrp_price: 226.00,
   moq: derivedMoq1,
   package_allocations: packageAllocs25,
 };

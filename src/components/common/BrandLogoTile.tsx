@@ -42,10 +42,10 @@ export default function BrandLogoTile({
       !imgError
   );
 
-  const tileClasses = `group relative flex items-center justify-center aspect-[1.35/1] w-full p-2 sm:p-2.5 rounded-lg border transition-all duration-200 cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
+  const tileClasses = `group relative flex items-center justify-center aspect-[1.35/1] w-full p-2 sm:p-2.5 rounded-lg transition-all duration-200 cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
     isSelected
-      ? "border-foreground ring-1.5 ring-foreground/30 bg-secondary/90 dark:bg-secondary/80 shadow-xs hover:bg-secondary hover:-translate-y-[1px]"
-      : "bg-card border-border/70 hover:border-foreground/40 hover:bg-secondary/20 shadow-2xs hover:-translate-y-[1px]"
+      ? "ring-1.5 ring-foreground/40 ring-inset hover:-translate-y-[1px]"
+      : "hover:-translate-y-[1px]"
   } ${className}`;
 
   const content = (

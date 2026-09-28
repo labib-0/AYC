@@ -24,7 +24,6 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
 
     // B2B & Wholesale
     "b2b.wholesale_pricing": "Wholesale Price",
-    "b2b.retail_price": "Retail MSRP",
     "b2b.moq": "Minimum Order Quantity (MOQ)",
     "b2b.moq_units": "pcs minimum",
     "b2b.request_quote": "Request Commercial Quote",
@@ -61,7 +60,6 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
 
     // B2B & Wholesale
     "b2b.wholesale_pricing": "পাইকারি মূল্য",
-    "b2b.retail_price": "খুচরা মূল্য",
     "b2b.moq": "সর্বনিম্ন অর্ডার পরিমাণ (MOQ)",
     "b2b.moq_units": "পিস সর্বনিম্ন",
     "b2b.request_quote": "উদ্ধৃতি অনুরোধ করুন",
@@ -98,7 +96,6 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
 
     // B2B & Wholesale
     "b2b.wholesale_pricing": "سعر الجملة",
-    "b2b.retail_price": "سعر التجزئة",
     "b2b.moq": "الحد الأدنى للطلب (MOQ)",
     "b2b.moq_units": "قطعة كحد أدنى",
     "b2b.request_quote": "طلب عرض أسعار تجاري",

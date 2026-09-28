@@ -18,30 +18,6 @@ export interface PackageAssortmentMatrixProps {
   getColorHex?: (color: string) => string;
 }
 
-const DEFAULT_COLOR_MAP: Record<string, string> = {
-  Black: "#111827",
-  White: "#F9FAFB",
-  Navy: "#1E3A8A",
-  Blue: "#2563EB",
-  Grey: "#6B7280",
-  Gray: "#6B7280",
-  Red: "#DC2626",
-  Green: "#16A34A",
-  Olive: "#556B2F",
-  Khaki: "#C3B091",
-  Charcoal: "#374151",
-  Beige: "#F5F5DC",
-  Brown: "#78350F",
-  Pink: "#EC4899",
-  Yellow: "#EAB308",
-  Orange: "#F97316",
-  Purple: "#9333EA",
-};
-
-export function defaultGetColorHex(name: string): string {
-  return DEFAULT_COLOR_MAP[name] || "#94A3B8";
-}
-
 /**
  * PackageAssortmentMatrix
  * 
@@ -58,7 +34,6 @@ export default function PackageAssortmentMatrix({
   matrixData,
   title = "RATIO MATRIX",
   className = "",
-  getColorHex = defaultGetColorHex,
 }: PackageAssortmentMatrixProps) {
   if (!matrixData || matrixData.colors.length === 0 || matrixData.sizes.length === 0) {
     return null;
@@ -113,16 +88,9 @@ export default function PackageAssortmentMatrix({
           <tbody className="divide-y divide-border/40 text-[11.5px]">
             {matrixData.colors.map((color) => (
               <tr key={color} className="hover:bg-secondary/15 transition-colors">
-                {/* Color Name with swatch indicator */}
-                <td className="sticky left-0 bg-card z-10 px-3 py-2 font-medium text-foreground border-r border-border/40 sm:border-r-0 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-2 h-2 rounded-full border border-black/15 shrink-0 shadow-2xs"
-                      style={{ backgroundColor: getColorHex(color) }}
-                      aria-hidden="true"
-                    />
-                    <span className="font-semibold text-foreground">{color}</span>
-                  </div>
+                {/* Color Name */}
+                <td className="sticky left-0 bg-card z-10 px-3 py-2 font-semibold text-foreground border-r border-border/40 sm:border-r-0 whitespace-nowrap">
+                  <span>{color}</span>
                 </td>
 
                 {/* Quantities for each size */}

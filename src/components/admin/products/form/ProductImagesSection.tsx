@@ -39,8 +39,7 @@ export default function ProductImagesSection({
   onVideoUrlChange,
   error,
 }: ProductImagesSectionProps) {
-  const [urlInput, setUrlInput] = useState("");
-  const [urlType, setUrlType] = useState<"image" | "video">("image");
+  const [youtubeInput, setYoutubeInput] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -53,13 +52,12 @@ export default function ProductImagesSection({
     return (images || []).filter((u) => isValidImageUrl(u));
   }, [images]);
 
-  // Helper to detect video info
+  // Helper to detect YouTube video info (YouTube ONLY)
   const videoDetails = useMemo(() => {
     if (!videoUrl || !videoUrl.trim()) return null;
     const url = videoUrl.trim();
 
-    // YouTube
-    const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+    const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
     if (ytMatch) {
       return {
         provider: "YouTube",
@@ -69,33 +67,7 @@ export default function ProductImagesSection({
       };
     }
 
-    // Vimeo
-    const vimeoMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
-    if (vimeoMatch) {
-      return {
-        provider: "Vimeo",
-        id: vimeoMatch[1],
-        embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}`,
-        thumbnail: null,
-      };
-    }
-
-    // Direct video file
-    if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
-      return {
-        provider: "Direct MP4",
-        id: null,
-        embedUrl: url,
-        thumbnail: null,
-      };
-    }
-
-    return {
-      provider: "Video Link",
-      id: null,
-      embedUrl: url,
-      thumbnail: null,
-    };
+    return null;
   }, [videoUrl]);
 
   const handleFiles = async (files: FileList | null) => {
@@ -104,16 +76,30 @@ export default function ProductImagesSection({
     setUploadError(null);
 
     const validFiles: { file: File; preview: UploadingPreview }[] = [];
+    const allowedExtensions = ["jpg", "jpeg", "png", "webp"];
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (!file.type.startsWith("image/")) {
-        setUploadError(`"${file.name}" is not a supported image file.`);
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      const isImage = file.type.startsWith("image/") || allowedExtensions.includes(ext);
+
+      if (!isImage) {
+        setUploadError(`"${file.name}" is not an image file. Allowed formats are JPG, PNG, and WebP.`);
         continue;
       }
-      if (file.size > 15 * 1024 * 1024) {
-        setUploadError(`"${file.name}" exceeds 15MB file size limit.`);
+
+      if (ext && !allowedExtensions.includes(ext) && !["image/jpeg", "image/png", "image/webp"].includes(file.type.toLowerCase())) {
+        setUploadError(`"${file.name}" has an unsupported format. Please upload JPG, PNG, or WebP.`);
         continue;
       }
+
+      // Maximum 5 MB original upload requirement
+      if (file.size > 5 * 1024 * 1024) {
+        const mb = (file.size / (1024 * 1024)).toFixed(1);
+        setUploadError(`"${file.name}" (${mb} MB) exceeds the 5 MB maximum file size limit. Please upload an image under 5 MB.`);
+        continue;
+      }
+
       const previewUrl = URL.createObjectURL(file);
       validFiles.push({
         file,
@@ -141,7 +127,7 @@ export default function ProductImagesSection({
             newUrls.push(normalizeImageUrl(res.url));
           }
         } catch (itemErr) {
-          const msg = itemErr instanceof Error ? itemErr.message : "Failed to upload image.";
+          const msg = itemErr instanceof Error ? itemErr.message : "The image failed to upload.";
           setUploadError(`Upload failed for "${item.file.name}": ${msg}`);
         } finally {
           URL.revokeObjectURL(item.preview.previewUrl);
@@ -160,42 +146,20 @@ export default function ProductImagesSection({
     }
   };
 
-  const handleAddUrl = () => {
-    const trimmed = urlInput.trim();
+  const handleSaveYoutubeVideo = () => {
+    const trimmed = youtubeInput.trim();
     if (!trimmed) return;
-    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("/")) {
-      setUploadError("Please enter a valid URL (http:// or https://).");
+
+    // Validate YouTube URL
+    const ytMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+    if (!ytMatch) {
+      setUploadError("Please enter a valid YouTube video URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...).");
       return;
     }
 
-    // Auto-detect if user pasted a video URL while on image tab or vice-versa
-    const isVideo = /(?:youtu\.be\/|youtube\.com\/|vimeo\.com\/|\.(mp4|webm|ogg|mov))/i.test(trimmed);
-
-    if (urlType === "video" || isVideo) {
-      // Validate video URL
-      const isYt = /(?:youtu\.be\/|youtube\.com\/)/i.test(trimmed);
-      const isVimeo = /vimeo\.com\//i.test(trimmed);
-      const isDirect = /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(trimmed);
-
-      if (!isYt && !isVimeo && !isDirect) {
-        setUploadError("Video URL must be a supported video source (YouTube, Vimeo, or direct MP4/WebM video).");
-        return;
-      }
-
-      setUploadError(null);
-      onVideoUrlChange?.(trimmed);
-      setUrlInput("");
-    } else {
-      // Image URL
-      setUploadError(null);
-      const normalized = normalizeImageUrl(trimmed);
-      if (!isValidImageUrl(normalized)) {
-        setUploadError("The entered image URL is invalid. Please provide a direct file link.");
-        return;
-      }
-      onChange([...cleanImages, normalized]);
-      setUrlInput("");
-    }
+    setUploadError(null);
+    onVideoUrlChange?.(trimmed);
+    setYoutubeInput("");
   };
 
   const handleSetPrimary = (index: number) => {
@@ -234,7 +198,7 @@ export default function ProductImagesSection({
             Product Media &amp; Gallery
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Storefront renders 3:4 presentation. Video appears after all product images.
+            Storefront renders 4:5 product presentation. Video appears after all product photos.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -271,7 +235,7 @@ export default function ProductImagesSection({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+          accept="image/png,image/jpeg,image/jpg,image/webp"
           multiple
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
@@ -289,76 +253,48 @@ export default function ProductImagesSection({
               {isUploading ? "Uploading Images..." : "Click or Drag & Drop Images Here"}
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Supports PNG, JPG, WebP. Multiple uploads allowed.
+              Supports JPG, PNG, WebP (up to 5MB each). Automatically optimized to 4:5 WebP.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Unified Media URL Input with Image/Video Type Selector */}
-      <div className="space-y-2">
+      {/* YouTube Video Link Input */}
+      <div className="space-y-1.5 pt-1">
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <Video size={13} className="text-rose-600" />
+          YouTube Video Link <span className="text-[10px] lowercase text-muted-foreground/70">(optional)</span>
+        </label>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-xl border border-border bg-secondary/50 p-0.5">
-            <button
-              type="button"
-              onClick={() => setUrlType("image")}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                urlType === "image"
-                  ? "bg-card text-foreground shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Image URL
-            </button>
-            <button
-              type="button"
-              onClick={() => setUrlType("video")}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${
-                urlType === "video"
-                  ? "bg-card text-foreground shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Video size={12} className="text-rose-600" />
-              Video URL
-            </button>
-          </div>
-
           <div className="flex-1 relative flex items-center">
             <input
               type="url"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
+              value={youtubeInput}
+              onChange={(e) => setYoutubeInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  handleAddUrl();
+                  handleSaveYoutubeVideo();
                 }
               }}
-              placeholder={
-                urlType === "video"
-                  ? "Paste YouTube, Vimeo, or direct MP4 URL..."
-                  : "Paste direct image URL (https://...)"
-              }
+              placeholder="Paste YouTube URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...)"
               className="w-full h-9 px-3 rounded-xl border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors"
             />
           </div>
 
           <button
             type="button"
-            onClick={handleAddUrl}
+            onClick={handleSaveYoutubeVideo}
             className="h-9 px-3.5 rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-foreground text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
           >
             <Plus size={13} />
-            {urlType === "video" ? "Add Video" : "Add URL"}
+            {videoUrl ? "Update Video" : "Save Video"}
           </button>
         </div>
 
-        {urlType === "video" && (
-          <p className="text-[10px] text-muted-foreground">
-            Supported video formats: YouTube (watch, shorts, embed), Vimeo, or direct MP4/WebM files. Video appears at the end of the media gallery.
-          </p>
-        )}
+        <p className="text-[10px] text-muted-foreground">
+          Supported: YouTube watch links, shorts, and youtu.be shares. Product video appears at the end of the media gallery.
+        </p>
       </div>
 
       {/* Upload/Validation Error */}
@@ -387,8 +323,8 @@ export default function ProductImagesSection({
                     : "border-border/80 hover:border-foreground/40"
                 }`}
               >
-                {/* 3:4 Thumbnail Container */}
-                <div className="aspect-[3/4] w-full bg-secondary/50 dark:bg-white/5 relative overflow-hidden flex items-center justify-center p-1">
+                {/* 4:5 Thumbnail Container */}
+                <div className="aspect-[4/5] w-full bg-secondary/50 dark:bg-white/5 relative overflow-hidden flex items-center justify-center p-1">
                   {!isFailed ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
@@ -480,7 +416,7 @@ export default function ProductImagesSection({
               key={upl.id}
               className="relative rounded-xl overflow-hidden border border-dashed border-primary/60 bg-secondary/30 animate-pulse"
             >
-              <div className="aspect-[3/4] w-full relative overflow-hidden flex flex-col items-center justify-center p-2">
+              <div className="aspect-[4/5] w-full relative overflow-hidden flex flex-col items-center justify-center p-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={upl.previewUrl}
@@ -499,7 +435,7 @@ export default function ProductImagesSection({
           {/* Video Media Card — Strictly Placed at the END */}
           {videoUrl && videoDetails && (
             <div className="relative group rounded-xl overflow-hidden border-2 border-rose-400/80 dark:border-rose-800 bg-black/90 shadow-md">
-              <div className="aspect-[3/4] w-full relative overflow-hidden flex flex-col items-center justify-center p-3 text-center">
+              <div className="aspect-[4/5] w-full relative overflow-hidden flex flex-col items-center justify-center p-3 text-center">
                 {/* Background Video Poster/Thumbnail if available */}
                 {videoDetails.thumbnail ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -573,7 +509,7 @@ export default function ProductImagesSection({
         <div className="border border-border/60 rounded-xl p-8 text-center text-muted-foreground space-y-1">
           <ImageIcon size={28} className="mx-auto opacity-40 mb-1" />
           <p className="text-xs font-semibold text-foreground">No media added yet</p>
-          <p className="text-[11px]">Upload photos or add video URL above to showcase this product.</p>
+          <p className="text-[11px]">Upload photos or add YouTube video link above to showcase this product.</p>
         </div>
       )}
     </div>

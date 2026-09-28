@@ -55,7 +55,6 @@ export interface B2BProductInput {
   configuredFullStockPrice?: number;
   isFullStockEligible?: boolean;
   fullStockTotal?: number;
-  msrpPrice?: number;
   moq: number;
   stock: number;
   warehouseId?: number | string;

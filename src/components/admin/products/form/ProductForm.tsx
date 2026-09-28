@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Globe, AlertCircle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Save, Globe, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { B2BProductInput, B2BProductVariant } from "@/types/b2b";
 import { ShippingPackageProfile, PackageAllocation } from "@/types";
 import { getBrands } from "@/lib/services/brands";
 import { categoryService } from "@/services/category.service";
-import { generateProductSku } from "@/lib/services/products";
+import { generateProductSku, createProduct, updateProduct } from "@/lib/services/products";
 import { productDraftService } from "@/lib/services/product-draft.service";
 import AdminAuthModal from "@/components/admin/auth/AdminAuthModal";
 import { ApiError } from "@/services/api-client";
@@ -28,12 +28,14 @@ import ProductPublishSection from "./ProductPublishSection";
 interface ProductFormProps {
   initialData?: Partial<B2BProductInput>;
   mode: "create" | "edit";
+  resumeDraft?: boolean;
   onSubmit: (data: B2BProductInput) => Promise<B2BProductInput | null | void>;
 }
 
 export default function ProductForm({
   initialData,
   mode,
+  resumeDraft = false,
   onSubmit,
 }: ProductFormProps) {
   const router = useRouter();
@@ -87,7 +89,6 @@ export default function ProductForm({
   const [fullStockPrice, setFullStockPrice] = useState<number | undefined>(
     initialData?.fullStockPrice ?? (initialData as any)?.full_stock_price ?? (isEdit ? undefined : 18.0)
   );
-  const [msrpPrice, setMsrpPrice] = useState<number | undefined>(initialData?.msrpPrice);
   const [costPrice, setCostPrice] = useState<number | undefined>(
     (initialData as any)?.costPrice !== undefined ? Number((initialData as any).costPrice) :
     (initialData as any)?.cost_price !== undefined ? Number((initialData as any).cost_price) : undefined
@@ -229,7 +230,33 @@ export default function ProductForm({
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"published" | "draft" | null>(null);
 
-  // Package Assortment Section — collapsed by default (optional feature)
+  // Persisted Backend Draft ID (tracks draft ID to prevent duplicate product records)
+  const [persistedDraftId, setPersistedDraftId] = useState<string | null>(
+    isEdit && initialData?.id ? String(initialData.id) : null
+  );
+  const persistedDraftIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    persistedDraftIdRef.current = persistedDraftId;
+  }, [persistedDraftId]);
+
+  // Autosave Status: "idle" | "saving" | "saved" | "unsaved" | "error"
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "unsaved" | "error">("idle");
+  const autosaveStatusRef = useRef<"idle" | "saving" | "saved" | "unsaved" | "error">("idle");
+  useEffect(() => {
+    autosaveStatusRef.current = autosaveStatus;
+  }, [autosaveStatus]);
+
+  const [hasUserEdited, setHasUserEdited] = useState<boolean>(false);
+  const hasUserEditedRef = useRef<boolean>(false);
+  useEffect(() => {
+    hasUserEditedRef.current = hasUserEdited;
+  }, [hasUserEdited]);
+  const isSavingRef = useRef<boolean>(false);
+  const pendingSaveRef = useRef<boolean>(false);
+  const isMountedRef = useRef<boolean>(false);
+  const persistDraftRef = useRef<((opts?: { isAutosave?: boolean }) => Promise<boolean>) | null>(null);
+
+  // Package Assortment Section — collapsed by default unless allocations exist
   const [packageSectionOpen, setPackageSectionOpen] = useState(
     () => packageAllocations.length > 0
   );
@@ -243,6 +270,8 @@ export default function ProductForm({
   // Snapshot constructor for current form state
   const getCurrentDraftData = useCallback((): Partial<B2BProductInput> => {
     return {
+      productId: productId.trim(),
+      product_id: productId.trim(),
       name,
       slug,
       brand,
@@ -263,7 +292,6 @@ export default function ProductForm({
       bulkThreshold,
       bulkPrice,
       fullStockPrice,
-      msrpPrice,
       costPrice,
       stock,
       warehouseId,
@@ -280,22 +308,129 @@ export default function ProductForm({
       featuredUntil,
       isPreorder,
       estimatedDeliveryDate,
-      status,
+      status: "draft",
     };
   }, [
-    name, slug, brand, brandId, brandLogo, categoryId, categoryName,
+    productId, name, slug, brand, brandId, brandLogo, categoryId, categoryName,
     audience, designType, material, description, seoTitle, seoDescription,
     keywords, images, videoUrl, wholesalePrice, bulkThreshold, bulkPrice,
-    fullStockPrice, msrpPrice, costPrice, stock, colors, sizes, packageAllocations,
-    shippingProfiles, isNew, newUntil, isHot, hotUntil, isFeatured,
-    featuredUntil, isPreorder, estimatedDeliveryDate, status
+    fullStockPrice, costPrice, stock, warehouseId, moq, colors, sizes,
+    packageAllocations, shippingProfiles, isNew, newUntil, isHot, hotUntil,
+    isFeatured, featuredUntil, isPreorder, estimatedDeliveryDate
   ]);
 
-  // Restore unsaved draft on mount if available
+  // Persist draft to backend and local storage safely
+  const persistDraftToBackendAndStorage = useCallback(async (opts?: { isAutosave?: boolean }): Promise<boolean> => {
+    const data = getCurrentDraftData();
+    // 1. Always safely preserve in local storage
+    productDraftService.saveDraft(draftKey, data, isEdit ? "edit" : "create");
+
+    // 2. Meaningful changes check
+    const hasMeaningful = Boolean(
+      (data.name && data.name.trim().length > 0) ||
+      (data.productId && data.productId.trim().length > 0) ||
+      (data.description && data.description.trim().length > 0) ||
+      (data.images && data.images.length > 0) ||
+      (data.packageAllocations && data.packageAllocations.length > 0) ||
+      (data.wholesalePrice && data.wholesalePrice > 0)
+    );
+
+    if (!hasMeaningful) {
+      setAutosaveStatus("idle");
+      return false;
+    }
+
+    // 3. Backend persistence requires Product ID
+    if (!data.productId || !data.productId.trim()) {
+      setAutosaveStatus("saved");
+      return true;
+    }
+
+    // 4. Overlapping save guard
+    if (isSavingRef.current) {
+      pendingSaveRef.current = true;
+      return true;
+    }
+
+    isSavingRef.current = true;
+    setAutosaveStatus("saving");
+
+    try {
+      const activeBrand = brands.find((b) => b.name === brand || String(b.id) === String(brandId));
+      const activeCat = categories.find((c) => String(c.id) === String(categoryId));
+      const generatedSku =
+        initialData?.sku ||
+        generateProductSku(brand || "AY", activeCat?.name || "APP", name || "PROD");
+
+      const draftPayload: B2BProductInput = {
+        ...(data as B2BProductInput),
+        id: persistedDraftIdRef.current || (initialData?.id ? String(initialData.id) : `draft_${Date.now()}`),
+        productId: data.productId.trim(),
+        product_id: data.productId.trim(),
+        name: data.name?.trim() || "Untitled Draft",
+        slug: data.slug?.trim() || `draft-${data.productId.trim().toLowerCase()}-${Date.now().toString(36)}`,
+        sku: generatedSku,
+        brand: data.brand || "General",
+        categoryId: data.categoryId || (categories.length > 0 ? categories[0].id : "c_tops"),
+        categoryName: activeCat?.name || categoryName || "Apparel",
+        status: "draft", // Strictly forced to draft!
+        wholesalePrice: wholesalePrice || 0,
+        fullStockPrice: fullStockPrice || wholesalePrice || 0,
+        moq: moq || 1,
+        colors: colors.length > 0 ? colors : ["Standard"],
+        sizes: sizes.length > 0 ? sizes : ["Assorted"],
+        stock: stock >= 0 ? stock : 0,
+        warehouseId: warehouseId || undefined,
+        images: images.length > 0 ? images : ["/placeholder.jpg"],
+        packageAllocations: packageAllocations,
+        shippingPackageProfiles: shippingProfiles,
+        isPreorder: isPreorder,
+        estimatedDeliveryDate: isPreorder ? estimatedDeliveryDate : null,
+      };
+
+      if (persistedDraftIdRef.current) {
+        await updateProduct(persistedDraftIdRef.current, draftPayload);
+      } else {
+        const created = await createProduct(draftPayload);
+        if (created?.id) {
+          persistedDraftIdRef.current = String(created.id);
+          setPersistedDraftId(String(created.id));
+        }
+      }
+
+      setAutosaveStatus("saved");
+      isSavingRef.current = false;
+
+      if (pendingSaveRef.current) {
+        pendingSaveRef.current = false;
+        void persistDraftRef.current?.(opts);
+      }
+      return true;
+    } catch (err) {
+      console.warn("Autosave draft notice:", err);
+      setAutosaveStatus("error");
+      isSavingRef.current = false;
+      return false;
+    }
+  }, [
+    getCurrentDraftData, draftKey, isEdit, brands, brand, brandId, categories, categoryId,
+    categoryName, initialData, name, wholesalePrice, fullStockPrice,
+    moq, colors, sizes, stock, warehouseId, images, packageAllocations, shippingProfiles,
+    isPreorder, estimatedDeliveryDate
+  ]);
+
   useEffect(() => {
+    persistDraftRef.current = persistDraftToBackendAndStorage;
+  }, [persistDraftToBackendAndStorage]);
+
+  // Restore unsaved draft on mount (ONLY in edit mode or when resumeDraft is explicitly requested)
+  useEffect(() => {
+    if (!isEdit && !resumeDraft) return;
+
     const saved = productDraftService.getDraft(draftKey);
     if (saved && saved.data) {
       const d = saved.data;
+      if (d.productId) setProductId(d.productId);
       if (d.name) setName(d.name);
       if (d.slug) {
         setSlug(d.slug);
@@ -324,14 +459,16 @@ export default function ProductForm({
       if (d.bulkThreshold !== undefined) setBulkThreshold(d.bulkThreshold);
       if (d.bulkPrice !== undefined) setBulkPrice(d.bulkPrice);
       if (d.fullStockPrice !== undefined) setFullStockPrice(d.fullStockPrice);
-      if (d.msrpPrice !== undefined) setMsrpPrice(d.msrpPrice);
       if ((d as any).costPrice !== undefined) setCostPrice((d as any).costPrice);
       if (d.stock !== undefined) setStock(d.stock);
       if (d.warehouseId !== undefined) setWarehouseId(d.warehouseId);
       if (d.moq !== undefined && d.moq > 0) setCustomMoq(d.moq);
       if (d.colors && d.colors.length > 0) setColors(d.colors);
       if (d.sizes && d.sizes.length > 0) setSizes(d.sizes);
-      if (d.packageAllocations && d.packageAllocations.length > 0) setPackageAllocations(d.packageAllocations);
+      if (d.packageAllocations && d.packageAllocations.length > 0) {
+        setPackageAllocations(d.packageAllocations);
+        setPackageSectionOpen(true);
+      }
       if (d.shippingPackageProfiles && d.shippingPackageProfiles.length > 0) setShippingProfiles(d.shippingPackageProfiles);
       if (d.isNew !== undefined) setIsNew(d.isNew);
       if (d.newUntil !== undefined) setNewUntil(d.newUntil);
@@ -346,25 +483,71 @@ export default function ProductForm({
       }
       setDraftRestored(true);
     }
-  }, [draftKey, initialData?.status]);
+  }, [draftKey, initialData?.status, isEdit, resumeDraft]);
+
+  // Track when user starts editing form after initial mount
+  useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
+    setHasUserEdited(true);
+    setAutosaveStatus("unsaved");
+  }, [
+    productId, name, slug, brand, brandId, categoryId, audience, designType,
+    material, description, images, videoUrl, wholesalePrice, bulkThreshold,
+    bulkPrice, fullStockPrice, costPrice, stock, warehouseId, customMoq,
+    colors, sizes, packageAllocations, shippingProfiles, isNew, isHot,
+    isFeatured, isPreorder, estimatedDeliveryDate
+  ]);
 
   // Debounced auto-save of current draft
   useEffect(() => {
-    const hasData =
-      name.trim().length > 0 ||
-      description.trim().length > 0 ||
-      images.length > 0 ||
-      packageAllocations.length > 0 ||
-      wholesalePrice > 0 ||
-      colors.length > 0;
+    if (!hasUserEdited) return;
 
-    if (hasData) {
-      const timer = setTimeout(() => {
-        productDraftService.saveDraft(draftKey, getCurrentDraftData(), isEdit ? "edit" : "create");
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [draftKey, getCurrentDraftData, name, wholesalePrice, packageAllocations, isEdit, description, images.length, colors.length]);
+    const timer = setTimeout(() => {
+      persistDraftToBackendAndStorage({ isAutosave: true });
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [
+    persistDraftToBackendAndStorage, hasUserEdited,
+    productId, name, slug, brand, categoryId, description, images, wholesalePrice,
+    bulkThreshold, bulkPrice, fullStockPrice, costPrice, stock, warehouseId, customMoq,
+    colors, sizes, packageAllocations, shippingProfiles, isPreorder, estimatedDeliveryDate
+  ]);
+
+  // Navigation Guard: auto-save draft before user leaves via link clicks
+  useEffect(() => {
+    const handleDocumentClick = async (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest("a") as HTMLAnchorElement | null;
+      if (!anchor || !anchor.href) return;
+
+      try {
+        const targetUrl = new URL(anchor.href, window.location.href);
+        if (targetUrl.pathname === window.location.pathname && targetUrl.search === window.location.search) {
+          return;
+        }
+      } catch {
+        return;
+      }
+
+      if (autosaveStatusRef.current === "unsaved") {
+        e.preventDefault();
+        e.stopPropagation();
+
+        await persistDraftToBackendAndStorage({ isAutosave: false });
+        autosaveStatusRef.current = "saved";
+        setHasUserEdited(false);
+        window.location.href = anchor.href;
+      }
+    };
+
+    document.addEventListener("click", handleDocumentClick, true);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick, true);
+    };
+  }, [persistDraftToBackendAndStorage]);
 
   // Immediate synchronous auto-save before page unload or visibility change
   useEffect(() => {
@@ -461,7 +644,7 @@ export default function ProductForm({
     [name, brand, wholesalePrice, images, moq]
   );
 
-  // Draft validation — requires Product ID and product name to save progress
+  // Draft validation — permissive: requires Product ID and product name to save progress
   const validateDraft = (): boolean => {
     const errs: Record<string, string> = {};
 
@@ -471,11 +654,12 @@ export default function ProductForm({
       errs.productId = "Product ID may only contain letters, numbers, hyphens, and underscores.";
     }
 
-    if (!name.trim()) errs.name = "Product name is required to save a draft.";
-    else if (name.trim().length < 3) errs.name = "Product name must be at least 3 characters.";
+    if (!name.trim()) {
+      errs.name = "Product name is required to save a draft.";
+    }
 
-    // Validate package allocations if the admin has added any
-    if (packageAllocations.length > 0) {
+    // Package breakdown is strictly optional. Only validate if section is OPEN and rows exist
+    if (packageSectionOpen && packageAllocations.length > 0) {
       for (const a of packageAllocations) {
         if (!Number.isInteger(a.quantity) || a.quantity < 0) {
           errs.package_allocations = "Package allocation quantities must be non-negative whole integers.";
@@ -486,7 +670,7 @@ export default function ProductForm({
 
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      setGeneralError("Please review the highlighted fields before saving.");
+      setGeneralError("Please review the highlighted fields before saving draft.");
       return false;
     }
     setGeneralError(null);
@@ -514,7 +698,8 @@ export default function ProductForm({
 
     if (wholesalePrice <= 0) errs.wholesalePrice = "Wholesale price must be greater than $0.00.";
 
-    if (packageAllocations.length > 0) {
+    // Package breakdown is optional for publishing unless configured
+    if (packageSectionOpen && packageAllocations.length > 0) {
       for (const a of packageAllocations) {
         if (!Number.isInteger(a.quantity) || a.quantity < 0) {
           errs.package_allocations = "Package allocation quantities must be non-negative whole integers.";
@@ -606,7 +791,7 @@ export default function ProductForm({
       ];
 
       const payload: B2BProductInput = {
-        id: initialData?.id || `prod_${Date.now()}`,
+        id: persistedDraftIdRef.current || initialData?.id || `prod_${Date.now()}`,
         productId: productId.trim(),
         product_id: productId.trim(),
         name: name.trim(),
@@ -638,7 +823,6 @@ export default function ProductForm({
         bulkPrice: bulkPrice,
         fullStockPrice: fullStockPrice,
         full_stock_price: fullStockPrice,
-        msrpPrice: msrpPrice,
         costPrice: costPrice,
         moq: moq,
         stock: stock,
@@ -670,15 +854,22 @@ export default function ProductForm({
         shipping_package_profiles: shippingProfiles,
       };
 
-      await onSubmit(payload);
+      const res = await onSubmit(payload);
+      if (res && (res as any).id) {
+        persistedDraftIdRef.current = String((res as any).id);
+        setPersistedDraftId(String((res as any).id));
+      }
       
       // On success: clear draft, update status, notify
       productDraftService.clearDraft(draftKey);
       setStatus(targetStatus);
       setSaveSuccess(true);
       setDraftRestored(false);
+      setHasUserEdited(false);
+      hasUserEditedRef.current = false;
+      setAutosaveStatus("saved");
 
-      if (!isEdit) {
+      if (!isEdit && targetStatus === "published") {
         setTimeout(() => {
           router.push(backHref);
         }, 800);
@@ -770,11 +961,51 @@ export default function ProductForm({
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
+        {/* Action Buttons & Autosave Status */}
+        <div className="flex items-center gap-3">
+          {hasUserEdited && (
+            <div
+              id="autosave-status-indicator"
+              className="flex items-center gap-1.5 text-xs font-medium"
+              aria-live="polite"
+            >
+              {autosaveStatus === "saving" && (
+                <span className="flex items-center gap-1.5 text-muted-foreground animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                  Saving...
+                </span>
+              )}
+              {autosaveStatus === "saved" && (
+                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                  <Check size={13} className="shrink-0 stroke-[2.5]" />
+                  Saved
+                </span>
+              )}
+              {autosaveStatus === "unsaved" && (
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  Unsaved changes
+                </span>
+              )}
+              {autosaveStatus === "error" && (
+                <button
+                  type="button"
+                  id="autosave-retry-btn"
+                  onClick={() => persistDraftToBackendAndStorage({ isAutosave: true })}
+                  className="flex items-center gap-1.5 text-red-500 hover:text-red-600 underline font-semibold cursor-pointer"
+                  title="Autosave failed. Click to retry."
+                >
+                  <AlertCircle size={13} className="shrink-0" />
+                  Save failed (retry)
+                </button>
+              )}
+            </div>
+          )}
+
           {canSaveDraft && (
             <button
               type="button"
+              id="save-draft-btn"
               onClick={() => handleSaveWithStatus("draft")}
               disabled={isSubmitting}
               className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
@@ -787,6 +1018,7 @@ export default function ProductForm({
           {canPublish && (
             <button
               type="button"
+              id="publish-product-btn"
               onClick={() => handleSaveWithStatus("published")}
               disabled={isSubmitting}
               className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1.5 shadow-xs cursor-pointer"
@@ -908,29 +1140,33 @@ export default function ProductForm({
           />
 
           {/* Section 2.5: Optional Package Breakdown (collapsible) */}
-          <div className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setPackageSectionOpen((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-secondary/40 transition-colors"
-            >
-              <div>
+          <div className="rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden" id="section-package-breakdown">
+            <div className="w-full flex items-center justify-between px-4 py-3 bg-secondary/20">
+              <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-foreground uppercase tracking-wider">
-                  Package Breakdown
+                  PACKAGE BREAKDOWN
                 </span>
-                <span className="ml-2 text-[11px] text-muted-foreground font-normal">
-                  Optional — define color/size assortment per package
+                <span className="text-[11px] text-muted-foreground font-normal hidden sm:inline">
+                  (Optional — define color/size assortment per package)
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="flex items-center gap-2.5">
                 {packageAllocations.length > 0 && (
                   <span className="text-[11px] font-semibold text-primary tabular-nums">
                     {packageAllocations.length} variant{packageAllocations.length !== 1 ? "s" : ""} configured
                   </span>
                 )}
-                {packageSectionOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                <button
+                  type="button"
+                  id="toggle-package-breakdown-btn"
+                  onClick={() => setPackageSectionOpen((v) => !v)}
+                  className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border border-border bg-background hover:bg-secondary text-foreground transition-colors cursor-pointer"
+                  aria-expanded={packageSectionOpen}
+                >
+                  {packageSectionOpen ? "[ Hide ]" : "[ Show ]"}
+                </button>
               </div>
-            </button>
+            </div>
 
             {packageSectionOpen && (
               <div className="border-t border-border/60">
@@ -970,7 +1206,6 @@ export default function ProductForm({
             bulkThreshold={bulkThreshold}
             bulkPrice={bulkPrice}
             fullStockPrice={fullStockPrice}
-            msrpPrice={msrpPrice}
             costPrice={costPrice}
             purchasePriceUpdated={purchasePriceUpdated}
             isNew={isNew}
@@ -1007,7 +1242,6 @@ export default function ProductForm({
                 });
               }
             }}
-            onMsrpPriceChange={setMsrpPrice}
             onCostPriceChange={setCostPrice}
             onIsNewChange={(val, until) => {
               setIsNew(val);

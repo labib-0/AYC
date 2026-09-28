@@ -36,9 +36,7 @@ class ProductResource extends JsonResource
         $user = $request->user() ?: auth('sanctum')->user();
         $isAdmin = $user && $user->isAdmin();
         $isB2b = $user && ($user->isCustomer() || $user->isAdmin());
-        $effectivePrice = $isB2b 
-            ? (float) $this->wholesale_price 
-            : ($this->msrp_price !== null ? (float) $this->msrp_price : (float) $this->wholesale_price);
+        $effectivePrice = (float) $this->wholesale_price;
 
         return array_merge([
             'id' => (int) $this->id,
@@ -61,7 +59,6 @@ class ProductResource extends JsonResource
             'description' => $this->description ?: '',
             'material' => $this->material ?: '100% Cotton',
             'colorName' => $this->color_name ?: 'Black',
-            'colorHex' => $this->color_hex ?: '#111827',
             'videoUrl' => $this->video_url ?: '',
             'videoProvider' => $this->getVideoProvider(),
             'videoEmbedUrl' => $this->getVideoEmbedUrl(),
@@ -79,7 +76,6 @@ class ProductResource extends JsonResource
             'full_stock_quantity' => (int) $this->getEligibleFullStockQuantity(),
             'fullStockTotal' => (float) $this->getEligibleFullStockTotal(),
             'full_stock_total' => (float) $this->getEligibleFullStockTotal(),
-            'msrpPrice' => $this->msrp_price !== null ? (float) $this->msrp_price : null,
             'isB2bTier' => $isB2b,
             'moq' => (int) ($this->moq ?? 1),
             'stock' => (int) $this->getTotalAvailableStock(),

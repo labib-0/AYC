@@ -52,6 +52,7 @@ export interface Product {
   material?: string;
   shortDescription?: string;
   status?: string;
+  isDraft?: boolean;
   description?: string;
   createdAt?: string;
   addedAt?: string;

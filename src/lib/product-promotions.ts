@@ -46,29 +46,10 @@ export function getNormalizedPromotion(product: any): ProductPromotionState {
   const isPreorder = Boolean(product.isPreorder ?? product.is_preorder ?? false);
   const estimatedDeliveryDate = product.estimatedDeliveryDate ?? product.estimated_delivery_date ?? null;
 
-  // Compute discount percentage from various product representations
-  let discountPercent: number | null = null;
+  // Real merchandising promotions only (no fake MSRP/RRP derived discounts)
+  const discountPercent: number | null = null;
 
-  if (typeof product.discount === "number" && product.discount > 0) {
-    discountPercent = Math.round(product.discount);
-  } else if (typeof product.discountPercentage === "number" && product.discountPercentage > 0) {
-    discountPercent = Math.round(product.discountPercentage);
-  } else if (typeof product.discount_percent === "number" && product.discount_percent > 0) {
-    discountPercent = Math.round(product.discount_percent);
-  } else {
-    // Check oldPrice vs price
-    const currentPrice = Number(product.price ?? product.wholesalePrice ?? 0);
-    const regularPrice = Number(product.oldPrice ?? product.msrpPrice ?? product.compare_at_price_cents ? product.compare_at_price_cents / 100 : 0);
-
-    if (regularPrice > currentPrice && currentPrice > 0) {
-      const calc = Math.round(((regularPrice - currentPrice) / regularPrice) * 100);
-      if (calc >= 5) {
-        discountPercent = calc;
-      }
-    }
-  }
-
-  const hasPromotions = isNew || isHot || isFeatured || isLimitedDeal || isPreorder || (discountPercent !== null && discountPercent > 0);
+  const hasPromotions = isNew || isHot || isFeatured || isLimitedDeal || isPreorder;
 
   return {
     isNew,

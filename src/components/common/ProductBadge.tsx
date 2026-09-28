@@ -28,9 +28,10 @@ export const PRODUCT_BADGE_FEATURED_CLASS =
 export const PRODUCT_BADGE_PREORDER_CLASS =
   "bg-indigo-600/90 text-white border border-indigo-700/30 dark:border-indigo-400/30";
 
-// Brand logo container surface (shares identical background fill, border, corner radius, and subtle shadow)
+// Brand logo container surface — transparent: only the logo itself is visually present.
+// The wrapper div is kept for sizing, positioning, and alignment.
 export const BRAND_LOGO_CONTAINER_SURFACE_CLASS =
-  "bg-background/85 dark:bg-slate-900/85 backdrop-blur-xs border border-border/50 shadow-2xs rounded";
+  "bg-transparent border-0 shadow-none rounded";
 
 export interface ProductBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: "neutral" | "hot" | "featured" | "preorder";

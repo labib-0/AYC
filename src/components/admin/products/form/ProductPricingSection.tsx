@@ -8,7 +8,6 @@ interface ProductPricingSectionProps {
   bulkThreshold: number;
   bulkPrice: number;
   fullStockPrice?: number;
-  msrpPrice?: number;
   costPrice?: number;
   purchasePriceUpdated?: boolean | null;
   isNew?: boolean;
@@ -25,7 +24,6 @@ interface ProductPricingSectionProps {
   onBulkThresholdChange: (val: number) => void;
   onBulkPriceChange: (val: number) => void;
   onFullStockPriceChange: (val: number | undefined) => void;
-  onMsrpPriceChange: (val: number | undefined) => void;
   onCostPriceChange: (val: number | undefined) => void;
   onIsNewChange: (val: boolean, until?: string | null) => void;
   onIsHotChange: (val: boolean, until?: string | null) => void;
@@ -39,7 +37,6 @@ export default function ProductPricingSection({
   bulkThreshold,
   bulkPrice,
   fullStockPrice,
-  msrpPrice,
   costPrice,
   purchasePriceUpdated,
   isNew,
@@ -56,7 +53,6 @@ export default function ProductPricingSection({
   onBulkThresholdChange,
   onBulkPriceChange,
   onFullStockPriceChange,
-  onMsrpPriceChange,
   onCostPriceChange,
   onIsNewChange,
   onIsHotChange,
@@ -333,31 +329,6 @@ export default function ProductPricingSection({
           </p>
         </div>
 
-        {/* Optional Secondary Pricing: MSRP / Retail RRP */}
-        <div className="max-w-sm pt-1">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-            MSRP / Retail RRP ($) <span className="text-[10px] lowercase text-muted-foreground/70">(optional)</span>
-          </label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-              $
-            </span>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={msrpPrice ?? ""}
-              onChange={(e) =>
-                onMsrpPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)
-              }
-              placeholder="226.00"
-              className={inputClass()}
-            />
-          </div>
-          <p className="text-[10.5px] text-muted-foreground mt-1">
-            Customer-facing compare-at / retail suggested price. Used to display discount badges on the storefront.
-          </p>
-        </div>
 
         {/* Promotional Badges with Independent Scheduling */}
         <div className="pt-3 border-t border-border/60">

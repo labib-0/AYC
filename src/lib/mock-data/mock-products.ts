@@ -92,15 +92,6 @@ export function normalizeProductData(p: any): B2BProductInput {
     ? p.price_cents / 100
     : Number(p.price) || 15;
 
-  const msrpPrice = p.msrpPrice !== undefined && p.msrpPrice !== null
-    ? Number(p.msrpPrice)
-    : p.msrp_price !== undefined && p.msrp_price !== null
-    ? Number(p.msrp_price)
-    : p.compare_at_price_cents !== undefined && p.compare_at_price_cents !== null
-    ? p.compare_at_price_cents / 100
-    : p.oldPrice !== undefined && p.oldPrice !== null
-    ? Number(p.oldPrice)
-    : Math.round(wholesalePrice * 1.6 * 100) / 100;
 
   const stock = p.stock !== undefined
     ? Number(p.stock)
@@ -202,7 +193,6 @@ export function normalizeProductData(p: any): B2BProductInput {
     bulkThreshold: bulkThreshold,
     bulkPrice: bulkPrice,
     fullStockPrice: fullStockPrice,
-    msrpPrice: msrpPrice,
     moq: moq,
     stock: stock,
     status: p.status || "published",
@@ -212,7 +202,7 @@ export function normalizeProductData(p: any): B2BProductInput {
     newUntil: p.newUntil || p.new_until || null,
     isHot: Boolean(p.isHot),
     hotUntil: p.hotUntil || p.hot_until || null,
-    isBestDeal: Boolean(p.isBestDeal || p.is_best_deal || p.isLimitedDeal || p.isLimitedTimeOffer || p.isHot || p.isFeatured || (msrpPrice > wholesalePrice)),
+    isBestDeal: Boolean(p.isBestDeal || p.is_best_deal || p.isLimitedDeal || p.isLimitedTimeOffer || p.isHot || p.isFeatured),
     sizes: sizes,
     colors: colors,
     variants: [],

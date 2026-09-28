@@ -31,7 +31,7 @@ class WishlistItemResource extends JsonResource
                 'sku' => $product->sku,
                 'brand' => $product->brand ? $product->brand->name : 'Ayaan',
                 'price' => (float) $product->wholesale_price,
-                'oldPrice' => $product->msrp_price !== null ? (float) $product->msrp_price : null,
+                'oldPrice' => null,
                 'images' => $imagesList,
                 'color' => $product->color_name,
                 'isHot' => (bool) $product->is_hot,

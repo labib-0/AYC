@@ -59,7 +59,6 @@ class RefinePricingPromotionMediaTest extends TestCase
             'bulk_price' => 20.02,
             'full_stock_price' => 17.50,
             'warehouse_id' => $this->warehouse->id,
-            'msrp_price' => 226.00,
             'status' => 'published',
             'package_allocations' => [
                 ['color' => 'Black', 'size' => 'M', 'quantity' => 10],
@@ -77,7 +76,6 @@ class RefinePricingPromotionMediaTest extends TestCase
         $this->assertEquals(25.00, (float) $product->wholesale_price);
         $this->assertEquals(100, (int) $product->bulk_threshold);
         $this->assertEquals(20.02, (float) $product->bulk_price);
-        $this->assertEquals(226.00, (float) $product->msrp_price);
         $this->assertEquals(25, (int) $product->moq); // 10 + 15 = 25 derived MOQ
     }
 
@@ -142,11 +140,11 @@ class RefinePricingPromotionMediaTest extends TestCase
     }
 
     /**
-     * TEST: Video URL handling for YouTube, Vimeo, and Direct MP4.
+     * TEST: Video URL handling for YouTube ONLY (Vimeo, direct MP4, and arbitrary URLs rejected).
      */
     public function test_video_url_support_and_validation(): void
     {
-        // 1. YouTube watch URL
+        // 1. YouTube watch URL succeeds
         $ytPayload = [
             'product_id' => 'AYC-YT-001',
             'name' => 'YouTube Showcase Blouse',
@@ -166,62 +164,46 @@ class RefinePricingPromotionMediaTest extends TestCase
         $this->assertEquals('youtube', $res1->json('data.videoProvider'));
         $this->assertEquals('dQw4w9WgXcQ', $res1->json('data.youtubeVideoId'));
 
-        // 2. Vimeo URL
-        $vimeoPayload = [
+        // 2. YouTube youtu.be short URL succeeds
+        $ytShortPayload = array_merge($ytPayload, [
+            'product_id' => 'AYC-YT-002',
+            'slug' => 'youtube-showcase-blouse-2',
+            'sku' => 'AYN-YT-002',
+            'video_url' => 'https://youtu.be/dQw4w9WgXcQ',
+        ]);
+        $res2 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $ytShortPayload);
+        $res2->assertStatus(201);
+        $this->assertEquals('youtube', $res2->json('data.videoProvider'));
+        $this->assertEquals('dQw4w9WgXcQ', $res2->json('data.youtubeVideoId'));
+
+        // 3. Vimeo URL rejected (422)
+        $vimeoPayload = array_merge($ytPayload, [
             'product_id' => 'AYC-VIM-001',
-            'name' => 'Vimeo Showcase Blouse',
             'slug' => 'vimeo-showcase-blouse',
             'sku' => 'AYN-VIM-001',
-            'brand_id' => $this->brand->id,
-            'wholesale_price' => 30.00,
-            'bulk_threshold' => 100,
-            'bulk_price' => 25.00,
-            'full_stock_price' => 20.00,
-            'warehouse_id' => $this->warehouse->id,
             'video_url' => 'https://vimeo.com/76979871',
-            'package_allocations' => [['color' => 'Navy', 'size' => 'M', 'quantity' => 10]],
-        ];
-        $res2 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $vimeoPayload);
-        $res2->assertStatus(201);
-        $this->assertEquals('vimeo', $res2->json('data.videoProvider'));
-        $this->assertEquals('76979871', $res2->json('data.vimeoVideoId'));
-        $this->assertEquals('https://player.vimeo.com/video/76979871', $res2->json('data.videoEmbedUrl'));
+        ]);
+        $res3 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $vimeoPayload);
+        $res3->assertStatus(422);
 
-        // 3. Direct MP4 URL
-        $mp4Payload = [
+        // 4. Direct MP4 URL rejected (422)
+        $mp4Payload = array_merge($ytPayload, [
             'product_id' => 'AYC-MP4-001',
-            'name' => 'Direct MP4 Blouse',
             'slug' => 'direct-mp4-blouse',
             'sku' => 'AYN-MP4-001',
-            'brand_id' => $this->brand->id,
-            'wholesale_price' => 30.00,
-            'bulk_threshold' => 100,
-            'bulk_price' => 25.00,
-            'full_stock_price' => 20.00,
-            'warehouse_id' => $this->warehouse->id,
             'video_url' => 'https://cdn.example.com/videos/product-preview.mp4',
-            'package_allocations' => [['color' => 'Navy', 'size' => 'M', 'quantity' => 10]],
-        ];
-        $res3 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $mp4Payload);
-        $res3->assertStatus(201);
-        $this->assertEquals('direct', $res3->json('data.videoProvider'));
+        ]);
+        $res4 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $mp4Payload);
+        $res4->assertStatus(422);
 
-        // 4. Invalid Video URL rejection
-        $invalidPayload = [
+        // 5. Arbitrary invalid URL rejected (422)
+        $invalidPayload = array_merge($ytPayload, [
             'product_id' => 'AYC-INV-001',
-            'name' => 'Invalid Video Blouse',
             'slug' => 'invalid-video-blouse',
             'sku' => 'AYN-INV-001',
-            'brand_id' => $this->brand->id,
-            'wholesale_price' => 30.00,
-            'bulk_threshold' => 100,
-            'bulk_price' => 25.00,
-            'full_stock_price' => 20.00,
-            'warehouse_id' => $this->warehouse->id,
             'video_url' => 'https://random-unsupported-site.com/watch?id=123',
-            'package_allocations' => [['color' => 'Navy', 'size' => 'M', 'quantity' => 10]],
-        ];
-        $res4 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $invalidPayload);
-        $res4->assertStatus(422);
+        ]);
+        $res5 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $invalidPayload);
+        $res5->assertStatus(422);
     }
 }

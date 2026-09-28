@@ -76,15 +76,14 @@ class B2bAndCurrencyTest extends TestCase
         ]);
     }
 
-    public function test_retail_user_sees_msrp_price_while_b2b_user_sees_wholesale_price(): void
+    public function test_retail_user_sees_real_wholesale_price_without_msrp(): void
     {
-        // 1. Guest/Retail customer request
+        // 1. Guest/Retail customer request sees real wholesale price
         $retailResponse = $this->getJson("/api/v1/products/{$this->sampleProduct->id}");
         $retailResponse->assertOk()
-            ->assertJsonPath('data.price', 38)
+            ->assertJsonPath('data.price', 14.5)
             ->assertJsonPath('data.wholesalePrice', 14.5)
-            ->assertJsonPath('data.msrpPrice', 38)
-            ->assertJsonPath('data.isB2bTier', false);
+            ->assertJsonMissingPath('data.msrpPrice');
 
         // 2. Authenticated B2B buyer request
         $b2bResponse = $this->actingAs($this->b2bBuyer, 'sanctum')
@@ -92,7 +91,7 @@ class B2bAndCurrencyTest extends TestCase
         $b2bResponse->assertOk()
             ->assertJsonPath('data.price', 14.5)
             ->assertJsonPath('data.wholesalePrice', 14.5)
-            ->assertJsonPath('data.isB2bTier', true);
+            ->assertJsonMissingPath('data.msrpPrice');
     }
 
     public function test_moq_is_strictly_enforced_for_b2b_cart_additions(): void

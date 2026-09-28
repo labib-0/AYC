@@ -126,7 +126,7 @@ export class CartService {
     const maxCompletePackages = product.maxCompletePackages ?? Math.floor(availableStock / moqVal);
     const completeStock = product.completePackageStock ?? (maxCompletePackages * moqVal);
 
-    if (pricingMode === "full_stock" || (quantity === completeStock && completeStock > 0 && availableStock > bulkThreshold)) {
+    if (pricingMode === "full_stock" || (availableStock > 0 && (quantity === availableStock || (completeStock > 0 && quantity === completeStock)))) {
       if (availableStock > bulkThreshold && configuredFullStockPrice !== undefined && configuredFullStockPrice !== null && configuredFullStockPrice > 0) {
         return Math.min(configuredFullStockPrice, basePrice);
       }
@@ -456,7 +456,7 @@ export class CartService {
       name: rawProd.name || "Product",
       slug: rawProd.slug || "product",
       price: price,
-      oldPrice: rawProd.oldPrice ?? rawProd.msrp_price ?? null,
+      oldPrice: rawProd.oldPrice ?? null,
       wholesalePrice: rawProd.wholesalePrice ?? rawProd.wholesale_price ?? price,
       standardPrice: rawProd.standardPrice ?? rawProd.wholesale_price ?? price,
       bulkThreshold: rawProd.bulkThreshold ?? rawProd.bulk_threshold ?? 200,
