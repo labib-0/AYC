@@ -521,7 +521,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   }
 
   return (
-    <div className="w-full bg-background min-h-screen py-2 sm:py-4">
+    <div className="w-full bg-background min-h-screen py-1.5 sm:py-3 lg:py-2">
       <div className="mx-auto w-full max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8 space-y-2.5 sm:space-y-3">
         
         {/* Breadcrumb Navigation */}
@@ -588,15 +588,15 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               />
               
               {product.description && product.description.trim().length > 0 && (
-                <div className="rounded-lg bg-secondary/15 border border-border/60 p-3 sm:p-3.5 text-muted-foreground text-[12.5px] sm:text-[13px] leading-relaxed">
+                <div className="rounded-md bg-secondary/15 border border-border/60 p-2 sm:p-2.5 text-muted-foreground text-[11.5px] sm:text-[12px] leading-relaxed">
                   {product.description.trim()}
                 </div>
               )}
 
               {/* Compact structured metadata grid, fields rendered dynamically based on existence */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[12px] sm:text-[12.5px] font-sans">
-                <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-0.5 shadow-2xs">
-                  <span className="text-[10px] sm:text-[10.5px] text-muted-foreground block uppercase font-bold tracking-wider">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-0.5 text-[11px] sm:text-[11.5px] font-sans">
+                <div className="p-2 rounded-md border border-border/60 bg-card space-y-0.5 shadow-2xs">
+                  <span className="text-[9.5px] sm:text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
                     Design Type
                   </span>
                   <span className="font-semibold text-foreground block truncate">
@@ -606,8 +606,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   </span>
                 </div>
                 {product.material && (
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-0.5 shadow-2xs">
-                    <span className="text-[10px] sm:text-[10.5px] text-muted-foreground block uppercase font-bold tracking-wider">
+                  <div className="p-2 rounded-md border border-border/60 bg-card space-y-0.5 shadow-2xs">
+                    <span className="text-[9.5px] sm:text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
                       Material
                     </span>
                     <span className="font-semibold text-foreground block truncate" title={product.material}>
@@ -620,12 +620,12 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           </div>
 
           {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (7 Cols / 8 Cols on XL+ — Sticky on Desktop) */}
-          <div className="lg:col-span-7 xl:col-span-8 lg:sticky lg:top-[72px] lg:self-start w-full flex flex-col space-y-2.5 sm:space-y-3">
+          <div className="lg:col-span-7 xl:col-span-8 lg:sticky lg:top-[72px] lg:self-start w-full flex flex-col space-y-2 sm:space-y-2.5">
             
             {/* ========================================================= */}
             {/* LEVEL 1: PRODUCT IDENTITY & METADATA STRIP */}
             {/* ========================================================= */}
-            <div className="space-y-1.5 pb-2.5 border-b border-border/70">
+            <div className="space-y-1 pb-2 border-b border-border/70">
               
               {/* Compact Metadata Strip */}
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-[12px] font-sans">
@@ -685,7 +685,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               )}
 
               {/* LEVEL 2: CORE COMMERCIAL DATA — DEDICATED PRICE BLOCK */}
-              <div className="pt-1.5 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
+              <div className="pt-1 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1.5">
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-2xl sm:text-3xl font-display font-extrabold text-foreground tabular-nums tracking-tight">
                     {formatPrice(currentPrice)}
@@ -730,7 +730,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             {/* LEVEL 3.1: VOLUME PRICING TIER MODULE */}
             {/* ========================================================= */}
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <CommerceSectionHeader
                 title="Volume Pricing"
                 icon={<TrendingDown size={14} />}
@@ -778,11 +778,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             {/* LEVEL 3.2: ORDER QUANTITY & ESTIMATED TOTAL DECISION BLOCK */}
             {/* ========================================================= */}
-            <div className="space-y-2 sm:space-y-2.5">
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-2.5 items-stretch">
+            <div className="space-y-1.5 sm:space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-1.5 sm:gap-2 items-stretch">
                 
                 {/* Order Quantity Stepper Module */}
-                <div className="sm:col-span-6 rounded-lg border border-border/80 bg-card p-2 sm:p-2.5 flex flex-col justify-between space-y-1.5 shadow-2xs">
+                <div className="sm:col-span-6 rounded-md border border-border/80 bg-card p-1.5 sm:p-2 flex flex-col justify-between space-y-1 shadow-2xs">
                   <CommerceSectionHeader
                     title="Order Quantity"
                   />
@@ -805,7 +805,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     quantity={quantity}
                     unitPrice={currentPrice}
                     activeTierName={isFullStock ? "Full Stock Tier" : isBulk ? "Bulk Tier" : "Standard Tier"}
-                    className="h-full shadow-2xs"
+                    className="h-full shadow-2xs rounded-md"
                   />
                 </div>
               </div>
@@ -841,7 +841,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               </div>
             ) : (
               <div>
-                <div className="rounded-lg border border-border/80 bg-secondary/15 px-3 py-2 sm:px-3.5 sm:py-2 flex items-center gap-2.5 shadow-2xs">
+                <div className="rounded-md border border-border/80 bg-secondary/15 px-2.5 py-1.5 flex items-center gap-2.5 shadow-2xs">
                   <CommerceSectionHeader
                     title="Package Details"
                     icon={<Package size={13} />}
@@ -857,7 +857,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             {/* LEVEL 4: PRIMARY ACTION (ADD TO CART) & SECONDARY CTAS */}
             {/* ========================================================= */}
-            <div className="space-y-2 pt-1 font-sans">
+            <div className="space-y-1.5 pt-0.5 font-sans">
               <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-2.5">
                 <button
                   type="button"

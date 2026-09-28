@@ -23,7 +23,7 @@ export default function CommerceSectionHeader({
   className = "",
 }: CommerceSectionHeaderProps) {
   return (
-    <div className={`flex items-center justify-between gap-2 pb-1.5 ${className}`}>
+    <div className={`flex items-center justify-between gap-2 pb-1 ${className}`}>
       <div className="flex items-center gap-2 min-w-0">
         {icon && <span className="text-primary shrink-0">{icon}</span>}
         <h2 className="text-[12px] sm:text-[13px] font-display font-bold uppercase tracking-wider text-foreground truncate">

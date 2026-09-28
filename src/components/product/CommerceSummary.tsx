@@ -22,7 +22,7 @@ export default function CommerceSummary({
 }: CommerceSummaryProps) {
   return (
     <div
-      className={`rounded-lg border border-border/80 bg-secondary/25 p-2 sm:p-2.5 flex flex-col justify-between space-y-1 transition-all ${className}`}
+      className={`rounded-md border border-border/80 bg-secondary/25 p-1.5 sm:p-2 flex flex-col justify-between space-y-0.5 transition-all ${className}`}
       aria-label="Order estimated commercial total"
     >
       <div className="flex items-center justify-between gap-1.5">
@@ -36,7 +36,7 @@ export default function CommerceSummary({
         )}
       </div>
 
-      <div className="text-xl sm:text-[22px] font-display font-extrabold text-foreground tabular-nums tracking-tight leading-tight">
+      <div className="text-lg sm:text-xl font-display font-extrabold text-foreground tabular-nums tracking-tight leading-tight">
         {formatPrice(totalAmount)}
       </div>
     </div>

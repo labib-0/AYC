@@ -382,7 +382,7 @@ export default function ProductGallery({
   const isModal = variant === "modal";
   const mainRadiusClass = isModal ? "rounded-xl" : "rounded-xl";
   const thumbSizeClass = isModal ? "w-9 sm:w-10 rounded-md" : "w-9 sm:w-10 lg:w-9 xl:w-10 rounded-md";
-  const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "lg:max-h-[340px] xl:max-h-[360px]";
+  const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "lg:max-h-[290px] xl:max-h-[310px]";
 
   if (cleanImages.length === 0 && !videoInfo) {
     return (
