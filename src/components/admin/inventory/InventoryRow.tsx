@@ -23,8 +23,7 @@ export default function InventoryRow({
 
   // Available stock calculation
   const totalStock = record.quantity;
-  const reserved = record.reserved_quantity || 0;
-  const available = Math.max(0, totalStock - reserved);
+  const available = totalStock;
 
   // Variant description details (e.g. Color / Size or Title)
   const variantDetails: string[] = [];
@@ -112,10 +111,6 @@ export default function InventoryRow({
         {totalStock.toLocaleString()}
       </td>
 
-      {/* Reserved */}
-      <td className="py-3 px-3 text-right text-muted-foreground font-medium text-xs tabular-nums whitespace-nowrap">
-        {reserved.toLocaleString()}
-      </td>
 
       {/* Available */}
       <td className="py-3 px-3 text-right font-bold text-foreground text-xs tabular-nums whitespace-nowrap">

@@ -359,19 +359,19 @@ class MasterProductCreationWorkflowTest extends TestCase
         // Profile 1 (1 Carton)
         $this->assertEquals(15.0, $profiles[0]['gross_weight']);
         $this->assertEquals(15.0, $profiles[0]['total_gross_weight']);
-        $this->assertEquals(0.072, $profiles[0]['single_carton_cbm']);
+        $this->assertArrayNotHasKey('single_carton_cbm', $profiles[0]);
         $this->assertEquals(0.072, $profiles[0]['total_cbm']);
 
         // Profile 2 (2 Cartons)
         $this->assertEquals(15.0, $profiles[1]['gross_weight']); // Gross Weight Per Carton is NOT mutated
         $this->assertEquals(30.0, $profiles[1]['total_gross_weight']);
-        $this->assertEquals(0.072, $profiles[1]['single_carton_cbm']);
+        $this->assertArrayNotHasKey('single_carton_cbm', $profiles[1]);
         $this->assertEquals(0.144, $profiles[1]['total_cbm']);
 
         // Profile 3 (5 Cartons)
         $this->assertEquals(15.0, $profiles[2]['gross_weight']);
         $this->assertEquals(75.0, $profiles[2]['total_gross_weight']);
-        $this->assertEquals(0.072, $profiles[2]['single_carton_cbm']);
+        $this->assertArrayNotHasKey('single_carton_cbm', $profiles[2]);
         $this->assertEquals(0.36, $profiles[2]['total_cbm']);
     }
 

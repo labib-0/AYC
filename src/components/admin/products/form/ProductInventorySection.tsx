@@ -21,14 +21,12 @@ interface ProductInventorySectionProps {
   onWarehouseChange: (warehouseId: number | string) => void;
   errors: Record<string, string>;
   onHandStock?: number;
-  reservedStock?: number;
   availableStock?: number;
   warehouseBreakdown?: Array<{
     warehouse_id: number;
     warehouse_name: string;
     warehouse_code: string;
     on_hand_quantity: number;
-    reserved_quantity: number;
     available_quantity: number;
   }>;
   productId?: string | number;
@@ -44,7 +42,6 @@ export default function ProductInventorySection({
   onWarehouseChange,
   errors,
   onHandStock,
-  reservedStock,
   availableStock,
   warehouseBreakdown,
 }: ProductInventorySectionProps) {
@@ -85,14 +82,12 @@ export default function ProductInventorySection({
 
   // Create Mode Metrics
   const initialStockQty = Math.max(0, Number(stock) || 0);
-  const createReserved = 0;
-  const createAvailable = Math.max(0, initialStockQty - createReserved);
+  const createAvailable = initialStockQty;
   const createCompleteMoqs = Math.floor(createAvailable / effectiveMoq);
 
   // Edit Mode Metrics
   const editOnHand = onHandStock !== undefined ? Number(onHandStock) : initialStockQty;
-  const editReserved = reservedStock !== undefined ? Number(reservedStock) : 0;
-  const editAvailable = availableStock !== undefined ? Number(availableStock) : Math.max(0, editOnHand - editReserved);
+  const editAvailable = availableStock !== undefined ? Number(availableStock) : editOnHand;
   const editCompleteMoqs = Math.floor(editAvailable / effectiveMoq);
 
   return (
@@ -233,15 +228,15 @@ export default function ProductInventorySection({
           {/* Compact Calculated Summary */}
           <div className="bg-secondary/40 border border-border/70 rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground font-medium">Available Stock:</span>
+              <span className="text-muted-foreground font-medium">On Hand Stock:</span>
               <span className="font-bold text-foreground tabular-nums">
-                {stock !== undefined ? `${createAvailable.toLocaleString()} PCS` : "—"}
+                {stock !== undefined ? `${initialStockQty.toLocaleString()} PCS` : "—"}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground font-medium">Reserved Stock:</span>
-              <span className="font-bold text-muted-foreground tabular-nums">
-                {stock !== undefined ? `${createReserved} PCS` : "—"}
+              <span className="text-muted-foreground font-medium">Available Stock:</span>
+              <span className="font-bold text-foreground tabular-nums">
+                {stock !== undefined ? `${createAvailable.toLocaleString()} PCS` : "—"}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -263,12 +258,6 @@ export default function ProductInventorySection({
               <span className="text-muted-foreground font-medium">On Hand Stock:</span>
               <span className="font-bold text-foreground tabular-nums">
                 {editOnHand.toLocaleString()} PCS
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground font-medium">Reserved Stock:</span>
-              <span className="font-bold text-amber-600 dark:text-amber-400 tabular-nums">
-                {editReserved.toLocaleString()} PCS
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -337,7 +326,6 @@ export default function ProductInventorySection({
                       <th className="px-4 py-2">Warehouse</th>
                       <th className="px-4 py-2">Code</th>
                       <th className="px-4 py-2 text-right">On Hand</th>
-                      <th className="px-4 py-2 text-right">Reserved</th>
                       <th className="px-4 py-2 text-right font-bold text-foreground">Available</th>
                     </tr>
                   </thead>
@@ -352,9 +340,6 @@ export default function ProductInventorySection({
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums text-foreground">
                           {wh.on_hand_quantity.toLocaleString()} pcs
-                        </td>
-                        <td className="px-4 py-2 text-right tabular-nums text-amber-600 dark:text-amber-400">
-                          {wh.reserved_quantity.toLocaleString()} pcs
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums font-bold text-foreground">
                           {wh.available_quantity.toLocaleString()} pcs

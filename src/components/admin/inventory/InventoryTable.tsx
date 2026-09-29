@@ -38,7 +38,6 @@ export default function InventoryTable({
                 <th className="py-3 px-3">Brand / Cat</th>
                 <th className="py-3 px-3">Warehouse</th>
                 <th className="py-3 px-3 text-right">Current</th>
-                <th className="py-3 px-3 text-right">Reserved</th>
                 <th className="py-3 px-3 text-right">Available</th>
                 <th className="py-3 px-3">Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
@@ -60,7 +59,6 @@ export default function InventoryTable({
                   <td className="py-3.5 px-3"><div className="h-3 bg-secondary rounded w-20" /></td>
                   <td className="py-3.5 px-3"><div className="h-3 bg-secondary rounded w-24" /></td>
                   <td className="py-3.5 px-3 text-right"><div className="h-3.5 bg-secondary rounded w-12 ml-auto" /></td>
-                  <td className="py-3.5 px-3 text-right"><div className="h-3 bg-secondary rounded w-8 ml-auto" /></td>
                   <td className="py-3.5 px-3 text-right"><div className="h-3.5 bg-secondary rounded w-12 ml-auto" /></td>
                   <td className="py-3.5 px-3"><div className="h-5 bg-secondary rounded-full w-20" /></td>
                   <td className="py-3.5 px-4 text-right"><div className="h-7 bg-secondary rounded-lg w-16 ml-auto" /></td>
@@ -129,8 +127,7 @@ export default function InventoryTable({
           const variant = record.variant;
           const warehouse = record.warehouse;
           const totalStock = record.quantity;
-          const reserved = record.reserved_quantity || 0;
-          const available = Math.max(0, totalStock - reserved);
+          const available = totalStock;
           const rawImg = product?.images?.[0];
           const imageUrl =
             typeof rawImg === "string"
@@ -186,10 +183,10 @@ export default function InventoryTable({
               </div>
 
               {/* Stock Metric Grid */}
-              <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-secondary/30 border border-border/60 text-center">
+              <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-secondary/30 border border-border/60 text-center">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">
-                    Current
+                    Current Stock
                   </span>
                   <span className="text-xs font-display font-bold text-foreground tabular-nums">
                     {totalStock.toLocaleString()}
@@ -197,15 +194,7 @@ export default function InventoryTable({
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">
-                    Reserved
-                  </span>
-                  <span className="text-xs font-semibold text-muted-foreground tabular-nums">
-                    {reserved.toLocaleString()}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">
-                    Available
+                    Available Stock
                   </span>
                   <span
                     className={`text-xs font-display font-bold tabular-nums ${
@@ -260,8 +249,7 @@ export default function InventoryTable({
               <th className="py-3 px-3">Brand / Cat</th>
               <th className="py-3 px-3">Warehouse</th>
               <th className="py-3 px-3 text-right">Current Stock</th>
-              <th className="py-3 px-3 text-right">Reserved</th>
-              <th className="py-3 px-3 text-right">Available</th>
+              <th className="py-3 px-3 text-right">Available Stock</th>
               <th className="py-3 px-3">Status</th>
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>

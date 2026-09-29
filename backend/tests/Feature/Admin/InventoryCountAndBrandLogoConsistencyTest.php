@@ -95,7 +95,6 @@ class InventoryCountAndBrandLogoConsistencyTest extends TestCase
                 'product_variant_id' => $v->id,
                 'warehouse_id' => $this->warehouse1->id,
                 'quantity' => 100,
-                'reserved_quantity' => 0,
             ]);
         }
 
@@ -125,9 +124,9 @@ class InventoryCountAndBrandLogoConsistencyTest extends TestCase
         $v2 = ProductVariant::factory()->create(['product_id' => $p2->id, 'stock' => 60]);
         $v3 = ProductVariant::factory()->create(['product_id' => $p3->id, 'stock' => 70]);
 
-        Inventory::create(['product_variant_id' => $v1->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 50, 'reserved_quantity' => 0]);
-        Inventory::create(['product_variant_id' => $v2->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 60, 'reserved_quantity' => 0]);
-        Inventory::create(['product_variant_id' => $v3->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 70, 'reserved_quantity' => 0]);
+        Inventory::create(['product_variant_id' => $v1->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 50]);
+        Inventory::create(['product_variant_id' => $v2->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 60]);
+        Inventory::create(['product_variant_id' => $v3->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 70]);
 
         $res = $this->actingAs($this->admin, 'sanctum')
             ->getJson('/api/v1/admin/inventory/summary');
@@ -161,7 +160,6 @@ class InventoryCountAndBrandLogoConsistencyTest extends TestCase
                 'product_variant_id' => $v->id,
                 'warehouse_id' => $this->warehouse1->id,
                 'quantity' => 25,
-                'reserved_quantity' => 0,
             ]);
         }
 
@@ -190,13 +188,11 @@ class InventoryCountAndBrandLogoConsistencyTest extends TestCase
             'product_variant_id' => $variant->id,
             'warehouse_id' => $this->warehouse1->id,
             'quantity' => 200,
-            'reserved_quantity' => 0,
         ]);
         Inventory::create([
             'product_variant_id' => $variant->id,
             'warehouse_id' => $this->warehouse2->id,
             'quantity' => 100,
-            'reserved_quantity' => 0,
         ]);
 
         $res = $this->actingAs($this->admin, 'sanctum')
@@ -220,8 +216,8 @@ class InventoryCountAndBrandLogoConsistencyTest extends TestCase
         $v1 = ProductVariant::factory()->create(['product_id' => $product->id, 'size' => 'M', 'color' => 'Navy', 'stock' => 100]);
         $v2 = ProductVariant::factory()->create(['product_id' => $product->id, 'size' => 'L', 'color' => 'Navy', 'stock' => 100]);
 
-        Inventory::create(['product_variant_id' => $v1->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 100, 'reserved_quantity' => 0]);
-        Inventory::create(['product_variant_id' => $v2->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 100, 'reserved_quantity' => 0]);
+        Inventory::create(['product_variant_id' => $v1->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 100]);
+        Inventory::create(['product_variant_id' => $v2->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 100]);
 
         // Create 6 package allocations for this product
         for ($i = 0; $i < 6; $i++) {
@@ -256,8 +252,8 @@ class InventoryCountAndBrandLogoConsistencyTest extends TestCase
         $v1 = ProductVariant::factory()->create(['product_id' => $product->id, 'stock' => 77]);
         $v2 = ProductVariant::factory()->create(['product_id' => $product->id, 'stock' => 123]);
 
-        Inventory::create(['product_variant_id' => $v1->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 77, 'reserved_quantity' => 10]);
-        Inventory::create(['product_variant_id' => $v2->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 123, 'reserved_quantity' => 20]);
+        Inventory::create(['product_variant_id' => $v1->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 77]);
+        Inventory::create(['product_variant_id' => $v2->id, 'warehouse_id' => $this->warehouse1->id, 'quantity' => 123]);
 
         $res = $this->actingAs($this->admin, 'sanctum')
             ->getJson('/api/v1/admin/inventory/summary');

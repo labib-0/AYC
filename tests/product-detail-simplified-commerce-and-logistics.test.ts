@@ -152,7 +152,6 @@ const testProfile: ShippingPackageProfile = {
   gross_weight: 10, // 10 kg per carton
   total_gross_weight: 10,
   weight_unit: "kg",
-  single_carton_cbm: 0.072,
   total_cbm: 0.072,
   is_active: true,
 };
@@ -162,7 +161,7 @@ function calculateMockLogistics(qty: number, profiles: ShippingPackageProfile[])
   const validProfiles = activeProfiles.filter(
     (p) =>
       (Number(p.gross_weight) > 0 || Number(p.total_gross_weight) > 0) &&
-      (Number(p.carton_length) > 0 || Number(p.single_carton_cbm) > 0 || Number(p.total_cbm) > 0)
+      (Number(p.carton_length) > 0 || Number(p.total_cbm) > 0)
   );
 
   if (validProfiles.length === 0 || qty <= 0) {
@@ -175,10 +174,7 @@ function calculateMockLogistics(qty: number, profiles: ShippingPackageProfile[])
   const piecesPerCarton = Math.max(1, Math.round(basePkgQty / cartonsPerPkg));
   const requiredCartons = Math.ceil(qty / piecesPerCarton);
 
-  const singleCbm =
-    base.single_carton_cbm && Number(base.single_carton_cbm) > 0
-      ? Number(base.single_carton_cbm)
-      : calculateCartonCbm(base.carton_length || 0, base.carton_width || 0, base.carton_height || 0, (base.dimension_unit as any) || "cm");
+  const singleCbm = calculateCartonCbm(base.carton_length || 0, base.carton_width || 0, base.carton_height || 0, (base.dimension_unit as any) || "cm");
 
   const grossPerCarton =
     Number(base.gross_weight) > 0 ? Number(base.gross_weight) : Number(base.total_gross_weight || 0) / cartonsPerPkg;

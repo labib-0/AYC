@@ -840,9 +840,9 @@ class ProductImageStorageAndPipelineTest extends TestCase
             'First WebP quality step must not exceed 90 (quality/size balance)');
     }
 
-    /** MAX_LONG_EDGE is set to 1500 */
-    public function test_max_long_edge_is_1500(): void
+    /** MAX_LONG_EDGE is set to 2560 to preserve high resolution product photos without blind downscaling */
+    public function test_max_long_edge_is_2560(): void
     {
-        $this->assertSame(1500, ProductImagePipelineService::MAX_LONG_EDGE);
+        $this->assertSame(2560, ProductImagePipelineService::MAX_LONG_EDGE);
     }
 }

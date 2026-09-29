@@ -50,7 +50,6 @@ export interface InventoryRecord {
   product_variant_id: number;
   warehouse_id: number;
   quantity: number;
-  reserved_quantity: number;
   created_at: string;
   updated_at: string;
   variant?: {

@@ -399,7 +399,6 @@ class WholesalePricingAndOrderManagementTest extends TestCase
             'product_variant_id' => $variant->id,
             'warehouse_id' => $this->warehouse->id,
             'quantity' => 40,
-            'reserved_quantity' => 0,
         ]);
 
         // Place order for quantity 10
@@ -462,7 +461,6 @@ class WholesalePricingAndOrderManagementTest extends TestCase
             'product_variant_id' => $variant->id,
             'warehouse_id' => $this->warehouse->id,
             'quantity' => 100,
-            'reserved_quantity' => 0,
         ]);
 
         // 2. Customer purchases quantity 10
@@ -607,7 +605,6 @@ class WholesalePricingAndOrderManagementTest extends TestCase
             'product_variant_id' => $variant->id,
             'warehouse_id' => $this->warehouse->id,
             'quantity' => 30,
-            'reserved_quantity' => 0,
         ]);
 
         // Place order for 10

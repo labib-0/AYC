@@ -39,7 +39,7 @@ export default function ProductSelectedLogisticsRow({
     const validProfiles = activeProfiles.filter(
       (p) =>
         (Number(p.gross_weight) > 0 || Number(p.total_gross_weight) > 0) &&
-        (Number(p.carton_length) > 0 || Number(p.single_carton_cbm) > 0 || Number(p.total_cbm) > 0)
+        (Number(p.carton_length) > 0 || Number(p.total_cbm) > 0)
     );
 
     if (validProfiles.length === 0 || quantity <= 0) {
@@ -64,15 +64,12 @@ export default function ProductSelectedLogisticsRow({
 
     if (exactMatch) {
       const cartonCount = Math.max(1, Number(exactMatch.carton_count) || 1);
-      const singleCartonCbm =
-        exactMatch.single_carton_cbm && Number(exactMatch.single_carton_cbm) > 0
-          ? Number(exactMatch.single_carton_cbm)
-          : calculateCartonCbm(
-              Number(exactMatch.carton_length || 0),
-              Number(exactMatch.carton_width || 0),
-              Number(exactMatch.carton_height || 0),
-              (exactMatch.dimension_unit as "cm" | "in" | "m") || "cm"
-            );
+      const singleCartonCbm = calculateCartonCbm(
+        Number(exactMatch.carton_length || 0),
+        Number(exactMatch.carton_width || 0),
+        Number(exactMatch.carton_height || 0),
+        (exactMatch.dimension_unit as "cm" | "in" | "m") || "cm"
+      );
 
       const totalCbm =
         exactMatch.total_cbm && Number(exactMatch.total_cbm) > 0
@@ -102,15 +99,12 @@ export default function ProductSelectedLogisticsRow({
 
     if (rangeMatch) {
       const cartonCount = Math.max(1, Number(rangeMatch.carton_count) || 1);
-      const singleCartonCbm =
-        rangeMatch.single_carton_cbm && Number(rangeMatch.single_carton_cbm) > 0
-          ? Number(rangeMatch.single_carton_cbm)
-          : calculateCartonCbm(
-              Number(rangeMatch.carton_length || 0),
-              Number(rangeMatch.carton_width || 0),
-              Number(rangeMatch.carton_height || 0),
-              (rangeMatch.dimension_unit as "cm" | "in" | "m") || "cm"
-            );
+      const singleCartonCbm = calculateCartonCbm(
+        Number(rangeMatch.carton_length || 0),
+        Number(rangeMatch.carton_width || 0),
+        Number(rangeMatch.carton_height || 0),
+        (rangeMatch.dimension_unit as "cm" | "in" | "m") || "cm"
+      );
 
       const totalCbm =
         rangeMatch.total_cbm && Number(rangeMatch.total_cbm) > 0
@@ -146,15 +140,12 @@ export default function ProductSelectedLogisticsRow({
 
     const requiredCartons = Math.ceil(quantity / piecesPerCarton);
 
-    const singleCartonCbm =
-      baseProfile.single_carton_cbm && Number(baseProfile.single_carton_cbm) > 0
-        ? Number(baseProfile.single_carton_cbm)
-        : calculateCartonCbm(
-            Number(baseProfile.carton_length || 0),
-            Number(baseProfile.carton_width || 0),
-            Number(baseProfile.carton_height || 0),
-            (baseProfile.dimension_unit as "cm" | "in" | "m") || "cm"
-          );
+    const singleCartonCbm = calculateCartonCbm(
+      Number(baseProfile.carton_length || 0),
+      Number(baseProfile.carton_width || 0),
+      Number(baseProfile.carton_height || 0),
+      (baseProfile.dimension_unit as "cm" | "in" | "m") || "cm"
+    );
 
     const grossWeightPerCarton =
       Number(baseProfile.gross_weight) > 0

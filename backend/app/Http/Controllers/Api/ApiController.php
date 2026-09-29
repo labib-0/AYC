@@ -65,4 +65,12 @@ class ApiController extends Controller
     {
         return $this->error($message, Response::HTTP_UNAUTHORIZED);
     }
+
+    /**
+     * Standard 500 Internal Server Error JSON response
+     */
+    protected function serverError(string $message = 'An internal server error occurred.', mixed $errors = null): JsonResponse
+    {
+        return $this->error($message, Response::HTTP_INTERNAL_SERVER_ERROR, $errors);
+    }
 }

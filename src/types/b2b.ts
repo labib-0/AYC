@@ -63,8 +63,6 @@ export interface B2BProductInput {
   initial_stock?: number;
   onHandStock?: number;
   on_hand_stock?: number;
-  reservedStock?: number;
-  reserved_stock?: number;
   availableStock?: number;
   available_stock?: number;
   availableMoqs?: number;
@@ -78,7 +76,6 @@ export interface B2BProductInput {
     warehouse_name: string;
     warehouse_code: string;
     on_hand_quantity: number;
-    reserved_quantity: number;
     available_quantity: number;
   }>;
   status: "published" | "draft" | "unpublished";

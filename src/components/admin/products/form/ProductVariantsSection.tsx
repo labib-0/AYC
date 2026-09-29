@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, X, Layers, AlertCircle, Check } from "lucide-react";
+import { Plus, X, AlertCircle, Check } from "lucide-react";
 
 export const PREDEFINED_PALETTE = [
   { name: "Black", hex: "#111827", dark: true },
@@ -93,7 +93,6 @@ export default function ProductVariantsSection({
 
   // Custom Size Input State
   const [customSize, setCustomSize] = useState("");
-  const [showMatrixPreview, setShowMatrixPreview] = useState(false);
 
   // Sync custom colors into state if any current color isn't in predefined
   useEffect(() => {
@@ -180,8 +179,6 @@ export default function ProductVariantsSection({
   };
 
   const totalVariantCombinations = colors.length * sizes.length;
-  const avgStockPerVariant =
-    totalVariantCombinations > 0 ? Math.floor(stock / totalVariantCombinations) : 0;
 
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
@@ -407,64 +404,6 @@ export default function ProductVariantsSection({
               <AlertCircle size={12} />
               {errors.sizes}
             </p>
-          )}
-        </div>
-
-        {/* Matrix Preview Toggle */}
-        <div className="pt-2 border-t border-border/60">
-          <button
-            type="button"
-            onClick={() => setShowMatrixPreview(!showMatrixPreview)}
-            className="text-xs font-bold text-primary hover:underline flex items-center gap-1.5"
-          >
-            <Layers size={13} />
-            {showMatrixPreview ? "Hide Variants Table Preview" : "View Generated Variants & SKUs"}
-          </button>
-
-          {showMatrixPreview && (
-            <div className="mt-3 border border-border/80 rounded-xl overflow-hidden bg-card">
-              <div className="overflow-x-auto max-h-64">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-secondary/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/60 sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2">Variant Title</th>
-                      <th className="px-3 py-2">SKU Preview</th>
-                      <th className="px-3 py-2 text-right">Est. Stock</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {totalVariantCombinations === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="px-3 py-4 text-center text-muted-foreground">
-                          No variants configured.
-                        </td>
-                      </tr>
-                    ) : (
-                      colors.map((c) =>
-                        sizes.map((s) => {
-                          const vSku = `${sku || "AY-PROD"}-${c.substring(0, 3).toUpperCase()}-${s.toUpperCase()}`;
-                          return (
-                            <tr key={`${c}-${s}`} className="hover:bg-secondary/30">
-                              <td className="px-3 py-2 font-semibold text-foreground">
-                                <span>
-                                  {c} / {s}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
-                                {vSku}
-                              </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                                {avgStockPerVariant} pcs
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           )}
         </div>
       </div>

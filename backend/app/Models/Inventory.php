@@ -15,12 +15,10 @@ class Inventory extends Model
         'product_variant_id',
         'warehouse_id',
         'quantity',
-        'reserved_quantity',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
-        'reserved_quantity' => 'integer',
     ];
 
     public function product(): BelongsTo

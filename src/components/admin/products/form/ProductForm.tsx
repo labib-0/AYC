@@ -1142,7 +1142,6 @@ export default function ProductForm({
             onWarehouseChange={setWarehouseId}
             errors={errors}
             onHandStock={initialData?.onHandStock ?? (initialData as any)?.on_hand_stock}
-            reservedStock={initialData?.reservedStock ?? (initialData as any)?.reserved_stock}
             availableStock={initialData?.availableStock ?? (initialData as any)?.available_stock ?? initialData?.stock}
             warehouseBreakdown={initialData?.warehouseBreakdown ?? (initialData as any)?.warehouse_breakdown}
             productId={initialData?.id}

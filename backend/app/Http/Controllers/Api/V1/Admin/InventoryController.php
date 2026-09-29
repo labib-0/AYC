@@ -46,7 +46,6 @@ class InventoryController extends ApiController
                 ],
                 [
                     'quantity' => (int) ($var->stock ?? 0),
-                    'reserved_quantity' => 0,
                 ]
             );
         }
@@ -156,7 +155,7 @@ class InventoryController extends ApiController
         // Sorting
         $sort = $request->input('sort', 'updated_at');
         $direction = $request->input('direction', 'desc');
-        if (in_array($sort, ['quantity', 'reserved_quantity', 'created_at', 'updated_at'])) {
+        if (in_array($sort, ['quantity', 'created_at', 'updated_at'])) {
             $query->orderBy($sort, $direction === 'asc' ? 'asc' : 'desc');
         } else {
             $query->orderBy('updated_at', 'desc');
@@ -231,7 +230,6 @@ class InventoryController extends ApiController
                         ],
                         [
                             'quantity' => $variant->stock ?? 0,
-                            'reserved_quantity' => 0,
                         ]
                     );
 

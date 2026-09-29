@@ -27,21 +27,16 @@ export default function ProductLogisticsSummary({
   const cartonCount = Math.max(1, Number(profile.carton_count) || 1);
 
   // Prefer backend-computed values if available; calculate locally as fallback
-  const singleCartonCbm =
-    profile.single_carton_cbm !== undefined && profile.single_carton_cbm > 0
-      ? profile.single_carton_cbm
+  const totalCbm =
+    profile.total_cbm !== undefined && profile.total_cbm > 0
+      ? profile.total_cbm
       : calculateTotalCbm(
           profile.carton_length || 0,
           profile.carton_width || 0,
           profile.carton_height || 0,
-          1,
+          cartonCount,
           dimUnit as "cm" | "in" | "m"
         );
-
-  const totalCbm =
-    profile.total_cbm !== undefined && profile.total_cbm > 0
-      ? profile.total_cbm
-      : singleCartonCbm * cartonCount;
 
   // total_gross_weight: prefer backend; fallback = gross_weight per carton × count
   const totalGrossWeight =
@@ -98,7 +93,7 @@ export default function ProductLogisticsSummary({
             <span className="text-xs font-semibold text-muted-foreground">m³</span>
           </p>
           <p className="text-[9px] text-muted-foreground/70 leading-tight">
-            {singleCartonCbm.toFixed(3)} m³/ctn × {cartonCount}
+            {cartonCount} {cartonCount === 1 ? "carton" : "cartons"}
           </p>
         </div>
 

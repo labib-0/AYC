@@ -250,7 +250,6 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
         weight_unit: (sp.weight_unit || "kg") as "kg" | "lbs" | "g",
         notes: sp.notes || null,
         is_active: sp.is_active !== undefined ? Boolean(sp.is_active) : true,
-        single_carton_cbm: sp.single_carton_cbm !== undefined ? Number(sp.single_carton_cbm) : undefined,
         total_cbm: sp.total_cbm !== undefined ? Number(sp.total_cbm) : undefined,
       }))
     : undefined;
@@ -261,17 +260,11 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     ? Number(p.on_hand_stock)
     : availableStock;
 
-  const reservedStock = p.reservedStock !== undefined && p.reservedStock !== null
-    ? Number(p.reservedStock)
-    : p.reserved_stock !== undefined && p.reserved_stock !== null
-    ? Number(p.reserved_stock)
-    : 0;
-
   const realAvailableStock = p.availableStock !== undefined && p.availableStock !== null
     ? Number(p.availableStock)
     : p.available_stock !== undefined && p.available_stock !== null
     ? Number(p.available_stock)
-    : Math.max(0, onHandStock - reservedStock);
+    : onHandStock;
 
   const availableMoqs = p.availableMoqs !== undefined && p.availableMoqs !== null
     ? Number(p.availableMoqs)
@@ -333,8 +326,6 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     stock: realAvailableStock,
     onHandStock,
     on_hand_stock: onHandStock,
-    reservedStock,
-    reserved_stock: reservedStock,
     availableStock: realAvailableStock,
     available_stock: realAvailableStock,
     availableMoqs,
@@ -432,7 +423,6 @@ export function toStorefrontProduct(p: any): Product {
     availableStock: p.availableStock !== undefined ? Number(p.availableStock) : (p.stock !== undefined ? Number(p.stock) : (p.inventory_count !== undefined ? Number(p.inventory_count) : 0)),
     availableMoqs: p.availableMoqs !== undefined ? Number(p.availableMoqs) : (p.available_moqs !== undefined ? Number(p.available_moqs) : ((p.moq && Number(p.moq) > 0) ? Math.floor((Number(p.availableStock ?? p.stock ?? 0)) / Number(p.moq)) : 0)),
     onHandStock: p.onHandStock !== undefined ? Number(p.onHandStock) : (p.on_hand_stock !== undefined ? Number(p.on_hand_stock) : undefined),
-    reservedStock: p.reservedStock !== undefined ? Number(p.reservedStock) : (p.reserved_stock !== undefined ? Number(p.reserved_stock) : 0),
     brand: typeof p.brand === "string" ? p.brand : p.brand?.name || "Ayaan",
     brandLogo: p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo || (p.brand?.slug ? `/brands/${p.brand.slug}.svg` : undefined),
     brand_logo: p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo || (p.brand?.slug ? `/brands/${p.brand.slug}.svg` : undefined),

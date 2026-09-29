@@ -369,7 +369,6 @@ class RbacGranularEnforcementTest extends TestCase
             'product_variant_id' => $variant->id,
             'warehouse_id'       => $this->warehouse->id,
             'quantity'           => 50,
-            'reserved_quantity'  => 0,
         ]);
 
         $inventoryViewer = $this->createAdminWithPermissions([

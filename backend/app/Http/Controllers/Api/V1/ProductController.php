@@ -812,7 +812,6 @@ class ProductController extends ApiController
                         'product_variant_id' => $createdVariant->id,
                         'warehouse_id' => $targetWarehouseId,
                         'quantity' => $varStock,
-                        'reserved_quantity' => 0,
                     ]);
 
                     // Audit log for stock initialization
@@ -838,7 +837,6 @@ class ProductController extends ApiController
                     'product_variant_id' => null,
                     'warehouse_id' => $targetWarehouseId,
                     'quantity' => $initialStock,
-                    'reserved_quantity' => 0,
                 ]);
 
                 // Audit log for stock initialization
@@ -1289,7 +1287,7 @@ class ProductController extends ApiController
                 if ($mainWh) {
                     \App\Models\Inventory::updateOrCreate(
                         ['product_id' => $product->id, 'product_variant_id' => null, 'warehouse_id' => $mainWh->id],
-                        ['quantity' => $stockVal, 'reserved_quantity' => 0]
+                        ['quantity' => $stockVal]
                     );
                 }
             } else {
@@ -1344,7 +1342,6 @@ class ProductController extends ApiController
                                 'product_variant_id' => $newVar->id,
                                 'warehouse_id' => $mainWh->id,
                                 'quantity' => $newVar->stock,
-                                'reserved_quantity' => 0,
                             ]);
                         }
                     }
@@ -1592,43 +1589,94 @@ class ProductController extends ApiController
             ->firstOrFail();
 
         $request->validate([
-            'image' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+            'image' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,webp,gif,bmp,avif', 'max:20480'],
             'is_primary' => ['nullable', 'boolean'],
             'alt_text' => ['nullable', 'string', 'max:255'],
         ], [
             'image.required' => 'Please select an image file to upload.',
-            'image.image' => 'The file must be a valid image (JPG, PNG, or WebP).',
-            'image.mimes' => 'Unsupported format. Only JPG, PNG, and WebP images are supported.',
-            'image.max' => 'The image exceeds the 5MB maximum file size limit. Please upload an image under 5MB.',
+            'image.file' => 'The uploaded item must be a valid file.',
+            'image.image' => 'The file must be a valid image.',
+            'image.mimes' => 'Unsupported format. Supported formats: JPG, PNG, WebP, GIF, BMP, AVIF.',
+            'image.max' => 'The image exceeds the 20 MB maximum file size limit. Please upload an image under 20 MB.',
         ]);
 
         $file = $request->file('image');
+        $context = [
+            'product_id' => $product->id,
+            'admin_id'   => $user?->id,
+            'source_ip'  => $request->ip(),
+        ];
+
         try {
             $pipeline = app(\App\Services\Media\ProductImagePipelineService::class);
-            $result = $pipeline->processAndStore($file, 'products');
+            $result = $pipeline->processAndStore($file, 'products', $context);
             $url = $result['url'];
+            $relativePath = $result['path'] ?? null;
         } catch (\InvalidArgumentException $e) {
             return $this->error($e->getMessage(), 422);
+        } catch (\RuntimeException $e) {
+            \Illuminate\Support\Facades\Log::error('Product image upload failed (runtime)', [
+                'product_id'        => $product->id,
+                'admin_id'          => $user?->id,
+                'filename'          => $file->getClientOriginalName(),
+                'size'              => $file->getSize(),
+                'mime'              => $file->getMimeType(),
+                'exception_class'   => get_class($e),
+                'exception_message' => $e->getMessage(),
+            ]);
+            return $this->serverError($e->getMessage());
         } catch (\Throwable $e) {
-            return $this->serverError('Image processing failed: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Product image upload unexpected failure', [
+                'product_id'        => $product->id,
+                'admin_id'          => $user?->id,
+                'filename'          => $file->getClientOriginalName(),
+                'size'              => $file->getSize(),
+                'mime'              => $file->getMimeType(),
+                'exception_class'   => get_class($e),
+                'exception_message' => $e->getMessage(),
+            ]);
+            return $this->serverError('Image processing failed. Please try again.');
         }
 
-        $isPrimary = $request->boolean('is_primary');
-        if ($isPrimary) {
-            $product->images()->update(['is_primary' => false]);
-        } else {
-            // If this is the first image, make it primary
-            $isPrimary = $product->images()->count() === 0;
+        try {
+            DB::beginTransaction();
+
+            $isPrimary = $request->boolean('is_primary');
+            if ($isPrimary) {
+                $product->images()->update(['is_primary' => false]);
+            } else {
+                // If this is the first image, make it primary
+                $isPrimary = $product->images()->count() === 0;
+            }
+
+            $nextSortOrder = ($product->images()->max('sort_order') ?? -1) + 1;
+
+            $productImage = $product->images()->create([
+                'image_url' => $url,
+                'alt_text' => $request->input('alt_text', $product->name),
+                'sort_order' => $nextSortOrder,
+                'is_primary' => $isPrimary,
+            ]);
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            // Atomic cleanup: remove newly stored WebP if database creation failed
+            if (!empty($relativePath) && Storage::disk('public')->exists($relativePath)) {
+                Storage::disk('public')->delete($relativePath);
+            }
+
+            \Illuminate\Support\Facades\Log::error('Failed to create product image database record', [
+                'product_id'        => $product->id,
+                'admin_id'          => $user?->id,
+                'relative_path'     => $relativePath,
+                'exception_class'   => get_class($e),
+                'exception_message' => $e->getMessage(),
+            ]);
+
+            return $this->serverError('Failed to record product media. Please try again.');
         }
-
-        $nextSortOrder = ($product->images()->max('sort_order') ?? -1) + 1;
-
-        $productImage = $product->images()->create([
-            'image_url' => $url,
-            'alt_text' => $request->input('alt_text', $product->name),
-            'sort_order' => $nextSortOrder,
-            'is_primary' => $isPrimary,
-        ]);
 
         CatalogCacheService::invalidateProduct($product);
 

@@ -42,7 +42,6 @@ export interface Product {
   maxCompletePackages?: number;
   completePackageStock?: number;
   onHandStock?: number;
-  reservedStock?: number;
   brand?: string;
   brandLogo?: string;
   brand_logo?: string;
@@ -90,8 +89,7 @@ export interface ShippingPackageProfile {
   weight_unit: "kg" | "lbs" | "g";
   notes?: string | null;
   is_active?: boolean;
-  single_carton_cbm?: number;  // volume of one carton (derived)
-  total_cbm?: number;          // single_carton_cbm × carton_count (derived)
+  total_cbm?: number;          // derived packaging volume
 }
 
 export interface PricingTier {

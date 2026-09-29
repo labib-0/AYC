@@ -4,6 +4,7 @@ namespace App\Services\Media;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Image;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -28,8 +29,8 @@ use Throwable;
  * - Animated GIF policy: flatten to first frame -> static WebP.
  * - Normalize EXIF orientation.
  * - Preserve alpha transparency.
- * - Preserve aspect ratio without blind cropping.
- * - Safely handle excessively large dimensions (capping long edge to 1500) to prevent memory exhaustion.
+ * - Preserve aspect ratio without blind cropping or upscaling.
+ * - Safely constrain excessively large pixel dimensions to prevent memory exhaustion while preserving high resolution.
  * - Canonical output is always WebP.
  * - Safe error handling for corrupted, unsupported, or storage failures.
  */
@@ -45,8 +46,11 @@ class ProductImagePipelineService
     /** Preferred explicit WebP quality target. */
     public const DEFAULT_WEBP_QUALITY = 82;
 
-    /** Maximum output long-edge in pixels — prevents huge output without upsizing. */
-    public const MAX_LONG_EDGE = 1500;
+    /** Maximum output long-edge in pixels — safely constrains extreme dimensions without downscaling standard high-res photos. */
+    public const MAX_LONG_EDGE = 2560;
+
+    /** Maximum allowed total megapixels to prevent memory exhaustion before decoding. */
+    public const MAX_MEGAPIXELS = 40;
 
     /** WebP quality steps (starts at 85 and steps down to 72). */
     public const WEBP_QUALITY_STEPS = [85, 80, 75, 72];
@@ -77,22 +81,41 @@ class ProductImagePipelineService
      *
      * @param  UploadedFile $file
      * @param  string       $folder  Subfolder on the public disk ('products', 'brands', etc.)
+     * @param  array<string, mixed> $context Optional audit context (e.g. ['product_id' => 123])
      * @return array{url:string,path:string,key:string,name:string,size:int,mime:string,width:int,height:int}
      *
      * @throws \InvalidArgumentException  Validation failure (user-safe message)
      * @throws \RuntimeException          Processing/storage failure (safe message)
      */
-    public function processAndStore(UploadedFile $file, string $folder = 'products'): array
+    public function processAndStore(UploadedFile $file, string $folder = 'products', array $context = []): array
     {
+        $adminId = auth('sanctum')->id() ?? auth()->id();
+        $originalName = $file->getClientOriginalName();
+        $fileSize = (int) $file->getSize();
+
         // ── Step 1: PHP upload status ────────────────────────────────────────
         if (!$file->isValid()) {
-            throw new \InvalidArgumentException($this->describeUploadError($file->getError()));
+            $errorMsg = $this->describeUploadError($file->getError());
+            Log::warning('Image upload rejected at PHP transport level', [
+                'admin_id'      => $adminId,
+                'filename'      => $originalName,
+                'error_code'    => $file->getError(),
+                'stage'         => 'php_transport',
+                'context'       => $context,
+            ]);
+            throw new \InvalidArgumentException($errorMsg);
         }
 
         // ── Step 2: File size (20 MB hard limit) ────────────────────────────
-        $fileSize = $file->getSize();
         if ($fileSize > self::MAX_UPLOAD_BYTES) {
             $mb = round($fileSize / (1024 * 1024), 1);
+            Log::warning('Image exceeds 20 MB size limit', [
+                'admin_id'   => $adminId,
+                'filename'   => $originalName,
+                'file_size'  => $fileSize,
+                'stage'      => 'size_validation',
+                'context'    => $context,
+            ]);
             throw new \InvalidArgumentException(
                 "Image exceeds the 20 MB upload limit ({$mb} MB received). Please select a smaller file."
             );
@@ -101,12 +124,23 @@ class ProductImagePipelineService
         // ── Step 3: Derive MIME from actual file content, not client claim ──
         $realPath = $file->getRealPath();
         if (!$realPath || !file_exists($realPath)) {
+            Log::error('Uploaded temporary file unreadable', [
+                'admin_id' => $adminId,
+                'filename' => $originalName,
+                'stage'    => 'file_read',
+            ]);
             throw new \RuntimeException('Temporary uploaded file could not be read.');
         }
 
         $detectedMime = $this->detectMime($realPath, $file);
 
         if (!in_array($detectedMime, self::DECLARED_MIMES, true)) {
+            Log::warning('Unsupported MIME type uploaded', [
+                'admin_id'      => $adminId,
+                'filename'      => $originalName,
+                'detected_mime' => $detectedMime,
+                'stage'         => 'mime_validation',
+            ]);
             throw new \InvalidArgumentException(
                 'This image format is not supported by the server. ' .
                 'Supported formats: JPG, PNG, WebP, GIF, BMP, AVIF.'
@@ -114,16 +148,42 @@ class ProductImagePipelineService
         }
 
         if (!$this->isDriverSupported($detectedMime)) {
+            Log::warning('Image format unsupported by active driver', [
+                'admin_id'      => $adminId,
+                'filename'      => $originalName,
+                'detected_mime' => $detectedMime,
+                'stage'         => 'driver_support_check',
+            ]);
             throw new \InvalidArgumentException(
                 'This image format is not supported by the server.'
             );
         }
 
-        // ── Step 4: Laravel 13 Image Facade Processing Pipeline ─────────────
-        $tempWebp = tempnam(sys_get_temp_dir(), 'ayn_webp_');
+        // ── Step 4: Early Header Dimension & Memory Safety Check ────────────
+        $imageSizeInfo = @getimagesize($realPath);
+        if ($imageSizeInfo !== false) {
+            $headerW = (int) ($imageSizeInfo[0] ?? 0);
+            $headerH = (int) ($imageSizeInfo[1] ?? 0);
+            if ($headerW > 0 && $headerH > 0) {
+                $megapixels = ($headerW * $headerH) / 1_000_000;
+                if ($megapixels > self::MAX_MEGAPIXELS) {
+                    Log::warning('Image dimensions exceed megapixel memory limit', [
+                        'admin_id'   => $adminId,
+                        'filename'   => $originalName,
+                        'dimensions' => "{$headerW}x{$headerH}",
+                        'megapixels' => round($megapixels, 1),
+                        'stage'      => 'dimension_safety',
+                    ]);
+                    throw new \InvalidArgumentException(
+                        'Image dimensions are excessively large. Please upload an image with lower pixel dimensions.'
+                    );
+                }
+            }
+        }
 
+        // ── Step 5: Laravel 13 Image Facade Processing Pipeline ─────────────
         try {
-            // Native Laravel 13 Image facade pipeline
+            // Preferred flow: Image::fromUpload -> orient -> scaleDown if excessively large -> toWebp(82)
             $imageInstance = Image::fromUpload($file)
                 ->orient();
 
@@ -136,17 +196,15 @@ class ProductImagePipelineService
                 );
             }
 
-            // Safely handle excessively large dimensions to avoid memory exhaustion
-            // Preserves aspect ratio without upscaling small images
+            // Safely constrain excessively large pixel dimensions (without upscaling or blind cropping)
             if ($origW > self::MAX_LONG_EDGE || $origH > self::MAX_LONG_EDGE) {
-                if ($origW >= $origH) {
-                    $imageInstance = $imageInstance->scale(width: self::MAX_LONG_EDGE);
-                } else {
-                    $imageInstance = $imageInstance->scale(height: self::MAX_LONG_EDGE);
-                }
+                $imageInstance = $imageInstance->scale(
+                    width: self::MAX_LONG_EDGE,
+                    height: self::MAX_LONG_EDGE
+                );
             }
 
-            // Convert to WebP with explicit quality 82 (preferred pipeline)
+            // Convert to canonical WebP with quality 82
             $imageInstance = $imageInstance->toWebp()->quality(self::DEFAULT_WEBP_QUALITY);
 
             $webpBytes = $imageInstance->toBytes();
@@ -156,18 +214,26 @@ class ProductImagePipelineService
         } catch (\InvalidArgumentException $e) {
             throw $e;
         } catch (Throwable $e) {
+            Log::error('Image decoding or WebP conversion failed', [
+                'admin_id'          => $adminId,
+                'filename'          => $originalName,
+                'detected_mime'     => $detectedMime,
+                'input_size'        => $fileSize,
+                'detected_dims'     => isset($origW, $origH) ? "{$origW}x{$origH}" : ($imageSizeInfo ? "{$imageSizeInfo[0]}x{$imageSizeInfo[1]}" : 'unknown'),
+                'stage'             => 'image_processing',
+                'exception_class'   => get_class($e),
+                'exception_message' => $e->getMessage(),
+                'context'           => $context,
+            ]);
+
             throw new \RuntimeException(
                 'The image could not be processed. The file may be corrupted or unreadable.',
                 0,
                 $e
             );
-        } finally {
-            if (isset($tempWebp) && file_exists($tempWebp)) {
-                @unlink($tempWebp);
-            }
         }
 
-        // ── Step 5: Persist to public disk via Laravel storage architecture ──
+        // ── Step 6: Persist to public disk via Laravel storage architecture ──
         $filename     = Str::random(24) . '.webp';
         $relativePath = "{$folder}/{$filename}";
 
@@ -175,28 +241,52 @@ class ProductImagePipelineService
             $stored = Storage::disk('public')->put($relativePath, $webpBytes);
             if (!$stored || !Storage::disk('public')->exists($relativePath)) {
                 throw new \RuntimeException(
-                    'The image could not be saved. Please verify disk permissions.'
+                    'The image could not be saved. Please verify server storage permissions.'
                 );
             }
         } catch (\RuntimeException $e) {
+            Log::error('Storage persistence failed', [
+                'admin_id'      => $adminId,
+                'relative_path' => $relativePath,
+                'stage'         => 'storage_persistence',
+                'message'       => $e->getMessage(),
+            ]);
             throw $e;
         } catch (Throwable $e) {
+            Log::error('Storage persistence unexpected error', [
+                'admin_id'          => $adminId,
+                'relative_path'     => $relativePath,
+                'stage'             => 'storage_persistence',
+                'exception_class'   => get_class($e),
+                'exception_message' => $e->getMessage(),
+            ]);
             throw new \RuntimeException(
-                'The image could not be saved. Please verify disk permissions.',
+                'The image could not be saved. Please verify server storage permissions.',
                 0,
                 $e
             );
         }
 
-        // ── Step 6: Return canonical public URL and metadata ────────────────
+        // ── Step 7: Return canonical public URL and metadata ────────────────
         $canonicalUrl = $this->generateCanonicalPublicUrl($relativePath);
+
+        Log::info('Image processed and stored successfully as WebP', [
+            'admin_id'    => $adminId,
+            'original'    => $originalName,
+            'stored_path' => $relativePath,
+            'input_size'  => $fileSize,
+            'output_size' => $finalSize,
+            'dimensions'  => "{$finalW}x{$finalH}",
+            'mime'        => 'image/webp',
+            'context'     => $context,
+        ]);
 
         return [
             'url'    => $canonicalUrl,
             'path'   => $relativePath,
             'key'    => $relativePath,
             'folder' => $folder,
-            'name'   => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.webp',
+            'name'   => pathinfo($originalName, PATHINFO_FILENAME) . '.webp',
             'size'   => $finalSize,
             'mime'   => 'image/webp',
             'width'  => $finalW,

@@ -103,7 +103,7 @@ class ProductInitialInventoryTest extends TestCase
         $this->assertEquals(50, $data['moq']);
         $this->assertEquals(250, $data['stock']);
         $this->assertEquals(250, $data['on_hand_stock']);
-        $this->assertEquals(0, $data['reserved_stock']);
+        $this->assertArrayNotHasKey('reserved_stock', $data);
         $this->assertEquals(250, $data['available_stock']);
         $this->assertEquals(5, $data['available_moqs']); // floor(250 / 50) = 5 complete MOQs
 
@@ -115,7 +115,6 @@ class ProductInitialInventoryTest extends TestCase
         })->where('warehouse_id', $this->activeWarehouse->id)->firstOrFail();
 
         $this->assertEquals(250, $inventory->quantity);
-        $this->assertEquals(0, $inventory->reserved_quantity);
 
         // Assert audited adjustment was recorded
         $adjustment = AdminInventoryAdjustment::where('inventory_id', $inventory->id)->firstOrFail();
@@ -382,7 +381,7 @@ class ProductInitialInventoryTest extends TestCase
         $data = $response->json('data');
         $this->assertEquals(500, $data['stock']);
         $this->assertEquals(500, $data['on_hand_stock']);
-        $this->assertEquals(0, $data['reserved_stock']);
+        $this->assertArrayNotHasKey('reserved_stock', $data);
         $this->assertEquals(500, $data['available_stock']);
         $this->assertEquals(10, $data['available_moqs']);
     }
@@ -441,7 +440,7 @@ class ProductInitialInventoryTest extends TestCase
         }
     }
 
-    /** 4. Available stock calculation: On Hand - Reserved */
+    /** 4. Available stock calculation: Available Stock = On Hand Stock */
     public function test_4_available_stock_calculation(): void
     {
         $payload = [
@@ -461,16 +460,11 @@ class ProductInitialInventoryTest extends TestCase
         $response->assertStatus(201);
 
         $product = Product::where('sku', 'SKU-AVAIL-01')->firstOrFail();
-        $inventory = Inventory::where('product_id', $product->id)->firstOrFail();
 
-        // Simulate 40 pcs reserved
-        $inventory->update(['reserved_quantity' => 40]);
-
-        // Available = 200 - 40 = 160
+        // Available = On Hand = 200
         $this->assertEquals(200, $product->getOnHandStock());
-        $this->assertEquals(40, $product->getReservedStock());
-        $this->assertEquals(160, $product->getTotalAvailableStock());
-        $this->assertEquals(8, $product->getAvailableMoqs()); // 160 / 20 = 8
+        $this->assertEquals(200, $product->getTotalAvailableStock());
+        $this->assertEquals(10, $product->getAvailableMoqs()); // 200 / 20 = 10
     }
 
     /** 5. Full Stock Price required validation */
@@ -639,7 +633,6 @@ class ProductInitialInventoryTest extends TestCase
                 'product_variant_id' => $variant->id,
                 'warehouse_id' => $this->activeWarehouse->id,
                 'quantity' => $stock,
-                'reserved_quantity' => 0,
             ]);
 
             $response = $this->getJson("/api/v1/products/{$product->id}");

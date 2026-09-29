@@ -994,7 +994,7 @@ class DevelopmentProductSeeder extends Seeder
                 // Single Warehouse: Uttara
                 Inventory::updateOrCreate(
                     ['product_variant_id' => $variant->id, 'warehouse_id' => $warehouse->id],
-                    ['quantity' => $stockQty, 'reserved_quantity' => 0]
+                    ['quantity' => $stockQty]
                 );
 
                 // Package Allocation

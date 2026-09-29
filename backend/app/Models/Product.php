@@ -256,7 +256,7 @@ class Product extends Model
                     : $variant->inventories()->get();
 
                 if ($invs->isNotEmpty()) {
-                    $variantStock = max(0, (int) $invs->sum('quantity') - (int) $invs->sum('reserved_quantity'));
+                    $variantStock = max(0, (int) $invs->sum('quantity'));
                 } else {
                     $variantStock = (int) ($variant->stock ?? 0);
                 }
@@ -542,42 +542,12 @@ class Product extends Model
     }
 
     /**
-     * Get total reserved stock across all active variants or direct product inventories.
-     */
-    public function getReservedStock(): int
-    {
-        $variants = $this->relationLoaded('variants')
-            ? $this->variants
-            : $this->variants()->with('inventories')->get();
-
-        if ($variants->isEmpty()) {
-            $directInvs = Inventory::where('product_id', $this->id)->get();
-            if ($directInvs->isNotEmpty()) {
-                return max(0, (int) $directInvs->sum('reserved_quantity'));
-            }
-            return 0;
-        }
-
-        $totalReserved = 0;
-        foreach ($variants as $variant) {
-            $invs = $variant->relationLoaded('inventories')
-                ? $variant->inventories
-                : $variant->inventories()->get();
-
-            $totalReserved += (int) $invs->sum('reserved_quantity');
-        }
-
-        return max(0, $totalReserved);
-    }
-
-    /**
-     * Get total available stock across all active variants (On Hand minus Reserved).
+     * Get total available stock across all active variants or direct product inventories.
+     * Available Stock = On Hand Stock.
      */
     public function getTotalAvailableStock(): int
     {
-        $onHand = $this->getOnHandStock();
-        $reserved = $this->getReservedStock();
-        return max(0, $onHand - $reserved);
+        return $this->getOnHandStock();
     }
 
     /**
@@ -590,7 +560,7 @@ class Product extends Model
     }
 
     /**
-     * Return warehouse inventory breakdown with on-hand, reserved, and available quantities.
+     * Return warehouse inventory breakdown with on-hand and available quantities.
      */
     public function getWarehouseStockBreakdown(): array
     {
@@ -613,14 +583,12 @@ class Product extends Model
                         'warehouse_name' => $whName,
                         'warehouse_code' => $whCode,
                         'on_hand_quantity' => 0,
-                        'reserved_quantity' => 0,
                         'available_quantity' => 0,
                     ];
                 }
 
                 $warehouses[$whId]['on_hand_quantity'] += (int) $inv->quantity;
-                $warehouses[$whId]['reserved_quantity'] += (int) $inv->reserved_quantity;
-                $warehouses[$whId]['available_quantity'] += max(0, (int) $inv->quantity - (int) $inv->reserved_quantity);
+                $warehouses[$whId]['available_quantity'] += (int) $inv->quantity;
             }
             return array_values($warehouses);
         }
@@ -641,14 +609,12 @@ class Product extends Model
                         'warehouse_name' => $whName,
                         'warehouse_code' => $whCode,
                         'on_hand_quantity' => 0,
-                        'reserved_quantity' => 0,
                         'available_quantity' => 0,
                     ];
                 }
 
                 $warehouses[$whId]['on_hand_quantity'] += (int) $inv->quantity;
-                $warehouses[$whId]['reserved_quantity'] += (int) $inv->reserved_quantity;
-                $warehouses[$whId]['available_quantity'] += max(0, (int) $inv->quantity - (int) $inv->reserved_quantity);
+                $warehouses[$whId]['available_quantity'] += (int) $inv->quantity;
             }
         }
 
@@ -863,7 +829,6 @@ class Product extends Model
                 'unit' => $profile->dimension_unit ?: 'cm',
             ],
             'total_cbm' => $totalCbm,
-            'single_carton_cbm' => $profile->carton_count > 0 ? round($totalCbm / $profile->carton_count, 4) : $totalCbm,
             'gross_weight' => (float) $profile->gross_weight,          // per carton
             'total_gross_weight' => round((float) $profile->gross_weight * (int) $profile->carton_count, 2),
             'net_weight' => $profile->net_weight !== null ? (float) $profile->net_weight : null,

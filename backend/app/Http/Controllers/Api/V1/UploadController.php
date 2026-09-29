@@ -97,14 +97,36 @@ class UploadController extends ApiController
             return $this->forbidden("Forbidden: insufficient permission to upload media to '{$folder}'.");
         }
 
+        $context = [
+            'folder'    => $folder,
+            'admin_id'  => $user->id,
+            'source_ip' => $request->ip(),
+        ];
+
         try {
-            $result = $this->imagePipeline->processAndStore($file, $folder);
+            $result = $this->imagePipeline->processAndStore($file, $folder, $context);
             return $this->success($result, 'File uploaded and converted to WebP successfully.', 201);
         } catch (\InvalidArgumentException $e) {
             return $this->error($e->getMessage(), 422);
         } catch (\RuntimeException $e) {
+            \Illuminate\Support\Facades\Log::error('UploadController runtime error', [
+                'admin_id'          => $user->id,
+                'folder'            => $folder,
+                'filename'          => $file->getClientOriginalName(),
+                'size'              => $file->getSize(),
+                'exception_class'   => get_class($e),
+                'exception_message' => $e->getMessage(),
+            ]);
             return $this->serverError($e->getMessage());
         } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('UploadController unexpected error', [
+                'admin_id'          => $user->id,
+                'folder'            => $folder,
+                'filename'          => $file->getClientOriginalName(),
+                'size'              => $file->getSize(),
+                'exception_class'   => get_class($e),
+                'exception_message' => $e->getMessage(),
+            ]);
             return $this->serverError('Image processing failed. Please try again.');
         }
     }

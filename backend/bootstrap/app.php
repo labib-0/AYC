@@ -82,8 +82,41 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The uploaded file exceeds the maximum allowed size of 20 MB. Please select a smaller file.',
+                ], 422);
+            }
+        });
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $status = $e->getStatusCode();
+                $message = match ($status) {
+                    413 => 'The uploaded file exceeds the maximum allowed size of 20 MB. Please select a smaller file.',
+                    415 => 'The uploaded file format is not supported by the server.',
+                    default => $e->getMessage() ?: 'An error occurred processing your request.',
+                };
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], $status);
+            }
+        });
+
         $exceptions->render(function (\Throwable $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
+                \Illuminate\Support\Facades\Log::error('Unhandled API exception', [
+                    'url' => $request->fullUrl(),
+                    'method' => $request->method(),
+                    'user_id' => $request->user()?->id,
+                    'exception' => get_class($e),
+                    'message' => $e->getMessage(),
+                ]);
+
                 if (!config('app.debug')) {
                     return response()->json([
                         'success' => false,

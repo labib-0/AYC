@@ -291,7 +291,6 @@ class AdminApiTest extends TestCase
             'product_variant_id' => $variant->id,
             'warehouse_id' => $warehouse->id,
             'quantity' => 100,
-            'reserved_quantity' => 0,
         ]);
 
         // Adjustment +50
@@ -337,7 +336,6 @@ class AdminApiTest extends TestCase
             'product_variant_id' => $variant->id,
             'warehouse_id' => $warehouse->id,
             'quantity' => 20,
-            'reserved_quantity' => 0,
         ]);
 
         // Try subtracting 50 from 20 (resulting in -30)
@@ -407,7 +405,6 @@ class AdminApiTest extends TestCase
             'product_variant_id' => $varInStock->id,
             'warehouse_id' => $warehouse->id,
             'quantity' => 500,
-            'reserved_quantity' => 0,
         ]);
 
         $product2 = Product::factory()->create();
@@ -416,7 +413,6 @@ class AdminApiTest extends TestCase
             'product_variant_id' => $varLowStock->id,
             'warehouse_id' => $warehouse->id,
             'quantity' => 50,
-            'reserved_quantity' => 0,
         ]);
 
         $product3 = Product::factory()->create();
@@ -425,7 +421,6 @@ class AdminApiTest extends TestCase
             'product_variant_id' => $varOutOfStock->id,
             'warehouse_id' => $warehouse->id,
             'quantity' => 0,
-            'reserved_quantity' => 0,
         ]);
 
         $response = $this->actingAs($this->admin, 'sanctum')
@@ -459,7 +454,6 @@ class AdminApiTest extends TestCase
             'product_variant_id' => $variant->id,
             'warehouse_id' => $warehouse->id,
             'quantity' => 100,
-            'reserved_quantity' => 0,
         ]);
 
         // Create adjustment

@@ -64,7 +64,6 @@ class FullStockPricingLogicCorrectionTest extends TestCase
      */
     private function createPackagedProduct(
         int $inventoryTotal,
-        int $reservedTotal = 0,
         int $bulkThreshold = 100,
         float $bulkPrice = 19.00,
         float $fullStockPrice = 17.00,
@@ -125,23 +124,19 @@ class FullStockPricingLogicCorrectionTest extends TestCase
             'quantity' => $ratioL,
         ]);
 
-        // Create warehouse inventory records with on hand and reserved quantities
+        // Create warehouse inventory records
         $invM = (int) floor($inventoryTotal / 2);
-        $resM = (int) floor($reservedTotal / 2);
         Inventory::create([
             'product_variant_id' => $vM->id,
             'warehouse_id' => $this->warehouse->id,
             'quantity' => $invM,
-            'reserved_quantity' => $resM,
         ]);
 
         $invL = $inventoryTotal - $invM;
-        $resL = $reservedTotal - $resM;
         Inventory::create([
             'product_variant_id' => $vL->id,
             'warehouse_id' => $this->warehouse->id,
             'quantity' => $invL,
-            'reserved_quantity' => $resL,
         ]);
 
         return $product->fresh(['variants.inventories', 'packageAllocations']);
@@ -155,7 +150,7 @@ class FullStockPricingLogicCorrectionTest extends TestCase
      */
     public function test_example_1_available_140_uses_full_stock_price(): void
     {
-        $product = $this->createPackagedProduct(inventoryTotal: 140, reservedTotal: 0);
+        $product = $this->createPackagedProduct(inventoryTotal: 140);
 
         $this->assertEquals(140, $product->getTotalAvailableStock());
         $this->assertEquals(7, $product->getMaxCompletePackages());
@@ -184,7 +179,7 @@ class FullStockPricingLogicCorrectionTest extends TestCase
      */
     public function test_example_2_available_100_uses_normal_moq_price(): void
     {
-        $product = $this->createPackagedProduct(inventoryTotal: 100, reservedTotal: 0);
+        $product = $this->createPackagedProduct(inventoryTotal: 100);
 
         $this->assertEquals(100, $product->getTotalAvailableStock());
         $this->assertEquals(5, $product->getMaxCompletePackages());
@@ -216,7 +211,7 @@ class FullStockPricingLogicCorrectionTest extends TestCase
      */
     public function test_example_3_available_80_uses_normal_moq_price(): void
     {
-        $product = $this->createPackagedProduct(inventoryTotal: 80, reservedTotal: 0);
+        $product = $this->createPackagedProduct(inventoryTotal: 80);
 
         $this->assertEquals(80, $product->getTotalAvailableStock());
         $this->assertEquals(4, $product->getMaxCompletePackages());
@@ -245,7 +240,7 @@ class FullStockPricingLogicCorrectionTest extends TestCase
      */
     public function test_example_4_available_101_uses_full_stock_price_with_complete_packages(): void
     {
-        $product = $this->createPackagedProduct(inventoryTotal: 101, reservedTotal: 0);
+        $product = $this->createPackagedProduct(inventoryTotal: 101);
 
         $this->assertEquals(101, $product->getTotalAvailableStock());
         // Package assortment: 5 packages * 20 = 100 complete pcs (1 pc loose remainder)
@@ -268,16 +263,15 @@ class FullStockPricingLogicCorrectionTest extends TestCase
     }
 
     /**
-     * SECTION 9: INVENTORY MUST BE CURRENT (On Hand = 140, Reserved = 50 -> Available = 90).
+     * SECTION 9: INVENTORY MUST MEET BULK MINIMUM (Available = 90 < 100).
      * Bulk minimum = 100.
      * 90 > 100 is FALSE -> Full Stock price is Normal MOQ price $22.00.
      */
     public function test_section_9_inventory_must_be_current_available_not_merely_on_hand(): void
     {
-        $product = $this->createPackagedProduct(inventoryTotal: 140, reservedTotal: 50);
+        $product = $this->createPackagedProduct(inventoryTotal: 90);
 
-        $this->assertEquals(140, $product->getOnHandStock());
-        $this->assertEquals(50, $product->getReservedStock());
+        $this->assertEquals(90, $product->getOnHandStock());
         $this->assertEquals(90, $product->getTotalAvailableStock());
 
         // Complete packages supported by available inventory: floor(90 / 20) = 4 packages = 80 pcs
@@ -297,24 +291,24 @@ class FullStockPricingLogicCorrectionTest extends TestCase
      */
     public function test_section_10_dynamic_price_behavior_on_stock_fluctuations(): void
     {
-        $product = $this->createPackagedProduct(inventoryTotal: 140, reservedTotal: 0);
+        $product = $this->createPackagedProduct(inventoryTotal: 140);
 
         // 1. Available = 140 -> Full stock price $17.00
         $this->assertEquals(17.00, $product->getResolvedFullStockPrice());
 
-        // 2. Stock becomes 90 (reserve 50 pcs) -> price switches to normal MOQ price $22.00
+        // 2. Stock becomes 90 (deduct 50 pcs) -> price switches to normal MOQ price $22.00
         $invM = Inventory::where('product_variant_id', $product->variants[0]->id)->first();
-        $invM->update(['reserved_quantity' => 25]);
+        $invM->update(['quantity' => 45]);
         $invL = Inventory::where('product_variant_id', $product->variants[1]->id)->first();
-        $invL->update(['reserved_quantity' => 25]);
+        $invL->update(['quantity' => 45]);
 
         $product = $product->fresh(['variants.inventories']);
         $this->assertEquals(90, $product->getTotalAvailableStock());
         $this->assertEquals(22.00, $product->getResolvedFullStockPrice());
 
-        // 3. Stock becomes 120 (release 30 reserved pcs, reserved is now 20) -> switches back to $17.00
-        $invM->update(['reserved_quantity' => 10]);
-        $invL->update(['reserved_quantity' => 10]);
+        // 3. Stock becomes 120 (restock 30 pcs) -> switches back to $17.00
+        $invM->update(['quantity' => 60]);
+        $invL->update(['quantity' => 60]);
 
         $product = $product->fresh(['variants.inventories']);
         $this->assertEquals(120, $product->getTotalAvailableStock());
@@ -327,7 +321,7 @@ class FullStockPricingLogicCorrectionTest extends TestCase
      */
     public function test_section_12_13_14_cart_and_checkout_authoritative_recalculation(): void
     {
-        $product = $this->createPackagedProduct(inventoryTotal: 140, reservedTotal: 0);
+        $product = $this->createPackagedProduct(inventoryTotal: 140);
 
         // 1. Add Full Stock (140 pcs) to Cart
         $cartRes = $this->actingAs($this->buyer, 'sanctum')->postJson('/api/v1/cart', [
@@ -388,7 +382,7 @@ class FullStockPricingLogicCorrectionTest extends TestCase
         ];
 
         foreach ($matrixCases as $case) {
-            $product = $this->createPackagedProduct(inventoryTotal: $case['available'], reservedTotal: 0);
+            $product = $this->createPackagedProduct(inventoryTotal: $case['available']);
 
             $this->assertEquals(
                 $case['expectedPrice'],

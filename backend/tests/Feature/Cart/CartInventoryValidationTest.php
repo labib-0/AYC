@@ -39,7 +39,6 @@ class CartInventoryValidationTest extends TestCase
             'product_variant_id' => $variantS->id,
             'warehouse_id' => $wh->id,
             'quantity' => 80,
-            'reserved_quantity' => 0,
         ]);
 
         $variantM = ProductVariant::factory()->create([
@@ -53,7 +52,6 @@ class CartInventoryValidationTest extends TestCase
             'product_variant_id' => $variantM->id,
             'warehouse_id' => $wh->id,
             'quantity' => 120,
-            'reserved_quantity' => 0,
         ]);
 
         return [$product, $variantS, $variantM];

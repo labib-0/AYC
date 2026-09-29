@@ -69,7 +69,6 @@ class DashboardLowStockTest extends TestCase
             'product_variant_id' => $v1->id,
             'warehouse_id' => $this->warehouse1->id,
             'quantity' => 60,
-            'reserved_quantity' => 0,
         ]);
 
         // Product 2: MOQ = 50, Available = 50 (Exact match: Available = MOQ is NOT low stock)
@@ -86,7 +85,6 @@ class DashboardLowStockTest extends TestCase
             'product_variant_id' => $v2->id,
             'warehouse_id' => $this->warehouse1->id,
             'quantity' => 50,
-            'reserved_quantity' => 0,
         ]);
 
         $response = $this->actingAs($this->admin, 'sanctum')->getJson('/api/v1/admin/dashboard');
@@ -116,7 +114,6 @@ class DashboardLowStockTest extends TestCase
             'product_variant_id' => $v1->id,
             'warehouse_id' => $this->warehouse1->id,
             'quantity' => 20,
-            'reserved_quantity' => 0,
         ]);
 
         // Product 2: MOQ = 30, Available = 100 (>= 30) -> In stock
@@ -133,7 +130,6 @@ class DashboardLowStockTest extends TestCase
             'product_variant_id' => $v2->id,
             'warehouse_id' => $this->warehouse1->id,
             'quantity' => 100,
-            'reserved_quantity' => 0,
         ]);
 
         // Product 3: MOQ = 20, Available = 0 (out of stock) -> Low stock
@@ -150,7 +146,6 @@ class DashboardLowStockTest extends TestCase
             'product_variant_id' => $v3->id,
             'warehouse_id' => $this->warehouse1->id,
             'quantity' => 0,
-            'reserved_quantity' => 0,
         ]);
 
         $response = $this->actingAs($this->admin, 'sanctum')->getJson('/api/v1/admin/dashboard');
@@ -162,11 +157,11 @@ class DashboardLowStockTest extends TestCase
     }
 
     /**
-     * Test 3: Reserved stock reduces available inventory and correctly flags low stock.
+     * Test 3: Available inventory strictly below MOQ correctly flags low stock.
      */
-    public function test_reserved_stock_reduces_available_inventory_for_low_stock(): void
+    public function test_available_inventory_below_moq_correctly_flags_low_stock(): void
     {
-        // On hand = 100, but reserved = 80 -> Available = 20. MOQ = 30 -> Low stock (20 < 30)
+        // On hand = Available = 20. MOQ = 30 -> Low stock (20 < 30)
         $p = Product::factory()->create([
             'brand_id' => $this->brand->id,
             'moq' => 30,
@@ -174,13 +169,12 @@ class DashboardLowStockTest extends TestCase
         ]);
         $v = ProductVariant::factory()->create([
             'product_id' => $p->id,
-            'stock' => 100,
+            'stock' => 20,
         ]);
         Inventory::create([
             'product_variant_id' => $v->id,
             'warehouse_id' => $this->warehouse1->id,
-            'quantity' => 100,
-            'reserved_quantity' => 80,
+            'quantity' => 20,
         ]);
 
         $response = $this->actingAs($this->admin, 'sanctum')->getJson('/api/v1/admin/dashboard');
@@ -213,14 +207,12 @@ class DashboardLowStockTest extends TestCase
             Inventory::create([
                 'product_variant_id' => $v->id,
                 'warehouse_id' => $this->warehouse1->id,
-                'quantity' => 3,
-                'reserved_quantity' => 1, // available = 2
+                'quantity' => 2,
             ]);
             Inventory::create([
                 'product_variant_id' => $v->id,
                 'warehouse_id' => $this->warehouse2->id,
                 'quantity' => 2,
-                'reserved_quantity' => 0, // available = 2
             ]);
         }
 
@@ -250,7 +242,6 @@ class DashboardLowStockTest extends TestCase
             'product_variant_id' => $v->id,
             'warehouse_id' => $this->warehouse1->id,
             'quantity' => 0,
-            'reserved_quantity' => 0,
         ]);
 
         // Soft delete the product

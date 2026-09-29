@@ -79,8 +79,6 @@ class ProductResource extends JsonResource
             'stock' => (int) $this->getTotalAvailableStock(),
             'on_hand_stock' => (int) $this->getOnHandStock(),
             'onHandStock' => (int) $this->getOnHandStock(),
-            'reserved_stock' => (int) $this->getReservedStock(),
-            'reservedStock' => (int) $this->getReservedStock(),
             'available_stock' => (int) $this->getTotalAvailableStock(),
             'availableStock' => (int) $this->getTotalAvailableStock(),
             'available_moqs' => (int) $this->getAvailableMoqs(),
@@ -157,7 +155,6 @@ class ProductResource extends JsonResource
                     'total_gross_weight' => round((float) $p->gross_weight * (int) $p->carton_count, 2), // total
                     'net_weight' => $p->net_weight !== null ? (float) $p->net_weight : null,
                     'weight_unit' => $p->weight_unit ?: 'kg',
-                    'single_carton_cbm' => round($p->calculateTotalCbm() / max(1, (int) $p->carton_count), 4),
                     'total_cbm' => $p->calculateTotalCbm(),
                     'notes' => $p->notes,
                     'is_active' => (bool) $p->is_active,
