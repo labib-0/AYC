@@ -110,8 +110,8 @@ assert(
   "Draft save does not inject fake 'Assorted' size"
 );
 assert(
-  formContent.includes("[SHOW]") && formContent.includes("[HIDE]"),
-  "Package breakdown uses clean [SHOW] / [HIDE] toggle"
+  formContent.includes("ProductPackageBreakdownSection"),
+  "ProductForm renders unified ProductPackageBreakdownSection"
 );
 
 // 6. Inspect ProductDetailView.tsx

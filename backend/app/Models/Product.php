@@ -140,7 +140,7 @@ class Product extends Model
                     : $product->allVariants()->get();
 
                 foreach ($variants as $variant) {
-                    if (!str_contains($variant->sku, '-del-')) {
+                    if ($variant->sku && !str_contains($variant->sku, '-del-')) {
                         $variant->sku = substr($variant->sku, 0, 200) . '-del-' . $variant->id . '-' . time();
                         $variant->saveQuietly();
                     }

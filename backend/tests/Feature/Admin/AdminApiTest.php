@@ -171,8 +171,8 @@ class AdminApiTest extends TestCase
                 ['image_url' => 'https://example.com/img2.jpg', 'is_primary' => false],
             ],
             'variants' => [
-                ['sku' => 'POL-SWT-001-M', 'size' => 'M', 'color' => 'Navy', 'stock' => 150],
-                ['sku' => 'POL-SWT-001-L', 'size' => 'L', 'color' => 'Navy', 'stock' => 200],
+                ['size' => 'M', 'color' => 'Navy', 'stock' => 150],
+                ['size' => 'L', 'color' => 'Navy', 'stock' => 200],
             ],
         ];
 
@@ -190,7 +190,7 @@ class AdminApiTest extends TestCase
             ]);
 
         $this->assertDatabaseHas('products', ['sku' => 'POL-SWT-001']);
-        $this->assertDatabaseHas('product_variants', ['sku' => 'POL-SWT-001-M', 'stock' => 150]);
+        $this->assertDatabaseHas('product_variants', ['size' => 'M', 'color' => 'Navy', 'stock' => 150]);
         $this->assertDatabaseHas('product_images', ['image_url' => 'https://example.com/img1.jpg', 'is_primary' => true]);
     }
 
