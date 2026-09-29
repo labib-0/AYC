@@ -79,12 +79,12 @@ export interface ShippingPackageProfile {
   product_id?: string | number;
   package_quantity: number;
   quantity_max?: number | null;
-  carton_count: number;
-  carton_length: number;
-  carton_width: number;
-  carton_height: number;
+  carton_count?: number;
+  carton_length?: number;
+  carton_width?: number;
+  carton_height?: number;
   dimension_unit: "cm" | "in" | "m";
-  gross_weight: number;        // per carton
+  gross_weight?: number;        // per carton
   total_gross_weight?: number; // gross_weight × carton_count (derived)
   net_weight?: number | null;
   weight_unit: "kg" | "lbs" | "g";

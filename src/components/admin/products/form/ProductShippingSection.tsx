@@ -1,6 +1,5 @@
 "use client";
 
-import { Box } from "lucide-react";
 import { ShippingPackageProfile } from "@/types";
 import { calculateTotalCbm } from "@/lib/services/shipping-package";
 
@@ -17,14 +16,8 @@ export default function ProductShippingSection({
 }: ProductShippingSectionProps) {
   // Always work with one authoritative shipping profile
   const profile: ShippingPackageProfile = profiles[0] || {
-    package_quantity: moq > 0 ? moq : 10,
-    carton_count: 1,
-    carton_length: 60,
-    carton_width: 40,
-    carton_height: 30,
+    package_quantity: moq > 0 ? moq : 0,
     dimension_unit: "cm",
-    gross_weight: 15,
-    net_weight: 13.5,
     weight_unit: "kg",
     is_active: true,
   };
@@ -33,63 +26,77 @@ export default function ProductShippingSection({
     const updated: ShippingPackageProfile = {
       ...profile,
       ...updates,
-      // MOQ is derived from package assortment — do NOT override it here
-      package_quantity: moq > 0 ? moq : profile.package_quantity || 1,
+      package_quantity: moq > 0 ? moq : profile.package_quantity || 0,
     };
     onChange([updated]);
   };
 
-  const cartonCount = Math.max(1, Math.round(profile.carton_count || 1));
+  const cartonCount = profile.carton_count !== undefined && profile.carton_count !== null && profile.carton_count > 0
+    ? Math.round(Number(profile.carton_count))
+    : null;
 
-  // Single carton CBM (calculated from one carton's dimensions)
-  const singleCartonCbm = calculateTotalCbm(
-    profile.carton_length || 0,
-    profile.carton_width || 0,
-    profile.carton_height || 0,
-    1,
-    profile.dimension_unit || "cm"
+  const hasDimensions = Boolean(
+    profile.carton_length && profile.carton_length > 0 &&
+    profile.carton_width && profile.carton_width > 0 &&
+    profile.carton_height && profile.carton_height > 0
   );
 
-  // Total CBM = single carton CBM × carton count
-  const totalCbm = singleCartonCbm * cartonCount;
+  const hasGrossWeight = Boolean(profile.gross_weight && profile.gross_weight > 0);
+
+  // Single carton CBM (calculated only when dimensions are entered)
+  const singleCartonCbm = hasDimensions
+    ? calculateTotalCbm(
+        profile.carton_length || 0,
+        profile.carton_width || 0,
+        profile.carton_height || 0,
+        1,
+        profile.dimension_unit || "cm"
+      )
+    : null;
+
+  // Total CBM = single carton CBM × carton count (only when both exist)
+  const totalCbm = singleCartonCbm !== null && cartonCount !== null
+    ? singleCartonCbm * cartonCount
+    : null;
+
+  // Total Gross Weight = gross weight × carton count (only when both exist)
+  const totalGrossWeight = hasGrossWeight && cartonCount !== null
+    ? (profile.gross_weight || 0) * cartonCount
+    : null;
 
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
+      {/* Section Name: PACKAGING */}
       <div className="border-b border-border/60 pb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
-            Shipping &amp; Packaging Logistics
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Physical carton packaging specifications and CBM volumetric metrics for the Universal Package (MOQ).
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-xs font-semibold">
-          <Box size={13} />
-          <span>Universal Carton</span>
-        </div>
+        <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
+          PACKAGING
+        </h2>
       </div>
 
       <div className="p-4 rounded-xl bg-secondary/30 border border-border/70 space-y-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+          CARTON DETAILS
+        </h3>
+
         {/* Row 1: Gross Weight & Carton Count */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Gross Weight (per carton) */}
+          {/* Gross Weight / Carton */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Gross Weight <span className="text-muted-foreground font-normal normal-case tracking-normal">(per carton)</span>
+              Gross Weight / Carton
             </label>
             <div className="flex items-center gap-1.5">
               <input
                 type="number"
                 step="0.1"
                 min="0"
-                value={profile.gross_weight || ""}
+                value={profile.gross_weight !== undefined && profile.gross_weight !== null && profile.gross_weight > 0 ? profile.gross_weight : ""}
                 onChange={(e) =>
                   updateProfile({
-                    gross_weight: parseFloat(e.target.value) || 0,
+                    gross_weight: e.target.value ? parseFloat(e.target.value) : undefined,
                   })
                 }
-                placeholder="15.0"
+                placeholder=""
                 className="flex-1 h-10 px-3.5 rounded-xl border border-border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 focus:ring-ring/40"
               />
               <select
@@ -116,25 +123,21 @@ export default function ProductShippingSection({
               type="number"
               min="1"
               step="1"
-              value={cartonCount}
+              value={cartonCount !== null ? cartonCount : ""}
               onChange={(e) => {
-                const val = Math.max(1, Math.round(parseFloat(e.target.value) || 1));
+                const val = e.target.value ? Math.max(1, Math.round(parseFloat(e.target.value))) : undefined;
                 updateProfile({ carton_count: val });
               }}
               onKeyDown={(e) => {
-                // Reject decimals
                 if (e.key === "." || e.key === ",") e.preventDefault();
               }}
-              placeholder="1"
+              placeholder=""
               className="w-full h-10 px-3.5 rounded-xl border border-border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 focus:ring-ring/40"
             />
-            <p className="text-[10px] text-muted-foreground mt-1">
-              How many identical cartons are needed to ship the MOQ.
-            </p>
           </div>
         </div>
 
-        {/* Row 2: Dimensions (Length x Width x Height) */}
+        {/* Row 2: Carton Dimensions */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
@@ -160,62 +163,62 @@ export default function ProductShippingSection({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Length ({profile.dimension_unit || "cm"})
+                Length
               </label>
               <input
                 type="number"
-                min="1"
+                min="0.1"
                 step="0.5"
-                value={profile.carton_length || ""}
+                value={profile.carton_length !== undefined && profile.carton_length !== null && profile.carton_length > 0 ? profile.carton_length : ""}
                 onChange={(e) =>
                   updateProfile({
-                    carton_length: parseFloat(e.target.value) || 0,
+                    carton_length: e.target.value ? parseFloat(e.target.value) : undefined,
                   })
                 }
-                placeholder="60"
+                placeholder=""
                 className="w-full h-10 px-3 rounded-xl border border-border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 focus:ring-ring/40"
               />
             </div>
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Width ({profile.dimension_unit || "cm"})
+                Width
               </label>
               <input
                 type="number"
-                min="1"
+                min="0.1"
                 step="0.5"
-                value={profile.carton_width || ""}
+                value={profile.carton_width !== undefined && profile.carton_width !== null && profile.carton_width > 0 ? profile.carton_width : ""}
                 onChange={(e) =>
                   updateProfile({
-                    carton_width: parseFloat(e.target.value) || 0,
+                    carton_width: e.target.value ? parseFloat(e.target.value) : undefined,
                   })
                 }
-                placeholder="40"
+                placeholder=""
                 className="w-full h-10 px-3 rounded-xl border border-border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 focus:ring-ring/40"
               />
             </div>
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Height ({profile.dimension_unit || "cm"})
+                Height
               </label>
               <input
                 type="number"
-                min="1"
+                min="0.1"
                 step="0.5"
-                value={profile.carton_height || ""}
+                value={profile.carton_height !== undefined && profile.carton_height !== null && profile.carton_height > 0 ? profile.carton_height : ""}
                 onChange={(e) =>
                   updateProfile({
-                    carton_height: parseFloat(e.target.value) || 0,
+                    carton_height: e.target.value ? parseFloat(e.target.value) : undefined,
                   })
                 }
-                placeholder="30"
+                placeholder=""
                 className="w-full h-10 px-3 rounded-xl border border-border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 focus:ring-ring/40"
               />
             </div>
           </div>
         </div>
 
-        {/* Row 3: Derived Readouts — Single Carton CBM · Total CBM · Total Gross Weight */}
+        {/* Row 3: Calculated Values — Single Carton CBM · Total CBM · Total Gross Weight */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Single Carton CBM */}
           <div>
@@ -223,7 +226,7 @@ export default function ProductShippingSection({
               Single Carton CBM
             </label>
             <div className="h-10 px-3.5 rounded-xl bg-secondary/60 border border-border/60 flex items-center justify-between font-mono font-bold text-xs text-foreground tabular-nums">
-              <span>{singleCartonCbm.toFixed(4)} m³</span>
+              <span>{singleCartonCbm !== null ? `${singleCartonCbm.toFixed(4)} m³` : "—"}</span>
               <span className="text-[10px] font-sans font-medium uppercase tracking-wider text-muted-foreground">
                 / carton
               </span>
@@ -234,12 +237,14 @@ export default function ProductShippingSection({
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
               Total CBM
-              <span className="ml-1 text-muted-foreground font-normal normal-case tracking-normal">
-                ({cartonCount} carton{cartonCount !== 1 ? "s" : ""})
-              </span>
+              {cartonCount !== null && (
+                <span className="ml-1 text-muted-foreground font-normal normal-case tracking-normal">
+                  ({cartonCount} carton{cartonCount !== 1 ? "s" : ""})
+                </span>
+              )}
             </label>
             <div className="h-10 px-3.5 rounded-xl bg-primary/8 border border-primary/20 flex items-center justify-between font-mono font-bold text-xs text-foreground tabular-nums">
-              <span className="text-primary">{totalCbm.toFixed(4)} m³</span>
+              <span className="text-primary">{totalCbm !== null ? `${totalCbm.toFixed(4)} m³` : "—"}</span>
               <span className="text-[10px] font-sans font-medium uppercase tracking-wider text-muted-foreground">
                 Shipment Vol
               </span>
@@ -250,13 +255,15 @@ export default function ProductShippingSection({
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
               Total Gross Weight
-              <span className="ml-1 text-muted-foreground font-normal normal-case tracking-normal">
-                ({cartonCount} × {profile.gross_weight || 0} {(profile.weight_unit || "kg").toUpperCase()})
-              </span>
+              {cartonCount !== null && profile.gross_weight && (
+                <span className="ml-1 text-muted-foreground font-normal normal-case tracking-normal">
+                  ({cartonCount} × {profile.gross_weight} {(profile.weight_unit || "kg").toUpperCase()})
+                </span>
+              )}
             </label>
-            <div className="h-10 px-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 flex items-center justify-between font-mono font-bold text-xs text-foreground tabular-nums">
-              <span className="text-amber-700 dark:text-amber-400">
-                {((profile.gross_weight || 0) * cartonCount).toFixed(1)} {(profile.weight_unit || "kg").toUpperCase()}
+            <div className="h-10 px-3.5 rounded-xl bg-secondary/60 border border-border/60 flex items-center justify-between font-mono font-bold text-xs text-foreground tabular-nums">
+              <span className="text-foreground">
+                {totalGrossWeight !== null ? `${totalGrossWeight.toFixed(1)} ${(profile.weight_unit || "kg").toUpperCase()}` : "—"}
               </span>
               <span className="text-[10px] font-sans font-medium uppercase tracking-wider text-muted-foreground">
                 Shipment Wt
@@ -264,14 +271,6 @@ export default function ProductShippingSection({
             </div>
           </div>
         </div>
-
-        <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/40">
-          This packaging configuration uses{" "}
-          <strong>{cartonCount}</strong> identical carton{cartonCount !== 1 ? "s" : ""} for the current
-          MOQ of <strong>{moq > 0 ? moq : profile.package_quantity || "—"} pcs</strong>.
-          Total CBM = {singleCartonCbm.toFixed(4)} × {cartonCount} = {totalCbm.toFixed(4)} m³ ·{" "}
-          Total Weight = {profile.gross_weight || 0} × {cartonCount} = {((profile.gross_weight || 0) * cartonCount).toFixed(1)} {(profile.weight_unit || "kg").toUpperCase()}.
-        </p>
       </div>
     </div>
   );

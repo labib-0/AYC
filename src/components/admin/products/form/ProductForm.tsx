@@ -68,10 +68,11 @@ export default function ProductForm({
   const [brandLogo, setBrandLogo] = useState<string | undefined>(initialData?.brandLogo);
   const [categoryId, setCategoryId] = useState(initialData?.categoryId || "");
   const [categoryName, setCategoryName] = useState(initialData?.categoryName || "");
-  const [audience, setAudience] = useState<"MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX">(
-    initialData?.audience || "MEN"
+  const [audience, setAudience] = useState<"MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "">(
+    (initialData?.audience as any) || ""
   );
-  const [designType, setDesignType] = useState<"ORIGINAL" | "MASTER COPY">(() => {
+  const [designType, setDesignType] = useState<"ORIGINAL" | "MASTER COPY" | "">(() => {
+    if (!initialData?.designType && !initialData?.productType) return "";
     const raw = (initialData?.designType || initialData?.productType || "").toUpperCase();
     return raw === "MASTER COPY" || raw === "REPLICA" || raw === "MC" ? "MASTER COPY" : "ORIGINAL";
   });
@@ -87,11 +88,17 @@ export default function ProductForm({
   const [videoUrl, setVideoUrl] = useState<string>(initialData?.videoUrl || (initialData as any)?.video_url || "");
 
   // Pricing
-  const [wholesalePrice, setWholesalePrice] = useState(initialData?.wholesalePrice || 25.0);
-  const [bulkThreshold, setBulkThreshold] = useState(initialData?.bulkThreshold || 100);
-  const [bulkPrice, setBulkPrice] = useState(initialData?.bulkPrice || 20.0);
+  const [wholesalePrice, setWholesalePrice] = useState<number | undefined>(
+    initialData?.wholesalePrice !== undefined ? Number(initialData.wholesalePrice) : undefined
+  );
+  const [bulkThreshold, setBulkThreshold] = useState<number | undefined>(
+    initialData?.bulkThreshold !== undefined ? Number(initialData.bulkThreshold) : undefined
+  );
+  const [bulkPrice, setBulkPrice] = useState<number | undefined>(
+    initialData?.bulkPrice !== undefined ? Number(initialData.bulkPrice) : undefined
+  );
   const [fullStockPrice, setFullStockPrice] = useState<number | undefined>(
-    initialData?.fullStockPrice ?? (initialData as any)?.full_stock_price ?? (isEdit ? undefined : 18.0)
+    initialData?.fullStockPrice ?? (initialData as any)?.full_stock_price ?? undefined
   );
   const [costPrice, setCostPrice] = useState<number | undefined>(
     (initialData as any)?.costPrice !== undefined ? Number((initialData as any).costPrice) :
@@ -126,12 +133,14 @@ export default function ProductForm({
   const [sizes, setSizes] = useState<string[]>(
     initialData?.sizes && Array.isArray(initialData.sizes) ? initialData.sizes : []
   );
-  const [stock, setStock] = useState(initialData?.stock ?? 500);
-  const [warehouseId, setWarehouseId] = useState<string | number | undefined>(
-    initialData?.warehouseId || (initialData as any)?.warehouse_id
+  const [stock, setStock] = useState<number | undefined>(
+    initialData?.stock !== undefined ? Number(initialData.stock) : undefined
   );
-  const [customMoq, setCustomMoq] = useState<number>(() => {
-    return initialData?.moq && initialData.moq > 0 ? initialData.moq : 50;
+  const [warehouseId, setWarehouseId] = useState<string | number | undefined>(
+    initialData?.warehouseId || (initialData as any)?.warehouse_id || ""
+  );
+  const [customMoq, setCustomMoq] = useState<number | undefined>(() => {
+    return initialData?.moq && initialData.moq > 0 ? initialData.moq : undefined;
   });
 
   // Authoritative Universal Package Assortment
@@ -150,12 +159,12 @@ export default function ProductForm({
     return [];
   });
 
-  // Minimum Order Quantity (MOQ) — Derived from Universal Package if configured, else user MOQ
+  // Minimum Order Quantity (MOQ) — Derived from Package Assortment if configured, else custom MOQ
   const packageTotalUnits = useMemo(() => {
     return packageAllocations.reduce((sum, a) => sum + (Number(a.quantity) || 0), 0);
   }, [packageAllocations]);
 
-  const moq = packageTotalUnits > 0 ? packageTotalUnits : customMoq;
+  const moq = packageTotalUnits > 0 ? packageTotalUnits : (customMoq ?? 0);
 
   // Single Shipping & Packaging Logistics Profile
   const [shippingProfiles, setShippingProfiles] = useState<ShippingPackageProfile[]>(() => {
@@ -165,13 +174,13 @@ export default function ProductForm({
       return [
         {
           ...p,
-          package_quantity: Number(p.package_quantity || initialData?.moq || 10),
-          carton_count: Number(p.carton_count || 1),
-          carton_length: Number(p.carton_length || 60),
-          carton_width: Number(p.carton_width || 40),
-          carton_height: Number(p.carton_height || 30),
+          package_quantity: Number(p.package_quantity || initialData?.moq || 0),
+          carton_count: p.carton_count !== undefined ? Number(p.carton_count) : undefined,
+          carton_length: p.carton_length !== undefined ? Number(p.carton_length) : undefined,
+          carton_width: p.carton_width !== undefined ? Number(p.carton_width) : undefined,
+          carton_height: p.carton_height !== undefined ? Number(p.carton_height) : undefined,
           dimension_unit: (p.dimension_unit || "cm") as "cm" | "in" | "m",
-          gross_weight: Number(p.gross_weight || 15),
+          gross_weight: p.gross_weight !== undefined ? Number(p.gross_weight) : undefined,
           weight_unit: (p.weight_unit || "kg") as "kg" | "lbs",
           is_active: true,
         },
@@ -179,13 +188,13 @@ export default function ProductForm({
     }
     return [
       {
-        package_quantity: initialData?.moq || 10,
-        carton_count: 1,
-        carton_length: 60,
-        carton_width: 40,
-        carton_height: 30,
+        package_quantity: initialData?.moq || 0,
+        carton_count: undefined,
+        carton_length: undefined,
+        carton_width: undefined,
+        carton_height: undefined,
         dimension_unit: "cm",
-        gross_weight: 15,
+        gross_weight: undefined,
         weight_unit: "kg",
         is_active: true,
       },
@@ -196,22 +205,22 @@ export default function ProductForm({
   const handlePackageAllocationsChange = (next: PackageAllocation[]) => {
     setPackageAllocations(next);
     const sum = next.reduce((acc, a) => acc + (Number(a.quantity) || 0), 0);
-    if (sum > 0 && bulkThreshold <= sum) {
+    if (sum > 0 && bulkThreshold && bulkThreshold <= sum) {
       setBulkThreshold(sum + 50);
     }
     setShippingProfiles((prev) => [
       {
         ...(prev[0] || {
-          carton_count: 1,
-          carton_length: 60,
-          carton_width: 40,
-          carton_height: 30,
+          carton_count: undefined,
+          carton_length: undefined,
+          carton_width: undefined,
+          carton_height: undefined,
           dimension_unit: "cm",
-          gross_weight: 15,
+          gross_weight: undefined,
           weight_unit: "kg",
           is_active: true,
         }),
-        package_quantity: sum > 0 ? sum : 1,
+        package_quantity: sum > 0 ? sum : 0,
       },
     ]);
   };
@@ -282,8 +291,8 @@ export default function ProductForm({
       brandLogo,
       categoryId,
       categoryName,
-      audience,
-      designType,
+      audience: (audience || undefined) as any,
+      designType: (designType || undefined) as any,
       material,
       description,
       seoTitle,
@@ -384,7 +393,7 @@ export default function ProductForm({
         moq: moq || 1,
         colors: colors,
         sizes: sizes,
-        stock: stock >= 0 ? stock : 0,
+        stock: (stock !== undefined && stock >= 0) ? stock : 0,
         warehouseId: warehouseId || undefined,
         images: images.length > 0 ? images : ["/placeholder.jpg"],
         packageAllocations: colors.length > 0 && sizes.length > 0 ? packageAllocations : [],
@@ -563,6 +572,7 @@ export default function ProductForm({
   // Immediate synchronous auto-save before page unload or visibility change
   useEffect(() => {
     const handleImmediateSave = () => {
+      if (!hasUserEditedRef.current && !isEdit) return;
       productDraftService.saveDraft(draftKey, getCurrentDraftData(), isEdit ? "edit" : "create");
     };
 
@@ -574,20 +584,12 @@ export default function ProductForm({
     };
   }, [draftKey, getCurrentDraftData, isEdit]);
 
-  // Load Reference Data
+  // Load Reference Data — do NOT auto-select brand or category
   useEffect(() => {
     async function loadRefs() {
-      const savedDraft = productDraftService.getDraft(draftKey);
-
       try {
         const bList = await getBrands({ all: true, isAdmin: true });
         setBrands(bList.map((b) => ({ id: b.id, name: b.name, logo_url: b.logo_url || b.logo })));
-        const effectiveBrand = savedDraft?.data?.brand || brand;
-        if (!effectiveBrand && bList.length > 0 && !isEdit) {
-          setBrand(bList[0].name);
-          setBrandId(bList[0].id);
-          setBrandLogo(bList[0].logo_url || bList[0].logo);
-        }
       } catch {
         // Fallback
       }
@@ -595,17 +597,12 @@ export default function ProductForm({
       try {
         const cList = await categoryService.getCategories({ all: true });
         setCategories(cList.map((c) => ({ id: String(c.id), name: c.name })));
-        const effectiveCatId = savedDraft?.data?.categoryId || categoryId;
-        if (!effectiveCatId && cList.length > 0 && !isEdit) {
-          setCategoryId(String(cList[0].id));
-          setCategoryName(cList[0].name);
-        }
       } catch {
         // Fallback
       }
     }
     loadRefs();
-  }, [brand, categoryId, draftKey, isEdit]);
+  }, []);
 
   // Auto-generate slug and SKU from name in Create mode (unless manually edited)
   const handleNameChange = (val: string) => {
@@ -664,7 +661,7 @@ export default function ProductForm({
     () => ({
       hasName: name.trim().length > 0,
       hasBrand: brand.trim().length > 0,
-      hasPrice: wholesalePrice > 0,
+      hasPrice: Boolean(wholesalePrice && wholesalePrice > 0),
       hasImage: images.length > 0,
       hasMoq: moq > 0,
     }),
@@ -723,7 +720,13 @@ export default function ProductForm({
 
     if (!categoryId) errs.category = "Category selection is required.";
 
-    if (wholesalePrice <= 0) errs.wholesalePrice = "Wholesale price must be greater than $0.00.";
+    if (!audience) errs.audience = "Audience selection is required.";
+
+    if (!designType) errs.designType = "Design Type selection is required.";
+
+    if (wholesalePrice === undefined || wholesalePrice <= 0) {
+      errs.wholesalePrice = "Wholesale price must be greater than $0.00.";
+    }
 
     // Package breakdown is optional for publishing unless configured
     if (packageAllocations.length > 0) {
@@ -737,17 +740,21 @@ export default function ProductForm({
 
     if (moq <= 0) errs.moq = "Minimum order quantity (MOQ) must be greater than 0.";
 
-    if (bulkThreshold <= moq) {
-      errs.bulkThreshold = `Bulk threshold (${bulkThreshold}) must be strictly greater than MOQ (${moq}).`;
+    if (bulkThreshold === undefined || bulkThreshold <= moq) {
+      errs.bulkThreshold = `Bulk threshold (${bulkThreshold || 0}) must be strictly greater than MOQ (${moq}).`;
     }
 
-    if (bulkPrice <= 0) errs.bulkPrice = "Bulk tier price must be greater than $0.00.";
+    if (bulkPrice === undefined || bulkPrice <= 0) {
+      errs.bulkPrice = "Bulk tier price must be greater than $0.00.";
+    }
 
     if (fullStockPrice === undefined || fullStockPrice === null || fullStockPrice <= 0) {
       errs.fullStockPrice = "Full Stock Price is required and must be greater than $0.00.";
     }
 
-    if (stock < 0) errs.stock = "Initial stock quantity cannot be negative.";
+    if (stock === undefined || stock < 0) {
+      errs.stock = "Initial stock quantity is required and cannot be negative.";
+    }
 
     if (!isEdit && !warehouseId) {
       errs.warehouse_id = "Please select a warehouse location for initial stock allocation.";
@@ -783,7 +790,8 @@ export default function ProductForm({
       // Generate variant combinations (no variant SKU)
       const variants: B2BProductVariant[] = [];
       const totalVariants = colors.length * sizes.length;
-      const stockPerVar = totalVariants > 0 ? Math.floor(stock / totalVariants) : stock;
+      const effectiveStock = stock !== undefined ? stock : 0;
+      const stockPerVar = totalVariants > 0 ? Math.floor(effectiveStock / totalVariants) : effectiveStock;
 
       colors.forEach((c) => {
         sizes.forEach((s) => {
@@ -791,7 +799,7 @@ export default function ProductForm({
             title: `${c} / ${s}`,
             color: c,
             size: s,
-            wholesalePrice: wholesalePrice,
+            wholesalePrice: wholesalePrice || 0,
             stock: stockPerVar,
             isActive: true,
           });
@@ -802,14 +810,14 @@ export default function ProductForm({
       const pricingTiers = [
         {
           min_quantity: moq,
-          max_quantity: bulkThreshold - 1,
-          unit_price: wholesalePrice,
+          max_quantity: bulkThreshold ? bulkThreshold - 1 : null,
+          unit_price: wholesalePrice || 0,
         },
-        {
+        ...(bulkThreshold && bulkPrice ? [{
           min_quantity: bulkThreshold,
           max_quantity: null,
           unit_price: bulkPrice,
-        },
+        }] : []),
       ];
 
       const payload: B2BProductInput = {
@@ -826,8 +834,8 @@ export default function ProductForm({
         brand_id: activeBrand?.id ? String(activeBrand.id) : undefined,
         categoryId: categoryId,
         categoryName: activeCat?.name || categoryName || "Apparel",
-        audience: audience,
-        designType: designType,
+        audience: audience as any,
+        designType: designType as any,
         productType: designType,
         description: description.trim(),
         shortDescription: seoDescription.trim() || description.slice(0, 160).trim(),
@@ -841,19 +849,19 @@ export default function ProductForm({
         })(),
         videoUrl: videoUrl.trim() || undefined,
         video_url: videoUrl.trim() || undefined,
-        wholesalePrice: wholesalePrice,
-        standardPrice: wholesalePrice,
-        bulkThreshold: bulkThreshold,
-        bulkPrice: bulkPrice,
+        wholesalePrice: wholesalePrice || 0,
+        standardPrice: wholesalePrice || 0,
+        bulkThreshold: bulkThreshold || 0,
+        bulkPrice: bulkPrice || 0,
         fullStockPrice: fullStockPrice,
         full_stock_price: fullStockPrice,
         costPrice: costPrice,
         moq: moq,
-        stock: stock,
-        initialStock: stock,
-        initial_stock: stock,
-        warehouseId: warehouseId,
-        warehouse_id: warehouseId,
+        stock: stock !== undefined ? stock : 0,
+        initialStock: stock !== undefined ? stock : 0,
+        initial_stock: stock !== undefined ? stock : 0,
+        warehouseId: warehouseId || undefined,
+        warehouse_id: warehouseId || undefined,
         status: targetStatus,
         isNew: isNew,
         newUntil: isNew ? newUntil : null,
@@ -1160,7 +1168,7 @@ export default function ProductForm({
             colors={colors}
             sizes={sizes}
             allocations={packageAllocations}
-            stock={stock}
+            stock={stock !== undefined ? stock : 0}
             errors={errors}
             onColorsChange={setColors}
             onSizesChange={setSizes}

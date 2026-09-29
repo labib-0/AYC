@@ -33,8 +33,8 @@ assert(
   "1. Product ID input is present and manually entered by Admin"
 );
 assert(
-  basicInfoContent.includes("Unique internal reference identifier. Visible only to Admins."),
-  "2. Product ID is documented as unique internal reference for Admins only"
+  basicInfoContent.includes("Product ID") && !basicInfoContent.includes("Unique internal reference identifier"),
+  "2. Product ID is clean and compact without verbose explanatory paragraph"
 );
 assert(
   basicInfoContent.includes("Product Name") && basicInfoContent.includes("onNameChange"),

@@ -13,11 +13,11 @@ import { adminInventoryService, Warehouse } from "@/services/admin/inventory.ser
 
 interface ProductInventorySectionProps {
   isEdit: boolean;
-  moq: number;
-  stock: number;
+  moq?: number;
+  stock?: number;
   warehouseId?: number | string;
-  onMoqChange: (moq: number) => void;
-  onStockChange: (stock: number) => void;
+  onMoqChange: (moq: number | undefined) => void;
+  onStockChange: (stock: number | undefined) => void;
   onWarehouseChange: (warehouseId: number | string) => void;
   errors: Record<string, string>;
   onHandStock?: number;
@@ -52,7 +52,7 @@ export default function ProductInventorySection({
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
   const [warehouseFetchError, setWarehouseFetchError] = useState<string | null>(null);
 
-  // Fetch active warehouses from backend
+  // Fetch active warehouses from backend — DO NOT auto-select
   useEffect(() => {
     let isMounted = true;
     async function loadWarehouses() {
@@ -63,10 +63,6 @@ export default function ProductInventorySection({
         if (isMounted) {
           const activeOnly = list.filter((w) => w.is_active !== false);
           setWarehouses(activeOnly);
-
-          if (!warehouseId && activeOnly.length > 0) {
-            onWarehouseChange(activeOnly[0].id);
-          }
         }
       } catch (err) {
         if (isMounted) {
@@ -83,13 +79,6 @@ export default function ProductInventorySection({
       isMounted = false;
     };
   }, []);
-
-  // Ensure warehouseId auto-selects if empty when warehouses load
-  useEffect(() => {
-    if (!warehouseId && warehouses.length > 0) {
-      onWarehouseChange(warehouses[0].id);
-    }
-  }, [warehouseId, warehouses, onWarehouseChange]);
 
   // Authoritative dynamic calculations
   const effectiveMoq = Math.max(1, Number(moq) || 1);
@@ -138,12 +127,12 @@ export default function ProductInventorySection({
                   type="number"
                   min="0"
                   step="1"
-                  value={stock === 0 ? "0" : stock || ""}
+                  value={stock !== undefined ? stock : ""}
                   onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    onStockChange(isNaN(val) ? 0 : Math.max(0, val));
+                    const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                    onStockChange(val !== undefined && !isNaN(val) ? Math.max(0, val) : undefined);
                   }}
-                  placeholder="500"
+                  placeholder=""
                   className={`w-full h-10 px-3.5 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
                     errors.stock || errors.initial_stock
                       ? "border-red-500 focus:ring-red-500/30"
@@ -172,12 +161,12 @@ export default function ProductInventorySection({
                   type="number"
                   min="1"
                   step="1"
-                  value={moq || ""}
+                  value={moq !== undefined && moq > 0 ? moq : ""}
                   onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    onMoqChange(isNaN(val) ? 1 : Math.max(1, val));
+                    const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                    onMoqChange(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
                   }}
-                  placeholder="50"
+                  placeholder=""
                   className={`w-full h-10 px-3.5 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
                     errors.moq
                       ? "border-red-500 focus:ring-red-500/30"
@@ -205,17 +194,16 @@ export default function ProductInventorySection({
                 <select
                   value={warehouseId ? String(warehouseId) : ""}
                   onChange={(e) => onWarehouseChange(e.target.value)}
-                  disabled={loadingWarehouses || warehouses.length === 0}
+                  disabled={loadingWarehouses}
                   className={`w-full h-10 px-3.5 pr-8 rounded-xl border bg-card text-xs font-medium text-foreground focus:outline-none focus:ring-2 transition-colors appearance-none cursor-pointer ${
                     errors.warehouse_id
                       ? "border-red-500 focus:ring-red-500/30"
                       : "border-border focus:ring-ring/40"
                   }`}
                 >
-                  {loadingWarehouses && <option value="">Loading warehouses...</option>}
-                  {!loadingWarehouses && warehouses.length === 0 && (
-                    <option value="">No active warehouses found</option>
-                  )}
+                  <option value="">
+                    {loadingWarehouses ? "Loading warehouses..." : "Select warehouse"}
+                  </option>
                   {warehouses.map((wh) => (
                     <option key={wh.id} value={wh.id}>
                       {wh.name} {wh.city ? `(${wh.city})` : `(${wh.code})`}
@@ -247,19 +235,19 @@ export default function ProductInventorySection({
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium">Available Stock:</span>
               <span className="font-bold text-foreground tabular-nums">
-                {createAvailable.toLocaleString()} PCS
+                {stock !== undefined ? `${createAvailable.toLocaleString()} PCS` : "—"}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium">Reserved Stock:</span>
               <span className="font-bold text-muted-foreground tabular-nums">
-                {createReserved} PCS
+                {stock !== undefined ? `${createReserved} PCS` : "—"}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium">Complete MOQs Available:</span>
               <span className="font-black text-primary tabular-nums">
-                {createCompleteMoqs.toLocaleString()}
+                {stock !== undefined && moq && moq > 0 ? createCompleteMoqs.toLocaleString() : "—"}
               </span>
             </div>
           </div>
@@ -307,12 +295,12 @@ export default function ProductInventorySection({
                 type="number"
                 min="1"
                 step="1"
-                value={moq || ""}
+                value={moq !== undefined && moq > 0 ? moq : ""}
                 onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  onMoqChange(isNaN(val) ? 1 : Math.max(1, val));
+                  const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                  onMoqChange(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
                 }}
-                placeholder="50"
+                placeholder=""
                 className={`w-full h-10 px-3.5 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
                   errors.moq
                     ? "border-red-500 focus:ring-red-500/30"

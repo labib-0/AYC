@@ -24,8 +24,8 @@ interface ProductBasicInfoSectionProps {
   brand: string;
   brandId?: string | number;
   categoryId: string;
-  audience: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX";
-  designType: "ORIGINAL" | "MASTER COPY";
+  audience: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "";
+  designType: "ORIGINAL" | "MASTER COPY" | "";
   material: string;
   description: string;
   brands: BrandOption[];
@@ -38,8 +38,8 @@ interface ProductBasicInfoSectionProps {
   onSkuChange: (val: string) => void;
   onBrandChange: (brandName: string, brandId?: string, brandLogo?: string) => void;
   onCategoryChange: (catId: string, catName?: string) => void;
-  onAudienceChange: (val: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX") => void;
-  onDesignTypeChange: (val: "ORIGINAL" | "MASTER COPY") => void;
+  onAudienceChange: (val: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "") => void;
+  onDesignTypeChange: (val: "ORIGINAL" | "MASTER COPY" | "") => void;
   onMaterialChange: (val: string) => void;
   onDescriptionChange: (val: string) => void;
   onBrandCreated?: (newBrand: BrandModel) => void;
@@ -119,9 +119,6 @@ export default function ProductBasicInfoSection({
         <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
           Basic Information
         </h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          General identification, brand relationship, and taxonomy.
-        </p>
       </div>
 
       <div className="space-y-4">
@@ -137,9 +134,6 @@ export default function ProductBasicInfoSection({
             placeholder="e.g. AYC-2026-0001"
             className={`font-mono ${inputClass(Boolean(errors.productId))}`}
           />
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Unique internal reference identifier. Visible only to Admins.
-          </p>
           {errors.productId && (
             <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
               <AlertCircle size={12} />
@@ -230,7 +224,7 @@ export default function ProductBasicInfoSection({
                 onChange={handleBrandSelect}
                 className={selectClass(Boolean(errors.brand))}
               >
-                <option value="">Select a Brand</option>
+                <option value="">Select brand</option>
                 {brands.map((b) => (
                   <option key={b.id} value={b.name}>
                     {b.name}
@@ -261,7 +255,7 @@ export default function ProductBasicInfoSection({
                 }}
                 className={selectClass(Boolean(errors.category))}
               >
-                <option value="">Select a Category</option>
+                <option value="">Select category</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -288,16 +282,23 @@ export default function ProductBasicInfoSection({
             <select
               value={audience}
               onChange={(e) =>
-                onAudienceChange(e.target.value as "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX")
+                onAudienceChange(e.target.value as "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "")
               }
-              className={selectClass()}
+              className={selectClass(Boolean(errors.audience))}
             >
+              <option value="">Select audience</option>
               {AUDIENCE_OPTIONS.map((a) => (
                 <option key={a} value={a}>
                   {a}
                 </option>
               ))}
             </select>
+            {errors.audience && (
+              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                <AlertCircle size={12} />
+                {errors.audience}
+              </p>
+            )}
           </div>
 
           {/* Design Type */}
@@ -307,15 +308,22 @@ export default function ProductBasicInfoSection({
             </label>
             <select
               value={designType}
-              onChange={(e) => onDesignTypeChange(e.target.value as "ORIGINAL" | "MASTER COPY")}
-              className={selectClass()}
+              onChange={(e) => onDesignTypeChange(e.target.value as "ORIGINAL" | "MASTER COPY" | "")}
+              className={selectClass(Boolean(errors.designType))}
             >
+              <option value="">Select design type</option>
               {DESIGN_TYPE_OPTIONS.map((dt) => (
                 <option key={dt} value={dt}>
                   {dt}
                 </option>
               ))}
             </select>
+            {errors.designType && (
+              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                <AlertCircle size={12} />
+                {errors.designType}
+              </p>
+            )}
           </div>
         </div>
 
