@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { getProductBySlugOrId, getProducts, getRelatedProducts, toStorefrontProduct } from "@/lib/services/products";
+import { getProductBySlugOrId, getBrandProducts, toStorefrontProduct } from "@/lib/services/products";
 import { useCart } from "@/lib/CartContext";
 import { useWishlist } from "@/lib/WishlistContext";
 import { B2BProductInput } from "@/types/b2b";
@@ -45,7 +45,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   const [addedRfqSuccess, setAddedRfqSuccess] = useState(false);
 
   const [product, setProduct] = useState<B2BProductInput | null>(initialProduct || null);
-  const [relatedProducts, setRelatedProducts] = useState<B2BProductInput[]>([]);
+  const [brandProducts, setBrandProducts] = useState<B2BProductInput[]>([]);
   const [loading, setLoading] = useState(!initialProduct);
 
   const [quantity, setQuantity] = useState<number>(initialProduct?.moq || 10);
@@ -75,10 +75,10 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             }
 
             try {
-              const related = await getRelatedProducts(p, 5);
-              setRelatedProducts(related);
+              const brandItems = await getBrandProducts(p, 4);
+              setBrandProducts(brandItems);
             } catch (err) {
-              console.warn("Failed to load related products:", err);
+              console.warn("Failed to load products from brand:", err);
             }
           } else {
             setProduct(null);
@@ -100,10 +100,10 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         }
         setLoading(false);
         try {
-          const related = await getRelatedProducts(initialProduct, 5);
-          setRelatedProducts(related);
+          const brandItems = await getBrandProducts(initialProduct, 4);
+          setBrandProducts(brandItems);
         } catch (err) {
-          console.warn("Failed to load related products:", err);
+          console.warn("Failed to load products from brand:", err);
         }
       }
     }
@@ -554,11 +554,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           </div>
         )}
 
-        {/* MAIN PRODUCT GRID (Balanced ~35-40% Left Gallery, ~60-65% Right Purchase Hierarchy) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 xl:gap-8">
+        {/* MAIN PRODUCT GRID (Balanced Left Gallery ~40-42%, Right Purchase Hierarchy ~58-60%) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-7 xl:gap-8 items-start">
           
-          {/* LEFT: GALLERY / MEDIA + SPECIFICATIONS (Compact 3:4 portrait column, sensible desktop max-width, natural mobile width) */}
-          <div className="lg:col-span-5 xl:col-span-4 space-y-2.5 w-full max-w-lg lg:max-w-[380px] xl:max-w-[400px] mx-auto lg:mx-0">
+          {/* LEFT: GALLERY / MEDIA + DESCRIPTION + SPECIFICATIONS */}
+          <div className="lg:col-span-5 xl:col-span-5 space-y-3.5 w-full max-w-xl lg:max-w-[480px] xl:max-w-[520px] mx-auto lg:mx-0">
             {/* Unified Media Experience (Images + Video + Lightbox) */}
             <ProductGallery
               images={product.images}
@@ -585,47 +585,55 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               }
             />
 
-            {/* Specifications Section — Structured information module underneath gallery */}
-            <div className="pt-2.5 mt-2.5 border-t border-border/70 font-sans space-y-2">
-              <CommerceSectionHeader
-                title="Specifications"
-                icon={<Sliders size={14} />}
-              />
-              
+            {/* Structured Information Column: Description then Specifications */}
+            <div className="pt-3 mt-3 border-t border-border/70 font-sans space-y-3">
+              {/* Product Description */}
               {product.description && product.description.trim().length > 0 && (
-                <div className="rounded-md bg-secondary/15 border border-border/60 p-2 sm:p-2.5 text-muted-foreground text-[11.5px] sm:text-[12px] leading-relaxed">
-                  {product.description.trim()}
+                <div className="space-y-1.5">
+                  <CommerceSectionHeader
+                    title="Description"
+                    icon={<FileText size={14} />}
+                  />
+                  <div className="rounded-lg bg-secondary/15 border border-border/60 p-3 text-muted-foreground text-xs leading-relaxed">
+                    {product.description.trim()}
+                  </div>
                 </div>
               )}
 
-              {/* Compact structured metadata grid, fields rendered dynamically based on existence */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-0.5 text-[11px] sm:text-[11.5px] font-sans">
-                <div className="p-2 rounded-md border border-border/60 bg-card space-y-0.5 shadow-2xs">
-                  <span className="text-[9.5px] sm:text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
-                    Design Type
-                  </span>
-                  <span className="font-semibold text-foreground block truncate">
-                    {(product.designType || "").toUpperCase() === "MASTER COPY"
-                      ? "MASTER COPY"
-                      : "ORIGINAL"}
-                  </span>
-                </div>
-                {product.material && (
-                  <div className="p-2 rounded-md border border-border/60 bg-card space-y-0.5 shadow-2xs">
-                    <span className="text-[9.5px] sm:text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
-                      Material
+              {/* Specifications: Technical Details */}
+              <div className="space-y-1.5">
+                <CommerceSectionHeader
+                  title="Specifications"
+                  icon={<Sliders size={14} />}
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-sans">
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
+                    <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
+                      Design Type
                     </span>
-                    <span className="font-semibold text-foreground block truncate" title={product.material}>
-                      {product.material}
+                    <span className="font-semibold text-foreground block truncate">
+                      {(product.designType || "").toUpperCase() === "MASTER COPY"
+                        ? "MASTER COPY"
+                        : "ORIGINAL"}
                     </span>
                   </div>
-                )}
+                  {product.material && (
+                    <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
+                      <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
+                        Material
+                      </span>
+                      <span className="font-semibold text-foreground block truncate" title={product.material}>
+                        {product.material}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (7 Cols / 8 Cols on XL+ — Sticky on Desktop) */}
-          <div className="lg:col-span-7 xl:col-span-8 lg:sticky lg:top-[72px] lg:self-start w-full flex flex-col space-y-2 sm:space-y-2.5">
+          {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (7 Cols — Sticky on Desktop) */}
+          <div className="lg:col-span-7 xl:col-span-7 lg:sticky lg:top-[72px] lg:self-start w-full flex flex-col space-y-2 sm:space-y-2.5">
             
             {/* ========================================================= */}
             {/* LEVEL 1: PRODUCT IDENTITY & METADATA STRIP */}
@@ -946,21 +954,33 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
         </div>
 
-        {/* RELATED PRODUCTS */}
-        {relatedProducts.length > 0 && (
-          <div className="pt-8 sm:pt-10 border-t border-border space-y-4">
-            <h2 className="text-lg sm:text-xl font-display font-bold uppercase tracking-tight text-foreground">
-              More from {product.brand}
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-3 sm:gap-3.5 xl:gap-4">
-              {relatedProducts.map((rp) => (
+        {/* PRODUCTS FROM BRAND (Full-width section after all product detail content) */}
+        {brandProducts.length > 0 && (
+          <section
+            aria-label={`Products from ${product.brand}`}
+            className="w-full pt-8 sm:pt-10 lg:pt-12 mt-6 sm:mt-8 border-t border-border/80 space-y-4 sm:space-y-6"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg sm:text-xl font-display font-extrabold uppercase tracking-tight text-foreground">
+                More from {product.brand}
+              </h2>
+              <Link
+                href={`/search?brand=${encodeURIComponent(product.brand)}`}
+                className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 group"
+              >
+                <span>View all</span>
+                <span aria-hidden="true" className="group-hover:translate-x-0.5 transition-transform">→</span>
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4 lg:gap-6">
+              {brandProducts.map((bp) => (
                 <ProductCard
-                  key={rp.id}
-                  product={toStorefrontProduct(rp)}
+                  key={bp.id}
+                  product={toStorefrontProduct(bp)}
                 />
               ))}
             </div>
-          </div>
+          </section>
         )}
 
       </div>

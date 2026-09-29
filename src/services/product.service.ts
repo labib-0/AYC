@@ -34,6 +34,7 @@ export interface ProductQueryParams {
   sort?: string;
   sort_by?: "price_asc" | "price_desc" | "newest" | "popular" | "hot" | "featured" | "name_asc" | "name_desc";
   isAdmin?: boolean;
+  exclude?: string;
   product_id?: string;
   productId?: string;
   purchase_price_status?: string;
@@ -828,6 +829,12 @@ export class ProductService {
       }
       if (options?.status && options.status !== "all" && p.status !== options.status) {
         return false;
+      }
+      if (options?.exclude) {
+        const excludes = options.exclude.split(",").map((e) => e.trim()).filter(Boolean);
+        if (excludes.includes(String(p.id)) || excludes.includes(p.slug)) {
+          return false;
+        }
       }
       if (options?.brand && options.brand !== "all") {
         const brands = options.brand.split(",").map((b) => b.trim().toLowerCase()).filter(Boolean);

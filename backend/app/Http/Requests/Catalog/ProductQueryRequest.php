@@ -63,6 +63,7 @@ class ProductQueryRequest extends FormRequest
             'sort' => ['nullable', 'string', 'in:price_asc,price_desc,newest,popular,hot,featured,name_asc,name_desc'],
             'sort_by' => ['nullable', 'string', 'in:price_asc,price_desc,newest,popular,hot,featured,name_asc,name_desc'],
             'isAdmin' => ['nullable', 'boolean'],
+            'exclude' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

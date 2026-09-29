@@ -101,6 +101,15 @@ class ProductController extends ApiController
             }
         }
 
+        // Exclude specific product IDs or slugs (e.g. for brand-based related products)
+        if ($request->filled('exclude')) {
+            $excludes = array_filter(array_map('trim', explode(',', (string) $request->input('exclude'))));
+            if (!empty($excludes)) {
+                $query->whereNotIn('id', array_filter($excludes, 'is_numeric'))
+                      ->whereNotIn('slug', $excludes);
+            }
+        }
+
         // Audience filter (MEN, WOMEN, BOYS, GIRLS, UNISEX)
         if ($request->filled('audience') && $request->input('audience') !== 'all') {
             $audiences = array_filter(array_map(function ($item) {

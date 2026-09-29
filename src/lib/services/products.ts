@@ -230,5 +230,37 @@ export async function getRelatedProducts(
   return scored.slice(0, limit).map((s) => s.item);
 }
 
+/**
+ * Retrieves legitimate, customer-visible products from the same brand, excluding the current product.
+ * Respects all storefront visibility rules (published, not hidden, non-archived).
+ * Returns up to `limit` products (defaults to 4).
+ */
+export async function getBrandProducts(
+  product: B2BProductInput,
+  limit: number = 4
+): Promise<B2BProductInput[]> {
+  if (!product || !product.brand) return [];
 
+  try {
+    const items = await productService.getProducts({
+      brand: product.brand,
+      status: "published",
+      per_page: limit + 5,
+      exclude: product.id ? String(product.id) : undefined,
+    });
 
+    const valid = (items || []).filter(
+      (p: B2BProductInput) =>
+        String(p.id) !== String(product.id) &&
+        p.slug !== product.slug &&
+        (p.status === "published" || !p.status) &&
+        !p.isHiddenFromStorefront &&
+        !(p as any).is_hidden_from_storefront
+    );
+
+    return valid.slice(0, limit);
+  } catch (err) {
+    console.warn("Failed to load products from brand:", err);
+    return [];
+  }
+}

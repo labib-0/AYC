@@ -380,13 +380,13 @@ export default function ProductGallery({
   const hasMediaRail = cleanImages.length > 1 || (cleanImages.length > 0 && (!!videoInfo || !!videoThumbnail));
 
   const isModal = variant === "modal";
-  const mainRadiusClass = isModal ? "rounded-xl" : "rounded-xl";
-  const thumbSizeClass = isModal ? "w-9 sm:w-10 rounded-md" : "w-9 sm:w-10 lg:w-9 xl:w-10 rounded-md";
-  const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "lg:max-h-[290px] xl:max-h-[310px]";
+  const mainRadiusClass = "rounded-xl";
+  const thumbSizeClass = isModal ? "w-9 sm:w-10 rounded-md" : "w-12 sm:w-14 lg:w-14 xl:w-16 rounded-lg";
+  const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "";
 
   if (cleanImages.length === 0 && !videoInfo) {
     return (
-      <div className={`relative aspect-[3/4] aspect-product ${mainRadiusClass} overflow-hidden bg-secondary border border-border/70 shadow-sm flex items-center justify-center`}>
+      <div className={`relative w-full aspect-[3/4] aspect-product ${mainRadiusClass} overflow-hidden bg-secondary border border-border/70 shadow-sm flex items-center justify-center`}>
         <span className="text-xs text-muted-foreground font-sans uppercase tracking-wider">No images</span>
       </div>
     );
@@ -395,10 +395,10 @@ export default function ProductGallery({
   return (
     <>
       {/* ── MAIN GALLERY CONTAINER ── */}
-      <div className={`space-y-1.5 sm:space-y-2 w-full ${isModal ? "max-w-[340px] mx-auto" : ""}`}>
+      <div className={`space-y-2 sm:space-y-2.5 w-full ${isModal ? "max-w-[340px] mx-auto" : ""}`}>
         {/* Video Mode: YouTube, Vimeo, or Direct HTML5 Video */}
         {mediaMode === "video" && videoInfo ? (
-          <div className={`relative aspect-[3/4] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-black border border-border/70 shadow-sm group`}>
+          <div className={`relative w-full aspect-[3/4] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-black border border-border/70 shadow-sm group`}>
             <div className="w-full h-full flex items-center justify-center">
               {videoInfo.type === "youtube" ? (
                 <iframe
@@ -437,11 +437,11 @@ export default function ProductGallery({
           </div>
         ) : (
           /* Image Mode: Main Image with Swipe + Click to Lightbox */
-          <div className={`relative aspect-[3/4] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary border border-border/70 shadow-sm group`}>
+          <div className={`relative w-full aspect-[3/4] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary/25 border border-border/70 shadow-xs group`}>
             <button
               ref={lightboxTriggerRef}
               type="button"
-              className={`w-full h-full cursor-zoom-in touch-pan-y select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${mainRadiusClass}`}
+              className={`w-full h-full cursor-zoom-in touch-pan-y select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${mainRadiusClass} flex items-center justify-center p-2 sm:p-2.5`}
               aria-label={`View ${productName} image ${currentIndex + 1} of ${cleanImages.length} — click to enlarge`}
               {...mainSwipe}
             >
@@ -451,7 +451,7 @@ export default function ProductGallery({
                 alt={`${productName} — image ${currentIndex + 1}`}
                 loading={currentIndex === 0 ? "eager" : "lazy"}
                 decoding="async"
-                className="w-full h-full object-contain object-center transition-transform duration-200 group-hover:scale-[1.02] pointer-events-none"
+                className="w-full h-full max-h-full max-w-full object-contain object-center transition-transform duration-200 group-hover:scale-[1.02] pointer-events-none"
                 draggable={false}
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";
