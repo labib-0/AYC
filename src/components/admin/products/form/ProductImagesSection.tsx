@@ -76,27 +76,24 @@ export default function ProductImagesSection({
     setUploadError(null);
 
     const validFiles: { file: File; preview: UploadingPreview }[] = [];
-    const allowedExtensions = ["jpg", "jpeg", "png", "webp"];
+    // Server is authoritative for format validation; client provides a broad first-pass check
+    const SUPPORTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "avif"];
+    const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      const isImage = file.type.startsWith("image/") || allowedExtensions.includes(ext);
+      const isImage = file.type.startsWith("image/") || SUPPORTED_EXTENSIONS.includes(ext);
 
       if (!isImage) {
-        setUploadError(`"${file.name}" is not an image file. Allowed formats are JPG, PNG, and WebP.`);
+        setUploadError(`"${file.name}" is not an image file. Supported formats: JPG, PNG, WebP, GIF, BMP, AVIF.`);
         continue;
       }
 
-      if (ext && !allowedExtensions.includes(ext) && !["image/jpeg", "image/png", "image/webp"].includes(file.type.toLowerCase())) {
-        setUploadError(`"${file.name}" has an unsupported format. Please upload JPG, PNG, or WebP.`);
-        continue;
-      }
-
-      // Maximum 5 MB original upload requirement
-      if (file.size > 5 * 1024 * 1024) {
+      // 20 MB client-side guard (server enforces authoritatively)
+      if (file.size > MAX_BYTES) {
         const mb = (file.size / (1024 * 1024)).toFixed(1);
-        setUploadError(`"${file.name}" (${mb} MB) exceeds the 5 MB maximum file size limit. Please upload an image under 5 MB.`);
+        setUploadError(`"${file.name}" (${mb} MB) exceeds the 20 MB upload limit.`);
         continue;
       }
 
@@ -235,7 +232,7 @@ export default function ProductImagesSection({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/png,image/jpeg,image/jpg,image/webp"
+          accept="image/*"
           multiple
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
@@ -253,7 +250,7 @@ export default function ProductImagesSection({
               {isUploading ? "Uploading Images..." : "Click or Drag & Drop Images Here"}
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Supports JPG, PNG, WebP (up to 5MB each). Automatically optimized to 4:5 WebP.
+              Image files up to 20 MB. Automatically optimized to WebP.
             </p>
           </div>
         </div>

@@ -22,7 +22,6 @@ import ProductPricingSection from "./ProductPricingSection";
 import ProductPackageBreakdownSection from "./ProductPackageBreakdownSection";
 import ProductShippingSection from "./ProductShippingSection";
 import ProductSeoSection from "./ProductSeoSection";
-import ProductPublishSection from "./ProductPublishSection";
 
 interface ProductFormProps {
   initialData?: Partial<B2BProductInput>;
@@ -656,18 +655,6 @@ export default function ProductForm({
     }
   };
 
-  // Readiness checklist
-  const checklist = useMemo(
-    () => ({
-      hasName: name.trim().length > 0,
-      hasBrand: brand.trim().length > 0,
-      hasPrice: Boolean(wholesalePrice && wholesalePrice > 0),
-      hasImage: images.length > 0,
-      hasMoq: moq > 0,
-    }),
-    [name, brand, wholesalePrice, images, moq]
-  );
-
   // Draft validation — permissive: requires Product ID and product name to save progress
   const validateDraft = (): boolean => {
     const errs: Record<string, string> = {};
@@ -1185,17 +1172,16 @@ export default function ProductForm({
 
         {/* Right Column (Publishing, Pricing, Media, SEO) - 5 cols on desktop */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Section 4: Visibility & Status */}
-          <ProductPublishSection
-            status={status}
-            onStatusChange={setStatus}
-            checklist={checklist}
-          />
-
           {/* Section 5: Pricing & Volume Tiers */}
           <ProductPricingSection
             wholesalePrice={wholesalePrice}
             moq={moq}
+            isMoqDerived={packageTotalUnits > 0}
+            availableStock={
+              initialData?.availableStock ??
+              (initialData as any)?.available_stock ??
+              (stock !== undefined && stock > 0 ? stock : undefined)
+            }
             bulkThreshold={bulkThreshold}
             bulkPrice={bulkPrice}
             fullStockPrice={fullStockPrice}
@@ -1211,7 +1197,7 @@ export default function ProductForm({
             estimatedDeliveryDate={estimatedDeliveryDate}
             errors={errors}
             onWholesalePriceChange={setWholesalePrice}
-            onMoqChange={() => {}}
+            onMoqChange={setCustomMoq}
             onBulkThresholdChange={setBulkThreshold}
             onBulkPriceChange={setBulkPrice}
             onIsPreorderChange={(val, date) => {

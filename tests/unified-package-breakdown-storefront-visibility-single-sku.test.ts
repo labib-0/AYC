@@ -109,12 +109,13 @@ assert(
   "15. Collapse only toggles section visibility in the UI and does NOT affect saved state"
 );
 assert(
-  !breakdownContent.includes("SKU Preview"),
-  "16. Variant preview table contains strictly NO SKU Preview column"
+  !breakdownContent.includes("Variant Preview") &&
+    !breakdownContent.includes("showVariantPreview"),
+  "16. Variant preview toggle and UI are completely removed"
 );
 assert(
-  breakdownContent.includes("Variant Title") && breakdownContent.includes("Est. Stock"),
-  "17. Variant preview displays clean 'Variant Title | Est. Stock'"
+  !breakdownContent.includes("Variant Title") && !breakdownContent.includes("Est. Stock"),
+  "17. Obsolete 'Variant Title | Est. Stock' preview table is completely removed"
 );
 
 // Colors & Sizes

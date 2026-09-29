@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Plus, X, Layers, AlertCircle, Check, ChevronUp, ChevronDown, EyeOff, Eye } from "lucide-react";
+import { Plus, X, AlertCircle, Check, ChevronUp, ChevronDown, EyeOff, Eye } from "lucide-react";
 import { PackageAllocation } from "@/types";
 
 export const PREDEFINED_PALETTE = [
@@ -103,8 +103,6 @@ export default function ProductPackageBreakdownSection({
   // Custom Size Input State
   const [customSizeInput, setCustomSizeInput] = useState("");
 
-  // Variant preview toggle state
-  const [showVariantPreview, setShowVariantPreview] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   // Sync custom colors into state
@@ -316,10 +314,6 @@ export default function ProductPackageBreakdownSection({
       totalPackageUnits,
     };
   }, [colors, sizes, cellMap]);
-
-  const totalVariantCombinations = colors.length * sizes.length;
-  const avgStockPerVariant =
-    totalVariantCombinations > 0 ? Math.floor(stock / totalVariantCombinations) : 0;
 
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs" id="section-package-breakdown">
@@ -747,48 +741,6 @@ export default function ProductPackageBreakdownSection({
             )}
           </div>
 
-          {/* 20. VARIANT PREVIEW (VARIANT TITLE | EST. STOCK — STRICTLY NO SKU PREVIEW) */}
-          {totalVariantCombinations > 0 && (
-            <div className="pt-3 border-t border-border/60">
-              <button
-                type="button"
-                onClick={() => setShowVariantPreview(!showVariantPreview)}
-                className="text-xs font-bold text-primary hover:underline flex items-center gap-1.5 cursor-pointer"
-              >
-                <Layers size={13} />
-                {showVariantPreview ? "Hide Variant Preview" : "View Variant Preview"}
-              </button>
-
-              {showVariantPreview && (
-                <div className="mt-3 border border-border/80 rounded-xl overflow-hidden bg-card">
-                  <div className="overflow-x-auto max-h-64">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-secondary/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/60 sticky top-0">
-                        <tr>
-                          <th className="px-3.5 py-2">Variant Title</th>
-                          <th className="px-3.5 py-2 text-right">Est. Stock</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/40">
-                        {colors.map((c) =>
-                          sizes.map((s) => (
-                            <tr key={`${c}-${s}`} className="hover:bg-secondary/30">
-                              <td className="px-3.5 py-2 font-semibold text-foreground">
-                                {c} / {s}
-                              </td>
-                              <td className="px-3.5 py-2 text-right tabular-nums text-muted-foreground">
-                                {avgStockPerVariant} pcs
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>

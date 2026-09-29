@@ -1,5 +1,9 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let passedCount = 0;
 let failedCount = 0;
@@ -116,10 +120,11 @@ assert(
 );
 
 assert(
-  shippingContent.includes("singleCartonCbm !== null ? `${singleCartonCbm.toFixed(4)} m³` : \"—\"") &&
+  !shippingContent.includes("Single Carton CBM") &&
+    shippingContent.includes("singleCartonCbm = hasDimensions") &&
     shippingContent.includes("totalCbm !== null ? `${totalCbm.toFixed(4)} m³` : \"—\"") &&
     shippingContent.includes("totalGrossWeight !== null ? `${totalGrossWeight.toFixed(1)} ${(profile.weight_unit || \"kg\").toUpperCase()}` : \"—\""),
-  "10. Packaging calculations display empty state '—' when inputs are not configured"
+  "10. Single Carton CBM removed from UI; internal carton volume preserved; Total CBM and Total Gross Weight display empty state '—' when unconfigured"
 );
 
 // ==================================================
@@ -129,40 +134,42 @@ console.log("\n▶ Checking Pricing Simplification:");
 
 assert(
   pricingContent.includes("PRICING") &&
-    pricingContent.includes("Wholesale Price ($) <span className=\"text-red-500\">*</span>") &&
+    pricingContent.includes("STANDARD") &&
     !pricingContent.includes("Wholesale Unit Price"),
-  "11. Section named 'PRICING' and wholesale price labeled 'Wholesale Price ($) *'"
+  "11. Section named 'PRICING' and Standard tier represented as first row without 'Wholesale Unit Price'"
 );
 
 assert(
-  pricingContent.includes("Bulk Price") &&
-    pricingContent.includes("Minimum Qty <span className=\"text-red-500\">*</span>") &&
-    pricingContent.includes("Unit Price ($) <span className=\"text-red-500\">*</span>") &&
+  pricingContent.includes("BULK") &&
+    pricingContent.includes("MINIMUM QTY") &&
+    pricingContent.includes("UNIT PRICE") &&
     !pricingContent.includes("Bulk Pricing / Volume Tiers") &&
     !pricingContent.includes("Tier: Minimum Quantity | Unit Price") &&
     !pricingContent.includes("Volume order threshold"),
-  "12. Bulk pricing simplified to 'Bulk Price', 'Minimum Qty', 'Unit Price ($)' without verbose paragraphs"
+  "12. Bulk pricing unified as row 'BULK', 'MINIMUM QTY', 'UNIT PRICE' without verbose paragraphs"
 );
 
 assert(
-  pricingContent.includes("Full Stock Price ($) <span className=\"text-red-500\">*</span>") &&
+  pricingContent.includes("FULL STOCK") &&
+    pricingContent.includes("Available Stock") &&
     !pricingContent.includes("Full Stock Price ($/pc)") &&
     !pricingContent.includes("Required per-unit price. Applied to Full Stock orders"),
-  "13. Full Stock Price simplified with clean label and long description removed"
+  "13. Full Stock represented as 3rd tier showing 'Available Stock' with clean unit price input"
 );
 
 assert(
-  pricingContent.includes("Purchase Price ($)") &&
-    pricingContent.includes("Internal") &&
+  pricingContent.includes("PURCHASE PRICE") &&
+    pricingContent.includes("INTERNAL") &&
     (pricingContent.includes("Not set") || pricingContent.includes("Pending")) &&
     !pricingContent.includes("Internal cost of goods sold (COGS)"),
   "14. Purchase Price UI displays internal badge, compact status (Not set/Pending), and removes COGS paragraph"
 );
 
 assert(
-  pricingContent.includes('{moq > 0 ? `${moq} PCS` : "—"}') &&
-    pricingContent.includes("{moq > 0 && (\n                <span className=\"text-[10px] font-sans font-bold uppercase tracking-wider text-muted-foreground bg-background px-2 py-0.5 rounded border border-border/60\">\n                  Auto-derived\n                </span>\n              )}"),
-  "15. MOQ displays '—' when unconfigured and only shows 'Auto-derived' when valid configuration exists"
+  pricingContent.includes('isMoqDerived ? (') &&
+    pricingContent.includes("Auto-derived") &&
+    !pricingContent.includes('{moq > 0 ? `${moq} PCS` : "—"}'),
+  "15. MOQ displays clean empty state when unconfigured instead of fake '—' value, and shows Auto-derived when derived from package"
 );
 
 // ==================================================

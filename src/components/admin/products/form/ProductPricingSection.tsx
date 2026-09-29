@@ -1,10 +1,12 @@
 "use client";
 
-import { AlertCircle, TrendingDown, Sparkles, Flame, Star, Clock } from "lucide-react";
+import { AlertCircle, Sparkles, Flame, Star, Clock } from "lucide-react";
 
 interface ProductPricingSectionProps {
   wholesalePrice?: number;
   moq?: number;
+  isMoqDerived?: boolean;
+  availableStock?: number;
   bulkThreshold?: number;
   bulkPrice?: number;
   fullStockPrice?: number;
@@ -20,7 +22,7 @@ interface ProductPricingSectionProps {
   estimatedDeliveryDate?: string | null;
   errors: Record<string, string>;
   onWholesalePriceChange: (val: number | undefined) => void;
-  onMoqChange: (val: number) => void;
+  onMoqChange?: (val: number | undefined) => void;
   onBulkThresholdChange: (val: number | undefined) => void;
   onBulkPriceChange: (val: number | undefined) => void;
   onFullStockPriceChange: (val: number | undefined) => void;
@@ -34,6 +36,8 @@ interface ProductPricingSectionProps {
 export default function ProductPricingSection({
   wholesalePrice,
   moq = 0,
+  isMoqDerived = false,
+  availableStock,
   bulkThreshold,
   bulkPrice,
   fullStockPrice,
@@ -49,7 +53,7 @@ export default function ProductPricingSection({
   estimatedDeliveryDate,
   errors,
   onWholesalePriceChange,
-  onMoqChange: _onMoqChange,
+  onMoqChange,
   onBulkThresholdChange,
   onBulkPriceChange,
   onFullStockPriceChange,
@@ -67,7 +71,7 @@ export default function ProductPricingSection({
     }`;
 
   const plainInputClass = (hasError?: boolean) =>
-    `w-full h-10 px-3.5 rounded-xl border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-colors tabular-nums ${
+    `w-full h-10 px-3.5 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-colors tabular-nums ${
       hasError
         ? "border-red-500 focus:ring-red-500/30"
         : "border-border focus:ring-ring/40"
@@ -109,6 +113,7 @@ export default function ProductPricingSection({
 
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
+      {/* Header */}
       <div className="border-b border-border/60 pb-3 flex items-center justify-between">
         <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
           PRICING
@@ -119,13 +124,247 @@ export default function ProductPricingSection({
       </div>
 
       <div className="space-y-4">
-        {/* Primary Wholesale Price & Derived MOQ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Wholesale Price */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Wholesale Price ($) <span className="text-red-500">*</span>
-            </label>
+        {/* UNIFIED PRICING TABLE (STANDARD / BULK / FULL STOCK) */}
+        <div className="rounded-xl border border-border/80 bg-background overflow-hidden shadow-2xs">
+          {/* Table Column Headers (Tablet / Desktop) */}
+          <div className="hidden sm:grid sm:grid-cols-[140px_1fr_1fr] md:grid-cols-[160px_1fr_1fr] gap-4 px-4 py-2.5 bg-secondary/40 border-b border-border/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div>TIER</div>
+            <div>MINIMUM QTY / BASIS</div>
+            <div>UNIT PRICE</div>
+          </div>
+
+          <div className="divide-y divide-border/60">
+            {/* 1. STANDARD TIER ROW */}
+            <div className="p-4 sm:px-4 sm:py-3.5 sm:grid sm:grid-cols-[140px_1fr_1fr] md:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 sm:space-y-0">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                  STANDARD
+                </span>
+              </div>
+
+              {/* Minimum Qty / Basis */}
+              <div>
+                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  MINIMUM QTY
+                </label>
+                {isMoqDerived ? (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      value={moq && moq > 0 ? `${moq} PCS` : ""}
+                      placeholder=""
+                      className="w-full h-10 px-3.5 rounded-xl border border-border bg-secondary/30 text-xs font-mono font-bold text-foreground cursor-not-allowed tabular-nums"
+                    />
+                    {moq && moq > 0 && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-sans font-bold uppercase tracking-wider text-muted-foreground bg-background px-1.5 py-0.5 rounded border border-border/60">
+                        Auto-derived
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={moq && moq > 0 ? moq : ""}
+                      onChange={(e) => {
+                        const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                        onMoqChange?.(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
+                      }}
+                      placeholder=""
+                      className={plainInputClass(Boolean(errors.moq))}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      PCS
+                    </span>
+                  </div>
+                )}
+                {errors.moq && (
+                  <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                    <AlertCircle size={12} />
+                    {errors.moq}
+                  </p>
+                )}
+              </div>
+
+              {/* Unit Price */}
+              <div>
+                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  UNIT PRICE
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={wholesalePrice ?? ""}
+                    onChange={(e) => onWholesalePriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    placeholder=""
+                    className={inputClass(Boolean(errors.wholesalePrice))}
+                  />
+                </div>
+                {errors.wholesalePrice && (
+                  <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                    <AlertCircle size={12} />
+                    {errors.wholesalePrice}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* 2. BULK TIER ROW */}
+            <div className="p-4 sm:px-4 sm:py-3.5 sm:grid sm:grid-cols-[140px_1fr_1fr] md:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 sm:space-y-0">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                  BULK
+                </span>
+              </div>
+
+              {/* Minimum Qty / Basis */}
+              <div>
+                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  MINIMUM QTY
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="1"
+                    min={moq && moq > 0 ? moq + 1 : 1}
+                    value={bulkThreshold ?? ""}
+                    onChange={(e) => onBulkThresholdChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                    placeholder=""
+                    className={plainInputClass(Boolean(errors.bulkThreshold || errors.bulk_threshold))}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    PCS
+                  </span>
+                </div>
+                {(errors.bulkThreshold || errors.bulk_threshold) && (
+                  <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                    <AlertCircle size={12} />
+                    {errors.bulkThreshold || errors.bulk_threshold}
+                  </p>
+                )}
+              </div>
+
+              {/* Unit Price */}
+              <div>
+                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  UNIT PRICE
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={bulkPrice ?? ""}
+                    onChange={(e) => onBulkPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    placeholder=""
+                    className={inputClass(Boolean(errors.bulkPrice || errors.bulk_price))}
+                  />
+                </div>
+                {(errors.bulkPrice || errors.bulk_price) && (
+                  <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                    <AlertCircle size={12} />
+                    {errors.bulkPrice || errors.bulk_price}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* 3. FULL STOCK TIER ROW */}
+            <div className="p-4 sm:px-4 sm:py-3.5 sm:grid sm:grid-cols-[140px_1fr_1fr] md:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 sm:space-y-0">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                  FULL STOCK
+                </span>
+              </div>
+
+              {/* Minimum Qty / Basis: Authoritative Inventory Value */}
+              <div>
+                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  AVAILABLE STOCK
+                </label>
+                <div className="h-10 px-3.5 rounded-xl border border-border bg-secondary/30 flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">
+                    Available Stock
+                  </span>
+                  {availableStock !== undefined && availableStock > 0 && (
+                    <span className="text-[11px] font-mono font-bold text-muted-foreground tabular-nums">
+                      {availableStock} PCS
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Unit Price */}
+              <div>
+                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  UNIT PRICE
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={fullStockPrice ?? ""}
+                    onChange={(e) => onFullStockPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    placeholder=""
+                    className={inputClass(Boolean(errors.fullStockPrice || errors.full_stock_price))}
+                  />
+                </div>
+                {(errors.fullStockPrice || errors.full_stock_price) && (
+                  <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                    <AlertCircle size={12} />
+                    {errors.fullStockPrice || errors.full_stock_price}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* PURCHASE PRICE (COMPACT SEPARATE INTERNAL FIELD BELOW UNIFIED TABLE) */}
+        <div className="pt-1">
+          <div className="p-4 rounded-xl bg-secondary/30 border border-border/70 space-y-2 max-w-sm">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-foreground">
+                PURCHASE PRICE
+                <span className="ml-2 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                  INTERNAL
+                </span>
+              </label>
+              {!hasCostPrice ? (
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  Not set
+                </span>
+              ) : purchasePriceUpdated === true ? (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  ✓ Updated
+                </span>
+              ) : purchasePriceUpdated === false ? (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Pending
+                </span>
+              ) : (
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  Set
+                </span>
+              )}
+            </div>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                 $
@@ -134,180 +373,14 @@ export default function ProductPricingSection({
                 type="number"
                 step="0.01"
                 min="0.01"
-                value={wholesalePrice ?? ""}
-                onChange={(e) => onWholesalePriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                value={costPrice ?? ""}
+                onChange={(e) =>
+                  onCostPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)
+                }
                 placeholder=""
-                className={inputClass(Boolean(errors.wholesalePrice))}
+                className={inputClass()}
               />
             </div>
-            {errors.wholesalePrice && (
-              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                <AlertCircle size={12} />
-                {errors.wholesalePrice}
-              </p>
-            )}
-          </div>
-
-          {/* Minimum Order Quantity (MOQ) */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Minimum Order Quantity (MOQ)
-            </label>
-            <div className="h-10 px-3.5 rounded-xl border border-border bg-secondary/30 flex items-center justify-between">
-              <span className="text-xs font-mono font-bold text-foreground tabular-nums">
-                {moq > 0 ? `${moq} PCS` : "—"}
-              </span>
-              {moq > 0 && (
-                <span className="text-[10px] font-sans font-bold uppercase tracking-wider text-muted-foreground bg-background px-2 py-0.5 rounded border border-border/60">
-                  Auto-derived
-                </span>
-              )}
-            </div>
-            {errors.moq && (
-              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                <AlertCircle size={12} />
-                {errors.moq}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Bulk Price */}
-        <div className="p-4 rounded-xl bg-secondary/40 border border-border/60 space-y-3">
-          <div className="flex items-center gap-2">
-            <TrendingDown size={14} className="text-primary" />
-            <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Bulk Price
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
-                Minimum Qty <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="1"
-                  min={moq > 0 ? moq + 1 : 1}
-                  value={bulkThreshold ?? ""}
-                  onChange={(e) => onBulkThresholdChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-                  placeholder=""
-                  className={plainInputClass(Boolean(errors.bulkThreshold))}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  PCS
-                </span>
-              </div>
-              {errors.bulkThreshold && (
-                <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                  <AlertCircle size={12} />
-                  {errors.bulkThreshold}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
-                Unit Price ($) <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                  $
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={bulkPrice ?? ""}
-                  onChange={(e) => onBulkPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                  placeholder=""
-                  className={inputClass(Boolean(errors.bulkPrice))}
-                />
-              </div>
-              {errors.bulkPrice && (
-                <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                  <AlertCircle size={12} />
-                  {errors.bulkPrice}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Full Stock Price */}
-        <div className="p-4 rounded-xl bg-card border border-border/90 space-y-2">
-          <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
-            Full Stock Price ($) <span className="text-red-500">*</span>
-          </label>
-          <div className="relative max-w-sm">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-              $
-            </span>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={fullStockPrice ?? ""}
-              onChange={(e) =>
-                onFullStockPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)
-              }
-              placeholder=""
-              className={inputClass(Boolean(errors.fullStockPrice || errors.full_stock_price))}
-            />
-          </div>
-          {(errors.fullStockPrice || errors.full_stock_price) && (
-            <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-              <AlertCircle size={12} />
-              {errors.fullStockPrice || errors.full_stock_price}
-            </p>
-          )}
-        </div>
-
-        {/* Purchase Price (Internal COGS) */}
-        <div className="p-4 rounded-xl bg-secondary/30 border border-border/70 space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
-              Purchase Price ($)
-              <span className="ml-2 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-                Internal
-              </span>
-            </label>
-            {!hasCostPrice ? (
-              <span className="text-[10px] font-medium text-muted-foreground">
-                Not set
-              </span>
-            ) : purchasePriceUpdated === true ? (
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                ✓ Updated
-              </span>
-            ) : purchasePriceUpdated === false ? (
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                Pending
-              </span>
-            ) : (
-              <span className="text-[10px] font-medium text-muted-foreground">
-                Set
-              </span>
-            )}
-          </div>
-          <div className="relative max-w-sm">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-              $
-            </span>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={costPrice ?? ""}
-              onChange={(e) =>
-                onCostPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)
-              }
-              placeholder=""
-              className={inputClass()}
-            />
           </div>
         </div>
 

@@ -218,21 +218,8 @@ export default function ProductShippingSection({
           </div>
         </div>
 
-        {/* Row 3: Calculated Values — Single Carton CBM · Total CBM · Total Gross Weight */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Single Carton CBM */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Single Carton CBM
-            </label>
-            <div className="h-10 px-3.5 rounded-xl bg-secondary/60 border border-border/60 flex items-center justify-between font-mono font-bold text-xs text-foreground tabular-nums">
-              <span>{singleCartonCbm !== null ? `${singleCartonCbm.toFixed(4)} m³` : "—"}</span>
-              <span className="text-[10px] font-sans font-medium uppercase tracking-wider text-muted-foreground">
-                / carton
-              </span>
-            </div>
-          </div>
-
+        {/* Row 3: Calculated Values — Total CBM · Total Gross Weight */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Total CBM */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
