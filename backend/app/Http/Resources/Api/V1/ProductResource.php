@@ -35,7 +35,8 @@ class ProductResource extends JsonResource
         $user = $request->user() ?: auth('sanctum')->user();
         $isAdmin = $user && $user->isAdmin();
         $isB2b = $user && ($user->isCustomer() || $user->isAdmin());
-        $effectivePrice = (float) $this->wholesale_price;
+        $effectivePrice = $this->getEffectiveCustomerPrice();
+        $hasValidPrice = $effectivePrice !== null && $effectivePrice > 0;
 
         return array_merge([
             'id' => (int) $this->id,
@@ -77,8 +78,12 @@ class ProductResource extends JsonResource
             'videoEmbedUrl' => $this->getVideoEmbedUrl(),
             'images' => !empty($imagesList) ? $imagesList : ['/placeholder.jpg'],
             'price' => $effectivePrice,
-            'wholesalePrice' => (float) $this->wholesale_price,
-            'standardPrice' => (float) $this->wholesale_price,
+            'has_valid_price' => $hasValidPrice,
+            'hasValidPrice' => $hasValidPrice,
+            'wholesalePrice' => $effectivePrice,
+            'standardPrice' => $effectivePrice,
+            'raw_wholesale_price' => $this->wholesale_price !== null ? (float) $this->wholesale_price : null,
+            'rawWholesalePrice' => $this->wholesale_price !== null ? (float) $this->wholesale_price : null,
             'bulkPricingEnabled' => (bool) ($this->bulk_pricing_enabled ?? false),
             'bulk_pricing_enabled' => (bool) ($this->bulk_pricing_enabled ?? false),
             'bulkThreshold' => ($this->bulk_pricing_enabled || $isAdmin) && $this->bulk_threshold !== null ? (int) $this->bulk_threshold : null,

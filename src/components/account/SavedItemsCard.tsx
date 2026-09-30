@@ -81,7 +81,7 @@ export function SavedItemsCard() {
                       {item.product.name}
                     </p>
                     <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
-                      ${item.product.price.toFixed(2)}
+                      {item.product.price && item.product.price > 0 ? `$${item.product.price.toFixed(2)}` : "Price on Request"}
                     </p>
                     <span className="text-[0.625rem] text-slate-400 block truncate">
                       {item.product.brand || "Ayaan Export"}

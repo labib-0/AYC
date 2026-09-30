@@ -287,7 +287,8 @@ export default function FeaturedProductManager({
               "/placeholder.jpg";
             const brandName = p?.brand?.name || p?.brand || "Ayaan Apparel";
             const catName = p?.categories?.[0]?.name || p?.categoryName || "Apparel";
-            const price = Number(p?.wholesale_price || p?.price || 0).toFixed(2);
+            const rawPrice = Number(p?.wholesale_price || p?.price || 0);
+            const price = rawPrice > 0 ? `$${rawPrice.toFixed(2)} / pc` : "Price on Request";
             const isFirst = index === 0;
             const isLast = index === products.length - 1;
             const positionFormatted = String(index + 1).padStart(2, "0");
@@ -323,7 +324,7 @@ export default function FeaturedProductManager({
                       {p?.name || `Product #${item.product_id}`}
                     </h3>
                     <div className="flex items-center gap-2 text-xs font-mono">
-                      <span className="font-bold text-foreground">${price} / pc</span>
+                      <span className="font-bold text-foreground">{price}</span>
                       <span className="text-muted-foreground">MOQ {p?.moq || 10} pcs</span>
                       {p?.sku && <span className="text-[11px] text-muted-foreground hidden md:inline">({p.sku})</span>}
                     </div>
@@ -422,7 +423,8 @@ export default function FeaturedProductManager({
                 searchResults.map((item) => {
                   const isSelected = selectedProductIds.has(item.id);
                   const imgSrc = item.images?.[0]?.image_url || "/placeholder.jpg";
-                  const price = Number(item.wholesale_price || 0).toFixed(2);
+                  const rawPrice = Number(item.wholesale_price || (item as any).price || 0);
+                  const price = rawPrice > 0 ? `$${rawPrice.toFixed(2)} / pc` : "Price on Request";
                   const brandName = item.brand?.name || "Ayaan Apparel";
 
                   return (
@@ -447,7 +449,7 @@ export default function FeaturedProductManager({
                             {item.name}
                           </h4>
                           <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
-                            <span className="font-bold text-foreground">${price} / pc</span>
+                            <span className="font-bold text-foreground">{price}</span>
                             <span>• MOQ {item.moq} pcs</span>
                             <span className="hidden sm:inline">({item.sku})</span>
                           </div>

@@ -113,7 +113,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   const moq = Math.max(1, product?.moq || 10);
 
   // 1. Standard Base Price
-  const standardPrice = product?.standardPrice ?? product?.wholesalePrice ?? 28.0;
+  const standardPrice = (product?.standardPrice && product.standardPrice > 0)
+    ? product.standardPrice
+    : (product?.wholesalePrice && product.wholesalePrice > 0)
+    ? product.wholesalePrice
+    : (product?.price && product.price > 0)
+    ? product.price
+    : (product?.pricingTiers?.find(t => t.unit_price > 0)?.unit_price ?? 0);
 
   // 2. Bulk Tier Threshold and Unit Price
   const bulkPricingEnabled = product?.bulkPricingEnabled !== undefined
@@ -428,6 +434,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     if (!product) return;
     setErrorMessage("");
 
+    if (currentPrice <= 0) {
+      setErrorMessage("This product does not have a configured customer selling price. Please request a quote.");
+      return;
+    }
+
     // Authoritative client-side pre-validation
     if (!isFullStock && quantity < moq) {
       setErrorMessage(`Order quantity must be at least the minimum order quantity (${moq} pcs).`);
@@ -738,12 +749,20 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               {/* LEVEL 2: CORE COMMERCIAL DATA — DEDICATED PRICE BLOCK */}
               <div className="pt-1 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1.5">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl sm:text-3xl font-display font-extrabold text-foreground tabular-nums tracking-tight">
-                    {formatPrice(currentPrice)}
-                  </span>
-                  <span className="text-sm font-sans font-medium text-muted-foreground uppercase tracking-wider">
-                    / pc
-                  </span>
+                  {currentPrice > 0 ? (
+                    <>
+                      <span className="text-2xl sm:text-3xl font-display font-extrabold text-foreground tabular-nums tracking-tight">
+                        {formatPrice(currentPrice)}
+                      </span>
+                      <span className="text-sm font-sans font-medium text-muted-foreground uppercase tracking-wider">
+                        / pc
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xl sm:text-2xl font-display font-bold text-muted-foreground">
+                      Price on Request
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-2.5 text-[12px] sm:text-[12.5px] font-sans">
@@ -928,10 +947,15 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   type="button"
                   id="add-to-cart-button"
                   onClick={handleAddToCart}
-                  className="w-full sm:flex-1 h-10 lg:h-11 px-5 rounded-xl bg-foreground text-background font-display font-extrabold text-[13px] sm:text-[14px] uppercase tracking-wider hover:bg-foreground/90 active:scale-[0.99] transition-all duration-150 cursor-pointer shadow-md flex items-center justify-center gap-2 group"
+                  disabled={currentPrice <= 0}
+                  className={`w-full sm:flex-1 h-10 lg:h-11 px-5 rounded-xl font-display font-extrabold text-[13px] sm:text-[14px] uppercase tracking-wider transition-all duration-150 shadow-md flex items-center justify-center gap-2 group ${
+                    currentPrice <= 0
+                      ? "bg-secondary text-muted-foreground border border-border cursor-not-allowed"
+                      : "bg-foreground text-background hover:bg-foreground/90 active:scale-[0.99] cursor-pointer"
+                  }`}
                 >
                   <ShoppingCart size={17} className="group-hover:scale-110 transition-transform" />
-                  <span>Add to Cart</span>
+                  <span>{currentPrice <= 0 ? "Quote Only" : "Add to Cart"}</span>
                 </button>
 
                 <button

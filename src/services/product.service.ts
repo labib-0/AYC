@@ -111,13 +111,32 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
 
   const categoryInfo = inferProductCategory(p);
 
-  const wholesalePrice = p.wholesalePrice !== undefined
+  const rawWholesale = p.wholesalePrice !== undefined && p.wholesalePrice !== null
     ? Number(p.wholesalePrice)
-    : p.wholesale_price !== undefined
+    : p.wholesale_price !== undefined && p.wholesale_price !== null
     ? Number(p.wholesale_price)
-    : p.price_cents !== undefined
+    : p.price_cents !== undefined && p.price_cents !== null
     ? p.price_cents / 100
-    : Number(p.price) || 15;
+    : p.price !== undefined && p.price !== null
+    ? Number(p.price)
+    : undefined;
+
+  let wholesalePrice: number = (rawWholesale !== undefined && rawWholesale > 0) ? rawWholesale : 0;
+
+  if (wholesalePrice <= 0) {
+    const rawTiers = p.pricingTiers || p.pricing_tiers;
+    const tiers = Array.isArray(rawTiers) ? rawTiers : (typeof rawTiers === 'object' && rawTiers !== null ? Object.values(rawTiers) : []);
+    const validTier = tiers.find((t: any) => Number(t.unit_price) > 0);
+    if (validTier) {
+      wholesalePrice = Number(validTier.unit_price);
+    } else if (p.bulkPricingEnabled || p.bulk_pricing_enabled) {
+      const bp = Number(p.bulkPrice || p.bulk_price);
+      if (bp > 0) wholesalePrice = bp;
+    } else if (p.fullStockPrice || p.full_stock_price) {
+      const fsp = Number(p.fullStockPrice || p.full_stock_price);
+      if (fsp > 0) wholesalePrice = fsp;
+    }
+  }
 
 
   const stock = p.stock !== undefined
@@ -436,14 +455,31 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
  * Maps B2B product or raw API product to standard Storefront Product interface
  */
 export function toStorefrontProduct(p: any): Product {
-  const wholesalePrice = p.wholesalePrice !== undefined && p.wholesalePrice !== null
-    ? Number(p.wholesalePrice)
-    : p.wholesale_price !== undefined && p.wholesale_price !== null
-    ? Number(p.wholesale_price)
-    : p.price !== undefined && p.price !== null
-    ? Number(p.price)
-    : 0;
+  let resolvedPrice: number | undefined = undefined;
 
+  if (p.price !== undefined && p.price !== null && Number(p.price) > 0) {
+    resolvedPrice = Number(p.price);
+  } else if (p.wholesalePrice !== undefined && p.wholesalePrice !== null && Number(p.wholesalePrice) > 0) {
+    resolvedPrice = Number(p.wholesalePrice);
+  } else if (p.wholesale_price !== undefined && p.wholesale_price !== null && Number(p.wholesale_price) > 0) {
+    resolvedPrice = Number(p.wholesale_price);
+  } else if (p.standardPrice !== undefined && p.standardPrice !== null && Number(p.standardPrice) > 0) {
+    resolvedPrice = Number(p.standardPrice);
+  } else {
+    // Fallback to pricing tiers if wholesale_price was not set or 0
+    const rawTiers = p.pricingTiers || p.pricing_tiers;
+    const tiers = Array.isArray(rawTiers) ? rawTiers : (typeof rawTiers === 'object' && rawTiers !== null ? Object.values(rawTiers) : []);
+    const validTier = tiers.find((t: any) => Number(t.unit_price) > 0);
+    if (validTier) {
+      resolvedPrice = Number(validTier.unit_price);
+    } else if (p.bulkPricingEnabled || p.bulk_pricing_enabled) {
+      const bp = Number(p.bulkPrice || p.bulk_price);
+      if (bp > 0) resolvedPrice = bp;
+    } else if (p.fullStockPrice || p.full_stock_price) {
+      const fsp = Number(p.fullStockPrice || p.full_stock_price);
+      if (fsp > 0) resolvedPrice = fsp;
+    }
+  }
 
   const rawImages = Array.isArray(p.images) && p.images.length > 0
     ? p.images
@@ -476,18 +512,25 @@ export function toStorefrontProduct(p: any): Product {
     id: String(p.id),
     name: p.name,
     slug: p.slug,
-    price: wholesalePrice,
-    wholesalePrice: wholesalePrice,
-    standardPrice: p.standardPrice || wholesalePrice,
+    price: resolvedPrice,
+    has_valid_price: Boolean(resolvedPrice && resolvedPrice > 0),
+    hasValidPrice: Boolean(resolvedPrice && resolvedPrice > 0),
+    wholesalePrice: resolvedPrice,
+    wholesale_price: resolvedPrice,
+    standardPrice: p.standardPrice && Number(p.standardPrice) > 0 ? Number(p.standardPrice) : resolvedPrice,
+    standard_price: p.standardPrice && Number(p.standardPrice) > 0 ? Number(p.standardPrice) : resolvedPrice,
     bulkPricingEnabled,
     bulk_pricing_enabled: bulkPricingEnabled,
     bulkThreshold,
+    bulk_threshold: bulkThreshold,
     bulkPrice,
+    bulk_price: bulkPrice,
     bulkMinimumQuantity: bulkThreshold,
     bulk_minimum_quantity: bulkThreshold,
     bulkUnitPrice: bulkPrice,
     bulk_unit_price: bulkPrice,
     fullStockPrice: p.fullStockPrice !== undefined ? Number(p.fullStockPrice) : (p.full_stock_price !== undefined ? Number(p.full_stock_price) : undefined),
+    full_stock_price: p.fullStockPrice !== undefined ? Number(p.fullStockPrice) : (p.full_stock_price !== undefined ? Number(p.full_stock_price) : undefined),
     categoryId: p.categoryId || p.category_id || (p.categories?.[0]?.id ? String(p.categories[0].id) : "c_sweaters"),
     categoryName: p.categoryName || (p.categories?.[0]?.name ? String(p.categories[0].name) : undefined),
     audience: p.audience || "UNISEX",

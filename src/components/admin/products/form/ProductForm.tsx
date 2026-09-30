@@ -14,6 +14,7 @@ import AdminAuthModal from "@/components/admin/auth/AdminAuthModal";
 import { ApiError } from "@/services/api-client";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { normalizeImageUrl, isValidImageUrl } from "@/lib/media";
+import { generateDeterministicProductSeo } from "@/lib/seo";
 
 import ProductBasicInfoSection from "./ProductBasicInfoSection";
 import ProductInventorySection from "./ProductInventorySection";
@@ -56,7 +57,7 @@ export default function ProductForm({
   const [productId, setProductId] = useState(initialData?.productId || (initialData as any)?.product_id || "");
   const [name, setName] = useState(initialData?.name || "");
   const [slug, setSlug] = useState(initialData?.slug || "");
-  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(Boolean(initialData?.slug));
   const [sku, setSku] = useState(initialData?.sku || "");
   const [skuManuallyEdited, setSkuManuallyEdited] = useState(Boolean(initialData?.sku));
   const [isHiddenFromStorefront, setIsHiddenFromStorefront] = useState<boolean>(
@@ -215,9 +216,9 @@ export default function ProductForm({
       {
         package_quantity: initialData?.moq || 0,
         carton_count: undefined,
-        carton_length: undefined,
-        carton_width: undefined,
-        carton_height: undefined,
+        carton_length: isEdit ? undefined : 60,
+        carton_width: isEdit ? undefined : 40,
+        carton_height: isEdit ? undefined : 30,
         dimension_unit: "cm",
         gross_weight: undefined,
         weight_unit: "kg",
@@ -237,9 +238,9 @@ export default function ProductForm({
       {
         ...(prev[0] || {
           carton_count: undefined,
-          carton_length: undefined,
-          carton_width: undefined,
-          carton_height: undefined,
+          carton_length: isEdit ? undefined : 60,
+          carton_width: isEdit ? undefined : 40,
+          carton_height: isEdit ? undefined : 30,
           dimension_unit: "cm",
           gross_weight: undefined,
           weight_unit: "kg",
@@ -252,14 +253,10 @@ export default function ProductForm({
 
   // SEO
   const [seoTitle, setSeoTitle] = useState(
-    initialData?.seoTitle || (initialData as any)?.seo_title || initialData?.name || ""
+    initialData?.seoTitle || (initialData as any)?.seo_title || ""
   );
   const [seoDescription, setSeoDescription] = useState(
-    initialData?.seoDescription ||
-      (initialData as any)?.seo_description ||
-      initialData?.shortDescription ||
-      (initialData as any)?.short_description ||
-      ""
+    initialData?.seoDescription || (initialData as any)?.seo_description || ""
   );
   const [keywords, setKeywords] = useState<string[]>(() => {
     const raw = initialData?.keywords || (initialData as any)?.seo_keywords || (initialData as any)?.seoKeywords;
@@ -276,17 +273,69 @@ export default function ProductForm({
     }
     return [];
   });
-  const hasUserEditedKeywordsRef = useRef(false);
+  const seoTitleManuallyEditedRef = useRef(Boolean(initialData?.seoTitle || (initialData as any)?.seo_title));
+  const seoDescriptionManuallyEditedRef = useRef(Boolean(initialData?.seoDescription || (initialData as any)?.seo_description));
+  const hasUserEditedKeywordsRef = useRef(Boolean(
+    (initialData?.keywords && initialData.keywords.length > 0) ||
+    ((initialData as any)?.seo_keywords && (initialData as any).seo_keywords.length > 0)
+  ));
 
-  // Synchronize keywords if initialData updates from backend and admin hasn't edited them yet
+  // Synchronize SEO if initialData updates from backend and admin hasn't edited them yet
   useEffect(() => {
-    if (!hasUserEditedKeywordsRef.current && initialData) {
-      const raw = initialData.keywords || (initialData as any)?.seo_keywords || (initialData as any)?.seoKeywords;
-      if (Array.isArray(raw) && raw.length > 0) {
-        setKeywords(raw.map(String));
+    if (isEdit && initialData) {
+      if (!seoTitleManuallyEditedRef.current && (initialData.seoTitle || (initialData as any)?.seo_title)) {
+        setSeoTitle(initialData.seoTitle || (initialData as any)?.seo_title || "");
+      }
+      if (!seoDescriptionManuallyEditedRef.current && (initialData.seoDescription || (initialData as any)?.seo_description)) {
+        setSeoDescription(initialData.seoDescription || (initialData as any)?.seo_description || "");
+      }
+      if (!hasUserEditedKeywordsRef.current) {
+        const raw = initialData.keywords || (initialData as any)?.seo_keywords || (initialData as any)?.seoKeywords;
+        if (Array.isArray(raw) && raw.length > 0) {
+          setKeywords(raw.map(String));
+        }
       }
     }
-  }, [initialData]);
+  }, [initialData, isEdit]);
+
+  // Deterministic SEO Auto-generation in Create mode (acts as initial default, never overwrites manual edits)
+  const autoPopulateSeoDefaults = useCallback((
+    overrideName?: string,
+    overrideBrand?: string,
+    overrideCatName?: string,
+    overrideAudience?: string,
+    overrideMaterial?: string
+  ) => {
+    if (isEdit) return;
+    const currentName = overrideName !== undefined ? overrideName : name;
+    if (!currentName || currentName.trim().length < 3) return;
+
+    const currentBrand = overrideBrand !== undefined ? overrideBrand : brand;
+    const currentCatName = overrideCatName !== undefined ? overrideCatName : (categoryName || categories.find((c) => String(c.id) === String(categoryId))?.name || "");
+    const currentAudience = overrideAudience !== undefined ? overrideAudience : audience;
+    const currentMaterial = overrideMaterial !== undefined ? overrideMaterial : material;
+
+    const generated = generateDeterministicProductSeo({
+      name: currentName,
+      brand: currentBrand,
+      categoryName: currentCatName,
+      audience: currentAudience,
+      designType,
+      material: currentMaterial,
+      colourDescription,
+      sizeDescription,
+    });
+
+    if (!seoTitleManuallyEditedRef.current) {
+      setSeoTitle(generated.seoTitle);
+    }
+    if (!seoDescriptionManuallyEditedRef.current) {
+      setSeoDescription(generated.seoDescription);
+    }
+    if (!hasUserEditedKeywordsRef.current) {
+      setKeywords(generated.keywords);
+    }
+  }, [isEdit, name, brand, categoryName, categories, categoryId, audience, designType, material, colourDescription, sizeDescription]);
 
   // Publish Status: For a new product, status defaults to "draft" until published. For edit mode, respects initialData
   const [status, setStatus] = useState<"published" | "draft">(
@@ -722,6 +771,12 @@ export default function ProductForm({
     }
   };
 
+  const handleNameBlur = () => {
+    if (!isEdit && name.trim().length >= 3) {
+      autoPopulateSeoDefaults(name);
+    }
+  };
+
   const handleSlugChange = (val: string) => {
     setSlugManuallyEdited(true);
     setSlug(
@@ -873,6 +928,33 @@ export default function ProductForm({
         initialData?.sku ||
         generateProductSku(brand || "AY", activeCat?.name || "APP", name || "PROD");
 
+      let finalSeoTitle = seoTitle.trim();
+      let finalSeoDescription = seoDescription.trim();
+      let finalKeywords = keywords;
+
+      if (!isEdit && name.trim().length >= 3) {
+        const generated = generateDeterministicProductSeo({
+          name: name.trim(),
+          brand: brand.trim(),
+          categoryName: activeCat?.name || categoryName,
+          audience,
+          designType,
+          material,
+          colourDescription,
+          sizeDescription,
+        });
+
+        if (!finalSeoTitle && !seoTitleManuallyEditedRef.current) {
+          finalSeoTitle = generated.seoTitle;
+        }
+        if (!finalSeoDescription && !seoDescriptionManuallyEditedRef.current) {
+          finalSeoDescription = generated.seoDescription;
+        }
+        if ((!finalKeywords || finalKeywords.length === 0) && !hasUserEditedKeywordsRef.current) {
+          finalKeywords = generated.keywords;
+        }
+      }
+
       // Generate variant combinations (no variant SKU)
       const variants: B2BProductVariant[] = [];
       const totalVariants = colors.length * sizes.length;
@@ -931,13 +1013,13 @@ export default function ProductForm({
         designType: designType as any,
         productType: designType,
         description: description.trim(),
-        shortDescription: seoDescription.trim() || description.slice(0, 160).trim(),
-        seoTitle: seoTitle.trim() || undefined,
-        seo_title: seoTitle.trim() || undefined,
-        seoDescription: seoDescription.trim() || undefined,
-        seo_description: seoDescription.trim() || undefined,
-        keywords: keywords,
-        seo_keywords: keywords,
+        shortDescription: finalSeoDescription || description.slice(0, 160).trim(),
+        seoTitle: finalSeoTitle || undefined,
+        seo_title: finalSeoTitle || undefined,
+        seoDescription: finalSeoDescription || undefined,
+        seo_description: finalSeoDescription || undefined,
+        keywords: finalKeywords,
+        seo_keywords: finalKeywords,
         material: material.trim(),
         sizeDescription: sizeDescription.trim() || undefined,
         size_description: sizeDescription.trim() || undefined,
@@ -1264,20 +1346,46 @@ export default function ProductForm({
             errors={errors}
             onProductIdChange={setProductId}
             onNameChange={handleNameChange}
+            onNameBlur={handleNameBlur}
             onSlugChange={handleSlugChange}
             onSkuChange={handleSkuChange}
             onBrandChange={(bName, bId, bLogo) => {
               setBrand(bName);
               setBrandId(bId);
               setBrandLogo(bLogo);
+              if (!isEdit && !skuManuallyEdited && name) {
+                const activeCat = categories.find((c) => String(c.id) === String(categoryId));
+                setSku(generateProductSku(bName || "AY", activeCat?.name || "APP", name || "PROD"));
+              }
+              if (!isEdit) {
+                autoPopulateSeoDefaults(name, bName);
+              }
             }}
             onCategoryChange={(cId, cName) => {
               setCategoryId(cId);
               if (cName) setCategoryName(cName);
+              if (!isEdit && !skuManuallyEdited && name) {
+                setSku(generateProductSku(brand || "AY", cName || "APP", name || "PROD"));
+              }
+              if (!isEdit) {
+                autoPopulateSeoDefaults(name, brand, cName);
+              }
             }}
-            onAudienceChange={setAudience}
-            onDesignTypeChange={setDesignType}
-            onMaterialChange={setMaterial}
+            onAudienceChange={(val) => {
+              setAudience(val);
+              if (!isEdit) {
+                autoPopulateSeoDefaults(name, brand, categoryName, val);
+              }
+            }}
+            onDesignTypeChange={(val) => {
+              setDesignType(val);
+            }}
+            onMaterialChange={(val) => {
+              setMaterial(val);
+              if (!isEdit) {
+                autoPopulateSeoDefaults(name, brand, categoryName, audience, val);
+              }
+            }}
             onSizeDescriptionChange={setSizeDescription}
             onColourDescriptionChange={setColourDescription}
             onDescriptionChange={setDescription}
@@ -1422,8 +1530,14 @@ export default function ProductForm({
             keywords={keywords}
             productName={name}
             slug={slug}
-            onSeoTitleChange={setSeoTitle}
-            onSeoDescriptionChange={setSeoDescription}
+            onSeoTitleChange={(val) => {
+              seoTitleManuallyEditedRef.current = true;
+              setSeoTitle(val);
+            }}
+            onSeoDescriptionChange={(val) => {
+              seoDescriptionManuallyEditedRef.current = true;
+              setSeoDescription(val);
+            }}
             onKeywordsChange={(newKws) => {
               hasUserEditedKeywordsRef.current = true;
               setKeywords(newKws);

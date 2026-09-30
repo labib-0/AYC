@@ -168,12 +168,23 @@ class Product extends Model
     public function scopeStorefrontVisible($query)
     {
         return $query->where('status', 'published')
-                     ->where('is_hidden_from_storefront', false);
+                     ->where('is_hidden_from_storefront', false)
+                     ->where(function ($pq) {
+                         $pq->where('wholesale_price', '>', 0)
+                            ->orWhereHas('pricingTiers', function ($tq) {
+                                $tq->where('unit_price', '>', 0);
+                            })
+                            ->orWhere(function ($bq) {
+                                $bq->where('bulk_pricing_enabled', true)
+                                   ->where('bulk_price', '>', 0);
+                            })
+                            ->orWhere('full_stock_price', '>', 0);
+                     });
     }
 
     public function isStorefrontVisible(): bool
     {
-        return $this->status === 'published' && !$this->is_hidden_from_storefront;
+        return $this->status === 'published' && !$this->is_hidden_from_storefront && $this->hasValidCustomerPrice();
     }
 
     public function setProductIdAttribute(?string $value): void
@@ -418,23 +429,66 @@ class Product extends Model
     }
 
     /**
+     * Resolves the authoritative customer-facing base/selling price.
+     * Evaluates standard wholesale price, MOQ pricing tier, or bulk price.
+     * Returns null if no valid customer price is configured (never 0.00).
+     */
+    public function getEffectiveCustomerPrice(): ?float
+    {
+        // 1. Configured standard wholesale price (must be positive)
+        if ($this->wholesale_price !== null && (float) $this->wholesale_price > 0) {
+            return (float) $this->wholesale_price;
+        }
+
+        // 2. Pricing tiers (match MOQ or first valid tier sorted by min_quantity)
+        $moq = max(1, (int) $this->moq);
+        $tiers = $this->relationLoaded('pricingTiers') ? $this->pricingTiers : $this->pricingTiers()->get();
+        if ($tiers && $tiers->isNotEmpty()) {
+            foreach ($tiers as $tier) {
+                if ((float) $tier->unit_price > 0 && $moq >= $tier->min_quantity && ($tier->max_quantity === null || $moq <= $tier->max_quantity)) {
+                    return (float) $tier->unit_price;
+                }
+            }
+
+            $validTiers = $tiers->filter(fn($t) => (float) $t->unit_price > 0)->sortBy('min_quantity');
+            if ($validTiers->isNotEmpty()) {
+                return (float) $validTiers->first()->unit_price;
+            }
+        }
+
+        // 3. Bulk price if bulk pricing is enabled
+        if ($this->bulk_pricing_enabled && $this->bulk_price !== null && (float) $this->bulk_price > 0) {
+            return (float) $this->bulk_price;
+        }
+
+        // 4. Full stock price if configured
+        if ($this->full_stock_price !== null && (float) $this->full_stock_price > 0) {
+            return (float) $this->full_stock_price;
+        }
+
+        return null;
+    }
+
+    /**
+     * Checks if the product has a legitimate configured selling price.
+     */
+    public function hasValidCustomerPrice(): bool
+    {
+        return $this->getEffectiveCustomerPrice() !== null;
+    }
+
+    /**
      * Authoritative Normal MOQ / Standard Applicable Price.
      * Evaluates the standard wholesale price that applies to the product's MOQ purchase under existing rules.
      */
     public function getNormalMoqPrice(): float
     {
-        $moq = max(1, (int) $this->moq);
-
-        $tiers = $this->relationLoaded('pricingTiers') ? $this->pricingTiers : $this->pricingTiers()->get();
-        if ($tiers && $tiers->isNotEmpty()) {
-            foreach ($tiers as $tier) {
-                if ($moq >= $tier->min_quantity && ($tier->max_quantity === null || $moq <= $tier->max_quantity)) {
-                    return (float) $tier->unit_price;
-                }
-            }
+        $effective = $this->getEffectiveCustomerPrice();
+        if ($effective !== null && $effective > 0) {
+            return $effective;
         }
 
-        return (float) $this->wholesale_price;
+        return 0.0;
     }
 
     /**
@@ -553,8 +607,13 @@ class Product extends Model
             }
         }
 
-        // 4. Default Standard Wholesale Price
-        return (float) $this->wholesale_price;
+        // 4. Default Standard Wholesale Price or Effective Customer Price
+        $effective = $this->getEffectiveCustomerPrice();
+        if ($effective !== null && $effective > 0) {
+            return $effective;
+        }
+
+        return (float) ($this->wholesale_price ?? 0.0);
     }
 
     /**

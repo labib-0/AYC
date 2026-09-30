@@ -52,6 +52,18 @@ export default function ProductCard({ product }: ProductCardProps) {
     : Math.floor(availableStock / effectiveMoq);
   const isOutOfStock = availableMoqs <= 0 || availableStock <= 0;
 
+  const numericPrice = typeof product.price === "number"
+    ? product.price
+    : (product.price !== undefined && product.price !== null && !isNaN(Number(product.price)))
+    ? Number(product.price)
+    : (product.wholesalePrice !== undefined && product.wholesalePrice !== null && !isNaN(Number(product.wholesalePrice)))
+    ? Number(product.wholesalePrice)
+    : (product.standardPrice !== undefined && product.standardPrice !== null && !isNaN(Number(product.standardPrice)))
+    ? Number(product.standardPrice)
+    : 0;
+
+  const hasValidPrice = numericPrice > 0;
+
   return (
     <div className="group relative flex flex-col w-full h-full bg-card rounded-2xl border border-border/80 shadow-[0_1px_4px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:shadow-md hover:border-border transition-all duration-300 overflow-hidden font-sans">
       {/* Top Image Container (Flush with upper card boundaries) — Canonical 3:4 */}
@@ -119,7 +131,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             }`}
             onClick={handleQuickAdd}
           >
-            {isOutOfStock ? "Out of Stock" : "Quick Add"}
+            {isOutOfStock ? "Out of Stock" : !hasValidPrice ? "Inquire / Quote" : "Quick Add"}
           </button>
         </div>
       </div>
@@ -136,12 +148,20 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Pricing & Commercial Discovery Block (Restored Approved Typographic Scale: 17-18px bold price, 13px / pc, 13px MOQ) */}
         <div className="mt-1.5 flex flex-col">
           <div className="flex items-baseline gap-1 font-body">
-            <span className="text-[17px] sm:text-[18px] font-bold text-foreground tabular-nums leading-tight">
-              {formatPrice(product.price)}
-            </span>
-            <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
-              / pc
-            </span>
+            {hasValidPrice ? (
+              <>
+                <span className="text-[17px] sm:text-[18px] font-bold text-foreground tabular-nums leading-tight">
+                  {formatPrice(numericPrice)}
+                </span>
+                <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
+                  / pc
+                </span>
+              </>
+            ) : (
+              <span className="text-[14px] sm:text-[15px] font-semibold text-muted-foreground leading-tight">
+                Price on Request
+              </span>
+            )}
           </div>
           <div className="flex items-center justify-between gap-1 mt-0.5">
             <p className="text-[13px] font-body text-muted-foreground font-medium">

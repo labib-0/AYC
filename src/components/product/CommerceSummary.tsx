@@ -37,7 +37,7 @@ export default function CommerceSummary({
       </div>
 
       <div className="text-lg sm:text-xl font-display font-extrabold text-foreground tabular-nums tracking-tight leading-tight">
-        {formatPrice(totalAmount)}
+        {totalAmount > 0 ? formatPrice(totalAmount) : "Price on Request"}
       </div>
     </div>
   );

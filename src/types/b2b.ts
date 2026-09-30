@@ -46,6 +46,9 @@ export interface B2BProductInput {
   costPrice?: number;
   purchasePriceUpdated?: boolean | null;
   purchasePriceUpdatedAt?: string | null;
+  price?: number;
+  has_valid_price?: boolean;
+  hasValidPrice?: boolean;
   wholesalePrice: number;
   standardPrice?: number;
   bulkPricingEnabled?: boolean;

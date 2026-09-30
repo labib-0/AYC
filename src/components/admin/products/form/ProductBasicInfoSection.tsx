@@ -36,6 +36,7 @@ interface ProductBasicInfoSectionProps {
   errors: Record<string, string>;
   onProductIdChange: (val: string) => void;
   onNameChange: (val: string) => void;
+  onNameBlur?: () => void;
   onSlugChange: (val: string) => void;
   onSkuChange: (val: string) => void;
   onBrandChange: (brandName: string, brandId?: string, brandLogo?: string) => void;
@@ -81,6 +82,7 @@ export default function ProductBasicInfoSection({
   errors,
   onProductIdChange,
   onNameChange,
+  onNameBlur,
   onSlugChange,
   onSkuChange,
   onBrandChange,
@@ -159,6 +161,7 @@ export default function ProductBasicInfoSection({
             type="text"
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
+            onBlur={() => onNameBlur?.()}
             placeholder="e.g. Heavyweight Pullover Fleece Hoodie"
             className={inputClass(Boolean(errors.name))}
           />

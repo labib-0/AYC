@@ -261,9 +261,15 @@ export default function SearchOverlay({
 
                       {/* Price & MOQ */}
                       <div className="flex items-baseline justify-between gap-1 mt-auto pt-0.5">
-                        <span className="text-[13px] font-bold text-foreground tabular-nums">
-                          {formatPrice(product.price)}
-                        </span>
+                        {Number(product.price || product.wholesalePrice || 0) > 0 ? (
+                          <span className="text-[13px] font-bold text-foreground tabular-nums">
+                            {formatPrice(Number(product.price || product.wholesalePrice))}
+                          </span>
+                        ) : (
+                          <span className="text-[12px] font-semibold text-muted-foreground">
+                            Price on Request
+                          </span>
+                        )}
                         <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-tight">
                           MOQ {product.moq || 10}
                         </span>
@@ -400,9 +406,15 @@ export default function SearchOverlay({
                     {product.name}
                   </span>
                   <div className="flex items-baseline justify-between gap-1 mt-auto">
-                    <span className="text-xs font-bold text-foreground tabular-nums">
-                      {formatPrice(product.price)}
-                    </span>
+                    {Number(product.price || product.wholesalePrice || 0) > 0 ? (
+                      <span className="text-xs font-bold text-foreground tabular-nums">
+                        {formatPrice(Number(product.price || product.wholesalePrice))}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-muted-foreground">
+                        Price on Request
+                      </span>
+                    )}
                     <span className="text-[10px] font-medium text-muted-foreground uppercase">
                       MOQ {product.moq || 10}
                     </span>

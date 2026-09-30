@@ -188,7 +188,7 @@ export class CartService {
             }
 
             const total_items = items.reduce((sum, item) => sum + item.quantity, 0);
-            const subtotal = items.reduce((sum, item) => sum + ((item.unit_price || item.product.price) * item.quantity), 0);
+            const subtotal = items.reduce((sum, item) => sum + (((item.unit_price ?? item.product?.price) || 0) * item.quantity), 0);
             return { items, total_items, subtotal, currency: "USD" };
           }
         }
@@ -297,7 +297,7 @@ export class CartService {
 
     this.saveLocal(items);
     const total_items = items.reduce((sum, item) => sum + item.quantity, 0);
-    const subtotal = items.reduce((sum, item) => sum + ((item.unit_price || item.product.price) * item.quantity), 0);
+    const subtotal = items.reduce((sum, item) => sum + (((item.unit_price ?? item.product?.price) || 0) * item.quantity), 0);
     return { items, total_items, subtotal, currency: "USD" };
   }
 
@@ -378,7 +378,7 @@ export class CartService {
 
     this.saveLocal(items);
     const total_items = items.reduce((sum, item) => sum + item.quantity, 0);
-    const subtotal = items.reduce((sum, item) => sum + ((item.unit_price || item.product.price) * item.quantity), 0);
+    const subtotal = items.reduce((sum, item) => sum + (((item.unit_price ?? item.product?.price) || 0) * item.quantity), 0);
     return { items, total_items, subtotal, currency: "USD" };
   }
 

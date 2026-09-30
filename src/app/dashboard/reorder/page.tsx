@@ -493,7 +493,7 @@ export default function CustomerReorderPage() {
                     <div className="flex justify-between text-slate-900 dark:text-white font-bold pt-1 border-t border-slate-200/60 dark:border-white/10">
                       <span>Current Unit Price:</span>
                       <span className="text-amber-600 dark:text-amber-400">
-                        {formatUSD(item.currentUnitPrice)} / pc
+                        {item.currentUnitPrice > 0 ? `${formatUSD(item.currentUnitPrice)} / pc` : "Price on Request"}
                       </span>
                     </div>
                   </div>

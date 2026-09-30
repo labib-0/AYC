@@ -123,8 +123,7 @@ class HomepageController extends ApiController
         $featuredProducts = HomepageFeaturedProduct::query()
             ->where('is_active', true)
             ->whereHas('product', function ($query) {
-                $query->where('status', 'published')
-                    ->where('is_hidden_from_storefront', false)
+                $query->storefrontVisible()
                     ->whereNull('deleted_at');
             })
             ->with([
@@ -154,8 +153,7 @@ class HomepageController extends ApiController
         // If no records in homepage_featured_products, check products with is_featured = true
         if ($featuredProducts->isEmpty()) {
             $featuredProdsDirect = Product::query()
-                ->where('status', 'published')
-                ->where('is_hidden_from_storefront', false)
+                ->storefrontVisible()
                 ->where('is_featured', true)
                 ->whereNull('deleted_at')
                 ->with([

@@ -48,7 +48,7 @@ export default function PricingTierOption({
       id={id}
       role="radio"
       aria-checked={isSelected}
-      aria-label={`${name} tier: ${quantityRange} at ${formatPrice(unitPrice)} per piece${totalAria}`}
+      aria-label={`${name} tier: ${quantityRange} at ${unitPrice > 0 ? `${formatPrice(unitPrice)} per piece` : "Price on Request"}${totalAria}`}
       disabled={disabled}
       tabIndex={0}
       onClick={onSelect}
@@ -100,7 +100,7 @@ export default function PricingTierOption({
               isSelected ? "font-extrabold text-foreground" : "font-semibold text-foreground/85"
             }`}
           >
-            {formatPrice(unitPrice)}
+            {unitPrice > 0 ? formatPrice(unitPrice) : "Price on Request"}
           </span>
         </div>
         {estimatedTotal !== undefined && estimatedTotal > 0 && (

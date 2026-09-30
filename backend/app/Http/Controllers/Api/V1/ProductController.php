@@ -33,10 +33,9 @@ class ProductController extends ApiController
         $user = $request->user() ?: auth('sanctum')->user();
         $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
 
-        // Status filter (defaults to 'published' for public storefront; non-admins can ONLY view published & non-hidden products)
+        // Status filter (defaults to 'published' for public storefront; non-admins can ONLY view published & non-hidden products with a valid customer price)
         if (!$isAdmin) {
-            $query->where('status', 'published')
-                  ->where('is_hidden_from_storefront', false);
+            $query->storefrontVisible();
         } else {
             if ($request->filled('status') && $request->input('status') !== 'all') {
                 $query->where('status', $request->input('status'));
@@ -284,8 +283,7 @@ class ProductController extends ApiController
         $perPage = (int) ($request->input('per_page') ?? $request->input('limit') ?? 20);
 
         $query = Product::query()
-            ->where('status', 'published')
-            ->where('is_hidden_from_storefront', false)
+            ->storefrontVisible()
             ->where('is_featured', true)
             ->whereNull('deleted_at')
             ->with([

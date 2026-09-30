@@ -28,25 +28,26 @@ class SearchController extends ApiController
 
         $likeOp = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
 
-        $products = Product::where('status', 'published')
-            ->where('is_hidden_from_storefront', false)
+        $products = Product::storefrontVisible()
             ->where(function ($query) use ($q, $likeOp) {
                 $query->where('name', $likeOp, "%{$q}%")
                       ->orWhere('sku', $likeOp, "%{$q}%")
                       ->orWhere('description', $likeOp, "%{$q}%");
             })
-            ->with(['brand', 'images'])
+            ->with(['brand', 'images', 'pricingTiers'])
             ->limit(6)
             ->get()
             ->map(function ($p) {
                 $firstImage = $p->images->first()?->image_url ?? '/placeholder.jpg';
+                $effectivePrice = $p->getEffectiveCustomerPrice();
                 return [
                     'id' => (string) $p->id,
                     'name' => $p->name,
                     'slug' => $p->slug,
                     'sku' => $p->sku,
                     'brand' => $p->brand ? $p->brand->name : 'Ayaan',
-                    'price' => (float) $p->wholesale_price,
+                    'price' => $effectivePrice,
+                    'has_valid_price' => $effectivePrice !== null && $effectivePrice > 0,
                     'image' => $firstImage,
                 ];
             });

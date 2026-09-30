@@ -74,7 +74,7 @@ export default function MiniCart() {
             <div className="flex flex-col gap-3.5 sm:gap-4">
               {items.map((item) => {
                 const itemMoq = item.product.moq || 1;
-                const unitPrice = item.unitPrice || item.product.price;
+                const unitPrice = item.unitPrice || item.product.price || 0;
                 const lineTotal = item.lineTotal || (unitPrice * item.quantity);
                 const itemViolation = stockViolations.find((v) =>
                   (v.item_id && v.item_id === item.id) ||
@@ -112,10 +112,16 @@ export default function MiniCart() {
                         
                         <div className="flex items-baseline justify-between mt-1 font-sans">
                           <span className="text-sm font-bold text-foreground tabular-nums">
-                            {formatPrice(unitPrice)} <span className="text-xs text-muted-foreground font-medium">/ pc</span>
+                            {unitPrice > 0 ? (
+                              <>
+                                {formatPrice(unitPrice)} <span className="text-xs text-muted-foreground font-medium">/ pc</span>
+                              </>
+                            ) : (
+                              <span className="text-xs font-semibold text-muted-foreground">Price on Request</span>
+                            )}
                           </span>
                           <span className="text-[13px] font-bold text-foreground tabular-nums">
-                            Subtotal: {formatPrice(lineTotal)}
+                            {lineTotal > 0 ? `Subtotal: ${formatPrice(lineTotal)}` : "Quote Pending"}
                           </span>
                         </div>
 
