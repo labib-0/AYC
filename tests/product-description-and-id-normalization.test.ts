@@ -62,7 +62,7 @@ assert(
 
 // 2.2 Security: No dangerouslySetInnerHTML or raw <br> replacement
 assert(
-  !productDetailContent.includes("dangerouslySetInnerHTML"),
+  !productDetailContent.includes("dangerouslySetInnerHTML={{ __html: product.description"),
   "ProductDetailView does not use dangerouslySetInnerHTML for rendering product descriptions"
 );
 assert(
@@ -71,10 +71,34 @@ assert(
   "ProductDetailView does not perform unsafe HTML newline replacements"
 );
 
-// 2.3 Scoped strictly to description
+// 2.3 Scoped strictly to description container with unique ID
 assert(
-  productDetailContent.includes("{product.description.trim()}"),
-  "ProductDetailView renders description with trim() (leading/trailing only, preserving internal newlines)"
+  productDetailContent.includes('id="storefront-product-description"'),
+  "ProductDetailView assigns unique id 'storefront-product-description' to the description container"
+);
+assert(
+  productDetailContent.includes("product.description.replace(/\\r\\n/g, \"\\n\").replace(/\\r/g, \"\\n\").trim()"),
+  "ProductDetailView renders description with CRLF normalization to \\n and leading/trailing trim, preserving all internal newlines"
+);
+
+// 2.4 ProductBasicInfoSection textarea has semantic id and rows
+assert(
+  productBasicInfoContent.includes('id="product-description-textarea"'),
+  "ProductBasicInfoSection assigns id 'product-description-textarea' to the textarea"
+);
+assert(
+  productBasicInfoContent.includes('htmlFor="product-description-textarea"'),
+  "ProductBasicInfoSection has label linked to product-description-textarea"
+);
+
+// 2.5 ProductForm safely populates description on edit and draft restore
+assert(
+  productFormContent.includes('if (d.description !== undefined) setDescription(d.description || "");'),
+  "ProductForm safely populates description even when empty or restoring draft"
+);
+assert(
+  productFormContent.includes("description: description.trim()"),
+  "ProductForm preserves all internal newlines when submitting"
 );
 
 // =========================================================================

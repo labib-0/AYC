@@ -399,10 +399,11 @@ export default function ProductBasicInfoSection({
 
         {/* Description */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+          <label htmlFor="product-description-textarea" className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
             Product Description
           </label>
           <textarea
+            id="product-description-textarea"
             rows={4}
             value={description}
             onChange={(e) => onDescriptionChange(e.target.value)}

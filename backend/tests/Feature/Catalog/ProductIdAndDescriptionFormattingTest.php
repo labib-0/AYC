@@ -186,6 +186,69 @@ class ProductIdAndDescriptionFormattingTest extends TestCase
         $this->assertEquals($description, $fresh->description);
     }
 
+    public function test_updating_description_with_multiline_paragraphs_preserves_new_formatting(): void
+    {
+        $initialDesc = "Initial description single line";
+
+        $createRes = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/products', $this->basePayload([
+                'product_id' => 'DESC-006',
+                'description' => $initialDesc,
+            ]));
+        $createRes->assertStatus(201);
+        $productId = $createRes->json('data.id');
+
+        $updatedDesc = "First paragraph.\n\n\nSecond paragraph with one newline:\nThird paragraph.";
+
+        $updateRes = $this->actingAs($this->admin, 'sanctum')
+            ->putJson("/api/v1/products/{$productId}", [
+                'description' => $updatedDesc,
+            ]);
+
+        $updateRes->assertStatus(200)
+            ->assertJsonPath('data.description', $updatedDesc);
+
+        $fresh = Product::find($productId);
+        $this->assertEquals($updatedDesc, $fresh->description);
+    }
+
+    public function test_windows_crlf_line_breaks_are_preserved_without_collapsing(): void
+    {
+        $description = "Line 1\r\nLine 2\r\n\r\nLine 3";
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/products', $this->basePayload([
+                'product_id' => 'DESC-007',
+                'description' => $description,
+            ]));
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.description', $description);
+
+        $product = Product::where('product_id', 'DESC-007')->firstOrFail();
+        $this->assertEquals($description, $product->description);
+    }
+
+    public function test_multiline_description_never_converts_newlines_to_html_tags(): void
+    {
+        $description = "Line 1\nLine 2\n\nLine 3";
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/products', $this->basePayload([
+                'product_id' => 'DESC-008',
+                'description' => $description,
+            ]));
+
+        $response->assertStatus(201);
+        $returnedDesc = $response->json('data.description');
+
+        $this->assertStringNotContainsString('<br>', $returnedDesc);
+        $this->assertStringNotContainsString('<br/>', $returnedDesc);
+        $this->assertStringNotContainsString('<br />', $returnedDesc);
+        $this->assertStringNotContainsString('<p>', $returnedDesc);
+        $this->assertEquals($description, $returnedDesc);
+    }
+
     // =========================================================================
     // PRODUCT ID NORMALIZATION & VALIDATION TESTS
     // =========================================================================

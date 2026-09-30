@@ -512,7 +512,7 @@ export default function ProductForm({
       if (d.packageAssortmentMessage !== undefined || (d as any).package_assortment_message !== undefined) {
         setPackageAssortmentMessage(d.packageAssortmentMessage || (d as any).package_assortment_message || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE);
       }
-      if (d.description) setDescription(d.description);
+      if (d.description !== undefined) setDescription(d.description || "");
       if (d.seoTitle) setSeoTitle(d.seoTitle);
       if (d.seoDescription) setSeoDescription(d.seoDescription);
       if (d.keywords) setKeywords(d.keywords);
