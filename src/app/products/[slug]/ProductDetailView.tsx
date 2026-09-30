@@ -572,11 +572,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           </div>
         )}
 
-        {/* MAIN PRODUCT GRID (Balanced Left Gallery ~40-42%, Right Purchase Hierarchy ~58-60%, Controlled Gap) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 xl:gap-7 items-start w-full max-w-[1480px] xl:max-w-[1560px] 2xl:max-w-[1600px] mx-auto">
+        {/* MAIN PRODUCT GRID (Balanced Left Gallery ~38-40%, Right Product Area ~60-62%, Controlled Gap) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[39%_minmax(0,1fr)] gap-5 lg:gap-6 xl:gap-7 items-start w-full max-w-[1480px] xl:max-w-[1560px] 2xl:max-w-[1600px] mx-auto">
           
           {/* LEFT: GALLERY / MEDIA + DESCRIPTION + SPECIFICATIONS */}
-          <div className="lg:col-span-5 xl:col-span-5 space-y-3.5 w-full max-w-[440px] sm:max-w-[480px] lg:max-w-none mx-auto lg:mx-0">
+          <div className="space-y-3.5 w-full max-w-[440px] sm:max-w-[480px] lg:max-w-none mx-auto lg:mx-0">
             {/* Unified Media Experience (Images + Video + Lightbox) */}
             <ProductGallery
               images={product.images}
@@ -682,8 +682,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             </div>
           </div>
 
-          {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (Occupies 7 of 12 columns ~58.33% — Sticky on Desktop) */}
-          <div className="lg:col-span-7 xl:col-span-7 lg:sticky lg:top-[72px] lg:self-start w-full min-w-0 flex flex-col space-y-2 sm:space-y-2.5">
+          {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (~60-62% — Sticky on Desktop) */}
+          <div className="lg:sticky lg:top-[72px] lg:self-start w-full min-w-0 flex flex-col space-y-2 sm:space-y-2.5">
             
             {/* ========================================================= */}
             {/* LEVEL 1: PRODUCT IDENTITY & METADATA STRIP */}

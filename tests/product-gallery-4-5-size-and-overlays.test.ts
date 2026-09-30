@@ -52,12 +52,10 @@ assert(gallerySource.includes('style={{ aspectRatio: "4 / 5" }}'), "ProductGalle
 assert(!gallerySource.includes("aspect-[3/4]"), "ProductGallery removed all 'aspect-[3/4]' occurrences");
 assert(!gallerySource.includes("aspect-product"), "ProductGallery removed all obsolete 'aspect-product' utility references");
 
-// 2. Main Gallery Size Moderation & Balanced Desktop Grid Architecture (~40-42% Left, ~58-60% Right)
+// 2. Main Gallery Size Moderation & Balanced Desktop Grid Architecture (~38-40% Left, ~60-62% Right)
 assert(
-  detailViewSource.includes("lg:grid-cols-12") &&
-  detailViewSource.includes("lg:col-span-5 xl:col-span-5") &&
-  detailViewSource.includes("lg:col-span-7 xl:col-span-7"),
-  "ProductDetailView enforces balanced 5-col / 7-col grid proportion (~41.67% left, ~58.33% right)"
+  detailViewSource.includes("lg:grid-cols-[39%_minmax(0,1fr)]"),
+  "ProductDetailView enforces balanced desktop grid proportion (~39% left, ~61% right)"
 );
 assert(
   detailViewSource.includes("gap-5 lg:gap-6 xl:gap-7"),
