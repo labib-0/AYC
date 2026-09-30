@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { B2BProductInput } from "@/types/b2b";
 import ProductTableRow from "./ProductTableRow";
 import { PackageX, RefreshCw, AlertCircle, X } from "lucide-react";
@@ -19,6 +20,107 @@ interface ProductTableProps {
   onClearFilters: () => void;
   hasActiveFilters: boolean;
 }
+
+interface ColumnDef {
+  key: string;
+  label: React.ReactNode;
+  title?: string;
+  colWidthClass: string;
+  thClass: string;
+}
+
+export const PRODUCT_COLUMNS: ColumnDef[] = [
+  {
+    key: "select",
+    label: "",
+    colWidthClass: "w-8",
+    thClass: "px-2 py-2 w-8 text-center",
+  },
+  {
+    key: "thumbnail",
+    label: "Image",
+    title: "Product Thumbnail",
+    colWidthClass: "w-10",
+    thClass: "px-1 py-2 w-10 text-center",
+  },
+  {
+    key: "productId",
+    label: "ID",
+    title: "Product ID",
+    colWidthClass: "w-[72px]",
+    thClass: "px-1.5 py-2 w-[72px] text-left",
+  },
+  {
+    key: "product",
+    label: "Product",
+    colWidthClass: "w-auto",
+    thClass: "px-2 py-2 text-left",
+  },
+  {
+    key: "sku",
+    label: "SKU",
+    title: "Stock Keeping Unit",
+    colWidthClass: "w-[62px]",
+    thClass: "px-1.5 py-2 w-[62px] text-left",
+  },
+  {
+    key: "brand",
+    label: "Brand",
+    colWidthClass: "w-[72px]",
+    thClass: "px-1.5 py-2 w-[72px] text-left",
+  },
+  {
+    key: "category",
+    label: "Category",
+    colWidthClass: "w-[72px]",
+    thClass: "px-1.5 py-2 w-[72px] text-left",
+  },
+  {
+    key: "audience",
+    label: "Audience",
+    colWidthClass: "w-[58px]",
+    thClass: "px-1.5 py-2 w-[58px] text-left",
+  },
+  {
+    key: "price",
+    label: "Price",
+    colWidthClass: "w-[54px]",
+    thClass: "px-1.5 py-2 w-[54px] text-right",
+  },
+  {
+    key: "moq",
+    label: "MOQ",
+    title: "Minimum Order Quantity",
+    colWidthClass: "w-[44px]",
+    thClass: "px-1.5 py-2 w-[44px] text-right",
+  },
+  {
+    key: "stock",
+    label: "Stock",
+    title: "Available Stock",
+    colWidthClass: "w-[64px]",
+    thClass: "px-1.5 py-2 w-[64px] text-right",
+  },
+  {
+    key: "availableMoqs",
+    label: "MOQs",
+    title: "Available Complete MOQs",
+    colWidthClass: "w-[64px]",
+    thClass: "px-1.5 py-2 w-[64px] text-right",
+  },
+  {
+    key: "status",
+    label: "Status",
+    colWidthClass: "w-[64px]",
+    thClass: "px-1.5 py-2 w-[64px] text-left",
+  },
+  {
+    key: "actions",
+    label: "Actions",
+    colWidthClass: "w-9",
+    thClass: "px-1 py-2 w-9 text-center sticky right-0 bg-secondary/80 backdrop-blur-xs z-10",
+  },
+];
 
 export default function ProductTable({
   products,
@@ -42,64 +144,69 @@ export default function ProductTable({
   if (loading) {
     return (
       <div className="border border-border/60 rounded-xl overflow-hidden bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto min-h-[280px]">
+          <table className="w-full table-fixed text-left">
+            <colgroup>
+              {PRODUCT_COLUMNS.map((col) => (
+                <col key={col.key} className={col.colWidthClass} />
+              ))}
+            </colgroup>
             <thead>
               <tr className="border-b border-border/60 bg-secondary/30">
-                {TABLE_HEADERS.map((h) => (
-                  <th key={h} className="px-3 py-2.5 text-left">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      {h}
+                {PRODUCT_COLUMNS.map((col) => (
+                  <th key={col.key} className={col.thClass}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                      {col.label}
                     </span>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border/40">
               {Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-border/40">
-                  <td className="px-3 py-3 w-10">
-                    <div className="w-3.5 h-3.5 rounded bg-secondary animate-pulse" />
+                  <td className="px-2 py-1.5 w-8 text-center">
+                    <div className="w-3.5 h-3.5 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
-                  <td className="px-2 py-2 w-14">
-                    <div className="w-10 h-[53px] rounded-lg bg-secondary animate-pulse" />
+                  <td className="px-1 py-1.5 w-10 text-center">
+                    <div className="w-7 h-[37px] rounded-md bg-secondary animate-pulse mx-auto" />
                   </td>
-                  <td className="px-3 py-3 w-28">
-                    <div className="h-4 w-24 rounded bg-secondary animate-pulse" />
+                  <td className="px-1.5 py-1.5">
+                    <div className="h-4 w-12 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="h-3 w-32 rounded bg-secondary animate-pulse mb-1.5" />
-                    <div className="h-2.5 w-20 rounded bg-secondary/60 animate-pulse" />
+                  <td className="px-2 py-1.5 min-w-0">
+                    <div className="h-3.5 w-3/4 rounded bg-secondary animate-pulse mb-1" />
+                    <div className="h-2.5 w-16 rounded bg-secondary/60 animate-pulse" />
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="h-3 w-20 rounded bg-secondary animate-pulse" />
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="h-3 w-16 rounded bg-secondary animate-pulse" />
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="h-3 w-16 rounded bg-secondary animate-pulse" />
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="h-3 w-12 rounded bg-secondary animate-pulse" />
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="h-3 w-14 rounded bg-secondary animate-pulse" />
-                  </td>
-                  <td className="px-3 py-3">
+                  <td className="px-1.5 py-1.5">
                     <div className="h-3 w-10 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-1.5 py-1.5">
                     <div className="h-3 w-12 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="h-3 w-14 rounded bg-secondary animate-pulse" />
+                  <td className="px-1.5 py-1.5">
+                    <div className="h-3 w-12 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="h-5 w-16 rounded-full bg-secondary animate-pulse" />
+                  <td className="px-1.5 py-1.5">
+                    <div className="h-3 w-10 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="h-6 w-6 rounded bg-secondary animate-pulse" />
+                  <td className="px-1.5 py-1.5 text-right">
+                    <div className="h-3 w-10 rounded bg-secondary animate-pulse ml-auto" />
+                  </td>
+                  <td className="px-1.5 py-1.5 text-right">
+                    <div className="h-3 w-8 rounded bg-secondary animate-pulse ml-auto" />
+                  </td>
+                  <td className="px-1.5 py-1.5 text-right">
+                    <div className="h-3 w-10 rounded bg-secondary animate-pulse ml-auto" />
+                  </td>
+                  <td className="px-1.5 py-1.5 text-right">
+                    <div className="h-3 w-12 rounded bg-secondary animate-pulse ml-auto" />
+                  </td>
+                  <td className="px-1.5 py-1.5">
+                    <div className="h-4 w-11 rounded-full bg-secondary animate-pulse" />
+                  </td>
+                  <td className="px-1 py-1.5 w-9 text-center sticky right-0 bg-card">
+                    <div className="h-5 w-5 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
                 </tr>
               ))}
@@ -119,7 +226,7 @@ export default function ProductTable({
         <p className="text-xs text-muted-foreground mb-4">{error}</p>
         <button
           onClick={onRetry}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-colors cursor-pointer"
         >
           <RefreshCw size={13} />
           Retry
@@ -142,7 +249,7 @@ export default function ProductTable({
         {hasActiveFilters && (
           <button
             onClick={onClearFilters}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border border-border text-foreground hover:bg-secondary transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border border-border text-foreground hover:bg-secondary transition-colors cursor-pointer"
           >
             <X size={13} />
             Clear Filters
@@ -154,11 +261,16 @@ export default function ProductTable({
 
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px]">
+      <div className="overflow-x-auto min-h-[280px]">
+        <table className="w-full table-fixed text-left">
+          <colgroup>
+            {PRODUCT_COLUMNS.map((col) => (
+              <col key={col.key} className={col.colWidthClass} />
+            ))}
+          </colgroup>
           <thead>
             <tr className="border-b border-border/60 bg-secondary/30">
-              <th className="px-3 py-2.5 w-10">
+              <th className="px-2 py-2 w-8 text-center">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -166,27 +278,24 @@ export default function ProductTable({
                     if (el) el.indeterminate = someSelected;
                   }}
                   onChange={(e) => onSelectAll(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded border-border accent-foreground cursor-pointer"
+                  className="w-3.5 h-3.5 rounded border-border accent-foreground cursor-pointer align-middle"
                   aria-label="Select all products"
                 />
               </th>
-              {TABLE_HEADERS.slice(1).map((h) => (
+              {PRODUCT_COLUMNS.slice(1).map((col) => (
                 <th
-                  key={h}
-                  className={`px-3 py-2.5 text-left ${
-                    h === "Price" || h === "Stock" || h === "MOQ" || h === "Available Stock" || h === "Available MOQs"
-                      ? "text-right"
-                      : ""
-                  } ${h === "Actions" ? "text-center w-12" : ""}`}
+                  key={col.key}
+                  className={col.thClass}
+                  title={col.title}
                 >
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {h}
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                    {col.label}
                   </span>
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border/40">
             {products.map((product) => (
               <ProductTableRow
                 key={product.id}
@@ -205,20 +314,3 @@ export default function ProductTable({
     </div>
   );
 }
-
-const TABLE_HEADERS = [
-  "",
-  "Thumbnail",
-  "Product ID",
-  "Product",
-  "SKU",
-  "Brand",
-  "Category",
-  "Audience",
-  "Price",
-  "MOQ",
-  "Available Stock",
-  "Available MOQs",
-  "Status",
-  "Actions",
-];

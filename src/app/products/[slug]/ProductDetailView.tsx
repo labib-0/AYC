@@ -576,12 +576,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-7 xl:gap-8 items-start">
           
           {/* LEFT: GALLERY / MEDIA + DESCRIPTION + SPECIFICATIONS */}
-          <div className="lg:col-span-5 xl:col-span-5 space-y-3.5 w-full max-w-xl lg:max-w-[480px] xl:max-w-[520px] mx-auto lg:mx-0">
+          <div className="lg:col-span-5 xl:col-span-5 space-y-3.5 w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[390px] xl:max-w-[420px] mx-auto lg:mx-0">
             {/* Unified Media Experience (Images + Video + Lightbox) */}
             <ProductGallery
               images={product.images}
               productName={product.name}
               productSlug={product.slug}
+              product={product}
               videoUrl={product.videoUrl}
               youtubeVideoId={product.youtubeVideoId}
               youtubeEmbedUrl={youtubeEmbedUrl || product.youtubeEmbedUrl}
@@ -597,7 +598,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     brandLogo={product.brandLogo || (product as any).brand_logo || (product as any).brand_data?.logo_url || (product as any).brand_data?.logo}
                     brandData={(product as any).brand_data}
                     size="detail"
-                    className="top-3 right-3 sm:top-4 sm:right-4"
+                    className="top-2.5 right-2.5 sm:top-3 sm:right-3"
                   />
                 </>
               }

@@ -3,11 +3,14 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { X, ChevronLeft, ChevronRight, Download as DownloadIcon, Play } from "lucide-react";
 import { normalizeImageUrl, isValidImageUrl } from "@/lib/media";
+import ProductPromotionBadges from "@/components/common/ProductPromotionBadges";
+import ProductBrandLogoOverlay from "@/components/common/ProductBrandLogoOverlay";
 
 export interface ProductGalleryProps {
   images: string[];
   productName: string;
   productSlug?: string;
+  product?: any;
   videoUrl?: string | null;
   youtubeVideoId?: string | null;
   youtubeEmbedUrl?: string | null;
@@ -30,6 +33,7 @@ export default function ProductGallery({
   images = [],
   productName,
   productSlug,
+  product,
   videoUrl,
   youtubeVideoId,
   youtubeEmbedUrl,
@@ -381,12 +385,16 @@ export default function ProductGallery({
 
   const isModal = variant === "modal";
   const mainRadiusClass = "rounded-xl";
-  const thumbSizeClass = isModal ? "w-9 sm:w-10 rounded-md" : "w-12 sm:w-14 lg:w-14 xl:w-16 rounded-lg";
+  const thumbSizeClass = isModal ? "w-8 sm:w-9 rounded-md" : "w-10 sm:w-11 lg:w-11 xl:w-12 rounded-lg";
   const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "";
+  const containerMaxWidth = isModal ? "max-w-[280px] sm:max-w-[300px] mx-auto" : "w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[390px] xl:max-w-[420px] mx-auto lg:mx-0";
 
   if (cleanImages.length === 0 && !videoInfo) {
     return (
-      <div className={`relative w-full aspect-[3/4] aspect-product ${mainRadiusClass} overflow-hidden bg-secondary border border-border/70 shadow-sm flex items-center justify-center`}>
+      <div
+        style={{ aspectRatio: "4 / 5" }}
+        className={`relative w-full aspect-[4/5] ${mainRadiusClass} ${containerMaxWidth} overflow-hidden bg-secondary border border-border/70 shadow-sm flex items-center justify-center`}
+      >
         <span className="text-xs text-muted-foreground font-sans uppercase tracking-wider">No images</span>
       </div>
     );
@@ -395,10 +403,13 @@ export default function ProductGallery({
   return (
     <>
       {/* ── MAIN GALLERY CONTAINER ── */}
-      <div className={`space-y-2 sm:space-y-2.5 w-full ${isModal ? "max-w-[340px] mx-auto" : ""}`}>
+      <div className={`space-y-2 sm:space-y-2.5 w-full ${containerMaxWidth}`}>
         {/* Video Mode: YouTube, Vimeo, or Direct HTML5 Video */}
         {mediaMode === "video" && videoInfo ? (
-          <div className={`relative w-full aspect-[3/4] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-black border border-border/70 shadow-sm group`}>
+          <div
+            style={{ aspectRatio: "4 / 5" }}
+            className={`relative w-full aspect-[4/5] ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-black border border-border/70 shadow-sm group`}
+          >
             <div className="w-full h-full flex items-center justify-center">
               {videoInfo.type === "youtube" ? (
                 <iframe
@@ -437,21 +448,25 @@ export default function ProductGallery({
           </div>
         ) : (
           /* Image Mode: Main Image with Swipe + Click to Lightbox */
-          <div className={`relative w-full aspect-[3/4] aspect-product ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary/25 border border-border/70 shadow-xs group`}>
+          <div
+            style={{ aspectRatio: "4 / 5" }}
+            className={`relative w-full aspect-[4/5] ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary/25 border border-border/70 shadow-xs group`}
+          >
             <button
               ref={lightboxTriggerRef}
               type="button"
-              className={`w-full h-full cursor-zoom-in touch-pan-y select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${mainRadiusClass} flex items-center justify-center p-2 sm:p-2.5`}
+              className={`w-full h-full cursor-zoom-in touch-pan-y select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${mainRadiusClass} flex items-center justify-center p-0`}
               aria-label={`View ${productName} image ${currentIndex + 1} of ${cleanImages.length} — click to enlarge`}
               {...mainSwipe}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                key={currentIndex}
                 src={cleanImages[currentIndex] || "/placeholder.jpg"}
                 alt={`${productName} — image ${currentIndex + 1}`}
                 loading={currentIndex === 0 ? "eager" : "lazy"}
                 decoding="async"
-                className="w-full h-full max-h-full max-w-full object-contain object-center transition-transform duration-200 group-hover:scale-[1.02] pointer-events-none"
+                className="w-full h-full max-h-full max-w-full object-contain object-center pointer-events-none"
                 draggable={false}
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";
@@ -459,8 +474,23 @@ export default function ProductGallery({
               />
             </button>
 
-            {/* Overlays (badges, brand logo) */}
-            {overlayContent}
+            {/* Overlays (badges, brand logo) strictly inside the 4:5 image area for EVERY gallery image */}
+            {overlayContent ? (
+              <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
+                {overlayContent}
+              </div>
+            ) : product ? (
+              <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
+                <ProductPromotionBadges product={product} variant={variant} />
+                <ProductBrandLogoOverlay
+                  brandName={product.brand}
+                  brandLogo={product.brandLogo || (product as any).brand_logo || (product as any).brand_data?.logo_url || (product as any).brand_data?.logo}
+                  brandData={(product as any).brand_data}
+                  size={variant}
+                  className="top-2.5 right-2.5 sm:top-3 sm:right-3"
+                />
+              </div>
+            ) : null}
 
             {/* Prev/Next Arrows (desktop, multi-image) */}
             {hasMultiple && (
@@ -556,7 +586,8 @@ export default function ProductGallery({
                       setMediaMode("image");
                       setIndex(idx);
                     }}
-                    className={`${thumbSizeClass} aspect-[3/4] aspect-product overflow-hidden border-2 shrink-0 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    style={{ aspectRatio: "4 / 5" }}
+                    className={`${thumbSizeClass} aspect-[4/5] overflow-hidden border-2 shrink-0 transition-all cursor-pointer bg-secondary/20 p-0.5 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       isActive
                         ? "border-foreground ring-2 ring-foreground/25 shadow-xs opacity-100 scale-[1.02]"
                         : "border-border/80 opacity-70 hover:opacity-100 hover:border-foreground/50 hover:shadow-2xs active:scale-95"
@@ -593,7 +624,8 @@ export default function ProductGallery({
                     }
                     setMediaMode("video");
                   }}
-                  className={`relative aspect-[3/4] aspect-product ${thumbSizeClass} overflow-hidden border-2 shrink-0 transition-all cursor-pointer bg-black/90 flex flex-col items-center justify-center group ${
+                  style={{ aspectRatio: "4 / 5" }}
+                  className={`relative aspect-[4/5] ${thumbSizeClass} overflow-hidden border-2 shrink-0 transition-all cursor-pointer bg-black/90 flex flex-col items-center justify-center group ${
                     mediaMode === "video"
                       ? "border-foreground ring-2 ring-foreground/25 shadow-xs opacity-100 scale-[1.02]"
                       : "border-border/80 opacity-80 hover:opacity-100 hover:border-foreground/50 hover:shadow-2xs active:scale-95"

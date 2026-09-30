@@ -52,7 +52,7 @@ export default function ProductPromotionBadges({
       <div
         role="status"
         aria-label="Product promotional status"
-        className={`absolute top-3.5 left-3.5 sm:top-4 sm:left-4 flex flex-col gap-1.5 z-10 pointer-events-none select-none ${className}`}
+        className={`absolute top-2.5 left-2.5 sm:top-3 sm:left-3 flex flex-col gap-1.5 z-10 pointer-events-none select-none ${className}`}
       >
         {isPreorder && (
           <ProductBadge

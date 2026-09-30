@@ -43,9 +43,9 @@ export default function ProductBrandLogoOverlay({
   let containerDimensions = "w-10 sm:w-11 aspect-[1.35/1] rounded-md p-1";
 
   if (size === "detail") {
-    containerDimensions = "w-14 sm:w-16 aspect-[1.35/1] rounded-lg p-1.5 sm:p-2";
+    containerDimensions = "w-12 sm:w-14 aspect-[1.35/1] rounded-lg p-1 sm:p-1.5";
   } else if (size === "modal") {
-    containerDimensions = "w-12 sm:w-13 aspect-[1.35/1] rounded-lg p-1.5";
+    containerDimensions = "w-10 sm:w-12 aspect-[1.35/1] rounded-lg p-1";
   } else if (size === "thumb") {
     containerDimensions = "w-8 aspect-[1.35/1] rounded p-0.5";
   }

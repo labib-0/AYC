@@ -67,10 +67,10 @@ test("1.1 ProductGallery removes the restrictive 290px desktop height clamp on d
   );
 });
 
-test("1.2 Main product image preserves 3:4 aspect ratio and non-destructive object-contain", () => {
+test("1.2 Main product image preserves 4:5 aspect ratio and non-destructive object-contain", () => {
   assert(
-    galleryContent.includes("aspect-[3/4] aspect-product"),
-    "Main image container must preserve canonical 3:4 aspect ratio"
+    galleryContent.includes("aspect-[4/5]"),
+    "Main image container must preserve canonical 4:5 aspect ratio"
   );
   // Check main image rendering block
   const mainImgMatch = galleryContent.match(/<button[\s\S]*?ref=\{lightboxTriggerRef\}[\s\S]*?<img([\s\S]*?)\/>[\s\S]*?<\/button>/);

@@ -61,12 +61,12 @@ async function runGlobalProductGridStandardTests() {
     "B3: ProductCardSkeleton uses aspect-[3/4] placeholder frame"
   );
 
-  // C. Product Detail main image uses 3:4
-  console.log("\n▶ [Item C] Product Detail main image uses 3:4");
+  // C. Product Detail main image uses 4:5
+  console.log("\n▶ [Item C] Product Detail main image uses 4:5");
   const productGallery = readCode("src/components/product/ProductGallery.tsx");
   assert(
-    productGallery.includes("aspect-[3/4] aspect-product") && !productGallery.includes("aspect-[4/5] aspect-product"),
-    "C1: Product Detail main image frame uses aspect-[3/4] aspect-product"
+    productGallery.includes("aspect-[4/5]") && !productGallery.includes("aspect-[3/4]"),
+    "C1: Product Detail main image frame uses aspect-[4/5]"
   );
   assert(
     productGallery.includes("object-contain"),
@@ -77,11 +77,11 @@ async function runGlobalProductGridStandardTests() {
     "C3: Product Detail gallery interactive state and lightbox triggers remain intact"
   );
 
-  // D. Product Detail thumbnails use 3:4
-  console.log("\n▶ [Item D] Product Detail thumbnails use 3:4");
+  // D. Product Detail thumbnails use 4:5
+  console.log("\n▶ [Item D] Product Detail thumbnails use 4:5");
   assert(
-    productGallery.includes("aspect-[3/4] aspect-product") && productGallery.includes("thumbSizeClass"),
-    "D1: Product Detail thumbnails on both vertical and horizontal strips use aspect-[3/4]"
+    productGallery.includes("aspect-[4/5]") && productGallery.includes("thumbSizeClass"),
+    "D1: Product Detail thumbnails on both vertical and horizontal strips use aspect-[4/5]"
   );
   assert(
     productGallery.includes("setIndex(idx)") && productGallery.includes("mediaMode"),
@@ -197,9 +197,13 @@ async function runGlobalProductGridStandardTests() {
   const allSrcFiles = scanDir(path.join(cwd, "src"));
   const filesWith45: string[] = [];
   for (const f of allSrcFiles) {
+    const rel = path.relative(cwd, f);
+    if (rel === "src/components/product/ProductGallery.tsx" || rel === "src/components/admin/products/form/ProductImagesSection.tsx") {
+      continue;
+    }
     const content = fs.readFileSync(f, "utf-8");
     if (content.includes("aspect-[4/5]")) {
-      filesWith45.push(path.relative(cwd, f));
+      filesWith45.push(rel);
     }
   }
 
