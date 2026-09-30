@@ -52,19 +52,28 @@ assert(gallerySource.includes('style={{ aspectRatio: "4 / 5" }}'), "ProductGalle
 assert(!gallerySource.includes("aspect-[3/4]"), "ProductGallery removed all 'aspect-[3/4]' occurrences");
 assert(!gallerySource.includes("aspect-product"), "ProductGallery removed all obsolete 'aspect-product' utility references");
 
-// 2. Main Gallery Size Moderation & Small Gap Grid Architecture
+// 2. Main Gallery Size Moderation & Balanced Desktop Grid Architecture (~40-42% Left, ~58-60% Right)
 assert(
-  detailViewSource.includes("lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]") &&
+  detailViewSource.includes("lg:grid-cols-12") &&
+  detailViewSource.includes("lg:col-span-5 xl:col-span-5") &&
+  detailViewSource.includes("lg:col-span-7 xl:col-span-7"),
+  "ProductDetailView enforces balanced 5-col / 7-col grid proportion (~41.67% left, ~58.33% right)"
+);
+assert(
   detailViewSource.includes("gap-5 lg:gap-6 xl:gap-7"),
-  "ProductDetailView enforces small gap layout directly pairing 4:5 gallery and right purchasing hierarchy"
+  "ProductDetailView enforces controlled small gap directly pairing 4:5 gallery and right purchasing hierarchy"
 );
 assert(
-  detailViewSource.includes("max-w-[360px] sm:max-w-[400px] lg:max-w-[380px] xl:max-w-[420px]"),
-  "ProductDetailView applies balanced max-width to left gallery column (max-w-[360px] sm:max-w-[400px] lg:max-w-[380px] xl:max-w-[420px])"
+  detailViewSource.includes("max-w-[440px] sm:max-w-[480px] lg:max-w-none"),
+  "ProductDetailView applies balanced max-width to left gallery column (responsive mobile/tablet constraint, full column on desktop)"
 );
 assert(
-  gallerySource.includes("w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[380px] xl:max-w-[420px] mx-auto lg:mx-0"),
+  gallerySource.includes("w-full max-w-[440px] sm:max-w-[480px] lg:max-w-none mx-auto lg:mx-0"),
   "ProductGallery enforces balanced containerMaxWidth"
+);
+assert(
+  detailViewSource.includes("grid-cols-[105px_130px_1fr] sm:grid-cols-[120px_145px_1fr]"),
+  "Volume pricing legend uses grouped column structure (Tier, Quantity grouped, Price right-aligned)"
 );
 
 // 3. Thumbnail Size Moderation

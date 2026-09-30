@@ -572,11 +572,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           </div>
         )}
 
-        {/* MAIN PRODUCT GRID (Balanced Left Gallery 4:5, Small Gap, Right Purchase Hierarchy) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)] gap-5 lg:gap-6 xl:gap-7 items-start">
+        {/* MAIN PRODUCT GRID (Balanced Left Gallery ~40-42%, Right Purchase Hierarchy ~58-60%, Controlled Gap) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 xl:gap-7 items-start w-full max-w-[1480px] xl:max-w-[1560px] 2xl:max-w-[1600px] mx-auto">
           
           {/* LEFT: GALLERY / MEDIA + DESCRIPTION + SPECIFICATIONS */}
-          <div className="space-y-3.5 w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[380px] xl:max-w-[420px] mx-auto lg:mx-0">
+          <div className="lg:col-span-5 xl:col-span-5 space-y-3.5 w-full max-w-[440px] sm:max-w-[480px] lg:max-w-none mx-auto lg:mx-0">
             {/* Unified Media Experience (Images + Video + Lightbox) */}
             <ProductGallery
               images={product.images}
@@ -682,8 +682,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             </div>
           </div>
 
-          {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (Sticky on Desktop) */}
-          <div className="lg:sticky lg:top-[72px] lg:self-start w-full min-w-0 flex flex-col space-y-2 sm:space-y-2.5">
+          {/* RIGHT: WHOLESALE PURCHASE HIERARCHY (Occupies 7 of 12 columns ~58.33% — Sticky on Desktop) */}
+          <div className="lg:col-span-7 xl:col-span-7 lg:sticky lg:top-[72px] lg:self-start w-full min-w-0 flex flex-col space-y-2 sm:space-y-2.5">
             
             {/* ========================================================= */}
             {/* LEVEL 1: PRODUCT IDENTITY & METADATA STRIP */}
@@ -808,8 +808,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               />
 
               <div className="rounded-lg border border-border/80 bg-card p-2 sm:p-2.5 space-y-0.5 shadow-2xs" role="radiogroup" aria-label="Pricing Tiers">
-                {/* Column Legend */}
-                <div className="grid grid-cols-[30%_35%_35%] px-2.5 pb-1 text-[9.5px] font-display font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
+                {/* Column Legend (Visually Grouped: Tier + Quantity grouped, Price right-aligned) */}
+                <div className="grid grid-cols-[105px_130px_1fr] sm:grid-cols-[120px_145px_1fr] px-2.5 pb-1 text-[9.5px] font-display font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
                   <div>Tier</div>
                   <div>Quantity</div>
                   <div className="text-right">Unit Price</div>

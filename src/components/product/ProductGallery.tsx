@@ -387,7 +387,9 @@ export default function ProductGallery({
   const mainRadiusClass = "rounded-xl";
   const thumbSizeClass = isModal ? "w-8 sm:w-9 rounded-md" : "w-10 sm:w-11 lg:w-11 xl:w-12 rounded-lg";
   const maxHeightConstraint = isModal ? "max-h-[290px] sm:max-h-[330px]" : "";
-  const containerMaxWidth = isModal ? "max-w-[280px] sm:max-w-[300px] mx-auto" : "w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[380px] xl:max-w-[420px] mx-auto lg:mx-0";
+  const containerMaxWidth = isModal
+    ? "max-w-[280px] sm:max-w-[300px] mx-auto"
+    : "w-full max-w-[440px] sm:max-w-[480px] lg:max-w-none mx-auto lg:mx-0";
 
   if (cleanImages.length === 0 && !videoInfo) {
     return (

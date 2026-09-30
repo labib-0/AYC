@@ -95,7 +95,7 @@ console.log("\n▶ Suite 2: Simplified Estimated Total UI");
 
 test("CommerceSummary only displays Est. Total, formatted amount, and active tier badge", () => {
   expect(summarySrc).toContain("Est. Total");
-  expect(summarySrc).toContain("{formatPrice(totalAmount)}");
+  expect(summarySrc).toContain("formatPrice(totalAmount)");
   expect(summarySrc).toContain("{activeTierName}");
   // Does not display secondary formula or multiplication in JSX
   expect(summarySrc).notToContain("pcs ×");

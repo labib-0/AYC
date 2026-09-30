@@ -53,7 +53,7 @@ export default function PricingTierOption({
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={handleKeyDown}
-      className={`group w-full grid grid-cols-[30%_35%_35%] items-center px-2.5 sm:px-3 py-1.5 rounded-md cursor-pointer transition-all duration-150 text-left select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
+      className={`group w-full grid grid-cols-[105px_130px_1fr] sm:grid-cols-[120px_145px_1fr] items-center px-2.5 sm:px-3 py-1.5 rounded-md cursor-pointer transition-all duration-150 text-left select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
         isSelected
           ? "bg-secondary/50 ring-1 ring-foreground/60 border border-foreground/20 shadow-xs"
           : "hover:bg-secondary/30 text-muted-foreground"

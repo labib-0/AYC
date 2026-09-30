@@ -90,15 +90,22 @@ test("1.2 Main product image preserves 4:5 aspect ratio and non-destructive obje
   );
 });
 
-test("1.3 Left column has sufficient width allocation on desktop with small gap to right content", () => {
+test("1.3 Balanced two-column grid allocation on desktop (Left ~40-42%, Right ~58-60%) with controlled gap", () => {
   assert(
-    detailViewContent.includes("lg:grid-cols-[380px_minmax(0,1fr)]") &&
-    detailViewContent.includes("xl:grid-cols-[420px_minmax(0,1fr)]"),
-    "Left column must have dedicated desktop 4:5 width allocation"
+    detailViewContent.includes("lg:grid-cols-12"),
+    "Grid uses 12-column architecture for balanced desktop proportion"
+  );
+  assert(
+    detailViewContent.includes("lg:col-span-5 xl:col-span-5"),
+    "Left column must occupy 5 of 12 columns (~41.67%)"
+  );
+  assert(
+    detailViewContent.includes("lg:col-span-7 xl:col-span-7"),
+    "Right purchasing column must occupy 7 of 12 columns (~58.33%)"
   );
   assert(
     detailViewContent.includes("gap-5 lg:gap-6 xl:gap-7"),
-    "Left 4:5 gallery and right purchasing content must be separated by a small gap"
+    "Left gallery and right purchasing content must be separated by a controlled gap"
   );
 });
 
