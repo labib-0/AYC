@@ -714,8 +714,12 @@ export class ProductService {
   private toBackendPayload(input: Partial<B2BProductInput>): Record<string, any> {
     const payload: Record<string, any> = { ...input };
 
-    if ((input as any).productId !== undefined) payload.product_id = (input as any).productId;
-    if ((input as any).product_id !== undefined) payload.product_id = (input as any).product_id;
+    if ((input as any).productId !== undefined) {
+      payload.product_id = String((input as any).productId).replace(/\s+/g, "");
+    }
+    if ((input as any).product_id !== undefined) {
+      payload.product_id = String((input as any).product_id).replace(/\s+/g, "");
+    }
 
     const bulkEnabled = input.bulkPricingEnabled !== undefined
       ? Boolean(input.bulkPricingEnabled)

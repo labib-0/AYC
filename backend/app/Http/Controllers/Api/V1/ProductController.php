@@ -379,8 +379,9 @@ class ProductController extends ApiController
         }
 
         if ($request->has('product_id')) {
-            $trimmedPid = trim((string) $request->input('product_id'));
-            $request->merge(['product_id' => $trimmedPid !== '' ? $trimmedPid : null]);
+            $rawPid = (string) $request->input('product_id');
+            $normalizedPid = preg_replace('/\s+/', '', $rawPid);
+            $request->merge(['product_id' => $normalizedPid !== '' ? $normalizedPid : null]);
         }
         $productIdInput = (string) $request->input('product_id');
 
@@ -389,7 +390,7 @@ class ProductController extends ApiController
                 'required',
                 'string',
                 'max:100',
-                'regex:/^[A-Za-z0-9_\-]+$/',
+                'regex:/^[A-Za-z0-9\-\/]+$/',
                 Rule::unique('products', 'product_id')->whereNull('deleted_at'),
             ],
             'name' => ['required', 'string', 'max:255'],
@@ -482,7 +483,7 @@ class ProductController extends ApiController
         ], [
             'product_id.required' => 'Product ID is required.',
             'product_id.unique' => "Product ID {$productIdInput} is already in use.",
-            'product_id.regex' => 'Product ID may only contain letters, numbers, hyphens, and underscores.',
+            'product_id.regex' => 'Product ID may only contain letters, numbers, hyphens (-), and slashes (/).',
             'warehouse_id.required_without' => 'Initial warehouse is required.',
             'full_stock_price.required' => 'Full stock price is required.',
             'full_stock_price.gt' => 'Full stock price must be greater than 0.',
@@ -1045,8 +1046,9 @@ class ProductController extends ApiController
         $isPreorderPublish = $effectivePreorder && $isPublished;
 
         if ($request->has('product_id')) {
-            $trimmedPid = trim((string) $request->input('product_id'));
-            $request->merge(['product_id' => $trimmedPid !== '' ? $trimmedPid : null]);
+            $rawPid = (string) $request->input('product_id');
+            $normalizedPid = preg_replace('/\s+/', '', $rawPid);
+            $request->merge(['product_id' => $normalizedPid !== '' ? $normalizedPid : null]);
         }
         $productIdInput = (string) ($request->input('product_id') ?? $product->product_id);
 
@@ -1056,7 +1058,7 @@ class ProductController extends ApiController
                 $isPublished ? 'required' : 'nullable',
                 'string',
                 'max:100',
-                'regex:/^[A-Za-z0-9_\-]+$/',
+                'regex:/^[A-Za-z0-9\-\/]+$/',
                 Rule::unique('products', 'product_id')->ignore($product->id)->whereNull('deleted_at'),
             ],
             'name' => ['sometimes', 'string', 'max:255'],
@@ -1142,7 +1144,7 @@ class ProductController extends ApiController
         ], [
             'product_id.required' => 'Product ID is required.',
             'product_id.unique' => "Product ID {$productIdInput} is already in use.",
-            'product_id.regex' => 'Product ID may only contain letters, numbers, hyphens, and underscores.',
+            'product_id.regex' => 'Product ID may only contain letters, numbers, hyphens (-), and slashes (/).',
         ]);
 
         $user = $request->user();

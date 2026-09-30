@@ -124,6 +124,16 @@ class Product extends Model
         return $this->status === 'published' && !$this->is_hidden_from_storefront;
     }
 
+    public function setProductIdAttribute(?string $value): void
+    {
+        if ($value === null) {
+            $this->attributes['product_id'] = null;
+            return;
+        }
+        $stripped = preg_replace('/\s+/', '', $value);
+        $this->attributes['product_id'] = $stripped !== '' ? $stripped : null;
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Product $product) {

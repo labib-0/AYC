@@ -601,7 +601,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     title="Description"
                     icon={<FileText size={14} />}
                   />
-                  <div className="rounded-lg bg-secondary/15 border border-border/60 p-3 text-muted-foreground text-xs leading-relaxed">
+                  <div className="rounded-lg bg-secondary/15 border border-border/60 p-3 text-muted-foreground text-xs leading-relaxed whitespace-pre-wrap break-words">
                     {product.description.trim()}
                   </div>
                 </div>

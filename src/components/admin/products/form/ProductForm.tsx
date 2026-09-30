@@ -300,9 +300,10 @@ export default function ProductForm({
 
   // Snapshot constructor for current form state
   const getCurrentDraftData = useCallback((): Partial<B2BProductInput> => {
+    const normalizedProductId = productId.replace(/\s+/g, "");
     return {
-      productId: productId.trim(),
-      product_id: productId.trim(),
+      productId: normalizedProductId,
+      product_id: normalizedProductId,
       name,
       slug,
       sku: sku.trim(),
@@ -386,7 +387,8 @@ export default function ProductForm({
     }
 
     // 3. Backend persistence requires Product ID
-    if (!data.productId || !data.productId.trim()) {
+    const normalizedPid = (data.productId || "").replace(/\s+/g, "");
+    if (!normalizedPid) {
       setAutosaveStatus("saved");
       return true;
     }
@@ -410,10 +412,10 @@ export default function ProductForm({
       const draftPayload: B2BProductInput = {
         ...(data as B2BProductInput),
         id: persistedDraftIdRef.current || (initialData?.id ? String(initialData.id) : `draft_${Date.now()}`),
-        productId: data.productId.trim(),
-        product_id: data.productId.trim(),
+        productId: normalizedPid,
+        product_id: normalizedPid,
         name: data.name?.trim() || "Untitled Draft",
-        slug: data.slug?.trim() || `draft-${data.productId.trim().toLowerCase()}-${Date.now().toString(36)}`,
+        slug: data.slug?.trim() || `draft-${normalizedPid.toLowerCase()}-${Date.now().toString(36)}`,
         sku: sku.trim() || generatedSku,
         isHiddenFromStorefront: isHiddenFromStorefront,
         is_hidden_from_storefront: isHiddenFromStorefront,
@@ -707,10 +709,11 @@ export default function ProductForm({
   const validateDraft = (): boolean => {
     const errs: Record<string, string> = {};
 
-    if (!productId.trim()) {
+    const normalizedPid = productId.replace(/\s+/g, "");
+    if (!normalizedPid) {
       errs.productId = "Product ID is required to save a draft.";
-    } else if (!/^[A-Za-z0-9_\-]+$/.test(productId.trim())) {
-      errs.productId = "Product ID may only contain letters, numbers, hyphens, and underscores.";
+    } else if (!/^[A-Za-z0-9\-\/]+$/.test(normalizedPid)) {
+      errs.productId = "Product ID may only contain letters, numbers, hyphens (-), and slashes (/).";
     }
 
     if (!name.trim()) {
@@ -740,10 +743,11 @@ export default function ProductForm({
   const validatePublish = (): boolean => {
     const errs: Record<string, string> = {};
 
-    if (!productId.trim()) {
+    const normalizedPid = productId.replace(/\s+/g, "");
+    if (!normalizedPid) {
       errs.productId = "Product ID is required.";
-    } else if (!/^[A-Za-z0-9_\-]+$/.test(productId.trim())) {
-      errs.productId = "Product ID may only contain letters, numbers, hyphens, and underscores.";
+    } else if (!/^[A-Za-z0-9\-\/]+$/.test(normalizedPid)) {
+      errs.productId = "Product ID may only contain letters, numbers, hyphens (-), and slashes (/).";
     }
 
     if (!name.trim()) errs.name = "Product name is required.";
@@ -863,10 +867,11 @@ export default function ProductForm({
         },
       ];
 
+      const normalizedPid = productId.replace(/\s+/g, "");
       const payload: B2BProductInput = {
         id: persistedDraftIdRef.current || initialData?.id || `prod_${Date.now()}`,
-        productId: productId.trim(),
-        product_id: productId.trim(),
+        productId: normalizedPid,
+        product_id: normalizedPid,
         name: name.trim(),
         slug: slug.trim(),
         sku: sku.trim() || generatedSku,

@@ -139,7 +139,7 @@ export default function ProductBasicInfoSection({
             type="text"
             value={productId}
             onChange={(e) => onProductIdChange(e.target.value)}
-            placeholder="e.g. AYC-2026-0001"
+            placeholder="e.g. AY-1001, AY/1001"
             className={`font-mono ${inputClass(Boolean(errors.productId))}`}
           />
           {errors.productId && (
