@@ -52,13 +52,18 @@ assert(gallerySource.includes('style={{ aspectRatio: "4 / 5" }}'), "ProductGalle
 assert(!gallerySource.includes("aspect-[3/4]"), "ProductGallery removed all 'aspect-[3/4]' occurrences");
 assert(!gallerySource.includes("aspect-product"), "ProductGallery removed all obsolete 'aspect-product' utility references");
 
-// 2. Main Gallery Size Moderation
+// 2. Main Gallery Size Moderation & Small Gap Grid Architecture
 assert(
-  detailViewSource.includes("max-w-[360px] sm:max-w-[400px] lg:max-w-[390px] xl:max-w-[420px]"),
-  "ProductDetailView applies balanced max-width to left gallery column (max-w-[360px] sm:max-w-[400px] lg:max-w-[390px] xl:max-w-[420px])"
+  detailViewSource.includes("lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]") &&
+  detailViewSource.includes("gap-5 lg:gap-6 xl:gap-7"),
+  "ProductDetailView enforces small gap layout directly pairing 4:5 gallery and right purchasing hierarchy"
 );
 assert(
-  gallerySource.includes("w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[390px] xl:max-w-[420px] mx-auto lg:mx-0"),
+  detailViewSource.includes("max-w-[360px] sm:max-w-[400px] lg:max-w-[380px] xl:max-w-[420px]"),
+  "ProductDetailView applies balanced max-width to left gallery column (max-w-[360px] sm:max-w-[400px] lg:max-w-[380px] xl:max-w-[420px])"
+);
+assert(
+  gallerySource.includes("w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[380px] xl:max-w-[420px] mx-auto lg:mx-0"),
   "ProductGallery enforces balanced containerMaxWidth"
 );
 

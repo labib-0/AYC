@@ -90,14 +90,15 @@ test("1.2 Main product image preserves 4:5 aspect ratio and non-destructive obje
   );
 });
 
-test("1.3 Left column has sufficient width allocation on desktop", () => {
+test("1.3 Left column has sufficient width allocation on desktop with small gap to right content", () => {
   assert(
-    detailViewContent.includes("lg:col-span-5 xl:col-span-5"),
-    "Left column must occupy 5 full grid columns"
+    detailViewContent.includes("lg:grid-cols-[380px_minmax(0,1fr)]") &&
+    detailViewContent.includes("xl:grid-cols-[420px_minmax(0,1fr)]"),
+    "Left column must have dedicated desktop 4:5 width allocation"
   );
   assert(
-    !detailViewContent.includes("lg:max-w-[380px] xl:max-w-[400px]"),
-    "Left column must not be artificially restricted to 380px-400px"
+    detailViewContent.includes("gap-5 lg:gap-6 xl:gap-7"),
+    "Left 4:5 gallery and right purchasing content must be separated by a small gap"
   );
 });
 
