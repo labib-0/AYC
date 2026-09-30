@@ -10,6 +10,18 @@ const TAB_TITLES: Record<string, { title: string; subtitle: string }> = {
     title: "Admin Profile & Security",
     subtitle: "Manage your administrator account credentials, contact information, and security preferences.",
   },
+  branding: {
+    title: "Site Branding & Storefront Header",
+    subtitle: "Manage website title, official PNG logo, and customer header branding.",
+  },
+  social: {
+    title: "WhatsApp & Social Links",
+    subtitle: "Configure business WhatsApp contact with auto-derived machine number, and manage footer social media links.",
+  },
+  legal: {
+    title: "Legal Pages Management",
+    subtitle: "Edit and publish official Privacy Policy and Terms & Conditions directly to storefront routes.",
+  },
   business: {
     title: "Business & Company Profile",
     subtitle: "Configure official corporate identity, export warehouse addresses, and commercial document settings.",

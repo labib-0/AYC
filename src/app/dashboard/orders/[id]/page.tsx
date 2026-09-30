@@ -553,7 +553,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                         </p>
                       )}
 
-                      {/* Package breakdown */}
+                      {/* Package assortment */}
                       {Array.isArray(breakdown) && breakdown.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -1216,7 +1216,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               <FileText size={18} className="text-amber-600" />
               <div>
                 <p className="font-bold text-slate-900 dark:text-white">Product Spec Sheet</p>
-                <p className="text-[0.6875rem] text-slate-500">Style specs and package details</p>
+                <p className="text-[0.6875rem] text-slate-500">Style specs and package assortment</p>
               </div>
             </div>
             <button

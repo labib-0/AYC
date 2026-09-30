@@ -29,6 +29,8 @@ use App\Http\Controllers\Api\V1\ShippingController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WishlistController;
 use App\Http\Controllers\Api\V1\UploadController;
+use App\Http\Controllers\Api\V1\PublicSettingsController;
+use App\Http\Controllers\Api\V1\Admin\AdminSettingsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -47,6 +49,10 @@ Route::prefix('v1')->group(function () {
 
     // Health & System Info
     Route::get('/health', [HealthController::class, 'check']);
+
+    // Public Storefront Settings & Legal Pages
+    Route::get('/settings/public', [PublicSettingsController::class, 'getPublicSettings']);
+    Route::get('/legal/{type}', [PublicSettingsController::class, 'getLegalPage']);
 
     // General-purpose Admin Media Upload
     Route::middleware(['auth:sanctum', 'role:admin'])->post('/upload', [UploadController::class, 'upload']);
@@ -399,6 +405,24 @@ Route::prefix('v1')->group(function () {
         Route::patch('/settings/shipping', [ShippingController::class, 'updateSettings'])
             ->middleware('permission:settings.edit');
         Route::post('/settings/shipping', [ShippingController::class, 'updateSettings'])
+            ->middleware('permission:settings.edit');
+
+        // Storefront Settings, Branding, Logo & Social Links
+        Route::get('/settings', [AdminSettingsController::class, 'getSettings'])
+            ->middleware('permission:settings.view');
+        Route::put('/settings', [AdminSettingsController::class, 'updateSettings'])
+            ->middleware('permission:settings.edit');
+        Route::post('/settings/logo', [AdminSettingsController::class, 'uploadLogo'])
+            ->middleware('permission:settings.edit');
+        Route::delete('/settings/logo', [AdminSettingsController::class, 'removeLogo'])
+            ->middleware('permission:settings.edit');
+
+        // Admin Legal Pages Management
+        Route::get('/legal', [AdminSettingsController::class, 'getLegalPages'])
+            ->middleware('permission:settings.view');
+        Route::get('/legal/{type}', [AdminSettingsController::class, 'getLegalPage'])
+            ->middleware('permission:settings.view');
+        Route::put('/legal/{type}', [AdminSettingsController::class, 'updateLegalPage'])
             ->middleware('permission:settings.edit');
 
         // Landing Page & Merchandising Management

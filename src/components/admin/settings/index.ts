@@ -24,3 +24,12 @@ export * from './users/AdminUserDeleteDialog';
 
 export { default as SystemPreferencesSettings } from './preferences/SystemPreferencesSettings';
 export * from './preferences/SystemPreferencesSettings';
+
+export { default as StorefrontBrandingSettings } from './branding/StorefrontBrandingSettings';
+export * from './branding/StorefrontBrandingSettings';
+
+export { default as SocialLinksSettings } from './social/SocialLinksSettings';
+export * from './social/SocialLinksSettings';
+
+export { default as LegalPagesAdminSettings } from './legal/LegalPagesAdminSettings';
+export * from './legal/LegalPagesAdminSettings';

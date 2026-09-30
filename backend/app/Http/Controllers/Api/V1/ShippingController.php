@@ -132,10 +132,7 @@ class ShippingController extends Controller
             }
 
             // Authoritative price calculation
-            $unitPrice = (float) ($product->wholesale_price ?: $product->price ?: 10.0);
-            if ($product->bulk_threshold && $qty >= $product->bulk_threshold && $product->bulk_price) {
-                $unitPrice = (float) $product->bulk_price;
-            }
+            $unitPrice = $product->getUnitPriceForQuantity($qty);
             $goodsValue += round($unitPrice * $qty, 2);
 
             // Calculate physical shipment specs strictly from backend configuration

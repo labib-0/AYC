@@ -19,7 +19,7 @@ class SystemSetting extends Model
     public static function get(string $key, mixed $default = null): mixed
     {
         $setting = static::where('key', $key)->first();
-        if (!$setting) {
+        if (!$setting || $setting->value === null) {
             return $default;
         }
 
@@ -37,9 +37,10 @@ class SystemSetting extends Model
      */
     public static function set(string $key, mixed $value, string $type = 'string', string $group = 'general'): static
     {
-        $serialized = match ($type) {
-            'boolean' => $value ? '1' : '0',
-            'json' => json_encode($value),
+        $serialized = match (true) {
+            $value === null => null,
+            $type === 'boolean' => $value ? '1' : '0',
+            $type === 'json' => json_encode($value),
             default => (string) $value,
         };
 

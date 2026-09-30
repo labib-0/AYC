@@ -9,6 +9,9 @@ import {
   SettingsHeader,
   SettingsTabs,
   ProfileSettings,
+  StorefrontBrandingSettings,
+  SocialLinksSettings,
+  LegalPagesAdminSettings,
   BusinessSettings,
   AdminUsersSettings,
   SystemPreferencesSettings,
@@ -79,6 +82,9 @@ function SettingsContent() {
         {/* Tab Panels */}
         <div className="transition-opacity duration-200">
           {activeTab === "profile" && <ProfileSettings onNotify={handleNotify} />}
+          {activeTab === "branding" && <StorefrontBrandingSettings onNotify={handleNotify} />}
+          {activeTab === "social" && <SocialLinksSettings onNotify={handleNotify} />}
+          {activeTab === "legal" && <LegalPagesAdminSettings onNotify={handleNotify} />}
           {activeTab === "business" && <BusinessSettings onNotify={handleNotify} />}
           {activeTab === "users" && <AdminUsersSettings onNotify={handleNotify} />}
           {activeTab === "preferences" && <SystemPreferencesSettings onNotify={handleNotify} />}

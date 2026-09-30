@@ -37,6 +37,8 @@ class Product extends Model
         self::AUDIENCE_UNISEX,
     ];
 
+    public const DEFAULT_PACKAGE_ASSORTMENT_MESSAGE = 'Each package includes a mixed assortment of all available colours and sizes. All listed colours and sizes will be included in the package. Quantity may vary by colour and size due to original surplus stock availability.';
+
     protected $fillable = [
         'brand_id',
         'product_id',
@@ -46,6 +48,8 @@ class Product extends Model
         'short_description',
         'description',
         'material',
+        'size_description',
+        'colour_description',
         'color_name',
         'color_hex',
         'audience',
@@ -59,9 +63,12 @@ class Product extends Model
         'stock',
         'bulk_threshold',
         'bulk_price',
+        'bulk_pricing_enabled',
         'full_stock_price',
         'status',
         'is_hidden_from_storefront',
+        'package_assortment_visible',
+        'package_assortment_message',
         'is_featured',
         'featured_sort_order',
         'featured_until',
@@ -87,8 +94,10 @@ class Product extends Model
         'stock' => 'integer',
         'bulk_threshold' => 'integer',
         'bulk_price' => 'decimal:2',
+        'bulk_pricing_enabled' => 'boolean',
         'full_stock_price' => 'decimal:2',
         'is_hidden_from_storefront' => 'boolean',
+        'package_assortment_visible' => 'boolean',
         'is_featured' => 'boolean',
         'featured_sort_order' => 'integer',
         'featured_until' => 'datetime',
@@ -117,6 +126,14 @@ class Product extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (Product $product) {
+            if (!array_key_exists('bulk_pricing_enabled', $product->getAttributes())) {
+                $product->bulk_pricing_enabled = !empty($product->bulk_threshold) 
+                    && !empty($product->bulk_price) 
+                    && (float) $product->bulk_price > 0;
+            }
+        });
+
         static::deleting(function (Product $product) {
             // When soft-deleting, release the slug and SKU so they can be immediately reused
             if (!$product->isForceDeleting()) {
@@ -292,6 +309,17 @@ class Product extends Model
      *    available_inventory > qualifying_threshold
      * 4. Complete package stock must be > 0.
      */
+    /**
+     * Determine if product qualifies for Full Stock discount pricing:
+     * 1. Admin configured full_stock_price must exist and be > 0.
+     * 2. Authoritative qualifying bulk threshold:
+     *    - When bulk pricing is enabled: product bulk_threshold (> 0)
+     *    - When bulk pricing is disabled: product MOQ
+     * 3. Current Available Inventory must qualify:
+     *    - When bulk is enabled: available_inventory > bulk_threshold
+     *    - When bulk is disabled: available_inventory >= moq
+     * 4. Complete package stock must be > 0.
+     */
     public function isFullStockEligible(): bool
     {
         if ($this->full_stock_price === null || (float) $this->full_stock_price <= 0) {
@@ -300,15 +328,18 @@ class Product extends Model
 
         $availableStock = $this->getTotalAvailableStock();
         $moq = max(1, (int) $this->moq);
+        $hasBulkTier = (bool) ($this->bulk_pricing_enabled && $this->bulk_threshold !== null && (int) $this->bulk_threshold > 0);
 
-        // Authoritative qualifying bulk threshold
-        $qualifyingThreshold = ($this->bulk_threshold !== null && (int) $this->bulk_threshold > 0)
-            ? (int) $this->bulk_threshold
-            : $moq;
-
-        // Available inventory must be strictly greater than qualifying bulk threshold
-        if ($availableStock <= $qualifyingThreshold) {
-            return false;
+        if ($hasBulkTier) {
+            // Available inventory must be strictly greater than qualifying bulk threshold
+            if ($availableStock <= (int) $this->bulk_threshold) {
+                return false;
+            }
+        } else {
+            // When Bulk is disabled, available inventory must be at least MOQ
+            if ($availableStock < $moq) {
+                return false;
+            }
         }
 
         return $this->getCompletePackageStock() > 0;
@@ -348,39 +379,50 @@ class Product extends Model
      * Exact Full Stock Price Resolution:
      * FULL STOCK OPTION ALWAYS VISIBLE
      * Determine current Available Inventory
-     * Compare with Minimum Bulk Order Quantity
-     * IF Available Inventory > Minimum Bulk Order Quantity
-     *     → use full_stock_price
-     * ELSE
-     *     → use normal MOQ / standard applicable price
+     * When Bulk Pricing is ENABLED:
+     *   IF Available Inventory > Minimum Bulk Order Quantity
+     *       → use full_stock_price
+     *   ELSE
+     *       → use normal MOQ / standard applicable price
+     * When Bulk Pricing is DISABLED / OPTIONAL:
+     *   Uses configured full_stock_price (capped at normal MOQ price)
      */
     public function getResolvedFullStockPrice(?int $customStock = null): float
     {
         $availableStock = $customStock ?? $this->getTotalAvailableStock();
-        $bulkMinimum = ($this->bulk_threshold !== null && (int) $this->bulk_threshold > 0)
-            ? (int) $this->bulk_threshold
-            : max(1, (int) $this->moq);
-
         $normalMoqPrice = $this->getNormalMoqPrice();
+        $hasBulkTier = (bool) ($this->bulk_pricing_enabled && $this->bulk_threshold !== null && (int) $this->bulk_threshold > 0);
 
-        // When Available Inventory <= Minimum Bulk Order Quantity:
-        // Always falls back to normal MOQ / standard applicable price.
-        if ($availableStock <= $bulkMinimum) {
-            return $normalMoqPrice;
+        if ($hasBulkTier) {
+            $bulkMinimum = (int) $this->bulk_threshold;
+
+            // When Available Inventory <= Minimum Bulk Order Quantity:
+            // Always falls back to normal MOQ / standard applicable price.
+            if ($availableStock <= $bulkMinimum) {
+                return $normalMoqPrice;
+            }
+
+            // When Available Inventory > Minimum Bulk Order Quantity:
+            // Applicable normal price for this volume (bulk price if configured, else normal MOQ price)
+            $applicableNormalPrice = ($this->bulk_price !== null && $availableStock >= $this->bulk_threshold)
+                ? (float) $this->bulk_price
+                : $normalMoqPrice;
+
+            if ($this->full_stock_price !== null && (float) $this->full_stock_price > 0) {
+                // Full stock price should never be worse than the applicable normal price
+                return (float) min((float) $this->full_stock_price, $applicableNormalPrice);
+            }
+
+            return $applicableNormalPrice;
         }
 
-        // When Available Inventory > Minimum Bulk Order Quantity:
-        // Applicable normal price for this volume (bulk price if configured, else normal MOQ price)
-        $applicableNormalPrice = ($this->bulk_threshold !== null && $this->bulk_price !== null && $availableStock >= $this->bulk_threshold)
-            ? (float) $this->bulk_price
-            : $normalMoqPrice;
-
+        // When Bulk Pricing is disabled / absent:
+        // Full Stock price uses the configured full_stock_price (capped at normal MOQ price)
         if ($this->full_stock_price !== null && (float) $this->full_stock_price > 0) {
-            // Full stock price should never be worse than the applicable normal price
-            return (float) min((float) $this->full_stock_price, $applicableNormalPrice);
+            return (float) min((float) $this->full_stock_price, $normalMoqPrice);
         }
 
-        return $applicableNormalPrice;
+        return $normalMoqPrice;
     }
 
     /**
@@ -401,21 +443,17 @@ class Product extends Model
      * Authoritative unit price resolution based on three-price wholesale model:
      * 1. Full-Stock Mode:
      *    - When pricingMode is explicitly 'full_stock' and quantity matches complete package stock (> 0).
-     *      Price is resolved conditionally:
-     *      If available inventory > bulk minimum: full_stock_price
-     *      Else: normal MOQ / standard price.
-     *    - When pricingMode is null, quantity matches complete package stock, and available inventory > bulk threshold.
-     * 2. Bulk Price: When quantity >= bulk_threshold (or pricingMode === 'bulk' with quantity >= bulk_threshold).
+     *      Price is resolved conditionally based on bulk enablement.
+     *    - When pricingMode is null, quantity matches complete package stock (> 0).
+     * 2. Bulk Price: When bulk_pricing_enabled is TRUE and quantity >= bulk_threshold.
      * 3. Fallback to product_pricing_tiers if defined.
-     * 4. Standard Wholesale Price (MOQ to Bulk Threshold - 1).
+     * 4. Standard Wholesale Price (MOQ to Bulk Threshold - 1, or whole range if Bulk disabled).
      */
     public function getUnitPriceForQuantity(int $quantity, ?string $pricingMode = null): float
     {
         $completeStock = $this->getCompletePackageStock();
         $availableStock = $this->getTotalAvailableStock();
-        $bulkThreshold = ($this->bulk_threshold !== null && (int) $this->bulk_threshold > 0)
-            ? (int) $this->bulk_threshold
-            : max(1, (int) $this->moq);
+        $hasBulkTier = (bool) ($this->bulk_pricing_enabled && $this->bulk_threshold !== null && (int) $this->bulk_threshold > 0);
 
         // 1. Full-Stock Mode
         if ($pricingMode === 'full_stock') {
@@ -424,13 +462,21 @@ class Product extends Model
             }
             // If pricingMode is full_stock but quantity does NOT match complete package stock,
             // fall through to normal bulk/tier/standard pricing.
-        } elseif ($pricingMode === null && $completeStock > 0 && $quantity === $completeStock && $availableStock > $bulkThreshold) {
-            return $this->getResolvedFullStockPrice($availableStock);
+        } elseif ($pricingMode === null && $completeStock > 0 && $quantity === $completeStock) {
+            if ($hasBulkTier) {
+                if ($availableStock > (int) $this->bulk_threshold) {
+                    return $this->getResolvedFullStockPrice($availableStock);
+                }
+            } else {
+                if ($availableStock > max(1, (int) $this->moq)) {
+                    return $this->getResolvedFullStockPrice($availableStock);
+                }
+            }
         }
 
-        // 2. Explicit configured bulk threshold & price
-        if ($this->bulk_threshold !== null && $this->bulk_price !== null) {
-            if ($quantity >= $this->bulk_threshold || ($pricingMode === 'bulk' && $quantity >= $this->bulk_threshold)) {
+        // 2. Explicit configured bulk threshold & price (ONLY if bulk pricing is enabled)
+        if ($hasBulkTier && $this->bulk_price !== null) {
+            if ($quantity >= (int) $this->bulk_threshold || ($pricingMode === 'bulk' && $quantity >= (int) $this->bulk_threshold)) {
                 return (float) $this->bulk_price;
             }
         }

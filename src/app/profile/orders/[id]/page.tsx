@@ -427,7 +427,7 @@ function OrderDetailItem({ item }: { item: OrderItemRecord }) {
           <p className="text-xs text-slate-500 dark:text-slate-400">{item.variant_title}</p>
         )}
 
-        {/* Package breakdown */}
+        {/* Package assortment */}
         {Array.isArray(breakdown) && breakdown.length > 0 && (
           <div className="flex flex-wrap gap-1 pt-0.5">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}

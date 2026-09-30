@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Globe, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { ArrowLeft, Save, Globe, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Check, Eye, EyeOff } from "lucide-react";
 import { B2BProductInput, B2BProductVariant } from "@/types/b2b";
 import { ShippingPackageProfile, PackageAllocation } from "@/types";
 import { getBrands } from "@/lib/services/brands";
@@ -19,7 +19,7 @@ import ProductBasicInfoSection from "./ProductBasicInfoSection";
 import ProductInventorySection from "./ProductInventorySection";
 import ProductImagesSection from "./ProductImagesSection";
 import ProductPricingSection from "./ProductPricingSection";
-import ProductPackageBreakdownSection from "./ProductPackageBreakdownSection";
+import ProductPackageBreakdownSection, { DEFAULT_PACKAGE_ASSORTMENT_MESSAGE } from "./ProductPackageBreakdownSection";
 import ProductShippingSection from "./ProductShippingSection";
 import ProductSeoSection from "./ProductSeoSection";
 
@@ -76,6 +76,20 @@ export default function ProductForm({
     return raw === "MASTER COPY" || raw === "REPLICA" || raw === "MC" ? "MASTER COPY" : "ORIGINAL";
   });
   const [material, setMaterial] = useState(initialData?.material || "");
+  const [sizeDescription, setSizeDescription] = useState<string>(
+    () => initialData?.sizeDescription || (initialData as any)?.size_description || ""
+  );
+  const [colourDescription, setColourDescription] = useState<string>(
+    () => initialData?.colourDescription || (initialData as any)?.colour_description || ""
+  );
+  const [packageAssortmentVisible, setPackageAssortmentVisible] = useState<boolean>(() => {
+    if (initialData?.packageAssortmentVisible !== undefined) return Boolean(initialData.packageAssortmentVisible);
+    if ((initialData as any)?.package_assortment_visible !== undefined) return Boolean((initialData as any).package_assortment_visible);
+    return true;
+  });
+  const [packageAssortmentMessage, setPackageAssortmentMessage] = useState<string>(
+    () => initialData?.packageAssortmentMessage || (initialData as any)?.package_assortment_message || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE
+  );
   const [description, setDescription] = useState(initialData?.description || "");
 
   // Media
@@ -90,6 +104,15 @@ export default function ProductForm({
   const [wholesalePrice, setWholesalePrice] = useState<number | undefined>(
     initialData?.wholesalePrice !== undefined ? Number(initialData.wholesalePrice) : undefined
   );
+  const [bulkPricingEnabled, setBulkPricingEnabled] = useState<boolean>(() => {
+    if (initialData?.bulkPricingEnabled !== undefined) return Boolean(initialData.bulkPricingEnabled);
+    if ((initialData as any)?.bulk_pricing_enabled !== undefined) return Boolean((initialData as any).bulk_pricing_enabled);
+    if (initialData?.bulkThreshold !== undefined && initialData?.bulkThreshold !== null && Number(initialData.bulkThreshold) > 0 &&
+        initialData?.bulkPrice !== undefined && initialData?.bulkPrice !== null && Number(initialData.bulkPrice) > 0) {
+      return true;
+    }
+    return false;
+  });
   const [bulkThreshold, setBulkThreshold] = useState<number | undefined>(
     initialData?.bulkThreshold !== undefined ? Number(initialData.bulkThreshold) : undefined
   );
@@ -204,7 +227,7 @@ export default function ProductForm({
   const handlePackageAllocationsChange = (next: PackageAllocation[]) => {
     setPackageAllocations(next);
     const sum = next.reduce((acc, a) => acc + (Number(a.quantity) || 0), 0);
-    if (sum > 0 && bulkThreshold && bulkThreshold <= sum) {
+    if (sum > 0 && bulkPricingEnabled && bulkThreshold && bulkThreshold <= sum) {
       setBulkThreshold(sum + 50);
     }
     setShippingProfiles((prev) => [
@@ -293,6 +316,14 @@ export default function ProductForm({
       audience: (audience || undefined) as any,
       designType: (designType || undefined) as any,
       material,
+      sizeDescription: sizeDescription.trim() || undefined,
+      size_description: sizeDescription.trim() || undefined,
+      colourDescription: colourDescription.trim() || undefined,
+      colour_description: colourDescription.trim() || undefined,
+      packageAssortmentVisible: packageAssortmentVisible,
+      package_assortment_visible: packageAssortmentVisible,
+      packageAssortmentMessage: packageAssortmentMessage,
+      package_assortment_message: packageAssortmentMessage,
       description,
       seoTitle,
       seoDescription,
@@ -300,8 +331,10 @@ export default function ProductForm({
       images,
       videoUrl,
       wholesalePrice,
-      bulkThreshold,
-      bulkPrice,
+      bulkPricingEnabled,
+      bulk_pricing_enabled: bulkPricingEnabled,
+      bulkThreshold: bulkPricingEnabled ? bulkThreshold : undefined,
+      bulkPrice: bulkPricingEnabled ? bulkPrice : undefined,
       fullStockPrice,
       costPrice,
       stock,
@@ -323,8 +356,9 @@ export default function ProductForm({
     };
   }, [
     productId, name, slug, sku, isHiddenFromStorefront, brand, brandId, brandLogo, categoryId, categoryName,
-    audience, designType, material, description, seoTitle, seoDescription,
-    keywords, images, videoUrl, wholesalePrice, bulkThreshold, bulkPrice,
+    audience, designType, material, sizeDescription, colourDescription,
+    packageAssortmentVisible, packageAssortmentMessage, description, seoTitle, seoDescription,
+    keywords, images, videoUrl, wholesalePrice, bulkPricingEnabled, bulkThreshold, bulkPrice,
     fullStockPrice, costPrice, stock, warehouseId, moq, colors, sizes,
     packageAllocations, shippingProfiles, isNew, newUntil, isHot, hotUntil,
     isFeatured, featuredUntil, isPreorder, estimatedDeliveryDate
@@ -464,6 +498,18 @@ export default function ProductForm({
       if (d.audience) setAudience(d.audience);
       if (d.designType) setDesignType(d.designType);
       if (d.material) setMaterial(d.material);
+      if (d.sizeDescription !== undefined || (d as any).size_description !== undefined) {
+        setSizeDescription(d.sizeDescription || (d as any).size_description || "");
+      }
+      if (d.colourDescription !== undefined || (d as any).colour_description !== undefined) {
+        setColourDescription(d.colourDescription || (d as any).colour_description || "");
+      }
+      if (d.packageAssortmentVisible !== undefined || (d as any).package_assortment_visible !== undefined) {
+        setPackageAssortmentVisible(Boolean(d.packageAssortmentVisible ?? (d as any).package_assortment_visible));
+      }
+      if (d.packageAssortmentMessage !== undefined || (d as any).package_assortment_message !== undefined) {
+        setPackageAssortmentMessage(d.packageAssortmentMessage || (d as any).package_assortment_message || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE);
+      }
       if (d.description) setDescription(d.description);
       if (d.seoTitle) setSeoTitle(d.seoTitle);
       if (d.seoDescription) setSeoDescription(d.seoDescription);
@@ -476,8 +522,10 @@ export default function ProductForm({
       }
       if (d.videoUrl !== undefined) setVideoUrl(d.videoUrl);
       if (d.wholesalePrice !== undefined) setWholesalePrice(d.wholesalePrice);
-      if (d.bulkThreshold !== undefined) setBulkThreshold(d.bulkThreshold);
-      if (d.bulkPrice !== undefined) setBulkPrice(d.bulkPrice);
+      if (d.bulkPricingEnabled !== undefined) setBulkPricingEnabled(Boolean(d.bulkPricingEnabled));
+      else if ((d as any).bulk_pricing_enabled !== undefined) setBulkPricingEnabled(Boolean((d as any).bulk_pricing_enabled));
+      if (d.bulkThreshold !== undefined) setBulkThreshold(d.bulkThreshold ?? undefined);
+      if (d.bulkPrice !== undefined) setBulkPrice(d.bulkPrice ?? undefined);
       if (d.fullStockPrice !== undefined) setFullStockPrice(d.fullStockPrice);
       if ((d as any).costPrice !== undefined) setCostPrice((d as any).costPrice);
       if (d.stock !== undefined) setStock(d.stock);
@@ -514,7 +562,7 @@ export default function ProductForm({
     setAutosaveStatus("unsaved");
   }, [
     productId, name, slug, brand, brandId, categoryId, audience, designType,
-    material, description, images, videoUrl, wholesalePrice, bulkThreshold,
+    material, description, images, videoUrl, wholesalePrice, bulkPricingEnabled, bulkThreshold,
     bulkPrice, fullStockPrice, costPrice, stock, warehouseId, customMoq,
     colors, sizes, packageAllocations, shippingProfiles, isNew, isHot,
     isFeatured, isPreorder, estimatedDeliveryDate
@@ -531,7 +579,7 @@ export default function ProductForm({
   }, [
     persistDraftToBackendAndStorage, hasUserEdited,
     productId, name, slug, brand, categoryId, description, images, wholesalePrice,
-    bulkThreshold, bulkPrice, fullStockPrice, costPrice, stock, warehouseId, customMoq,
+    bulkPricingEnabled, bulkThreshold, bulkPrice, fullStockPrice, costPrice, stock, warehouseId, customMoq,
     colors, sizes, packageAllocations, shippingProfiles, isPreorder, estimatedDeliveryDate
   ]);
 
@@ -727,12 +775,14 @@ export default function ProductForm({
 
     if (moq <= 0) errs.moq = "Minimum order quantity (MOQ) must be greater than 0.";
 
-    if (bulkThreshold === undefined || bulkThreshold <= moq) {
-      errs.bulkThreshold = `Bulk threshold (${bulkThreshold || 0}) must be strictly greater than MOQ (${moq}).`;
-    }
+    if (bulkPricingEnabled) {
+      if (bulkThreshold === undefined || bulkThreshold <= moq) {
+        errs.bulkThreshold = `Bulk threshold (${bulkThreshold || 0}) must be strictly greater than MOQ (${moq}).`;
+      }
 
-    if (bulkPrice === undefined || bulkPrice <= 0) {
-      errs.bulkPrice = "Bulk tier price must be greater than $0.00.";
+      if (bulkPrice === undefined || bulkPrice <= 0) {
+        errs.bulkPrice = "Bulk tier price must be greater than $0.00.";
+      }
     }
 
     if (fullStockPrice === undefined || fullStockPrice === null || fullStockPrice <= 0) {
@@ -794,17 +844,23 @@ export default function ProductForm({
       });
 
       // Pricing Tiers
-      const pricingTiers = [
+      const pricingTiers = bulkPricingEnabled && bulkThreshold && bulkPrice ? [
         {
           min_quantity: moq,
-          max_quantity: bulkThreshold ? bulkThreshold - 1 : null,
+          max_quantity: bulkThreshold - 1,
           unit_price: wholesalePrice || 0,
         },
-        ...(bulkThreshold && bulkPrice ? [{
+        {
           min_quantity: bulkThreshold,
           max_quantity: null,
           unit_price: bulkPrice,
-        }] : []),
+        },
+      ] : [
+        {
+          min_quantity: moq,
+          max_quantity: null,
+          unit_price: wholesalePrice || 0,
+        },
       ];
 
       const payload: B2BProductInput = {
@@ -830,6 +886,14 @@ export default function ProductForm({
         seoDescription: seoDescription.trim() || undefined,
         keywords: keywords,
         material: material.trim(),
+        sizeDescription: sizeDescription.trim() || undefined,
+        size_description: sizeDescription.trim() || undefined,
+        colourDescription: colourDescription.trim() || undefined,
+        colour_description: colourDescription.trim() || undefined,
+        packageAssortmentVisible: packageAssortmentVisible,
+        package_assortment_visible: packageAssortmentVisible,
+        packageAssortmentMessage: packageAssortmentMessage.trim() || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
+        package_assortment_message: packageAssortmentMessage.trim() || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
         images: (() => {
           const clean = images.map((u) => normalizeImageUrl(u)).filter((u) => isValidImageUrl(u));
           return clean.length > 0 ? clean : ["/placeholder.jpg"];
@@ -838,8 +902,14 @@ export default function ProductForm({
         video_url: videoUrl.trim() || undefined,
         wholesalePrice: wholesalePrice || 0,
         standardPrice: wholesalePrice || 0,
-        bulkThreshold: bulkThreshold || 0,
-        bulkPrice: bulkPrice || 0,
+        bulkPricingEnabled: bulkPricingEnabled,
+        bulk_pricing_enabled: bulkPricingEnabled,
+        bulkThreshold: bulkPricingEnabled && bulkThreshold ? bulkThreshold : undefined,
+        bulkPrice: bulkPricingEnabled && bulkPrice ? bulkPrice : undefined,
+        bulk_threshold: bulkPricingEnabled && bulkThreshold ? bulkThreshold : null,
+        bulk_price: bulkPricingEnabled && bulkPrice ? bulkPrice : null,
+        bulk_minimum_quantity: bulkPricingEnabled && bulkThreshold ? bulkThreshold : null,
+        bulk_unit_price: bulkPricingEnabled && bulkPrice ? bulkPrice : null,
         fullStockPrice: fullStockPrice,
         full_stock_price: fullStockPrice,
         costPrice: costPrice,
@@ -1021,6 +1091,34 @@ export default function ProductForm({
             </div>
           )}
 
+          <button
+            type="button"
+            id="toggle-product-catalog-visibility-btn"
+            onClick={() => setIsHiddenFromStorefront(!isHiddenFromStorefront)}
+            className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-colors flex items-center gap-1.5 cursor-pointer ${
+              isHiddenFromStorefront
+                ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
+                : "border-border text-foreground hover:bg-secondary"
+            }`}
+            title={
+              isHiddenFromStorefront
+                ? "Product is hidden from customer storefront search and catalog. Click to make visible."
+                : "Product is visible on storefront catalog when published. Click to hide product."
+            }
+          >
+            {isHiddenFromStorefront ? (
+              <>
+                <EyeOff size={13} className="shrink-0 text-amber-700 dark:text-amber-400" />
+                <span>PRODUCT HIDDEN FROM CATALOG</span>
+              </>
+            ) : (
+              <>
+                <Eye size={13} className="shrink-0 text-muted-foreground" />
+                <span>PRODUCT VISIBLE IN CATALOG</span>
+              </>
+            )}
+          </button>
+
           {canSaveDraft && (
             <button
               type="button"
@@ -1104,6 +1202,8 @@ export default function ProductForm({
             audience={audience}
             designType={designType}
             material={material}
+            sizeDescription={sizeDescription}
+            colourDescription={colourDescription}
             description={description}
             brands={brands}
             categories={categories}
@@ -1125,6 +1225,8 @@ export default function ProductForm({
             onAudienceChange={setAudience}
             onDesignTypeChange={setDesignType}
             onMaterialChange={setMaterial}
+            onSizeDescriptionChange={setSizeDescription}
+            onColourDescriptionChange={setColourDescription}
             onDescriptionChange={setDescription}
             onBrandCreated={(newB) => {
               setBrands((prev) => [...prev, { id: String(newB.id), name: newB.name, logo_url: newB.logo_url || newB.logo }]);
@@ -1147,10 +1249,12 @@ export default function ProductForm({
             productId={initialData?.id}
           />
 
-          {/* Section 2: Unified Package Breakdown */}
+          {/* Section 2: Package Assortment */}
           <ProductPackageBreakdownSection
-            isHiddenFromStorefront={isHiddenFromStorefront}
-            onIsHiddenFromStorefrontChange={setIsHiddenFromStorefront}
+            packageAssortmentVisible={packageAssortmentVisible}
+            onPackageAssortmentVisibleChange={setPackageAssortmentVisible}
+            packageAssortmentMessage={packageAssortmentMessage}
+            onPackageAssortmentMessageChange={setPackageAssortmentMessage}
             colors={colors}
             sizes={sizes}
             allocations={packageAllocations}
@@ -1181,8 +1285,22 @@ export default function ProductForm({
               (initialData as any)?.available_stock ??
               (stock !== undefined && stock > 0 ? stock : undefined)
             }
-            bulkThreshold={bulkThreshold}
-            bulkPrice={bulkPrice}
+            bulkPricingEnabled={bulkPricingEnabled}
+            onBulkPricingEnabledChange={(enabled) => {
+              setBulkPricingEnabled(enabled);
+              if (!enabled) {
+                setErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.bulkThreshold;
+                  delete next.bulk_threshold;
+                  delete next.bulkPrice;
+                  delete next.bulk_price;
+                  return next;
+                });
+              }
+            }}
+            bulkThreshold={bulkPricingEnabled ? bulkThreshold : undefined}
+            bulkPrice={bulkPricingEnabled ? bulkPrice : undefined}
             fullStockPrice={fullStockPrice}
             costPrice={costPrice}
             purchasePriceUpdated={purchasePriceUpdated}

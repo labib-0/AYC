@@ -471,7 +471,7 @@ export function generateProductOfferSheetDoc(
     ["Fit & Construction", product.fit || "Export Standard Regular Fit, Reinforced Neckband, Twin Needle Stitching"],
     ["Available Sizes", rawSizes],
     ["Standard Colors", rawColors],
-    ["Package Breakdown", formattedPkgBreakdown],
+    ["Package Assortment", formattedPkgBreakdown],
     ["Carton Dimensions & Weight", `${dimensionText} • Gross Wt: ${grossWtText}`],
     ["Export Packaging", product.packagingSpecs || "1 pc / Individual Polybag, 50 pcs / 7-Ply Heavy Duty Master Export Carton"],
     ["Production Lead Time", `${product.leadTimeDays || 14} - 21 Business Days from PO Approval`],

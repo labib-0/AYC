@@ -4,11 +4,15 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MapPin, ArrowUp, MessageCircle } from "lucide-react";
 import BrandName from "../common/BrandName";
-import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
+import HeaderBranding from "../common/HeaderBranding";
+import SocialIcon from "../common/SocialIcon";
+import { useSiteSettings } from "@/lib/SiteSettingsContext";
+import BUSINESS_PROFILE from "@/config/business-profile";
 import { categoryService, CategoryModel } from "@/services/category.service";
 import { brandService, BrandModel } from "@/services/brand.service";
 
 export default function Footer() {
+  const { settings, getWhatsAppUrl } = useSiteSettings();
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [categories, setCategories] = useState<CategoryModel[]>([]);
   const [brands, setBrands] = useState<BrandModel[]>([]);
@@ -88,10 +92,15 @@ export default function Footer() {
           {/* Main 5-Column Structured IA Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-8 lg:gap-7 pb-12 border-b border-white/10">
             
-            {/* COLUMN 1 — AYAAN CLOTHING / ABOUT US (Col span 3) */}
+            {/* COLUMN 1 — BRANDING / ABOUT US (Col span 3) */}
             <div className="lg:col-span-3 flex flex-col gap-4">
-              <Link href="/" className="flex items-center inline-block w-fit" aria-label="Ayaan Clothing Home">
-                <BrandName className="font-black text-2xl tracking-widest text-white" />
+              <Link href="/" className="flex items-center inline-block w-fit" aria-label={`${settings.site_title} Home`}>
+                <HeaderBranding
+                  siteTitle={settings.site_title}
+                  siteLogo={settings.site_logo}
+                  titleClassName="font-black text-2xl tracking-widest text-white"
+                  logoHeightClass="h-8"
+                />
               </Link>
               
               <div>
@@ -261,35 +270,23 @@ export default function Footer() {
                   </li>
                 </ul>
 
-                {/* Social Icons (Line style SVGs) */}
-                <div className="flex items-center gap-2.5 mb-4">
-                  <a
-                    href="https://facebook.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Facebook"
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors text-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                  >
-                    <FacebookIcon className="w-4 h-4" />
-                  </a>
-                  <a
-                    href="https://linkedin.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="LinkedIn"
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors text-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                  >
-                    <LinkedinIcon className="w-4 h-4" />
-                  </a>
-                  <a
-                    href="https://instagram.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Instagram"
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors text-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                  >
-                    <InstagramIcon className="w-4 h-4" />
-                  </a>
+                {/* Social Icons (Dynamic Line style SVGs) */}
+                <div className="flex items-center gap-2.5 mb-4 flex-wrap">
+                  {settings.social_links && settings.social_links.length > 0 ? (
+                    settings.social_links.map((link) => (
+                      <a
+                        key={link.id}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={link.name}
+                        title={link.name}
+                        className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors text-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      >
+                        <SocialIcon provider={link.icon || link.provider} className="w-4 h-4" />
+                      </a>
+                    ))
+                  ) : null}
                 </div>
               </div>
 
@@ -304,12 +301,12 @@ export default function Footer() {
                 <div className="flex items-start gap-2.5">
                   <MessageCircle size={15} className="text-[#25D366] shrink-0 mt-0.5" />
                   <a
-                    href={getWhatsAppUrl(`Hi ${BUSINESS_PROFILE.name}, I have an inquiry regarding wholesale apparel sourcing.`)}
+                    href={getWhatsAppUrl(`Hi ${settings.site_title}, I have an inquiry regarding wholesale apparel sourcing.`)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover:text-white transition-colors underline-offset-4 hover:underline"
                   >
-                    WhatsApp: {BUSINESS_PROFILE.contact.whatsappDisplay || BUSINESS_PROFILE.contact.phone || "+880 1982-183886"}
+                    WhatsApp: {settings.whatsapp?.display || "+880 1982-183886"}
                   </a>
                 </div>
               </div>
@@ -320,20 +317,34 @@ export default function Footer() {
           {/* Brand Legal Disclaimer */}
           <div className="pt-6 pb-6 text-[13px] text-white/50 leading-relaxed border-b border-white/5">
             <p>
-              Disclaimer: All brand names, logos, trademarks, and registered trademarks displayed on this website are the property of their respective owners. {BUSINESS_PROFILE.name} is an independent ready-made garments manufacturer and exporter.
+              Disclaimer: All brand names, logos, trademarks, and registered trademarks displayed on this website are the property of their respective owners. {settings.site_title} is an independent ready-made garments manufacturer and exporter.
             </p>
           </div>
 
           {/* Bottom Copyright & Legal Row */}
           <div className="flex flex-col sm:flex-row items-center justify-between pt-6 gap-4 text-[13px] text-white/40">
-            <p>© {new Date().getFullYear()} {BUSINESS_PROFILE.name}. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} {settings.site_title}. All rights reserved.</p>
             <div className="flex items-center gap-6">
-              <Link href="#privacy" className="hover:text-white/70 transition-colors">
-                Privacy Policy
-              </Link>
-              <Link href="#terms" className="hover:text-white/70 transition-colors">
-                Terms &amp; Conditions
-              </Link>
+              {settings.legal_pages && settings.legal_pages.length > 0 ? (
+                settings.legal_pages.map((page) => (
+                  <Link
+                    key={page.type}
+                    href={page.url}
+                    className="hover:text-white/70 transition-colors"
+                  >
+                    {page.title}
+                  </Link>
+                ))
+              ) : (
+                <>
+                  <Link href="/privacy-policy" className="hover:text-white/70 transition-colors">
+                    Privacy Policy
+                  </Link>
+                  <Link href="/terms-and-conditions" className="hover:text-white/70 transition-colors">
+                    Terms &amp; Conditions
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
@@ -355,7 +366,7 @@ export default function Footer() {
 
       {/* Floating WhatsApp Button */}
       <a
-        href={getWhatsAppUrl(`Hi ${BUSINESS_PROFILE.name}, I have an inquiry regarding wholesale apparel sourcing.`)}
+        href={getWhatsAppUrl(`Hi ${settings.site_title}, I have an inquiry regarding wholesale apparel sourcing.`)}
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-[#25D366] text-white shadow-xl flex items-center justify-center hover:bg-[#20ba59] hover:scale-105 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

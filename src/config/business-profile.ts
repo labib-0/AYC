@@ -74,7 +74,21 @@ export const WHATSAPP_BUSINESS_URL = `https://wa.me/${WHATSAPP_BUSINESS_NUMBER.r
  * with optional safely URL-encoded prefilled text.
  */
 export function getWhatsAppUrl(prefilledText?: string): string {
-  const cleanNumber = WHATSAPP_BUSINESS_NUMBER.replace(/[^0-9]/g, "");
+  let targetNumber = WHATSAPP_BUSINESS_NUMBER;
+
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem("ayaan_site_settings_cache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.whatsapp?.number) {
+          targetNumber = String(parsed.whatsapp.number);
+        }
+      }
+    } catch {}
+  }
+
+  const cleanNumber = targetNumber.replace(/[^0-9]/g, "");
   if (!prefilledText) {
     return `https://wa.me/${cleanNumber}`;
   }

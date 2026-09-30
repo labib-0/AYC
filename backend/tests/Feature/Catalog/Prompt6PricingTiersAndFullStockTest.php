@@ -153,7 +153,7 @@ class Prompt6PricingTiersAndFullStockTest extends TestCase
         $this->assertEquals(28.00, $product->getResolvedFullStockPrice());
         $this->assertEquals(2240.00, $product->getEligibleFullStockTotal());
 
-        // Even if bulkThreshold is omitted (threshold defaults to MOQ = 80), 80 is not strictly greater than 80
+        // When bulk pricing is not configured / optional, full stock works when available stock equals MOQ (80 pcs)
         $productNoBulk = $this->createProductWithScenario(
             moq: 80,
             inventory: 80,
@@ -162,9 +162,9 @@ class Prompt6PricingTiersAndFullStockTest extends TestCase
             fullStockPrice: 18.00,
             wholesalePrice: 28.00
         );
-        $this->assertFalse($productNoBulk->isFullStockEligible());
+        $this->assertTrue($productNoBulk->isFullStockEligible());
         $this->assertEquals(80, $productNoBulk->getEligibleFullStockQuantity());
-        $this->assertEquals(28.00, $productNoBulk->getResolvedFullStockPrice());
+        $this->assertEquals(18.00, $productNoBulk->getResolvedFullStockPrice());
     }
 
     /**

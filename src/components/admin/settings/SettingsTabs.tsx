@@ -1,5 +1,5 @@
 import React from "react";
-import { User, Building2, ShieldCheck, Sliders } from "lucide-react";
+import { User, Building2, ShieldCheck, Sliders, Palette, Share2, FileText } from "lucide-react";
 
 export interface SettingsTabsProps {
   activeTab: string;
@@ -14,6 +14,9 @@ export default function SettingsTabs({
 }: SettingsTabsProps) {
   const tabs = [
     { id: "profile", label: "My Profile", icon: User },
+    { id: "branding", label: "Site Branding & Header", icon: Palette },
+    { id: "social", label: "Social Links & WhatsApp", icon: Share2 },
+    { id: "legal", label: "Legal Pages", icon: FileText },
     { id: "business", label: "Business Info", icon: Building2 },
     { id: "users", label: "Admin Management", icon: ShieldCheck, badge: adminCount },
     { id: "preferences", label: "System Preferences", icon: Sliders },

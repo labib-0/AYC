@@ -71,7 +71,7 @@ export default function OrderItemsTable({ items }: OrderItemsTableProps) {
                   {item.variant_title && <span>• {item.variant_title}</span>}
                 </div>
 
-                {/* Wholesale Package Breakdown Matrix */}
+                {/* Wholesale Package Assortment Matrix */}
                 {Array.isArray(breakdown) && breakdown.length > 0 && (
                   <div className="flex items-center gap-1.5 flex-wrap pt-1 text-[10px]">
                     <span className="text-muted-foreground font-bold uppercase">Size Matrix:</span>

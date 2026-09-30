@@ -27,6 +27,8 @@ interface ProductBasicInfoSectionProps {
   audience: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "";
   designType: "ORIGINAL" | "MASTER COPY" | "";
   material: string;
+  sizeDescription?: string;
+  colourDescription?: string;
   description: string;
   brands: BrandOption[];
   categories: CategoryOption[];
@@ -41,6 +43,8 @@ interface ProductBasicInfoSectionProps {
   onAudienceChange: (val: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "") => void;
   onDesignTypeChange: (val: "ORIGINAL" | "MASTER COPY" | "") => void;
   onMaterialChange: (val: string) => void;
+  onSizeDescriptionChange?: (val: string) => void;
+  onColourDescriptionChange?: (val: string) => void;
   onDescriptionChange: (val: string) => void;
   onBrandCreated?: (newBrand: BrandModel) => void;
 }
@@ -68,6 +72,8 @@ export default function ProductBasicInfoSection({
   audience,
   designType,
   material,
+  sizeDescription,
+  colourDescription,
   description,
   brands,
   categories,
@@ -82,6 +88,8 @@ export default function ProductBasicInfoSection({
   onAudienceChange,
   onDesignTypeChange,
   onMaterialChange,
+  onSizeDescriptionChange,
+  onColourDescriptionChange,
   onDescriptionChange,
   onBrandCreated,
 }: ProductBasicInfoSectionProps) {
@@ -272,73 +280,121 @@ export default function ProductBasicInfoSection({
           </div>
         </div>
 
-        {/* Audience & Design Type 2-Column */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Audience */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Audience <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={audience}
-              onChange={(e) =>
-                onAudienceChange(e.target.value as "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "")
-              }
-              className={selectClass(Boolean(errors.audience))}
-            >
-              <option value="">Select audience</option>
-              {AUDIENCE_OPTIONS.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
-            {errors.audience && (
-              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                <AlertCircle size={12} />
-                {errors.audience}
-              </p>
-            )}
-          </div>
-
-          {/* Design Type */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Design Type <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={designType}
-              onChange={(e) => onDesignTypeChange(e.target.value as "ORIGINAL" | "MASTER COPY" | "")}
-              className={selectClass(Boolean(errors.designType))}
-            >
-              <option value="">Select design type</option>
-              {DESIGN_TYPE_OPTIONS.map((dt) => (
-                <option key={dt} value={dt}>
-                  {dt}
-                </option>
-              ))}
-            </select>
-            {errors.designType && (
-              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                <AlertCircle size={12} />
-                {errors.designType}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Material */}
+        {/* Audience */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-            Material Composition
+            Audience <span className="text-red-500">*</span>
           </label>
-          <input
-            type="text"
-            value={material}
-            onChange={(e) => onMaterialChange(e.target.value)}
-            placeholder="e.g. 100% Combed Cotton, 280 GSM Brushed Fleece"
-            className={inputClass()}
-          />
+          <select
+            value={audience}
+            onChange={(e) =>
+              onAudienceChange(e.target.value as "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "")
+            }
+            className={selectClass(Boolean(errors.audience))}
+          >
+            <option value="">Select audience</option>
+            {AUDIENCE_OPTIONS.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+          {errors.audience && (
+            <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+              <AlertCircle size={12} />
+              {errors.audience}
+            </p>
+          )}
+        </div>
+
+        {/* Specifications: Design Type, Material, Size, Colour */}
+        <div className="p-4 rounded-xl border border-border/80 bg-secondary/10 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+              Specifications
+            </span>
+            <span className="text-[11px] text-muted-foreground font-medium">
+              Customer Storefront Tiles (Design Type, Material, Size, Colour)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Design Type */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+                Design Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={designType}
+                onChange={(e) => onDesignTypeChange(e.target.value as "ORIGINAL" | "MASTER COPY" | "")}
+                className={selectClass(Boolean(errors.designType))}
+              >
+                <option value="">Select design type</option>
+                {DESIGN_TYPE_OPTIONS.map((dt) => (
+                  <option key={dt} value={dt}>
+                    {dt}
+                  </option>
+                ))}
+              </select>
+              {errors.designType && (
+                <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                  <AlertCircle size={12} />
+                  {errors.designType}
+                </p>
+              )}
+            </div>
+
+            {/* Material */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+                Material
+              </label>
+              <input
+                type="text"
+                id="product-spec-material-input"
+                value={material}
+                onChange={(e) => onMaterialChange(e.target.value)}
+                placeholder="e.g. 100% Combed Cotton, 280 GSM Fleece"
+                className={inputClass()}
+              />
+            </div>
+
+            {/* Size */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+                Size
+              </label>
+              <input
+                type="text"
+                id="product-spec-size-input"
+                value={sizeDescription || ""}
+                onChange={(e) => onSizeDescriptionChange?.(e.target.value)}
+                placeholder="e.g. 28–38 or S–XXL"
+                className={inputClass()}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Admin-entered size text. Not derived from variants.
+              </p>
+            </div>
+
+            {/* Colour */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+                Colour
+              </label>
+              <input
+                type="text"
+                id="product-spec-colour-input"
+                value={colourDescription || ""}
+                onChange={(e) => onColourDescriptionChange?.(e.target.value)}
+                placeholder="e.g. Olive, Red, Navy"
+                className={inputClass()}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Admin-entered colour text. Not derived from variants.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Description */}

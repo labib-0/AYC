@@ -6,6 +6,7 @@ import { WishlistProvider } from "@/lib/WishlistContext";
 import { RfqProvider } from "@/lib/RfqContext";
 import { ProductModalProvider } from "@/lib/ProductModalContext";
 import { PreferencesProvider } from "@/lib/PreferencesContext";
+import { SiteSettingsProvider } from "@/lib/SiteSettingsContext";
 import { headers } from "next/headers";
 import StorefrontShell from "@/components/layout/StorefrontShell";
 import { generateOrganizationJsonLd, generateWebSiteJsonLd, SITE_URL } from "@/lib/seo";
@@ -108,17 +109,19 @@ export default async function RootLayout({
       </head>
       <body className={`${inter.variable} ${manrope.variable} font-sans bg-background text-foreground antialiased selection:bg-primary selection:text-primary-foreground`}>
         <AuthProvider>
-          <PreferencesProvider>
-            <CartProvider>
-              <WishlistProvider>
-                <RfqProvider>
-                  <ProductModalProvider>
-                    <StorefrontShell isAdminHost={isAdminHost}>{children}</StorefrontShell>
-                  </ProductModalProvider>
-                </RfqProvider>
-              </WishlistProvider>
-            </CartProvider>
-          </PreferencesProvider>
+          <SiteSettingsProvider>
+            <PreferencesProvider>
+              <CartProvider>
+                <WishlistProvider>
+                  <RfqProvider>
+                    <ProductModalProvider>
+                      <StorefrontShell isAdminHost={isAdminHost}>{children}</StorefrontShell>
+                    </ProductModalProvider>
+                  </RfqProvider>
+                </WishlistProvider>
+              </CartProvider>
+            </PreferencesProvider>
+          </SiteSettingsProvider>
         </AuthProvider>
       </body>
     </html>

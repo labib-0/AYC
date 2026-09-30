@@ -495,30 +495,41 @@ class ProductInitialInventoryTest extends TestCase
     /** 6. Bulk tier validation */
     public function test_6_bulk_tier_validation(): void
     {
-        // A. Missing bulk tier altogether
+        // A. Product without bulk tier succeeds (bulk pricing is now optional)
         $payloadNoTier = [
             'name' => 'No Bulk Tier',
             'slug' => 'no-bulk-tier',
             'sku' => 'SKU-NO-TIER',
+            'status' => 'published',
             'wholesale_price' => 20.00,
             'full_stock_price' => 15.00,
             'moq' => 50,
             'initial_stock' => 100,
             'warehouse_id' => $this->activeWarehouse->id,
+            'bulk_pricing_enabled' => false,
         ];
         $resNoTier = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $payloadNoTier);
-        $resNoTier->assertStatus(422);
+        $resNoTier->assertStatus(201);
+        $this->assertFalse((bool) $resNoTier->json('data.bulkPricingEnabled'));
+        $this->assertNull($resNoTier->json('data.bulkThreshold'));
+        $this->assertNull($resNoTier->json('data.bulkPrice'));
 
-        // B. Bulk threshold <= MOQ
+        // B. Bulk threshold <= MOQ when enabled
         $payloadThresholdLow = array_merge($payloadNoTier, [
+            'slug' => 'bulk-threshold-low',
+            'sku' => 'SKU-THRESH-LOW',
+            'bulk_pricing_enabled' => true,
             'bulk_threshold' => 50, // equal to MOQ 50
             'bulk_price' => 18.00,
         ]);
         $resThresholdLow = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $payloadThresholdLow);
         $resThresholdLow->assertStatus(422);
 
-        // C. Bulk price <= 0
+        // C. Bulk price <= 0 when enabled
         $payloadZeroPrice = array_merge($payloadNoTier, [
+            'slug' => 'bulk-zero-price',
+            'sku' => 'SKU-ZERO-PRICE',
+            'bulk_pricing_enabled' => true,
             'bulk_threshold' => 100,
             'bulk_price' => 0,
         ]);

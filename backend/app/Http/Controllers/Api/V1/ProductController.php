@@ -317,7 +317,7 @@ class ProductController extends ApiController
      */
     public function show(string $slugOrId): JsonResponse
     {
-        $user = auth('sanctum')->user();
+        $user = request()?->user() ?: (auth('sanctum')->user() ?: auth()->user());
         $isAdmin = $user && $user->isAdmin();
         $isCustomer = $user && $user->isCustomer();
 
@@ -402,6 +402,14 @@ class ProductController extends ApiController
             'short_description' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
             'material' => ['nullable', 'string'],
+            'size_description' => ['nullable', 'string', 'max:255'],
+            'sizeDescription' => ['nullable', 'string', 'max:255'],
+            'colour_description' => ['nullable', 'string', 'max:255'],
+            'colourDescription' => ['nullable', 'string', 'max:255'],
+            'package_assortment_visible' => ['nullable', 'boolean'],
+            'packageAssortmentVisible' => ['nullable', 'boolean'],
+            'package_assortment_message' => ['nullable', 'string'],
+            'packageAssortmentMessage' => ['nullable', 'string'],
             'color_name' => ['nullable', 'string'],
             'color_hex' => ['nullable', 'string'],
             'audience' => ['nullable', 'string'],
@@ -409,8 +417,14 @@ class ProductController extends ApiController
             'designType' => ['nullable', 'string'],
             'product_type' => ['nullable', 'string'],
             'wholesale_price' => [$isPublished ? 'required' : 'nullable', 'numeric', $isPublished ? 'min:0.01' : 'min:0'],
+            'bulk_pricing_enabled' => ['nullable', 'boolean'],
+            'bulkPricingEnabled' => ['nullable', 'boolean'],
             'bulk_threshold' => ['nullable', 'integer', 'min:1'],
+            'bulkThreshold' => ['nullable', 'integer', 'min:1'],
+            'bulk_minimum_quantity' => ['nullable', 'integer', 'min:1'],
             'bulk_price' => ['nullable', 'numeric', 'min:0.01'],
+            'bulkPrice' => ['nullable', 'numeric', 'min:0.01'],
+            'bulk_unit_price' => ['nullable', 'numeric', 'min:0.01'],
             'full_stock_price' => [$isPublished ? 'required' : 'nullable', 'numeric', $isPublished ? 'gt:0' : 'min:0'],
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0.01'],
@@ -504,9 +518,44 @@ class ProductController extends ApiController
         $productData = collect($validated)->except([
             'categories', 'images', 'variants', 'pricing_tiers', 'package_allocations', 'shipping_package_profiles',
             'new_brand_name', 'new_brand_logo', 'brand', 'designType',
+            'sizeDescription', 'colourDescription', 'packageAssortmentVisible', 'packageAssortmentMessage',
+            'bulkPricingEnabled', 'bulkThreshold', 'bulkPrice', 'bulk_minimum_quantity', 'bulk_unit_price',
             'featured_duration_days', 'hot_duration_days', 'new_duration_days',
             'initial_stock', 'stock', 'warehouse_id', 'initial_inventory',
         ])->toArray();
+
+        if (array_key_exists('sizeDescription', $validated) && !array_key_exists('size_description', $validated)) {
+            $productData['size_description'] = $validated['sizeDescription'];
+        }
+        if (array_key_exists('colourDescription', $validated) && !array_key_exists('colour_description', $validated)) {
+            $productData['colour_description'] = $validated['colourDescription'];
+        }
+        if (array_key_exists('packageAssortmentVisible', $validated) && !array_key_exists('package_assortment_visible', $validated)) {
+            $productData['package_assortment_visible'] = $validated['packageAssortmentVisible'];
+        }
+        if (array_key_exists('packageAssortmentMessage', $validated) && !array_key_exists('package_assortment_message', $validated)) {
+            $productData['package_assortment_message'] = $validated['packageAssortmentMessage'];
+        }
+
+        // Resolve explicit Bulk Pricing state
+        $isBulkExplicitlySet = $request->has('bulk_pricing_enabled') || $request->has('bulkPricingEnabled');
+        $isBulkEnabled = $isBulkExplicitlySet
+            ? ($request->boolean('bulk_pricing_enabled') || $request->boolean('bulkPricingEnabled'))
+            : (!empty($request->input('bulk_threshold') ?? $request->input('bulkThreshold') ?? $request->input('bulk_minimum_quantity'))
+               && !empty($request->input('bulk_price') ?? $request->input('bulkPrice') ?? $request->input('bulk_unit_price')));
+
+        $rawBulkThreshold = $request->input('bulk_threshold') ?? $request->input('bulkThreshold') ?? $request->input('bulk_minimum_quantity');
+        $rawBulkPrice = $request->input('bulk_price') ?? $request->input('bulkPrice') ?? $request->input('bulk_unit_price');
+
+        if ($isBulkEnabled) {
+            $productData['bulk_pricing_enabled'] = true;
+            $productData['bulk_threshold'] = !empty($rawBulkThreshold) ? (int) $rawBulkThreshold : null;
+            $productData['bulk_price'] = !empty($rawBulkPrice) ? (float) $rawBulkPrice : null;
+        } else {
+            $productData['bulk_pricing_enabled'] = false;
+            $productData['bulk_threshold'] = null;
+            $productData['bulk_price'] = null;
+        }
 
         // Autogenerate unique slug for drafts if not provided
         if (empty($productData['slug'])) {
@@ -672,23 +721,25 @@ class ProductController extends ApiController
 
         $hasPricingTiers = $request->has('pricing_tiers') && is_array($request->input('pricing_tiers')) && count($request->input('pricing_tiers')) > 0;
 
-        // Validate bulk tier pricing: only required when publishing
-        if ($isPublished) {
-            $hasDirectBulkTier = !empty($productData['bulk_threshold']) && !empty($productData['bulk_price']) && (float) $productData['bulk_price'] > 0;
+        // Validate bulk tier pricing: only validated when Bulk Pricing is ENABLED
+        if ($isBulkEnabled) {
+            $bulkThresh = $productData['bulk_threshold'];
+            $bulkPrice = $productData['bulk_price'];
 
-            if (!$hasDirectBulkTier && !$hasPricingTiers) {
-                return $this->error("At least one valid bulk pricing tier is required.", 422);
-            }
-
-            if (!empty($productData['bulk_threshold'])) {
-                if (empty($productData['bulk_price']) || (float) $productData['bulk_price'] <= 0) {
+            if ($isPublished) {
+                if (empty($bulkThresh)) {
+                    return $this->error("Bulk quantity threshold is required when bulk pricing is enabled.", 422);
+                }
+                if ((int) $bulkThresh <= $moq) {
+                    return $this->error("Bulk threshold ({$bulkThresh}) must be strictly greater than MOQ ({$moq}).", 422);
+                }
+                if (empty($bulkPrice) || (float) $bulkPrice <= 0) {
                     return $this->error("Bulk tier price must be greater than 0.", 422);
                 }
-                if ((int) $productData['bulk_threshold'] <= $moq) {
-                    return $this->error("Bulk threshold ({$productData['bulk_threshold']}) must be strictly greater than MOQ ({$moq}).", 422);
+            } else {
+                if (!empty($bulkThresh) && (int) $bulkThresh <= $moq) {
+                    return $this->error("Bulk threshold ({$bulkThresh}) must be strictly greater than MOQ ({$moq}).", 422);
                 }
-            } elseif (!empty($productData['bulk_price']) && (float) $productData['bulk_price'] > 0) {
-                return $this->error("Bulk quantity threshold is required when bulk price is provided.", 422);
             }
         }
 
@@ -871,7 +922,7 @@ class ProductController extends ApiController
                         'unit_price' => (float) $tier['unit_price'],
                     ]);
                 }
-            } elseif (!empty($product->bulk_threshold) && !empty($product->bulk_price)) {
+            } elseif ($product->bulk_pricing_enabled && !empty($product->bulk_threshold) && !empty($product->bulk_price)) {
                 \App\Models\ProductPricingTier::create([
                     'product_id' => $product->id,
                     'min_quantity' => $moq,
@@ -883,6 +934,13 @@ class ProductController extends ApiController
                     'min_quantity' => (int) $product->bulk_threshold,
                     'max_quantity' => null,
                     'unit_price' => (float) $product->bulk_price,
+                ]);
+            } else {
+                \App\Models\ProductPricingTier::create([
+                    'product_id' => $product->id,
+                    'min_quantity' => $moq,
+                    'max_quantity' => null,
+                    'unit_price' => (float) $product->wholesale_price,
                 ]);
             }
 
@@ -1011,6 +1069,14 @@ class ProductController extends ApiController
             'short_description' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
             'material' => ['nullable', 'string'],
+            'size_description' => ['nullable', 'string', 'max:255'],
+            'sizeDescription' => ['nullable', 'string', 'max:255'],
+            'colour_description' => ['nullable', 'string', 'max:255'],
+            'colourDescription' => ['nullable', 'string', 'max:255'],
+            'package_assortment_visible' => ['nullable', 'boolean'],
+            'packageAssortmentVisible' => ['nullable', 'boolean'],
+            'package_assortment_message' => ['nullable', 'string'],
+            'packageAssortmentMessage' => ['nullable', 'string'],
             'color_name' => ['nullable', 'string'],
             'color_hex' => ['nullable', 'string'],
             'audience' => ['nullable', 'string'],
@@ -1018,8 +1084,14 @@ class ProductController extends ApiController
             'designType' => ['nullable', 'string'],
             'product_type' => ['nullable', 'string'],
             'wholesale_price' => ['sometimes', 'numeric', $isPublished ? 'min:0.01' : 'min:0'],
+            'bulk_pricing_enabled' => ['nullable', 'boolean'],
+            'bulkPricingEnabled' => ['nullable', 'boolean'],
             'bulk_threshold' => ['nullable', 'integer', 'min:1'],
+            'bulkThreshold' => ['nullable', 'integer', 'min:1'],
+            'bulk_minimum_quantity' => ['nullable', 'integer', 'min:1'],
             'bulk_price' => ['nullable', 'numeric', 'min:0.01'],
+            'bulkPrice' => ['nullable', 'numeric', 'min:0.01'],
+            'bulk_unit_price' => ['nullable', 'numeric', 'min:0.01'],
             'full_stock_price' => ['sometimes', $isPublished ? 'required' : 'nullable', 'numeric', $isPublished ? 'gt:0' : 'min:0'],
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0.01'],
@@ -1093,7 +1165,7 @@ class ProductController extends ApiController
         }
 
         // Pricing protection
-        $hasPricingChanges = $request->hasAny(['wholesale_price', 'bulk_price', 'bulk_threshold', 'cost_price', 'full_stock_price', 'pricing_tiers']);
+        $hasPricingChanges = $request->hasAny(['wholesale_price', 'bulk_price', 'bulk_threshold', 'bulk_pricing_enabled', 'bulkPricingEnabled', 'cost_price', 'full_stock_price', 'pricing_tiers']);
         if ($hasPricingChanges && !$this->authorization->can($user, 'product.pricing.manage')) {
             return $this->forbidden("Forbidden: you do not have the 'product.pricing.manage' permission to update pricing.");
         }
@@ -1111,8 +1183,47 @@ class ProductController extends ApiController
         $productData = collect($validated)->except([
             'categories', 'images', 'variants', 'pricing_tiers', 'package_allocations', 'shipping_package_profiles',
             'new_brand_name', 'new_brand_logo', 'brand', 'designType',
+            'sizeDescription', 'colourDescription', 'packageAssortmentVisible', 'packageAssortmentMessage',
+            'bulkPricingEnabled', 'bulkThreshold', 'bulkPrice', 'bulk_minimum_quantity', 'bulk_unit_price',
             'featured_duration_days', 'hot_duration_days', 'new_duration_days'
         ])->toArray();
+
+        if (array_key_exists('sizeDescription', $validated) && !array_key_exists('size_description', $validated)) {
+            $productData['size_description'] = $validated['sizeDescription'];
+        }
+        if (array_key_exists('colourDescription', $validated) && !array_key_exists('colour_description', $validated)) {
+            $productData['colour_description'] = $validated['colourDescription'];
+        }
+        if (array_key_exists('packageAssortmentVisible', $validated) && !array_key_exists('package_assortment_visible', $validated)) {
+            $productData['package_assortment_visible'] = $validated['packageAssortmentVisible'];
+        }
+        if (array_key_exists('packageAssortmentMessage', $validated) && !array_key_exists('package_assortment_message', $validated)) {
+            $productData['package_assortment_message'] = $validated['packageAssortmentMessage'];
+        }
+
+        // Resolve explicit Bulk Pricing state on update
+        $isBulkExplicitlySet = $request->has('bulk_pricing_enabled') || $request->has('bulkPricingEnabled');
+        if ($isBulkExplicitlySet) {
+            $isBulkEnabled = $request->boolean('bulk_pricing_enabled') || $request->boolean('bulkPricingEnabled');
+            $productData['bulk_pricing_enabled'] = $isBulkEnabled;
+            if ($isBulkEnabled) {
+                $rawThresh = $request->input('bulk_threshold') ?? $request->input('bulkThreshold') ?? $request->input('bulk_minimum_quantity') ?? $product->bulk_threshold;
+                $rawPrice = $request->input('bulk_price') ?? $request->input('bulkPrice') ?? $request->input('bulk_unit_price') ?? $product->bulk_price;
+                $productData['bulk_threshold'] = !empty($rawThresh) ? (int) $rawThresh : null;
+                $productData['bulk_price'] = !empty($rawPrice) ? (float) $rawPrice : null;
+            } else {
+                $productData['bulk_threshold'] = null;
+                $productData['bulk_price'] = null;
+            }
+        } elseif ($request->hasAny(['bulk_threshold', 'bulkThreshold', 'bulk_minimum_quantity', 'bulk_price', 'bulkPrice', 'bulk_unit_price'])) {
+            $rawThresh = $request->input('bulk_threshold') ?? $request->input('bulkThreshold') ?? $request->input('bulk_minimum_quantity') ?? $product->bulk_threshold;
+            $rawPrice = $request->input('bulk_price') ?? $request->input('bulkPrice') ?? $request->input('bulk_unit_price') ?? $product->bulk_price;
+            if (!empty($rawThresh) && !empty($rawPrice) && (float) $rawPrice > 0) {
+                $productData['bulk_pricing_enabled'] = true;
+                $productData['bulk_threshold'] = (int) $rawThresh;
+                $productData['bulk_price'] = (float) $rawPrice;
+            }
+        }
 
         // Handle Promotional Badge Scheduling
         if (isset($validated['featured_duration_days']) && !empty($validated['featured_duration_days'])) {
@@ -1213,10 +1324,25 @@ class ProductController extends ApiController
         }
 
         $effectiveMoq = (int) ($productData['moq'] ?? $product->moq ?? 1);
-        $effectiveBulkThresh = isset($productData['bulk_threshold']) ? (int)$productData['bulk_threshold'] : (int)$product->bulk_threshold;
+        $effectiveBulkEnabled = isset($productData['bulk_pricing_enabled']) ? (bool)$productData['bulk_pricing_enabled'] : (bool)$product->bulk_pricing_enabled;
 
-        if ($isPublished && $effectiveBulkThresh > 0 && $effectiveBulkThresh <= $effectiveMoq) {
-            return $this->error("Bulk threshold ({$effectiveBulkThresh}) must be strictly greater than MOQ ({$effectiveMoq})", 422);
+        if ($effectiveBulkEnabled) {
+            $effectiveBulkThresh = isset($productData['bulk_threshold']) ? (int)$productData['bulk_threshold'] : (int)$product->bulk_threshold;
+            $effectiveBulkPrice = isset($productData['bulk_price']) ? (float)$productData['bulk_price'] : (float)$product->bulk_price;
+
+            if ($isPublished) {
+                if (empty($effectiveBulkThresh)) {
+                    return $this->error("Bulk quantity threshold is required when bulk pricing is enabled.", 422);
+                }
+                if ($effectiveBulkThresh <= $effectiveMoq) {
+                    return $this->error("Bulk threshold ({$effectiveBulkThresh}) must be strictly greater than MOQ ({$effectiveMoq})", 422);
+                }
+                if (empty($effectiveBulkPrice) || $effectiveBulkPrice <= 0) {
+                    return $this->error("Bulk tier price must be greater than 0.", 422);
+                }
+            } elseif ($effectiveBulkThresh > 0 && $effectiveBulkThresh <= $effectiveMoq) {
+                return $this->error("Bulk threshold ({$effectiveBulkThresh}) must be strictly greater than MOQ ({$effectiveMoq})", 422);
+            }
         }
 
         // Update purchase_price_updated_at when a valid cost_price > 0 is being saved
@@ -1375,7 +1501,7 @@ class ProductController extends ApiController
                     'unit_price' => (float) $tier['unit_price'],
                 ]);
             }
-        } elseif ($product->bulk_threshold && $product->bulk_price) {
+        } elseif ($product->bulk_pricing_enabled && $product->bulk_threshold && $product->bulk_price) {
             $product->pricingTiers()->delete();
             \App\Models\ProductPricingTier::create([
                 'product_id' => $product->id,
@@ -1388,6 +1514,14 @@ class ProductController extends ApiController
                 'min_quantity' => (int) $product->bulk_threshold,
                 'max_quantity' => null,
                 'unit_price' => (float) $product->bulk_price,
+            ]);
+        } else {
+            $product->pricingTiers()->delete();
+            \App\Models\ProductPricingTier::create([
+                'product_id' => $product->id,
+                'min_quantity' => $effectiveMoq,
+                'max_quantity' => null,
+                'unit_price' => (float) $product->wholesale_price,
             ]);
         }
 

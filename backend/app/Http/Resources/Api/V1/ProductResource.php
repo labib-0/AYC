@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api\V1;
 
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -56,6 +57,14 @@ class ProductResource extends JsonResource
             'shortDescription' => $this->short_description ?: '',
             'description' => $this->description ?: '',
             'material' => $this->material ?: '100% Cotton',
+            'size_description' => $this->size_description,
+            'sizeDescription' => $this->size_description,
+            'colour_description' => $this->colour_description,
+            'colourDescription' => $this->colour_description,
+            'package_assortment_visible' => (bool) ($this->package_assortment_visible ?? true),
+            'packageAssortmentVisible' => (bool) ($this->package_assortment_visible ?? true),
+            'package_assortment_message' => $this->package_assortment_message ?: Product::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
+            'packageAssortmentMessage' => $this->package_assortment_message ?: Product::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
             'colorName' => $this->color_name ?: null,
             'videoUrl' => $this->video_url ?: '',
             'videoProvider' => $this->getVideoProvider(),
@@ -64,8 +73,12 @@ class ProductResource extends JsonResource
             'price' => $effectivePrice,
             'wholesalePrice' => (float) $this->wholesale_price,
             'standardPrice' => (float) $this->wholesale_price,
-            'bulkThreshold' => $this->bulk_threshold !== null ? (int) $this->bulk_threshold : null,
-            'bulkPrice' => $this->bulk_price !== null ? (float) $this->bulk_price : null,
+            'bulkPricingEnabled' => (bool) ($this->bulk_pricing_enabled ?? false),
+            'bulk_pricing_enabled' => (bool) ($this->bulk_pricing_enabled ?? false),
+            'bulkThreshold' => ($this->bulk_pricing_enabled || $isAdmin) && $this->bulk_threshold !== null ? (int) $this->bulk_threshold : null,
+            'bulkPrice' => ($this->bulk_pricing_enabled || $isAdmin) && $this->bulk_price !== null ? (float) $this->bulk_price : null,
+            'bulk_minimum_quantity' => ($this->bulk_pricing_enabled || $isAdmin) && $this->bulk_threshold !== null ? (int) $this->bulk_threshold : null,
+            'bulk_unit_price' => ($this->bulk_pricing_enabled || $isAdmin) && $this->bulk_price !== null ? (float) $this->bulk_price : null,
             'fullStockPrice' => (float) $this->getResolvedFullStockPrice(),
             'configuredFullStockPrice' => $this->full_stock_price !== null ? (float) $this->full_stock_price : null,
             'isFullStockEligible' => (bool) $this->isFullStockEligible(),
@@ -129,7 +142,10 @@ class ProductResource extends JsonResource
                     'unit_price' => (float) $t->unit_price,
                 ]);
             }),
-            'package_allocations' => $this->whenLoaded('packageAllocations', function () {
+            'package_allocations' => $this->whenLoaded('packageAllocations', function () use ($isAdmin) {
+                if (!$isAdmin && !($this->package_assortment_visible ?? true)) {
+                    return [];
+                }
                 return $this->packageAllocations->map(fn($pa) => [
                     'id' => $pa->id,
                     'package_name' => $pa->package_name ?? 'Universal Package',

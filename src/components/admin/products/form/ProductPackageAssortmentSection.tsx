@@ -177,7 +177,7 @@ export default function ProductPackageAssortmentSection({
     return (
       <div className="py-6 px-4 text-center">
         <p className="text-xs text-muted-foreground font-medium">
-          Add colors or sizes to configure package breakdown.
+          Add colors or sizes to configure package assortment.
         </p>
       </div>
     );

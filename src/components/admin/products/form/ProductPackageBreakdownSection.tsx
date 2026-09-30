@@ -48,11 +48,16 @@ export function parseSizesInput(input: string): string[] {
   });
 }
 
+export const DEFAULT_PACKAGE_ASSORTMENT_MESSAGE =
+  "Each package includes a mixed assortment of all available colours and sizes. All listed colours and sizes will be included in the package. Quantity may vary by colour and size due to original surplus stock availability.";
+
 const UNIVERSAL_PACKAGE_NAME = "Universal Package";
 
 interface ProductPackageBreakdownSectionProps {
-  isHiddenFromStorefront: boolean;
-  onIsHiddenFromStorefrontChange: (hidden: boolean) => void;
+  packageAssortmentVisible?: boolean;
+  onPackageAssortmentVisibleChange?: (visible: boolean) => void;
+  packageAssortmentMessage?: string;
+  onPackageAssortmentMessageChange?: (message: string) => void;
   colors: string[];
   sizes: string[];
   allocations: PackageAllocation[];
@@ -64,8 +69,10 @@ interface ProductPackageBreakdownSectionProps {
 }
 
 export default function ProductPackageBreakdownSection({
-  isHiddenFromStorefront,
-  onIsHiddenFromStorefrontChange,
+  packageAssortmentVisible = true,
+  onPackageAssortmentVisibleChange,
+  packageAssortmentMessage = DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
+  onPackageAssortmentMessageChange,
   colors,
   sizes,
   allocations,
@@ -316,57 +323,91 @@ export default function ProductPackageBreakdownSection({
   }, [colors, sizes, cellMap]);
 
   return (
-    <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs" id="section-package-breakdown">
-      {/* 11 & 12. Minimal Header: PACKAGE BREAKDOWN + [HIDE FROM STOREFRONT] + [COLLAPSE] */}
+    <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs" id="section-package-assortment">
+      {/* Minimal Header: PACKAGE ASSORTMENT + [HIDE PACKAGE ASSORTMENT] + [COLLAPSE] */}
       <div className="border-b border-border/60 pb-3 flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
-          PACKAGE BREAKDOWN
-        </h2>
+        <div>
+          <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
+            PACKAGE ASSORTMENT
+          </h2>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Configure color & size mix per package. Hiding applies ONLY to the assortment matrix on the storefront.
+          </p>
+        </div>
 
         <div className="flex items-center gap-2">
-          {/* A. HIDE FROM STOREFRONT (Real Product Visibility Control) */}
+          {/* HIDE PACKAGE ASSORTMENT (Only affects Package Assortment matrix, NOT product visibility) */}
           <button
             type="button"
-            id="toggle-storefront-visibility-btn"
-            onClick={() => onIsHiddenFromStorefrontChange(!isHiddenFromStorefront)}
+            id="toggle-package-assortment-visibility-btn"
+            onClick={() => onPackageAssortmentVisibleChange?.(!packageAssortmentVisible)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
-              isHiddenFromStorefront
+              !packageAssortmentVisible
                 ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
                 : "bg-secondary text-foreground border-border hover:bg-secondary/80"
             }`}
             title={
-              isHiddenFromStorefront
-                ? "Product is currently hidden from customer storefront. Click to make eligible for storefront visibility."
-                : "Product is eligible for storefront visibility. Click to hide from customer storefront."
+              !packageAssortmentVisible
+                ? "Package Assortment is currently hidden from customer storefront. Click to show matrix."
+                : "Package Assortment is visible to customers. Click to hide matrix and show informational message."
             }
           >
-            {isHiddenFromStorefront ? (
+            {!packageAssortmentVisible ? (
               <>
                 <EyeOff size={13} className="shrink-0 text-amber-700 dark:text-amber-400" />
-                <span>HIDDEN FROM STOREFRONT</span>
+                <span>PACKAGE ASSORTMENT HIDDEN</span>
               </>
             ) : (
               <>
                 <Eye size={13} className="shrink-0 text-muted-foreground" />
-                <span>HIDE FROM STOREFRONT</span>
+                <span>HIDE PACKAGE ASSORTMENT</span>
               </>
             )}
           </button>
 
-          {/* B. COLLAPSE (Purely UI Convenience) */}
+          {/* COLLAPSE */}
           <button
             type="button"
-            id="collapse-package-breakdown-btn"
+            id="collapse-package-assortment-btn"
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="p-1.5 rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer"
             title={isCollapsed ? "Expand section" : "Collapse section"}
-            aria-label={isCollapsed ? "Expand Package Breakdown section" : "Collapse Package Breakdown section"}
+            aria-label={isCollapsed ? "Expand Package Assortment section" : "Collapse Package Assortment section"}
             aria-expanded={!isCollapsed}
           >
             {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
           </button>
         </div>
       </div>
+
+      {/* Package Assortment Informational Message (when assortment is hidden from storefront) */}
+      {!isCollapsed && !packageAssortmentVisible && (
+        <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <label className="block text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300">
+              PACKAGE ASSORTMENT MESSAGE
+            </label>
+            <button
+              type="button"
+              onClick={() => onPackageAssortmentMessageChange?.(DEFAULT_PACKAGE_ASSORTMENT_MESSAGE)}
+              className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+            >
+              Reset to Default Text
+            </button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            This informational message is displayed to customer storefront buyers in place of the assortment matrix when Package Assortment is hidden. The product itself remains fully visible and purchasable.
+          </p>
+          <textarea
+            id="package-assortment-message-input"
+            rows={3}
+            value={packageAssortmentMessage ?? DEFAULT_PACKAGE_ASSORTMENT_MESSAGE}
+            onChange={(e) => onPackageAssortmentMessageChange?.(e.target.value)}
+            placeholder={DEFAULT_PACKAGE_ASSORTMENT_MESSAGE}
+            className="w-full p-3 rounded-lg border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors leading-relaxed resize-y"
+          />
+        </div>
+      )}
 
       {/* Section Content (hidden only when collapsed) */}
       {!isCollapsed && (

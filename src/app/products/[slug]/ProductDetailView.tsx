@@ -116,12 +116,19 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   const standardPrice = product?.standardPrice ?? product?.wholesalePrice ?? 28.0;
 
   // 2. Bulk Tier Threshold and Unit Price
-  const bulkTierFromList = product?.pricingTiers?.find(t => t.min_quantity > moq);
-  const bulkThreshold = product?.bulkThreshold 
-    ?? (bulkTierFromList ? bulkTierFromList.min_quantity : moq * 20); // Default dynamic 20x MOQ if unspecified
-  
-  const bulkPrice = product?.bulkPrice 
-    ?? (bulkTierFromList ? bulkTierFromList.unit_price : Math.round(standardPrice * 0.8 * 100) / 100);
+  const bulkPricingEnabled = product?.bulkPricingEnabled !== undefined
+    ? Boolean(product.bulkPricingEnabled)
+    : (product as any)?.bulk_pricing_enabled !== undefined
+    ? Boolean((product as any).bulk_pricing_enabled)
+    : Boolean(product?.bulkThreshold && product?.bulkPrice);
+
+  const bulkTierFromList = product?.pricingTiers?.find(t => t.min_quantity > moq && t.min_quantity !== (product?.availableStock ?? product?.stock));
+  const rawBulkThreshold = product?.bulkThreshold ?? (bulkTierFromList ? bulkTierFromList.min_quantity : undefined);
+  const rawBulkPrice = product?.bulkPrice ?? (bulkTierFromList ? bulkTierFromList.unit_price : undefined);
+
+  const hasBulkTier = Boolean(bulkPricingEnabled && rawBulkThreshold && rawBulkPrice && Number(rawBulkThreshold) > moq && Number(rawBulkPrice) > 0);
+  const bulkThreshold = hasBulkTier ? Number(rawBulkThreshold) : undefined;
+  const bulkPrice = hasBulkTier ? Number(rawBulkPrice) : undefined;
 
   const variants = useMemo<any[]>(() => {
     if (!product?.variants) return [];
@@ -192,9 +199,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
   // FULL STOCK OPTION IS ALWAYS VISIBLE
   // Price is conditional:
-  // IF Available Inventory > Minimum Bulk Order Quantity -> full_stock_price
-  // ELSE -> normal MOQ / standard applicable price
-  const bulkMinimum = (bulkThreshold !== undefined && bulkThreshold > 0) ? bulkThreshold : moq;
+  // IF Bulk is configured: Available Inventory > Minimum Bulk Order Quantity -> full_stock_price
+  // IF Bulk is NOT configured: Available Inventory >= MOQ -> full_stock_price
+  const isFullStockQualified = hasBulkTier && bulkThreshold !== undefined
+    ? (availableInventory > bulkThreshold)
+    : (availableInventory >= moq);
 
   const configuredFullStockPrice = product?.configuredFullStockPrice !== undefined && product?.configuredFullStockPrice !== null
     ? Number(product.configuredFullStockPrice)
@@ -205,12 +214,9 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   // Authoritative Normal MOQ Price
   const normalMoqPrice = standardPrice;
 
-  // Authoritative Full Stock Price selection:
-  // Available Inventory > Minimum Bulk Order Quantity
-  //   YES -> full_stock_price
-  //   NO  -> normal MOQ / standard applicable price
+  // Authoritative Full Stock Price selection
   const resolvedFullStockPrice = useMemo(() => {
-    if (availableInventory > bulkMinimum) {
+    if (isFullStockQualified) {
       if (configuredFullStockPrice !== null && configuredFullStockPrice > 0) {
         return Math.min(configuredFullStockPrice, normalMoqPrice);
       }
@@ -219,20 +225,20 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
       }
     }
     return normalMoqPrice;
-  }, [availableInventory, bulkMinimum, configuredFullStockPrice, normalMoqPrice, product?.fullStockPrice]);
+  }, [isFullStockQualified, configuredFullStockPrice, normalMoqPrice, product?.fullStockPrice]);
 
-  const isFullStockEligible = availableInventory > bulkMinimum && configuredFullStockPrice !== null && configuredFullStockPrice > 0;
+  const isFullStockEligible = isFullStockQualified && configuredFullStockPrice !== null && configuredFullStockPrice > 0;
 
   const fullStockTotal = Math.round(fullStockQuantity * resolvedFullStockPrice * 100) / 100;
 
   // Purchasing Mode Resolution: Full Stock is automatically selected when quantity === available inventory
   const isFullStock = fullStockQuantity > 0 && quantity === fullStockQuantity;
-  const isBulk = !isFullStock && quantity >= bulkThreshold;
+  const isBulk = !isFullStock && hasBulkTier && bulkThreshold !== undefined && quantity >= bulkThreshold;
   const isStandard = !isFullStock && !isBulk;
 
   const currentPrice = isFullStock 
     ? resolvedFullStockPrice 
-    : (isBulk ? bulkPrice : standardPrice);
+    : (isBulk && bulkPrice ? bulkPrice : standardPrice);
 
   // Extract YouTube Video
   const youtubeEmbedUrl = useMemo(() => {
@@ -362,6 +368,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   };
 
   const handleSelectBulk = () => {
+    if (!hasBulkTier || bulkThreshold === undefined) return;
     setSelectedTier("bulk");
     const validBulkQty = Math.ceil(bulkThreshold / moq) * moq;
     const targetQty = fullStockQuantity > 0 ? Math.min(validBulkQty, fullStockQuantity) : validBulkQty;
@@ -386,7 +393,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     setQuantity(nextQty);
     if (nextQty === fullStockQuantity) {
       setSelectedTier("full_stock");
-    } else if (nextQty >= bulkThreshold) {
+    } else if (hasBulkTier && bulkThreshold !== undefined && nextQty >= bulkThreshold) {
       setSelectedTier("bulk");
     } else {
       setSelectedTier("standard");
@@ -408,7 +415,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     setQuantity(prevQty);
     if (fullStockQuantity > 0 && prevQty === fullStockQuantity) {
       setSelectedTier("full_stock");
-    } else if (prevQty >= bulkThreshold) {
+    } else if (hasBulkTier && bulkThreshold !== undefined && prevQty >= bulkThreshold) {
       setSelectedTier("bulk");
     } else {
       setSelectedTier("standard");
@@ -606,7 +613,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   title="Specifications"
                   icon={<Sliders size={14} />}
                 />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-sans">
+                <div className="grid grid-cols-2 gap-2 text-xs font-sans">
+                  {/* Tile 1: Design Type */}
                   <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
                     <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
                       Design Type
@@ -617,16 +625,42 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                         : "ORIGINAL"}
                     </span>
                   </div>
-                  {product.material && (
-                    <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
-                      <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
-                        Material
-                      </span>
-                      <span className="font-semibold text-foreground block truncate" title={product.material}>
-                        {product.material}
-                      </span>
-                    </div>
-                  )}
+
+                  {/* Tile 2: Material */}
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
+                    <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
+                      Material
+                    </span>
+                    <span className="font-semibold text-foreground block truncate" title={product.material || undefined}>
+                      {product.material || "—"}
+                    </span>
+                  </div>
+
+                  {/* Tile 3: Size (Explicit admin entry only — NEVER derived from variants) */}
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
+                    <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
+                      Size
+                    </span>
+                    <span
+                      className="font-semibold text-foreground block truncate"
+                      title={product.sizeDescription || product.size_description || undefined}
+                    >
+                      {product.sizeDescription || product.size_description || "—"}
+                    </span>
+                  </div>
+
+                  {/* Tile 4: Colour (Explicit admin entry only — NEVER derived from variants) */}
+                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
+                    <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
+                      Colour
+                    </span>
+                    <span
+                      className="font-semibold text-foreground block truncate"
+                      title={product.colourDescription || product.colour_description || undefined}
+                    >
+                      {product.colourDescription || product.colour_description || "—"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -760,20 +794,22 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 {/* STANDARD TIER */}
                 <PricingTierOption
                   name="Standard"
-                  quantityRange={`${moq}–${bulkThreshold - 1} pcs`}
+                  quantityRange={hasBulkTier && bulkThreshold !== undefined ? `${moq}–${bulkThreshold - 1} pcs` : `${moq}+ pcs`}
                   unitPrice={standardPrice}
                   isSelected={isStandard}
                   onSelect={handleSelectStandard}
                 />
 
-                {/* BULK TIER */}
-                <PricingTierOption
-                  name="Bulk"
-                  quantityRange={`${bulkThreshold}+ pcs`}
-                  unitPrice={bulkPrice}
-                  isSelected={isBulk}
-                  onSelect={handleSelectBulk}
-                />
+                {/* BULK TIER (OPTIONAL) */}
+                {hasBulkTier && bulkThreshold !== undefined && bulkPrice !== undefined && (
+                  <PricingTierOption
+                    name="Bulk"
+                    quantityRange={`${bulkThreshold}+ pcs`}
+                    unitPrice={bulkPrice}
+                    isSelected={isBulk}
+                    onSelect={handleSelectBulk}
+                  />
+                )}
 
                 {/* FULL STOCK TIER - ALWAYS VISIBLE */}
                 <PricingTierOption
@@ -833,11 +869,23 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             </div>
 
             {/* LEVEL 3.3: PACKAGE ASSORTMENT COMMERCE MODULE */}
-            {matrixData ? (
+            {(product?.packageAssortmentVisible === false || (product as any)?.package_assortment_visible === false) ? (
               <div>
                 <div className="rounded-lg border border-border/80 bg-secondary/15 p-2.5 sm:p-3 space-y-2 shadow-2xs">
                   <CommerceSectionHeader
-                    title="Package Breakdown"
+                    title="Package Assortment"
+                    icon={<Package size={15} />}
+                  />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {product?.packageAssortmentMessage || (product as any)?.package_assortment_message || "Each package includes a mixed assortment of all available colours and sizes. All listed colours and sizes will be included in the package. Quantity may vary by colour and size due to original surplus stock availability."}
+                  </p>
+                </div>
+              </div>
+            ) : matrixData ? (
+              <div>
+                <div className="rounded-lg border border-border/80 bg-secondary/15 p-2.5 sm:p-3 space-y-2 shadow-2xs">
+                  <CommerceSectionHeader
+                    title="Package Assortment"
                     icon={<Package size={15} />}
                     badge={
                       <span className="text-[11px] font-sans font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-background border border-border/70 text-foreground tabular-nums">
@@ -856,7 +904,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               <div>
                 <div className="rounded-md border border-border/80 bg-secondary/15 px-2.5 py-1.5 flex items-center gap-2.5 shadow-2xs">
                   <CommerceSectionHeader
-                    title="Package Details"
+                    title="Package Assortment"
                     icon={<Package size={13} />}
                     className="pb-0 mb-0 flex-1"
                   />

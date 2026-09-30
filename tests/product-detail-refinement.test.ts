@@ -90,8 +90,8 @@ test("Matrix is rendered only when package allocations exist and have positive t
   expect(detailSrc).toContain("<PackageAssortmentMatrix");
 });
 
-test("Header is single and unrepeated: [icon] PACKAGE BREAKDOWN [X PCS TOTAL]", () => {
-  expect(detailSrc).toContain('title="Package Breakdown"');
+test("Header is single and unrepeated: [icon] PACKAGE ASSORTMENT [X PCS TOTAL]", () => {
+  expect(detailSrc).toContain('title="Package Assortment"');
   expect(detailSrc).toContain("${matrixData.grandTotal.toLocaleString()} PCS TOTAL");
   expect(detailSrc).notToContain("Warehouse Inventory Matrix");
   expect(detailSrc).notToContain("Breakdown Matrix");
@@ -100,7 +100,7 @@ test("Header is single and unrepeated: [icon] PACKAGE BREAKDOWN [X PCS TOTAL]", 
 // ▶ Suite B: Product without Package Breakdown
 console.log("\n▶ Suite B: Product without Package Breakdown");
 test("Fallback state is compact 'See product images.' without 0 PCS TOTAL or empty table", () => {
-  expect(detailSrc).toContain('title="Package Details"');
+  expect(detailSrc).toContain('title="Package Assortment"');
   expect(detailSrc).toContain("See product images.");
   expect(detailSrc).notToContain("0 PCS TOTAL");
 });

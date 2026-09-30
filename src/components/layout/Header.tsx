@@ -21,12 +21,14 @@ import LanguageCurrencyModal from "./LanguageCurrencyModal";
 import AuthModal from "../auth/AuthModal";
 import SearchOverlay from "./SearchOverlay";
 import BrandName from "../common/BrandName";
+import HeaderBranding from "../common/HeaderBranding";
 import { useCart } from "@/lib/CartContext";
 import { useWishlist } from "@/lib/WishlistContext";
 import { usePreferences } from "@/lib/PreferencesContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useRfq } from "@/lib/RfqContext";
-import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
+import { useSiteSettings } from "@/lib/SiteSettingsContext";
+import BUSINESS_PROFILE from "@/config/business-profile";
 
 const AUDIENCE_MENU_ITEMS = [
   { label: "MEN", href: "/search?audience=MEN" },
@@ -106,6 +108,7 @@ function HeaderContent() {
   const { preferences } = usePreferences();
   const { user, signOut } = useAuth();
   const { totalRfqCount } = useRfq();
+  const { settings, getWhatsAppUrl } = useSiteSettings();
 
   // Optimized single-listener scroll detection with hysteresis and requestAnimationFrame
   useEffect(() => {
@@ -276,9 +279,14 @@ function HeaderContent() {
       >
         {/* DESKTOP HEADER (Untouched, Full Desktop Bar) */}
         <div className="hidden lg:flex items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-8 py-3 gap-6 text-white max-w-[1728px] 2xl:max-w-[1760px] mx-auto">
-          {/* Logo */}
-          <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 shrink-0 group" aria-label="Ayaan Clothing Home">
-            <BrandName className="font-black text-2xl xl:text-3xl tracking-widest text-white group-hover:text-white/90 transition-colors" />
+          {/* Logo & Website Title */}
+          <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 shrink-0 group" aria-label={`${settings.site_title} Home`}>
+            <HeaderBranding
+              siteTitle={settings.site_title}
+              siteLogo={settings.site_logo}
+              className="flex items-center gap-3 shrink-0 group-hover:opacity-95 transition-opacity"
+              titleClassName="font-black text-2xl xl:text-3xl tracking-widest text-white group-hover:text-white/90 transition-colors"
+            />
           </Link>
 
           {/* Search Bar */}
@@ -471,7 +479,7 @@ function HeaderContent() {
                 </button>
               </div>
 
-              {/* Scrolled-State Compact Logo: AYC (Left) */}
+              {/* Scrolled-State Compact Logo (Left) */}
               <div
                 className={`transition-all duration-250 ease-out motion-reduce:transition-none flex items-center overflow-hidden ${
                   isCompact
@@ -483,11 +491,21 @@ function HeaderContent() {
                   href="/"
                   onClick={handleLogoClick}
                   className="font-brand font-black text-[1.2rem] sm:text-[1.25rem] tracking-tight select-none text-white leading-none shrink-0 flex items-center hover:opacity-90 transition-opacity"
-                  aria-label="Ayaan Clothing Home"
+                  aria-label={`${settings.site_title} Home`}
                 >
-                  <span className="text-[#EA580C]">A</span>
-                  <span>Y</span>
-                  <span className="text-[#EA580C]">C</span>
+                  {settings.site_logo ? (
+                    <img
+                      src={settings.site_logo}
+                      alt={settings.site_title}
+                      className="h-6 w-auto max-w-full object-contain pointer-events-none"
+                    />
+                  ) : (
+                    <>
+                      <span className="text-[#EA580C]">A</span>
+                      <span>Y</span>
+                      <span className="text-[#EA580C]">C</span>
+                    </>
+                  )}
                 </Link>
               </div>
             </div>
@@ -496,21 +514,27 @@ function HeaderContent() {
             <div className={`flex-1 min-w-0 flex items-center relative transition-all duration-250 ease-out motion-reduce:transition-none ${
               isCompact ? "justify-start px-2 sm:px-2.5" : "justify-center"
             }`}>
-              {/* Top-State Full Brand Wordmark: AYAAN CLOTHING */}
+              {/* Top-State Full Brand Header: [ LOGO CONTAINER ] [ WEBSITE TITLE ] */}
               <div
                 className={`transition-all duration-250 ease-out motion-reduce:transition-none flex items-center justify-center ${
                   isCompact
                     ? "opacity-0 scale-90 pointer-events-none absolute"
-                    : "opacity-100 scale-100 pointer-events-auto relative max-w-[70%]"
+                    : "opacity-100 scale-100 pointer-events-auto relative max-w-[80%]"
                 }`}
               >
                 <Link
                   href="/"
                   onClick={handleLogoClick}
                   className="pointer-events-auto flex items-center justify-center"
-                  aria-label="Ayaan Clothing Home"
+                  aria-label={`${settings.site_title} Home`}
                 >
-                  <BrandName className="font-black text-xl sm:text-2xl tracking-widest text-white leading-tight truncate" />
+                  <HeaderBranding
+                    siteTitle={settings.site_title}
+                    siteLogo={settings.site_logo}
+                    className="flex items-center gap-2 sm:gap-2.5 shrink-0"
+                    titleClassName="font-black text-lg sm:text-xl tracking-widest text-white leading-tight truncate"
+                    logoHeightClass="h-6 sm:h-7"
+                  />
                 </Link>
               </div>
 
@@ -692,8 +716,14 @@ function HeaderContent() {
         }`}
       >
         <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <Link href="/" className="flex items-center" onClick={(e) => { closeMobileMenu(); handleLogoClick(e); }} aria-label="Ayaan Clothing Home">
-            <BrandName className="font-bold text-xl tracking-widest text-white" />
+          <Link href="/" className="flex items-center" onClick={(e) => { closeMobileMenu(); handleLogoClick(e); }} aria-label={`${settings.site_title} Home`}>
+            <HeaderBranding
+              siteTitle={settings.site_title}
+              siteLogo={settings.site_logo}
+              className="flex items-center gap-2.5 shrink-0"
+              titleClassName="font-bold text-xl tracking-widest text-white"
+              logoHeightClass="h-7"
+            />
           </Link>
           <button 
             type="button"
@@ -925,7 +955,7 @@ function HeaderContent() {
 
             {/* Official WhatsApp Help Contact */}
             <a 
-              href={getWhatsAppUrl(`Hi ${BUSINESS_PROFILE.name}, I need assistance with customer support.`)}
+              href={getWhatsAppUrl(`Hi ${settings.site_title}, I need assistance with customer support.`)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between py-2 text-[#25D366]"

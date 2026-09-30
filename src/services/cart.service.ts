@@ -118,25 +118,48 @@ export class CartService {
    */
   public calculateTierUnitPrice(product: Product, quantity: number, pricingMode?: string): number {
     const basePrice = product.wholesalePrice || product.price || 15;
-    const bulkThreshold = product.bulkThreshold || 200;
-    const bulkPrice = product.bulkPrice || Math.round(basePrice * 0.8 * 100) / 100;
+    const hasBulkTier = Boolean(
+      (product as any).bulkPricingEnabled ?? (product as any).bulk_pricing_enabled ?? (product.bulkThreshold && product.bulkPrice)
+    );
+    const bulkThreshold = hasBulkTier && product.bulkThreshold ? Number(product.bulkThreshold) : null;
+    const bulkPrice = hasBulkTier && product.bulkPrice ? Number(product.bulkPrice) : null;
     const configuredFullStockPrice = product.configuredFullStockPrice ?? product.fullStockPrice;
     const availableStock = product.availableStock ?? 0;
     const moqVal = product.moq || 1;
     const maxCompletePackages = product.maxCompletePackages ?? Math.floor(availableStock / moqVal);
     const completeStock = product.completePackageStock ?? (maxCompletePackages * moqVal);
 
-    if (pricingMode === "full_stock" || (availableStock > 0 && (quantity === availableStock || (completeStock > 0 && quantity === completeStock)))) {
-      if (availableStock > bulkThreshold && configuredFullStockPrice !== undefined && configuredFullStockPrice !== null && configuredFullStockPrice > 0) {
-        return Math.min(configuredFullStockPrice, basePrice);
+    // Full Stock price resolution
+    const isFullStockQualified = hasBulkTier && bulkThreshold !== null
+      ? availableStock > bulkThreshold
+      : availableStock >= moqVal;
+
+    const resolvedFullStockPrice = (isFullStockQualified && configuredFullStockPrice !== undefined && configuredFullStockPrice !== null && configuredFullStockPrice > 0)
+      ? Math.min(configuredFullStockPrice, basePrice)
+      : basePrice;
+
+    // 1. Full-Stock Mode
+    if (pricingMode === "full_stock") {
+      if (availableStock > 0 && (quantity === availableStock || (completeStock > 0 && quantity === completeStock))) {
+        return resolvedFullStockPrice;
       }
-      return basePrice;
+    } else if (pricingMode === null || pricingMode === undefined) {
+      if (availableStock > 0 && (quantity === availableStock || (completeStock > 0 && quantity === completeStock))) {
+        if (hasBulkTier && bulkThreshold !== null && availableStock > bulkThreshold) {
+          return resolvedFullStockPrice;
+        }
+        if (!hasBulkTier && availableStock > moqVal) {
+          return resolvedFullStockPrice;
+        }
+      }
     }
 
-    if (quantity >= bulkThreshold || pricingMode === "bulk") {
+    // 2. Bulk Mode
+    if (hasBulkTier && bulkThreshold !== null && bulkPrice !== null && (quantity >= bulkThreshold || pricingMode === "bulk")) {
       return bulkPrice;
     }
 
+    // 3. Standard
     return basePrice;
   }
 
@@ -451,6 +474,20 @@ export class CartService {
       ? Number(rawProd.price)
       : Number(rawProd.wholesale_price) || 15;
 
+    const bulkPricingEnabled = rawProd.bulkPricingEnabled !== undefined
+      ? Boolean(rawProd.bulkPricingEnabled)
+      : rawProd.bulk_pricing_enabled !== undefined
+      ? Boolean(rawProd.bulk_pricing_enabled)
+      : Boolean((rawProd.bulkThreshold ?? rawProd.bulk_threshold) && (rawProd.bulkPrice ?? rawProd.bulk_price));
+
+    const bulkThreshold = bulkPricingEnabled
+      ? (rawProd.bulkThreshold ?? rawProd.bulk_threshold ?? rawProd.bulkMinimumQuantity ?? rawProd.bulk_minimum_quantity ?? undefined)
+      : undefined;
+
+    const bulkPrice = bulkPricingEnabled
+      ? (rawProd.bulkPrice !== undefined && rawProd.bulkPrice !== null ? Number(rawProd.bulkPrice) : (rawProd.bulk_price !== undefined && rawProd.bulk_price !== null ? Number(rawProd.bulk_price) : undefined))
+      : undefined;
+
     const product: Product = {
       id: String(rawProd.id || raw.product_id || ""),
       name: rawProd.name || "Product",
@@ -459,8 +496,14 @@ export class CartService {
       oldPrice: rawProd.oldPrice ?? null,
       wholesalePrice: rawProd.wholesalePrice ?? rawProd.wholesale_price ?? price,
       standardPrice: rawProd.standardPrice ?? rawProd.wholesale_price ?? price,
-      bulkThreshold: rawProd.bulkThreshold ?? rawProd.bulk_threshold ?? 200,
-      bulkPrice: rawProd.bulkPrice ?? rawProd.bulk_price ?? Math.round(price * 0.8 * 100) / 100,
+      bulkPricingEnabled,
+      bulk_pricing_enabled: bulkPricingEnabled,
+      bulkThreshold: bulkThreshold !== undefined ? Number(bulkThreshold) : undefined,
+      bulkPrice: bulkPrice !== undefined ? Number(bulkPrice) : undefined,
+      bulkMinimumQuantity: bulkThreshold !== undefined ? Number(bulkThreshold) : undefined,
+      bulk_minimum_quantity: bulkThreshold !== undefined ? Number(bulkThreshold) : undefined,
+      bulkUnitPrice: bulkPrice !== undefined ? Number(bulkPrice) : undefined,
+      bulk_unit_price: bulkPrice !== undefined ? Number(bulkPrice) : undefined,
       fullStockPrice: rawProd.fullStockPrice ?? rawProd.full_stock_price ?? Math.round(price * 0.7 * 100) / 100,
       categoryId: rawProd.categoryId || "c_sweaters",
       images: images,

@@ -344,7 +344,7 @@ export default function AdminRfqDetailPage({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           {/* LEFT COLUMN (2 Cols on lg): Items, Quotation Editor/Snapshot, Documents */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Section 1: Requested Products & Existing Package Breakdown */}
+            {/* Section 1: Requested Products & Existing Package Assortment */}
             <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-border/60">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
@@ -387,7 +387,7 @@ export default function AdminRfqDetailPage({
                         )}
                       </div>
 
-                      {/* Product Details & Package Breakdown */}
+                      {/* Product Details & Package Assortment */}
                       <div className="flex-1 min-w-0 space-y-1">
                         <span className="font-bold text-foreground block truncate text-sm">
                           {item.productName}
@@ -400,7 +400,7 @@ export default function AdminRfqDetailPage({
                           {item.brand && <span>• Brand: {item.brand}</span>}
                         </div>
 
-                        {/* Wholesale Package Breakdown / Size Matrix */}
+                        {/* Wholesale Package Assortment / Size Matrix */}
                         {Array.isArray(breakdown) && breakdown.length > 0 && (
                           <div className="flex items-center gap-1.5 flex-wrap pt-1 text-[10px]">
                             <span className="text-muted-foreground font-bold uppercase">Size Matrix:</span>

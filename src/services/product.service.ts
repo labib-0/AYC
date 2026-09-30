@@ -165,17 +165,30 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
   const moqVal = p.moq ? Number(p.moq) : 10;
   const availableStock = variants.length > 0 ? variants.reduce((acc: number, v: any) => acc + Number(v.stock || 0), 0) : stock;
 
-  const bulkThreshold = p.bulkThreshold !== undefined && p.bulkThreshold !== null
+  const bulkPricingEnabled = p.bulkPricingEnabled !== undefined
+    ? Boolean(p.bulkPricingEnabled)
+    : p.bulk_pricing_enabled !== undefined
+    ? Boolean(p.bulk_pricing_enabled)
+    : (p.bulkThreshold !== undefined && p.bulkThreshold !== null && Number(p.bulkThreshold) > 0 && p.bulkPrice !== undefined && p.bulkPrice !== null && Number(p.bulkPrice) > 0)
+      ? true
+      : (p.bulk_threshold !== undefined && p.bulk_threshold !== null && Number(p.bulk_threshold) > 0 && p.bulk_price !== undefined && p.bulk_price !== null && Number(p.bulk_price) > 0)
+      ? true
+      : false;
+
+  const rawBulkThreshold = p.bulkThreshold !== undefined && p.bulkThreshold !== null
     ? Number(p.bulkThreshold)
     : p.bulk_threshold !== undefined && p.bulk_threshold !== null
     ? Number(p.bulk_threshold)
-    : 200;
+    : (p.bulkMinimumQuantity !== undefined && p.bulkMinimumQuantity !== null ? Number(p.bulkMinimumQuantity) : (p.bulk_minimum_quantity !== undefined && p.bulk_minimum_quantity !== null ? Number(p.bulk_minimum_quantity) : null));
 
-  const bulkPrice = p.bulkPrice !== undefined && p.bulkPrice !== null
+  const rawBulkPrice = p.bulkPrice !== undefined && p.bulkPrice !== null
     ? Number(p.bulkPrice)
     : p.bulk_price !== undefined && p.bulk_price !== null
     ? Number(p.bulk_price)
-    : Math.round(wholesalePrice * 0.8 * 100) / 100;
+    : (p.bulkUnitPrice !== undefined && p.bulkUnitPrice !== null ? Number(p.bulkUnitPrice) : (p.bulk_unit_price !== undefined && p.bulk_unit_price !== null ? Number(p.bulk_unit_price) : null));
+
+  const bulkThreshold = bulkPricingEnabled && rawBulkThreshold !== null && rawBulkThreshold > 0 ? rawBulkThreshold : undefined;
+  const bulkPrice = bulkPricingEnabled && rawBulkPrice !== null && rawBulkPrice > 0 ? rawBulkPrice : undefined;
 
   const configuredFullStockPrice = p.configuredFullStockPrice !== undefined && p.configuredFullStockPrice !== null
     ? Number(p.configuredFullStockPrice)
@@ -183,14 +196,14 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     ? Number(p.full_stock_price)
     : (p.fullStockPrice !== undefined && p.fullStockPrice !== null ? Number(p.fullStockPrice) : null);
 
-  const qualifyingThreshold = (bulkThreshold !== undefined && bulkThreshold > 0) ? bulkThreshold : moqVal;
+  const qualifyingThreshold = (bulkPricingEnabled && bulkThreshold !== undefined && bulkThreshold > 0) ? bulkThreshold : moqVal;
   const derivedEligibleQty = Math.floor(availableStock / moqVal) * moqVal;
 
   const isFullStockEligible = Boolean(
     p.isFullStockEligible ?? p.is_full_stock_eligible ?? (
       configuredFullStockPrice !== null &&
       configuredFullStockPrice > 0 &&
-      availableStock > qualifyingThreshold &&
+      (bulkPricingEnabled ? availableStock > qualifyingThreshold : availableStock >= moqVal) &&
       derivedEligibleQty > 0
     )
   );
@@ -202,7 +215,11 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     : derivedEligibleQty;
 
   const normalMoqPrice = wholesalePrice;
-  const resolvedFullStockPrice = availableStock > qualifyingThreshold && configuredFullStockPrice !== null && configuredFullStockPrice > 0
+  const isFullStockQualified = bulkPricingEnabled
+    ? (availableStock > qualifyingThreshold)
+    : (availableStock >= moqVal);
+
+  const resolvedFullStockPrice = isFullStockQualified && configuredFullStockPrice !== null && configuredFullStockPrice > 0
     ? Math.min(configuredFullStockPrice, normalMoqPrice)
     : (p.fullStockPrice !== undefined && p.fullStockPrice !== null ? Number(p.fullStockPrice) : normalMoqPrice);
 
@@ -316,8 +333,14 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     purchasePriceUpdatedAt: p.purchasePriceUpdatedAt || p.purchase_price_updated_at || null,
     wholesalePrice: wholesalePrice,
     standardPrice: wholesalePrice,
+    bulkPricingEnabled: bulkPricingEnabled,
+    bulk_pricing_enabled: bulkPricingEnabled,
     bulkThreshold: bulkThreshold,
     bulkPrice: bulkPrice,
+    bulkMinimumQuantity: bulkThreshold,
+    bulk_minimum_quantity: bulkThreshold,
+    bulkUnitPrice: bulkPrice,
+    bulk_unit_price: bulkPrice,
     fullStockPrice: resolvedFullStockPrice,
     configuredFullStockPrice: configuredFullStockPrice ?? undefined,
     isFullStockEligible: isFullStockEligible,
@@ -333,6 +356,14 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     available_moqs: availableMoqs,
     warehouseBreakdown,
     status: status,
+    sizeDescription: p.sizeDescription || p.size_description || undefined,
+    size_description: p.size_description || p.sizeDescription || undefined,
+    colourDescription: p.colourDescription || p.colour_description || undefined,
+    colour_description: p.colour_description || p.colourDescription || undefined,
+    packageAssortmentVisible: p.packageAssortmentVisible !== undefined ? Boolean(p.packageAssortmentVisible) : (p.package_assortment_visible !== undefined ? Boolean(p.package_assortment_visible) : true),
+    package_assortment_visible: p.package_assortment_visible !== undefined ? Boolean(p.package_assortment_visible) : (p.packageAssortmentVisible !== undefined ? Boolean(p.packageAssortmentVisible) : true),
+    packageAssortmentMessage: p.packageAssortmentMessage ?? p.package_assortment_message ?? undefined,
+    package_assortment_message: p.package_assortment_message ?? p.packageAssortmentMessage ?? undefined,
     isHiddenFromStorefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     is_hidden_from_storefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     isFeatured: isFeatured,
@@ -353,11 +384,18 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     sizes: p.sizes || ["S", "M", "L", "XL", "2XL"],
     colors: p.colors || [p.color_name || p.color || "Black"],
     variants: variants,
-    pricingTiers: pricingTiers.length > 0 ? pricingTiers : [
-      { min_quantity: moqVal, max_quantity: bulkThreshold - 1, unit_price: wholesalePrice },
-      { min_quantity: bulkThreshold, max_quantity: fullStockQuantity > bulkThreshold ? fullStockQuantity - 1 : availableStock, unit_price: bulkPrice },
-      ...(fullStockQuantity > 0 ? [{ min_quantity: fullStockQuantity, max_quantity: fullStockQuantity, unit_price: resolvedFullStockPrice }] : []),
-    ],
+    pricingTiers: pricingTiers.length > 0 ? pricingTiers : (
+      bulkPricingEnabled && bulkThreshold && bulkPrice
+        ? [
+            { min_quantity: moqVal, max_quantity: bulkThreshold - 1, unit_price: wholesalePrice },
+            { min_quantity: bulkThreshold, max_quantity: fullStockQuantity > bulkThreshold ? fullStockQuantity - 1 : availableStock, unit_price: bulkPrice },
+            ...(fullStockQuantity > 0 ? [{ min_quantity: fullStockQuantity, max_quantity: fullStockQuantity, unit_price: resolvedFullStockPrice }] : []),
+          ]
+        : [
+            { min_quantity: moqVal, max_quantity: fullStockQuantity > moqVal ? fullStockQuantity - 1 : null, unit_price: wholesalePrice },
+            ...(fullStockQuantity > 0 ? [{ min_quantity: fullStockQuantity, max_quantity: fullStockQuantity, unit_price: resolvedFullStockPrice }] : []),
+          ]
+    ),
     packageAllocations: packageAllocations,
     shippingPackageProfiles: shippingPackageProfiles,
     shipping_package_profiles: shippingPackageProfiles,
@@ -391,6 +429,20 @@ export function toStorefrontProduct(p: any): Product {
     images.push("/placeholder.jpg");
   }
 
+  const bulkPricingEnabled = p.bulkPricingEnabled !== undefined
+    ? Boolean(p.bulkPricingEnabled)
+    : p.bulk_pricing_enabled !== undefined
+    ? Boolean(p.bulk_pricing_enabled)
+    : Boolean((p.bulkThreshold || p.bulk_threshold) && (p.bulkPrice || p.bulk_price));
+
+  const bulkThreshold = bulkPricingEnabled
+    ? (p.bulkThreshold !== undefined && p.bulkThreshold !== null ? Number(p.bulkThreshold) : (p.bulk_threshold !== undefined && p.bulk_threshold !== null ? Number(p.bulk_threshold) : undefined))
+    : undefined;
+
+  const bulkPrice = bulkPricingEnabled
+    ? (p.bulkPrice !== undefined && p.bulkPrice !== null ? Number(p.bulkPrice) : (p.bulk_price !== undefined && p.bulk_price !== null ? Number(p.bulk_price) : undefined))
+    : undefined;
+
   return {
     id: String(p.id),
     name: p.name,
@@ -398,8 +450,14 @@ export function toStorefrontProduct(p: any): Product {
     price: wholesalePrice,
     wholesalePrice: wholesalePrice,
     standardPrice: p.standardPrice || wholesalePrice,
-    bulkThreshold: p.bulkThreshold || p.bulk_threshold,
-    bulkPrice: p.bulkPrice !== undefined ? Number(p.bulkPrice) : (p.bulk_price !== undefined ? Number(p.bulk_price) : undefined),
+    bulkPricingEnabled,
+    bulk_pricing_enabled: bulkPricingEnabled,
+    bulkThreshold,
+    bulkPrice,
+    bulkMinimumQuantity: bulkThreshold,
+    bulk_minimum_quantity: bulkThreshold,
+    bulkUnitPrice: bulkPrice,
+    bulk_unit_price: bulkPrice,
     fullStockPrice: p.fullStockPrice !== undefined ? Number(p.fullStockPrice) : (p.full_stock_price !== undefined ? Number(p.full_stock_price) : undefined),
     categoryId: p.categoryId || p.category_id || (p.categories?.[0]?.id ? String(p.categories[0].id) : "c_sweaters"),
     categoryName: p.categoryName || (p.categories?.[0]?.name ? String(p.categories[0].name) : undefined),
@@ -442,6 +500,14 @@ export function toStorefrontProduct(p: any): Product {
     youtubeVideoId: p.youtubeVideoId || p.youtube_video_id,
     productId: undefined,
     product_id: undefined,
+    sizeDescription: p.sizeDescription || p.size_description || undefined,
+    size_description: p.size_description || p.sizeDescription || undefined,
+    colourDescription: p.colourDescription || p.colour_description || undefined,
+    colour_description: p.colour_description || p.colourDescription || undefined,
+    packageAssortmentVisible: p.packageAssortmentVisible !== undefined ? Boolean(p.packageAssortmentVisible) : (p.package_assortment_visible !== undefined ? Boolean(p.package_assortment_visible) : true),
+    package_assortment_visible: p.package_assortment_visible !== undefined ? Boolean(p.package_assortment_visible) : (p.packageAssortmentVisible !== undefined ? Boolean(p.packageAssortmentVisible) : true),
+    packageAssortmentMessage: p.packageAssortmentMessage ?? p.package_assortment_message ?? undefined,
+    package_assortment_message: p.package_assortment_message ?? p.packageAssortmentMessage ?? undefined,
     isHiddenFromStorefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     is_hidden_from_storefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     status: p.status || "draft",
@@ -651,9 +717,34 @@ export class ProductService {
     if ((input as any).productId !== undefined) payload.product_id = (input as any).productId;
     if ((input as any).product_id !== undefined) payload.product_id = (input as any).product_id;
 
-    if (input.wholesalePrice !== undefined) payload.wholesale_price = input.wholesalePrice;
-    if (input.bulkPrice !== undefined) payload.bulk_price = input.bulkPrice;
-    if (input.bulkThreshold !== undefined) payload.bulk_threshold = input.bulkThreshold;
+    const bulkEnabled = input.bulkPricingEnabled !== undefined
+      ? Boolean(input.bulkPricingEnabled)
+      : input.bulk_pricing_enabled !== undefined
+      ? Boolean(input.bulk_pricing_enabled)
+      : undefined;
+
+    if (bulkEnabled !== undefined) {
+      payload.bulk_pricing_enabled = bulkEnabled;
+      payload.bulkPricingEnabled = bulkEnabled;
+    }
+
+    if (bulkEnabled === false) {
+      payload.bulk_threshold = null;
+      payload.bulkThreshold = null;
+      payload.bulk_minimum_quantity = null;
+      payload.bulkMinimumQuantity = null;
+      payload.bulk_price = null;
+      payload.bulkPrice = null;
+      payload.bulk_unit_price = null;
+      payload.bulkUnitPrice = null;
+    } else {
+      if (input.bulkPrice !== undefined) payload.bulk_price = input.bulkPrice;
+      if (input.bulkUnitPrice !== undefined) payload.bulk_unit_price = input.bulkUnitPrice;
+      if (input.bulk_unit_price !== undefined) payload.bulk_unit_price = input.bulk_unit_price;
+      if (input.bulkThreshold !== undefined) payload.bulk_threshold = input.bulkThreshold;
+      if (input.bulkMinimumQuantity !== undefined) payload.bulk_minimum_quantity = input.bulkMinimumQuantity;
+      if (input.bulk_minimum_quantity !== undefined) payload.bulk_minimum_quantity = input.bulk_minimum_quantity;
+    }
     if (input.fullStockPrice !== undefined) payload.full_stock_price = input.fullStockPrice;
     if (input.costPrice !== undefined) payload.cost_price = input.costPrice;
 
@@ -674,6 +765,16 @@ export class ProductService {
     if (input.productType !== undefined) payload.product_type = input.productType;
     if (input.colorName !== undefined) payload.color_name = input.colorName;
     if (input.colorHex !== undefined) payload.color_hex = input.colorHex;
+
+    if (input.sizeDescription !== undefined) payload.size_description = input.sizeDescription;
+    if (input.size_description !== undefined) payload.size_description = input.size_description;
+    if (input.colourDescription !== undefined) payload.colour_description = input.colourDescription;
+    if (input.colour_description !== undefined) payload.colour_description = input.colour_description;
+
+    if (input.packageAssortmentVisible !== undefined) payload.package_assortment_visible = input.packageAssortmentVisible;
+    if (input.package_assortment_visible !== undefined) payload.package_assortment_visible = input.package_assortment_visible;
+    if (input.packageAssortmentMessage !== undefined) payload.package_assortment_message = input.packageAssortmentMessage;
+    if (input.package_assortment_message !== undefined) payload.package_assortment_message = input.package_assortment_message;
 
     if (input.isHiddenFromStorefront !== undefined) payload.is_hidden_from_storefront = input.isHiddenFromStorefront;
     if (input.is_hidden_from_storefront !== undefined) payload.is_hidden_from_storefront = input.is_hidden_from_storefront;

@@ -7,6 +7,7 @@ interface ProductPricingSectionProps {
   moq?: number;
   isMoqDerived?: boolean;
   availableStock?: number;
+  bulkPricingEnabled?: boolean;
   bulkThreshold?: number;
   bulkPrice?: number;
   fullStockPrice?: number;
@@ -23,6 +24,7 @@ interface ProductPricingSectionProps {
   errors: Record<string, string>;
   onWholesalePriceChange: (val: number | undefined) => void;
   onMoqChange?: (val: number | undefined) => void;
+  onBulkPricingEnabledChange?: (val: boolean) => void;
   onBulkThresholdChange: (val: number | undefined) => void;
   onBulkPriceChange: (val: number | undefined) => void;
   onFullStockPriceChange: (val: number | undefined) => void;
@@ -38,6 +40,7 @@ export default function ProductPricingSection({
   moq = 0,
   isMoqDerived = false,
   availableStock,
+  bulkPricingEnabled = false,
   bulkThreshold,
   bulkPrice,
   fullStockPrice,
@@ -54,6 +57,7 @@ export default function ProductPricingSection({
   errors,
   onWholesalePriceChange,
   onMoqChange,
+  onBulkPricingEnabledChange,
   onBulkThresholdChange,
   onBulkPriceChange,
   onFullStockPriceChange,
@@ -218,12 +222,27 @@ export default function ProductPricingSection({
               </div>
             </div>
 
-            {/* 2. BULK TIER ROW */}
+            {/* 2. BULK TIER ROW (OPTIONAL) */}
             <div className="p-4 sm:px-4 sm:py-3.5 sm:grid sm:grid-cols-[140px_1fr_1fr] md:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 sm:space-y-0">
               <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  BULK
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    BULK
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/60">
+                    OPTIONAL
+                  </span>
+                </div>
+                <label className="mt-2 inline-flex items-center gap-1.5 cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground">
+                  <input
+                    type="checkbox"
+                    id="enable_bulk_pricing"
+                    checked={Boolean(bulkPricingEnabled)}
+                    onChange={(e) => onBulkPricingEnabledChange?.(e.target.checked)}
+                    className="rounded border-border text-primary focus:ring-ring/40 w-3.5 h-3.5 cursor-pointer"
+                  />
+                  <span className="text-[11px] font-medium">Enable Bulk Pricing</span>
+                </label>
               </div>
 
               {/* Minimum Qty / Basis */}
@@ -231,25 +250,33 @@ export default function ProductPricingSection({
                 <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                   MINIMUM QTY
                 </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="1"
-                    min={moq && moq > 0 ? moq + 1 : 1}
-                    value={bulkThreshold ?? ""}
-                    onChange={(e) => onBulkThresholdChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-                    placeholder=""
-                    className={plainInputClass(Boolean(errors.bulkThreshold || errors.bulk_threshold))}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    PCS
-                  </span>
-                </div>
-                {(errors.bulkThreshold || errors.bulk_threshold) && (
-                  <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                    <AlertCircle size={12} />
-                    {errors.bulkThreshold || errors.bulk_threshold}
-                  </p>
+                {bulkPricingEnabled ? (
+                  <>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="1"
+                        min={moq && moq > 0 ? moq + 1 : 1}
+                        value={bulkThreshold ?? ""}
+                        onChange={(e) => onBulkThresholdChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                        placeholder=""
+                        className={plainInputClass(Boolean(errors.bulkThreshold || errors.bulk_threshold))}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        PCS
+                      </span>
+                    </div>
+                    {(errors.bulkThreshold || errors.bulk_threshold) && (
+                      <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                        <AlertCircle size={12} />
+                        {errors.bulkThreshold || errors.bulk_threshold}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="h-10 px-3.5 rounded-xl border border-dashed border-border/70 bg-secondary/10 flex items-center text-xs text-muted-foreground select-none">
+                    Disabled
+                  </div>
                 )}
               </div>
 
@@ -258,25 +285,33 @@ export default function ProductPricingSection({
                 <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                   UNIT PRICE
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                    $
-                  </span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={bulkPrice ?? ""}
-                    onChange={(e) => onBulkPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                    placeholder=""
-                    className={inputClass(Boolean(errors.bulkPrice || errors.bulk_price))}
-                  />
-                </div>
-                {(errors.bulkPrice || errors.bulk_price) && (
-                  <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                    <AlertCircle size={12} />
-                    {errors.bulkPrice || errors.bulk_price}
-                  </p>
+                {bulkPricingEnabled ? (
+                  <>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                        $
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={bulkPrice ?? ""}
+                        onChange={(e) => onBulkPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        placeholder=""
+                        className={inputClass(Boolean(errors.bulkPrice || errors.bulk_price))}
+                      />
+                    </div>
+                    {(errors.bulkPrice || errors.bulk_price) && (
+                      <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                        <AlertCircle size={12} />
+                        {errors.bulkPrice || errors.bulk_price}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="h-10 px-3.5 rounded-xl border border-dashed border-border/70 bg-secondary/10 flex items-center text-xs text-muted-foreground select-none">
+                    Disabled
+                  </div>
                 )}
               </div>
             </div>
