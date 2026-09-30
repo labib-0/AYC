@@ -32,7 +32,6 @@ class ProductFactory extends Factory
             'color_hex' => fake()->hexColor(),
             'audience' => fake()->randomElement(['MEN', 'WOMEN', 'BOYS', 'GIRLS', 'UNISEX']),
             'product_type' => 'Apparel',
-            'collection_season' => '2026 Core Collection',
             'wholesale_price' => $wholesalePrice,
             'msrp_price' => $wholesalePrice * 1.6,
             'cost_price' => $wholesalePrice * 0.6,

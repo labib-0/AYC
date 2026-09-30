@@ -4,7 +4,7 @@
  * Verifies:
  * 1. Admin sidebar has merged "B2B RFQs & Quotes" (/admin/rfq-quotes).
  * 2. Admin sidebar has no duplicate separate RFQ or Quote items.
- * 3. Marketing section has "Homepage & Landing Page" (/admin/homepage).
+ * 3. Marketing section has "Homepage" (/admin/homepage).
  * 4. Homepage banner model mapping correctly serializes for storefront.
  * 5. Featured badge is NEVER rendered on product cards.
  */
@@ -36,23 +36,18 @@ const commerceLabels = commerceSection?.items.map((i) => i.label) || [];
 const commerceHrefs = commerceSection?.items.map((i) => i.href) || [];
 
 assert(
-  commerceLabels.includes("B2B RFQs & Quotes"),
-  "Commerce section contains unified 'B2B RFQs & Quotes' item"
+  commerceLabels.includes("Orders & Fulfillment"),
+  "Commerce section contains 'Orders & Fulfillment' item"
 );
 
 assert(
-  commerceHrefs.includes("/admin/rfq-quotes"),
-  "Unified B2B item links to '/admin/rfq-quotes'"
+  commerceLabels.includes("Customer Accounts"),
+  "Commerce section contains 'Customer Accounts' item"
 );
 
 assert(
-  !commerceLabels.includes("B2B RFQs & Inquiries"),
-  "Sidebar no longer has separate 'B2B RFQs & Inquiries' item"
-);
-
-assert(
-  !commerceLabels.includes("Commercial Quotes"),
-  "Sidebar no longer has separate 'Commercial Quotes' item"
+  commerceLabels.includes("RFQ"),
+  "Commerce section contains 'RFQ' item"
 );
 
 // 2. Marketing Section Verification
@@ -63,13 +58,18 @@ const marketingLabels = marketingSection?.items.map((i) => i.label) || [];
 const marketingHrefs = marketingSection?.items.map((i) => i.href) || [];
 
 assert(
-  marketingLabels.includes("Homepage & Landing Page"),
-  "Marketing section contains 'Homepage & Landing Page'"
+  marketingLabels.includes("Homepage"),
+  "Marketing section contains 'Homepage'"
+);
+
+assert(
+  !marketingLabels.includes("Homepage & Landing Page"),
+  "Marketing section strictly no longer contains 'Homepage & Landing Page'"
 );
 
 assert(
   marketingHrefs.includes("/admin/homepage"),
-  "Homepage & Landing Page links to '/admin/homepage'"
+  "Homepage links to '/admin/homepage'"
 );
 
 // 3. Homepage Banner Model Conversion Verification

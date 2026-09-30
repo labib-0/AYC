@@ -1,83 +1,83 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
-export interface HeadlineItem {
-  id: string;
-  lead: string;
-  detail: string;
-}
-
-/**
- * Authoritative 8 B2B headline items preserving core trust/service values.
- */
-export const TICKER_HEADLINES: HeadlineItem[] = [
-  {
-    id: "headline-1",
-    lead: "AYAAN CLOTHING",
-    detail: "WHOLESALE APPAREL SELLER",
-  },
-  {
-    id: "headline-2",
-    lead: "VERIFIED STOCK",
-    detail: "AUDITED AVAILABILITY",
-  },
-  {
-    id: "headline-3",
-    lead: "FACTORY DIRECT",
-    detail: "DIRECT MANUFACTURER SOURCING",
-  },
-  {
-    id: "headline-4",
-    lead: "EXPORT READY",
-    detail: "EXPORT-STANDARD PACKING",
-  },
-  {
-    id: "headline-5",
-    lead: "GLOBAL SHIPPING",
-    detail: "AIR & SEA WORLDWIDE",
-  },
-  {
-    id: "headline-6",
-    lead: "BULK ORDER SUPPORT",
-    detail: "BUILT FOR WHOLESALE BUYERS",
-  },
-  {
-    id: "headline-7",
-    lead: "QUALITY APPAREL",
-    detail: "FOR RETAILERS & BOUTIQUES",
-  },
-  {
-    id: "headline-8",
-    lead: "BUSINESS SOURCING",
-    detail: "WHOLESALE APPAREL FOR YOUR BUSINESS",
-  },
-];
+import { useEffect, useState, useRef, useMemo } from "react";
+import { homepageService, HomepageTickerItem } from "@/services/homepage.service";
 
 export default function ServiceStrip() {
+  const [tickerItems, setTickerItems] = useState<HomepageTickerItem[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
-  // Preserve anchor event listener compatibility
   useEffect(() => {
-    const handleExpandAboutUs = () => {
-      sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    let isMounted = true;
+
+    const loadTicker = async () => {
+      try {
+        const data = await homepageService.getStorefrontHomepageData();
+        if (isMounted) {
+          setTickerItems(data.ticker_items || []);
+          setLoaded(true);
+        }
+      } catch (err) {
+        console.warn("ServiceStrip: failed to load ticker items", err);
+        if (isMounted) {
+          setLoaded(true);
+        }
+      }
     };
-    window.addEventListener("expand-about-us", handleExpandAboutUs);
-    return () => window.removeEventListener("expand-about-us", handleExpandAboutUs);
+
+    loadTicker();
+
+    const handleUpdate = () => {
+      loadTicker();
+    };
+
+    window.addEventListener("ayaan:homepage-updated", handleUpdate);
+    window.addEventListener("ayaan:data-updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("ayaan:homepage-updated", handleUpdate);
+      window.removeEventListener("ayaan:data-updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
   }, []);
+
+  // Filter only active items with non-empty text
+  const activeItems = useMemo(() => {
+    return tickerItems.filter((item) => item.is_active && item.text && item.text.trim().length > 0);
+  }, [tickerItems]);
+
+  // Gracefully hide if loaded and no active items exist (Requirement 23: Empty Ticker State)
+  if (loaded && activeItems.length === 0) {
+    return null;
+  }
+
+  // If still loading and no items yet, don't show an empty strip
+  if (!loaded && activeItems.length === 0) {
+    return null;
+  }
+
+  // To ensure seamless CSS marquee looping (-50% translation) without empty gaps on ultra-wide screens,
+  // ensure the base list has at least 6-8 entries before duplicating into two identical tracks.
+  const displayItems = [...activeItems];
+  while (displayItems.length < 6 && displayItems.length > 0) {
+    displayItems.push(...activeItems);
+  }
 
   return (
     <section
-      id="built-for-international-buyers"
+      id="homepage-ticker"
       ref={sectionRef}
-      className="w-full bg-background pt-0 pb-0.5 select-none"
-      aria-label="Ayaan Clothing Business & Wholesale Headlines"
+      className="w-full bg-background pt-0 pb-0.5 select-none overflow-hidden"
+      aria-label="Homepage Scrolling Keywords"
     >
       <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
-        {/* TV News Headline Strip (Thin, flat bar with subtle borders) */}
+        {/* Ticker Strip (Thin, flat bar with subtle borders) */}
         <div className="relative w-full h-8 sm:h-8.5 overflow-hidden border-y border-border/50 bg-secondary/15 dark:bg-card/25 flex items-center">
           
-          {/* Subtle edge fades (kept narrow so initial text is never clipped or obscured) */}
+          {/* Subtle edge fades */}
           <div
             className="pointer-events-none absolute left-0 top-0 bottom-0 w-3 sm:w-4 bg-gradient-to-r from-background to-transparent z-10"
             aria-hidden="true"
@@ -87,35 +87,24 @@ export default function ServiceStrip() {
             aria-hidden="true"
           />
 
-          {/* Continuous Right-to-Left Ticker Track (Duplicated 8 items for seamless 0% -> -50% loop) */}
+          {/* Continuous Right-to-Left Ticker Track (2 identical sets for seamless 0% -> -50% loop) */}
           <div
             className="animate-ticker-marquee items-center"
             role="marquee"
             aria-live="off"
           >
-            {/* Set 1 of 8 Headlines: Bold Title + Lighter Subtitle + Orange Dot */}
+            {/* Set 1 */}
             <div className="flex items-center shrink-0 pl-3 sm:pl-4">
-              {TICKER_HEADLINES.map((item) => (
+              {displayItems.map((item, idx) => (
                 <div
-                  key={`set1-${item.id}`}
+                  key={`set1-${item.id || idx}-${idx}`}
                   className="inline-flex items-center whitespace-nowrap shrink-0"
                 >
-                  <div className="inline-flex items-center">
-                    {/* BOLD TITLE */}
-                    <span className="font-display font-bold tracking-tight text-foreground text-[11px] sm:text-xs uppercase">
-                      {item.lead}
-                    </span>
-                    {/* EM-DASH */}
-                    <span className="text-muted-foreground/45 font-normal text-[11px] sm:text-xs mx-1">
-                      —
-                    </span>
-                    {/* LIGHTER SUBTITLE */}
-                    <span className="font-sans font-normal text-muted-foreground tracking-normal text-[10px] sm:text-[11px] uppercase">
-                      {item.detail}
-                    </span>
-                  </div>
+                  <span className="font-display font-bold tracking-tight text-foreground text-[11px] sm:text-xs uppercase">
+                    {item.text.trim()}
+                  </span>
 
-                  {/* Elegant Orange Bullet Separator */}
+                  {/* Orange Bullet Separator */}
                   <span
                     className="mx-3.5 sm:mx-5 text-[#EA580C] font-sans text-xs select-none shrink-0"
                     aria-hidden="true"
@@ -126,29 +115,18 @@ export default function ServiceStrip() {
               ))}
             </div>
 
-            {/* Set 2 of 8 Headlines (Identical duplicate for seamless marquee illusion) */}
+            {/* Set 2 (Identical duplicate for seamless marquee illusion) */}
             <div className="flex items-center shrink-0 pl-3 sm:pl-4" aria-hidden="true">
-              {TICKER_HEADLINES.map((item) => (
+              {displayItems.map((item, idx) => (
                 <div
-                  key={`set2-${item.id}`}
+                  key={`set2-${item.id || idx}-${idx}`}
                   className="inline-flex items-center whitespace-nowrap shrink-0"
                 >
-                  <div className="inline-flex items-center">
-                    {/* BOLD TITLE */}
-                    <span className="font-display font-bold tracking-tight text-foreground text-[11px] sm:text-xs uppercase">
-                      {item.lead}
-                    </span>
-                    {/* EM-DASH */}
-                    <span className="text-muted-foreground/45 font-normal text-[11px] sm:text-xs mx-1">
-                      —
-                    </span>
-                    {/* LIGHTER SUBTITLE */}
-                    <span className="font-sans font-normal text-muted-foreground tracking-normal text-[10px] sm:text-[11px] uppercase">
-                      {item.detail}
-                    </span>
-                  </div>
+                  <span className="font-display font-bold tracking-tight text-foreground text-[11px] sm:text-xs uppercase">
+                    {item.text.trim()}
+                  </span>
 
-                  {/* Elegant Orange Bullet Separator */}
+                  {/* Orange Bullet Separator */}
                   <span
                     className="mx-3.5 sm:mx-5 text-[#EA580C] font-sans text-xs select-none shrink-0"
                     aria-hidden="true"

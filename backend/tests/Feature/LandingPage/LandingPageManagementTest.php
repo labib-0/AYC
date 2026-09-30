@@ -125,6 +125,7 @@ class LandingPageManagementTest extends TestCase
                 'message',
                 'data' => [
                     'banner',
+                    'ticker_items',
                     'hot_sale_categories',
                     'featured_products',
                 ],
@@ -320,43 +321,68 @@ class LandingPageManagementTest extends TestCase
         $this->assertFalse($slugs->contains('sweaters'));
     }
 
-    public function test_admin_can_update_active_season_for_all_products(): void
+    public function test_admin_can_sync_homepage_ticker_items(): void
     {
         $response = $this->actingAs($this->admin, 'sanctum')
-            ->postJson('/api/v1/admin/homepage/season', [
-                'season' => 'Spring / Summer 2027',
-                'apply_to_all_products' => true,
+            ->postJson('/api/v1/admin/homepage/ticker', [
+                'items' => [
+                    ['text' => 'QUALITY APPAREL', 'is_active' => true, 'sort_order' => 0],
+                    ['text' => 'FACTORY DIRECT', 'is_active' => true, 'sort_order' => 1],
+                    ['text' => 'EXPORT READY', 'is_active' => false, 'sort_order' => 2],
+                ],
             ]);
 
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'data' => [
-                    'active_season' => 'Spring / Summer 2027',
+            ]);
+
+        $this->assertCount(3, $response->json('data'));
+        $this->assertEquals('QUALITY APPAREL', $response->json('data.0.text'));
+        $this->assertTrue($response->json('data.0.is_active'));
+        $this->assertFalse($response->json('data.2.is_active'));
+
+        // Customer storefront retrieves active ticker items in order
+        $storefront = $this->getJson('/api/v1/homepage');
+        $storefront->assertStatus(200);
+        $activeItems = $storefront->json('data.ticker_items');
+        $this->assertCount(2, $activeItems); // Only 2 active
+        $this->assertEquals('QUALITY APPAREL', $activeItems[0]['text']);
+        $this->assertEquals('FACTORY DIRECT', $activeItems[1]['text']);
+    }
+
+    public function test_customer_cannot_sync_ticker_items(): void
+    {
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/ticker', [
+                'items' => [
+                    ['text' => 'MALICIOUS TICKER', 'is_active' => true],
                 ],
             ]);
 
-        // Verify SystemSetting was updated
-        $this->assertEquals('Spring / Summer 2027', \App\Models\SystemSetting::getActiveSeason());
-
-        // Verify all products in database now have the new season
-        $this->assertEquals('Spring / Summer 2027', $this->product1->fresh()->collection_season);
-        $this->assertEquals('Spring / Summer 2027', $this->product2->fresh()->collection_season);
-        $this->assertEquals('Spring / Summer 2027', $this->product3->fresh()->collection_season);
-
-        // Verify public homepage includes active season
-        $storefront = $this->getJson('/api/v1/homepage');
-        $storefront->assertStatus(200);
-        $this->assertEquals('Spring / Summer 2027', $storefront->json('data.active_season'));
+        $response->assertStatus(403);
     }
 
-    public function test_customer_cannot_update_active_season(): void
+    public function test_collection_season_endpoint_is_removed(): void
     {
-        $response = $this->actingAs($this->customer, 'sanctum')
+        $response = $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/v1/admin/homepage/season', [
-                'season' => 'Hacker Season 2099',
+                'season' => 'Spring / Summer 2027',
             ]);
 
-        $response->assertStatus(403);
+        // Route no longer exists
+        $response->assertStatus(404);
+    }
+
+    public function test_active_season_is_absent_from_homepage_responses(): void
+    {
+        $storefront = $this->getJson('/api/v1/homepage');
+        $storefront->assertStatus(200);
+        $this->assertArrayNotHasKey('active_season', $storefront->json('data'));
+
+        $admin = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/admin/homepage');
+        $admin->assertStatus(200);
+        $this->assertArrayNotHasKey('active_season', $admin->json('data'));
     }
 }

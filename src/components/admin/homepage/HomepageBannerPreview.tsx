@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import React from "react";
-import { Eye, ExternalLink, CheckCircle2, EyeOff, AlertCircle } from "lucide-react";
+import { Eye, ExternalLink } from "lucide-react";
 
 export interface HomepageBannerPreviewProps {
   title: string;
@@ -8,7 +8,7 @@ export interface HomepageBannerPreviewProps {
   imageUrl?: string;
   buttonText?: string;
   buttonTarget?: string;
-  isActive: boolean;
+  isActive?: boolean;
   eyebrow?: string;
 }
 
@@ -18,7 +18,6 @@ export default function HomepageBannerPreview({
   imageUrl,
   buttonText = "EXPLORE CATALOG →",
   buttonTarget = "#featured",
-  isActive,
   eyebrow = "AYAAN CLOTHING",
 }: HomepageBannerPreviewProps) {
   return (
@@ -31,7 +30,7 @@ export default function HomepageBannerPreview({
           </div>
           <div>
             <h2 className="text-sm sm:text-base font-bold text-foreground">
-              Homepage Preview
+              Homepage Banner Preview
             </h2>
             <p className="text-[11px] sm:text-xs text-muted-foreground">
               Real-time representation of the storefront top banner (~1375×158 px)
@@ -45,31 +44,8 @@ export default function HomepageBannerPreview({
             <ExternalLink size={11} className="text-muted-foreground" />
             <span>Target: {buttonTarget || "#featured"}</span>
           </span>
-
-          {/* Status badge */}
-          {isActive ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <CheckCircle2 size={13} />
-              <span>Active on Storefront</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-              <EyeOff size={13} />
-              <span>Hidden / Inactive</span>
-            </span>
-          )}
         </div>
       </div>
-
-      {/* Inactive Warning Alert */}
-      {!isActive && (
-        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2.5 text-xs text-amber-700 dark:text-amber-300">
-          <AlertCircle size={15} className="shrink-0" />
-          <span>
-            This banner is currently marked as <strong>Inactive</strong>. It will not appear on the live storefront until activated and saved.
-          </span>
-        </div>
-      )}
 
       {/* Actual Storefront Top Banner replica */}
       <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden bg-secondary/80 border border-border/80 shadow-xs">

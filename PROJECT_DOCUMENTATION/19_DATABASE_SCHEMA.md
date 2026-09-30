@@ -117,7 +117,6 @@ This document details the authoritative PostgreSQL schema for all tables in the 
   - `audience`: `VARCHAR(20) NOT NULL` (`CHECK audience IN ('MEN', 'WOMEN', 'BOYS', 'GIRLS', 'UNISEX')`)
   - `design_type`: `VARCHAR(20) NOT NULL` (`CHECK design_type IN ('ORIGINAL', 'MASTER COPY')`)
   - `product_type`: `VARCHAR(100) NULL`
-  - `collection_season`: `VARCHAR(100) NULL`
   - `wholesale_price`: `NUMERIC(10,2) NOT NULL` (Base Tier 1 price)
   - `msrp_price`: `NUMERIC(10,2) NULL`
   - `cost_price`: `NUMERIC(10,2) NULL` (Factory buying/production cost)
@@ -227,6 +226,10 @@ This document details the authoritative PostgreSQL schema for all tables in the 
 ### `homepage_featured_products`
 - **Purpose**: Curated products displayed in storefront "Featured Products" grid.
 - **Columns**: `id`, `product_id` (`BIGINT UNIQUE REFERENCES products(id) ON DELETE CASCADE`), `sort_order` (`INTEGER DEFAULT 0`), `is_active` (`BOOLEAN DEFAULT true`), `timestamps`.
+
+### `homepage_ticker_items`
+- **Purpose**: Dynamic keywords displayed in customer storefront scrolling ticker below hero banner.
+- **Columns**: `id`, `text` (`VARCHAR(255)`), `is_active` (`BOOLEAN DEFAULT true`), `sort_order` (`INTEGER DEFAULT 0`), `timestamps`.
 
 ---
 

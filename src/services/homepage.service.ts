@@ -66,23 +66,33 @@ export interface HomepageFeaturedProductModel {
   product?: any;
 }
 
+export interface HomepageTickerItem {
+  id?: number;
+  text: string;
+  is_active: boolean;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface StorefrontHomepageData {
   banner: HomepageBannerModel | null;
+  ticker_items: HomepageTickerItem[];
   featured_brands: HomepageFeaturedBrandModel[];
   hot_sale_categories: HomepageHotSaleCategoryModel[];
   featured_products: HomepageFeaturedProductModel[];
-  active_season?: string;
 }
 
 export interface AdminHomepageData {
   banner: HomepageBannerModel | null;
   all_banners?: HomepageBannerModel[];
+  site_logo?: string | null;
+  ticker_items: HomepageTickerItem[];
   featured_brands: HomepageFeaturedBrandModel[];
   all_brands?: HomepageBrandRecord[];
   hot_sale_categories: HomepageHotSaleCategoryModel[];
   all_categories?: HomepageCategoryRecord[];
   featured_products: HomepageFeaturedProductModel[];
-  active_season?: string;
   counts?: {
     total_brands?: number;
     landing_brands?: number;
@@ -129,6 +139,7 @@ export class HomepageService {
       if (data && typeof data === "object") {
         return {
           banner: data.banner || null,
+          ticker_items: Array.isArray(data.ticker_items) ? data.ticker_items : [],
           featured_brands: Array.isArray(data.featured_brands) ? data.featured_brands : [],
           hot_sale_categories: Array.isArray(data.hot_sale_categories) ? data.hot_sale_categories : [],
           featured_products: Array.isArray(data.featured_products) ? data.featured_products : [],
@@ -140,6 +151,7 @@ export class HomepageService {
 
     return {
       banner: null,
+      ticker_items: [],
       featured_brands: [],
       hot_sale_categories: [],
       featured_products: [],
@@ -155,6 +167,8 @@ export class HomepageService {
     return {
       banner: data?.banner || null,
       all_banners: Array.isArray(data?.all_banners) ? data.all_banners : [],
+      site_logo: data?.site_logo || null,
+      ticker_items: Array.isArray(data?.ticker_items) ? data.ticker_items : [],
       featured_brands: Array.isArray(data?.featured_brands) ? data.featured_brands : [],
       all_brands: Array.isArray(data?.all_brands) ? data.all_brands : [],
       hot_sale_categories: Array.isArray(data?.hot_sale_categories) ? data.hot_sale_categories : [],
@@ -264,22 +278,17 @@ export class HomepageService {
   }
 
   /**
-   * Update the active collection season for all products.
+   * Synchronize Homepage ticker items (keywords).
    */
-  async updateActiveSeason(
-    season: string,
-    applyToAllProducts: boolean = true
-  ): Promise<{ active_season: string; affected_products_count: number }> {
-    const res = await apiClient.post<any>("/admin/homepage/season", {
-      season,
-      apply_to_all_products: applyToAllProducts,
-    });
-    const data = res?.data || res;
+  async syncTickerItems(items: HomepageTickerItem[]): Promise<HomepageTickerItem[]> {
+    const res = await apiClient.post<any>("/admin/homepage/ticker", { items });
+    const list = (res?.data || res) as HomepageTickerItem[];
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("ayaan:season-updated", { detail: { season } }));
-      window.dispatchEvent(new CustomEvent("ayaan:data-updated", { detail: { entity: "products" } }));
+      window.dispatchEvent(new CustomEvent("ayaan:homepage-updated", { detail: { type: "ticker" } }));
+      window.dispatchEvent(new CustomEvent("ayaan:data-updated", { detail: { entity: "homepage" } }));
+      window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_homepage_ticker_updated" }));
     }
-    return data;
+    return Array.isArray(list) ? list : [];
   }
 
   /**

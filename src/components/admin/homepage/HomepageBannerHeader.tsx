@@ -12,8 +12,8 @@ export interface HomepageBannerHeaderProps {
 }
 
 export default function HomepageBannerHeader({
-  title = "Homepage & Banner",
-  description = "Manage the primary banner displayed on the AYAAN CLOTHING homepage.",
+  title = "Homepage",
+  description = "Manage the customer storefront homepage: brand logo, primary banner, ticker keywords, and catalog merchandising.",
   storefrontUrl,
   isDirty,
   isSaving,

@@ -494,11 +494,16 @@ function HeaderContent() {
                   aria-label={`${settings.site_title} Home`}
                 >
                   {settings.site_logo ? (
-                    <img
-                      src={settings.site_logo}
-                      alt={settings.site_title}
-                      className="h-6 w-auto max-w-full object-contain pointer-events-none"
-                    />
+                    <div
+                      className="h-6 w-6 aspect-square flex items-center justify-center shrink-0 overflow-hidden select-none bg-transparent border-0 shadow-none outline-none"
+                      style={{ aspectRatio: "1 / 1" }}
+                    >
+                      <img
+                        src={settings.site_logo}
+                        alt={settings.site_title}
+                        className="w-full h-full object-contain pointer-events-none"
+                      />
+                    </div>
                   ) : (
                     <>
                       <span className="text-[#EA580C]">A</span>

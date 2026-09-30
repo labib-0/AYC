@@ -10,6 +10,7 @@ use App\Models\HomepageBanner;
 use App\Models\HomepageFeaturedBrand;
 use App\Models\HomepageFeaturedProduct;
 use App\Models\HomepageHotSaleCategory;
+use App\Models\HomepageTickerItem;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 
@@ -181,12 +182,19 @@ class HomepageController extends ApiController
             }
         }
 
+        // 5. Fetch active homepage ticker items (in admin sort order)
+        $tickerItems = HomepageTickerItem::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get(['id', 'text', 'sort_order', 'is_active']);
+
         return $this->success([
             'banner' => $banner,
+            'ticker_items' => $tickerItems,
             'featured_brands' => $featuredBrands,
             'hot_sale_categories' => $hotSaleCategories,
             'featured_products' => $featuredProducts,
-            'active_season' => \App\Models\SystemSetting::getActiveSeason(),
         ], 'Homepage configuration retrieved successfully');
     }
 }

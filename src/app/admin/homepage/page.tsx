@@ -5,20 +5,21 @@ import { AlertCircle, RefreshCw, PanelTop } from "lucide-react";
 import {
   homepageService,
   HomepageBannerModel,
+  HomepageTickerItem,
   HomepageHotSaleCategoryModel,
   HomepageFeaturedProductModel,
   HomepageFeaturedBrandModel,
 } from "@/services/homepage.service";
 import {
   HomepageBannerHeader,
+  HomepageLogoManager,
   HomepageBannerPreview,
   BannerImageUploader,
   BannerContentForm,
-  BannerStatusControl,
+  HomepageTickerManager,
   ShopByBrandManager,
   HotSaleCategoryManager,
   FeaturedProductManager,
-  SeasonManager,
 } from "@/components/admin/homepage";
 import ProductToast, {
   ToastMessage,
@@ -33,17 +34,17 @@ interface BannerFormState {
   imageUrl: string;
   buttonText: string;
   buttonTarget: string;
-  isActive: boolean;
 }
 
-export default function AdminLandingPageManagement() {
+export default function AdminHomepageManagement() {
   // Admin Data State
+  const [siteLogo, setSiteLogo] = useState<string | null>(null);
   const [activeBanner, setActiveBanner] = useState<HomepageBannerModel | null>(null);
+  const [tickerItems, setTickerItems] = useState<HomepageTickerItem[]>([]);
+  const [savedTickerItems, setSavedTickerItems] = useState<HomepageTickerItem[]>([]);
   const [featuredBrands, setFeaturedBrands] = useState<HomepageFeaturedBrandModel[]>([]);
   const [hotSaleCategories, setHotSaleCategories] = useState<HomepageHotSaleCategoryModel[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<HomepageFeaturedProductModel[]>([]);
-  const [activeSeason, setActiveSeason] = useState<string>("2026 Core Collection");
-  const [totalProductsCount, setTotalProductsCount] = useState<number>(0);
 
   // Banner Form Draft State
   const [formState, setFormState] = useState<BannerFormState>({
@@ -52,12 +53,11 @@ export default function AdminLandingPageManagement() {
     imageUrl: DEFAULT_TOP_BANNER.imageUrl,
     buttonText: DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
     buttonTarget: DEFAULT_TOP_BANNER.target,
-    isActive: DEFAULT_TOP_BANNER.active,
   });
 
   // UX & Validation State
   const [loading, setLoading] = useState(true);
-  const [savingBanner, setSavingBanner] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -86,20 +86,19 @@ export default function AdminLandingPageManagement() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Fetch full landing page data from Laravel API
+  // Fetch full homepage management data from Laravel API
   const loadHomepageData = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
       const data = await homepageService.getAdminHomepageData();
+      setSiteLogo(data.site_logo || null);
       setActiveBanner(data.banner);
+      setTickerItems(data.ticker_items || []);
+      setSavedTickerItems(data.ticker_items || []);
       setFeaturedBrands(data.featured_brands || []);
       setHotSaleCategories(data.hot_sale_categories || []);
       setFeaturedProducts(data.featured_products || []);
-      if (data.active_season) {
-        setActiveSeason(data.active_season);
-      }
-      setTotalProductsCount(data.counts?.total_all_products || data.counts?.total_products || 0);
 
       if (data.banner) {
         setFormState({
@@ -109,11 +108,10 @@ export default function AdminLandingPageManagement() {
           imageUrl: data.banner.image_url || DEFAULT_TOP_BANNER.imageUrl,
           buttonText: data.banner.cta_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
           buttonTarget: data.banner.destination_value || DEFAULT_TOP_BANNER.target,
-          isActive: Boolean(data.banner.is_active),
         });
       }
     } catch (err: unknown) {
-      setLoadError((err as Error)?.message || "Failed to load landing page configuration.");
+      setLoadError((err as Error)?.message || "Failed to load homepage configuration.");
     } finally {
       setLoading(false);
     }
@@ -146,8 +144,7 @@ export default function AdminLandingPageManagement() {
         formState.subtitle !== (DEFAULT_TOP_BANNER.subtitle || "") ||
         formState.imageUrl !== DEFAULT_TOP_BANNER.imageUrl ||
         formState.buttonText !== (DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →") ||
-        formState.buttonTarget !== DEFAULT_TOP_BANNER.target ||
-        formState.isActive !== DEFAULT_TOP_BANNER.active
+        formState.buttonTarget !== DEFAULT_TOP_BANNER.target
       );
     }
     return (
@@ -155,13 +152,29 @@ export default function AdminLandingPageManagement() {
       formState.subtitle !== (activeBanner.subtitle || "") ||
       formState.imageUrl !== (activeBanner.image_url || DEFAULT_TOP_BANNER.imageUrl) ||
       formState.buttonText !== (activeBanner.cta_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →") ||
-      formState.buttonTarget !== (activeBanner.destination_value || DEFAULT_TOP_BANNER.target) ||
-      formState.isActive !== Boolean(activeBanner.is_active)
+      formState.buttonTarget !== (activeBanner.destination_value || DEFAULT_TOP_BANNER.target)
     );
   }, [activeBanner, formState]);
 
-  // Reset banner form to last saved state
-  const handleResetBanner = () => {
+  // Determine if ticker items have unsaved modifications
+  const isTickerDirty = useMemo(() => {
+    if (tickerItems.length !== savedTickerItems.length) return true;
+    return tickerItems.some((item, idx) => {
+      const saved = savedTickerItems[idx];
+      if (!saved) return true;
+      return (
+        item.id !== saved.id ||
+        item.text !== saved.text ||
+        item.is_active !== saved.is_active ||
+        item.sort_order !== saved.sort_order
+      );
+    });
+  }, [tickerItems, savedTickerItems]);
+
+  const isPageDirty = isBannerDirty || isTickerDirty;
+
+  // Reset unsaved changes to last saved state
+  const handleResetChanges = () => {
     if (activeBanner) {
       setFormState({
         id: activeBanner.id,
@@ -170,7 +183,6 @@ export default function AdminLandingPageManagement() {
         imageUrl: activeBanner.image_url || DEFAULT_TOP_BANNER.imageUrl,
         buttonText: activeBanner.cta_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
         buttonTarget: activeBanner.destination_value || DEFAULT_TOP_BANNER.target,
-        isActive: Boolean(activeBanner.is_active),
       });
     } else {
       setFormState({
@@ -179,9 +191,9 @@ export default function AdminLandingPageManagement() {
         imageUrl: DEFAULT_TOP_BANNER.imageUrl,
         buttonText: DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
         buttonTarget: DEFAULT_TOP_BANNER.target,
-        isActive: DEFAULT_TOP_BANNER.active,
       });
     }
+    setTickerItems([...savedTickerItems]);
     setFormErrors({});
   };
 
@@ -200,52 +212,78 @@ export default function AdminLandingPageManagement() {
       errors.subtitle = "Subtitle must not exceed 500 characters.";
     }
 
-    if (formState.isActive && !formState.imageUrl.trim()) {
-      errors.imageUrl = "An image asset is recommended for active homepage banners.";
+    if (!formState.imageUrl.trim()) {
+      errors.imageUrl = "An image asset is recommended for homepage banners.";
     }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  // Save banner changes to Laravel backend
-  const handleSaveBanner = async () => {
-    if (!validateBannerForm()) {
+  // Save changes to Laravel backend (banner and ticker)
+  const handleSaveChanges = async () => {
+    if (isBannerDirty && !validateBannerForm()) {
       showToast("Unable to save banner. Please check required fields.", "error");
       return;
     }
 
-    setSavingBanner(true);
+    setSaving(true);
     try {
-      const payload = {
-        id: formState.id,
-        headline: formState.title.trim(),
-        subtitle: formState.subtitle.trim() || undefined,
-        cta_text: formState.buttonText.trim() || "EXPLORE CATALOG →",
-        destination_type: formState.buttonTarget.startsWith("#") ? "anchor" : "url",
-        destination_value: formState.buttonTarget.trim() || "#featured",
-        image_url: formState.imageUrl.trim() || DEFAULT_TOP_BANNER.imageUrl,
-        is_active: formState.isActive,
-      };
+      // 1. Save banner if dirty
+      if (isBannerDirty) {
+        const payload = {
+          id: formState.id,
+          headline: formState.title.trim(),
+          subtitle: formState.subtitle.trim() || undefined,
+          cta_text: formState.buttonText.trim() || "EXPLORE CATALOG →",
+          destination_type: formState.buttonTarget.startsWith("#") ? "anchor" : "url",
+          destination_value: formState.buttonTarget.trim() || "#featured",
+          image_url: formState.imageUrl.trim() || DEFAULT_TOP_BANNER.imageUrl,
+          is_active: true,
+        };
 
-      const saved = await homepageService.saveBanner(payload);
-      setActiveBanner(saved);
-      setFormState((prev) => ({
-        ...prev,
-        id: saved.id,
-        title: saved.headline,
-        subtitle: saved.subtitle || "",
-        imageUrl: saved.image_url || DEFAULT_TOP_BANNER.imageUrl,
-        buttonText: saved.cta_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
-        buttonTarget: saved.destination_value || DEFAULT_TOP_BANNER.target,
-        isActive: Boolean(saved.is_active),
-      }));
+        const savedBanner = await homepageService.saveBanner(payload);
+        setActiveBanner(savedBanner);
+        setFormState((prev) => ({
+          ...prev,
+          id: savedBanner.id,
+          title: savedBanner.headline,
+          subtitle: savedBanner.subtitle || "",
+          imageUrl: savedBanner.image_url || DEFAULT_TOP_BANNER.imageUrl,
+          buttonText: savedBanner.cta_text || DEFAULT_TOP_BANNER.buttonText || "EXPLORE CATALOG →",
+          buttonTarget: savedBanner.destination_value || DEFAULT_TOP_BANNER.target,
+        }));
+      }
 
-      showToast("Homepage banner updated successfully. Active on storefront.", "success");
-    } catch (err: any) {
-      showToast(err?.message || "Unable to save homepage banner. Please try again.", "error");
+      // 2. Save ticker items if dirty
+      if (isTickerDirty) {
+        const savedList = await homepageService.syncTickerItems(tickerItems);
+        setTickerItems(savedList);
+        setSavedTickerItems(savedList);
+      }
+
+      showToast("Homepage changes saved successfully. Active on storefront.", "success");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unable to save homepage changes. Please try again.";
+      showToast(msg, "error");
     } finally {
-      setSavingBanner(false);
+      setSaving(false);
+    }
+  };
+
+  // Dedicated Save for ticker section
+  const handleSaveTickerOnly = async () => {
+    setSaving(true);
+    try {
+      const savedList = await homepageService.syncTickerItems(tickerItems);
+      setTickerItems(savedList);
+      setSavedTickerItems(savedList);
+      showToast("Homepage ticker keywords saved successfully.", "success");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save ticker items.";
+      showToast(msg, "error");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -254,6 +292,7 @@ export default function AdminLandingPageManagement() {
     return (
       <div className="space-y-6 animate-pulse max-w-6xl mx-auto">
         <div className="h-10 bg-secondary rounded-xl w-1/3" />
+        <div className="h-28 bg-secondary rounded-2xl w-full" />
         <div className="h-44 bg-secondary rounded-2xl w-full" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="h-64 bg-secondary rounded-2xl" />
@@ -272,7 +311,7 @@ export default function AdminLandingPageManagement() {
         </div>
         <div className="space-y-1">
           <h2 className="text-base font-bold text-foreground">
-            Failed to Load Landing Page Configuration
+            Failed to Load Homepage Configuration
           </h2>
           <p className="text-xs text-muted-foreground">{loadError}</p>
         </div>
@@ -291,125 +330,133 @@ export default function AdminLandingPageManagement() {
   return (
     <AdminPageGate permission="homepage.view" moduleName="Homepage Merchandising">
       <div className="space-y-8 max-w-6xl mx-auto pb-12">
-      {/* Toast Notification Container */}
-      <ProductToast toasts={toasts} onDismiss={dismissToast} />
+        {/* Toast Notification Container */}
+        <ProductToast toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Page Header */}
-      <HomepageBannerHeader
-        title="Homepage & Landing Page"
-        description="Manage the customer storefront landing page: primary promotional banner, curated hot sale categories, and prioritized featured products."
-        storefrontUrl={storefrontUrl}
-        isDirty={isBannerDirty}
-        isSaving={savingBanner}
-        onSave={handleSaveBanner}
-        onReset={handleResetBanner}
-      />
+        {/* Page Header */}
+        <HomepageBannerHeader
+          title="Homepage"
+          description="Manage the customer storefront homepage: official header logo, primary promotional banner, scrolling ticker keywords, curated brands, hot sale categories, and featured products."
+          storefrontUrl={storefrontUrl}
+          isDirty={isPageDirty}
+          isSaving={saving}
+          onSave={handleSaveChanges}
+          onReset={handleResetChanges}
+        />
 
-      {/* ==================================================================== */}
-      {/* SECTION 1: PRIMARY BANNER                                            */}
-      {/* ==================================================================== */}
-      <section className="space-y-5">
-        <div className="flex items-center justify-between pb-1 border-b border-border/60">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <PanelTop size={16} />
+        {/* ==================================================================== */}
+        {/* SECTION 1: HOMEPAGE LOGO                                             */}
+        {/* ==================================================================== */}
+        <section>
+          <HomepageLogoManager
+            currentLogo={siteLogo}
+            onLogoChange={(logo) => setSiteLogo(logo)}
+            showToast={showToast}
+            disabled={saving}
+          />
+        </section>
+
+        {/* ==================================================================== */}
+        {/* SECTION 2: PRIMARY PROMOTIONAL BANNER                                 */}
+        {/* ==================================================================== */}
+        <section className="space-y-5">
+          <div className="flex items-center justify-between pb-1 border-b border-border/60">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <PanelTop size={16} />
+              </div>
+              <h2 className="text-base sm:text-lg font-display font-bold uppercase tracking-tight text-foreground">
+                Primary Promotional Banner
+              </h2>
             </div>
-            <h2 className="text-base sm:text-lg font-display font-bold uppercase tracking-tight text-foreground">
-              Primary Promotional Banner
-            </h2>
-          </div>
-          <span className="text-xs font-mono text-muted-foreground">
-            Dimensions: ~1375 × 158 px
-          </span>
-        </div>
-
-        {/* Live Visual Preview */}
-        <HomepageBannerPreview
-          title={formState.title}
-          subtitle={formState.subtitle}
-          imageUrl={formState.imageUrl}
-          buttonText={formState.buttonText}
-          buttonTarget={formState.buttonTarget}
-          isActive={formState.isActive}
-        />
-
-        {/* Form Controls Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column: Image Asset Uploader */}
-          <div className="space-y-6">
-            <BannerImageUploader
-              imageUrl={formState.imageUrl}
-              onImageChange={(url) => handleFieldChange("imageUrl", url)}
-              onRemoveImage={() => handleFieldChange("imageUrl", "")}
-              disabled={savingBanner}
-            />
-
-            <BannerStatusControl
-              isActive={formState.isActive}
-              onChange={(active) => handleFieldChange("isActive", active)}
-              disabled={savingBanner}
-            />
+            <span className="text-xs font-mono text-muted-foreground">
+              Dimensions: ~1375 × 158 px
+            </span>
           </div>
 
-          {/* Right Column: Text Messaging, CTA & Target Destination */}
-          <div className="space-y-6">
-            <BannerContentForm
-              title={formState.title}
-              subtitle={formState.subtitle}
-              buttonText={formState.buttonText}
-              buttonTarget={formState.buttonTarget}
-              onChange={(field, val) => handleFieldChange(field, val)}
-              errors={formErrors}
-              disabled={savingBanner}
-            />
+          {/* Live Visual Preview */}
+          <HomepageBannerPreview
+            title={formState.title}
+            subtitle={formState.subtitle}
+            imageUrl={formState.imageUrl}
+            buttonText={formState.buttonText}
+            buttonTarget={formState.buttonTarget}
+          />
+
+          {/* Form Controls Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column: Image Asset Uploader */}
+            <div className="space-y-6">
+              <BannerImageUploader
+                imageUrl={formState.imageUrl}
+                onImageChange={(url) => handleFieldChange("imageUrl", url)}
+                onRemoveImage={() => handleFieldChange("imageUrl", "")}
+                disabled={saving}
+              />
+            </div>
+
+            {/* Right Column: Text Messaging, CTA & Target Destination */}
+            <div className="space-y-6">
+              <BannerContentForm
+                title={formState.title}
+                subtitle={formState.subtitle}
+                buttonText={formState.buttonText}
+                buttonTarget={formState.buttonTarget}
+                onChange={(field, val) => handleFieldChange(field, val)}
+                errors={formErrors}
+                disabled={saving}
+              />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ==================================================================== */}
-      {/* SECTION 2: STOREWIDE COLLECTION SEASON                                */}
-      {/* ==================================================================== */}
-      <section>
-        <SeasonManager
-          initialSeason={activeSeason}
-          totalProducts={totalProductsCount}
-          onSaveSuccess={loadHomepageData}
-          showToast={showToast}
-        />
-      </section>
+        {/* ==================================================================== */}
+        {/* SECTION 3: HOMEPAGE KEYWORDS / TICKER                                 */}
+        {/* ==================================================================== */}
+        <section>
+          <HomepageTickerManager
+            items={tickerItems}
+            onChange={setTickerItems}
+            onSave={handleSaveTickerOnly}
+            isSaving={saving}
+            isDirty={isTickerDirty}
+            showToast={showToast}
+            disabled={saving}
+          />
+        </section>
 
-      {/* ==================================================================== */}
-      {/* SECTION 3: SHOP BY BRAND                                             */}
-      {/* ==================================================================== */}
-      <section>
-        <ShopByBrandManager
-          initialBrands={featuredBrands}
-          onSaveSuccess={loadHomepageData}
-          showToast={showToast}
-        />
-      </section>
+        {/* ==================================================================== */}
+        {/* SECTION 4: SHOP BY BRAND                                             */}
+        {/* ==================================================================== */}
+        <section>
+          <ShopByBrandManager
+            initialBrands={featuredBrands}
+            onSaveSuccess={loadHomepageData}
+            showToast={showToast}
+          />
+        </section>
 
-      {/* ==================================================================== */}
-      {/* SECTION 3: HOT SALE CATEGORIES                                      */}
-      {/* ==================================================================== */}
-      <section>
-        <HotSaleCategoryManager
-          initialCategories={hotSaleCategories}
-          onSaveSuccess={loadHomepageData}
-          showToast={showToast}
-        />
-      </section>
+        {/* ==================================================================== */}
+        {/* SECTION 5: HOT SALE CATEGORIES                                       */}
+        {/* ==================================================================== */}
+        <section>
+          <HotSaleCategoryManager
+            initialCategories={hotSaleCategories}
+            onSaveSuccess={loadHomepageData}
+            showToast={showToast}
+          />
+        </section>
 
-      {/* ==================================================================== */}
-      {/* SECTION 4: FEATURED PRODUCTS                                         */}
-      {/* ==================================================================== */}
-      <section>
-        <FeaturedProductManager
-          initialProducts={featuredProducts}
-          onSaveSuccess={loadHomepageData}
-          showToast={showToast}
-        />
-      </section>
+        {/* ==================================================================== */}
+        {/* SECTION 6: FEATURED PRODUCTS                                         */}
+        {/* ==================================================================== */}
+        <section>
+          <FeaturedProductManager
+            initialProducts={featuredProducts}
+            onSaveSuccess={loadHomepageData}
+            showToast={showToast}
+          />
+        </section>
       </div>
     </AdminPageGate>
   );

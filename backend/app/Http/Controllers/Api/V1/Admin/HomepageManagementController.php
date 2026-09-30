@@ -9,7 +9,9 @@ use App\Models\HomepageBanner;
 use App\Models\HomepageFeaturedBrand;
 use App\Models\HomepageFeaturedProduct;
 use App\Models\HomepageHotSaleCategory;
+use App\Models\HomepageTickerItem;
 use App\Models\Product;
+use App\Models\SystemSetting;
 use App\Services\Cache\CatalogCacheService;
 use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
@@ -86,15 +88,22 @@ class HomepageManagementController extends ApiController
             ->orderBy('sort_order', 'asc')
             ->get();
 
+        // 5. Ticker items in order
+        $tickerItems = HomepageTickerItem::query()
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
         return $this->success([
             'banner' => $banner,
             'all_banners' => $allBanners,
+            'site_logo' => SystemSetting::get('site_logo'),
+            'ticker_items' => $tickerItems,
             'featured_brands' => $featuredBrands,
             'all_brands' => $allBrands,
             'hot_sale_categories' => $hotSaleCategories,
             'all_categories' => $allCategories,
             'featured_products' => $featuredProducts,
-            'active_season' => \App\Models\SystemSetting::getActiveSeason(),
             'counts' => [
                 'total_brands' => Brand::count(),
                 'landing_brands' => $featuredBrands->where('is_active', true)->count(),
@@ -104,7 +113,7 @@ class HomepageManagementController extends ApiController
                 'total_all_products' => Product::count(),
                 'featured_products' => $featuredProducts->where('is_active', true)->count(),
             ],
-        ], 'Admin landing page configuration retrieved');
+        ], 'Admin homepage configuration retrieved');
     }
 
     /**
@@ -135,21 +144,17 @@ class HomepageManagementController extends ApiController
             $imageUrl = asset('storage/' . $imagePath);
         }
 
-        $isActive = isset($validated['is_active']) ? (bool) $validated['is_active'] : true;
+        $isActive = true;
 
         $user = $request->user();
         if (!$this->authorization->can($user, 'homepage.banner.edit')) {
-            return $this->forbidden("Forbidden: you do not have the 'homepage.banner.edit' permission.");
-        }
-        if ($isActive && !$this->authorization->can($user, 'homepage.banner.publish')) {
-            return $this->forbidden("Forbidden: you do not have the 'homepage.banner.publish' permission to publish banners.");
+            return $this->forbidden("Forbidden: you do not have permission to edit the homepage banner.");
         }
 
         DB::beginTransaction();
         try {
-            if ($isActive) {
-                HomepageBanner::query()->where('is_active', true)->update(['is_active' => false]);
-            }
+            // Save Changes persists and immediately activates the banner
+            HomepageBanner::query()->where('is_active', true)->update(['is_active' => false]);
 
             if (!empty($validated['id'])) {
                 $banner = HomepageBanner::findOrFail($validated['id']);
@@ -524,39 +529,76 @@ class HomepageManagementController extends ApiController
     }
 
     /**
-     * POST /api/v1/admin/homepage/season
+     * POST /api/v1/admin/homepage/ticker
      *
-     * Update the storewide active collection season and optionally propagate to all products.
+     * Synchronize and persist Homepage ticker items (keywords).
      */
-    public function updateSeason(Request $request): JsonResponse
+    public function syncTickerItems(Request $request): JsonResponse
     {
         $user = $request->user();
         if (!$this->authorization->can($user, 'homepage.banner.edit') &&
-            !$this->authorization->can($user, 'homepage.product.manage') &&
-            !$this->authorization->can($user, 'product.edit')) {
-            return $this->error('Forbidden: You do not possess permission to manage collection season.', 403);
+            !$this->authorization->can($user, 'homepage.view')) {
+            return $this->forbidden("Forbidden: you do not have permission to manage homepage ticker items.");
         }
 
         $validated = $request->validate([
-            'season' => ['required', 'string', 'max:100'],
-            'apply_to_all_products' => ['nullable', 'boolean'],
+            'items' => ['present', 'array'],
+            'items.*.id' => ['nullable', 'integer'],
+            'items.*.text' => ['required', 'string', 'max:255'],
+            'items.*.is_active' => ['nullable', 'boolean'],
+            'items.*.sort_order' => ['nullable', 'integer'],
         ]);
 
-        $season = trim($validated['season']);
-        \App\Models\SystemSetting::set('active_season', $season, 'string', 'catalog');
+        DB::beginTransaction();
+        try {
+            $incomingItems = $validated['items'];
+            $keptIds = [];
 
-        $applyToAll = $request->boolean('apply_to_all_products', true);
-        $affected = 0;
+            foreach ($incomingItems as $idx => $itemData) {
+                $text = trim($itemData['text']);
+                if (empty($text)) {
+                    continue;
+                }
+                $isActive = isset($itemData['is_active']) ? (bool) $itemData['is_active'] : true;
+                $sortOrder = isset($itemData['sort_order']) ? (int) $itemData['sort_order'] : $idx;
 
-        if ($applyToAll) {
-            $affected = Product::query()->update(['collection_season' => $season]);
+                if (!empty($itemData['id'])) {
+                    $tickerItem = HomepageTickerItem::find($itemData['id']);
+                    if ($tickerItem) {
+                        $tickerItem->update([
+                            'text' => $text,
+                            'is_active' => $isActive,
+                            'sort_order' => $sortOrder,
+                        ]);
+                        $keptIds[] = $tickerItem->id;
+                        continue;
+                    }
+                }
+
+                $newItem = HomepageTickerItem::create([
+                    'text' => $text,
+                    'is_active' => $isActive,
+                    'sort_order' => $sortOrder,
+                ]);
+                $keptIds[] = $newItem->id;
+            }
+
+            // Remove any items that were deleted by Admin
+            HomepageTickerItem::whereNotIn('id', $keptIds)->delete();
+
+            DB::commit();
+
+            CatalogCacheService::invalidateAll();
+
+            $savedItems = HomepageTickerItem::query()
+                ->orderBy('sort_order', 'asc')
+                ->orderBy('id', 'asc')
+                ->get();
+
+            return $this->success($savedItems, 'Homepage ticker items saved successfully.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return $this->error('Failed to save homepage ticker items: ' . $e->getMessage(), 500);
         }
-
-        CatalogCacheService::flushAllProducts();
-
-        return $this->success([
-            'active_season' => $season,
-            'affected_products_count' => $affected,
-        ], "Storewide collection season updated to '{$season}'" . ($applyToAll ? " for all {$affected} products." : "."));
     }
 }

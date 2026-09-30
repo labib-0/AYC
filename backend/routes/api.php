@@ -443,7 +443,8 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:homepage.product.manage');
             Route::get('/search-products', [AdminHomepageManagementController::class, 'searchProducts'])
                 ->middleware('permission:homepage.view');
-            Route::post('/season', [AdminHomepageManagementController::class, 'updateSeason']);
+            Route::post('/ticker', [AdminHomepageManagementController::class, 'syncTickerItems'])
+                ->middleware('permission:homepage.banner.edit');
         });
 
         // ── RBAC Management (Phase 1 Foundation) ────────────────────────────
