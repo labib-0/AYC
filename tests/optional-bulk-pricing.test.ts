@@ -188,6 +188,31 @@ assert(
   "Full Stock qualification respects whether Bulk is enabled: > bulkThreshold if enabled, >= moq if disabled"
 );
 
+// 6. NEW PRODUCT BULK PRICING DEFAULT & PURCHASE PRICE WIDTH ALIGNMENT
+console.log("\n▶ 6. New Product Bulk Default & Purchase Price Width Alignment");
+// 6.1 ProductForm defaults bulkPricingEnabled to true for new products (!isEdit)
+assert(
+  productFormContent.includes("if (isEdit) return false;") &&
+  productFormContent.includes("// New products have Bulk Pricing ENABLED by default (true)\n    return true;"),
+  "ProductForm initializes bulkPricingEnabled to true for new products and false for existing unconfigured products"
+);
+
+// 6.2 ProductPricingSection has bulkPricingEnabled = true default prop
+assert(
+  pricingSectionContent.includes("bulkPricingEnabled = true,"),
+  "ProductPricingSection defaults bulkPricingEnabled prop to true"
+);
+
+// 6.3 Purchase Price card is w-full (matching the Unified Pricing Table width)
+assert(
+  !pricingSectionContent.includes("space-y-2 max-w-sm"),
+  "Purchase Price card does NOT use max-w-sm constraint"
+);
+assert(
+  pricingSectionContent.includes("space-y-2 w-full"),
+  "Purchase Price card uses w-full to align outer left and right edges with the main Pricing section"
+);
+
 console.log("\n==================================================");
 console.log("✓ ALL OPTIONAL BULK PRICING TESTS PASSED!");
 console.log("==================================================");

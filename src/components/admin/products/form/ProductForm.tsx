@@ -111,7 +111,10 @@ export default function ProductForm({
         initialData?.bulkPrice !== undefined && initialData?.bulkPrice !== null && Number(initialData.bulkPrice) > 0) {
       return true;
     }
-    return false;
+    // Existing products without configured bulk pricing keep disabled (false)
+    if (isEdit) return false;
+    // New products have Bulk Pricing ENABLED by default (true)
+    return true;
   });
   const [bulkThreshold, setBulkThreshold] = useState<number | undefined>(
     initialData?.bulkThreshold !== undefined ? Number(initialData.bulkThreshold) : undefined
@@ -248,11 +251,42 @@ export default function ProductForm({
   };
 
   // SEO
-  const [seoTitle, setSeoTitle] = useState(initialData?.seoTitle || initialData?.name || "");
-  const [seoDescription, setSeoDescription] = useState(
-    initialData?.seoDescription || initialData?.shortDescription || ""
+  const [seoTitle, setSeoTitle] = useState(
+    initialData?.seoTitle || (initialData as any)?.seo_title || initialData?.name || ""
   );
-  const [keywords, setKeywords] = useState<string[]>(initialData?.keywords || []);
+  const [seoDescription, setSeoDescription] = useState(
+    initialData?.seoDescription ||
+      (initialData as any)?.seo_description ||
+      initialData?.shortDescription ||
+      (initialData as any)?.short_description ||
+      ""
+  );
+  const [keywords, setKeywords] = useState<string[]>(() => {
+    const raw = initialData?.keywords || (initialData as any)?.seo_keywords || (initialData as any)?.seoKeywords;
+    if (Array.isArray(raw)) {
+      return raw.map(String);
+    }
+    if (typeof raw === "string" && raw.trim()) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.map(String);
+      } catch {
+        return raw.split(",").map((s: string) => s.trim()).filter(Boolean);
+      }
+    }
+    return [];
+  });
+  const hasUserEditedKeywordsRef = useRef(false);
+
+  // Synchronize keywords if initialData updates from backend and admin hasn't edited them yet
+  useEffect(() => {
+    if (!hasUserEditedKeywordsRef.current && initialData) {
+      const raw = initialData.keywords || (initialData as any)?.seo_keywords || (initialData as any)?.seoKeywords;
+      if (Array.isArray(raw) && raw.length > 0) {
+        setKeywords(raw.map(String));
+      }
+    }
+  }, [initialData]);
 
   // Publish Status: For a new product, status defaults to "draft" until published. For edit mode, respects initialData
   const [status, setStatus] = useState<"published" | "draft">(
@@ -327,8 +361,11 @@ export default function ProductForm({
       package_assortment_message: packageAssortmentMessage,
       description,
       seoTitle,
+      seo_title: seoTitle,
       seoDescription,
+      seo_description: seoDescription,
       keywords,
+      seo_keywords: keywords,
       images,
       videoUrl,
       wholesalePrice,
@@ -515,7 +552,15 @@ export default function ProductForm({
       if (d.description !== undefined) setDescription(d.description || "");
       if (d.seoTitle) setSeoTitle(d.seoTitle);
       if (d.seoDescription) setSeoDescription(d.seoDescription);
-      if (d.keywords) setKeywords(d.keywords);
+      const draftKeywords = Array.isArray(d.keywords) ? d.keywords : (Array.isArray((d as any).seo_keywords) ? (d as any).seo_keywords : null);
+      if (draftKeywords && draftKeywords.length > 0) {
+        setKeywords(draftKeywords.map(String));
+      } else {
+        const initRaw = initialData?.keywords || (initialData as any)?.seo_keywords || (initialData as any)?.seoKeywords;
+        if (Array.isArray(initRaw) && initRaw.length > 0) {
+          setKeywords(initRaw.map(String));
+        }
+      }
       if (d.images && Array.isArray(d.images)) {
         const clean = d.images
           .map((u: string) => normalizeImageUrl(u))
@@ -888,8 +933,11 @@ export default function ProductForm({
         description: description.trim(),
         shortDescription: seoDescription.trim() || description.slice(0, 160).trim(),
         seoTitle: seoTitle.trim() || undefined,
+        seo_title: seoTitle.trim() || undefined,
         seoDescription: seoDescription.trim() || undefined,
+        seo_description: seoDescription.trim() || undefined,
         keywords: keywords,
+        seo_keywords: keywords,
         material: material.trim(),
         sizeDescription: sizeDescription.trim() || undefined,
         size_description: sizeDescription.trim() || undefined,
@@ -1376,7 +1424,10 @@ export default function ProductForm({
             slug={slug}
             onSeoTitleChange={setSeoTitle}
             onSeoDescriptionChange={setSeoDescription}
-            onKeywordsChange={setKeywords}
+            onKeywordsChange={(newKws) => {
+              hasUserEditedKeywordsRef.current = true;
+              setKeywords(newKws);
+            }}
           />
         </div>
       </div>

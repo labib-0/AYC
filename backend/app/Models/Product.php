@@ -83,6 +83,10 @@ class Product extends Model
         'video_url',
         'weight_grams',
         'is_demo',
+        'seo_title',
+        'seo_description',
+        'keywords',
+        'seo_keywords',
     ];
 
     protected $casts = [
@@ -111,7 +115,55 @@ class Product extends Model
         'estimated_delivery_date' => 'date',
         'weight_grams' => 'integer',
         'is_demo' => 'boolean',
+        'keywords' => 'array',
     ];
+
+    public function getKeywordsAttribute($value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+            return array_values(array_filter(array_map('trim', explode(',', $value))));
+        }
+        return [];
+    }
+
+    public function setKeywordsAttribute($value): void
+    {
+        if (is_null($value)) {
+            $this->attributes['keywords'] = null;
+            return;
+        }
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (is_array($decoded)) {
+                $value = $decoded;
+            } else {
+                $value = array_values(array_filter(array_map('trim', explode(',', $value))));
+            }
+        }
+        if (is_array($value)) {
+            $clean = array_values(array_filter(array_map(fn($k) => is_scalar($k) ? (string) $k : '', $value), fn($k) => $k !== ''));
+            $this->attributes['keywords'] = json_encode($clean);
+        } else {
+            $this->attributes['keywords'] = null;
+        }
+    }
+
+    public function getSeoKeywordsAttribute(): array
+    {
+        return $this->keywords;
+    }
+
+    public function setSeoKeywordsAttribute($value): void
+    {
+        $this->keywords = $value;
+    }
 
     public function scopeStorefrontVisible($query)
     {

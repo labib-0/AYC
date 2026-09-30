@@ -402,6 +402,14 @@ class ProductController extends ApiController
             'new_brand_logo' => ['nullable', 'string'],
             'short_description' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
+            'seo_title' => ['nullable', 'string', 'max:255'],
+            'seoTitle' => ['nullable', 'string', 'max:255'],
+            'seo_description' => ['nullable', 'string'],
+            'seoDescription' => ['nullable', 'string'],
+            'keywords' => ['nullable', 'array'],
+            'keywords.*' => ['string', 'max:100'],
+            'seo_keywords' => ['nullable', 'array'],
+            'seo_keywords.*' => ['string', 'max:100'],
             'material' => ['nullable', 'string'],
             'size_description' => ['nullable', 'string', 'max:255'],
             'sizeDescription' => ['nullable', 'string', 'max:255'],
@@ -520,6 +528,7 @@ class ProductController extends ApiController
             'categories', 'images', 'variants', 'pricing_tiers', 'package_allocations', 'shipping_package_profiles',
             'new_brand_name', 'new_brand_logo', 'brand', 'designType',
             'sizeDescription', 'colourDescription', 'packageAssortmentVisible', 'packageAssortmentMessage',
+            'seoTitle', 'seoDescription', 'seo_keywords',
             'bulkPricingEnabled', 'bulkThreshold', 'bulkPrice', 'bulk_minimum_quantity', 'bulk_unit_price',
             'featured_duration_days', 'hot_duration_days', 'new_duration_days',
             'initial_stock', 'stock', 'warehouse_id', 'initial_inventory',
@@ -536,6 +545,15 @@ class ProductController extends ApiController
         }
         if (array_key_exists('packageAssortmentMessage', $validated) && !array_key_exists('package_assortment_message', $validated)) {
             $productData['package_assortment_message'] = $validated['packageAssortmentMessage'];
+        }
+        if (array_key_exists('seoTitle', $validated) && !array_key_exists('seo_title', $validated)) {
+            $productData['seo_title'] = $validated['seoTitle'];
+        }
+        if (array_key_exists('seoDescription', $validated) && !array_key_exists('seo_description', $validated)) {
+            $productData['seo_description'] = $validated['seoDescription'];
+        }
+        if (array_key_exists('seo_keywords', $validated) && !array_key_exists('keywords', $validated)) {
+            $productData['keywords'] = $validated['seo_keywords'];
         }
 
         // Resolve explicit Bulk Pricing state
@@ -1070,6 +1088,14 @@ class ProductController extends ApiController
             'new_brand_logo' => ['nullable', 'string'],
             'short_description' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
+            'seo_title' => ['nullable', 'string', 'max:255'],
+            'seoTitle' => ['nullable', 'string', 'max:255'],
+            'seo_description' => ['nullable', 'string'],
+            'seoDescription' => ['nullable', 'string'],
+            'keywords' => ['nullable', 'array'],
+            'keywords.*' => ['string', 'max:100'],
+            'seo_keywords' => ['nullable', 'array'],
+            'seo_keywords.*' => ['string', 'max:100'],
             'material' => ['nullable', 'string'],
             'size_description' => ['nullable', 'string', 'max:255'],
             'sizeDescription' => ['nullable', 'string', 'max:255'],
@@ -1186,6 +1212,7 @@ class ProductController extends ApiController
             'categories', 'images', 'variants', 'pricing_tiers', 'package_allocations', 'shipping_package_profiles',
             'new_brand_name', 'new_brand_logo', 'brand', 'designType',
             'sizeDescription', 'colourDescription', 'packageAssortmentVisible', 'packageAssortmentMessage',
+            'seoTitle', 'seoDescription', 'seo_keywords',
             'bulkPricingEnabled', 'bulkThreshold', 'bulkPrice', 'bulk_minimum_quantity', 'bulk_unit_price',
             'featured_duration_days', 'hot_duration_days', 'new_duration_days'
         ])->toArray();
@@ -1201,6 +1228,15 @@ class ProductController extends ApiController
         }
         if (array_key_exists('packageAssortmentMessage', $validated) && !array_key_exists('package_assortment_message', $validated)) {
             $productData['package_assortment_message'] = $validated['packageAssortmentMessage'];
+        }
+        if (array_key_exists('seoTitle', $validated) && !array_key_exists('seo_title', $validated)) {
+            $productData['seo_title'] = $validated['seoTitle'];
+        }
+        if (array_key_exists('seoDescription', $validated) && !array_key_exists('seo_description', $validated)) {
+            $productData['seo_description'] = $validated['seoDescription'];
+        }
+        if (array_key_exists('seo_keywords', $validated) && !array_key_exists('keywords', $validated)) {
+            $productData['keywords'] = $validated['seo_keywords'];
         }
 
         // Resolve explicit Bulk Pricing state on update

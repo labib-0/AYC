@@ -83,8 +83,11 @@ export interface Product {
   videoProvider?: string | null;
   vimeoVideoId?: string | null;
   seoTitle?: string;
+  seo_title?: string;
   seoDescription?: string;
+  seo_description?: string;
   keywords?: string[];
+  seo_keywords?: string[];
 }
 
 export interface ShippingPackageProfile {

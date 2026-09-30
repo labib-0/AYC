@@ -148,19 +148,22 @@ export function normalizeProductData(p: any): B2BProductInput {
 
   // Keywords and SEO
   let keywordsList: string[] = [];
-  if (Array.isArray(p.keywords)) {
-    keywordsList = p.keywords.map((k: unknown) => String(k).trim()).filter(Boolean);
-  } else if (typeof p.keywords === "string" && p.keywords.trim()) {
-    keywordsList = p.keywords.split(",").map((s: string) => s.trim()).filter(Boolean);
+  const rawKws = p.keywords !== undefined ? p.keywords : p.seo_keywords;
+  if (Array.isArray(rawKws)) {
+    keywordsList = rawKws.map(String);
+  } else if (typeof rawKws === "string" && rawKws.trim()) {
+    try {
+      const parsed = JSON.parse(rawKws);
+      if (Array.isArray(parsed)) {
+        keywordsList = parsed.map(String);
+      } else {
+        keywordsList = rawKws.split(",").map((s: string) => s.trim()).filter(Boolean);
+      }
+    } catch {
+      keywordsList = rawKws.split(",").map((s: string) => s.trim()).filter(Boolean);
+    }
   } else {
-    const pName = (p.name || "Apparel").toLowerCase();
-    keywordsList = [
-      `wholesale ${brandName.toLowerCase()} ${pName}`,
-      `bulk ${pName}`,
-      `${categoryInfo.name.toLowerCase()} supplier`,
-      `${audienceVal.toLowerCase()} apparel export`,
-      "Bangladesh clothing manufacturer",
-    ];
+    keywordsList = [];
   }
 
   return {

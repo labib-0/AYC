@@ -311,13 +311,42 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     productType: p.productType || p.product_type || "Ready-Made Garments",
     shortDescription: p.shortDescription || p.short_description || `Premium quality ${p.name} direct from Dhaka export facilities.`,
     description: p.description || `Premium apparel manufactured with high-tensile combed yarn and reactive dye technology. Compliant with international export standards (AQL 2.5).`,
-    seoTitle: p.seoTitle || p.seo_title || p.name || undefined,
-    seoDescription: p.seoDescription || p.seo_description || p.shortDescription || p.short_description || undefined,
-    keywords: Array.isArray(p.keywords)
-      ? p.keywords
-      : typeof p.keywords === "string"
-      ? p.keywords.split(",").map((s: string) => s.trim()).filter(Boolean)
-      : undefined,
+    seoTitle: p.seoTitle || p.seo_title || undefined,
+    seo_title: p.seo_title || p.seoTitle || undefined,
+    seoDescription: p.seoDescription || p.seo_description || undefined,
+    seo_description: p.seo_description || p.seoDescription || undefined,
+    keywords: (() => {
+      const rawKeywords = p.keywords !== undefined ? p.keywords : (p.seo_keywords !== undefined ? p.seo_keywords : p.seoKeywords);
+      if (Array.isArray(rawKeywords)) {
+        return rawKeywords.map(String);
+      }
+      if (typeof rawKeywords === "string" && rawKeywords.trim()) {
+        try {
+          const parsed = JSON.parse(rawKeywords);
+          if (Array.isArray(parsed)) return parsed.map(String);
+        } catch {
+          return rawKeywords.split(",").map((s: string) => s.trim()).filter(Boolean);
+        }
+        return rawKeywords.split(",").map((s: string) => s.trim()).filter(Boolean);
+      }
+      return [];
+    })(),
+    seo_keywords: (() => {
+      const rawKeywords = p.keywords !== undefined ? p.keywords : (p.seo_keywords !== undefined ? p.seo_keywords : p.seoKeywords);
+      if (Array.isArray(rawKeywords)) {
+        return rawKeywords.map(String);
+      }
+      if (typeof rawKeywords === "string" && rawKeywords.trim()) {
+        try {
+          const parsed = JSON.parse(rawKeywords);
+          if (Array.isArray(parsed)) return parsed.map(String);
+        } catch {
+          return rawKeywords.split(",").map((s: string) => s.trim()).filter(Boolean);
+        }
+        return rawKeywords.split(",").map((s: string) => s.trim()).filter(Boolean);
+      }
+      return [];
+    })(),
     material: p.material || "100% Cotton",
     colorName: p.colorName || p.color_name || p.color || "Black",
     colorHex: p.colorHex || p.color_hex || "#111827",
@@ -489,7 +518,7 @@ export function toStorefrontProduct(p: any): Product {
     description: p.description || p.shortDescription || p.short_description,
     seoTitle: p.seoTitle || p.seo_title,
     seoDescription: p.seoDescription || p.seo_description,
-    keywords: p.keywords,
+    keywords: p.keywords || p.seo_keywords || [],
     pricingTiers: p.pricingTiers || p.pricing_tiers,
     packageAllocations: p.packageAllocations || p.package_allocations,
     shippingPackageProfiles: p.shippingPackageProfiles || p.shipping_package_profiles,
@@ -754,6 +783,30 @@ export class ProductService {
 
     if (input.shortDescription !== undefined) payload.short_description = input.shortDescription;
     if (input.videoUrl !== undefined) payload.video_url = input.videoUrl;
+
+    if (input.seoTitle !== undefined) {
+      payload.seo_title = input.seoTitle;
+      payload.seoTitle = input.seoTitle;
+    } else if ((input as any).seo_title !== undefined) {
+      payload.seo_title = (input as any).seo_title;
+      payload.seoTitle = (input as any).seo_title;
+    }
+
+    if (input.seoDescription !== undefined) {
+      payload.seo_description = input.seoDescription;
+      payload.seoDescription = input.seoDescription;
+    } else if ((input as any).seo_description !== undefined) {
+      payload.seo_description = (input as any).seo_description;
+      payload.seoDescription = (input as any).seo_description;
+    }
+
+    if (input.keywords !== undefined) {
+      payload.keywords = input.keywords;
+      payload.seo_keywords = input.keywords;
+    } else if ((input as any).seo_keywords !== undefined) {
+      payload.keywords = (input as any).seo_keywords;
+      payload.seo_keywords = (input as any).seo_keywords;
+    }
 
     if (input.brand_id !== undefined) payload.brand_id = input.brand_id;
     if (input.categoryId !== undefined && !payload.categories) {

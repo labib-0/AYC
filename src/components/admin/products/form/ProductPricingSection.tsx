@@ -40,7 +40,7 @@ export default function ProductPricingSection({
   moq = 0,
   isMoqDerived = false,
   availableStock,
-  bulkPricingEnabled = false,
+  bulkPricingEnabled = true,
   bulkThreshold,
   bulkPrice,
   fullStockPrice,
@@ -371,9 +371,9 @@ export default function ProductPricingSection({
           </div>
         </div>
 
-        {/* PURCHASE PRICE (COMPACT SEPARATE INTERNAL FIELD BELOW UNIFIED TABLE) */}
+        {/* PURCHASE PRICE (SEPARATE INTERNAL FIELD ALIGNED WITH UNIFIED TABLE) */}
         <div className="pt-1">
-          <div className="p-4 rounded-xl bg-secondary/30 border border-border/70 space-y-2 max-w-sm">
+          <div className="p-4 rounded-xl bg-secondary/30 border border-border/70 space-y-2 w-full">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold uppercase tracking-wider text-foreground">
                 PURCHASE PRICE
@@ -406,6 +406,7 @@ export default function ProductPricingSection({
               </span>
               <input
                 type="number"
+                id="product-cost-price-input"
                 step="0.01"
                 min="0.01"
                 value={costPrice ?? ""}

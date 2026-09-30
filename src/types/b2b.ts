@@ -123,8 +123,11 @@ export interface B2BProductInput {
   isPackageAssortment?: boolean;
   fullStockQuantity?: number;
   seoTitle?: string;
+  seo_title?: string;
   seoDescription?: string;
+  seo_description?: string;
   keywords?: string[];
+  seo_keywords?: string[];
 }
 
 export type RfqStatus = 
