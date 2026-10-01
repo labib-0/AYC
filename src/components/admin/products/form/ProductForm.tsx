@@ -816,10 +816,6 @@ export default function ProductForm({
       errs.productId = "Product ID may only contain letters, numbers, hyphens (-), and slashes (/).";
     }
 
-    if (!name.trim()) {
-      errs.name = "Product name is required to save a draft.";
-    }
-
     // Package breakdown is strictly optional. Only validate if rows exist
     if (packageAllocations.length > 0) {
       for (const a of packageAllocations) {
@@ -974,53 +970,56 @@ export default function ProductForm({
         });
       });
 
-      // Pricing Tiers
-      const pricingTiers = bulkPricingEnabled && bulkThreshold && bulkPrice ? [
-        {
-          min_quantity: moq,
-          max_quantity: bulkThreshold - 1,
-          unit_price: wholesalePrice || 0,
-        },
-        {
-          min_quantity: bulkThreshold,
-          max_quantity: null,
-          unit_price: bulkPrice,
-        },
-      ] : [
-        {
-          min_quantity: moq,
-          max_quantity: null,
-          unit_price: wholesalePrice || 0,
-        },
-      ];
+      // Pricing Tiers: only construct tiers if wholesale price is set and greater than 0
+      const pricingTiers = (wholesalePrice !== undefined && wholesalePrice > 0)
+        ? (bulkPricingEnabled && bulkThreshold && bulkPrice ? [
+            {
+              min_quantity: moq || 1,
+              max_quantity: bulkThreshold - 1,
+              unit_price: wholesalePrice,
+            },
+            {
+              min_quantity: bulkThreshold,
+              max_quantity: null,
+              unit_price: bulkPrice,
+            },
+          ] : [
+            {
+              min_quantity: moq || 1,
+              max_quantity: null,
+              unit_price: wholesalePrice,
+            },
+          ])
+        : [];
 
       const normalizedPid = productId.replace(/\s+/g, "");
+      const isDraftTarget = targetStatus === "draft";
       const payload: B2BProductInput = {
         id: persistedDraftIdRef.current || initialData?.id || `prod_${Date.now()}`,
         productId: normalizedPid,
         product_id: normalizedPid,
-        name: name.trim(),
-        slug: slug.trim(),
-        sku: sku.trim() || generatedSku,
+        name: name.trim() || (isDraftTarget ? "" : (undefined as any)),
+        slug: slug.trim() || (undefined as any),
+        sku: sku.trim() || (name.trim() ? generatedSku : (undefined as any)),
         isHiddenFromStorefront: isHiddenFromStorefront,
         is_hidden_from_storefront: isHiddenFromStorefront,
-        brand: brand.trim(),
+        brand: brand.trim() || (undefined as any),
         brandLogo: activeBrand?.logo_url || brandLogo,
         brand_id: activeBrand?.id ? String(activeBrand.id) : undefined,
-        categoryId: categoryId,
-        categoryName: activeCat?.name || categoryName || "Apparel",
-        audience: audience as any,
-        designType: designType as any,
-        productType: designType,
-        description: description.trim(),
-        shortDescription: finalSeoDescription || description.slice(0, 160).trim(),
+        categoryId: categoryId || undefined,
+        categoryName: activeCat?.name || categoryName || (isDraftTarget ? undefined : "Apparel"),
+        audience: (audience || (isDraftTarget ? undefined : "UNISEX")) as any,
+        designType: (designType || undefined) as any,
+        productType: designType || undefined,
+        description: description.trim() || undefined,
+        shortDescription: finalSeoDescription || (description ? description.slice(0, 160).trim() : undefined),
         seoTitle: finalSeoTitle || undefined,
         seo_title: finalSeoTitle || undefined,
         seoDescription: finalSeoDescription || undefined,
         seo_description: finalSeoDescription || undefined,
-        keywords: finalKeywords,
-        seo_keywords: finalKeywords,
-        material: material.trim(),
+        keywords: finalKeywords && finalKeywords.length > 0 ? finalKeywords : undefined,
+        seo_keywords: finalKeywords && finalKeywords.length > 0 ? finalKeywords : undefined,
+        material: material.trim() || undefined,
         sizeDescription: sizeDescription.trim() || undefined,
         size_description: sizeDescription.trim() || undefined,
         colourDescription: colourDescription.trim() || undefined,
@@ -1031,12 +1030,12 @@ export default function ProductForm({
         package_assortment_message: packageAssortmentMessage.trim() || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
         images: (() => {
           const clean = images.map((u) => normalizeImageUrl(u)).filter((u) => isValidImageUrl(u));
-          return clean.length > 0 ? clean : ["/placeholder.jpg"];
+          return clean.length > 0 ? clean : (isDraftTarget ? [] : ["/placeholder.jpg"]);
         })(),
         videoUrl: videoUrl.trim() || undefined,
         video_url: videoUrl.trim() || undefined,
-        wholesalePrice: wholesalePrice || 0,
-        standardPrice: wholesalePrice || 0,
+        wholesalePrice: wholesalePrice !== undefined ? wholesalePrice : (isDraftTarget ? (undefined as any) : 0),
+        standardPrice: wholesalePrice !== undefined ? wholesalePrice : (isDraftTarget ? (undefined as any) : 0),
         bulkPricingEnabled: bulkPricingEnabled,
         bulk_pricing_enabled: bulkPricingEnabled,
         bulkThreshold: bulkPricingEnabled && bulkThreshold ? bulkThreshold : undefined,
@@ -1045,13 +1044,13 @@ export default function ProductForm({
         bulk_price: bulkPricingEnabled && bulkPrice ? bulkPrice : null,
         bulk_minimum_quantity: bulkPricingEnabled && bulkThreshold ? bulkThreshold : null,
         bulk_unit_price: bulkPricingEnabled && bulkPrice ? bulkPrice : null,
-        fullStockPrice: fullStockPrice,
-        full_stock_price: fullStockPrice,
-        costPrice: costPrice,
-        moq: moq,
-        stock: stock !== undefined ? stock : 0,
-        initialStock: stock !== undefined ? stock : 0,
-        initial_stock: stock !== undefined ? stock : 0,
+        fullStockPrice: fullStockPrice || undefined,
+        full_stock_price: fullStockPrice || undefined,
+        costPrice: costPrice || undefined,
+        moq: moq !== undefined ? moq : (isDraftTarget ? (undefined as any) : 1),
+        stock: stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0),
+        initialStock: stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0),
+        initial_stock: stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0),
         warehouseId: warehouseId || undefined,
         warehouse_id: warehouseId || undefined,
         status: targetStatus,

@@ -36,6 +36,7 @@ class SalesProfitAnalyticsService
         // Canonical sales statuses: confirmed, processing, shipped, delivered, or paid (excluding cancelled and refunded)
         $summaryAgg = DB::table('orders')
             ->join('order_items', 'orders.id', '=', 'order_items.order_id')
+            ->whereNull('orders.deleted_at')
             ->where('orders.status', '!=', 'cancelled')
             ->where('orders.payment_status', '!=', 'refunded')
             ->where(function ($query) {
@@ -51,6 +52,7 @@ class SalesProfitAnalyticsService
             ->first();
 
         $discountTotal = (float) DB::table('orders')
+            ->whereNull('orders.deleted_at')
             ->where('orders.status', '!=', 'cancelled')
             ->where('orders.payment_status', '!=', 'refunded')
             ->where(function ($query) {

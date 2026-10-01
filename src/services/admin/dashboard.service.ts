@@ -1,8 +1,11 @@
 import { apiClient } from "@/services/api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
+import { mockStore } from "@/lib/mock-data/mock-store";
 
 export interface DashboardMetrics {
   total_products: number;
   active_products: number;
+  published_products?: number;
   total_customers: number;
   total_orders: number;
   pending_orders: number;
@@ -10,6 +13,13 @@ export interface DashboardMetrics {
   delivered_orders: number;
   revenue: number;
   low_stock_items: number;
+  low_stock_products?: number;
+  sales?: number;
+  gross_profit?: number;
+  units_sold?: number;
+  profit_margin?: number;
+  chart?: any[];
+  sales_profit?: any;
   recent_orders: Array<{
     id: string | number;
     order_number: string;
@@ -35,42 +45,70 @@ export interface DashboardMetrics {
 }
 
 export class AdminDashboardService {
-  async getMetrics(): Promise<DashboardMetrics> {
+  async getMetrics(params?: { period?: string; date_from?: string; date_to?: string }): Promise<DashboardMetrics> {
     try {
-      const res = await apiClient.get<any>("/admin/dashboard");
+      const res = await apiClient.get<any>("/admin/dashboard", { params });
       const data = res?.data || res;
       if (data && typeof data.total_products !== "undefined") {
+        const activeProds = Number(data.active_products ?? data.published_products ?? 0);
+        const lowStock = Number(data.low_stock_items ?? data.low_stock_products ?? 0);
+
         return {
           total_products: Number(data.total_products || 0),
-          active_products: Number(data.active_products || 0),
+          active_products: activeProds,
+          published_products: activeProds,
           total_customers: Number(data.total_customers || 0),
           total_orders: Number(data.total_orders || 0),
           pending_orders: Number(data.pending_orders || 0),
           processing_orders: Number(data.processing_orders || 0),
           delivered_orders: Number(data.delivered_orders || 0),
           revenue: Number(data.revenue || 0),
-          low_stock_items: Number(data.low_stock_items || 0),
+          low_stock_items: lowStock,
+          low_stock_products: lowStock,
+          sales: typeof data.sales !== "undefined" ? Number(data.sales) : undefined,
+          gross_profit: typeof data.gross_profit !== "undefined" ? Number(data.gross_profit) : undefined,
+          units_sold: typeof data.units_sold !== "undefined" ? Number(data.units_sold) : undefined,
+          profit_margin: typeof data.profit_margin !== "undefined" ? Number(data.profit_margin) : undefined,
+          chart: Array.isArray(data.chart) ? data.chart : undefined,
+          sales_profit: data.sales_profit,
           recent_orders: Array.isArray(data.recent_orders) ? data.recent_orders : [],
           recent_rfqs: Array.isArray(data.recent_rfqs) ? data.recent_rfqs : [],
         };
       }
+      throw new Error("Unable to parse operational metrics from backend API response.");
     } catch (err) {
-      console.warn("Failed to fetch admin dashboard metrics from API, returning zero state:", err);
-    }
+      if (isFrontendOnly()) {
+        const products = mockStore.getProducts();
+        const orders = mockStore.getOrders();
+        const users = mockStore.getUsers();
+        const rfqs = mockStore.getRfqs();
 
-    return {
-      total_products: 0,
-      active_products: 0,
-      total_customers: 0,
-      total_orders: 0,
-      pending_orders: 0,
-      processing_orders: 0,
-      delivered_orders: 0,
-      revenue: 0,
-      low_stock_items: 0,
-      recent_orders: [],
-      recent_rfqs: [],
-    };
+        const activeProds = products.filter((p: any) => p.status === "published" && !p.isHiddenFromStorefront);
+        const customers = users.filter((u: any) => u.role === "customer");
+        const pendingOrders = orders.filter((o: any) => o.status === "pending");
+        const processingOrders = orders.filter((o: any) => o.status === "processing");
+        const deliveredOrders = orders.filter((o: any) => o.status === "delivered");
+        const paidOrders = orders.filter((o: any) => o.payment_status === "paid" || o.status === "delivered");
+        const revenue = paidOrders.reduce((sum: number, o: any) => sum + (Number(o.total_amount) || 0), 0);
+
+        return {
+          total_products: products.length,
+          active_products: activeProds.length,
+          published_products: activeProds.length,
+          total_customers: customers.length,
+          total_orders: orders.length,
+          pending_orders: pendingOrders.length,
+          processing_orders: processingOrders.length,
+          delivered_orders: deliveredOrders.length,
+          revenue: Math.round(revenue * 100) / 100,
+          low_stock_items: 0,
+          low_stock_products: 0,
+          recent_orders: orders.slice(0, 5) as any,
+          recent_rfqs: rfqs.slice(0, 5) as any,
+        };
+      }
+      throw err;
+    }
   }
 }
 

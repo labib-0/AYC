@@ -109,6 +109,8 @@ class ProductResource extends JsonResource
             'availableMoqs' => (int) $this->getAvailableMoqs(),
             'warehouse_breakdown' => $this->getWarehouseStockBreakdown(),
             'warehouseBreakdown' => $this->getWarehouseStockBreakdown(),
+            'warehouse_id' => !empty($this->getWarehouseStockBreakdown()) ? $this->getWarehouseStockBreakdown()[0]['warehouse_id'] : null,
+            'warehouseId' => !empty($this->getWarehouseStockBreakdown()) ? $this->getWarehouseStockBreakdown()[0]['warehouse_id'] : null,
             'max_complete_packages' => $this->getMaxCompletePackages(),
             'maxCompletePackages' => $this->getMaxCompletePackages(),
             'complete_package_stock' => $this->getCompletePackageStock(),

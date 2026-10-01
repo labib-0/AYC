@@ -252,6 +252,8 @@ class ProductController extends ApiController
         $perPage = (int) ($request->input('per_page') ?? $request->input('limit') ?? 20);
         $products = $query->paginate($perPage);
 
+        $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
+
         return response()->json([
             'success' => true,
             'data' => ProductResource::collection($products)->resolve(),
@@ -261,7 +263,7 @@ class ProductController extends ApiController
                 'prev' => $products->previousPageUrl(),
                 'next' => $products->nextPageUrl(),
             ],
-            'meta' => [
+            'meta' => array_merge([
                 'current_page' => $products->currentPage(),
                 'from' => $products->firstItem(),
                 'last_page' => $products->lastPage(),
@@ -269,7 +271,16 @@ class ProductController extends ApiController
                 'per_page' => $products->perPage(),
                 'to' => $products->lastItem(),
                 'total' => $products->total(),
-            ],
+            ], $isAdmin ? [
+                'counts' => [
+                    'total' => Product::whereNull('deleted_at')->count(),
+                    'published' => Product::whereNull('deleted_at')->where('status', 'published')->count(),
+                    'draft' => Product::whereNull('deleted_at')->where('status', 'draft')->count(),
+                    'archived' => Product::whereNull('deleted_at')->where('status', 'archived')->count(),
+                    'low_stock' => Product::whereNull('deleted_at')->where('stock', '<', 10)->count(),
+                    'price_pending' => Product::whereNull('deleted_at')->whereNull('purchase_price_updated_at')->count(),
+                ],
+            ] : []),
         ]);
     }
 
@@ -391,7 +402,7 @@ class ProductController extends ApiController
                 'regex:/^[A-Za-z0-9\-\/]+$/',
                 Rule::unique('products', 'product_id')->whereNull('deleted_at'),
             ],
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [$isPublished ? 'required' : 'nullable', 'string', 'max:255'],
             'slug' => ['nullable', 'string', Rule::unique('products', 'slug')->whereNull('deleted_at')],
             'sku' => ['nullable', 'string', Rule::unique('products', 'sku')->whereNull('deleted_at')],
             'brand_id' => ['nullable', 'exists:brands,id'],
@@ -490,6 +501,7 @@ class ProductController extends ApiController
             'product_id.required' => 'Product ID is required.',
             'product_id.unique' => "Product ID {$productIdInput} is already in use.",
             'product_id.regex' => 'Product ID may only contain letters, numbers, hyphens (-), and slashes (/).',
+            'name.required' => 'Product name is required to publish.',
             'warehouse_id.required_without' => 'Initial warehouse is required.',
             'full_stock_price.required' => 'Full stock price is required.',
             'full_stock_price.gt' => 'Full stock price must be greater than 0.',
@@ -576,7 +588,10 @@ class ProductController extends ApiController
 
         // Autogenerate unique slug for drafts if not provided
         if (empty($productData['slug'])) {
-            $baseSlug = \Illuminate\Support\Str::slug($validated['name']) ?: 'draft-' . \Illuminate\Support\Str::random(8);
+            $slugSource = !empty($validated['name'])
+                ? $validated['name']
+                : ('draft-' . ($productIdInput ?: \Illuminate\Support\Str::random(8)));
+            $baseSlug = \Illuminate\Support\Str::slug($slugSource) ?: 'draft-' . \Illuminate\Support\Str::random(8);
             $slugCandidate = $baseSlug;
             $sCount = 1;
             while (Product::where('slug', $slugCandidate)->whereNull('deleted_at')->exists()) {
@@ -587,16 +602,19 @@ class ProductController extends ApiController
 
         // Autogenerate unique SKU for drafts if not provided
         if (empty($productData['sku'])) {
-            $baseSku = 'AYN-DFT-' . strtoupper(\Illuminate\Support\Str::random(6));
-            while (Product::where('sku', $baseSku)->whereNull('deleted_at')->exists()) {
-                $baseSku = 'AYN-DFT-' . strtoupper(\Illuminate\Support\Str::random(6));
+            $cleanPid = preg_replace('/[^A-Za-z0-9]/', '', $productIdInput ?: '');
+            $baseSku = $cleanPid !== '' ? 'AYN-DFT-' . strtoupper($cleanPid) : 'AYN-DFT-' . strtoupper(\Illuminate\Support\Str::random(6));
+            $candidateSku = $baseSku;
+            $skuCount = 1;
+            while (Product::where('sku', $candidateSku)->whereNull('deleted_at')->exists()) {
+                $candidateSku = $baseSku . '-' . (++$skuCount);
             }
-            $productData['sku'] = $baseSku;
+            $productData['sku'] = $candidateSku;
         }
 
-        // Default wholesale price for drafts if omitted
+        // Wholesale price: do NOT fabricate fake values for drafts; keep NULL if omitted
         if (!isset($productData['wholesale_price']) || $productData['wholesale_price'] === null) {
-            $productData['wholesale_price'] = 0.00;
+            $productData['wholesale_price'] = $isPublished ? 0.00 : null;
         }
 
         if (!array_key_exists('full_stock_price', $productData)) {
@@ -655,7 +673,7 @@ class ProductController extends ApiController
                 ? Product::DESIGN_TYPE_MASTER_COPY
                 : Product::DESIGN_TYPE_ORIGINAL;
         } else {
-            $productData['design_type'] = Product::DESIGN_TYPE_ORIGINAL;
+            $productData['design_type'] = $isPublished ? Product::DESIGN_TYPE_ORIGINAL : null;
         }
 
         // Inline brand creation / resolution
@@ -702,22 +720,23 @@ class ProductController extends ApiController
             }
         }
 
-        // Enforce MOQ >= 1
+        // Enforce MOQ >= 1 only when publishing
         $effectiveMoq = isset($productData['moq']) ? (int) $productData['moq'] : null;
         if ($isPublished && ($effectiveMoq === null || $effectiveMoq < 1) && empty($validated['package_allocations'])) {
             return $this->error("The MOQ (Minimum Order Quantity) is required and must be at least 1.", 422);
         }
-        $moq = (int) ($productData['moq'] ?? 1);
+        $moq = $effectiveMoq !== null ? (int) $effectiveMoq : ($isPublished ? 1 : null);
         $productData['moq'] = $moq;
 
-        // Resolve target warehouse
+        // Resolve target warehouse: for draft, initial warehouse is NEVER auto-selected!
         $warehouseId = $validated['warehouse_id'] ?? $validated['initial_inventory']['warehouse_id'] ?? null;
+        $targetWarehouseId = null;
         if (!$warehouseId) {
             if ($isPublished) {
                 return $this->error("Initial warehouse is required.", 422);
             }
-            $whCheck = \App\Models\Warehouse::where('is_active', true)->first();
-            $targetWarehouseId = $whCheck ? $whCheck->id : 1;
+            // For drafts: starts unselected (NULL) — do NOT auto-assign warehouse
+            $targetWarehouseId = null;
         } else {
             $whCheck = \App\Models\Warehouse::where('id', $warehouseId)->first();
             if (!$whCheck || !$whCheck->is_active) {
@@ -731,8 +750,8 @@ class ProductController extends ApiController
             ? (int) $validated['initial_stock']
             : (isset($validated['initial_inventory']['quantity'])
                 ? (int) $validated['initial_inventory']['quantity']
-                : (int) ($validated['stock'] ?? $request->input('stock', 0)));
-        if ($initialStock < 0) {
+                : (isset($validated['stock']) || $request->has('stock') ? (int) $request->input('stock') : null));
+        if ($initialStock !== null && $initialStock < 0) {
             return $this->error("Initial stock cannot be negative.", 422);
         }
 
@@ -884,48 +903,53 @@ class ProductController extends ApiController
 
                     $createdVariantsMap["{$vColor}-{$vSize}"] = $createdVariant;
 
-                    // Create warehouse inventory row
+                    // Create warehouse inventory row ONLY if a target warehouse was selected
+                    if ($targetWarehouseId !== null) {
+                        $inv = \App\Models\Inventory::create([
+                            'product_variant_id' => $createdVariant->id,
+                            'warehouse_id' => $targetWarehouseId,
+                            'quantity' => $varStock,
+                        ]);
+
+                        // Audit log for stock initialization
+                        if ($varStock > 0) {
+                            \App\Models\AdminInventoryAdjustment::create([
+                                'inventory_id' => $inv->id,
+                                'admin_user_id' => $user->id,
+                                'previous_quantity' => 0,
+                                'adjustment_amount' => $varStock,
+                                'resulting_quantity' => $varStock,
+                                'reason' => 'Initial stock on product creation',
+                            ]);
+                        }
+                    }
+                }
+            } else {
+                // Product has zero variants: store stock at product level
+                $resolvedStock = $initialStock !== null ? $initialStock : 0;
+                $product->stock = $resolvedStock;
+                $product->save();
+
+                // Create product-level warehouse inventory row ONLY if target warehouse was selected
+                if ($targetWarehouseId !== null) {
                     $inv = \App\Models\Inventory::create([
-                        'product_variant_id' => $createdVariant->id,
+                        'product_id' => $product->id,
+                        'product_variant_id' => null,
                         'warehouse_id' => $targetWarehouseId,
-                        'quantity' => $varStock,
+                        'quantity' => $resolvedStock,
                     ]);
 
                     // Audit log for stock initialization
-                    if ($varStock > 0) {
+                    if ($resolvedStock > 0) {
                         \App\Models\AdminInventoryAdjustment::create([
                             'inventory_id' => $inv->id,
                             'admin_user_id' => $user->id,
                             'previous_quantity' => 0,
-                            'adjustment_amount' => $varStock,
-                            'resulting_quantity' => $varStock,
+                            'adjustment_amount' => $resolvedStock,
+                            'resulting_quantity' => $resolvedStock,
                             'reason' => 'Initial stock on product creation',
                         ]);
                     }
-                }
-            } else {
-                // Product has zero variants: store stock at product level and direct warehouse inventory
-                $product->stock = $initialStock;
-                $product->save();
-
-                // Create product-level warehouse inventory row
-                $inv = \App\Models\Inventory::create([
-                    'product_id' => $product->id,
-                    'product_variant_id' => null,
-                    'warehouse_id' => $targetWarehouseId,
-                    'quantity' => $initialStock,
-                ]);
-
-                // Audit log for stock initialization
-                if ($initialStock > 0) {
-                    \App\Models\AdminInventoryAdjustment::create([
-                        'inventory_id' => $inv->id,
-                        'admin_user_id' => $user->id,
-                        'previous_quantity' => 0,
-                        'adjustment_amount' => $initialStock,
-                        'resulting_quantity' => $initialStock,
-                        'reason' => 'Initial stock on product creation',
-                    ]);
                 }
             }
 
@@ -952,10 +976,10 @@ class ProductController extends ApiController
                     'max_quantity' => null,
                     'unit_price' => (float) $product->bulk_price,
                 ]);
-            } else {
+            } elseif ($product->wholesale_price !== null && (float)$product->wholesale_price > 0) {
                 \App\Models\ProductPricingTier::create([
                     'product_id' => $product->id,
-                    'min_quantity' => $moq,
+                    'min_quantity' => ($moq && $moq > 0 ? (int)$moq : 1),
                     'max_quantity' => null,
                     'unit_price' => (float) $product->wholesale_price,
                 ]);
@@ -1187,6 +1211,27 @@ class ProductController extends ApiController
                 if ($newStatus === 'draft' && !$this->authorization->can($user, 'product.save_draft')) {
                     return $this->forbidden("Forbidden: you do not have the 'product.save_draft' permission to save drafts.");
                 }
+            }
+        }
+
+        // When publishing a draft, enforce full publication requirements
+        $isTransitionToPublished = $product->status !== 'published' && $effectiveStatus === 'published';
+        if ($isTransitionToPublished) {
+            $effectiveName = $request->input('name', $product->name);
+            if (empty($effectiveName) || strlen(trim($effectiveName)) < 3) {
+                return $this->error("Product name is required to publish.", 422);
+            }
+            $effectiveWholesale = $request->has('wholesale_price') ? $request->input('wholesale_price') : $product->wholesale_price;
+            if ($effectiveWholesale === null || (float)$effectiveWholesale <= 0) {
+                return $this->error("Wholesale price must be greater than $0.00 to publish.", 422);
+            }
+            $hasWh = !empty($request->input('warehouse_id'))
+                || !empty($request->input('warehouseId'))
+                || !empty($request->input('initial_inventory.warehouse_id'))
+                || $product->directInventories()->exists()
+                || $product->inventories()->exists();
+            if (!$hasWh) {
+                return $this->error("Initial warehouse is required.", 422);
             }
         }
 
@@ -1454,7 +1499,9 @@ class ProductController extends ApiController
                 $product->stock = $stockVal;
                 $product->save();
 
-                $mainWh = \App\Models\Warehouse::where('is_active', true)->first();
+                $targetWhId = $request->input('warehouse_id') ?? $request->input('warehouseId') ?? $request->input('initial_inventory.warehouse_id');
+                $wh = !empty($targetWhId) ? \App\Models\Warehouse::where('id', $targetWhId)->where('is_active', true)->first() : null;
+                $mainWh = $wh ?: ($product->directInventories()->first()?->warehouse ?? $product->inventories()->first()?->warehouse ?? null);
                 if ($mainWh) {
                     \App\Models\Inventory::updateOrCreate(
                         ['product_id' => $product->id, 'product_variant_id' => null, 'warehouse_id' => $mainWh->id],
@@ -1507,7 +1554,9 @@ class ProductController extends ApiController
 
                         $variantsMap["{$vColor}-{$vSize}"] = $newVar;
 
-                        $mainWh = \App\Models\Warehouse::first();
+                        $targetWhId = $request->input('warehouse_id') ?? $request->input('warehouseId') ?? $request->input('initial_inventory.warehouse_id');
+                        $wh = !empty($targetWhId) ? \App\Models\Warehouse::where('id', $targetWhId)->where('is_active', true)->first() : null;
+                        $mainWh = $wh ?: ($product->directInventories()->first()?->warehouse ?? $product->inventories()->first()?->warehouse ?? null);
                         if ($mainWh) {
                             \App\Models\Inventory::create([
                                 'product_variant_id' => $newVar->id,
@@ -1516,6 +1565,25 @@ class ProductController extends ApiController
                             ]);
                         }
                     }
+                }
+            }
+        } else {
+            // Direct warehouse inventory update for variant-less product (or when warehouse/stock is provided)
+            $whInputId = $request->input('warehouse_id') ?? $request->input('warehouseId') ?? $request->input('initial_inventory.warehouse_id');
+            $hasStockInput = $request->has('stock') || $request->has('initial_stock');
+            if ($hasStockInput) {
+                $stockVal = (int) ($request->input('stock') ?? $request->input('initial_stock') ?? 0);
+                $product->stock = $stockVal;
+                $product->save();
+            }
+
+            if (!empty($whInputId)) {
+                $wh = \App\Models\Warehouse::where('id', $whInputId)->where('is_active', true)->first();
+                if ($wh && !$product->variants()->where('is_active', true)->exists()) {
+                    \App\Models\Inventory::updateOrCreate(
+                        ['product_id' => $product->id, 'product_variant_id' => null, 'warehouse_id' => $wh->id],
+                        ['quantity' => $product->stock ?? 0]
+                    );
                 }
             }
         }
@@ -1551,11 +1619,11 @@ class ProductController extends ApiController
                 'max_quantity' => null,
                 'unit_price' => (float) $product->bulk_price,
             ]);
-        } else {
+        } elseif ($product->wholesale_price !== null && (float)$product->wholesale_price > 0) {
             $product->pricingTiers()->delete();
             \App\Models\ProductPricingTier::create([
                 'product_id' => $product->id,
-                'min_quantity' => $effectiveMoq,
+                'min_quantity' => $effectiveMoq > 0 ? $effectiveMoq : 1,
                 'max_quantity' => null,
                 'unit_price' => (float) $product->wholesale_price,
             ]);

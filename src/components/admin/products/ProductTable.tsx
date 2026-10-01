@@ -25,6 +25,7 @@ interface ColumnDef {
   key: string;
   label: React.ReactNode;
   title?: string;
+  width?: string;
   colWidthClass: string;
   thClass: string;
 }
@@ -33,13 +34,15 @@ export const PRODUCT_COLUMNS: ColumnDef[] = [
   {
     key: "select",
     label: "",
+    width: "32px",
     colWidthClass: "w-8",
-    thClass: "px-2 py-2 w-8 text-center",
+    thClass: "px-1.5 py-2 w-8 text-center",
   },
   {
     key: "thumbnail",
     label: "Image",
     title: "Product Thumbnail",
+    width: "40px",
     colWidthClass: "w-10",
     thClass: "px-1 py-2 w-10 text-center",
   },
@@ -47,8 +50,9 @@ export const PRODUCT_COLUMNS: ColumnDef[] = [
     key: "productId",
     label: "ID",
     title: "Product ID",
-    colWidthClass: "w-[72px]",
-    thClass: "px-1.5 py-2 w-[72px] text-left",
+    width: "68px",
+    colWidthClass: "w-[68px]",
+    thClass: "px-1 py-2 w-[68px] text-center",
   },
   {
     key: "product",
@@ -60,65 +64,75 @@ export const PRODUCT_COLUMNS: ColumnDef[] = [
     key: "sku",
     label: "SKU",
     title: "Stock Keeping Unit",
-    colWidthClass: "w-[62px]",
-    thClass: "px-1.5 py-2 w-[62px] text-left",
+    width: "60px",
+    colWidthClass: "w-[60px]",
+    thClass: "px-1 py-2 w-[60px] text-left",
   },
   {
     key: "brand",
     label: "Brand",
-    colWidthClass: "w-[72px]",
-    thClass: "px-1.5 py-2 w-[72px] text-left",
+    width: "68px",
+    colWidthClass: "w-[68px]",
+    thClass: "px-1 py-2 w-[68px] text-left",
   },
   {
     key: "category",
     label: "Category",
-    colWidthClass: "w-[72px]",
-    thClass: "px-1.5 py-2 w-[72px] text-left",
+    width: "70px",
+    colWidthClass: "w-[70px]",
+    thClass: "px-1 py-2 w-[70px] text-left",
   },
   {
     key: "audience",
     label: "Audience",
+    width: "58px",
     colWidthClass: "w-[58px]",
-    thClass: "px-1.5 py-2 w-[58px] text-left",
+    thClass: "px-1 py-2 w-[58px] text-left",
   },
   {
     key: "price",
     label: "Price",
-    colWidthClass: "w-[54px]",
-    thClass: "px-1.5 py-2 w-[54px] text-right",
+    width: "52px",
+    colWidthClass: "w-[52px]",
+    thClass: "px-1 py-2 w-[52px] text-right",
   },
   {
     key: "moq",
     label: "MOQ",
     title: "Minimum Order Quantity",
-    colWidthClass: "w-[44px]",
-    thClass: "px-1.5 py-2 w-[44px] text-right",
+    width: "46px",
+    colWidthClass: "w-[46px]",
+    thClass: "px-1 py-2 w-[46px] text-right",
   },
   {
     key: "stock",
     label: "Stock",
     title: "Available Stock",
-    colWidthClass: "w-[64px]",
-    thClass: "px-1.5 py-2 w-[64px] text-right",
+    width: "60px",
+    colWidthClass: "w-[60px]",
+    thClass: "px-1 py-2 w-[60px] text-right",
   },
   {
     key: "availableMoqs",
     label: "MOQs",
     title: "Available Complete MOQs",
-    colWidthClass: "w-[64px]",
-    thClass: "px-1.5 py-2 w-[64px] text-right",
+    width: "62px",
+    colWidthClass: "w-[62px]",
+    thClass: "px-1 py-2 w-[62px] text-right",
   },
   {
     key: "status",
     label: "Status",
+    width: "64px",
     colWidthClass: "w-[64px]",
-    thClass: "px-1.5 py-2 w-[64px] text-left",
+    thClass: "px-1 py-2 w-[64px] text-left",
   },
   {
     key: "actions",
     label: "Actions",
-    colWidthClass: "w-9",
-    thClass: "px-1 py-2 w-9 text-center sticky right-0 bg-secondary/80 backdrop-blur-xs z-10",
+    width: "42px",
+    colWidthClass: "w-[42px]",
+    thClass: "px-1 py-2 w-[42px] text-center sticky right-0 bg-secondary/80 backdrop-blur-xs z-10",
   },
 ];
 
@@ -148,13 +162,22 @@ export default function ProductTable({
           <table className="w-full table-fixed text-left">
             <colgroup>
               {PRODUCT_COLUMNS.map((col) => (
-                <col key={col.key} className={col.colWidthClass} />
+                <col
+                  key={col.key}
+                  className={col.colWidthClass}
+                  style={col.width ? { width: col.width } : undefined}
+                />
               ))}
             </colgroup>
             <thead>
               <tr className="border-b border-border/60 bg-secondary/30">
                 {PRODUCT_COLUMNS.map((col) => (
-                  <th key={col.key} className={col.thClass}>
+                  <th
+                    key={col.key}
+                    className={col.thClass}
+                    style={col.width ? { width: col.width } : undefined}
+                    title={col.title}
+                  >
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                       {col.label}
                     </span>
@@ -165,47 +188,47 @@ export default function ProductTable({
             <tbody className="divide-y divide-border/40">
               {Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-border/40">
-                  <td className="px-2 py-1.5 w-8 text-center">
+                  <td className="px-1.5 py-1.5 w-8 text-center" style={{ width: "32px" }}>
                     <div className="w-3.5 h-3.5 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
-                  <td className="px-1 py-1.5 w-10 text-center">
+                  <td className="px-1 py-1.5 w-10 text-center" style={{ width: "40px" }}>
                     <div className="w-7 h-[37px] rounded-md bg-secondary animate-pulse mx-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5">
+                  <td className="px-1 py-1.5 w-[68px] text-center" style={{ width: "68px" }}>
                     <div className="h-4 w-12 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
                   <td className="px-2 py-1.5 min-w-0">
                     <div className="h-3.5 w-3/4 rounded bg-secondary animate-pulse mb-1" />
                     <div className="h-2.5 w-16 rounded bg-secondary/60 animate-pulse" />
                   </td>
-                  <td className="px-1.5 py-1.5">
+                  <td className="px-1 py-1.5 w-[60px]" style={{ width: "60px" }}>
                     <div className="h-3 w-10 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-1.5 py-1.5">
+                  <td className="px-1 py-1.5 w-[68px]" style={{ width: "68px" }}>
                     <div className="h-3 w-12 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-1.5 py-1.5">
+                  <td className="px-1 py-1.5 w-[70px]" style={{ width: "70px" }}>
                     <div className="h-3 w-12 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-1.5 py-1.5">
+                  <td className="px-1 py-1.5 w-[58px]" style={{ width: "58px" }}>
                     <div className="h-3 w-10 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-1.5 py-1.5 text-right">
+                  <td className="px-1 py-1.5 w-[52px] text-right" style={{ width: "52px" }}>
                     <div className="h-3 w-10 rounded bg-secondary animate-pulse ml-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5 text-right">
+                  <td className="px-1 py-1.5 w-[46px] text-right" style={{ width: "46px" }}>
                     <div className="h-3 w-8 rounded bg-secondary animate-pulse ml-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5 text-right">
+                  <td className="px-1 py-1.5 w-[60px] text-right" style={{ width: "60px" }}>
                     <div className="h-3 w-10 rounded bg-secondary animate-pulse ml-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5 text-right">
+                  <td className="px-1 py-1.5 w-[62px] text-right" style={{ width: "62px" }}>
                     <div className="h-3 w-12 rounded bg-secondary animate-pulse ml-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5">
+                  <td className="px-1 py-1.5 w-[64px]" style={{ width: "64px" }}>
                     <div className="h-4 w-11 rounded-full bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-1 py-1.5 w-9 text-center sticky right-0 bg-card">
+                  <td className="px-1 py-1.5 w-[42px] text-center sticky right-0 bg-card" style={{ width: "42px" }}>
                     <div className="h-5 w-5 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
                 </tr>
@@ -265,12 +288,19 @@ export default function ProductTable({
         <table className="w-full table-fixed text-left">
           <colgroup>
             {PRODUCT_COLUMNS.map((col) => (
-              <col key={col.key} className={col.colWidthClass} />
+              <col
+                key={col.key}
+                className={col.colWidthClass}
+                style={col.width ? { width: col.width } : undefined}
+              />
             ))}
           </colgroup>
           <thead>
             <tr className="border-b border-border/60 bg-secondary/30">
-              <th className="px-2 py-2 w-8 text-center">
+              <th
+                className={PRODUCT_COLUMNS[0].thClass}
+                style={PRODUCT_COLUMNS[0].width ? { width: PRODUCT_COLUMNS[0].width } : undefined}
+              >
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -286,6 +316,7 @@ export default function ProductTable({
                 <th
                   key={col.key}
                   className={col.thClass}
+                  style={col.width ? { width: col.width } : undefined}
                   title={col.title}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">

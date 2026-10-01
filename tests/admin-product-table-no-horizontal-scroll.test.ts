@@ -88,11 +88,20 @@ for (const key of expectedKeys) {
 const fixedColumns = PRODUCT_COLUMNS.filter((c) => c.key !== "product");
 assert(fixedColumns.length === 13, "13 columns are fixed/compact and 1 column (product) is flexible");
 
+// Calculate fixed column width sum
+const fixedWidthSum = fixedColumns.reduce((sum, col) => {
+  const pxMatch = col.width?.match(/^(\d+)px$/);
+  return sum + (pxMatch ? parseInt(pxMatch[1], 10) : 0);
+}, 0);
+assert(fixedWidthSum <= 735, `Fixed columns width sum is ${fixedWidthSum}px (<= 735px, leaving ample space for Product Name on 960px+ screens)`);
+assert(fixedWidthSum === 722, `Fixed columns width sum is exactly 722px`);
+
 // 4. Action Column Visibility
 const actionCol = PRODUCT_COLUMNS.find((c) => c.key === "actions");
 assert(Boolean(actionCol), "Actions column is configured");
 assert(actionCol?.thClass.includes("sticky right-0") === true, "Actions header is sticky to the right ('sticky right-0')");
 assert(rowSource.includes("sticky right-0"), "Actions row cell is sticky to the right ('sticky right-0')");
+assert(actionCol?.width === "42px", "Actions column has predictable 42px width");
 
 // 5. Canonical 3:4 Thumbnail Aspect Ratio
 assert(rowSource.includes("aspect-[3/4]"), "Product thumbnail maintains canonical 3:4 aspect ratio");
@@ -101,6 +110,9 @@ assert(rowSource.includes("aspect-[3/4]"), "Product thumbnail maintains canonica
 assert(rowSource.includes("truncate") && rowSource.includes("title={product.name}"), "Product name includes 'truncate' and tooltip 'title={product.name}'");
 assert(rowSource.includes("title={product.productId"), "Product ID includes full ID title tooltip");
 assert(rowSource.includes("title={product.sku"), "Product SKU includes full SKU title tooltip");
+assert(rowSource.includes("title={product.brand"), "Product Brand includes full Brand title tooltip");
+assert(rowSource.includes("title={product.categoryName"), "Product Category includes full Category title tooltip");
+assert(rowSource.includes("title={product.audience"), "Product Audience includes full Audience title tooltip");
 
 // 7. Mock Product Render Test
 const mockProduct: B2BProductInput = {
@@ -163,5 +175,5 @@ assert(tableMarkup.includes("published"), "Rendered table contains Status badge"
 assert(tableMarkup.includes("Actions"), "Rendered table contains Actions header");
 
 console.log("\n=======================================================");
-console.log("ALL 25/25 VERIFICATION CHECKS PASSED SUCCESSFULLY!");
+console.log("ALL 30/30 VERIFICATION CHECKS PASSED SUCCESSFULLY!");
 console.log("=======================================================\n");

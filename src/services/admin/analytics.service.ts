@@ -62,27 +62,13 @@ export class AdminAnalyticsService {
       if (responseData && responseData.summary) {
         return responseData as SalesProfitData;
       }
+      throw new Error("Unable to parse sales & profit analytics from server response.");
     } catch (err) {
-      console.warn("Failed to fetch sales & profit analytics from API:", err);
+      if (isFrontendOnly()) {
+        return this.calculateDemoSalesProfit(period, params.date_from, params.date_to);
+      }
+      throw err;
     }
-
-    if (isFrontendOnly()) {
-      return this.calculateDemoSalesProfit(period, params.date_from, params.date_to);
-    }
-
-    return {
-      period,
-      date_from: params.date_from || new Date().toISOString().split("T")[0],
-      date_to: params.date_to || new Date().toISOString().split("T")[0],
-      timezone: "Asia/Dhaka",
-      summary: {
-        total_sales: 0,
-        gross_profit: 0,
-        units_sold: 0,
-        profit_margin: 0,
-      },
-      series: [],
-    };
   }
 
   /**

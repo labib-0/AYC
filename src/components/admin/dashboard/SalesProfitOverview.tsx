@@ -142,7 +142,7 @@ export default function SalesProfitOverview() {
           period,
         };
 
-        if (showCustomDates && customFrom && customTo) {
+        if (customFrom && customTo) {
           queryParams.date_from = customFrom;
           queryParams.date_to = customTo;
         }
@@ -157,7 +157,7 @@ export default function SalesProfitOverview() {
         setRefreshing(false);
       }
     },
-    [period, showCustomDates, customFrom, customTo]
+    [period, customFrom, customTo]
   );
 
   useEffect(() => {
@@ -173,35 +173,36 @@ export default function SalesProfitOverview() {
     }
 
     setShowCustomDates(false);
+
+    // Format YYYY-MM-DD directly in Asia/Dhaka timezone
+    const formatDhakaYmd = (d: Date): string => {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dhaka" }).format(d);
+    };
+
     const now = new Date();
-    const end = now.toISOString().split("T")[0];
-    let start = end;
+    const end = formatDhakaYmd(now);
 
     if (preset === "last_7_days") {
       const d = new Date();
       d.setDate(d.getDate() - 6);
-      start = d.toISOString().split("T")[0];
-      setCustomFrom(start);
+      setCustomFrom(formatDhakaYmd(d));
       setCustomTo(end);
     } else if (preset === "last_30_days") {
       const d = new Date();
       d.setDate(d.getDate() - 29);
-      start = d.toISOString().split("T")[0];
-      setCustomFrom(start);
+      setCustomFrom(formatDhakaYmd(d));
       setCustomTo(end);
     } else if (preset === "this_month") {
       const d = new Date(now.getFullYear(), now.getMonth(), 1);
-      start = d.toISOString().split("T")[0];
-      setCustomFrom(start);
+      setCustomFrom(formatDhakaYmd(d));
       setCustomTo(end);
     } else if (preset === "last_quarter") {
       const d = new Date();
-      d.setMonth(d.getMonth() - 3);
-      start = d.toISOString().split("T")[0];
-      setCustomFrom(start);
+      d.setDate(d.getDate() - 89);
+      setCustomFrom(formatDhakaYmd(d));
       setCustomTo(end);
     } else {
-      // default
+      // default: let backend apply the authoritative default range for the selected period
       setCustomFrom("");
       setCustomTo("");
     }

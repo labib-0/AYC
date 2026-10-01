@@ -221,7 +221,7 @@ export default function ProductInventorySection({
           {warehouseFetchError && (
             <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
               <AlertCircle size={14} className="shrink-0" />
-              <span>{warehouseFetchError} Default warehouse will be used upon submission.</span>
+              <span>{warehouseFetchError} Please choose an active warehouse before publishing.</span>
             </div>
           )}
 

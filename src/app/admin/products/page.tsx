@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import {
@@ -33,22 +33,55 @@ import { PermissionGate } from "@/components/admin/auth/PermissionGate";
 
 const ITEMS_PER_PAGE = 20;
 
-export default function AdminProductsPage() {
+function AdminProductsContent() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Read initial status filter from URL if present
+  const initialStatusParam = searchParams.get("status");
+  const initialStatus =
+    initialStatusParam === "draft" || initialStatusParam === "published"
+      ? initialStatusParam
+      : "all";
+
   // ── Data State ──
   const [allProducts, setAllProducts] = useState<B2BProductInput[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ── Global Authoritative Catalog Metrics ──
+  const [globalMetrics, setGlobalMetrics] = useState({
+    total: 0,
+    published: 0,
+    draft: 0,
+    lowStock: 0,
+    purchasePricePending: 0,
+  });
 
   // ── Filter State ──
   const [filters, setFilters] = useState<ProductFilters>({
     search: "",
     brand: "all",
     audience: "all",
-    status: "all",
+    status: initialStatus,
     category: "all",
     designType: "all",
     purchasePriceStatus: "all",
   });
+
+  // ── Sync URL with Status Filter ──
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const currentParams = new URLSearchParams(window.location.search);
+    if (filters.status && filters.status !== "all") {
+      currentParams.set("status", filters.status);
+    } else {
+      currentParams.delete("status");
+    }
+    const queryString = currentParams.toString();
+    const targetUrl = `${pathname}${queryString ? `?${queryString}` : ""}`;
+    window.history.replaceState(null, "", targetUrl);
+  }, [filters.status, pathname]);
 
   // ── Pagination ──
   const [currentPage, setCurrentPage] = useState(1);
@@ -79,6 +112,29 @@ export default function AdminProductsPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // ── Load Global Metrics (Always reflects the authoritative entire catalog) ──
+  const loadGlobalMetrics = useCallback(async () => {
+    try {
+      const all = await getProducts({ isAdmin: true });
+      setGlobalMetrics({
+        total: all.length,
+        published: all.filter((p) => p.status === "published").length,
+        draft: all.filter((p) => p.status === "draft").length,
+        lowStock: all.filter((p) => {
+          const avail = p.availableStock !== undefined ? Number(p.availableStock) : Number(p.stock || 0);
+          return avail < LOW_STOCK_THRESHOLD;
+        }).length,
+        purchasePricePending: all.filter((p) => (p as any).purchasePriceUpdated === false).length,
+      });
+    } catch {
+      // Fallback
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGlobalMetrics();
+  }, [loadGlobalMetrics]);
+
   // ── Load Reference Data ──
   useEffect(() => {
     async function loadReferenceData() {
@@ -99,7 +155,7 @@ export default function AdminProductsPage() {
     loadReferenceData();
   }, []);
 
-  // ── Load Products ──
+  // ── Load Products (Respects backend filtering e.g. status=draft) ──
   const loadProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -130,13 +186,13 @@ export default function AdminProductsPage() {
 
       // Include unsynced local draft if present and matching status
       const localDraft = productDraftService.getDraft("new");
-      if (localDraft?.data && localDraft.data.name?.trim()) {
+      if (localDraft?.data && (localDraft.data.name?.trim() || localDraft.data.productId?.trim())) {
         const d = localDraft.data;
-        const exists = data.some((p) => (d.productId && p.productId === d.productId) || p.name === d.name);
+        const exists = data.some((p) => (d.productId && p.productId === d.productId) || (d.name && p.name === d.name));
         if (!exists && (filters.status === "all" || filters.status === "draft")) {
           const pseudoDraft: B2BProductInput = {
             id: "draft_local_new",
-            name: d.name || "Untitled Draft",
+            name: d.name || "(Untitled Draft)",
             slug: d.slug || "draft-local-new",
             sku: d.sku || "DRAFT-LOCAL",
             productId: d.productId || "DRAFT-LOCAL",
@@ -157,6 +213,28 @@ export default function AdminProductsPage() {
       }
 
       setAllProducts(filtered);
+
+      // If viewing all unfiltered products, sync global metrics directly
+      if (
+        filters.status === "all" &&
+        !filters.search &&
+        filters.brand === "all" &&
+        filters.category === "all" &&
+        filters.audience === "all" &&
+        filters.purchasePriceStatus === "all" &&
+        filters.designType === "all"
+      ) {
+        setGlobalMetrics({
+          total: filtered.length,
+          published: filtered.filter((p) => p.status === "published").length,
+          draft: filtered.filter((p) => p.status === "draft").length,
+          lowStock: filtered.filter((p) => {
+            const avail = p.availableStock !== undefined ? Number(p.availableStock) : Number(p.stock || 0);
+            return avail < LOW_STOCK_THRESHOLD;
+          }).length,
+          purchasePricePending: filtered.filter((p) => (p as any).purchasePriceUpdated === false).length,
+        });
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load products.");
     } finally {
@@ -174,13 +252,8 @@ export default function AdminProductsPage() {
     setSelectedIds(new Set());
   }, [filters]);
 
-  // ── Computed Values ──
+  // ── Pagination Calculation ──
   const totalProducts = allProducts.length;
-  const publishedCount = allProducts.filter((p) => p.status === "published").length;
-  const draftCount = allProducts.filter((p) => p.status === "draft").length;
-  const lowStockCount = allProducts.filter((p) => p.stock < LOW_STOCK_THRESHOLD).length;
-  const purchasePricePendingCount = allProducts.filter((p) => (p as any).purchasePriceUpdated === false).length;
-
   const totalPages = Math.max(1, Math.ceil(totalProducts / ITEMS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
   const startIdx = (safePage - 1) * ITEMS_PER_PAGE;
@@ -194,6 +267,14 @@ export default function AdminProductsPage() {
     filters.category !== "all" ||
     filters.designType !== "all" ||
     filters.purchasePriceStatus !== "all";
+
+  // ── Status Filter Click from Summary Cards ──
+  const handleStatusFilterClick = (targetStatus: "all" | "published" | "draft") => {
+    setFilters((prev) => ({
+      ...prev,
+      status: targetStatus,
+    }));
+  };
 
   // ── Selection Handlers ──
   const handleSelect = (id: string, selected: boolean) => {
@@ -219,7 +300,7 @@ export default function AdminProductsPage() {
     try {
       await togglePublishStatus(product.id, newStatus);
       addToast("success", `Product ${newStatus === "published" ? "published" : "unpublished"}.`);
-      await loadProducts();
+      await Promise.all([loadProducts(), loadGlobalMetrics()]);
     } catch {
       addToast("error", "Failed to update product status.");
     }
@@ -251,7 +332,7 @@ export default function AdminProductsPage() {
         next.delete(deleteTarget.id);
         return next;
       });
-      await loadProducts();
+      await Promise.all([loadProducts(), loadGlobalMetrics()]);
     } catch {
       addToast("error", "Failed to delete product.");
     } finally {
@@ -266,7 +347,7 @@ export default function AdminProductsPage() {
       await duplicateProduct(duplicateTarget.id);
       addToast("success", "Product duplicated.");
       setDuplicateTarget(null);
-      await loadProducts();
+      await Promise.all([loadProducts(), loadGlobalMetrics()]);
     } catch {
       addToast("error", "Failed to duplicate product.");
     } finally {
@@ -291,7 +372,7 @@ export default function AdminProductsPage() {
       `${successCount} product${successCount !== 1 ? "s" : ""} published.`
     );
     setSelectedIds(new Set());
-    await loadProducts();
+    await Promise.all([loadProducts(), loadGlobalMetrics()]);
   };
 
   const handleBulkUnpublish = async () => {
@@ -310,7 +391,7 @@ export default function AdminProductsPage() {
       `${successCount} product${successCount !== 1 ? "s" : ""} unpublished.`
     );
     setSelectedIds(new Set());
-    await loadProducts();
+    await Promise.all([loadProducts(), loadGlobalMetrics()]);
   };
 
   const handleClearFilters = () => {
@@ -325,107 +406,120 @@ export default function AdminProductsPage() {
     });
   };
 
-  const pathname = usePathname();
   const isUnderAdminPath = pathname.startsWith("/admin");
   const addProductHref = isUnderAdminPath ? "/admin/products/new" : "/products/new";
 
   return (
-    <AdminPageGate permission="product.view" moduleName="Product Catalog">
-      <div className="space-y-5 max-w-full">
-        {/* Page Header */}
-        <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
-          <div>
-            <h1 className="text-lg font-bold text-foreground tracking-tight">Products</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Manage your wholesale product catalog.
-            </p>
-          </div>
-          <PermissionGate permission="product.create">
-            <Link
-              href={addProductHref}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-colors shrink-0"
-            >
-              <Plus size={14} />
-              Add Product
-            </Link>
-          </PermissionGate>
+    <div className="space-y-5 max-w-full">
+      {/* Page Header */}
+      <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
+        <div>
+          <h1 className="text-lg font-bold text-foreground tracking-tight">Products</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage your wholesale product catalog.
+          </p>
         </div>
-
-        {/* Summary Metrics */}
-        <ProductSummaryMetrics
-          total={totalProducts}
-          published={publishedCount}
-          draft={draftCount}
-          lowStock={lowStockCount}
-          purchasePricePending={purchasePricePendingCount}
-          onPurchasePricePendingClick={() =>
-            setFilters((f) => ({ ...f, purchasePriceStatus: f.purchasePriceStatus === "pending" ? "all" : "pending" }))
-          }
-        />
-
-        {/* Search & Filters */}
-        <ProductSearchFilters
-          filters={filters}
-          onFilterChange={setFilters}
-          brands={brandsList}
-          categories={categoriesList}
-        />
-
-        {/* Bulk Actions */}
-        <ProductBulkActions
-          selectedCount={selectedIds.size}
-          onBulkPublish={handleBulkPublish}
-          onBulkUnpublish={handleBulkUnpublish}
-          onClearSelection={() => setSelectedIds(new Set())}
-        />
-
-        {/* Product Table */}
-        <ProductTable
-          products={pageProducts}
-          loading={loading}
-          error={error}
-          selectedIds={selectedIds}
-          onSelect={handleSelect}
-          onSelectAll={handleSelectAll}
-          onTogglePublish={handleTogglePublish}
-          onToggleStorefrontVisibility={handleToggleStorefrontVisibility}
-          onDuplicate={(p) => setDuplicateTarget(p)}
-          onDelete={(p) => setDeleteTarget(p)}
-          onRetry={loadProducts}
-          onClearFilters={handleClearFilters}
-          hasActiveFilters={hasActiveFilters}
-        />
-
-        {/* Pagination */}
-        <ProductPagination
-          currentPage={safePage}
-          totalPages={totalPages}
-          totalItems={totalProducts}
-          perPage={ITEMS_PER_PAGE}
-          onPageChange={setCurrentPage}
-        />
-
-        {/* Delete Modal */}
-        <DeleteProductModal
-          open={deleteTarget !== null}
-          productName={deleteTarget?.name || ""}
-          onConfirm={handleDeleteConfirm}
-          onCancel={() => setDeleteTarget(null)}
-          loading={modalLoading}
-        />
-
-        {/* Duplicate Modal */}
-        <DuplicateProductModal
-          open={duplicateTarget !== null}
-          productName={duplicateTarget?.name || ""}
-          onConfirm={handleDuplicateConfirm}
-          onCancel={() => setDuplicateTarget(null)}
-          loading={modalLoading}
-        />
-
-        {/* Toast Notifications */}
-        <ProductToast toasts={toasts} onDismiss={dismissToast} />
+        <PermissionGate permission="product.create">
+          <Link
+            href={addProductHref}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-colors shrink-0"
+          >
+            <Plus size={14} />
+            Add Product
+          </Link>
+        </PermissionGate>
       </div>
+
+      {/* Summary Metrics (Clickable Draft and other status cards) */}
+      <ProductSummaryMetrics
+        total={globalMetrics.total}
+        published={globalMetrics.published}
+        draft={globalMetrics.draft}
+        lowStock={globalMetrics.lowStock}
+        purchasePricePending={globalMetrics.purchasePricePending}
+        activeStatus={filters.status}
+        onStatusClick={handleStatusFilterClick}
+        onPurchasePricePendingClick={() =>
+          setFilters((f) => ({
+            ...f,
+            purchasePriceStatus: f.purchasePriceStatus === "pending" ? "all" : "pending",
+          }))
+        }
+        isPricePendingActive={filters.purchasePriceStatus === "pending"}
+      />
+
+      {/* Search & Filters */}
+      <ProductSearchFilters
+        filters={filters}
+        onFilterChange={setFilters}
+        brands={brandsList}
+        categories={categoriesList}
+      />
+
+      {/* Bulk Actions */}
+      <ProductBulkActions
+        selectedCount={selectedIds.size}
+        onBulkPublish={handleBulkPublish}
+        onBulkUnpublish={handleBulkUnpublish}
+        onClearSelection={() => setSelectedIds(new Set())}
+      />
+
+      {/* Product Table */}
+      <ProductTable
+        products={pageProducts}
+        loading={loading}
+        error={error}
+        selectedIds={selectedIds}
+        onSelect={handleSelect}
+        onSelectAll={handleSelectAll}
+        onTogglePublish={handleTogglePublish}
+        onToggleStorefrontVisibility={handleToggleStorefrontVisibility}
+        onDuplicate={(p) => setDuplicateTarget(p)}
+        onDelete={(p) => setDeleteTarget(p)}
+        onRetry={loadProducts}
+        onClearFilters={handleClearFilters}
+        hasActiveFilters={hasActiveFilters}
+      />
+
+      {/* Pagination */}
+      <ProductPagination
+        currentPage={safePage}
+        totalPages={totalPages}
+        totalItems={totalProducts}
+        perPage={ITEMS_PER_PAGE}
+        onPageChange={setCurrentPage}
+      />
+
+      {/* Delete Modal */}
+      <DeleteProductModal
+        open={deleteTarget !== null}
+        productName={deleteTarget?.name || ""}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+        loading={modalLoading}
+      />
+
+      {/* Duplicate Modal */}
+      <DuplicateProductModal
+        open={duplicateTarget !== null}
+        productName={duplicateTarget?.name || ""}
+        onConfirm={handleDuplicateConfirm}
+        onCancel={() => setDuplicateTarget(null)}
+        loading={modalLoading}
+      />
+
+      {/* Toast Notifications */}
+      <ProductToast toasts={toasts} onDismiss={dismissToast} />
+    </div>
+  );
+}
+
+export default function AdminProductsPage() {
+  return (
+    <AdminPageGate permission="product.view" moduleName="Product Catalog">
+      <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">Loading products catalog...</div>}>
+        <AdminProductsContent />
+      </Suspense>
     </AdminPageGate>
   );
 }
