@@ -731,7 +731,7 @@ export default function ProductInventorySection({
               <div className="p-3.5 rounded-2xl border border-border/70 bg-secondary/20 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <h4 className="font-bold text-foreground text-xs truncate">
-                    {productName || "Catalog Product"}
+                    {productName || "—"}
                   </h4>
                   <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
                     SKU: {productSku || "—"}

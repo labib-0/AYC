@@ -1,7 +1,14 @@
 import React from "react";
 import Link from "next/link";
 import { Edit3, History, ExternalLink } from "lucide-react";
-import { InventoryRecord } from "@/services/admin/inventory.service";
+import {
+  InventoryRecord,
+  getInventoryProduct,
+  getInventorySku,
+  getInventoryBrandName,
+  getInventoryCategoryName,
+  getInventoryImageUrl,
+} from "@/services/admin/inventory.service";
 import StockStatusBadge from "./StockStatusBadge";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 
@@ -17,9 +24,13 @@ export default function InventoryRow({
   onViewHistory,
 }: InventoryRowProps) {
   const { can } = useAdminAuth();
-  const product = record.variant?.product;
+  const product = getInventoryProduct(record);
   const variant = record.variant;
   const warehouse = record.warehouse;
+  const sku = getInventorySku(record);
+  const brandName = getInventoryBrandName(record);
+  const categoryName = getInventoryCategoryName(record);
+  const imageUrl = getInventoryImageUrl(record);
 
   // Available stock calculation
   const totalStock = record.quantity;
@@ -30,23 +41,6 @@ export default function InventoryRow({
   if (variant?.color) variantDetails.push(variant.color);
   if (variant?.size) variantDetails.push(`Size: ${variant.size}`);
   if (!variantDetails.length && variant?.title) variantDetails.push(variant.title);
-
-  // Brand and category info
-  const brandName =
-    typeof product?.brand === "string"
-      ? product.brand
-      : (product?.brand as { name?: string } | undefined)?.name || "Ayaan";
-
-  const categoryName =
-    typeof product?.category === "string"
-      ? product.category
-      : (product?.category as { name?: string } | undefined)?.name || "Apparel";
-
-  const rawImg = product?.images?.[0];
-  const imageUrl =
-    typeof rawImg === "string"
-      ? rawImg
-      : (rawImg as { image_url?: string } | undefined)?.image_url || "/placeholder.jpg";
 
   return (
     <tr className="hover:bg-secondary/25 transition-colors font-medium border-b border-border/50 text-xs">
@@ -62,7 +56,7 @@ export default function InventoryRow({
           />
           <div className="min-w-0 flex-1">
             <span className="font-bold text-foreground block truncate max-w-[220px] text-xs sm:text-sm">
-              {product?.name || "Catalog Product"}
+              {product?.name || "—"}
             </span>
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {variantDetails.length > 0 && (
@@ -78,7 +72,7 @@ export default function InventoryRow({
       {/* SKU */}
       <td className="py-3 px-3 font-mono text-muted-foreground whitespace-nowrap">
         <span className="bg-secondary/50 px-2 py-0.5 rounded text-[11px] font-semibold text-foreground">
-          {variant?.sku || record.id}
+          {sku}
         </span>
       </td>
 

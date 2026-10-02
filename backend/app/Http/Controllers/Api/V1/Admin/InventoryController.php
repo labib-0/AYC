@@ -49,6 +49,22 @@ class InventoryController extends ApiController
                 ]
             );
         }
+
+        $untrackedProducts = \App\Models\Product::whereDoesntHave('variants')
+            ->whereDoesntHave('directInventories')
+            ->get(['id', 'stock']);
+
+        foreach ($untrackedProducts as $prod) {
+            Inventory::firstOrCreate(
+                [
+                    'product_id' => $prod->id,
+                    'warehouse_id' => $canonicalWarehouse->id,
+                ],
+                [
+                    'quantity' => (int) ($prod->stock ?? 0),
+                ]
+            );
+        }
     }
 
     /**
@@ -114,7 +130,16 @@ class InventoryController extends ApiController
 
         $query = Inventory::where(function ($q) {
             $q->whereHas('variant.product')->orWhereHas('product');
-        })->with(['variant.product.images', 'product.images', 'warehouse', 'adjustments.adminUser']);
+        })->with([
+            'product.brand',
+            'product.categories',
+            'product.images',
+            'variant.product.brand',
+            'variant.product.categories',
+            'variant.product.images',
+            'warehouse',
+            'adjustments.adminUser',
+        ]);
 
         // Search by Product name or Variant SKU
         if ($request->filled('search')) {
@@ -314,7 +339,15 @@ class InventoryController extends ApiController
                 }
 
                 return [
-                    'inventory' => $inventory->fresh(['variant.product', 'warehouse', 'product']),
+                    'inventory' => $inventory->fresh([
+                        'product.brand',
+                        'product.categories',
+                        'product.images',
+                        'variant.product.brand',
+                        'variant.product.categories',
+                        'variant.product.images',
+                        'warehouse',
+                    ]),
                     'adjustment' => $adjustment->load('adminUser'),
                     'variant_total_stock' => $totalStock ?? null,
                     'product_stock' => $targetProduct ? $targetProduct->stock : null,

@@ -1,6 +1,14 @@
 import React from "react";
 import { Package, SearchX, CheckCircle2, History } from "lucide-react";
-import { InventoryRecord, LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
+import {
+  InventoryRecord,
+  LOW_STOCK_THRESHOLD,
+  getInventoryProduct,
+  getInventorySku,
+  getInventoryBrandName,
+  getInventoryCategoryName,
+  getInventoryImageUrl,
+} from "@/services/admin/inventory.service";
 import InventoryRow from "./InventoryRow";
 import StockStatusBadge from "./StockStatusBadge";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
@@ -123,25 +131,15 @@ export default function InventoryTable({
       {/* Mobile Stacked Card View (md:hidden) */}
       <div className="md:hidden divide-y divide-border/60">
         {records.map((record) => {
-          const product = record.variant?.product;
+          const product = getInventoryProduct(record);
           const variant = record.variant;
           const warehouse = record.warehouse;
           const totalStock = record.quantity;
           const available = totalStock;
-          const rawImg = product?.images?.[0];
-          const imageUrl =
-            typeof rawImg === "string"
-              ? rawImg
-              : (rawImg as { image_url?: string } | undefined)?.image_url ||
-                "/placeholder.jpg";
-          const brandName =
-            typeof product?.brand === "string"
-              ? product.brand
-              : (product?.brand as { name?: string } | undefined)?.name;
-          const categoryName =
-            typeof product?.category === "string"
-              ? product.category
-              : (product?.category as { name?: string } | undefined)?.name;
+          const imageUrl = getInventoryImageUrl(record);
+          const brandName = getInventoryBrandName(record);
+          const categoryName = getInventoryCategoryName(record);
+          const sku = getInventorySku(record);
 
           return (
             <div key={record.id} className="p-4 space-y-3">
@@ -156,18 +154,18 @@ export default function InventoryTable({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-bold text-foreground block text-xs sm:text-sm">
-                      {product?.name || "Catalog Product"}
+                      {product?.name || "—"}
                     </span>
                     <StockStatusBadge quantity={available} size="sm" />
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
-                    {brandName && (
+                    {brandName !== "—" && (
                       <span className="font-semibold text-foreground mr-1.5">
                         {brandName}
                       </span>
                     )}
-                    {categoryName && <span>{categoryName} • </span>}
-                    <span className="font-mono">{variant?.sku || record.id}</span>
+                    {categoryName !== "—" && <span>{categoryName} • </span>}
+                    <span className="font-mono">{sku}</span>
                   </div>
                   {(variant?.size || variant?.color) && (
                     <div className="text-[11px] text-muted-foreground mt-0.5">

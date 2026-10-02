@@ -45,13 +45,48 @@ export interface InventoryAdjustment {
   };
 }
 
+export interface InventoryProductImage {
+  id?: number;
+  product_id?: number;
+  image_url: string;
+  is_primary?: boolean;
+  sort_order?: number;
+}
+
+export interface InventoryBrand {
+  id?: number;
+  name?: string;
+  slug?: string;
+  logo_url?: string;
+}
+
+export interface InventoryCategory {
+  id?: number;
+  name?: string;
+  slug?: string;
+}
+
+export interface InventoryProduct {
+  id: number | string;
+  name: string;
+  slug: string;
+  sku: string;
+  wholesale_price?: number | string;
+  brand?: InventoryBrand | string;
+  category?: InventoryCategory | string;
+  categories?: InventoryCategory[];
+  images?: Array<InventoryProductImage | { image_url?: string; is_primary?: boolean }> | string[];
+}
+
 export interface InventoryRecord {
   id: number;
-  product_variant_id: number;
+  product_id?: number | null;
+  product_variant_id?: number | null;
   warehouse_id: number;
   quantity: number;
   created_at: string;
   updated_at: string;
+  product?: InventoryProduct;
   variant?: {
     id: number;
     sku: string;
@@ -59,16 +94,7 @@ export interface InventoryRecord {
     size?: string;
     color?: string;
     stock: number;
-    product?: {
-      id: number | string;
-      name: string;
-      slug: string;
-      sku: string;
-      wholesale_price: number;
-      brand?: string;
-      category?: string;
-      images?: Array<{ id: number; image_url: string }> | string[];
-    };
+    product?: InventoryProduct;
   };
   warehouse?: {
     id: number;
@@ -79,6 +105,49 @@ export interface InventoryRecord {
     country_code?: string;
   };
   adjustments?: InventoryAdjustment[];
+}
+
+export function getInventoryProduct(record?: InventoryRecord | null): InventoryProduct | undefined {
+  if (!record) return undefined;
+  return record.product || record.variant?.product;
+}
+
+export function getInventorySku(record?: InventoryRecord | null): string {
+  if (!record) return "—";
+  const product = getInventoryProduct(record);
+  return record.variant?.sku || product?.sku || "—";
+}
+
+export function getInventoryBrandName(record?: InventoryRecord | null): string {
+  const product = getInventoryProduct(record);
+  if (!product?.brand) return "—";
+  if (typeof product.brand === "string") return product.brand;
+  return product.brand.name || "—";
+}
+
+export function getInventoryCategoryName(record?: InventoryRecord | null): string {
+  const product = getInventoryProduct(record);
+  if (!product) return "—";
+  if (typeof product.category === "string") return product.category;
+  if (product.category?.name) return product.category.name;
+  if (Array.isArray(product.categories) && product.categories.length > 0) {
+    return product.categories[0]?.name || "—";
+  }
+  return "—";
+}
+
+export function getInventoryImageUrl(record?: InventoryRecord | null): string {
+  const product = getInventoryProduct(record);
+  if (!product?.images || product.images.length === 0) return "/placeholder.jpg";
+  if (Array.isArray(product.images)) {
+    const primary = product.images.find(
+      (img) => typeof img === "object" && img !== null && "is_primary" in img && (img as any).is_primary
+    );
+    const target = primary || product.images[0];
+    if (typeof target === "string") return target;
+    return target?.image_url || "/placeholder.jpg";
+  }
+  return "/placeholder.jpg";
 }
 
 export interface Warehouse {

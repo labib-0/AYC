@@ -4,6 +4,9 @@ import { useAdminAuth } from "@/lib/AdminAuthContext";
 import {
   adminInventoryService,
   InventoryRecord,
+  getInventoryProduct,
+  getInventorySku,
+  getInventoryImageUrl,
 } from "@/services/admin/inventory.service";
 
 export interface StockAdjustmentModalProps {
@@ -156,14 +159,11 @@ export default function StockAdjustmentModal({
     }
   };
 
-  const product = activeRecord?.variant?.product;
+  const product = getInventoryProduct(activeRecord);
   const variant = activeRecord?.variant;
   const warehouse = activeRecord?.warehouse;
-  const rawImg = product?.images?.[0];
-  const imageUrl =
-    typeof rawImg === "string"
-      ? rawImg
-      : (rawImg as { image_url?: string } | undefined)?.image_url || "/placeholder.jpg";
+  const sku = getInventorySku(activeRecord);
+  const imageUrl = getInventoryImageUrl(activeRecord);
 
   return (
     <div
@@ -228,12 +228,16 @@ export default function StockAdjustmentModal({
                 {allItems.length === 0 ? (
                   <option value="">No inventory items in database</option>
                 ) : (
-                  allItems.map((item) => (
-                    <option key={item.id} value={String(item.id)}>
-                      {item.variant?.product?.name || "Product"} — {item.variant?.sku} (
-                      {item.warehouse?.name || "Uttara"}, Stock: {item.quantity})
-                    </option>
-                  ))
+                  allItems.map((item) => {
+                    const itemProduct = getInventoryProduct(item);
+                    const itemSku = getInventorySku(item);
+                    return (
+                      <option key={item.id} value={String(item.id)}>
+                        {itemProduct?.name || "Product"} — {itemSku} (
+                        {item.warehouse?.name || "Uttara"}, Stock: {item.quantity})
+                      </option>
+                    );
+                  })
                 )}
               </select>
             </div>
@@ -251,10 +255,10 @@ export default function StockAdjustmentModal({
                 />
                 <div className="min-w-0">
                   <h4 className="font-bold text-foreground text-xs truncate">
-                    {product?.name || "Catalog Product"}
+                    {product?.name || "—"}
                   </h4>
                   <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                    SKU: {variant?.sku}
+                    SKU: {sku}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
                     {warehouse?.name || "Uttara"} ({warehouse?.code || "WH-UTT-01"})

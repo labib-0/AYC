@@ -1,6 +1,12 @@
 import React from "react";
 import { X, History, Clock, ArrowUpRight, ArrowDownRight, User, FileText } from "lucide-react";
-import { InventoryRecord, InventoryAdjustment } from "@/services/admin/inventory.service";
+import {
+  InventoryRecord,
+  InventoryAdjustment,
+  getInventoryProduct,
+  getInventorySku,
+  getInventoryImageUrl,
+} from "@/services/admin/inventory.service";
 
 export interface InventoryHistoryModalProps {
   isOpen: boolean;
@@ -15,9 +21,11 @@ export default function InventoryHistoryModal({
 }: InventoryHistoryModalProps) {
   if (!isOpen || !inventoryItem) return null;
 
-  const product = inventoryItem.variant?.product;
+  const product = getInventoryProduct(inventoryItem);
   const variant = inventoryItem.variant;
   const warehouse = inventoryItem.warehouse;
+  const sku = getInventorySku(inventoryItem);
+  const imageUrl = getInventoryImageUrl(inventoryItem);
   const adjustments: InventoryAdjustment[] = inventoryItem.adjustments || [];
 
   // Sort descending by created_at (most recent first)
@@ -67,21 +75,16 @@ export default function InventoryHistoryModal({
           <div className="flex items-center gap-3 min-w-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={
-                typeof product?.images?.[0] === "string"
-                  ? product.images[0]
-                  : (product?.images?.[0] as { image_url?: string } | undefined)
-                      ?.image_url || "/placeholder.jpg"
-              }
+              src={imageUrl}
               alt={product?.name || "Product"}
               className="w-12 aspect-[3/4] object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60"
             />
             <div className="min-w-0">
               <h4 className="font-bold text-foreground text-xs truncate">
-                {product?.name || "Catalog Product"}
+                {product?.name || "—"}
               </h4>
               <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                SKU: {variant?.sku || inventoryItem.id}
+                SKU: {sku}
               </div>
               <div className="text-[11px] text-muted-foreground">
                 {warehouse?.name || "Uttara"} ({warehouse?.code || "WH-UTT-01"})
