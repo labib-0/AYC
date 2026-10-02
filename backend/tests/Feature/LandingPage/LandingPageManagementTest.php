@@ -298,6 +298,100 @@ class LandingPageManagementTest extends TestCase
         $this->assertEquals('Classic Cotton Oversized Tee', $storefrontProds[2]['product']['name']);
     }
 
+    public function test_sync_featured_products_rejects_duplicate_product_ids(): void
+    {
+        $payload = [
+            'products' => [
+                ['product_id' => $this->product1->id, 'sort_order' => 0],
+                ['product_id' => $this->product1->id, 'sort_order' => 1],
+            ],
+        ];
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/featured-products', $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['products.0.product_id']);
+    }
+
+    public function test_sync_featured_products_normalizes_sequence_strictly(): void
+    {
+        // Admin sends non-sequential sort orders: 99, 50, 100
+        $payload = [
+            'products' => [
+                ['product_id' => $this->product2->id, 'sort_order' => 99],
+                ['product_id' => $this->product3->id, 'sort_order' => 50],
+                ['product_id' => $this->product1->id, 'sort_order' => 100],
+            ],
+        ];
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/featured-products', $payload);
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+
+        // Stored sort_order must be strictly normalized to 0, 1, 2
+        $this->assertEquals(0, $data[0]['sort_order']);
+        $this->assertEquals($this->product2->id, $data[0]['product_id']);
+        $this->assertEquals(1, $data[1]['sort_order']);
+        $this->assertEquals($this->product3->id, $data[1]['product_id']);
+        $this->assertEquals(2, $data[2]['sort_order']);
+        $this->assertEquals($this->product1->id, $data[2]['product_id']);
+
+        // Check Product model featured_sort_order is also updated
+        $this->assertEquals(0, Product::find($this->product2->id)->featured_sort_order);
+        $this->assertEquals(1, Product::find($this->product3->id)->featured_sort_order);
+        $this->assertEquals(2, Product::find($this->product1->id)->featured_sort_order);
+    }
+
+    public function test_unpinning_featured_product_preserves_actual_product(): void
+    {
+        // Pin product1 and product2
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/featured-products', [
+                'products' => [
+                    ['product_id' => $this->product1->id, 'sort_order' => 0],
+                    ['product_id' => $this->product2->id, 'sort_order' => 1],
+                ],
+            ]);
+
+        $this->assertDatabaseHas('homepage_featured_products', ['product_id' => $this->product2->id]);
+
+        // Unpin product2 by sending only product1
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/featured-products', [
+                'products' => [
+                    ['product_id' => $this->product1->id, 'sort_order' => 0],
+                ],
+            ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('homepage_featured_products', ['product_id' => $this->product2->id]);
+
+        // The product itself MUST NOT be deleted from the database
+        $this->assertDatabaseHas('products', [
+            'id' => $this->product2->id,
+            'name' => 'Classic Cotton Oversized Tee',
+        ]);
+        $this->assertFalse((bool) Product::find($this->product2->id)->is_featured);
+    }
+
+    public function test_unauthorized_user_cannot_reorder_featured_products(): void
+    {
+        $payload = [
+            'products' => [
+                ['product_id' => $this->product1->id, 'sort_order' => 0],
+            ],
+        ];
+
+        // Customer user without admin permissions
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/featured-products', $payload);
+
+        $response->assertStatus(403);
+    }
+
     public function test_admin_product_search_for_featured_selector(): void
     {
         $response = $this->actingAs($this->admin, 'sanctum')

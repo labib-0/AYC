@@ -98,7 +98,10 @@ export default function FeaturedProductManager({
 
   // Drag and Drop State (for pinned items)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{
+    index: number;
+    position: "above" | "below";
+  } | null>(null);
 
   // Sync state if initialProducts changes externally
   useEffect(() => {
@@ -218,44 +221,85 @@ export default function FeaturedProductManager({
     setHasUnsavedChanges(true);
   };
 
+  // Calculate target 1-based position for preview and insertion
+  const calcTargetPosition = (fromIdx: number, toIdx: number, pos: "above" | "below"): number => {
+    let target = pos === "below" ? toIdx + 1 : toIdx;
+    if (fromIdx < target) {
+      target -= 1;
+    }
+    return target + 1;
+  };
+
   // HTML5 Drag and Drop Handlers for selected items
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", String(index));
+
+    // Use enclosing row element as drag ghost image if available
+    const rowEl = (e.currentTarget as HTMLElement).closest("[data-product-row]") as HTMLElement | null;
+    if (rowEl && e.dataTransfer.setDragImage) {
+      const rowRect = rowEl.getBoundingClientRect();
+      const handleRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const offsetX = Math.max(10, handleRect.left - rowRect.left + handleRect.width / 2);
+      const offsetY = Math.max(10, handleRect.top - rowRect.top + handleRect.height / 2);
+      e.dataTransfer.setDragImage(rowEl, offsetX, offsetY);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    if (dragOverIndex !== index) {
-      setDragOverIndex(index);
+    if (draggedIndex === null) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relY = e.clientY - rect.top;
+    const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
+
+    if (
+      !dragOverTarget ||
+      dragOverTarget.index !== index ||
+      dragOverTarget.position !== position
+    ) {
+      setDragOverTarget({ index, position });
     }
   };
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === targetIndex) {
+    if (draggedIndex === null) {
       setDraggedIndex(null);
-      setDragOverIndex(null);
+      setDragOverTarget(null);
+      return;
+    }
+
+    const position = dragOverTarget?.position || "above";
+    let target = position === "below" ? targetIndex + 1 : targetIndex;
+    if (draggedIndex < target) {
+      target -= 1;
+    }
+
+    if (draggedIndex === target) {
+      setDraggedIndex(null);
+      setDragOverTarget(null);
       return;
     }
 
     setProducts((prev) => {
       const next = [...prev];
       const [moved] = next.splice(draggedIndex, 1);
-      next.splice(targetIndex, 0, moved);
+      next.splice(target, 0, moved);
       return next.map((item, idx) => ({ ...item, sort_order: idx }));
     });
 
     setDraggedIndex(null);
-    setDragOverIndex(null);
+    setDragOverTarget(null);
     setHasUnsavedChanges(true);
   };
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
-    setDragOverIndex(null);
+    setDragOverTarget(null);
   };
 
   // Filtered pinned products when searching
@@ -326,6 +370,7 @@ export default function FeaturedProductManager({
             onClick={handleSave}
             disabled={saving || !hasUnsavedChanges}
             id="btn-save-featured-products"
+            aria-label="Save Featured Order"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-40 transition-all cursor-pointer shadow-2xs"
           >
             {saving ? (
@@ -336,7 +381,7 @@ export default function FeaturedProductManager({
             ) : (
               <>
                 <Save size={14} />
-                <span>Save Changes</span>
+                <span>Save Featured Order</span>
               </>
             )}
           </button>
@@ -454,96 +499,162 @@ export default function FeaturedProductManager({
               const position = index + 1;
               const thumb = prod?.images && prod.images.length > 0 ? prod.images[0].image_url : null;
               const isDragging = draggedIndex === index;
-              const isDragOver = dragOverIndex === index;
+              const isDragOver = dragOverTarget?.index === index;
+
+              const isDropAbove =
+                draggedIndex !== null &&
+                dragOverTarget?.index === index &&
+                dragOverTarget?.position === "above" &&
+                draggedIndex !== index &&
+                draggedIndex !== index - 1;
+
+              const isDropBelow =
+                draggedIndex !== null &&
+                dragOverTarget?.index === index &&
+                dragOverTarget?.position === "below" &&
+                draggedIndex !== index &&
+                draggedIndex !== index + 1;
+
+              const landingPosAbove = draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "above") : position;
+              const landingPosBelow = draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "below") : position;
 
               return (
-                <div
-                  key={`pinned-${item.product_id}`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDrop={(e) => handleDrop(e, index)}
-                  onDragEnd={handleDragEnd}
-                  className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
-                    isDragging
-                      ? "opacity-50 scale-[0.99] bg-amber-500/10"
-                      : isDragOver
-                      ? "bg-amber-500/15 ring-2 ring-amber-500/40"
-                      : "hover:bg-amber-500/10"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    {/* Drag Handle */}
+                <React.Fragment key={`pinned-fragment-${item.product_id}`}>
+                  {/* Drop indicator above */}
+                  {isDropAbove && (
                     <div
-                      className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/70 hover:text-foreground transition-colors shrink-0"
-                      title="Drag to reorder sequence"
+                      className="relative flex items-center justify-center py-1.5 bg-amber-500/10 select-none pointer-events-none transition-all duration-150"
+                      role="status"
+                      aria-live="polite"
                     >
-                      <GripVertical size={15} />
+                      <div className="absolute inset-x-0 h-0.5 bg-amber-500 rounded-full" />
+                      <div className="relative z-10 px-3 py-0.5 rounded-full bg-amber-500 text-amber-950 font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-950/70 animate-pulse" />
+                        <span>Drop here • Position {landingPosAbove}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div
+                    data-product-row
+                    data-product-id={item.product_id}
+                    data-index={index}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
+                      isDragging
+                        ? "opacity-40 scale-[0.995] bg-amber-500/10 border-dashed border-amber-500/40 shadow-xs ring-1 ring-amber-500/30"
+                        : isDragOver
+                        ? "bg-amber-500/10 ring-1 ring-amber-500/30"
+                        : "hover:bg-amber-500/10"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {/* Drag Handle: Designated Draggable Area */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragEnd={handleDragEnd}
+                        onKeyDown={(e) => {
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            handleMoveUp(index);
+                          } else if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            handleMoveDown(index);
+                          }
+                        }}
+                        aria-label={`Drag handle for ${prod?.name || "product"}. Current position ${position}. Press Up or Down arrow keys to reorder.`}
+                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none"
+                        title="Drag handle: Drag to reorder sequence (or use Up/Down arrow keys)"
+                      >
+                        <GripVertical size={16} />
+                      </div>
+
+                      {/* Sequential Position Number */}
+                      <span className="w-6 h-6 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border border-amber-500/30">
+                        {String(position).padStart(2, "0")}
+                      </span>
+
+                      {/* Product Thumbnail */}
+                      <ProductItemThumbnail src={thumb} alt={prod?.name || "Product"} />
+
+                      {/* Product Metadata */}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <p className="text-xs font-bold text-foreground truncate font-sans">
+                            {prod?.name || `Product #${item.product_id}`}
+                          </p>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                            Pos {position}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono truncate">
+                          {prod?.sku && <span>SKU: {prod.sku}</span>}
+                          {prod?.brand?.name && <span>• {prod.brand.name}</span>}
+                          {prod?.wholesale_price !== undefined && (
+                            <span>• ${Number(prod.wholesale_price).toFixed(2)}</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Sequential Position Number */}
-                    <span className="w-5 h-5 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border border-amber-500/30">
-                      {position}
-                    </span>
+                    {/* Actions: Reorder arrows + In-place Selected / Remove Toggle */}
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <button
+                        type="button"
+                        onClick={() => handleMoveUp(index)}
+                        disabled={index === 0}
+                        title={index === 0 ? "First position" : `Move up to position ${position - 1}`}
+                        aria-label={`Move ${prod?.name || "product"} up to position ${position - 1}`}
+                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      >
+                        <ArrowUp size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoveDown(index)}
+                        disabled={index === products.length - 1}
+                        title={index === products.length - 1 ? "Last position" : `Move down to position ${position + 1}`}
+                        aria-label={`Move ${prod?.name || "product"} down to position ${position + 1}`}
+                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      >
+                        <ArrowDown size={13} />
+                      </button>
 
-                    {/* Product Thumbnail */}
-                    <ProductItemThumbnail src={thumb} alt={prod?.name || "Product"} />
-
-                    {/* Product Metadata */}
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <p className="text-xs font-bold text-foreground truncate font-sans">
-                          {prod?.name || `Product #${item.product_id}`}
-                        </p>
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                          Pos {position}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono truncate">
-                        {prod?.sku && <span>SKU: {prod.sku}</span>}
-                        {prod?.brand?.name && <span>• {prod.brand.name}</span>}
-                        {prod?.wholesale_price !== undefined && (
-                          <span>• ${Number(prod.wholesale_price).toFixed(2)}</span>
-                        )}
-                      </div>
+                      {/* PINNED ✓ button (clicking directly unpins it) */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(item.product_id)}
+                        title={`Click to unpin ${prod?.name || "product"} from Featured Products`}
+                        aria-label={`Unpin ${prod?.name || "product"} from Featured Products`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-[10px] font-bold uppercase tracking-wider border border-amber-500/30 hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group"
+                      >
+                        <Check size={11} className="group-hover:hidden" />
+                        <Trash2 size={11} className="hidden group-hover:inline" />
+                        <span className="group-hover:hidden">PINNED ✓</span>
+                        <span className="hidden group-hover:inline">UNPIN</span>
+                      </button>
                     </div>
                   </div>
 
-                  {/* Actions: Reorder arrows + In-place Selected / Remove Toggle */}
-                  <div className="flex items-center gap-1 shrink-0 ml-2">
-                    <button
-                      type="button"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                      title="Move Up"
-                      className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  {/* Drop indicator below */}
+                  {isDropBelow && (
+                    <div
+                      className="relative flex items-center justify-center py-1.5 bg-amber-500/10 select-none pointer-events-none transition-all duration-150"
+                      role="status"
+                      aria-live="polite"
                     >
-                      <ArrowUp size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === products.length - 1}
-                      title="Move Down"
-                      className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
-                    >
-                      <ArrowDown size={13} />
-                    </button>
-
-                    {/* PINNED ✓ button (clicking directly unpins it) */}
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(item.product_id)}
-                      title="Click to unpin from Featured Products"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-[10px] font-bold uppercase tracking-wider border border-amber-500/30 hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group"
-                    >
-                      <Check size={11} className="group-hover:hidden" />
-                      <Trash2 size={11} className="hidden group-hover:inline" />
-                      <span className="group-hover:hidden">PINNED ✓</span>
-                      <span className="hidden group-hover:inline">UNPIN</span>
-                    </button>
-                  </div>
-                </div>
+                      <div className="absolute inset-x-0 h-0.5 bg-amber-500 rounded-full" />
+                      <div className="relative z-10 px-3 py-0.5 rounded-full bg-amber-500 text-amber-950 font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-950/70 animate-pulse" />
+                        <span>Drop here • Position {landingPosBelow}</span>
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
               );
             })}
           </div>

@@ -394,14 +394,14 @@ class HomepageManagementController extends ApiController
     {
         $validated = $request->validate([
             'products' => ['present', 'array'],
-            'products.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'products.*.product_id' => ['required', 'integer', 'distinct', 'exists:products,id'],
             'products.*.sort_order' => ['nullable', 'integer'],
             'products.*.is_active' => ['nullable', 'boolean'],
         ]);
 
         $incomingProducts = $validated['products'];
 
-        // Enforce uniqueness of product IDs
+        // Enforce uniqueness of product IDs and strictly normalize sequence (0, 1, 2, ...)
         $seenProductIds = [];
         $uniqueProducts = [];
         foreach ($incomingProducts as $idx => $item) {
@@ -410,7 +410,7 @@ class HomepageManagementController extends ApiController
                 $seenProductIds[] = $prodId;
                 $uniqueProducts[] = [
                     'product_id' => $prodId,
-                    'sort_order' => $item['sort_order'] ?? $idx,
+                    'sort_order' => $idx,
                     'is_active' => isset($item['is_active']) ? (bool) $item['is_active'] : true,
                 ];
             }
