@@ -3,6 +3,7 @@ import { B2BProductInput } from "@/types/b2b";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { findMatchingShippingProfile, calculateTotalCbm } from "@/lib/services/shipping-package";
 import { inferProductCategory } from "@/lib/mock-data/mock-products";
+import { getLowestValidCustomerUnitPrice } from "@/lib/product-pricing";
 import { apiClient } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 
@@ -315,8 +316,13 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     ? p.warehouse_breakdown
     : undefined;
 
+  const rawPid = p.productId ?? p.product_id ?? undefined;
+  const cleanPid = rawPid !== undefined && rawPid !== null && String(rawPid).trim() !== "" ? String(rawPid).trim() : undefined;
+
   return {
     id: String(p.id || `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`),
+    productId: cleanPid,
+    product_id: cleanPid,
     name: p.name || "Untitled Product",
     slug: p.slug || (p.name || "prod").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
     sku: p.sku || `AYN-${Date.now().toString(36).toUpperCase()}`,
@@ -508,13 +514,26 @@ export function toStorefrontProduct(p: any): Product {
     ? (p.bulkPrice !== undefined && p.bulkPrice !== null ? Number(p.bulkPrice) : (p.bulk_price !== undefined && p.bulk_price !== null ? Number(p.bulk_price) : undefined))
     : undefined;
 
+  const rawPid = p.productId ?? p.product_id ?? undefined;
+  const cleanPid = rawPid !== undefined && rawPid !== null && String(rawPid).trim() !== "" ? String(rawPid).trim() : undefined;
+
+  // Authoritative lowest valid customer-facing unit price
+  const lowestCustomerPrice = getLowestValidCustomerUnitPrice(p);
+  const resolvedLowestPrice = lowestCustomerPrice !== null ? lowestCustomerPrice : resolvedPrice;
+
   return {
     id: String(p.id),
+    productId: cleanPid,
+    product_id: cleanPid,
     name: p.name,
     slug: p.slug,
-    price: resolvedPrice,
-    has_valid_price: Boolean(resolvedPrice && resolvedPrice > 0),
-    hasValidPrice: Boolean(resolvedPrice && resolvedPrice > 0),
+    price: resolvedLowestPrice,
+    effectiveCustomerUnitPrice: lowestCustomerPrice,
+    effective_customer_unit_price: lowestCustomerPrice,
+    lowestCustomerUnitPrice: lowestCustomerPrice,
+    lowest_customer_unit_price: lowestCustomerPrice,
+    has_valid_price: Boolean(resolvedLowestPrice && resolvedLowestPrice > 0),
+    hasValidPrice: Boolean(resolvedLowestPrice && resolvedLowestPrice > 0),
     wholesalePrice: resolvedPrice,
     wholesale_price: resolvedPrice,
     standardPrice: p.standardPrice && Number(p.standardPrice) > 0 ? Number(p.standardPrice) : resolvedPrice,
@@ -570,8 +589,6 @@ export function toStorefrontProduct(p: any): Product {
     fullStockQuantity: p.fullStockQuantity || p.full_stock_quantity,
     videoUrl: p.videoUrl || p.video_url,
     youtubeVideoId: p.youtubeVideoId || p.youtube_video_id,
-    productId: undefined,
-    product_id: undefined,
     sizeDescription: p.sizeDescription || p.size_description || undefined,
     size_description: p.size_description || p.sizeDescription || undefined,
     colourDescription: p.colourDescription || p.colour_description || undefined,
@@ -788,9 +805,15 @@ export class ProductService {
 
     if ((input as any).productId !== undefined) {
       payload.product_id = String((input as any).productId).replace(/\s+/g, "");
+      payload.productId = payload.product_id;
     }
     if ((input as any).product_id !== undefined) {
       payload.product_id = String((input as any).product_id).replace(/\s+/g, "");
+      payload.productId = payload.product_id;
+    }
+    if (payload.product_id === "" && input.id && !String(input.id).startsWith("prod_") && !String(input.id).startsWith("draft_")) {
+      delete payload.product_id;
+      delete payload.productId;
     }
 
     const bulkEnabled = input.bulkPricingEnabled !== undefined

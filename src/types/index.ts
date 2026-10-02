@@ -7,6 +7,10 @@ export interface Product {
   price?: number;
   has_valid_price?: boolean;
   hasValidPrice?: boolean;
+  effectiveCustomerUnitPrice?: number | null;
+  effective_customer_unit_price?: number | null;
+  lowestCustomerUnitPrice?: number | null;
+  lowest_customer_unit_price?: number | null;
   oldPrice?: number;
   wholesalePrice?: number;
   wholesale_price?: number;

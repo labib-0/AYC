@@ -56,7 +56,7 @@ export default function AdminDashboardPage() {
     <AdminPageGate permission="analytics.dashboard.view" moduleName="Executive Dashboard">
       {/* ── Loading Skeleton State ─────────────────────────────────────────────── */}
       {loading ? (
-        <div className="space-y-6 max-w-[1400px]">
+        <div className="space-y-6 w-full max-w-full">
           {/* Header Skeleton */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/70">
             <div className="space-y-1.5">
@@ -120,7 +120,7 @@ export default function AdminDashboardPage() {
         </div>
       ) : (
         /* ── Operational Dashboard ──────────────────────────────────────────────── */
-        <div className="space-y-6 max-w-[1400px]">
+        <div className="space-y-6 w-full max-w-full">
           {/* 1. Dashboard Page Header */}
           <DashboardHeader
             onRefresh={() => fetchMetrics(true)}

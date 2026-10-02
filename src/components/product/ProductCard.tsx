@@ -13,6 +13,7 @@ import ProductPromotionBadges from "@/components/common/ProductPromotionBadges";
 import ProductBadge from "@/components/common/ProductBadge";
 
 import { generateProductImageAlt } from "@/lib/seo";
+import { getLowestValidCustomerUnitPrice } from "@/lib/product-pricing";
 import ProductImageFrame from "./ProductImageFrame";
 
 interface ProductCardProps {
@@ -52,17 +53,9 @@ export default function ProductCard({ product }: ProductCardProps) {
     : Math.floor(availableStock / effectiveMoq);
   const isOutOfStock = availableMoqs <= 0 || availableStock <= 0;
 
-  const numericPrice = typeof product.price === "number"
-    ? product.price
-    : (product.price !== undefined && product.price !== null && !isNaN(Number(product.price)))
-    ? Number(product.price)
-    : (product.wholesalePrice !== undefined && product.wholesalePrice !== null && !isNaN(Number(product.wholesalePrice)))
-    ? Number(product.wholesalePrice)
-    : (product.standardPrice !== undefined && product.standardPrice !== null && !isNaN(Number(product.standardPrice)))
-    ? Number(product.standardPrice)
-    : 0;
-
-  const hasValidPrice = numericPrice > 0;
+  // Authoritative lowest valid customer-facing unit price across Full Stock, Bulk, and Standard tiers
+  const lowestUnitPrice = getLowestValidCustomerUnitPrice(product);
+  const hasValidPrice = lowestUnitPrice !== null && lowestUnitPrice > 0;
 
   return (
     <div className="group relative flex flex-col w-full h-full bg-card rounded-2xl border border-border/80 shadow-[0_1px_4px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:shadow-md hover:border-border transition-all duration-300 overflow-hidden font-sans">
@@ -151,7 +144,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             {hasValidPrice ? (
               <>
                 <span className="text-[17px] sm:text-[18px] font-bold text-foreground tabular-nums leading-tight">
-                  {formatPrice(numericPrice)}
+                  {formatPrice(lowestUnitPrice)}
                 </span>
                 <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
                   / pc

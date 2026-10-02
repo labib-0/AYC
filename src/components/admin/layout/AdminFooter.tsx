@@ -2,8 +2,8 @@ import React from "react";
 
 export default function AdminFooter() {
   return (
-    <footer className="border-t border-border/80 bg-card/60 px-4 sm:px-6 py-4 text-center text-xs text-muted-foreground">
-      <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+    <footer className="border-t border-border/80 bg-card/60 px-4 sm:px-6 py-4 text-center text-xs text-muted-foreground shrink-0">
+      <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="font-bold text-foreground uppercase tracking-wider font-display">
             AYAAN CLOTHING ADMIN

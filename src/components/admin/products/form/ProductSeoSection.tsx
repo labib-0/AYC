@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Search, X, Tag, Plus } from "lucide-react";
+import { getProductCanonicalUrl } from "@/config/business-profile";
 
 interface ProductSeoSectionProps {
   seoTitle: string;
@@ -95,7 +96,7 @@ export default function ProductSeoSection({
             {displayTitle} | Ayaan Clothing
           </p>
           <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono truncate">
-            https://ayaanclothing.com/products/{displaySlug}
+            {getProductCanonicalUrl({ slug: displaySlug })}
           </p>
           <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
             {displayDesc}

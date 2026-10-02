@@ -68,7 +68,7 @@ function SettingsContent() {
 
   return (
     <AdminPageGate permission="settings.view" moduleName="System Settings">
-      <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      <div className="space-y-6 w-full max-w-full pb-12">
         {/* Header */}
         <SettingsHeader activeTab={activeTab} />
 

@@ -188,7 +188,7 @@ export default function AdminRfqPage() {
 
   return (
     <AdminPageGate permission="rfq.view" moduleName="RFQ Management">
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6 w-full max-w-full">
         {/* 1. Header */}
         <RfqListHeader onRefresh={handleRefresh} isLoading={isRefreshing} />
 

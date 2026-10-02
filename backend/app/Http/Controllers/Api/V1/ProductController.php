@@ -306,7 +306,7 @@ class ProductController extends ApiController
                 'packageAllocations',
             ])
             ->orderBy('featured_sort_order', 'asc')
-            ->orderBy('id', 'desc');
+            ->orderBy('created_at', 'desc'); // newest upload first — NOT id DESC, NOT updated_at
 
         $products = $query->paginate($perPage);
 
@@ -387,6 +387,9 @@ class ProductController extends ApiController
             }
         }
 
+        if ($request->has('productId') && !$request->has('product_id')) {
+            $request->merge(['product_id' => $request->input('productId')]);
+        }
         if ($request->has('product_id')) {
             $rawPid = (string) $request->input('product_id');
             $normalizedPid = preg_replace('/\s+/', '', $rawPid);
@@ -1085,10 +1088,20 @@ class ProductController extends ApiController
         $isPublished = $effectiveStatus === 'published';
         $isPreorderPublish = $effectivePreorder && $isPublished;
 
+        if ($request->has('productId') && !$request->has('product_id')) {
+            $request->merge(['product_id' => $request->input('productId')]);
+        }
         if ($request->has('product_id')) {
             $rawPid = (string) $request->input('product_id');
             $normalizedPid = preg_replace('/\s+/', '', $rawPid);
-            $request->merge(['product_id' => $normalizedPid !== '' ? $normalizedPid : null]);
+            if ($normalizedPid !== '') {
+                $request->merge(['product_id' => $normalizedPid]);
+            } elseif (!empty($product->product_id)) {
+                // Never erase an already saved product_id on partial update
+                $request->merge(['product_id' => $product->product_id]);
+            } else {
+                $request->merge(['product_id' => null]);
+            }
         }
         $productIdInput = (string) ($request->input('product_id') ?? $product->product_id);
 
@@ -1434,8 +1447,11 @@ class ProductController extends ApiController
         $product->update($productData);
 
         if ($request->has('categories')) {
-            $product->categories()->sync($request->input('categories', []));
-        } elseif ($request->has('category_id')) {
+            $catInputs = (array) $request->input('categories', []);
+            if (!empty($catInputs)) {
+                $product->categories()->sync($catInputs);
+            }
+        } elseif ($request->has('category_id') && !empty($request->input('category_id'))) {
             $product->categories()->sync(array_filter([(int) $request->input('category_id')]));
         }
 
@@ -1568,22 +1584,39 @@ class ProductController extends ApiController
                 }
             }
         } else {
-            // Direct warehouse inventory update for variant-less product (or when warehouse/stock is provided)
-            $whInputId = $request->input('warehouse_id') ?? $request->input('warehouseId') ?? $request->input('initial_inventory.warehouse_id');
-            $hasStockInput = $request->has('stock') || $request->has('initial_stock');
-            if ($hasStockInput) {
-                $stockVal = (int) ($request->input('stock') ?? $request->input('initial_stock') ?? 0);
-                $product->stock = $stockVal;
-                $product->save();
-            }
+            // Variant-less product inventory handling:
+            // If the product has NO inventories yet (e.g. uninitialized draft first publishing),
+            // initialize initial stock and warehouse with audit record.
+            $hasExistingInventory = $product->directInventories()->exists() || $product->inventories()->exists();
+            if (!$hasExistingInventory) {
+                $whInputId = $request->input('warehouse_id') ?? $request->input('warehouseId') ?? $request->input('initial_inventory.warehouse_id');
+                $hasStockInput = $request->has('stock') || $request->has('initial_stock');
+                if ($hasStockInput) {
+                    $stockVal = (int) ($request->input('stock') ?? $request->input('initial_stock') ?? 0);
+                    $product->stock = $stockVal;
+                    $product->save();
+                }
 
-            if (!empty($whInputId)) {
-                $wh = \App\Models\Warehouse::where('id', $whInputId)->where('is_active', true)->first();
-                if ($wh && !$product->variants()->where('is_active', true)->exists()) {
-                    \App\Models\Inventory::updateOrCreate(
-                        ['product_id' => $product->id, 'product_variant_id' => null, 'warehouse_id' => $wh->id],
-                        ['quantity' => $product->stock ?? 0]
-                    );
+                if (!empty($whInputId)) {
+                    $wh = \App\Models\Warehouse::where('id', $whInputId)->where('is_active', true)->first();
+                    if ($wh && !$product->variants()->where('is_active', true)->exists()) {
+                        $inv = \App\Models\Inventory::create([
+                            'product_id' => $product->id,
+                            'product_variant_id' => null,
+                            'warehouse_id' => $wh->id,
+                            'quantity' => $product->stock ?? 0,
+                        ]);
+                        if (($product->stock ?? 0) > 0) {
+                            \App\Models\AdminInventoryAdjustment::create([
+                                'inventory_id' => $inv->id,
+                                'admin_user_id' => $user->id,
+                                'previous_quantity' => 0,
+                                'adjustment_amount' => (int) $product->stock,
+                                'resulting_quantity' => (int) $product->stock,
+                                'reason' => 'Initial stock on product publication',
+                            ]);
+                        }
+                    }
                 }
             }
         }
@@ -1631,8 +1664,10 @@ class ProductController extends ApiController
 
         // Update package allocations if provided
         if ($request->has('package_allocations') && is_array($request->input('package_allocations'))) {
-            $product->packageAllocations()->delete();
-            foreach ($request->input('package_allocations') as $alloc) {
+            $inputAllocs = $request->input('package_allocations');
+            if (!empty($inputAllocs) || ($request->has('variants') && count($request->input('variants', [])) === 0)) {
+                $product->packageAllocations()->delete();
+                foreach ($inputAllocs as $alloc) {
                 $variantId = $alloc['product_variant_id'] ?? null;
                 $color = $alloc['color'] ?? null;
                 $size = $alloc['size'] ?? null;

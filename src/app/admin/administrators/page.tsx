@@ -199,7 +199,7 @@ export default function AdministratorsPage() {
 
   return (
     <AdminPageGate permission="admin.view" moduleName="Administrator Accounts">
-      <div className="space-y-6 max-w-7xl mx-auto pb-16">
+      <div className="space-y-6 w-full max-w-full pb-16">
       {/* Header with stats */}
       <AdminHeader
         stats={stats}

@@ -120,8 +120,13 @@ class HomepageController extends ApiController
             }
         }
 
-        // 4. Fetch active featured products (in admin sort order)
-        $featuredProducts = HomepageFeaturedProduct::query()
+        // 4. Fetch active featured products ordered correctly:
+        //    RULE A: Admin-selected (pinned) products appear FIRST in their exact sort_order (Admin-curated sequence).
+        //    RULE B: After all pinned products, remaining eligible published products follow in UPLOAD ORDER (created_at DESC).
+        //            newest upload = first position among non-pinned products.
+        //    RULE C: No product appears twice — pinned product IDs are excluded from the remaining list.
+        //    RULE D: updated_at is intentionally NOT used — editing a product must NOT change its position.
+        $selectedFeatured = HomepageFeaturedProduct::query()
             ->where('is_active', true)
             ->whereHas('product', function ($query) {
                 $query->storefrontVisible()
@@ -139,7 +144,7 @@ class HomepageController extends ApiController
                     ]);
                 }
             ])
-            ->orderBy('sort_order', 'asc')
+            ->orderBy('sort_order', 'asc') // Admin-pinned order
             ->get()
             ->map(function ($item) {
                 return [
@@ -151,8 +156,41 @@ class HomepageController extends ApiController
                 ];
             });
 
-        // If no records in homepage_featured_products, check products with is_featured = true
-        if ($featuredProducts->isEmpty()) {
+        // Collect pinned product IDs to exclude from remaining list (prevents duplication)
+        $pinnedProductIds = $selectedFeatured->pluck('product_id')->filter()->values()->toArray();
+
+        // Remaining eligible products in upload order (created_at DESC — newest upload first)
+        // Excludes all pinned products so each product appears exactly once
+        $remainingFeatured = Product::query()
+            ->storefrontVisible()
+            ->whereNull('deleted_at')
+            ->when(!empty($pinnedProductIds), fn($q) => $q->whereNotIn('id', $pinnedProductIds))
+            ->with([
+                'images' => fn($q) => $q->orderBy('sort_order', 'asc'),
+                'brand',
+                'categories',
+                'variants',
+                'pricingTiers',
+                'packageAllocations',
+            ])
+            ->orderBy('created_at', 'desc') // authoritative upload timestamp; NOT updated_at, NOT id
+            ->get()
+            ->map(function ($p, $idx) use ($selectedFeatured) {
+                return [
+                    'id' => null,
+                    'product_id' => $p->id,
+                    'sort_order' => $selectedFeatured->count() + $idx,
+                    'is_active' => true,
+                    'product' => new ProductResource($p),
+                ];
+            });
+
+        // Combined: Admin-pinned selected products FIRST → remaining in created_at DESC
+        $featuredProducts = $selectedFeatured->concat($remainingFeatured);
+
+        // Fallback: If no records in homepage_featured_products, check products with is_featured = true
+        // Apply the same ordering rule: featured_sort_order first, then created_at DESC (not id DESC)
+        if ($selectedFeatured->isEmpty()) {
             $featuredProdsDirect = Product::query()
                 ->storefrontVisible()
                 ->where('is_featured', true)
@@ -166,11 +204,13 @@ class HomepageController extends ApiController
                     'packageAllocations',
                 ])
                 ->orderBy('featured_sort_order', 'asc')
-                ->orderBy('id', 'desc')
+                ->orderBy('created_at', 'desc') // newest upload first — NOT id DESC
                 ->get();
 
             if ($featuredProdsDirect->isNotEmpty()) {
-                $featuredProducts = $featuredProdsDirect->map(function ($p, $idx) {
+                $fallbackPinnedIds = $featuredProdsDirect->pluck('id')->toArray();
+
+                $fallbackPinned = $featuredProdsDirect->map(function ($p, $idx) {
                     return [
                         'id' => $p->id,
                         'product_id' => $p->id,
@@ -179,6 +219,33 @@ class HomepageController extends ApiController
                         'product' => new ProductResource($p),
                     ];
                 });
+
+                // Remaining products after fallback-pinned exclusion, sorted by created_at DESC
+                $fallbackRemaining = Product::query()
+                    ->storefrontVisible()
+                    ->whereNull('deleted_at')
+                    ->whereNotIn('id', $fallbackPinnedIds)
+                    ->with([
+                        'images' => fn($q) => $q->orderBy('sort_order', 'asc'),
+                        'brand',
+                        'categories',
+                        'variants',
+                        'pricingTiers',
+                        'packageAllocations',
+                    ])
+                    ->orderBy('created_at', 'desc') // newest upload first — NOT updated_at, NOT id
+                    ->get()
+                    ->map(function ($p, $idx) use ($fallbackPinned) {
+                        return [
+                            'id' => null,
+                            'product_id' => $p->id,
+                            'sort_order' => $fallbackPinned->count() + $idx,
+                            'is_active' => true,
+                            'product' => new ProductResource($p),
+                        ];
+                    });
+
+                $featuredProducts = $fallbackPinned->concat($fallbackRemaining);
             }
         }
 

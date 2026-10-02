@@ -9,6 +9,7 @@ import { PreferencesProvider } from "@/lib/PreferencesContext";
 import { SiteSettingsProvider } from "@/lib/SiteSettingsContext";
 import { headers } from "next/headers";
 import StorefrontShell from "@/components/layout/StorefrontShell";
+import GlobalNumberInputWheelGuard from "@/components/common/GlobalNumberInputWheelGuard";
 import { generateOrganizationJsonLd, generateWebSiteJsonLd, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
@@ -108,6 +109,7 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${inter.variable} ${manrope.variable} font-sans bg-background text-foreground antialiased selection:bg-primary selection:text-primary-foreground`}>
+        <GlobalNumberInputWheelGuard />
         <AuthProvider>
           <SiteSettingsProvider>
             <PreferencesProvider>

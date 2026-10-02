@@ -165,6 +165,36 @@ class Product extends Model
         $this->keywords = $value;
     }
 
+    /**
+     * Sanitize product description to allow only safe rich-text formatting tags (p, br, strong, b, em, i, u)
+     * and strip all unsafe HTML elements (script, iframe, style, etc.) and tag attributes.
+     */
+    public static function sanitizeDescription(?string $description): ?string
+    {
+        if ($description === null) {
+            return null;
+        }
+
+        // Normalize Windows CRLF and CR to LF
+        $clean = str_replace(["\r\n", "\r"], "\n", $description);
+
+        // Remove dangerous tags and their content
+        $clean = preg_replace('/<(script|style|iframe|object|embed|applet)[^>]*?>.*?<\/\1>/si', '', $clean);
+
+        // Whitelist only safe formatting tags: strong, b, em, i, u, p, br
+        $clean = strip_tags($clean, ['strong', 'b', 'em', 'i', 'u', 'p', 'br']);
+
+        // Strip all attributes from tags to avoid XSS via event handlers or style injections
+        $clean = preg_replace('/<([a-z0-9]+)\s+[^>]*>/i', '<$1>', $clean);
+
+        return $clean;
+    }
+
+    public function setDescriptionAttribute($value): void
+    {
+        $this->attributes['description'] = self::sanitizeDescription($value);
+    }
+
     public function scopeStorefrontVisible($query)
     {
         return $query->where('status', 'published')
@@ -478,6 +508,79 @@ class Product extends Model
     }
 
     /**
+     * Authoritative lowest valid customer-facing unit price across all active purchasing tiers:
+     * 1. FULL STOCK PRICE — if Full Stock is available and eligible
+     * 2. BULK UNIT PRICE — if Bulk Pricing is enabled, bulk_threshold > moq, and bulk_price > 0
+     * 3. STANDARD UNIT PRICE — fallback when neither lower tier is available
+     *
+     * Compares all actually applicable valid candidate prices and returns the LOWEST real unit price.
+     * Returns null if no valid customer price exists (never 0.00).
+     */
+    public function getLowestCustomerUnitPrice(): ?float
+    {
+        $validPrices = [];
+
+        // 1. Standard / Base Unit Price (Wholesale price or MOQ pricing tier)
+        // Never use purchase/cost price as a fallback!
+        if ($this->wholesale_price !== null && (float) $this->wholesale_price > 0) {
+            $validPrices[] = (float) $this->wholesale_price;
+        } else {
+            $moq = max(1, (int) $this->moq);
+            $tiers = $this->relationLoaded('pricingTiers') ? $this->pricingTiers : $this->pricingTiers()->get();
+            if ($tiers && $tiers->isNotEmpty()) {
+                foreach ($tiers as $tier) {
+                    if ((float) $tier->unit_price > 0 && $moq >= $tier->min_quantity && ($tier->max_quantity === null || $moq <= $tier->max_quantity)) {
+                        $validPrices[] = (float) $tier->unit_price;
+                        break;
+                    }
+                }
+                if (empty($validPrices)) {
+                    $validTiers = $tiers->filter(fn($t) => (float) $t->unit_price > 0)->sortBy('min_quantity');
+                    if ($validTiers->isNotEmpty()) {
+                        $validPrices[] = (float) $validTiers->first()->unit_price;
+                    }
+                }
+            }
+        }
+
+        // 2. Bulk Unit Price
+        // Only consider Bulk pricing when:
+        // - Bulk Pricing is enabled
+        // - Bulk minimum quantity is valid (bulk_threshold > moq)
+        // - Bulk unit price is valid (> 0)
+        $moq = max(1, (int) $this->moq);
+        $hasValidBulk = (bool) (
+            $this->bulk_pricing_enabled &&
+            $this->bulk_threshold !== null &&
+            (int) $this->bulk_threshold > $moq &&
+            $this->bulk_price !== null &&
+            (float) $this->bulk_price > 0
+        );
+
+        if ($hasValidBulk) {
+            $validPrices[] = (float) $this->bulk_price;
+        }
+
+        // 3. Full Stock Price
+        // Full Stock price should only be considered when Full Stock is actually eligible
+        // according to authoritative inventory & business rules (isFullStockEligible).
+        if ($this->isFullStockEligible()) {
+            $fsPrice = (float) $this->getResolvedFullStockPrice();
+            if ($fsPrice > 0) {
+                $validPrices[] = $fsPrice;
+            } elseif ($this->full_stock_price !== null && (float) $this->full_stock_price > 0) {
+                $validPrices[] = (float) $this->full_stock_price;
+            }
+        }
+
+        if (empty($validPrices)) {
+            return null;
+        }
+
+        return min($validPrices);
+    }
+
+    /**
      * Authoritative Normal MOQ / Standard Applicable Price.
      * Evaluates the standard wholesale price that applies to the product's MOQ purchase under existing rules.
      */
@@ -751,6 +854,7 @@ class Product extends Model
                         'warehouse_code' => $whCode,
                         'on_hand_quantity' => 0,
                         'available_quantity' => 0,
+                        'inventory_id' => $inv->id,
                     ];
                 }
 

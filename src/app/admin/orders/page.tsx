@@ -215,7 +215,7 @@ export default function AdminOrdersPage() {
 
   return (
     <AdminPageGate permission="order.view" moduleName="Orders Management">
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6 w-full max-w-full">
         {/* 1. Header */}
         <OrderListHeader onRefresh={handleRefresh} isLoading={isRefreshing} />
 

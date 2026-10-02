@@ -297,7 +297,7 @@ export default function AdminOrderDetailPage({
 
   return (
     <AdminPageGate permission="order.view" moduleName="Order Details">
-      <div className="space-y-8 max-w-6xl mx-auto">
+      <div className="space-y-8 w-full max-w-full">
       {/* 1. Detail Header & Commercial Document Links */}
       <OrderDetailHeader
         order={order}

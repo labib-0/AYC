@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { Sparkles, Plus, AlertCircle } from "lucide-react";
 import BrandModal from "@/components/admin/BrandModal";
+import CategoryModal from "@/components/admin/CategoryModal";
 import { BrandModel } from "@/services/brand.service";
+import { CategoryModel } from "@/services/category.service";
+import { useOptionalAdminAuth } from "@/lib/AdminAuthContext";
+import ProductDescriptionEditor from "./ProductDescriptionEditor";
+import SearchableSelect from "@/components/common/SearchableSelect";
 
 interface CategoryOption {
   id: string;
@@ -24,6 +29,7 @@ interface ProductBasicInfoSectionProps {
   brand: string;
   brandId?: string | number;
   categoryId: string;
+  categoryName?: string;
   audience: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "";
   designType: "ORIGINAL" | "MASTER COPY" | "";
   material: string;
@@ -34,6 +40,7 @@ interface ProductBasicInfoSectionProps {
   categories: CategoryOption[];
   isEdit?: boolean;
   errors: Record<string, string>;
+  canCreateCategory?: boolean;
   onProductIdChange: (val: string) => void;
   onNameChange: (val: string) => void;
   onNameBlur?: () => void;
@@ -48,6 +55,7 @@ interface ProductBasicInfoSectionProps {
   onColourDescriptionChange?: (val: string) => void;
   onDescriptionChange: (val: string) => void;
   onBrandCreated?: (newBrand: BrandModel) => void;
+  onCategoryCreated?: (newCategory: CategoryModel) => void;
 }
 
 const AUDIENCE_OPTIONS: Array<"MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX"> = [
@@ -69,7 +77,9 @@ export default function ProductBasicInfoSection({
   slug,
   sku,
   brand,
+  brandId,
   categoryId,
+  categoryName,
   audience,
   designType,
   material,
@@ -80,6 +90,7 @@ export default function ProductBasicInfoSection({
   categories,
   isEdit,
   errors,
+  canCreateCategory,
   onProductIdChange,
   onNameChange,
   onNameBlur,
@@ -94,8 +105,17 @@ export default function ProductBasicInfoSection({
   onColourDescriptionChange,
   onDescriptionChange,
   onBrandCreated,
+  onCategoryCreated,
 }: ProductBasicInfoSectionProps) {
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+
+  const auth = useOptionalAdminAuth();
+  const canCreateCat = canCreateCategory !== undefined
+    ? canCreateCategory
+    : auth
+      ? (auth.isSuperAdmin || auth.can("category.create"))
+      : true;
 
   const handleBrandSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedName = e.target.value;
@@ -107,6 +127,14 @@ export default function ProductBasicInfoSection({
     setIsBrandModalOpen(false);
     onBrandChange(newBrand.name, String(newBrand.id), newBrand.logo_url || newBrand.logo);
     onBrandCreated?.(newBrand);
+  };
+
+  const handleCategorySuccess = (newCategory: CategoryModel) => {
+    setIsCategoryModalOpen(false);
+    onCategoryCreated?.(newCategory);
+    if (!isEdit) {
+      onCategoryChange(String(newCategory.id), newCategory.name);
+    }
   };
 
   const inputClass = (hasError?: boolean) =>
@@ -217,32 +245,33 @@ export default function ProductBasicInfoSection({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Brand */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
-                Brand <span className="text-red-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsBrandModalOpen(true)}
-                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
-              >
-                <Plus size={12} /> Add Brand
-              </button>
-            </div>
-            <div className="relative">
-              <select
-                value={brand}
-                onChange={handleBrandSelect}
-                className={selectClass(Boolean(errors.brand))}
-              >
-                <option value="">Select brand</option>
-                {brands.map((b) => (
-                  <option key={b.id} value={b.name}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <SearchableSelect
+              id="product-brand-select"
+              label="Brand"
+              required
+              placeholder="Select brand"
+              searchPlaceholder="Search brands..."
+              options={brands}
+              value={brand || (brandId ? String(brandId) : "")}
+              fallbackDisplay={brand || (brandId ? brands.find((b) => String(b.id) === String(brandId))?.name : undefined)}
+              onChange={(val, opt) => {
+                const bName = opt ? opt.name : val;
+                const rawId = opt ? opt.id : brands.find((b) => b.name === val)?.id;
+                const bId = rawId !== undefined ? String(rawId) : undefined;
+                const bLogo = opt?.logo_url || brands.find((b) => b.name === val)?.logo_url;
+                onBrandChange(bName, bId, bLogo);
+              }}
+              hasError={Boolean(errors.brand)}
+              actionButton={
+                <button
+                  type="button"
+                  onClick={() => setIsBrandModalOpen(true)}
+                  className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus size={12} /> Add Brand
+                </button>
+              }
+            />
             {errors.brand && (
               <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
                 <AlertCircle size={12} />
@@ -253,27 +282,32 @@ export default function ProductBasicInfoSection({
 
           {/* Product Category */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Product Category <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                value={categoryId}
-                onChange={(e) => {
-                  const catId = e.target.value;
-                  const found = categories.find((c) => String(c.id) === String(catId));
-                  onCategoryChange(catId, found?.name);
-                }}
-                className={selectClass(Boolean(errors.category))}
-              >
-                <option value="">Select category</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <SearchableSelect
+              id="product-category-select"
+              label="Product Category"
+              required
+              placeholder="Select category"
+              searchPlaceholder="Search categories..."
+              options={categories}
+              value={categoryId}
+              fallbackDisplay={categoryName || categories.find((c) => String(c.id) === String(categoryId))?.name}
+              onChange={(catId, opt) => {
+                const found = opt || categories.find((c) => String(c.id) === String(catId));
+                onCategoryChange(catId, found?.name);
+              }}
+              hasError={Boolean(errors.category)}
+              actionButton={
+                canCreateCat ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsCategoryModalOpen(true)}
+                    className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus size={12} /> Add Category
+                  </button>
+                ) : undefined
+              }
+            />
             {errors.category && (
               <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
                 <AlertCircle size={12} />
@@ -400,18 +434,15 @@ export default function ProductBasicInfoSection({
           </div>
         </div>
 
-        {/* Description */}
-        <div>
-          <label htmlFor="product-description-textarea" className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+        {/* Description Editor (Wide & User-Friendly with Bold, Italic & Preview) */}
+        <div className="pt-2">
+          <label htmlFor="product-description-textarea" className="sr-only">
             Product Description
           </label>
-          <textarea
+          <ProductDescriptionEditor
             id="product-description-textarea"
-            rows={4}
             value={description}
             onChange={(e) => onDescriptionChange(e.target.value)}
-            placeholder="Detailed wholesale product description, fabric specs, construction details, and stitch finish..."
-            className="w-full p-3.5 rounded-xl border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors leading-relaxed resize-y"
           />
         </div>
       </div>
@@ -422,6 +453,15 @@ export default function ProductBasicInfoSection({
           isOpen={isBrandModalOpen}
           onClose={() => setIsBrandModalOpen(false)}
           onSuccess={handleBrandSuccess}
+        />
+      )}
+
+      {/* Category Creation Modal */}
+      {isCategoryModalOpen && (
+        <CategoryModal
+          isOpen={isCategoryModalOpen}
+          onClose={() => setIsCategoryModalOpen(false)}
+          onSuccess={handleCategorySuccess}
         />
       )}
     </div>

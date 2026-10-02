@@ -7,3 +7,5 @@ export { default as ProductShippingSection } from "./ProductShippingSection";
 export { default as ProductSeoSection } from "./ProductSeoSection";
 export { default as ProductPackageAssortmentSection } from "./ProductPackageAssortmentSection";
 export { default as ProductPackageBreakdownSection } from "./ProductPackageBreakdownSection";
+export { default as ProductDescriptionEditor } from "./ProductDescriptionEditor";
+

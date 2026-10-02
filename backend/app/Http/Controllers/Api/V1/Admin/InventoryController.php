@@ -191,14 +191,15 @@ class InventoryController extends ApiController
         $validated = $request->validate([
             'inventory_id' => ['nullable', 'exists:inventories,id'],
             'variant_id' => ['nullable', 'exists:product_variants,id'],
+            'product_id' => ['nullable', 'exists:products,id'],
             'warehouse_id' => ['nullable', 'exists:warehouses,id'],
             'adjustment_amount' => ['nullable', 'integer'], // e.g. +50 or -20
             'new_quantity' => ['nullable', 'integer', 'min:0'], // or absolute new quantity
             'reason' => ['required', 'string', 'max:255'],
         ]);
 
-        if (!isset($validated['inventory_id']) && !isset($validated['variant_id'])) {
-            return $this->error('Must provide either inventory_id or variant_id.', 422);
+        if (!isset($validated['inventory_id']) && !isset($validated['variant_id']) && !isset($validated['product_id'])) {
+            return $this->error('Must provide either inventory_id, variant_id, or product_id.', 422);
         }
 
         $admin = $request->user();
@@ -213,7 +214,7 @@ class InventoryController extends ApiController
                     $variant = $inventory->product_variant_id
                         ? ProductVariant::where('id', $inventory->product_variant_id)->lockForUpdate()->first()
                         : null;
-                } else {
+                } elseif (!empty($validated['variant_id'])) {
                     $warehouseId = $validated['warehouse_id'] ?? Warehouse::firstOrCreate(
                         ['code' => 'WH-UTTARA-01'],
                         ['name' => 'Uttara Warehouse', 'country_code' => 'BD', 'is_active' => true]
@@ -234,6 +235,30 @@ class InventoryController extends ApiController
                     );
 
                     $inventory = Inventory::where('id', $inventory->id)->lockForUpdate()->first();
+                } else {
+                    // product_id (variantless product or product-level inventory)
+                    $warehouseId = $validated['warehouse_id'] ?? Warehouse::firstOrCreate(
+                        ['code' => 'WH-UTTARA-01'],
+                        ['name' => 'Uttara Warehouse', 'country_code' => 'BD', 'is_active' => true]
+                    )->id;
+
+                    $product = \App\Models\Product::where('id', $validated['product_id'])
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    $inventory = Inventory::firstOrCreate(
+                        [
+                            'product_id' => $product->id,
+                            'product_variant_id' => null,
+                            'warehouse_id' => $warehouseId,
+                        ],
+                        [
+                            'quantity' => $product->stock ?? 0,
+                        ]
+                    );
+
+                    $inventory = Inventory::where('id', $inventory->id)->lockForUpdate()->first();
+                    $variant = null;
                 }
 
                 $previousQuantity = (int) $inventory->quantity;
@@ -259,6 +284,13 @@ class InventoryController extends ApiController
                 if ($variant) {
                     $totalStock = Inventory::where('product_variant_id', $variant->id)->sum('quantity');
                     $variant->update(['stock' => $totalStock]);
+
+                    // Keep parent product stock in sync as sum of all inventories
+                    $prodTotalStock = Inventory::where(function ($q) use ($variant) {
+                        $q->where('product_id', $variant->product_id)
+                          ->orWhereIn('product_variant_id', ProductVariant::where('product_id', $variant->product_id)->pluck('id'));
+                    })->sum('quantity');
+                    \App\Models\Product::where('id', $variant->product_id)->update(['stock' => $prodTotalStock]);
                 } elseif ($inventory->product_id) {
                     $totalStock = Inventory::where('product_id', $inventory->product_id)->sum('quantity');
                     \App\Models\Product::where('id', $inventory->product_id)->update(['stock' => $totalStock]);
@@ -274,10 +306,22 @@ class InventoryController extends ApiController
                     'reason' => $validated['reason'],
                 ]);
 
+                // Invalidate catalog cache for the affected product
+                $targetProductId = $variant ? $variant->product_id : $inventory->product_id;
+                $targetProduct = $targetProductId ? \App\Models\Product::with(['variants.inventories.warehouse', 'directInventories.warehouse'])->find($targetProductId) : null;
+                if ($targetProduct) {
+                    \App\Services\Cache\CatalogCacheService::invalidateProduct($targetProduct);
+                }
+
                 return [
-                    'inventory' => $inventory->fresh(['variant.product', 'warehouse']),
+                    'inventory' => $inventory->fresh(['variant.product', 'warehouse', 'product']),
                     'adjustment' => $adjustment->load('adminUser'),
-                    'variant_total_stock' => $totalStock,
+                    'variant_total_stock' => $totalStock ?? null,
+                    'product_stock' => $targetProduct ? $targetProduct->stock : null,
+                    'on_hand_stock' => $targetProduct ? $targetProduct->getOnHandStock() : null,
+                    'available_stock' => $targetProduct ? $targetProduct->getTotalAvailableStock() : null,
+                    'available_moqs' => $targetProduct ? $targetProduct->getAvailableMoqs() : null,
+                    'warehouse_breakdown' => $targetProduct ? $targetProduct->getWarehouseStockBreakdown() : null,
                 ];
             });
 

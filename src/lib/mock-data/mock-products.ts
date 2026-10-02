@@ -166,8 +166,13 @@ export function normalizeProductData(p: any): B2BProductInput {
     keywordsList = [];
   }
 
+  const rawPid = p.productId ?? p.product_id ?? undefined;
+  const cleanPid = rawPid !== undefined && rawPid !== null && String(rawPid).trim() !== "" ? String(rawPid).trim() : undefined;
+
   return {
     id: String(p.id),
+    productId: cleanPid,
+    product_id: cleanPid,
     name: p.name || "Apparel Item",
     slug: p.slug || (p.name || "apparel").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
     sku: p.sku || `AYN-${Date.now().toString(36).toUpperCase()}`,

@@ -2,6 +2,7 @@
 
 import { ShippingPackageProfile } from "@/types";
 import { calculateTotalCbm } from "@/lib/services/shipping-package";
+import { handleNumberInputWheel } from "@/components/common/GlobalNumberInputWheelGuard";
 
 interface ProductShippingSectionProps {
   profiles: ShippingPackageProfile[];
@@ -91,6 +92,7 @@ export default function ProductShippingSection({
                 step="0.1"
                 min="0"
                 value={profile.gross_weight !== undefined && profile.gross_weight !== null && profile.gross_weight > 0 ? profile.gross_weight : ""}
+                onWheel={handleNumberInputWheel}
                 onChange={(e) =>
                   updateProfile({
                     gross_weight: e.target.value ? parseFloat(e.target.value) : undefined,
@@ -124,6 +126,7 @@ export default function ProductShippingSection({
               min="1"
               step="1"
               value={cartonCount !== null ? cartonCount : ""}
+              onWheel={handleNumberInputWheel}
               onChange={(e) => {
                 const val = e.target.value ? Math.max(1, Math.round(parseFloat(e.target.value))) : undefined;
                 updateProfile({ carton_count: val });
@@ -170,6 +173,7 @@ export default function ProductShippingSection({
                 min="0.1"
                 step="0.5"
                 value={profile.carton_length !== undefined && profile.carton_length !== null && profile.carton_length > 0 ? profile.carton_length : ""}
+                onWheel={handleNumberInputWheel}
                 onChange={(e) =>
                   updateProfile({
                     carton_length: e.target.value ? parseFloat(e.target.value) : undefined,
@@ -188,6 +192,7 @@ export default function ProductShippingSection({
                 min="0.1"
                 step="0.5"
                 value={profile.carton_width !== undefined && profile.carton_width !== null && profile.carton_width > 0 ? profile.carton_width : ""}
+                onWheel={handleNumberInputWheel}
                 onChange={(e) =>
                   updateProfile({
                     carton_width: e.target.value ? parseFloat(e.target.value) : undefined,
@@ -206,6 +211,7 @@ export default function ProductShippingSection({
                 min="0.1"
                 step="0.5"
                 value={profile.carton_height !== undefined && profile.carton_height !== null && profile.carton_height > 0 ? profile.carton_height : ""}
+                onWheel={handleNumberInputWheel}
                 onChange={(e) =>
                   updateProfile({
                     carton_height: e.target.value ? parseFloat(e.target.value) : undefined,

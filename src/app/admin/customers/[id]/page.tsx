@@ -127,7 +127,7 @@ export default function AdminCustomerDetailPage({
 
   return (
     <AdminPageGate permission="customer.view">
-      <div className="space-y-8 max-w-6xl mx-auto">
+      <div className="space-y-8 w-full max-w-full">
       {/* 1. Header */}
       <CustomerDetailHeader
         customer={customer}

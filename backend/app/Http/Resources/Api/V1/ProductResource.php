@@ -36,10 +36,13 @@ class ProductResource extends JsonResource
         $isAdmin = $user && $user->isAdmin();
         $isB2b = $user && ($user->isCustomer() || $user->isAdmin());
         $effectivePrice = $this->getEffectiveCustomerPrice();
-        $hasValidPrice = $effectivePrice !== null && $effectivePrice > 0;
+        $lowestCustomerPrice = $this->getLowestCustomerUnitPrice();
+        $hasValidPrice = ($lowestCustomerPrice !== null && $lowestCustomerPrice > 0) || ($effectivePrice !== null && $effectivePrice > 0);
 
         return array_merge([
             'id' => (int) $this->id,
+            'productId' => $this->product_id,
+            'product_id' => $this->product_id,
             'name' => $this->name,
             'slug' => $this->slug,
             'sku' => $this->sku,
@@ -77,7 +80,11 @@ class ProductResource extends JsonResource
             'videoProvider' => $this->getVideoProvider(),
             'videoEmbedUrl' => $this->getVideoEmbedUrl(),
             'images' => !empty($imagesList) ? $imagesList : ['/placeholder.jpg'],
-            'price' => $effectivePrice,
+            'price' => $lowestCustomerPrice ?? $effectivePrice,
+            'effective_customer_unit_price' => $lowestCustomerPrice,
+            'effectiveCustomerUnitPrice' => $lowestCustomerPrice,
+            'lowest_customer_unit_price' => $lowestCustomerPrice,
+            'lowestCustomerUnitPrice' => $lowestCustomerPrice,
             'has_valid_price' => $hasValidPrice,
             'hasValidPrice' => $hasValidPrice,
             'wholesalePrice' => $effectivePrice,

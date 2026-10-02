@@ -118,10 +118,31 @@ export interface InventoryQueryParams {
 export interface InventoryAdjustmentPayload {
   inventory_id?: number;
   variant_id?: number;
+  product_id?: number | string;
+  warehouse_id?: number;
   adjustment_amount?: number;
   new_quantity?: number;
   reason: string;
   notes?: string;
+}
+
+export interface InventoryAdjustmentResult {
+  inventory: InventoryRecord;
+  quantity?: number;
+  adjustment?: InventoryAdjustment;
+  variant_total_stock?: number;
+  product_stock?: number;
+  on_hand_stock?: number;
+  available_stock?: number;
+  available_moqs?: number;
+  warehouse_breakdown?: Array<{
+    warehouse_id: number;
+    warehouse_name: string;
+    warehouse_code: string;
+    on_hand_quantity: number;
+    available_quantity: number;
+    inventory_id?: number;
+  }>;
 }
 
 export class AdminInventoryService {
@@ -197,11 +218,25 @@ export class AdminInventoryService {
     }
   }
 
-  async adjustInventory(payload: InventoryAdjustmentPayload): Promise<InventoryRecord | null> {
+  async adjustInventory(payload: InventoryAdjustmentPayload): Promise<InventoryAdjustmentResult | null> {
     try {
       const res = await apiClient.post<any>("/admin/inventory/adjust", payload);
       const data = res?.data || res;
-      return (data?.inventory || data) as InventoryRecord;
+      if (data && (data.inventory || data.product_stock !== undefined || data.id)) {
+        const inv = data.inventory || data;
+        return {
+          inventory: inv,
+          quantity: inv?.quantity ?? data.quantity ?? data.product_stock,
+          adjustment: data.adjustment,
+          variant_total_stock: data.variant_total_stock,
+          product_stock: data.product_stock,
+          on_hand_stock: data.on_hand_stock,
+          available_stock: data.available_stock,
+          available_moqs: data.available_moqs,
+          warehouse_breakdown: data.warehouse_breakdown,
+        };
+      }
+      return null;
     } catch (err) {
       console.error("Failed to adjust inventory via API:", err);
       throw err;

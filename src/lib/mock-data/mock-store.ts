@@ -131,9 +131,28 @@ class MockStore {
     let savedProduct: B2BProductInput;
 
     if (existingIndex >= 0) {
+      const existing = products[existingIndex];
+      const cleanUpdates: any = {};
+      for (const key of Object.keys(productInput)) {
+        if ((productInput as any)[key] !== undefined) {
+          cleanUpdates[key] = (productInput as any)[key];
+        }
+      }
+      // Never erase saved productId on partial update if incoming is blank or omitted
+      if (!cleanUpdates.productId && !cleanUpdates.product_id && (existing.productId || (existing as any).product_id)) {
+        cleanUpdates.productId = existing.productId || (existing as any).product_id;
+        cleanUpdates.product_id = cleanUpdates.productId;
+      }
+      // Never erase packageAllocations or shippingPackageProfiles if untouched
+      if ((!cleanUpdates.packageAllocations || cleanUpdates.packageAllocations.length === 0) && existing.packageAllocations && existing.packageAllocations.length > 0) {
+        cleanUpdates.packageAllocations = existing.packageAllocations;
+      }
+      if ((!cleanUpdates.shippingPackageProfiles || cleanUpdates.shippingPackageProfiles.length === 0) && existing.shippingPackageProfiles && existing.shippingPackageProfiles.length > 0) {
+        cleanUpdates.shippingPackageProfiles = existing.shippingPackageProfiles;
+      }
       savedProduct = {
-        ...products[existingIndex],
-        ...productInput,
+        ...existing,
+        ...cleanUpdates,
       } as B2BProductInput;
       products[existingIndex] = savedProduct;
     } else {

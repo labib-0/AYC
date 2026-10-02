@@ -107,11 +107,32 @@ export function getStorefrontBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   }
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return window.location.origin;
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
   }
-  return "http://localhost:3000";
+  if (typeof window !== "undefined" && window.location) {
+    const { hostname, port, protocol } = window.location;
+    // When accessed from admin port or subdomain, point to public storefront
+    if (port === "3001") {
+      return "http://localhost:3000";
+    }
+    if (hostname.startsWith("admin.")) {
+      const apex = hostname.replace(/^admin\./, "");
+      return `${protocol}//${apex}${port ? `:${port}` : ""}`;
+    }
+    if (window.location.origin) {
+      return window.location.origin;
+    }
+  }
+  return "https://ayaanclothing.com";
 }
+
+export {
+  getProductPath,
+  getProductCanonicalUrl,
+  getProductWhatsAppMessage,
+  getProductWhatsAppUrl,
+} from "@/lib/product-url";
 
 /**
  * Generates the universal commercial-order deep link for an order reference.

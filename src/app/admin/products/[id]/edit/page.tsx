@@ -40,7 +40,7 @@ export default function EditProductPage({
   }, [id]);
 
   const handleUpdate = async (data: B2BProductInput) => {
-    if (!product) return;
+    if (!product) return null;
     const res = await updateProduct(product.id, data);
     if (res) {
       setProduct(res);

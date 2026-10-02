@@ -154,3 +154,10 @@ export function useAdminAuth() {
   }
   return context;
 }
+
+export function useOptionalAdminAuth() {
+  return useContext(AdminAuthContext);
+}
+
+export { AdminAuthContext };
+export type { AdminAuthContextType };

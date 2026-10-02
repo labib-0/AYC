@@ -32,7 +32,7 @@ export default function AdminHeader({
   const storefrontUrl = getCustomerAppUrl();
 
   return (
-    <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border/80 px-4 sm:px-6 py-3 flex items-center justify-between shadow-xs">
+    <header className="sticky top-0 z-40 h-14 bg-card/95 backdrop-blur-md border-b border-border/80 px-4 sm:px-6 flex items-center justify-between shadow-xs shrink-0">
       {/* Left: Mobile Toggle & Admin Brand */}
       <div className="flex items-center gap-3">
         <button

@@ -18,6 +18,7 @@ import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
 import { LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { getProductCanonicalUrl } from "@/config/business-profile";
 
 interface ProductTableRowProps {
   product: B2BProductInput;
@@ -88,7 +89,7 @@ export default function ProductTableRow({
   const editHref = product.id === "draft_local_new"
     ? (isUnderAdminPath ? "/admin/products/new?resume=true" : "/products/new?resume=true")
     : (isUnderAdminPath ? `/admin/products/${product.id}/edit` : `/products/${product.id}/edit`);
-  const storefrontHref = `${storefrontBase}/products/${product.slug}`;
+  const storefrontHref = getProductCanonicalUrl(product);
 
   return (
     <tr className="border-b border-border/40 hover:bg-secondary/40 transition-colors group">

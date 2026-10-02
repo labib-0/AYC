@@ -44,6 +44,7 @@ export default function ProductForm({
   const { can, isSuperAdmin } = useAdminAuth();
   const canPublish = isSuperAdmin || can("product.publish");
   const canSaveDraft = isSuperAdmin || can("product.save_draft");
+  const canCreateCategory = isSuperAdmin || can("category.create");
 
   // Navigation back link context
   const isUnderAdminPath = pathname.startsWith("/admin");
@@ -162,12 +163,54 @@ export default function ProductForm({
   const [stock, setStock] = useState<number | undefined>(
     initialData?.stock !== undefined ? Number(initialData.stock) : undefined
   );
+  const [onHandStockState, setOnHandStockState] = useState<number | undefined>(
+    initialData?.onHandStock ?? (initialData as any)?.on_hand_stock
+  );
+  const [availableStockState, setAvailableStockState] = useState<number | undefined>(
+    initialData?.availableStock ?? (initialData as any)?.available_stock ?? initialData?.stock
+  );
+  const [warehouseBreakdownState, setWarehouseBreakdownState] = useState<any[] | undefined>(
+    initialData?.warehouseBreakdown ?? (initialData as any)?.warehouse_breakdown
+  );
   const [warehouseId, setWarehouseId] = useState<string | number | undefined>(
     initialData?.warehouseId || (initialData as any)?.warehouse_id || ""
   );
   const [customMoq, setCustomMoq] = useState<number | undefined>(() => {
     return initialData?.moq && initialData.moq > 0 ? initialData.moq : undefined;
   });
+
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.stock !== undefined) setStock(Number(initialData.stock));
+      setOnHandStockState(initialData.onHandStock ?? (initialData as any)?.on_hand_stock);
+      setAvailableStockState(initialData.availableStock ?? (initialData as any)?.available_stock ?? initialData.stock);
+      setWarehouseBreakdownState(initialData.warehouseBreakdown ?? (initialData as any)?.warehouse_breakdown);
+    }
+  }, [initialData]);
+
+  // Authoritative Form Variants
+  const currentVariants: B2BProductVariant[] = useMemo(() => {
+    if (initialData?.variants && initialData.variants.length > 0) {
+      return initialData.variants;
+    }
+    const vars: B2BProductVariant[] = [];
+    const totalVars = colors.length * sizes.length;
+    const effectiveStock = stock !== undefined ? stock : 0;
+    const stockPerVar = totalVars > 0 ? Math.floor(effectiveStock / totalVars) : effectiveStock;
+    colors.forEach((c) => {
+      sizes.forEach((s) => {
+        vars.push({
+          title: `${c} / ${s}`,
+          color: c,
+          size: s,
+          wholesalePrice: wholesalePrice || 0,
+          stock: stockPerVar,
+          isActive: true,
+        });
+      });
+    });
+    return vars;
+  }, [initialData?.variants, colors, sizes, stock, wholesalePrice]);
 
   // Authoritative Universal Package Assortment
   const [packageAllocations, setPackageAllocations] = useState<PackageAllocation[]>(() => {
@@ -279,10 +322,54 @@ export default function ProductForm({
     (initialData?.keywords && initialData.keywords.length > 0) ||
     ((initialData as any)?.seo_keywords && (initialData as any).seo_keywords.length > 0)
   ));
+  const hasUserEditedDescriptionRef = useRef(false);
 
-  // Synchronize SEO if initialData updates from backend and admin hasn't edited them yet
+  // Synchronize all fields from initialData when in edit mode and admin hasn't overridden them
   useEffect(() => {
     if (isEdit && initialData) {
+      const savedPid = initialData.productId || (initialData as any)?.product_id;
+      if (savedPid) {
+        setProductId((current: string) => current || savedPid);
+      }
+      if (initialData.name) {
+        setName((current: string) => current || initialData.name || "");
+      }
+      if (initialData.slug) {
+        setSlug((current: string) => current || initialData.slug || "");
+      }
+      if (initialData.sku) {
+        setSku((current: string) => current || initialData.sku || "");
+      }
+      if (initialData.brand) {
+        setBrand((current: string) => current || initialData.brand || "");
+      }
+      if (initialData.brand_id) {
+        setBrandId((current) => current || initialData.brand_id);
+      }
+      if (initialData.brandLogo) {
+        setBrandLogo((current) => current || initialData.brandLogo);
+      }
+      if (initialData.categoryId || (initialData as any)?.category_id) {
+        setCategoryId((current: string) => current || String(initialData.categoryId || (initialData as any)?.category_id));
+      }
+      if (initialData.categoryName || (initialData as any)?.category_name) {
+        setCategoryName((current: string) => current || String(initialData.categoryName || (initialData as any)?.category_name));
+      }
+      if (initialData.audience) {
+        setAudience((current) => current || (initialData.audience as any));
+      }
+      if (initialData.designType || (initialData as any)?.design_type) {
+        setDesignType((current) => current || (initialData.designType as any) || ((initialData as any)?.design_type as any));
+      }
+      if (initialData.material) {
+        setMaterial((current: string) => current || initialData.material || "");
+      }
+      if (initialData.sizeDescription || (initialData as any)?.size_description) {
+        setSizeDescription((current: string) => current || initialData.sizeDescription || (initialData as any)?.size_description || "");
+      }
+      if (initialData.colourDescription || (initialData as any)?.colour_description) {
+        setColourDescription((current: string) => current || initialData.colourDescription || (initialData as any)?.colour_description || "");
+      }
       if (!seoTitleManuallyEditedRef.current && (initialData.seoTitle || (initialData as any)?.seo_title)) {
         setSeoTitle(initialData.seoTitle || (initialData as any)?.seo_title || "");
       }
@@ -294,6 +381,35 @@ export default function ProductForm({
         if (Array.isArray(raw) && raw.length > 0) {
           setKeywords(raw.map(String));
         }
+      }
+      if (!hasUserEditedDescriptionRef.current && initialData.description) {
+        setDescription(initialData.description);
+      }
+      if (initialData.wholesalePrice !== undefined) {
+        setWholesalePrice((current) => current !== undefined ? current : Number(initialData.wholesalePrice));
+      }
+      if (initialData.bulkPricingEnabled !== undefined || (initialData as any)?.bulk_pricing_enabled !== undefined) {
+        setBulkPricingEnabled((current) => current !== undefined ? current : Boolean(initialData.bulkPricingEnabled ?? (initialData as any)?.bulk_pricing_enabled));
+      }
+      if (initialData.bulkThreshold !== undefined) {
+        setBulkThreshold((current) => current !== undefined ? current : Number(initialData.bulkThreshold));
+      }
+      if (initialData.bulkPrice !== undefined) {
+        setBulkPrice((current) => current !== undefined ? current : Number(initialData.bulkPrice));
+      }
+      if (initialData.fullStockPrice !== undefined || (initialData as any)?.full_stock_price !== undefined) {
+        setFullStockPrice((current) => current !== undefined ? current : Number(initialData.fullStockPrice ?? (initialData as any)?.full_stock_price));
+      }
+      if (initialData.costPrice !== undefined || (initialData as any)?.cost_price !== undefined) {
+        setCostPrice((current) => current !== undefined ? current : Number(initialData.costPrice ?? (initialData as any)?.cost_price));
+      }
+      const rawAllocs = initialData.packageAllocations || (initialData as any)?.package_allocations;
+      if (Array.isArray(rawAllocs) && rawAllocs.length > 0) {
+        setPackageAllocations((current) => current.length > 0 ? current : rawAllocs);
+      }
+      const rawProfiles = initialData.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles;
+      if (Array.isArray(rawProfiles) && rawProfiles.length > 0) {
+        setShippingProfiles((current) => current.length > 0 ? current : rawProfiles);
       }
     }
   }, [initialData, isEdit]);
@@ -379,11 +495,32 @@ export default function ProductForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showSuccessMessage = useCallback((msg: string) => {
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+    }
+    setGeneralError(null);
+    setSuccessMessage(msg);
+    successTimerRef.current = setTimeout(() => {
+      setSuccessMessage(null);
+    }, 5000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
 
   // Snapshot constructor for current form state
   const getCurrentDraftData = useCallback((): Partial<B2BProductInput> => {
-    const normalizedProductId = productId.replace(/\s+/g, "");
+    const rawPid = productId.trim() || (isEdit ? (initialData?.productId || (initialData as any)?.product_id || "") : "");
+    const normalizedProductId = rawPid.replace(/\s+/g, "");
     return {
       productId: normalizedProductId,
       product_id: normalizedProductId,
@@ -457,6 +594,13 @@ export default function ProductForm({
     // 1. Always safely preserve in local storage
     productDraftService.saveDraft(draftKey, data, isEdit ? "edit" : "create");
 
+    // In Edit mode, do NOT perform destructive background autosaves to the backend.
+    // Database products must remain authoritative until admin explicitly clicks Save / Publish.
+    if (isEdit) {
+      setAutosaveStatus("saved");
+      return true;
+    }
+
     // 2. Meaningful changes check
     const hasMeaningful = Boolean(
       (data.name && data.name.trim().length > 0) ||
@@ -473,7 +617,8 @@ export default function ProductForm({
     }
 
     // 3. Backend persistence requires Product ID
-    const normalizedPid = (data.productId || "").replace(/\s+/g, "");
+    const rawPid = data.productId || (isEdit ? (initialData?.productId || (initialData as any)?.product_id || "") : "");
+    const normalizedPid = (rawPid || "").replace(/\s+/g, "");
     if (!normalizedPid) {
       setAutosaveStatus("saved");
       return true;
@@ -558,14 +703,18 @@ export default function ProductForm({
     persistDraftRef.current = persistDraftToBackendAndStorage;
   }, [persistDraftToBackendAndStorage]);
 
-  // Restore unsaved draft on mount (ONLY in edit mode or when resumeDraft is explicitly requested)
+  // Restore unsaved draft on mount (ONLY when resumeDraft is explicitly requested)
   useEffect(() => {
-    if (!isEdit && !resumeDraft) return;
+    if (!resumeDraft) return;
 
     const saved = productDraftService.getDraft(draftKey);
     if (saved && saved.data) {
       const d = saved.data;
-      if (d.productId) setProductId(d.productId);
+      if (d.productId && d.productId.trim()) {
+        setProductId(d.productId);
+      } else if (isEdit && (initialData?.productId || (initialData as any)?.product_id)) {
+        setProductId(initialData?.productId || (initialData as any)?.product_id || "");
+      }
       if (d.name) setName(d.name);
       if (d.slug) {
         setSlug(d.slug);
@@ -656,6 +805,7 @@ export default function ProductForm({
     }
     setHasUserEdited(true);
     setAutosaveStatus("unsaved");
+    setSuccessMessage(null);
   }, [
     productId, name, slug, brand, brandId, categoryId, audience, designType,
     material, description, images, videoUrl, wholesalePrice, bulkPricingEnabled, bulkThreshold,
@@ -839,7 +989,8 @@ export default function ProductForm({
   const validatePublish = (): boolean => {
     const errs: Record<string, string> = {};
 
-    const normalizedPid = productId.replace(/\s+/g, "");
+    const rawPid = productId.trim() || (isEdit ? (initialData?.productId || (initialData as any)?.product_id || "") : "");
+    const normalizedPid = rawPid.replace(/\s+/g, "");
     if (!normalizedPid) {
       errs.productId = "Product ID is required.";
     } else if (!/^[A-Za-z0-9\-\/]+$/.test(normalizedPid)) {
@@ -952,23 +1103,7 @@ export default function ProductForm({
       }
 
       // Generate variant combinations (no variant SKU)
-      const variants: B2BProductVariant[] = [];
-      const totalVariants = colors.length * sizes.length;
-      const effectiveStock = stock !== undefined ? stock : 0;
-      const stockPerVar = totalVariants > 0 ? Math.floor(effectiveStock / totalVariants) : effectiveStock;
-
-      colors.forEach((c) => {
-        sizes.forEach((s) => {
-          variants.push({
-            title: `${c} / ${s}`,
-            color: c,
-            size: s,
-            wholesalePrice: wholesalePrice || 0,
-            stock: stockPerVar,
-            isActive: true,
-          });
-        });
-      });
+      const variants: B2BProductVariant[] = currentVariants;
 
       // Pricing Tiers: only construct tiers if wholesale price is set and greater than 0
       const pricingTiers = (wholesalePrice !== undefined && wholesalePrice > 0)
@@ -992,67 +1127,70 @@ export default function ProductForm({
           ])
         : [];
 
-      const normalizedPid = productId.replace(/\s+/g, "");
+      const rawPid = productId.trim() || (isEdit ? (initialData?.productId || (initialData as any)?.product_id || "") : "");
+      const normalizedPid = rawPid.replace(/\s+/g, "");
       const isDraftTarget = targetStatus === "draft";
       const payload: B2BProductInput = {
         id: persistedDraftIdRef.current || initialData?.id || `prod_${Date.now()}`,
         productId: normalizedPid,
         product_id: normalizedPid,
-        name: name.trim() || (isDraftTarget ? "" : (undefined as any)),
-        slug: slug.trim() || (undefined as any),
-        sku: sku.trim() || (name.trim() ? generatedSku : (undefined as any)),
+        name: name.trim() || (isEdit ? (initialData?.name || "") : (isDraftTarget ? "" : (undefined as any))),
+        slug: slug.trim() || (isEdit ? (initialData?.slug || undefined) : (undefined as any)),
+        sku: sku.trim() || (isEdit ? (initialData?.sku || undefined) : (name.trim() ? generatedSku : (undefined as any))),
         isHiddenFromStorefront: isHiddenFromStorefront,
         is_hidden_from_storefront: isHiddenFromStorefront,
-        brand: brand.trim() || (undefined as any),
-        brandLogo: activeBrand?.logo_url || brandLogo,
-        brand_id: activeBrand?.id ? String(activeBrand.id) : undefined,
-        categoryId: categoryId || undefined,
-        categoryName: activeCat?.name || categoryName || (isDraftTarget ? undefined : "Apparel"),
-        audience: (audience || (isDraftTarget ? undefined : "UNISEX")) as any,
-        designType: (designType || undefined) as any,
-        productType: designType || undefined,
-        description: description.trim() || undefined,
-        shortDescription: finalSeoDescription || (description ? description.slice(0, 160).trim() : undefined),
-        seoTitle: finalSeoTitle || undefined,
-        seo_title: finalSeoTitle || undefined,
-        seoDescription: finalSeoDescription || undefined,
-        seo_description: finalSeoDescription || undefined,
-        keywords: finalKeywords && finalKeywords.length > 0 ? finalKeywords : undefined,
-        seo_keywords: finalKeywords && finalKeywords.length > 0 ? finalKeywords : undefined,
-        material: material.trim() || undefined,
-        sizeDescription: sizeDescription.trim() || undefined,
-        size_description: sizeDescription.trim() || undefined,
-        colourDescription: colourDescription.trim() || undefined,
-        colour_description: colourDescription.trim() || undefined,
-        packageAssortmentVisible: packageAssortmentVisible,
-        package_assortment_visible: packageAssortmentVisible,
-        packageAssortmentMessage: packageAssortmentMessage.trim() || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
-        package_assortment_message: packageAssortmentMessage.trim() || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
+        brand: brand.trim() || (isEdit ? (initialData?.brand || undefined) : (undefined as any)),
+        brandLogo: activeBrand?.logo_url || brandLogo || (isEdit ? (initialData?.brandLogo || undefined) : undefined),
+        brand_id: activeBrand?.id ? String(activeBrand.id) : (brandId ? String(brandId) : (isEdit ? (initialData?.brand_id ? String(initialData.brand_id) : undefined) : undefined)),
+        categoryId: categoryId || (isEdit ? (initialData?.categoryId || (initialData as any)?.category_id || undefined) : undefined),
+        categoryName: activeCat?.name || categoryName || (isEdit ? (initialData?.categoryName || (initialData as any)?.category_name || undefined) : (isDraftTarget ? undefined : "Apparel")),
+        audience: (audience || (isEdit ? (initialData?.audience || undefined) : (isDraftTarget ? undefined : "UNISEX"))) as any,
+        designType: (designType || (isEdit ? (initialData?.designType || undefined) : undefined)) as any,
+        productType: designType || (isEdit ? (initialData?.productType || undefined) : undefined),
+        description: description.trim() || (isEdit ? (initialData?.description || undefined) : undefined),
+        shortDescription: finalSeoDescription || (description ? description.slice(0, 160).trim() : (isEdit ? (initialData?.shortDescription || undefined) : undefined)),
+        seoTitle: finalSeoTitle || (isEdit ? (initialData?.seoTitle || (initialData as any)?.seo_title || undefined) : undefined),
+        seo_title: finalSeoTitle || (isEdit ? (initialData?.seoTitle || (initialData as any)?.seo_title || undefined) : undefined),
+        seoDescription: finalSeoDescription || (isEdit ? (initialData?.seoDescription || (initialData as any)?.seo_description || undefined) : undefined),
+        seo_description: finalSeoDescription || (isEdit ? (initialData?.seoDescription || (initialData as any)?.seo_description || undefined) : undefined),
+        keywords: finalKeywords && finalKeywords.length > 0 ? finalKeywords : (isEdit ? (initialData?.keywords || (initialData as any)?.seo_keywords || undefined) : undefined),
+        seo_keywords: finalKeywords && finalKeywords.length > 0 ? finalKeywords : (isEdit ? (initialData?.keywords || (initialData as any)?.seo_keywords || undefined) : undefined),
+        material: material.trim() || (isEdit ? (initialData?.material || undefined) : undefined),
+        sizeDescription: sizeDescription.trim() || (isEdit ? (initialData?.sizeDescription || (initialData as any)?.size_description || undefined) : undefined),
+        size_description: sizeDescription.trim() || (isEdit ? (initialData?.sizeDescription || (initialData as any)?.size_description || undefined) : undefined),
+        colourDescription: colourDescription.trim() || (isEdit ? (initialData?.colourDescription || (initialData as any)?.colour_description || undefined) : undefined),
+        colour_description: colourDescription.trim() || (isEdit ? (initialData?.colourDescription || (initialData as any)?.colour_description || undefined) : undefined),
+        packageAssortmentVisible: packageAssortmentVisible !== undefined ? packageAssortmentVisible : (isEdit ? (initialData?.packageAssortmentVisible ?? (initialData as any)?.package_assortment_visible ?? true) : true),
+        package_assortment_visible: packageAssortmentVisible !== undefined ? packageAssortmentVisible : (isEdit ? (initialData?.packageAssortmentVisible ?? (initialData as any)?.package_assortment_visible ?? true) : true),
+        packageAssortmentMessage: packageAssortmentMessage.trim() || (isEdit ? (initialData?.packageAssortmentMessage || (initialData as any)?.package_assortment_message || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE) : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE),
+        package_assortment_message: packageAssortmentMessage.trim() || (isEdit ? (initialData?.packageAssortmentMessage || (initialData as any)?.package_assortment_message || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE) : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE),
         images: (() => {
           const clean = images.map((u) => normalizeImageUrl(u)).filter((u) => isValidImageUrl(u));
-          return clean.length > 0 ? clean : (isDraftTarget ? [] : ["/placeholder.jpg"]);
+          if (clean.length > 0) return clean;
+          if (isEdit && initialData?.images && initialData.images.length > 0) return initialData.images;
+          return isDraftTarget ? [] : ["/placeholder.jpg"];
         })(),
-        videoUrl: videoUrl.trim() || undefined,
-        video_url: videoUrl.trim() || undefined,
-        wholesalePrice: wholesalePrice !== undefined ? wholesalePrice : (isDraftTarget ? (undefined as any) : 0),
-        standardPrice: wholesalePrice !== undefined ? wholesalePrice : (isDraftTarget ? (undefined as any) : 0),
+        videoUrl: videoUrl.trim() || (isEdit ? (initialData?.videoUrl || (initialData as any)?.video_url || undefined) : undefined),
+        video_url: videoUrl.trim() || (isEdit ? (initialData?.videoUrl || (initialData as any)?.video_url || undefined) : undefined),
+        wholesalePrice: wholesalePrice !== undefined ? wholesalePrice : (isEdit ? (initialData?.wholesalePrice ?? undefined) : (isDraftTarget ? (undefined as any) : 0)),
+        standardPrice: wholesalePrice !== undefined ? wholesalePrice : (isEdit ? (initialData?.wholesalePrice ?? undefined) : (isDraftTarget ? (undefined as any) : 0)),
         bulkPricingEnabled: bulkPricingEnabled,
         bulk_pricing_enabled: bulkPricingEnabled,
-        bulkThreshold: bulkPricingEnabled && bulkThreshold ? bulkThreshold : undefined,
-        bulkPrice: bulkPricingEnabled && bulkPrice ? bulkPrice : undefined,
+        bulkThreshold: bulkPricingEnabled && bulkThreshold ? bulkThreshold : (isEdit && !bulkPricingEnabled ? undefined : (isEdit ? initialData?.bulkThreshold : undefined)),
+        bulkPrice: bulkPricingEnabled && bulkPrice ? bulkPrice : (isEdit && !bulkPricingEnabled ? undefined : (isEdit ? initialData?.bulkPrice : undefined)),
         bulk_threshold: bulkPricingEnabled && bulkThreshold ? bulkThreshold : null,
         bulk_price: bulkPricingEnabled && bulkPrice ? bulkPrice : null,
         bulk_minimum_quantity: bulkPricingEnabled && bulkThreshold ? bulkThreshold : null,
         bulk_unit_price: bulkPricingEnabled && bulkPrice ? bulkPrice : null,
-        fullStockPrice: fullStockPrice || undefined,
-        full_stock_price: fullStockPrice || undefined,
-        costPrice: costPrice || undefined,
-        moq: moq !== undefined ? moq : (isDraftTarget ? (undefined as any) : 1),
-        stock: stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0),
-        initialStock: stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0),
-        initial_stock: stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0),
-        warehouseId: warehouseId || undefined,
-        warehouse_id: warehouseId || undefined,
+        fullStockPrice: fullStockPrice !== undefined ? fullStockPrice : (isEdit ? (initialData?.fullStockPrice ?? undefined) : undefined),
+        full_stock_price: fullStockPrice !== undefined ? fullStockPrice : (isEdit ? (initialData?.fullStockPrice ?? undefined) : undefined),
+        costPrice: costPrice !== undefined ? costPrice : (isEdit ? ((initialData as any)?.costPrice ?? (initialData as any)?.cost_price ?? undefined) : undefined),
+        moq: moq !== undefined ? moq : (isEdit ? (initialData?.moq ?? 1) : (isDraftTarget ? (undefined as any) : 1)),
+        stock: isEdit ? (availableStockState ?? stock ?? initialData?.stock ?? 0) : (stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0)),
+        initialStock: !isEdit ? (stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0)) : undefined,
+        initial_stock: !isEdit ? (stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0)) : undefined,
+        warehouseId: !isEdit ? (warehouseId || undefined) : undefined,
+        warehouse_id: !isEdit ? (warehouseId || undefined) : undefined,
         status: targetStatus,
         isNew: isNew,
         newUntil: isNew ? newUntil : null,
@@ -1067,18 +1205,63 @@ export default function ProductForm({
         is_preorder: isPreorder,
         estimatedDeliveryDate: isPreorder ? estimatedDeliveryDate : null,
         estimated_delivery_date: isPreorder ? estimatedDeliveryDate : null,
-        colors: colors,
-        sizes: sizes,
-        variants: variants,
-        pricingTiers: pricingTiers,
-        packageAllocations: colors.length > 0 && sizes.length > 0 ? packageAllocations : [],
-        package_allocations: colors.length > 0 && sizes.length > 0 ? packageAllocations : [],
-        shippingPackageProfiles: shippingProfiles,
-        shipping_package_profiles: shippingProfiles,
+        colors: colors.length > 0 ? colors : (isEdit && initialData?.colors ? initialData.colors : []),
+        sizes: sizes.length > 0 ? sizes : (isEdit && initialData?.sizes ? initialData.sizes : []),
+        variants: variants.length > 0 ? variants : (isEdit && initialData?.variants ? initialData.variants : []),
+        pricingTiers: pricingTiers.length > 0 ? pricingTiers : (isEdit && initialData?.pricingTiers ? initialData.pricingTiers : []),
+        packageAllocations: packageAllocations.length > 0
+          ? packageAllocations
+          : (isEdit && (initialData?.packageAllocations || (initialData as any)?.package_allocations)
+              ? (initialData?.packageAllocations || (initialData as any)?.package_allocations)
+              : []),
+        package_allocations: packageAllocations.length > 0
+          ? packageAllocations
+          : (isEdit && (initialData?.packageAllocations || (initialData as any)?.package_allocations)
+              ? (initialData?.packageAllocations || (initialData as any)?.package_allocations)
+              : []),
+        shippingPackageProfiles: shippingProfiles.length > 0
+          ? shippingProfiles
+          : (isEdit && (initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles)
+              ? (initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles)
+              : []),
+        shipping_package_profiles: shippingProfiles.length > 0
+          ? shippingProfiles
+          : (isEdit && (initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles)
+              ? (initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles)
+              : []),
       };
 
+      const priorStatus = status || initialData?.status;
+      const isExisting = isEdit || Boolean(persistedDraftIdRef.current) || Boolean(initialData?.id);
+      const wasDraft = priorStatus === "draft";
+
+      let contextualMsg = "Product updated successfully.";
+      if (!isExisting) {
+        if (targetStatus === "draft") {
+          contextualMsg = "Product draft saved successfully.";
+        } else {
+          contextualMsg = "Product published successfully.";
+        }
+      } else if (wasDraft) {
+        if (targetStatus === "draft") {
+          contextualMsg = "Draft updated successfully.";
+        } else {
+          contextualMsg = "Product published successfully.";
+        }
+      } else {
+        if (targetStatus === "published") {
+          contextualMsg = "Product updated successfully.";
+        } else {
+          contextualMsg = "Product draft saved successfully.";
+        }
+      }
+
       const res = await onSubmit(payload);
-      if (res && (res as any).id) {
+      if (!res) {
+        throw new Error("Product save failed: No response from server.");
+      }
+
+      if ((res as any).id) {
         persistedDraftIdRef.current = String((res as any).id);
         setPersistedDraftId(String((res as any).id));
       }
@@ -1086,7 +1269,7 @@ export default function ProductForm({
       // On success: clear draft, update status, notify
       productDraftService.clearDraft(draftKey);
       setStatus(targetStatus);
-      setSaveSuccess(true);
+      showSuccessMessage(contextualMsg);
       setDraftRestored(false);
       setHasUserEdited(false);
       hasUserEditedRef.current = false;
@@ -1095,9 +1278,10 @@ export default function ProductForm({
       if (!isEdit && targetStatus === "published") {
         setTimeout(() => {
           router.push(backHref);
-        }, 800);
+        }, 1200);
       }
     } catch (err: unknown) {
+      setSuccessMessage(null);
       // 1. Authentication Failure (401)
       const is401 =
         (err instanceof ApiError && err.status === 401) ||
@@ -1144,6 +1328,7 @@ export default function ProductForm({
   const handleAuthModalSuccess = async () => {
     setIsAuthModalOpen(false);
     setGeneralError(null);
+    setSuccessMessage(null);
     if (pendingAction) {
       await handleSaveWithStatus(pendingAction);
     }
@@ -1279,7 +1464,7 @@ export default function ProductForm({
               ) : (
                 <Globe size={13} />
               )}
-              <span>{isEdit ? "Save & Publish" : "Publish Product"}</span>
+              <span>{isEdit ? (status === "published" ? "Save Changes" : "Publish Product") : "Publish Product"}</span>
             </button>
           )}
         </div>
@@ -1313,10 +1498,19 @@ export default function ProductForm({
         </div>
       )}
 
-      {saveSuccess && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
-          <CheckCircle2 size={16} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-          <span>Product saved successfully! Redirecting...</span>
+      {successMessage && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>{successMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage(null)}
+            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-emerald-400/40 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -1333,6 +1527,7 @@ export default function ProductForm({
             brand={brand}
             brandId={brandId}
             categoryId={categoryId}
+            categoryName={categoryName}
             audience={audience}
             designType={designType}
             material={material}
@@ -1343,6 +1538,7 @@ export default function ProductForm({
             categories={categories}
             isEdit={isEdit}
             errors={errors}
+            canCreateCategory={canCreateCategory}
             onProductIdChange={setProductId}
             onNameChange={handleNameChange}
             onNameBlur={handleNameBlur}
@@ -1352,6 +1548,13 @@ export default function ProductForm({
               setBrand(bName);
               setBrandId(bId);
               setBrandLogo(bLogo);
+              if (errors.brand) {
+                setErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.brand;
+                  return next;
+                });
+              }
               if (!isEdit && !skuManuallyEdited && name) {
                 const activeCat = categories.find((c) => String(c.id) === String(categoryId));
                 setSku(generateProductSku(bName || "AY", activeCat?.name || "APP", name || "PROD"));
@@ -1363,6 +1566,13 @@ export default function ProductForm({
             onCategoryChange={(cId, cName) => {
               setCategoryId(cId);
               if (cName) setCategoryName(cName);
+              if (errors.category) {
+                setErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.category;
+                  return next;
+                });
+              }
               if (!isEdit && !skuManuallyEdited && name) {
                 setSku(generateProductSku(brand || "AY", cName || "APP", name || "PROD"));
               }
@@ -1387,9 +1597,33 @@ export default function ProductForm({
             }}
             onSizeDescriptionChange={setSizeDescription}
             onColourDescriptionChange={setColourDescription}
-            onDescriptionChange={setDescription}
+            onDescriptionChange={(val) => {
+              hasUserEditedDescriptionRef.current = true;
+              setDescription(val);
+            }}
             onBrandCreated={(newB) => {
               setBrands((prev) => [...prev, { id: String(newB.id), name: newB.name, logo_url: newB.logo_url || newB.logo }]);
+            }}
+            onCategoryCreated={(newCat) => {
+              setCategories((prev) => {
+                if (prev.some((c) => String(c.id) === String(newCat.id))) return prev;
+                return [...prev, { id: String(newCat.id), name: newCat.name }];
+              });
+              if (!isEdit) {
+                setCategoryId(String(newCat.id));
+                setCategoryName(newCat.name);
+                if (errors.category) {
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.category;
+                    return next;
+                  });
+                }
+                if (!skuManuallyEdited && name) {
+                  setSku(generateProductSku(brand || "AY", newCat.name || "APP", name || "PROD"));
+                }
+                autoPopulateSeoDefaults(name, brand, newCat.name);
+              }
             }}
           />
 
@@ -1403,10 +1637,20 @@ export default function ProductForm({
             onStockChange={setStock}
             onWarehouseChange={setWarehouseId}
             errors={errors}
-            onHandStock={initialData?.onHandStock ?? (initialData as any)?.on_hand_stock}
-            availableStock={initialData?.availableStock ?? (initialData as any)?.available_stock ?? initialData?.stock}
-            warehouseBreakdown={initialData?.warehouseBreakdown ?? (initialData as any)?.warehouse_breakdown}
+            onHandStock={onHandStockState}
+            availableStock={availableStockState}
+            warehouseBreakdown={warehouseBreakdownState}
             productId={initialData?.id}
+            productName={name}
+            productSku={sku}
+            variants={currentVariants}
+            onStockAdjusted={(newStock) => {
+              setStock(newStock.stock);
+              setOnHandStockState(newStock.onHandStock);
+              setAvailableStockState(newStock.availableStock);
+              setWarehouseBreakdownState(newStock.warehouseBreakdown);
+              setSuccessMessage(`Inventory adjusted successfully. Authoritative stock: ${newStock.availableStock.toLocaleString()} PCS.`);
+            }}
           />
 
           {/* Section 2: Package Assortment */}
@@ -1441,6 +1685,7 @@ export default function ProductForm({
             moq={moq}
             isMoqDerived={packageTotalUnits > 0}
             availableStock={
+              availableStockState ??
               initialData?.availableStock ??
               (initialData as any)?.available_stock ??
               (stock !== undefined && stock > 0 ? stock : undefined)

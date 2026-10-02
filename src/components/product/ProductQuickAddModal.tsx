@@ -10,6 +10,7 @@ import ProductGallery from "@/components/product/ProductGallery";
 import ProductBrandLogoOverlay from "@/components/common/ProductBrandLogoOverlay";
 import ProductPromotionBadges from "@/components/common/ProductPromotionBadges";
 import { Product } from "@/types";
+import { getLowestValidCustomerUnitPrice } from "@/lib/product-pricing";
 
 type ExtendedProduct = Product & {
   stock?: number;
@@ -193,7 +194,8 @@ export default function ProductQuickAddModal() {
 
   const handleAddToCart = useCallback(async () => {
     if (!product) return;
-    const hasValidPrice = Number(product.wholesalePrice || product.price || 0) > 0;
+    const lowestPrice = getLowestValidCustomerUnitPrice(product);
+    const hasValidPrice = lowestPrice !== null && lowestPrice > 0;
     if (!hasValidPrice) {
       setStockError("This product does not have a configured customer selling price. Please request a quote.");
       return;
@@ -281,16 +283,19 @@ export default function ProductQuickAddModal() {
               </h2>
             </div>
             <div className="shrink-0 text-right">
-              {Number(product.wholesalePrice || product.price || 0) > 0 ? (
-                <div className="text-lg sm:text-xl font-display font-extrabold text-foreground tabular-nums">
-                  ${Number(product.wholesalePrice || product.price).toFixed(2)}
-                  <span className="text-xs font-sans font-normal text-muted-foreground ml-1">/ pc</span>
-                </div>
-              ) : (
-                <div className="text-sm sm:text-base font-sans font-bold text-muted-foreground">
-                  Price on Request
-                </div>
-              )}
+              {(() => {
+                const lowestPrice = getLowestValidCustomerUnitPrice(product);
+                return lowestPrice !== null && lowestPrice > 0 ? (
+                  <div className="text-lg sm:text-xl font-display font-extrabold text-foreground tabular-nums">
+                    ${lowestPrice.toFixed(2)}
+                    <span className="text-xs font-sans font-normal text-muted-foreground ml-1">/ pc</span>
+                  </div>
+                ) : (
+                  <div className="text-sm sm:text-base font-sans font-bold text-muted-foreground">
+                    Price on Request
+                  </div>
+                );
+              })()}
               <span className="text-[10.5px] font-sans font-semibold text-muted-foreground block">
                 MOQ: {moq} pcs
               </span>
@@ -411,7 +416,7 @@ export default function ProductQuickAddModal() {
                     <button
                       type="button"
                       onClick={handleAddToCart}
-                      disabled={!Number(product?.wholesalePrice || product?.price || 0) || addedSuccess || (maxCompletePackages > 0 && packageCount > maxCompletePackages) || maxCompletePackages <= 0}
+                      disabled={!(getLowestValidCustomerUnitPrice(product) !== null && (getLowestValidCustomerUnitPrice(product) ?? 0) > 0) || addedSuccess || (maxCompletePackages > 0 && packageCount > maxCompletePackages) || maxCompletePackages <= 0}
                       className={`w-full h-11 sm:h-12 rounded-xl text-xs sm:text-sm font-sans font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                         addedSuccess
                           ? "bg-emerald-600 text-white cursor-default"
@@ -423,7 +428,7 @@ export default function ProductQuickAddModal() {
                           <Check size={16} strokeWidth={2.5} />
                           <span>Added to Cart</span>
                         </>
-                      ) : !Number(product?.wholesalePrice || product?.price || 0) ? (
+                      ) : !(getLowestValidCustomerUnitPrice(product) !== null && (getLowestValidCustomerUnitPrice(product) ?? 0) > 0) ? (
                         <span>Quote Only</span>
                       ) : (
                         <>

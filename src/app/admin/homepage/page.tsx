@@ -290,7 +290,7 @@ export default function AdminHomepageManagement() {
   // Loading State
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse max-w-6xl mx-auto">
+      <div className="space-y-6 animate-pulse w-full max-w-full">
         <div className="h-10 bg-secondary rounded-xl w-1/3" />
         <div className="h-28 bg-secondary rounded-2xl w-full" />
         <div className="h-44 bg-secondary rounded-2xl w-full" />
@@ -329,7 +329,7 @@ export default function AdminHomepageManagement() {
 
   return (
     <AdminPageGate permission="homepage.view" moduleName="Homepage Merchandising">
-      <div className="space-y-8 max-w-6xl mx-auto pb-12">
+      <div className="space-y-8 w-full max-w-full pb-12">
         {/* Toast Notification Container */}
         <ProductToast toasts={toasts} onDismiss={dismissToast} />
 

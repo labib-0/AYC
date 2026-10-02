@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Sparkles, Flame, Star, Clock } from "lucide-react";
+import { handleNumberInputWheel } from "@/components/common/GlobalNumberInputWheelGuard";
 
 interface ProductPricingSectionProps {
   wholesalePrice?: number;
@@ -130,8 +131,8 @@ export default function ProductPricingSection({
       <div className="space-y-4">
         {/* UNIFIED PRICING TABLE (STANDARD / BULK / FULL STOCK) */}
         <div className="rounded-xl border border-border/80 bg-background overflow-hidden shadow-2xs">
-          {/* Table Column Headers (Tablet / Desktop) */}
-          <div className="hidden sm:grid sm:grid-cols-[140px_1fr_1fr] md:grid-cols-[160px_1fr_1fr] gap-4 px-4 py-2.5 bg-secondary/40 border-b border-border/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          {/* Table Column Headers (Desktop >= 860px) */}
+          <div className="hidden min-[860px]:grid min-[860px]:grid-cols-[160px_1fr_1fr] gap-4 px-4 py-2.5 bg-secondary/40 border-b border-border/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
             <div>TIER</div>
             <div>MINIMUM QTY / BASIS</div>
             <div>UNIT PRICE</div>
@@ -139,91 +140,99 @@ export default function ProductPricingSection({
 
           <div className="divide-y divide-border/60">
             {/* 1. STANDARD TIER ROW */}
-            <div className="p-4 sm:px-4 sm:py-3.5 sm:grid sm:grid-cols-[140px_1fr_1fr] md:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 sm:space-y-0">
-              <div>
+            <div className="p-4 sm:p-4.5 min-[860px]:grid min-[860px]:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 min-[860px]:space-y-0">
+              <div className="min-[860px]:block flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-foreground">
                   STANDARD
                 </span>
+                <span className="min-[860px]:hidden text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+                  Base Tier
+                </span>
               </div>
 
-              {/* Minimum Qty / Basis */}
-              <div>
-                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  MINIMUM QTY
-                </label>
-                {isMoqDerived ? (
-                  <div className="relative">
-                    <input
-                      type="text"
-                      readOnly
-                      disabled
-                      value={moq && moq > 0 ? `${moq} PCS` : ""}
-                      placeholder=""
-                      className="w-full h-10 px-3.5 rounded-xl border border-border bg-secondary/30 text-xs font-mono font-bold text-foreground cursor-not-allowed tabular-nums"
-                    />
-                    {moq && moq > 0 && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-sans font-bold uppercase tracking-wider text-muted-foreground bg-background px-1.5 py-0.5 rounded border border-border/60">
-                        Auto-derived
+              {/* Grid for Inputs on Mobile/Tablet */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 min-[860px]:contents gap-3.5">
+                {/* Minimum Qty / Basis */}
+                <div>
+                  <label className="block min-[860px]:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    MINIMUM QTY
+                  </label>
+                  {isMoqDerived ? (
+                    <div className="relative">
+                      <input
+                        type="text"
+                        readOnly
+                        disabled
+                        value={moq && moq > 0 ? `${moq} PCS` : ""}
+                        placeholder=""
+                        className="w-full h-10 px-3.5 rounded-xl border border-border bg-secondary/30 text-xs font-mono font-bold text-foreground cursor-not-allowed tabular-nums"
+                      />
+                      {moq && moq > 0 && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-sans font-bold uppercase tracking-wider text-muted-foreground bg-background px-1.5 py-0.5 rounded border border-border/60">
+                          Auto-derived
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={moq && moq > 0 ? moq : ""}
+                        onWheel={handleNumberInputWheel}
+                        onChange={(e) => {
+                          const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                          onMoqChange?.(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
+                        }}
+                        placeholder=""
+                        className={plainInputClass(Boolean(errors.moq))}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        PCS
                       </span>
-                    )}
-                  </div>
-                ) : (
+                    </div>
+                  )}
+                  {errors.moq && (
+                    <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                      <AlertCircle size={12} />
+                      {errors.moq}
+                    </p>
+                  )}
+                </div>
+
+                {/* Unit Price */}
+                <div>
+                  <label className="block min-[860px]:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    UNIT PRICE
+                  </label>
                   <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                      $
+                    </span>
                     <input
                       type="number"
-                      min="1"
-                      step="1"
-                      value={moq && moq > 0 ? moq : ""}
-                      onChange={(e) => {
-                        const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
-                        onMoqChange?.(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
-                      }}
+                      step="0.01"
+                      min="0.01"
+                      value={wholesalePrice ?? ""}
+                      onWheel={handleNumberInputWheel}
+                      onChange={(e) => onWholesalePriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                       placeholder=""
-                      className={plainInputClass(Boolean(errors.moq))}
+                      className={inputClass(Boolean(errors.wholesalePrice))}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      PCS
-                    </span>
                   </div>
-                )}
-                {errors.moq && (
-                  <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                    <AlertCircle size={12} />
-                    {errors.moq}
-                  </p>
-                )}
-              </div>
-
-              {/* Unit Price */}
-              <div>
-                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  UNIT PRICE
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                    $
-                  </span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={wholesalePrice ?? ""}
-                    onChange={(e) => onWholesalePriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                    placeholder=""
-                    className={inputClass(Boolean(errors.wholesalePrice))}
-                  />
+                  {errors.wholesalePrice && (
+                    <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                      <AlertCircle size={12} />
+                      {errors.wholesalePrice}
+                    </p>
+                  )}
                 </div>
-                {errors.wholesalePrice && (
-                  <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                    <AlertCircle size={12} />
-                    {errors.wholesalePrice}
-                  </p>
-                )}
               </div>
             </div>
 
             {/* 2. BULK TIER ROW (OPTIONAL) */}
-            <div className="p-4 sm:px-4 sm:py-3.5 sm:grid sm:grid-cols-[140px_1fr_1fr] md:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 sm:space-y-0">
+            <div className="p-4 sm:p-4.5 min-[860px]:grid min-[860px]:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 min-[860px]:space-y-0">
               <div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs font-bold uppercase tracking-wider text-foreground">
@@ -233,7 +242,7 @@ export default function ProductPricingSection({
                     OPTIONAL
                   </span>
                 </div>
-                <label className="mt-2 inline-flex items-center gap-1.5 cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground">
+                <label className="mt-1.5 inline-flex items-center gap-1.5 cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground">
                   <input
                     type="checkbox"
                     id="enable_bulk_pricing"
@@ -245,127 +254,139 @@ export default function ProductPricingSection({
                 </label>
               </div>
 
-              {/* Minimum Qty / Basis */}
-              <div>
-                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  MINIMUM QTY
-                </label>
-                {bulkPricingEnabled ? (
-                  <>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="1"
-                        min={moq && moq > 0 ? moq + 1 : 1}
-                        value={bulkThreshold ?? ""}
-                        onChange={(e) => onBulkThresholdChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-                        placeholder=""
-                        className={plainInputClass(Boolean(errors.bulkThreshold || errors.bulk_threshold))}
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        PCS
-                      </span>
+              {/* Grid for Inputs on Mobile/Tablet */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 min-[860px]:contents gap-3.5">
+                {/* Minimum Qty / Basis */}
+                <div>
+                  <label className="block min-[860px]:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    MINIMUM QTY
+                  </label>
+                  {bulkPricingEnabled ? (
+                    <>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="1"
+                          min={moq && moq > 0 ? moq + 1 : 1}
+                          value={bulkThreshold ?? ""}
+                          onWheel={handleNumberInputWheel}
+                          onChange={(e) => onBulkThresholdChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                          placeholder=""
+                          className={plainInputClass(Boolean(errors.bulkThreshold || errors.bulk_threshold))}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          PCS
+                        </span>
+                      </div>
+                      {(errors.bulkThreshold || errors.bulk_threshold) && (
+                        <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                          <AlertCircle size={12} />
+                          {errors.bulkThreshold || errors.bulk_threshold}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="h-10 px-3.5 rounded-xl border border-dashed border-border/70 bg-secondary/10 flex items-center text-xs text-muted-foreground select-none">
+                      Disabled
                     </div>
-                    {(errors.bulkThreshold || errors.bulk_threshold) && (
-                      <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                        <AlertCircle size={12} />
-                        {errors.bulkThreshold || errors.bulk_threshold}
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <div className="h-10 px-3.5 rounded-xl border border-dashed border-border/70 bg-secondary/10 flex items-center text-xs text-muted-foreground select-none">
-                    Disabled
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              {/* Unit Price */}
-              <div>
-                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  UNIT PRICE
-                </label>
-                {bulkPricingEnabled ? (
-                  <>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                        $
-                      </span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={bulkPrice ?? ""}
-                        onChange={(e) => onBulkPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                        placeholder=""
-                        className={inputClass(Boolean(errors.bulkPrice || errors.bulk_price))}
-                      />
+                {/* Unit Price */}
+                <div>
+                  <label className="block min-[860px]:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    UNIT PRICE
+                  </label>
+                  {bulkPricingEnabled ? (
+                    <>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={bulkPrice ?? ""}
+                          onWheel={handleNumberInputWheel}
+                          onChange={(e) => onBulkPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                          placeholder=""
+                          className={inputClass(Boolean(errors.bulkPrice || errors.bulk_price))}
+                        />
+                      </div>
+                      {(errors.bulkPrice || errors.bulk_price) && (
+                        <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                          <AlertCircle size={12} />
+                          {errors.bulkPrice || errors.bulk_price}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="h-10 px-3.5 rounded-xl border border-dashed border-border/70 bg-secondary/10 flex items-center text-xs text-muted-foreground select-none">
+                      Disabled
                     </div>
-                    {(errors.bulkPrice || errors.bulk_price) && (
-                      <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                        <AlertCircle size={12} />
-                        {errors.bulkPrice || errors.bulk_price}
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <div className="h-10 px-3.5 rounded-xl border border-dashed border-border/70 bg-secondary/10 flex items-center text-xs text-muted-foreground select-none">
-                    Disabled
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 
             {/* 3. FULL STOCK TIER ROW */}
-            <div className="p-4 sm:px-4 sm:py-3.5 sm:grid sm:grid-cols-[140px_1fr_1fr] md:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 sm:space-y-0">
-              <div>
+            <div className="p-4 sm:p-4.5 min-[860px]:grid min-[860px]:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 min-[860px]:space-y-0">
+              <div className="min-[860px]:block flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-foreground">
                   FULL STOCK
                 </span>
+                <span className="min-[860px]:hidden text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+                  Stock Tier
+                </span>
               </div>
 
-              {/* Minimum Qty / Basis: Authoritative Inventory Value */}
-              <div>
-                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  AVAILABLE STOCK
-                </label>
-                <div className="h-10 px-3.5 rounded-xl border border-border bg-secondary/30 flex items-center justify-between">
-                  <span className="text-xs font-medium text-foreground">
-                    Available Stock
-                  </span>
-                  {availableStock !== undefined && availableStock > 0 && (
-                    <span className="text-[11px] font-mono font-bold text-muted-foreground tabular-nums">
-                      {availableStock} PCS
+              {/* Grid for Inputs on Mobile/Tablet */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 min-[860px]:contents gap-3.5">
+                {/* Minimum Qty / Basis: Authoritative Inventory Value */}
+                <div>
+                  <label className="block min-[860px]:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    AVAILABLE STOCK
+                  </label>
+                  <div className="h-10 px-3.5 rounded-xl border border-border bg-secondary/30 flex items-center justify-between">
+                    <span className="text-xs font-medium text-foreground">
+                      Available Stock
                     </span>
+                    {availableStock !== undefined && availableStock > 0 && (
+                      <span className="text-[11px] font-mono font-bold text-muted-foreground tabular-nums">
+                        {availableStock} PCS
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Unit Price */}
+                <div>
+                  <label className="block min-[860px]:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    UNIT PRICE
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={fullStockPrice ?? ""}
+                      onWheel={handleNumberInputWheel}
+                      onChange={(e) => onFullStockPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                      placeholder=""
+                      className={inputClass(Boolean(errors.fullStockPrice || errors.full_stock_price))}
+                    />
+                  </div>
+                  {(errors.fullStockPrice || errors.full_stock_price) && (
+                    <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                      <AlertCircle size={12} />
+                      {errors.fullStockPrice || errors.full_stock_price}
+                    </p>
                   )}
                 </div>
-              </div>
-
-              {/* Unit Price */}
-              <div>
-                <label className="block sm:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  UNIT PRICE
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                    $
-                  </span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={fullStockPrice ?? ""}
-                    onChange={(e) => onFullStockPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                    placeholder=""
-                    className={inputClass(Boolean(errors.fullStockPrice || errors.full_stock_price))}
-                  />
-                </div>
-                {(errors.fullStockPrice || errors.full_stock_price) && (
-                  <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                    <AlertCircle size={12} />
-                    {errors.fullStockPrice || errors.full_stock_price}
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -410,6 +431,7 @@ export default function ProductPricingSection({
                 step="0.01"
                 min="0.01"
                 value={costPrice ?? ""}
+                onWheel={handleNumberInputWheel}
                 onChange={(e) =>
                   onCostPriceChange(e.target.value ? parseFloat(e.target.value) : undefined)
                 }

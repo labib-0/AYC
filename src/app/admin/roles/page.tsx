@@ -153,7 +153,7 @@ export default function RolesPage() {
 
   return (
     <AdminPageGate permission="role.view" moduleName="Roles & Permissions">
-      <div className="space-y-6 max-w-7xl mx-auto pb-16">
+      <div className="space-y-6 w-full max-w-full pb-16">
       {/* Header */}
       <RolesHeader
         stats={stats}

@@ -12,6 +12,7 @@ import ProductGallery from "@/components/product/ProductGallery";
 import ProductBrandLogoOverlay from "@/components/common/ProductBrandLogoOverlay";
 import ProductPromotionBadges from "@/components/common/ProductPromotionBadges";
 import ProductBadge from "@/components/common/ProductBadge";
+import { renderFormattedProductDescription } from "@/lib/product-description";
 
 import { 
   ShoppingCart, 
@@ -25,7 +26,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useRfq } from "@/lib/RfqContext";
-import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
+import BUSINESS_PROFILE, { getWhatsAppUrl, getProductWhatsAppUrl } from "@/config/business-profile";
 import CommerceSectionHeader from "@/components/product/CommerceSectionHeader";
 import PricingTierOption from "@/components/product/PricingTierOption";
 import QuantityStepper from "@/components/product/QuantityStepper";
@@ -616,9 +617,9 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   <div
                     id="storefront-product-description"
                     data-testid="storefront-product-description"
-                    className="rounded-lg bg-secondary/15 border border-border/60 p-3 text-muted-foreground text-xs leading-relaxed whitespace-pre-wrap break-words"
+                    className="rounded-lg bg-secondary/15 border border-border/60 p-3.5 sm:p-4 text-muted-foreground text-xs leading-relaxed whitespace-pre-wrap break-words"
                   >
-                    {product.description.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim()}
+                    {renderFormattedProductDescription(product.description.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim())}
                   </div>
                 </div>
               )}
@@ -1007,7 +1008,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               {product && (
                 <div className="flex flex-col sm:flex-row items-center gap-2">
                   <a
-                    href={getWhatsAppUrl(`Hello ${BUSINESS_PROFILE.name},\n\nI am interested in:\nProduct: ${product.name}\nSKU: ${product.sku}\nQuantity: ${quantity} pcs`)}
+                    href={getProductWhatsAppUrl(product, quantity)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full sm:flex-1 h-9 px-3 rounded-lg bg-transparent hover:bg-secondary/30 border border-border/60 text-muted-foreground hover:text-[#25D366] font-sans font-semibold text-[10.5px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99]"

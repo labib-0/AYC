@@ -122,7 +122,7 @@ export default function AdminCustomersPage() {
 
   return (
     <AdminPageGate permission="customer.view" moduleName="Customers Management">
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6 w-full max-w-full">
         {/* 1. Header */}
         <CustomerListHeader onRefresh={handleRefresh} isLoading={isRefreshing} />
 

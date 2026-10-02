@@ -21,20 +21,20 @@ function AdminLayoutInner({
   if (loading) {
     return (
       <div className="min-h-screen bg-secondary/30 text-foreground flex flex-col">
-        <header className="h-14 bg-card border-b border-border/80 px-6 flex items-center justify-between">
+        <header className="h-14 bg-card border-b border-border/80 px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="h-6 w-32 bg-secondary animate-pulse rounded-xl" />
             <div className="h-5 w-16 bg-secondary animate-pulse rounded-full" />
           </div>
           <div className="h-8 w-28 bg-secondary animate-pulse rounded-full" />
         </header>
-        <div className="flex-1 flex w-full max-w-[1600px] mx-auto">
-          <aside className="hidden md:block w-64 border-r border-border/80 bg-card p-4 space-y-4">
+        <div className="flex-1 flex w-full min-w-0">
+          <aside className="hidden md:block w-64 shrink-0 border-r border-border/80 bg-card p-4 space-y-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="h-10 bg-secondary animate-pulse rounded-xl" />
             ))}
           </aside>
-          <main className="flex-1 p-6 space-y-4">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 space-y-4">
             <div className="h-8 w-48 bg-secondary animate-pulse rounded-lg" />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -71,10 +71,12 @@ function AdminLayoutInner({
       />
 
       {/* Main Admin Workspace (Sidebar + Content) */}
-      <div className="flex-1 flex w-full max-w-[1600px] mx-auto min-h-[calc(100vh-120px)]">
+      <div className="flex-1 flex w-full min-w-0 min-h-[calc(100vh-7rem)]">
         {/* Desktop Sidebar */}
-        <div className="hidden md:block">
-          <AdminSidebar />
+        <div className="hidden md:block w-64 shrink-0">
+          <div className="sticky top-14 h-[calc(100vh-3.5rem)]">
+            <AdminSidebar />
+          </div>
         </div>
 
         {/* Mobile Sidebar Drawer */}

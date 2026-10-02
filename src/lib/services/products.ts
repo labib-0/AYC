@@ -108,36 +108,68 @@ export async function getFeaturedProducts(
     (options.categories && options.categories.length > 0)
   );
 
-  // When loading without active filters, use backend curated featured products in exact sort_order
-  if (!hasSpecificFilters) {
-    try {
-      const homepageData = await homepageService.getStorefrontHomepageData();
-      if (homepageData?.featured_products) {
-        const curated = homepageData.featured_products
-          .filter((fp) => fp.product && (fp.product.status === "published" || !fp.product.status))
-          .map((fp) => toStorefrontProduct(fp.product));
+  // ORDERING RULE: Admin-selected (pinned) products always appear FIRST in their sort_order.
+  // Remaining eligible products follow in created_at DESC (newest upload first).
+  // No product appears twice. This is enforced by the backend; we trust the order returned.
 
-        let list = curated;
-        if (isNew) {
-          const newOnly = list.filter((p) => p.isNew);
-          if (newOnly.length > 0) list = newOnly;
-        }
+  // Primary path: use backend homepage data which already enforces the correct ordering:
+  //   selected products (sort_order ASC) → remaining products (created_at DESC)
+  try {
+    const homepageData = await homepageService.getStorefrontHomepageData();
+    if (homepageData?.featured_products && homepageData.featured_products.length > 0) {
+      // Convert all featured products (curated + remaining) to storefront format, preserving server order
+      let list: Product[] = homepageData.featured_products
+        .filter((fp) => fp.product && (fp.product.status === "published" || !fp.product.status))
+        .map((fp) => toStorefrontProduct(fp.product));
 
-        const total = list.length;
-        const sliced = list.slice(offset, offset + limit);
-        const hasMore = offset + sliced.length < total;
-
-        return {
-          products: sliced,
-          total,
-          hasMore,
-        };
+      // Apply tab filter (Best Deals or New Arrivals)
+      if (isNew) {
+        const newOnly = list.filter((p) => p.isNew);
+        if (newOnly.length > 0) list = newOnly;
+      } else if (isDeals) {
+        const dealsOnly = list.filter((p) => p.isHot || p.isLimitedTimeOffer || (p as any).is_best_deal);
+        if (dealsOnly.length > 0) list = dealsOnly;
       }
-    } catch {
-      // Fall through to database query
+
+      // Apply client-side filters if any are active, preserving server ordering
+      if (hasSpecificFilters) {
+        if (options.brands && options.brands.length > 0) {
+          const brandSet = new Set(options.brands.map((b) => b.toLowerCase()));
+          list = list.filter((p) => p.brand && brandSet.has(p.brand.toLowerCase()));
+        }
+        if (options.designTypes && options.designTypes.length > 0) {
+          const dtSet = new Set(options.designTypes.map((d) => d.toLowerCase()));
+          list = list.filter(
+            (p) => (p as any).designType && dtSet.has(((p as any).designType as string).toLowerCase())
+          );
+        }
+        if (options.audiences && options.audiences.length > 0) {
+          const audSet = new Set(options.audiences.map((a) => a.toLowerCase()));
+          list = list.filter(
+            (p) => (p as any).audience && audSet.has(((p as any).audience as string).toLowerCase())
+          );
+        }
+        if (options.categories && options.categories.length > 0) {
+          const catSet = new Set(options.categories.map((c) => c.toLowerCase()));
+          list = list.filter((p) => {
+            const catName = (p as any).categoryName || (p as any).category || "";
+            return catName && catSet.has(catName.toLowerCase());
+          });
+        }
+      }
+
+      const total = list.length;
+      const sliced = list.slice(offset, offset + limit);
+      const hasMore = offset + sliced.length < total;
+
+      return { products: sliced, total, hasMore };
     }
+  } catch {
+    // Fall through to direct database query
   }
 
+  // Fallback: direct product query (sorted by newest upload via 'newest' sort_by)
+  // When filters are active and homepage endpoint fails, fetch using sort=newest to approximate created_at DESC
   const queryParams: ProductQueryParams = {
     is_best_deal: isDeals ? true : undefined,
     is_new: isNew ? true : undefined,
@@ -145,6 +177,7 @@ export async function getFeaturedProducts(
     design_type: options.designTypes && options.designTypes.length > 0 ? options.designTypes.join(",") : undefined,
     audience: options.audiences && options.audiences.length > 0 ? options.audiences.join(",") : undefined,
     category: options.categories && options.categories.length > 0 ? options.categories.join(",") : undefined,
+    sort_by: "newest", // created_at DESC — consistent with the required upload-order rule
   };
 
   const allFiltered = await productService.getProducts(queryParams);
@@ -152,11 +185,7 @@ export async function getFeaturedProducts(
   const sliced = allFiltered.slice(offset, offset + limit).map(toStorefrontProduct);
   const hasMore = offset + sliced.length < total;
 
-  return {
-    products: sliced,
-    total,
-    hasMore,
-  };
+  return { products: sliced, total, hasMore };
 }
 
 export function getInitialFeaturedProducts(

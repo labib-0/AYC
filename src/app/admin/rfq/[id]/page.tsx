@@ -303,7 +303,7 @@ export default function AdminRfqDetailPage({
 
   return (
     <AdminPageGate permission="rfq.view" moduleName="RFQ Details">
-      <div className="space-y-8 max-w-6xl mx-auto">
+      <div className="space-y-8 w-full max-w-full">
         {/* 1. Header matching OrderDetailHeader */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/70">
           <div className="space-y-1">
