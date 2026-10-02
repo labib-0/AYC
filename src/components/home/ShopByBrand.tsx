@@ -26,7 +26,7 @@ export interface Brand {
   sort_order?: number;
 }
 
-const INITIAL_BRAND_TILES_DISPLAY_COUNT = 28; // 14 columns x 2 rows = 28 brands
+const INITIAL_BRAND_TILES_DISPLAY_COUNT = 44; // 22 columns x 2 rows = 44 brands
 const INITIAL_BRAND_PRODUCTS_LIMIT = 21; // Exactly 21 products initially
 const CONTINUOUS_BATCH_LIMIT = 21; // Next batch limit
 
@@ -70,8 +70,8 @@ export default function ShopByBrand() {
   }, [isContinuousMode]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth >= 1800) {
-      setVisibleCount(32); // 16 columns x 2 rows = 32 brands on very wide desktop
+    if (typeof window !== "undefined" && window.innerWidth >= 1280) {
+      setVisibleCount(44); // 22 columns x 2 rows = 44 brands on desktop
     }
   }, []);
 
@@ -446,7 +446,7 @@ export default function ShopByBrand() {
           - Multi-selection support with visual highlight
         */}
         {visibleBrands.length > 0 ? (
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 2xl:grid-cols-[repeat(14,minmax(0,1fr))] min-[1800px]:grid-cols-[repeat(16,minmax(0,1fr))] gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-11 xl:grid-cols-[repeat(22,minmax(0,1fr))] 2xl:grid-cols-[repeat(22,minmax(0,1fr))] min-[1800px]:grid-cols-[repeat(22,minmax(0,1fr))] gap-1 sm:gap-1.5">
             {visibleBrands.map((brand) => {
               const logoUrl = brand.logo_url || brand.logo || getBrandLogoUrl(brand.name);
               const isSelected = selectedBrands.includes(brand.name);
