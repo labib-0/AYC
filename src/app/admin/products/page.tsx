@@ -7,6 +7,7 @@ import { Plus } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import {
   getProducts,
+  getProductStatistics,
   deleteProduct,
   duplicateProduct,
   togglePublishStatus,
@@ -115,16 +116,13 @@ function AdminProductsContent() {
   // ── Load Global Metrics (Always reflects the authoritative entire catalog) ──
   const loadGlobalMetrics = useCallback(async () => {
     try {
-      const all = await getProducts({ isAdmin: true });
+      const stats = await getProductStatistics();
       setGlobalMetrics({
-        total: all.length,
-        published: all.filter((p) => p.status === "published").length,
-        draft: all.filter((p) => p.status === "draft").length,
-        lowStock: all.filter((p) => {
-          const avail = p.availableStock !== undefined ? Number(p.availableStock) : Number(p.stock || 0);
-          return avail < LOW_STOCK_THRESHOLD;
-        }).length,
-        purchasePricePending: all.filter((p) => (p as any).purchasePriceUpdated === false).length,
+        total: stats.total,
+        published: stats.published,
+        draft: stats.draft,
+        lowStock: stats.lowStock,
+        purchasePricePending: stats.purchasePricePending,
       });
     } catch {
       // Fallback
@@ -162,6 +160,7 @@ function AdminProductsContent() {
     try {
       const data = await getProducts({
         isAdmin: true,
+        all: true,
         search: filters.search || undefined,
         brand: filters.brand !== "all" ? filters.brand : undefined,
         audience: filters.audience !== "all" ? filters.audience : undefined,
@@ -213,28 +212,6 @@ function AdminProductsContent() {
       }
 
       setAllProducts(filtered);
-
-      // If viewing all unfiltered products, sync global metrics directly
-      if (
-        filters.status === "all" &&
-        !filters.search &&
-        filters.brand === "all" &&
-        filters.category === "all" &&
-        filters.audience === "all" &&
-        filters.purchasePriceStatus === "all" &&
-        filters.designType === "all"
-      ) {
-        setGlobalMetrics({
-          total: filtered.length,
-          published: filtered.filter((p) => p.status === "published").length,
-          draft: filtered.filter((p) => p.status === "draft").length,
-          lowStock: filtered.filter((p) => {
-            const avail = p.availableStock !== undefined ? Number(p.availableStock) : Number(p.stock || 0);
-            return avail < LOW_STOCK_THRESHOLD;
-          }).length,
-          purchasePricePending: filtered.filter((p) => (p as any).purchasePriceUpdated === false).length,
-        });
-      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load products.");
     } finally {

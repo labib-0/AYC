@@ -56,6 +56,22 @@ export default function FeaturedProducts() {
   const generationRef = useRef<number>(0);
   const isLoadingRef = useRef<boolean>(false);
   const isContinuousModeRef = useRef<boolean>(false);
+  const isPaginationStoppedRef = useRef<boolean>(false);
+
+  // Floating Scroll-Down button: appears IMMEDIATELY when Load More is pressed (Sections 3, 9)
+  const [showScrollDownButton, setShowScrollDownButton] = useState<boolean>(false);
+
+  // Monitor scroll for coordinating floating button position with back-to-top button
+  const [hasScrolledPastTop, setHasScrolledPastTop] = useState<boolean>(false);
+  useEffect(() => {
+    const handleScroll = () => {
+      setHasScrolledPastTop(window.scrollY > 400);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     isContinuousModeRef.current = isContinuousMode;
@@ -137,8 +153,12 @@ export default function FeaturedProducts() {
 
   // ── Load More Click: First click activates Continuous Mode; subsequent clicks in manual mode reactivate it ──
   const handleLoadMoreClick = async () => {
-    if (isLoadingRef.current || isContinuousMode || !hasMore) return;
+    if (isLoadingRef.current || !hasMore) return;
     notifyExplorerActive("featured", "load-more");
+
+    // CRITICAL: Scroll-down button MUST appear IMMEDIATELY when Load More is pressed (Sections 3, 9)
+    setShowScrollDownButton(true);
+    isPaginationStoppedRef.current = false;
 
     isLoadingRef.current = true;
     setIsLoadingMore(true);
@@ -176,9 +196,11 @@ export default function FeaturedProducts() {
       // ── CRITICAL STATE TRANSITIONS (Sections 1, 2, 3, 4, 8) ────────────────
       // 1. Mark that user has loaded more
       setHasLoadedMore(true);
-      // 2. Activate continuous mode (auto-pagination = ON)
-      setIsContinuousMode(true);
-      isContinuousModeRef.current = true;
+      // 2. Activate continuous mode (auto-pagination = ON) ONLY if user has not clicked down button
+      if (!isPaginationStoppedRef.current) {
+        setIsContinuousMode(true);
+        isContinuousModeRef.current = true;
+      }
       // 3. SEPARATION OF STATES: NEVER trigger filter rail on Load More (Sections 1, 2, 3)
     } catch {
       if (generationRef.current === currentGen) {
@@ -201,7 +223,8 @@ export default function FeaturedProducts() {
       if (
         isLoadingRef.current ||
         !hasMore ||
-        !isContinuousModeRef.current
+        !isContinuousModeRef.current ||
+        isPaginationStoppedRef.current
       ) {
         return;
       }
@@ -226,7 +249,8 @@ export default function FeaturedProducts() {
 
         if (
           generationRef.current !== currentGen ||
-          !isContinuousModeRef.current
+          !isContinuousModeRef.current ||
+          isPaginationStoppedRef.current
         ) {
           return;
         }
@@ -254,10 +278,10 @@ export default function FeaturedProducts() {
     [hasMore, products.length, selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories]
   );
 
-  // ── IntersectionObserver: Active ONLY when isContinuousMode is true ────
+  // ── IntersectionObserver: Active ONLY when isContinuousMode is true and not stopped ────
   useEffect(() => {
-    // Observer MUST NOT run when continuous mode is inactive or no more products
-    if (!isContinuousMode || !hasMore) return;
+    // Observer MUST NOT run when continuous mode is inactive, stopped, or no more products
+    if (!isContinuousMode || !hasMore || isPaginationStoppedRef.current) return;
 
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
@@ -268,7 +292,8 @@ export default function FeaturedProducts() {
         if (
           entry.isIntersecting &&
           !isLoadingRef.current &&
-          isContinuousModeRef.current
+          isContinuousModeRef.current &&
+          !isPaginationStoppedRef.current
         ) {
           loadNextBatch();
         }
@@ -307,8 +332,12 @@ export default function FeaturedProducts() {
     // 1. Immediately STOP future auto-pagination
     setIsContinuousMode(false);
     isContinuousModeRef.current = false;
+    isPaginationStoppedRef.current = true;
 
-    // 2. Smoothly scroll directly to the existing Certificate section
+    // 2. Immediately hide the scroll-down button (Section 8)
+    setShowScrollDownButton(false);
+
+    // 3. Smoothly scroll directly to the existing Certificate section
     const certElement =
       document.getElementById("certificate") ||
       document.getElementById("certificates");
@@ -337,6 +366,8 @@ export default function FeaturedProducts() {
     setHasLoadedMore(false);
     setIsContinuousMode(false);
     isContinuousModeRef.current = false;
+    setShowScrollDownButton(false);
+    isPaginationStoppedRef.current = false;
 
     generationRef.current += 1;
     const currentGen = generationRef.current;
@@ -452,6 +483,8 @@ export default function FeaturedProducts() {
         setIsFilterOpen(false);
         setIsContinuousMode(false);
         isContinuousModeRef.current = false;
+        setShowScrollDownButton(false);
+        isPaginationStoppedRef.current = false;
         setHasLoadedMore(false);
         setProducts((prev) => (prev.length > INITIAL_PRODUCT_LIMIT ? prev.slice(0, INITIAL_PRODUCT_LIMIT) : prev));
       }
@@ -798,16 +831,18 @@ export default function FeaturedProducts() {
         </div>
       </div>
 
-      {/* ── Floating Down Arrow: active ONLY during auto-pagination (Sections 5, 6, 7, 8) ── */}
-      {isContinuousMode && (
+      {/* ── Floating Down Button: matches website's scroll-up button architecture (Sections 3, 4, 5, 6, 8, 9) ── */}
+      {showScrollDownButton && (
         <button
           type="button"
           onClick={handleJumpToCertificate}
           aria-label="Scroll down to Certificate section"
           title="Scroll down to Certificate"
-          className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-foreground text-background shadow-lg hover:opacity-90 active:scale-95 transition-all duration-200 cursor-pointer border border-border/40 group"
+          className={`fixed ${
+            hasScrolledPastTop ? "bottom-[8.5rem]" : "bottom-20"
+          } right-6 z-40 w-11 h-11 rounded-full bg-white text-[#111827] shadow-xl flex items-center justify-center hover:bg-white/90 hover:scale-105 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
         >
-          <ArrowDown className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-y-0.5" />
+          <ArrowDown size={18} strokeWidth={2.5} />
         </button>
       )}
     </section>

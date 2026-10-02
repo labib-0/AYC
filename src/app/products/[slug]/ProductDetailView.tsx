@@ -19,7 +19,6 @@ import {
   Check, 
   Package, 
   Heart, 
-  TrendingDown, 
   MessageCircle,
   Sliders,
   FileText,
@@ -145,10 +144,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   }, [product]);
 
   const packageAllocations = useMemo<any[]>(() => {
-    if (!product?.packageAllocations) return [];
-    return Array.isArray(product.packageAllocations)
-      ? (product.packageAllocations as any[])
-      : (typeof product.packageAllocations === "object" ? (Object.values(product.packageAllocations) as any[]) : []);
+    const raw = product?.packageAllocations ?? (product as any)?.package_allocations;
+    if (!raw) return [];
+    return Array.isArray(raw)
+      ? (raw as any[])
+      : (typeof raw === "object" ? (Object.values(raw) as any[]) : []);
   }, [product]);
 
   // 3. Authoritative Complete Package Stock (from allocations & variant inventory)
@@ -198,7 +198,15 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   }, [product, maxCompletePackages, moq]);
 
   // 4. Authoritative Available Inventory & Full Stock Calculation
-  // Authoritative AVAILABLE INVENTORY in PCS
+  // Authoritative INITIAL STOCK & AVAILABLE INVENTORY in PCS
+  const initialStock = Number(
+    product?.initialStock ??
+    (product as any)?.initial_stock ??
+    product?.stock ??
+    product?.availableStock ??
+    (product as any)?.available_stock ??
+    0
+  );
   const availableInventory = Number(product?.availableStock ?? (product as any)?.available_stock ?? product?.stock ?? 0);
   const fullStockQuantity = availableInventory;
   const totalStock = availableInventory;
@@ -363,6 +371,32 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
     return { colors, sizes, cellMap, rowTotals, colTotals, grandTotal };
   }, [product, quantity, isFullStock, moq, colorsList, sizesList, variants, packageAllocations]);
+
+  // Exact default Package Assortment message
+  const DEFAULT_PACKAGE_ASSORTMENT_MESSAGE =
+    "Each package includes a mixed assortment of all available colours and sizes. All listed colours and sizes will be included in the package. Quantity may vary by colour and size due to original surplus stock availability.";
+
+  // Check hidden state: admin explicitly toggled package assortment to hidden
+  const isAssortmentHidden =
+    product?.packageAssortmentVisible === false ||
+    (product as any)?.package_assortment_visible === false;
+  const isAssortmentVisible = !isAssortmentHidden;
+
+  // Safe message resolution: custom message has priority if non-empty, otherwise exact default
+  const rawAssortmentMsg =
+    product?.packageAssortmentMessage || (product as any)?.package_assortment_message;
+  const resolvedAssortmentMessage =
+    typeof rawAssortmentMsg === "string" && rawAssortmentMsg.trim().length > 0
+      ? rawAssortmentMsg.trim()
+      : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+
+  // Authoritative matrix presence: must have non-empty colors, sizes, and positive grand total
+  const hasPackageAssortmentMatrix = Boolean(
+    matrixData &&
+    matrixData.colors.length > 0 &&
+    matrixData.sizes.length > 0 &&
+    matrixData.grandTotal > 0
+  );
 
   // Pricing Row Click Handlers
   const handleSelectStandard = () => {
@@ -748,52 +782,25 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 </div>
               )}
 
-              {/* LEVEL 2: CORE COMMERCIAL DATA — DEDICATED PRICE BLOCK */}
-              <div className="pt-1 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1.5">
-                <div className="flex items-baseline gap-1.5">
-                  {currentPrice > 0 ? (
-                    <>
-                      <span className="text-2xl sm:text-3xl font-display font-extrabold text-foreground tabular-nums tracking-tight">
-                        {formatPrice(currentPrice)}
-                      </span>
-                      <span className="text-sm font-sans font-medium text-muted-foreground uppercase tracking-wider">
-                        / pc
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-xl sm:text-2xl font-display font-bold text-muted-foreground">
-                      Price on Request
-                    </span>
-                  )}
+              {/* LEVEL 2: CORE COMMERCIAL METADATA — MOQ & INITIAL STOCK */}
+              <div className="pt-1 flex items-center gap-2 sm:gap-2.5 text-[12px] sm:text-[12.5px] font-sans">
+                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-border/80 bg-secondary/30 text-foreground font-semibold">
+                  <span className="text-muted-foreground font-normal">MOQ</span>
+                  <span className="tabular-nums font-bold">{moq} PCS</span>
                 </div>
-
-                <div className="flex items-center gap-2 sm:gap-2.5 text-[12px] sm:text-[12.5px] font-sans">
-                  <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-border/80 bg-secondary/30 text-foreground font-semibold">
-                    <span className="text-muted-foreground font-normal">MOQ</span>
-                    <span className="tabular-nums font-bold">{moq} PCS</span>
-                  </div>
-                  <span className="text-muted-foreground/40 select-none">|</span>
-                  <div className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                        maxCompletePackages > 0 ? "bg-emerald-500" : "bg-red-500"
-                      }`}
-                    />
-                    <span>
-                      {maxCompletePackages > 0 ? (
-                        <>
-                          <strong className="text-foreground font-semibold tabular-nums">
-                            {completePackageStock.toLocaleString()} PCS
-                          </strong>{" "}
-                          available
-                        </>
-                      ) : (
-                        <strong className="text-red-600 dark:text-red-400 font-semibold uppercase tracking-wider text-[11px]">
-                          Out of Stock
-                        </strong>
-                      )}
-                    </span>
-                  </div>
+                <span className="text-muted-foreground/40 select-none">|</span>
+                <div className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      initialStock > 0 ? "bg-emerald-500" : "bg-red-500"
+                    }`}
+                  />
+                  <span>
+                    <strong className={`font-semibold tabular-nums ${initialStock > 0 ? "text-foreground" : "text-red-600 dark:text-red-400"}`}>
+                      {initialStock.toLocaleString()} PCS
+                    </strong>{" "}
+                    INITIAL STOCK
+                  </span>
                 </div>
               </div>
 
@@ -802,12 +809,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             {/* LEVEL 3.1: VOLUME PRICING TIER MODULE */}
             {/* ========================================================= */}
-            <div className="space-y-1">
-              <CommerceSectionHeader
-                title="Volume Pricing"
-                icon={<TrendingDown size={14} />}
-              />
-
+            <div>
               <div className="rounded-lg border border-border/80 bg-card p-2 sm:p-2.5 space-y-0.5 shadow-2xs" role="radiogroup" aria-label="Pricing Tiers">
                 {/* Column Legend (Visually Grouped: Tier + Quantity grouped, Price right-aligned) */}
                 <div className="grid grid-cols-[105px_130px_1fr] sm:grid-cols-[120px_145px_1fr] px-2.5 pb-1 text-[9.5px] font-display font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
@@ -894,19 +896,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             </div>
 
             {/* LEVEL 3.3: PACKAGE ASSORTMENT COMMERCE MODULE */}
-            {(product?.packageAssortmentVisible === false || (product as any)?.package_assortment_visible === false) ? (
-              <div>
-                <div className="rounded-lg border border-border/80 bg-secondary/15 p-2.5 sm:p-3 space-y-2 shadow-2xs">
-                  <CommerceSectionHeader
-                    title="Package Assortment"
-                    icon={<Package size={15} />}
-                  />
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {product?.packageAssortmentMessage || (product as any)?.package_assortment_message || "Each package includes a mixed assortment of all available colours and sizes. All listed colours and sizes will be included in the package. Quantity may vary by colour and size due to original surplus stock availability."}
-                  </p>
-                </div>
-              </div>
-            ) : matrixData ? (
+            {matrixData && hasPackageAssortmentMatrix && isAssortmentVisible ? (
               <div>
                 <div className="rounded-lg border border-border/80 bg-secondary/15 p-2.5 sm:p-3 space-y-2 shadow-2xs">
                   <CommerceSectionHeader
@@ -926,15 +916,16 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 </div>
               </div>
             ) : (
-              <div className="rounded-md border border-border/80 bg-secondary/15 p-2.5 shadow-2xs space-y-1.5">
-                <CommerceSectionHeader
-                  title="Package Assortment"
-                  icon={<Package size={13} />}
-                  className="pb-0 mb-0"
-                />
-                <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                  {(product as any)?.package_assortment_message || (product as any)?.packageAssortmentMessage || "Each package includes a mixed assortment of all available colours and sizes. All listed colours and sizes will be included in the package. Quantity may vary by colour and size due to original surplus stock availability."}
-                </p>
+              <div>
+                <div className="rounded-lg border border-border/80 bg-secondary/15 p-2.5 sm:p-3 space-y-2 shadow-2xs">
+                  <CommerceSectionHeader
+                    title="Package Assortment"
+                    icon={<Package size={15} />}
+                  />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {resolvedAssortmentMessage}
+                  </p>
+                </div>
               </div>
             )}
 

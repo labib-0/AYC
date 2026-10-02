@@ -231,6 +231,7 @@ describe("MASTER TEST SUITE — WAREHOUSE, DRAFT SAVE, AND CATALOG DRAFT FILTER"
     function validatePublish(product: {
       productId: string;
       name?: string;
+      standardPrice?: number;
       wholesalePrice?: number;
       moq?: number;
       warehouseId?: string | number;
@@ -238,7 +239,8 @@ describe("MASTER TEST SUITE — WAREHOUSE, DRAFT SAVE, AND CATALOG DRAFT FILTER"
       const errors: string[] = [];
       if (!product.productId) errors.push("Product ID is required.");
       if (!product.name || product.name.trim().length < 3) errors.push("Product name is required.");
-      if (product.wholesalePrice === undefined || product.wholesalePrice <= 0) errors.push("Wholesale price must be greater than $0.00.");
+      const standard = product.standardPrice ?? product.wholesalePrice;
+      if (standard === undefined || standard <= 0) errors.push("Standard unit price must be greater than $0.00.");
       if (product.moq === undefined || product.moq < 1) errors.push("MOQ is required.");
       if (!product.warehouseId) errors.push("Initial warehouse is required.");
 
@@ -249,7 +251,7 @@ describe("MASTER TEST SUITE — WAREHOUSE, DRAFT SAVE, AND CATALOG DRAFT FILTER"
       const res = validatePublish({ productId: "AY-1001" });
       assert.equal(res.valid, false);
       assert.ok(res.errors.includes("Product name is required."));
-      assert.ok(res.errors.includes("Wholesale price must be greater than $0.00."));
+      assert.ok(res.errors.includes("Standard unit price must be greater than $0.00."));
       assert.ok(res.errors.includes("Initial warehouse is required."));
     });
 
@@ -257,7 +259,7 @@ describe("MASTER TEST SUITE — WAREHOUSE, DRAFT SAVE, AND CATALOG DRAFT FILTER"
       const res = validatePublish({
         productId: "AY-1001",
         name: "Classic Polo Shirt",
-        wholesalePrice: 24.50,
+        standardPrice: 24.50,
         moq: 10,
         warehouseId: 1,
       });

@@ -99,9 +99,9 @@ test("Header is single and unrepeated: [icon] PACKAGE ASSORTMENT [X PCS TOTAL]",
 
 // ▶ Suite B: Product without Package Breakdown
 console.log("\n▶ Suite B: Product without Package Breakdown");
-test("Fallback state is compact 'See product images.' without 0 PCS TOTAL or empty table", () => {
+test("Fallback state is Package Assortment message without 0 PCS TOTAL or empty table", () => {
   expect(detailSrc).toContain('title="Package Assortment"');
-  expect(detailSrc).toContain("See product images.");
+  expect(detailSrc).toContain("resolvedAssortmentMessage");
   expect(detailSrc).notToContain("0 PCS TOTAL");
 });
 
@@ -118,8 +118,8 @@ test("No color or size dropdown selectors rendered, PCS ordering functions direc
 
 // ▶ Suite D: Real Pricing Only & Volume Pricing
 console.log("\n▶ Suite D: Real Pricing Only & Volume Pricing");
-test("Heading renamed to 'Volume Pricing' (not 'Buy More, Save More')", () => {
-  expect(detailSrc).toContain('title="Volume Pricing"');
+test("Standalone price and 'Volume Pricing' heading are removed; pricing box appears directly", () => {
+  expect(detailSrc).notToContain('title="Volume Pricing"');
   expect(detailSrc).notToContain("Buy More, Save More");
   expect(detailSrc).notToContain("subtitle=\"Select a tier to update order quantity\"");
 });
@@ -152,7 +152,7 @@ test("Selecting Full Stock sets quantity to available inventory", () => {
 });
 
 test("Full Stock pricing logic: Available > bulkThreshold gets fullStockPrice, else normal price", () => {
-  expect(detailSrc).toContain("availableInventory > bulkMinimum");
+  expect(detailSrc).toContain("availableInventory > bulkThreshold");
   expect(detailSrc).toContain("return Math.min(configuredFullStockPrice, normalMoqPrice);");
 });
 

@@ -5,6 +5,7 @@ import { handleNumberInputWheel } from "@/components/common/GlobalNumberInputWhe
 
 interface ProductPricingSectionProps {
   wholesalePrice?: number;
+  standardPrice?: number;
   moq?: number;
   isMoqDerived?: boolean;
   availableStock?: number;
@@ -24,6 +25,7 @@ interface ProductPricingSectionProps {
   estimatedDeliveryDate?: string | null;
   errors: Record<string, string>;
   onWholesalePriceChange: (val: number | undefined) => void;
+  onStandardPriceChange?: (val: number | undefined) => void;
   onMoqChange?: (val: number | undefined) => void;
   onBulkPricingEnabledChange?: (val: boolean) => void;
   onBulkThresholdChange: (val: number | undefined) => void;
@@ -38,6 +40,7 @@ interface ProductPricingSectionProps {
 
 export default function ProductPricingSection({
   wholesalePrice,
+  standardPrice,
   moq = 0,
   isMoqDerived = false,
   availableStock,
@@ -57,6 +60,7 @@ export default function ProductPricingSection({
   estimatedDeliveryDate,
   errors,
   onWholesalePriceChange,
+  onStandardPriceChange,
   onMoqChange,
   onBulkPricingEnabledChange,
   onBulkThresholdChange,
@@ -68,6 +72,8 @@ export default function ProductPricingSection({
   onIsFeaturedChange,
   onIsPreorderChange,
 }: ProductPricingSectionProps) {
+  const currentStandardPrice = standardPrice !== undefined ? standardPrice : wholesalePrice;
+  const standardPriceError = errors.standardPrice || errors.standard_price || errors.wholesalePrice || errors.wholesale_price;
   const inputClass = (hasError?: boolean) =>
     `w-full h-10 pl-8 pr-3.5 rounded-xl border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-colors tabular-nums ${
       hasError
@@ -132,7 +138,7 @@ export default function ProductPricingSection({
         {/* UNIFIED PRICING TABLE (STANDARD / BULK / FULL STOCK) */}
         <div className="rounded-xl border border-border/80 bg-background overflow-hidden shadow-2xs">
           {/* Table Column Headers (Desktop >= 860px) */}
-          <div className="hidden min-[860px]:grid min-[860px]:grid-cols-[160px_1fr_1fr] gap-4 px-4 py-2.5 bg-secondary/40 border-b border-border/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="hidden min-[860px]:grid min-[860px]:grid-cols-[135px_minmax(0,1.25fr)_minmax(0,1fr)] gap-3.5 px-4 py-2.5 bg-secondary/40 border-b border-border/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
             <div>TIER</div>
             <div>MINIMUM QTY / BASIS</div>
             <div>UNIT PRICE</div>
@@ -140,7 +146,7 @@ export default function ProductPricingSection({
 
           <div className="divide-y divide-border/60">
             {/* 1. STANDARD TIER ROW */}
-            <div className="p-4 sm:p-4.5 min-[860px]:grid min-[860px]:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 min-[860px]:space-y-0">
+            <div className="p-4 sm:p-4.5 min-[860px]:grid min-[860px]:grid-cols-[135px_minmax(0,1.25fr)_minmax(0,1fr)] gap-3.5 items-center space-y-3 min-[860px]:space-y-0">
               <div className="min-[860px]:block flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-foreground">
                   STANDARD
@@ -214,17 +220,21 @@ export default function ProductPricingSection({
                       type="number"
                       step="0.01"
                       min="0.01"
-                      value={wholesalePrice ?? ""}
+                      value={currentStandardPrice ?? ""}
                       onWheel={handleNumberInputWheel}
-                      onChange={(e) => onWholesalePriceChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                      onChange={(e) => {
+                        const val = e.target.value ? parseFloat(e.target.value) : undefined;
+                        onStandardPriceChange?.(val);
+                        onWholesalePriceChange(val);
+                      }}
                       placeholder=""
-                      className={inputClass(Boolean(errors.wholesalePrice))}
+                      className={inputClass(Boolean(standardPriceError))}
                     />
                   </div>
-                  {errors.wholesalePrice && (
+                  {standardPriceError && (
                     <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
                       <AlertCircle size={12} />
-                      {errors.wholesalePrice}
+                      {standardPriceError}
                     </p>
                   )}
                 </div>
@@ -232,7 +242,7 @@ export default function ProductPricingSection({
             </div>
 
             {/* 2. BULK TIER ROW (OPTIONAL) */}
-            <div className="p-4 sm:p-4.5 min-[860px]:grid min-[860px]:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 min-[860px]:space-y-0">
+            <div className="p-4 sm:p-4.5 min-[860px]:grid min-[860px]:grid-cols-[135px_minmax(0,1.25fr)_minmax(0,1fr)] gap-3.5 items-center space-y-3 min-[860px]:space-y-0">
               <div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs font-bold uppercase tracking-wider text-foreground">
@@ -331,7 +341,7 @@ export default function ProductPricingSection({
             </div>
 
             {/* 3. FULL STOCK TIER ROW */}
-            <div className="p-4 sm:p-4.5 min-[860px]:grid min-[860px]:grid-cols-[160px_1fr_1fr] gap-4 items-center space-y-3 min-[860px]:space-y-0">
+            <div className="p-4 sm:p-4.5 min-[860px]:grid min-[860px]:grid-cols-[135px_minmax(0,1.25fr)_minmax(0,1fr)] gap-3.5 items-center space-y-3 min-[860px]:space-y-0">
               <div className="min-[860px]:block flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-foreground">
                   FULL STOCK
@@ -348,15 +358,15 @@ export default function ProductPricingSection({
                   <label className="block min-[860px]:hidden text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                     AVAILABLE STOCK
                   </label>
-                  <div className="h-10 px-3.5 rounded-xl border border-border bg-secondary/30 flex items-center justify-between">
-                    <span className="text-xs font-medium text-foreground">
-                      Available Stock
+                  <div className="h-10 px-3 rounded-xl border border-border bg-secondary/30 flex items-center justify-between gap-2 overflow-hidden">
+                    <span className="text-[11px] font-medium text-foreground truncate shrink">
+                      Available Stock:
                     </span>
-                    {availableStock !== undefined && availableStock > 0 && (
-                      <span className="text-[11px] font-mono font-bold text-muted-foreground tabular-nums">
-                        {availableStock} PCS
-                      </span>
-                    )}
+                    <span className="text-[11px] font-mono font-bold text-muted-foreground tabular-nums shrink-0 whitespace-nowrap">
+                      {availableStock !== undefined && availableStock !== null
+                        ? `${Number(availableStock).toLocaleString()} PCS`
+                        : "0 PCS"}
+                    </span>
                   </div>
                 </div>
 

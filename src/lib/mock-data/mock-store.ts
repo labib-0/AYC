@@ -7,7 +7,7 @@ import { RfqRecord, RfqStatus, RfqMessage, QuotationRecord, QuotationStatus } fr
 import { InventoryRecord, Warehouse, InventoryAdjustmentPayload } from "@/services/admin/inventory.service";
 import { CouponRecord } from "@/services/admin/coupon.service";
 
-import { INITIAL_MOCK_PRODUCTS, normalizeProductData } from "./mock-products";
+import { INITIAL_MOCK_PRODUCTS, normalizeProductData, DEFAULT_PACKAGE_ASSORTMENT_MESSAGE } from "./mock-products";
 import { INITIAL_MOCK_CATEGORIES } from "./mock-categories";
 import { INITIAL_MOCK_BRANDS } from "./mock-brands";
 import { INITIAL_MOCK_USERS, MockUserData } from "./mock-users";
@@ -101,6 +101,7 @@ class MockStore {
   // ==========================================
   getProducts(): B2BProductInput[] {
     const list = this.getItem<B2BProductInput[]>(STORAGE_KEYS.PRODUCTS, INITIAL_MOCK_PRODUCTS);
+    let needsCacheUpdate = false;
     // Self-healing synchronization: If stored dataset is smaller than baseline dataset, merge missing products
     if (Array.isArray(list) && list.length < INITIAL_MOCK_PRODUCTS.length) {
       const existingIds = new Set(list.map((p) => String(p.id)));
@@ -109,6 +110,25 @@ class MockStore {
         const merged = [...list, ...missing];
         this.setItem(STORAGE_KEYS.PRODUCTS, merged);
         return merged;
+      }
+    }
+    // Self-healing backfill for Package Assortment Message on cached products
+    if (Array.isArray(list)) {
+      list.forEach((p) => {
+        const existing = (p.packageAssortmentMessage || p.package_assortment_message);
+        if (!existing || !existing.trim()) {
+          p.packageAssortmentMessage = DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+          p.package_assortment_message = DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+          needsCacheUpdate = true;
+        }
+        if (p.packageAssortmentVisible === undefined && p.package_assortment_visible === undefined) {
+          p.packageAssortmentVisible = true;
+          p.package_assortment_visible = true;
+          needsCacheUpdate = true;
+        }
+      });
+      if (needsCacheUpdate) {
+        this.setItem(STORAGE_KEYS.PRODUCTS, list);
       }
     }
     return list;
@@ -142,6 +162,16 @@ class MockStore {
       if (!cleanUpdates.productId && !cleanUpdates.product_id && (existing.productId || (existing as any).product_id)) {
         cleanUpdates.productId = existing.productId || (existing as any).product_id;
         cleanUpdates.product_id = cleanUpdates.productId;
+      }
+      // Preserve or set packageAssortmentMessage
+      if (cleanUpdates.packageAssortmentMessage !== undefined || cleanUpdates.package_assortment_message !== undefined) {
+        const msg = (cleanUpdates.packageAssortmentMessage ?? cleanUpdates.package_assortment_message);
+        const resolved = typeof msg === "string" && msg.trim() ? msg.trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+        cleanUpdates.packageAssortmentMessage = resolved;
+        cleanUpdates.package_assortment_message = resolved;
+      } else if (!existing.packageAssortmentMessage && !existing.package_assortment_message) {
+        cleanUpdates.packageAssortmentMessage = DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+        cleanUpdates.package_assortment_message = DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
       }
       // Never erase packageAllocations or shippingPackageProfiles if untouched
       if ((!cleanUpdates.packageAllocations || cleanUpdates.packageAllocations.length === 0) && existing.packageAllocations && existing.packageAllocations.length > 0) {

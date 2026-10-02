@@ -2,14 +2,14 @@ import { Product } from "@/types";
 import { B2BProductInput } from "@/types/b2b";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { findMatchingShippingProfile, calculateTotalCbm } from "@/lib/services/shipping-package";
-import { inferProductCategory } from "@/lib/mock-data/mock-products";
+import { inferProductCategory, DEFAULT_PACKAGE_ASSORTMENT_MESSAGE } from "@/lib/mock-data/mock-products";
 import { getLowestValidCustomerUnitPrice } from "@/lib/product-pricing";
 import { apiClient } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export interface ProductQueryParams {
   page?: number;
-  per_page?: number;
+  per_page?: number | string;
   offset?: number;
   limit?: number;
   search?: string;
@@ -35,6 +35,7 @@ export interface ProductQueryParams {
   sort?: string;
   sort_by?: "price_asc" | "price_desc" | "newest" | "popular" | "hot" | "featured" | "name_asc" | "name_desc";
   isAdmin?: boolean;
+  all?: boolean;
   exclude?: string;
   product_id?: string;
   productId?: string;
@@ -402,6 +403,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     fullStockTotal: fullStockTotal,
     moq: moqVal,
     stock: realAvailableStock,
+    initialStock: Number(p.initialStock ?? p.initial_stock ?? realAvailableStock),
+    initial_stock: Number(p.initial_stock ?? p.initialStock ?? realAvailableStock),
     onHandStock,
     on_hand_stock: onHandStock,
     availableStock: realAvailableStock,
@@ -414,10 +417,10 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     size_description: p.size_description || p.sizeDescription || undefined,
     colourDescription: p.colourDescription || p.colour_description || undefined,
     colour_description: p.colour_description || p.colourDescription || undefined,
-    packageAssortmentVisible: p.packageAssortmentVisible !== undefined ? Boolean(p.packageAssortmentVisible) : (p.package_assortment_visible !== undefined ? Boolean(p.package_assortment_visible) : true),
-    package_assortment_visible: p.package_assortment_visible !== undefined ? Boolean(p.package_assortment_visible) : (p.packageAssortmentVisible !== undefined ? Boolean(p.packageAssortmentVisible) : true),
-    packageAssortmentMessage: p.packageAssortmentMessage ?? p.package_assortment_message ?? undefined,
-    package_assortment_message: p.package_assortment_message ?? p.packageAssortmentMessage ?? undefined,
+    packageAssortmentVisible: p.packageAssortmentVisible !== false && p.package_assortment_visible !== false,
+    package_assortment_visible: p.package_assortment_visible !== false && p.packageAssortmentVisible !== false,
+    packageAssortmentMessage: typeof (p.packageAssortmentMessage ?? p.package_assortment_message) === "string" && (p.packageAssortmentMessage ?? p.package_assortment_message).trim() !== "" ? (p.packageAssortmentMessage ?? p.package_assortment_message).trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
+    package_assortment_message: typeof (p.package_assortment_message ?? p.packageAssortmentMessage) === "string" && (p.package_assortment_message ?? p.packageAssortmentMessage).trim() !== "" ? (p.package_assortment_message ?? p.packageAssortmentMessage).trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
     isHiddenFromStorefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     is_hidden_from_storefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     isFeatured: isFeatured,
@@ -571,6 +574,8 @@ export function toStorefrontProduct(p: any): Product {
     moq: p.moq !== undefined ? Number(p.moq) : 1,
     stock: p.availableStock !== undefined ? Number(p.availableStock) : (p.stock !== undefined ? Number(p.stock) : (p.inventory_count !== undefined ? Number(p.inventory_count) : 0)),
     availableStock: p.availableStock !== undefined ? Number(p.availableStock) : (p.stock !== undefined ? Number(p.stock) : (p.inventory_count !== undefined ? Number(p.inventory_count) : 0)),
+    initialStock: p.initialStock !== undefined ? Number(p.initialStock) : (p.initial_stock !== undefined ? Number(p.initial_stock) : (p.stock !== undefined ? Number(p.stock) : (p.availableStock !== undefined ? Number(p.availableStock) : 0))),
+    initial_stock: p.initial_stock !== undefined ? Number(p.initial_stock) : (p.initialStock !== undefined ? Number(p.initialStock) : (p.stock !== undefined ? Number(p.stock) : (p.availableStock !== undefined ? Number(p.availableStock) : 0))),
     availableMoqs: p.availableMoqs !== undefined ? Number(p.availableMoqs) : (p.available_moqs !== undefined ? Number(p.available_moqs) : ((p.moq && Number(p.moq) > 0) ? Math.floor((Number(p.availableStock ?? p.stock ?? 0)) / Number(p.moq)) : 0)),
     onHandStock: p.onHandStock !== undefined ? Number(p.onHandStock) : (p.on_hand_stock !== undefined ? Number(p.on_hand_stock) : undefined),
     brand: typeof p.brand === "string" ? p.brand : p.brand?.name || "Ayaan",
@@ -593,10 +598,10 @@ export function toStorefrontProduct(p: any): Product {
     size_description: p.size_description || p.sizeDescription || undefined,
     colourDescription: p.colourDescription || p.colour_description || undefined,
     colour_description: p.colour_description || p.colourDescription || undefined,
-    packageAssortmentVisible: p.packageAssortmentVisible !== undefined ? Boolean(p.packageAssortmentVisible) : (p.package_assortment_visible !== undefined ? Boolean(p.package_assortment_visible) : true),
-    package_assortment_visible: p.package_assortment_visible !== undefined ? Boolean(p.package_assortment_visible) : (p.packageAssortmentVisible !== undefined ? Boolean(p.packageAssortmentVisible) : true),
-    packageAssortmentMessage: p.packageAssortmentMessage ?? p.package_assortment_message ?? undefined,
-    package_assortment_message: p.package_assortment_message ?? p.packageAssortmentMessage ?? undefined,
+    packageAssortmentVisible: p.packageAssortmentVisible !== false && p.package_assortment_visible !== false,
+    package_assortment_visible: p.package_assortment_visible !== false && p.packageAssortmentVisible !== false,
+    packageAssortmentMessage: typeof (p.packageAssortmentMessage ?? p.package_assortment_message) === "string" && (p.packageAssortmentMessage ?? p.package_assortment_message).trim() !== "" ? (p.packageAssortmentMessage ?? p.package_assortment_message).trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
+    package_assortment_message: typeof (p.package_assortment_message ?? p.packageAssortmentMessage) === "string" && (p.package_assortment_message ?? p.packageAssortmentMessage).trim() !== "" ? (p.package_assortment_message ?? p.packageAssortmentMessage).trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
     isHiddenFromStorefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     is_hidden_from_storefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     status: p.status || "draft",
@@ -616,6 +621,73 @@ export function generateProductSku(brand: string, category: string, name: string
 }
 
 export class ProductService {
+  /**
+   * Fetch authoritative Admin product statistics from backend
+   */
+  async getProductStatistics(): Promise<{
+    total: number;
+    published: number;
+    draft: number;
+    archived: number;
+    lowStock: number;
+    purchasePricePending: number;
+  }> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>("/products/statistics");
+        const data = res?.data || res;
+        if (data && typeof data.total !== "undefined") {
+          return {
+            total: Number(data.total ?? data.total_products ?? 0),
+            published: Number(data.published ?? data.published_products ?? data.active_products ?? 0),
+            draft: Number(data.draft ?? data.draft_products ?? 0),
+            archived: Number(data.archived ?? data.archived_products ?? 0),
+            lowStock: Number(data.low_stock ?? data.low_stock_products ?? data.low_stock_items ?? 0),
+            purchasePricePending: Number(data.price_pending ?? data.purchase_price_pending ?? 0),
+          };
+        }
+      } catch {
+        // Fallback to dashboard endpoint if available
+        try {
+          const dashRes = await apiClient.get<any>("/admin/dashboard");
+          const dashData = dashRes?.data || dashRes;
+          if (dashData && typeof dashData.total_products !== "undefined") {
+            const pub = Number(dashData.published_products ?? dashData.active_products ?? 0);
+            return {
+              total: Number(dashData.total_products || 0),
+              published: pub,
+              draft: Number(dashData.draft_products || 0),
+              archived: Number(dashData.archived_products || 0),
+              lowStock: Number(dashData.low_stock_items ?? dashData.low_stock_products ?? 0),
+              purchasePricePending: 0,
+            };
+          }
+        } catch {
+          // Fall through to mockStore
+        }
+      }
+    }
+
+    const all = mockStore.getProducts();
+    const published = all.filter((p) => p.status === "published").length;
+    const draft = all.filter((p) => p.status === "draft").length;
+    const archived = all.filter((p) => (p.status as any) === "archived").length;
+    const lowStock = all.filter((p) => {
+      const avail = p.availableStock !== undefined ? Number(p.availableStock) : Number(p.stock || 0);
+      const effectiveMoq = p.moq && Number(p.moq) > 1 ? Number(p.moq) : 1;
+      return avail < effectiveMoq;
+    }).length;
+
+    return {
+      total: all.length,
+      published,
+      draft,
+      archived,
+      lowStock,
+      purchasePricePending: all.filter((p) => (p as any).purchasePriceUpdated === false).length,
+    };
+  }
+
   /**
    * Fetch products with query parameters
    */
@@ -651,7 +723,7 @@ export class ProductService {
     const defaultMeta = {
       current_page: params.page ?? 1,
       last_page: 1,
-      per_page: params.per_page ?? 24,
+      per_page: Number(params.per_page ?? 24),
       total: 0,
       from: null,
       to: null,
@@ -692,7 +764,7 @@ export class ProductService {
     const all = mockStore.getProducts();
     const filtered = this.filterLocalProducts(all, params);
     const page = params.page ?? 1;
-    const perPage = params.per_page ?? 24;
+    const perPage = Number(params.per_page ?? 24);
     const start = (page - 1) * perPage;
     const sliced = filtered.slice(start, start + perPage);
 
@@ -766,7 +838,7 @@ export class ProductService {
         slug: p.slug,
         sku: p.sku,
         brand: p.brand,
-        price: p.wholesalePrice,
+        price: p.standardPrice ?? p.wholesalePrice ?? 0,
         image: p.images[0] || "/placeholder.jpg",
       }));
 
@@ -800,7 +872,7 @@ export class ProductService {
   /**
    * Helper to serialize camelCase B2BProductInput to snake_case format expected by Laravel API
    */
-  private toBackendPayload(input: Partial<B2BProductInput>): Record<string, any> {
+  public static toBackendPayload(input: Partial<B2BProductInput>): Record<string, any> {
     const payload: Record<string, any> = { ...input };
 
     if ((input as any).productId !== undefined) {
@@ -844,8 +916,42 @@ export class ProductService {
       if (input.bulkMinimumQuantity !== undefined) payload.bulk_minimum_quantity = input.bulkMinimumQuantity;
       if (input.bulk_minimum_quantity !== undefined) payload.bulk_minimum_quantity = input.bulk_minimum_quantity;
     }
-    if (input.fullStockPrice !== undefined) payload.full_stock_price = input.fullStockPrice;
-    if (input.costPrice !== undefined) payload.cost_price = input.costPrice;
+
+    // Authoritative Standard Customer Price mapping
+    const standardPrice = input.standardPrice !== undefined
+      ? input.standardPrice
+      : input.standard_price !== undefined
+      ? input.standard_price
+      : input.wholesalePrice !== undefined
+      ? input.wholesalePrice
+      : input.wholesale_price !== undefined
+      ? input.wholesale_price
+      : undefined;
+
+    if (standardPrice !== undefined) {
+      payload.standard_price = standardPrice;
+      payload.standardPrice = standardPrice;
+      payload.wholesale_price = standardPrice;
+      payload.wholesalePrice = standardPrice;
+    }
+
+    if (input.fullStockPrice !== undefined) {
+      payload.full_stock_price = input.fullStockPrice;
+      payload.fullStockPrice = input.fullStockPrice;
+    }
+    if (input.full_stock_price !== undefined) {
+      payload.full_stock_price = input.full_stock_price;
+      payload.fullStockPrice = input.full_stock_price;
+    }
+
+    if (input.costPrice !== undefined) {
+      payload.cost_price = input.costPrice;
+      payload.costPrice = input.costPrice;
+    }
+    if (input.cost_price !== undefined) {
+      payload.cost_price = input.cost_price;
+      payload.costPrice = input.cost_price;
+    }
 
     if (input.shortDescription !== undefined) payload.short_description = input.shortDescription;
     if (input.videoUrl !== undefined) payload.video_url = input.videoUrl;
@@ -918,6 +1024,10 @@ export class ProductService {
     if (input.pricingTiers !== undefined) payload.pricing_tiers = input.pricingTiers;
 
     return payload;
+  }
+
+  public toBackendPayload(input: Partial<B2BProductInput>): Record<string, any> {
+    return ProductService.toBackendPayload(input);
   }
 
   /**
@@ -1139,10 +1249,11 @@ export class ProductService {
         );
         if (!match) return false;
       }
-      if (options?.price_min !== undefined && p.wholesalePrice < options.price_min) {
+      const effectivePrice = p.standardPrice ?? p.wholesalePrice ?? 0;
+      if (options?.price_min !== undefined && effectivePrice < options.price_min) {
         return false;
       }
-      if (options?.price_max !== undefined && p.wholesalePrice > options.price_max) {
+      if (options?.price_max !== undefined && effectivePrice > options.price_max) {
         return false;
       }
       if (options?.color && options.color !== "all") {
@@ -1166,9 +1277,9 @@ export class ProductService {
     const sort = options?.sort_by || options?.sort;
     if (sort) {
       if (sort === "price_asc") {
-        result.sort((a, b) => a.wholesalePrice - b.wholesalePrice);
+        result.sort((a, b) => (a.standardPrice ?? a.wholesalePrice ?? 0) - (b.standardPrice ?? b.wholesalePrice ?? 0));
       } else if (sort === "price_desc") {
-        result.sort((a, b) => b.wholesalePrice - a.wholesalePrice);
+        result.sort((a, b) => (b.standardPrice ?? b.wholesalePrice ?? 0) - (a.standardPrice ?? a.wholesalePrice ?? 0));
       } else if (sort === "newest") {
         result.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0));
       } else if (sort === "popular" || sort === "hot") {

@@ -222,9 +222,16 @@ export function normalizeProductData(p: any): B2BProductInput {
     packageAllocations: packageAllocations,
     shippingPackageProfiles: shippingPackageProfiles,
     shipping_package_profiles: shippingPackageProfiles,
+    package_assortment_visible: p.package_assortment_visible !== false && p.packageAssortmentVisible !== false,
+    packageAssortmentVisible: p.packageAssortmentVisible !== false && p.package_assortment_visible !== false,
+    package_assortment_message: typeof (p.package_assortment_message ?? p.packageAssortmentMessage) === "string" && (p.package_assortment_message ?? p.packageAssortmentMessage).trim() !== "" ? (p.package_assortment_message ?? p.packageAssortmentMessage).trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
+    packageAssortmentMessage: typeof (p.packageAssortmentMessage ?? p.package_assortment_message) === "string" && (p.packageAssortmentMessage ?? p.package_assortment_message).trim() !== "" ? (p.packageAssortmentMessage ?? p.package_assortment_message).trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
     isPackageAssortment: true,
     fullStockQuantity: stock,
   };
 }
+
+export const DEFAULT_PACKAGE_ASSORTMENT_MESSAGE =
+  "Each package includes a mixed assortment of all available colours and sizes. All listed colours and sizes will be included in the package. Quantity may vary by colour and size due to original surplus stock availability.";
 
 export const INITIAL_MOCK_PRODUCTS: B2BProductInput[] = (rawProductsData as any[]).map(normalizeProductData);

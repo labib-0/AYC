@@ -35,7 +35,7 @@ export default function PackageAssortmentMatrix({
   title,
   className = "",
 }: PackageAssortmentMatrixProps) {
-  if (!matrixData || matrixData.colors.length === 0 || matrixData.sizes.length === 0) {
+  if (!matrixData || matrixData.colors.length === 0 || matrixData.sizes.length === 0 || matrixData.grandTotal <= 0) {
     return null;
   }
 

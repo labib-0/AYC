@@ -19,7 +19,7 @@ class ProductQueryRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $booleans = ['is_featured', 'is_hot', 'is_new', 'is_best_deal', 'is_limited_deal', 'in_stock', 'isAdmin'];
+        $booleans = ['is_featured', 'is_hot', 'is_new', 'is_best_deal', 'is_limited_deal', 'in_stock', 'isAdmin', 'all'];
         $merge = [];
         foreach ($booleans as $field) {
             if ($this->has($field)) {
@@ -41,7 +41,8 @@ class ProductQueryRequest extends FormRequest
     {
         return [
             'page' => ['nullable', 'integer', 'min:1'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'per_page' => ['nullable'],
+            'all' => ['nullable', 'boolean'],
             'search' => ['nullable', 'string', 'max:255'],
             'q' => ['nullable', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:255'],

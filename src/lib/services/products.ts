@@ -19,6 +19,17 @@ export async function getProducts(options?: ProductQueryParams): Promise<B2BProd
   return productService.getProducts(options);
 }
 
+export async function getProductStatistics(): Promise<{
+  total: number;
+  published: number;
+  draft: number;
+  archived: number;
+  lowStock: number;
+  purchasePricePending: number;
+}> {
+  return productService.getProductStatistics();
+}
+
 export async function getProductsPaginated(
   options: ProductQueryParams,
   signal?: AbortSignal

@@ -81,12 +81,14 @@ export interface StorefrontHomepageData {
   featured_brands: HomepageFeaturedBrandModel[];
   hot_sale_categories: HomepageHotSaleCategoryModel[];
   featured_products: HomepageFeaturedProductModel[];
+  hot_sale_visible?: boolean;
 }
 
 export interface AdminHomepageData {
   banner: HomepageBannerModel | null;
   all_banners?: HomepageBannerModel[];
   site_logo?: string | null;
+  hot_sale_visible?: boolean;
   ticker_items: HomepageTickerItem[];
   featured_brands: HomepageFeaturedBrandModel[];
   all_brands?: HomepageBrandRecord[];
@@ -143,6 +145,7 @@ export class HomepageService {
           featured_brands: Array.isArray(data.featured_brands) ? data.featured_brands : [],
           hot_sale_categories: Array.isArray(data.hot_sale_categories) ? data.hot_sale_categories : [],
           featured_products: Array.isArray(data.featured_products) ? data.featured_products : [],
+          hot_sale_visible: data.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true,
         };
       }
     } catch (err) {
@@ -155,6 +158,7 @@ export class HomepageService {
       featured_brands: [],
       hot_sale_categories: [],
       featured_products: [],
+      hot_sale_visible: true,
     };
   }
 
@@ -168,6 +172,7 @@ export class HomepageService {
       banner: data?.banner || null,
       all_banners: Array.isArray(data?.all_banners) ? data.all_banners : [],
       site_logo: data?.site_logo || null,
+      hot_sale_visible: data?.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true,
       ticker_items: Array.isArray(data?.ticker_items) ? data.ticker_items : [],
       featured_brands: Array.isArray(data?.featured_brands) ? data.featured_brands : [],
       all_brands: Array.isArray(data?.all_brands) ? data.all_brands : [],
@@ -289,6 +294,22 @@ export class HomepageService {
       window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_homepage_ticker_updated" }));
     }
     return Array.isArray(list) ? list : [];
+  }
+
+  /**
+   * Update Hot Sale section visibility on customer homepage.
+   */
+  async updateHotSaleVisibility(visible: boolean): Promise<boolean> {
+    const res = await apiClient.post<any>("/admin/homepage/hot-sale-visibility", {
+      hot_sale_visible: visible,
+    });
+    const result = res?.data?.hot_sale_visible ?? res?.hot_sale_visible ?? visible;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("ayaan:homepage-updated", { detail: { type: "hot_sale_visibility", visible: result } }));
+      window.dispatchEvent(new CustomEvent("ayaan:data-updated", { detail: { entity: "homepage" } }));
+      window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_homepage_updated" }));
+    }
+    return Boolean(result);
   }
 
   /**

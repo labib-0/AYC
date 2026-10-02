@@ -385,4 +385,59 @@ class LandingPageManagementTest extends TestCase
         $admin->assertStatus(200);
         $this->assertArrayNotHasKey('active_season', $admin->json('data'));
     }
+
+    public function test_hot_sale_visible_defaults_to_true_on_storefront_and_admin(): void
+    {
+        $storefront = $this->getJson('/api/v1/homepage');
+        $storefront->assertStatus(200);
+        $this->assertTrue($storefront->json('data.hot_sale_visible'));
+
+        $admin = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/admin/homepage');
+        $admin->assertStatus(200);
+        $this->assertTrue($admin->json('data.hot_sale_visible'));
+    }
+
+    public function test_admin_can_toggle_hot_sale_visibility_off_and_on(): void
+    {
+        // 1. Toggle OFF
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/hot-sale-visibility', [
+                'hot_sale_visible' => false,
+            ]);
+        $response->assertStatus(200)
+            ->assertJsonPath('data.hot_sale_visible', false);
+
+        // Storefront should reflect false
+        $storefront = $this->getJson('/api/v1/homepage');
+        $storefront->assertStatus(200)
+            ->assertJsonPath('data.hot_sale_visible', false);
+
+        // Admin should reflect false
+        $admin = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/admin/homepage');
+        $admin->assertStatus(200)
+            ->assertJsonPath('data.hot_sale_visible', false);
+
+        // 2. Toggle back ON
+        $responseOn = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/hot-sale-visibility', [
+                'hot_sale_visible' => true,
+            ]);
+        $responseOn->assertStatus(200)
+            ->assertJsonPath('data.hot_sale_visible', true);
+
+        $storefrontOn = $this->getJson('/api/v1/homepage');
+        $storefrontOn->assertStatus(200)
+            ->assertJsonPath('data.hot_sale_visible', true);
+    }
+
+    public function test_customer_cannot_modify_hot_sale_visibility(): void
+    {
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson('/api/v1/admin/homepage/hot-sale-visibility', [
+                'hot_sale_visible' => false,
+            ]);
+        $response->assertStatus(403);
+    }
 }

@@ -54,6 +54,7 @@ const INITIAL_PRODUCT_LIMIT = 21;
 const LOAD_MORE_BATCH_LIMIT = 21;
 
 export default function HotSales() {
+  const [isVisible, setIsVisible] = useState<boolean>(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   // Unified Filter State for all Hot Sale products
@@ -116,6 +117,9 @@ export default function HotSales() {
       try {
         const data = await homepageService.getStorefrontHomepageData();
         if (!isMounted) return;
+        if (data.hot_sale_visible !== undefined) {
+          setIsVisible(Boolean(data.hot_sale_visible));
+        }
         if (data.hot_sale_categories && data.hot_sale_categories.length > 0) {
           const mapped: HotSaleCategory[] = data.hot_sale_categories.map((item) => {
             const cat = item.category;
@@ -353,6 +357,10 @@ export default function HotSales() {
   const totalActiveFilters =
     selectedAudiences.length + selectedBrands.length + selectedDesignTypes.length;
   const hasActiveFilters = totalActiveFilters > 0;
+
+  if (!isVisible) {
+    return null;
+  }
 
   return (
     <section id="hot-sales" className="pt-1.5 sm:pt-2 pb-5 sm:pb-7 bg-background scroll-mt-20">

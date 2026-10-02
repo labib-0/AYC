@@ -107,6 +107,7 @@ Route::prefix('v1')->group(function () {
     // Products (Public + Admin)
     Route::prefix('products')->group(function () {
         Route::get('/featured', [ProductController::class, 'featured']);
+        Route::get('/statistics', [ProductController::class, 'statistics']);
         Route::get('/', [ProductController::class, 'index']);
         Route::get('/slug/{slug}', [ProductController::class, 'show']);
         Route::get('/{slugOrId}/shipping-specs', [ProductController::class, 'shippingSpecs']);
@@ -245,6 +246,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])
             ->middleware('permission:analytics.dashboard.view');
         Route::get('/analytics/sales-profit', [AdminAnalyticsController::class, 'salesProfit']);
+        Route::get('/products/statistics', [ProductController::class, 'statistics'])
+            ->middleware('permission:product.view');
 
         // Admin RFQ Management & Messaging
         Route::get('/rfqs', [RfqController::class, 'index'])
@@ -444,6 +447,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/search-products', [AdminHomepageManagementController::class, 'searchProducts'])
                 ->middleware('permission:homepage.view');
             Route::post('/ticker', [AdminHomepageManagementController::class, 'syncTickerItems'])
+                ->middleware('permission:homepage.banner.edit');
+            Route::post('/hot-sale-visibility', [AdminHomepageManagementController::class, 'updateHotSaleVisibility'])
+                ->middleware('permission:homepage.category.manage');
+            Route::post('/settings', [AdminHomepageManagementController::class, 'updateSettings'])
                 ->middleware('permission:homepage.banner.edit');
         });
 

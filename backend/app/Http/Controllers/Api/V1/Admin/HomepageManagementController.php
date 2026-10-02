@@ -98,6 +98,7 @@ class HomepageManagementController extends ApiController
             'banner' => $banner,
             'all_banners' => $allBanners,
             'site_logo' => SystemSetting::get('site_logo'),
+            'hot_sale_visible' => SystemSetting::isHotSaleVisible(),
             'ticker_items' => $tickerItems,
             'featured_brands' => $featuredBrands,
             'all_brands' => $allBrands,
@@ -600,5 +601,49 @@ class HomepageManagementController extends ApiController
             DB::rollBack();
             return $this->error('Failed to save homepage ticker items: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * POST /api/v1/admin/homepage/hot-sale-visibility
+     *
+     * Toggle or update Hot Sale visibility setting.
+     */
+    public function updateHotSaleVisibility(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'hot_sale_visible' => ['required', 'boolean'],
+        ]);
+
+        $visible = (bool) $validated['hot_sale_visible'];
+        SystemSetting::set('hot_sale_visible', $visible, 'boolean', 'homepage');
+
+        CatalogCacheService::invalidateAll();
+
+        return $this->success([
+            'hot_sale_visible' => $visible,
+        ], 'Hot Sale visibility updated successfully.');
+    }
+
+    /**
+     * POST /api/v1/admin/homepage/settings
+     *
+     * General homepage settings update endpoint.
+     */
+    public function updateSettings(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'hot_sale_visible' => ['nullable', 'boolean'],
+        ]);
+
+        if ($request->has('hot_sale_visible')) {
+            $visible = (bool) $validated['hot_sale_visible'];
+            SystemSetting::set('hot_sale_visible', $visible, 'boolean', 'homepage');
+        }
+
+        CatalogCacheService::invalidateAll();
+
+        return $this->success([
+            'hot_sale_visible' => SystemSetting::isHotSaleVisible(),
+        ], 'Homepage settings saved successfully.');
     }
 }

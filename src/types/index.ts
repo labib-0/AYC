@@ -55,6 +55,8 @@ export interface Product {
   quantityStep?: number;
   availableStock?: number;
   stock?: number;
+  initialStock?: number;
+  initial_stock?: number;
   availableMoqs?: number;
   maxCompletePackages?: number;
   completePackageStock?: number;

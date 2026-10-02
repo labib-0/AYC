@@ -44,13 +44,16 @@ export interface B2BProductInput {
   vimeoVideoId?: string | null;
   images: string[];
   costPrice?: number;
+  cost_price?: number;
   purchasePriceUpdated?: boolean | null;
   purchasePriceUpdatedAt?: string | null;
   price?: number;
   has_valid_price?: boolean;
   hasValidPrice?: boolean;
-  wholesalePrice: number;
+  wholesalePrice?: number;
+  wholesale_price?: number;
   standardPrice?: number;
+  standard_price?: number;
   bulkPricingEnabled?: boolean;
   bulk_pricing_enabled?: boolean;
   bulkThreshold?: number | null;

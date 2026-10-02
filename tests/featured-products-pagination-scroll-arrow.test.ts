@@ -102,24 +102,30 @@ test("4. Toggling filter rail does not couple with continuous pagination mode", 
 
 console.log("\n[TEST GROUP 2]: FRONTEND — Down Arrow & Certificate Jump (Sections 4, 5, 6, 7, 8)");
 
-test("5. Floating Down Arrow button is rendered during auto-pagination (isContinuousMode)", () => {
+test("5. Floating Down Arrow button is rendered immediately when Load More is pressed (showScrollDownButton)", () => {
   assert(
-    featuredContent.includes("{isContinuousMode && (") &&
+    featuredContent.includes("{showScrollDownButton && (") &&
     featuredContent.includes("handleJumpToCertificate"),
-    "FeaturedProducts must conditionally render floating down arrow when isContinuousMode is active"
+    "FeaturedProducts must conditionally render floating down arrow when showScrollDownButton is active"
   );
   assert(
     featuredContent.includes("ArrowDown") || featuredContent.includes("ChevronDown"),
     "FeaturedProducts down arrow must render recognizable arrow icon"
   );
+  assert(
+    featuredContent.includes("w-11 h-11") &&
+    featuredContent.includes("rounded-full") &&
+    featuredContent.includes("bg-white text-[#111827]"),
+    "FeaturedProducts down arrow must match existing scroll-up button styling"
+  );
 });
 
-test("6. Down Arrow is positioned fixed/floating near bottom-right corner", () => {
+test("6. Down Arrow is positioned fixed/floating near bottom-right corner matching scroll-up button", () => {
   assert(
     featuredContent.includes("fixed") &&
-    featuredContent.includes("bottom-6") &&
-    featuredContent.includes("right-6"),
-    "Down arrow must be positioned floating in bottom-right corner"
+    featuredContent.includes("right-6") &&
+    featuredContent.includes("z-40"),
+    "Down arrow must be positioned floating in bottom-right corner matching scroll-up button"
   );
 });
 

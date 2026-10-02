@@ -16,11 +16,44 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
+use App\Services\Catalog\AdminProductMetricsService;
+
 class ProductController extends ApiController
 {
     public function __construct(
-        private readonly \App\Services\Rbac\AdminAuthorizationService $authorization
+        private readonly \App\Services\Rbac\AdminAuthorizationService $authorization,
+        private readonly AdminProductMetricsService $productMetricsService
     ) {}
+
+    /**
+     * GET /api/v1/products/statistics or /api/v1/admin/products/statistics
+     * Authoritative shared catalog statistics for Admin.
+     */
+    public function statistics(Request $request): JsonResponse
+    {
+        $metrics = $this->productMetricsService->getMetrics();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total' => $metrics['total_products'],
+                'total_products' => $metrics['total_products'],
+                'published' => $metrics['published_products'],
+                'published_products' => $metrics['published_products'],
+                'active_products' => $metrics['active_products'],
+                'draft' => $metrics['draft_products'],
+                'draft_products' => $metrics['draft_products'],
+                'archived' => $metrics['archived_products'],
+                'archived_products' => $metrics['archived_products'],
+                'low_stock' => $metrics['low_stock_products'],
+                'low_stock_products' => $metrics['low_stock_products'],
+                'low_stock_items' => $metrics['low_stock_products'],
+                'price_pending' => $metrics['price_pending_products'],
+                'purchase_price_pending' => $metrics['price_pending_products'],
+            ],
+            'message' => 'Product catalog statistics retrieved successfully',
+        ]);
+    }
 
     /**
      * GET /api/v1/products
@@ -249,38 +282,56 @@ class ProductController extends ApiController
                 break;
         }
 
-        $perPage = (int) ($request->input('per_page') ?? $request->input('limit') ?? 20);
-        $products = $query->paginate($perPage);
+        $isAll = $request->boolean('all') || $request->input('per_page') === 'all' || (int) $request->input('per_page') === -1;
+        if ($isAll) {
+            $products = $query->get();
+        } else {
+            $perPage = (int) ($request->input('per_page') ?? $request->input('limit') ?? 20);
+            $products = $query->paginate($perPage);
+        }
 
         $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
+        $isPaginated = $products instanceof \Illuminate\Pagination\LengthAwarePaginator;
+        $metrics = $isAdmin ? $this->productMetricsService->getMetrics() : null;
 
         return response()->json([
             'success' => true,
             'data' => ProductResource::collection($products)->resolve(),
-            'links' => [
+            'links' => $isPaginated ? [
                 'first' => $products->url(1),
                 'last' => $products->url($products->lastPage()),
                 'prev' => $products->previousPageUrl(),
                 'next' => $products->nextPageUrl(),
-            ],
-            'meta' => array_merge([
-                'current_page' => $products->currentPage(),
-                'from' => $products->firstItem(),
-                'last_page' => $products->lastPage(),
-                'path' => $products->path(),
-                'per_page' => $products->perPage(),
-                'to' => $products->lastItem(),
-                'total' => $products->total(),
-            ], $isAdmin ? [
-                'counts' => [
-                    'total' => Product::whereNull('deleted_at')->count(),
-                    'published' => Product::whereNull('deleted_at')->where('status', 'published')->count(),
-                    'draft' => Product::whereNull('deleted_at')->where('status', 'draft')->count(),
-                    'archived' => Product::whereNull('deleted_at')->where('status', 'archived')->count(),
-                    'low_stock' => Product::whereNull('deleted_at')->where('stock', '<', 10)->count(),
-                    'price_pending' => Product::whereNull('deleted_at')->whereNull('purchase_price_updated_at')->count(),
+            ] : null,
+            'meta' => array_merge(
+                $isPaginated ? [
+                    'current_page' => $products->currentPage(),
+                    'from' => $products->firstItem(),
+                    'last_page' => $products->lastPage(),
+                    'path' => $products->path(),
+                    'per_page' => $products->perPage(),
+                    'to' => $products->lastItem(),
+                    'total' => $products->total(),
+                ] : [
+                    'current_page' => 1,
+                    'from' => count($products) > 0 ? 1 : null,
+                    'last_page' => 1,
+                    'path' => $request->url(),
+                    'per_page' => count($products),
+                    'to' => count($products) > 0 ? count($products) : null,
+                    'total' => count($products),
                 ],
-            ] : []),
+                $isAdmin && $metrics ? [
+                    'counts' => [
+                        'total' => $metrics['total_products'],
+                        'published' => $metrics['published_products'],
+                        'draft' => $metrics['draft_products'],
+                        'archived' => $metrics['archived_products'],
+                        'low_stock' => $metrics['low_stock_products'],
+                        'price_pending' => $metrics['price_pending_products'],
+                    ],
+                ] : []
+            ),
         ]);
     }
 
@@ -397,6 +448,27 @@ class ProductController extends ApiController
         }
         $productIdInput = (string) $request->input('product_id');
 
+        // Normalize Standard Unit Price aliases (standard_price, standardPrice, wholesale_price, wholesalePrice)
+        $standardPriceInput = $request->input('standard_price', $request->input('standardPrice', $request->input('wholesale_price', $request->input('wholesalePrice'))));
+        if (($standardPriceInput === null || (float)$standardPriceInput <= 0) && $request->has('pricing_tiers') && is_array($request->input('pricing_tiers')) && !empty($request->input('pricing_tiers')[0]['unit_price'])) {
+            $tierPrice = (float) $request->input('pricing_tiers')[0]['unit_price'];
+            if ($tierPrice > 0) {
+                $standardPriceInput = $tierPrice;
+            }
+        }
+        if ($standardPriceInput !== null) {
+            $request->merge([
+                'wholesale_price' => $standardPriceInput,
+                'standard_price' => $standardPriceInput,
+            ]);
+        }
+        if ($request->has('fullStockPrice') && !$request->has('full_stock_price')) {
+            $request->merge(['full_stock_price' => $request->input('fullStockPrice')]);
+        }
+        if ($request->has('costPrice') && !$request->has('cost_price')) {
+            $request->merge(['cost_price' => $request->input('costPrice')]);
+        }
+
         $validated = $request->validate([
             'product_id' => [
                 'required',
@@ -438,6 +510,9 @@ class ProductController extends ApiController
             'designType' => ['nullable', 'string'],
             'product_type' => ['nullable', 'string'],
             'wholesale_price' => [$isPublished ? 'required' : 'nullable', 'numeric', $isPublished ? 'min:0.01' : 'min:0'],
+            'wholesalePrice' => ['nullable', 'numeric'],
+            'standard_price' => ['nullable', 'numeric', $isPublished ? 'min:0.01' : 'min:0'],
+            'standardPrice' => ['nullable', 'numeric'],
             'bulk_pricing_enabled' => ['nullable', 'boolean'],
             'bulkPricingEnabled' => ['nullable', 'boolean'],
             'bulk_threshold' => ['nullable', 'integer', 'min:1'],
@@ -447,8 +522,10 @@ class ProductController extends ApiController
             'bulkPrice' => ['nullable', 'numeric', 'min:0.01'],
             'bulk_unit_price' => ['nullable', 'numeric', 'min:0.01'],
             'full_stock_price' => [$isPublished ? 'required' : 'nullable', 'numeric', $isPublished ? 'gt:0' : 'min:0'],
+            'fullStockPrice' => ['nullable', 'numeric'],
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0.01'],
+            'costPrice' => ['nullable', 'numeric'],
             'moq' => ['nullable', 'integer', 'min:1'],
             'initial_stock' => ['nullable', 'integer', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
@@ -505,6 +582,10 @@ class ProductController extends ApiController
             'product_id.unique' => "Product ID {$productIdInput} is already in use.",
             'product_id.regex' => 'Product ID may only contain letters, numbers, hyphens (-), and slashes (/).',
             'name.required' => 'Product name is required to publish.',
+            'wholesale_price.required' => 'Standard unit price is required to publish.',
+            'wholesale_price.min' => 'Standard unit price must be greater than $0.00 to publish.',
+            'standard_price.required' => 'Standard unit price is required to publish.',
+            'standard_price.min' => 'Standard unit price must be greater than $0.00 to publish.',
             'warehouse_id.required_without' => 'Initial warehouse is required.',
             'full_stock_price.required' => 'Full stock price is required.',
             'full_stock_price.gt' => 'Full stock price must be greater than 0.',
@@ -544,6 +625,8 @@ class ProductController extends ApiController
             'seoTitle', 'seoDescription', 'seo_keywords',
             'bulkPricingEnabled', 'bulkThreshold', 'bulkPrice', 'bulk_minimum_quantity', 'bulk_unit_price',
             'featured_duration_days', 'hot_duration_days', 'new_duration_days',
+            'standardPrice', 'standard_price', 'wholesalePrice',
+            'fullStockPrice', 'costPrice',
             'initial_stock', 'stock', 'warehouse_id', 'initial_inventory',
         ])->toArray();
 
@@ -558,6 +641,12 @@ class ProductController extends ApiController
         }
         if (array_key_exists('packageAssortmentMessage', $validated) && !array_key_exists('package_assortment_message', $validated)) {
             $productData['package_assortment_message'] = $validated['packageAssortmentMessage'];
+        }
+        if (array_key_exists('package_assortment_message', $productData)) {
+            $msg = trim($productData['package_assortment_message'] ?? '');
+            $productData['package_assortment_message'] = $msg !== '' ? $productData['package_assortment_message'] : Product::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+        } else {
+            $productData['package_assortment_message'] = Product::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
         }
         if (array_key_exists('seoTitle', $validated) && !array_key_exists('seo_title', $validated)) {
             $productData['seo_title'] = $validated['seoTitle'];
@@ -615,9 +704,11 @@ class ProductController extends ApiController
             $productData['sku'] = $candidateSku;
         }
 
-        // Wholesale price: do NOT fabricate fake values for drafts; keep NULL if omitted
-        if (!isset($productData['wholesale_price']) || $productData['wholesale_price'] === null) {
-            $productData['wholesale_price'] = $isPublished ? 0.00 : null;
+        // Standard price: do NOT fabricate fake values; keep NULL if omitted
+        if ($standardPriceInput !== null) {
+            $productData['wholesale_price'] = (float) $standardPriceInput;
+        } elseif (!isset($productData['wholesale_price']) || $productData['wholesale_price'] === null) {
+            $productData['wholesale_price'] = null;
         }
 
         if (!array_key_exists('full_stock_price', $productData)) {
@@ -1105,6 +1196,21 @@ class ProductController extends ApiController
         }
         $productIdInput = (string) ($request->input('product_id') ?? $product->product_id);
 
+        // Normalize Standard Unit Price aliases (standard_price, standardPrice, wholesale_price, wholesalePrice)
+        $standardPriceInput = $request->input('standard_price', $request->input('standardPrice', $request->input('wholesale_price', $request->input('wholesalePrice'))));
+        if ($standardPriceInput !== null) {
+            $request->merge([
+                'wholesale_price' => $standardPriceInput,
+                'standard_price' => $standardPriceInput,
+            ]);
+        }
+        if ($request->has('fullStockPrice') && !$request->has('full_stock_price')) {
+            $request->merge(['full_stock_price' => $request->input('fullStockPrice')]);
+        }
+        if ($request->has('costPrice') && !$request->has('cost_price')) {
+            $request->merge(['cost_price' => $request->input('costPrice')]);
+        }
+
         $validated = $request->validate([
             'product_id' => [
                 'sometimes',
@@ -1147,6 +1253,9 @@ class ProductController extends ApiController
             'designType' => ['nullable', 'string'],
             'product_type' => ['nullable', 'string'],
             'wholesale_price' => ['sometimes', 'numeric', $isPublished ? 'min:0.01' : 'min:0'],
+            'wholesalePrice' => ['nullable', 'numeric'],
+            'standard_price' => ['sometimes', 'nullable', 'numeric', $isPublished ? 'min:0.01' : 'min:0'],
+            'standardPrice' => ['nullable', 'numeric'],
             'bulk_pricing_enabled' => ['nullable', 'boolean'],
             'bulkPricingEnabled' => ['nullable', 'boolean'],
             'bulk_threshold' => ['nullable', 'integer', 'min:1'],
@@ -1156,8 +1265,10 @@ class ProductController extends ApiController
             'bulkPrice' => ['nullable', 'numeric', 'min:0.01'],
             'bulk_unit_price' => ['nullable', 'numeric', 'min:0.01'],
             'full_stock_price' => ['sometimes', $isPublished ? 'required' : 'nullable', 'numeric', $isPublished ? 'gt:0' : 'min:0'],
+            'fullStockPrice' => ['nullable', 'numeric'],
             'msrp_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0.01'],
+            'costPrice' => ['nullable', 'numeric'],
             'moq' => ['nullable', 'integer', 'min:1'],
             'status' => ['sometimes', 'string', 'in:draft,published,archived'],
             'is_hidden_from_storefront' => ['sometimes', 'boolean'],
@@ -1206,6 +1317,10 @@ class ProductController extends ApiController
             'product_id.required' => 'Product ID is required.',
             'product_id.unique' => "Product ID {$productIdInput} is already in use.",
             'product_id.regex' => 'Product ID may only contain letters, numbers, hyphens (-), and slashes (/).',
+            'wholesale_price.required' => 'Standard unit price is required to publish.',
+            'wholesale_price.min' => 'Standard unit price must be greater than $0.00 to publish.',
+            'standard_price.required' => 'Standard unit price is required to publish.',
+            'standard_price.min' => 'Standard unit price must be greater than $0.00 to publish.',
         ]);
 
         $user = $request->user();
@@ -1234,10 +1349,25 @@ class ProductController extends ApiController
             if (empty($effectiveName) || strlen(trim($effectiveName)) < 3) {
                 return $this->error("Product name is required to publish.", 422);
             }
-            $effectiveWholesale = $request->has('wholesale_price') ? $request->input('wholesale_price') : $product->wholesale_price;
-            if ($effectiveWholesale === null || (float)$effectiveWholesale <= 0) {
-                return $this->error("Wholesale price must be greater than $0.00 to publish.", 422);
+
+            // Resolve authoritative standard customer selling price
+            $effectiveStandard = $standardPriceInput !== null
+                ? $standardPriceInput
+                : ($product->wholesale_price !== null && (float)$product->wholesale_price > 0 ? $product->wholesale_price : null);
+
+            // Also check pricing_tiers if standard price not set on root
+            if (($effectiveStandard === null || (float)$effectiveStandard <= 0) && $request->has('pricing_tiers') && is_array($request->input('pricing_tiers')) && !empty($request->input('pricing_tiers')[0]['unit_price'])) {
+                $tierPrice = (float) $request->input('pricing_tiers')[0]['unit_price'];
+                if ($tierPrice > 0) {
+                    $effectiveStandard = $tierPrice;
+                    $request->merge(['wholesale_price' => $effectiveStandard, 'standard_price' => $effectiveStandard]);
+                }
             }
+
+            if ($effectiveStandard === null || (float)$effectiveStandard <= 0) {
+                return $this->error("Standard unit price must be greater than $0.00 to publish.", 422);
+            }
+
             $hasWh = !empty($request->input('warehouse_id'))
                 || !empty($request->input('warehouseId'))
                 || !empty($request->input('initial_inventory.warehouse_id'))
@@ -1248,8 +1378,16 @@ class ProductController extends ApiController
             }
         }
 
+        // If currently published and pricing is updated, ensure standard price is not set to fake zero
+        if ($isPublished && $request->hasAny(['wholesale_price', 'standard_price', 'standardPrice', 'wholesalePrice'])) {
+            $checkVal = $request->input('standard_price', $request->input('standardPrice', $request->input('wholesale_price', $request->input('wholesalePrice'))));
+            if ($checkVal === null || (float)$checkVal <= 0) {
+                return $this->error("Standard unit price must be greater than $0.00 to publish.", 422);
+            }
+        }
+
         // Pricing protection
-        $hasPricingChanges = $request->hasAny(['wholesale_price', 'bulk_price', 'bulk_threshold', 'bulk_pricing_enabled', 'bulkPricingEnabled', 'cost_price', 'full_stock_price', 'pricing_tiers']);
+        $hasPricingChanges = $request->hasAny(['wholesale_price', 'wholesalePrice', 'standard_price', 'standardPrice', 'bulk_price', 'bulkPrice', 'bulk_threshold', 'bulkThreshold', 'bulk_pricing_enabled', 'bulkPricingEnabled', 'cost_price', 'costPrice', 'full_stock_price', 'fullStockPrice', 'pricing_tiers']);
         if ($hasPricingChanges && !$this->authorization->can($user, 'product.pricing.manage')) {
             return $this->forbidden("Forbidden: you do not have the 'product.pricing.manage' permission to update pricing.");
         }
@@ -1270,8 +1408,14 @@ class ProductController extends ApiController
             'sizeDescription', 'colourDescription', 'packageAssortmentVisible', 'packageAssortmentMessage',
             'seoTitle', 'seoDescription', 'seo_keywords',
             'bulkPricingEnabled', 'bulkThreshold', 'bulkPrice', 'bulk_minimum_quantity', 'bulk_unit_price',
-            'featured_duration_days', 'hot_duration_days', 'new_duration_days'
+            'featured_duration_days', 'hot_duration_days', 'new_duration_days',
+            'standardPrice', 'standard_price', 'wholesalePrice',
+            'fullStockPrice', 'costPrice',
         ])->toArray();
+
+        if ($standardPriceInput !== null) {
+            $productData['wholesale_price'] = (float) $standardPriceInput;
+        }
 
         if (array_key_exists('sizeDescription', $validated) && !array_key_exists('size_description', $validated)) {
             $productData['size_description'] = $validated['sizeDescription'];
@@ -1284,6 +1428,10 @@ class ProductController extends ApiController
         }
         if (array_key_exists('packageAssortmentMessage', $validated) && !array_key_exists('package_assortment_message', $validated)) {
             $productData['package_assortment_message'] = $validated['packageAssortmentMessage'];
+        }
+        if (array_key_exists('package_assortment_message', $productData)) {
+            $msg = trim($productData['package_assortment_message'] ?? '');
+            $productData['package_assortment_message'] = $msg !== '' ? $productData['package_assortment_message'] : Product::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
         }
         if (array_key_exists('seoTitle', $validated) && !array_key_exists('seo_title', $validated)) {
             $productData['seo_title'] = $validated['seoTitle'];

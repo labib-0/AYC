@@ -12,6 +12,7 @@ use App\Models\HomepageFeaturedProduct;
 use App\Models\HomepageHotSaleCategory;
 use App\Models\HomepageTickerItem;
 use App\Models\Product;
+use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
 
 class HomepageController extends ApiController
@@ -262,6 +263,7 @@ class HomepageController extends ApiController
             'featured_brands' => $featuredBrands,
             'hot_sale_categories' => $hotSaleCategories,
             'featured_products' => $featuredProducts,
+            'hot_sale_visible' => SystemSetting::isHotSaleVisible(),
         ], 'Homepage configuration retrieved successfully');
     }
 }

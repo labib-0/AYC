@@ -15,6 +15,7 @@ class DashboardResource extends JsonResource
             'total_products' => (int) ($this['total_products'] ?? 0),
             'active_products' => (int) ($this['active_products'] ?? 0),
             'published_products' => (int) ($this['published_products'] ?? $this['active_products'] ?? 0),
+            'draft_products' => (int) ($this['draft_products'] ?? 0),
             'total_customers' => (int) ($this['total_customers'] ?? 0),
             'total_orders' => (int) ($this['total_orders'] ?? 0),
             'pending_orders' => (int) ($this['pending_orders'] ?? 0),

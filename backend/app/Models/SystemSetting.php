@@ -62,4 +62,13 @@ class SystemSetting extends Model
     {
         return (bool) static::get('aramex_enabled', false);
     }
+
+    /**
+     * Check whether Hot Sale section is currently visible on the homepage.
+     * Default: true
+     */
+    public static function isHotSaleVisible(): bool
+    {
+        return (bool) static::get('hot_sale_visible', true);
+    }
 }

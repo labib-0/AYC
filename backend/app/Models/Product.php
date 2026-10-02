@@ -235,6 +235,16 @@ class Product extends Model
                     && !empty($product->bulk_price) 
                     && (float) $product->bulk_price > 0;
             }
+
+            if (empty(trim($product->package_assortment_message ?? ''))) {
+                $product->package_assortment_message = self::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+            }
+        });
+
+        static::saving(function (Product $product) {
+            if (array_key_exists('package_assortment_message', $product->getAttributes()) && empty(trim($product->package_assortment_message ?? ''))) {
+                $product->package_assortment_message = self::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+            }
         });
 
         static::deleting(function (Product $product) {
@@ -456,6 +466,20 @@ class Product extends Model
     public function getEligibleFullStockQuantity(): int
     {
         return $this->getCompletePackageStock();
+    }
+
+    /**
+     * Standard Customer Selling Price (Authoritative Standard Price)
+     * Maps directly to the underlying base selling price column.
+     */
+    public function getStandardPriceAttribute(): ?float
+    {
+        return $this->wholesale_price !== null ? (float) $this->wholesale_price : null;
+    }
+
+    public function setStandardPriceAttribute($value): void
+    {
+        $this->attributes['wholesale_price'] = $value !== null && $value !== '' ? (float) $value : null;
     }
 
     /**

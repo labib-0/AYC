@@ -84,6 +84,7 @@ export default function ProductPackageBreakdownSection({
 }: ProductPackageBreakdownSectionProps) {
   // Collapse UI state (convenience only, never affects product visibility or publishing)
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showMessageEditor, setShowMessageEditor] = useState(false);
 
   // Custom Color Names List (saved to localStorage for reuse)
   const [customColorsList, setCustomColorsList] = useState<string[]>(() => {
@@ -380,23 +381,38 @@ export default function ProductPackageBreakdownSection({
         </div>
       </div>
 
-      {/* Package Assortment Informational Message (when assortment is hidden from storefront) */}
-      {!isCollapsed && !packageAssortmentVisible && (
+      {/* Package Assortment Informational Message (when hidden, unconfigured, or when opened) */}
+      {!isCollapsed && (!packageAssortmentVisible || summaries.totalPackageUnits === 0 || colors.length === 0 || sizes.length === 0 || showMessageEditor) && (
         <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <label className="block text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300">
               PACKAGE ASSORTMENT MESSAGE
             </label>
-            <button
-              type="button"
-              onClick={() => onPackageAssortmentMessageChange?.(DEFAULT_PACKAGE_ASSORTMENT_MESSAGE)}
-              className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
-            >
-              Reset to Default Text
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onPackageAssortmentMessageChange?.(DEFAULT_PACKAGE_ASSORTMENT_MESSAGE)}
+                className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+              >
+                Reset to Default Text
+              </button>
+              {packageAssortmentVisible && summaries.totalPackageUnits > 0 && colors.length > 0 && sizes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowMessageEditor(false)}
+                  className="text-[11px] font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  Close
+                </button>
+              )}
+            </div>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            This informational message is displayed to customer storefront buyers in place of the assortment matrix when Package Assortment is hidden. The product itself remains fully visible and purchasable.
+            {!packageAssortmentVisible
+              ? "This informational message is displayed to customer storefront buyers in place of the assortment matrix when Package Assortment is hidden. The product itself remains fully visible and purchasable."
+              : summaries.totalPackageUnits === 0 || colors.length === 0 || sizes.length === 0
+              ? "Package Assortment matrix is not yet configured for this product. Customers will see the informational message below by default."
+              : "This informational message will be displayed to customer storefront buyers if Package Assortment is ever hidden."}
           </p>
           <textarea
             id="package-assortment-message-input"
@@ -406,6 +422,19 @@ export default function ProductPackageBreakdownSection({
             placeholder={DEFAULT_PACKAGE_ASSORTMENT_MESSAGE}
             className="w-full p-3 rounded-lg border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors leading-relaxed resize-y"
           />
+        </div>
+      )}
+
+      {/* Option to edit fallback message when matrix is configured and visible */}
+      {!isCollapsed && packageAssortmentVisible && summaries.totalPackageUnits > 0 && colors.length > 0 && sizes.length > 0 && !showMessageEditor && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowMessageEditor(true)}
+            className="text-[11px] font-medium text-muted-foreground hover:text-foreground underline underline-offset-4 cursor-pointer"
+          >
+            Edit Assortment Fallback Message
+          </button>
         </div>
       )}
 

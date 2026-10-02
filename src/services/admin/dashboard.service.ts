@@ -6,6 +6,7 @@ export interface DashboardMetrics {
   total_products: number;
   active_products: number;
   published_products?: number;
+  draft_products?: number;
   total_customers: number;
   total_orders: number;
   pending_orders: number;
@@ -84,6 +85,7 @@ export class AdminDashboardService {
         const rfqs = mockStore.getRfqs();
 
         const activeProds = products.filter((p: any) => p.status === "published" && !p.isHiddenFromStorefront);
+        const draftProds = products.filter((p: any) => p.status === "draft");
         const customers = users.filter((u: any) => u.role === "customer");
         const pendingOrders = orders.filter((o: any) => o.status === "pending");
         const processingOrders = orders.filter((o: any) => o.status === "processing");
@@ -91,18 +93,25 @@ export class AdminDashboardService {
         const paidOrders = orders.filter((o: any) => o.payment_status === "paid" || o.status === "delivered");
         const revenue = paidOrders.reduce((sum: number, o: any) => sum + (Number(o.total_amount) || 0), 0);
 
+        const lowStock = products.filter((p: any) => {
+          const avail = p.availableStock !== undefined ? Number(p.availableStock) : Number(p.stock || 0);
+          const effectiveMoq = p.moq && Number(p.moq) > 1 ? Number(p.moq) : 1;
+          return avail < effectiveMoq;
+        }).length;
+
         return {
           total_products: products.length,
           active_products: activeProds.length,
           published_products: activeProds.length,
+          draft_products: draftProds.length,
           total_customers: customers.length,
           total_orders: orders.length,
           pending_orders: pendingOrders.length,
           processing_orders: processingOrders.length,
           delivered_orders: deliveredOrders.length,
           revenue: Math.round(revenue * 100) / 100,
-          low_stock_items: 0,
-          low_stock_products: 0,
+          low_stock_items: lowStock,
+          low_stock_products: lowStock,
           recent_orders: orders.slice(0, 5) as any,
           recent_rfqs: rfqs.slice(0, 5) as any,
         };

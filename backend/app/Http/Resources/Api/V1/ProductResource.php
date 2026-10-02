@@ -41,8 +41,8 @@ class ProductResource extends JsonResource
 
         return array_merge([
             'id' => (int) $this->id,
-            'productId' => $this->product_id,
-            'product_id' => $this->product_id,
+            'productId' => $this->when($isAdmin, $this->product_id),
+            'product_id' => $this->when($isAdmin, $this->product_id),
             'name' => $this->name,
             'slug' => $this->slug,
             'sku' => $this->sku,
@@ -73,8 +73,8 @@ class ProductResource extends JsonResource
             'colourDescription' => $this->colour_description,
             'package_assortment_visible' => (bool) ($this->package_assortment_visible ?? true),
             'packageAssortmentVisible' => (bool) ($this->package_assortment_visible ?? true),
-            'package_assortment_message' => $this->package_assortment_message ?: Product::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
-            'packageAssortmentMessage' => $this->package_assortment_message ?: Product::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
+            'package_assortment_message' => trim($this->package_assortment_message ?? '') !== '' ? $this->package_assortment_message : Product::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
+            'packageAssortmentMessage' => trim($this->package_assortment_message ?? '') !== '' ? $this->package_assortment_message : Product::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
             'colorName' => $this->color_name ?: null,
             'videoUrl' => $this->video_url ?: '',
             'videoProvider' => $this->getVideoProvider(),
@@ -89,8 +89,11 @@ class ProductResource extends JsonResource
             'hasValidPrice' => $hasValidPrice,
             'wholesalePrice' => $effectivePrice,
             'standardPrice' => $effectivePrice,
+            'standard_price' => $effectivePrice,
             'raw_wholesale_price' => $this->wholesale_price !== null ? (float) $this->wholesale_price : null,
             'rawWholesalePrice' => $this->wholesale_price !== null ? (float) $this->wholesale_price : null,
+            'raw_standard_price' => $this->wholesale_price !== null ? (float) $this->wholesale_price : null,
+            'rawStandardPrice' => $this->wholesale_price !== null ? (float) $this->wholesale_price : null,
             'bulkPricingEnabled' => (bool) ($this->bulk_pricing_enabled ?? false),
             'bulk_pricing_enabled' => (bool) ($this->bulk_pricing_enabled ?? false),
             'bulkThreshold' => ($this->bulk_pricing_enabled || $isAdmin) && $this->bulk_threshold !== null ? (int) $this->bulk_threshold : null,
@@ -108,6 +111,8 @@ class ProductResource extends JsonResource
             'isB2bTier' => $isB2b,
             'moq' => (int) ($this->moq ?? 1),
             'stock' => (int) $this->getTotalAvailableStock(),
+            'initial_stock' => (int) $this->getTotalAvailableStock(),
+            'initialStock' => (int) $this->getTotalAvailableStock(),
             'on_hand_stock' => (int) $this->getOnHandStock(),
             'onHandStock' => (int) $this->getOnHandStock(),
             'available_stock' => (int) $this->getTotalAvailableStock(),
@@ -163,6 +168,19 @@ class ProductResource extends JsonResource
                 ]);
             }),
             'package_allocations' => $this->whenLoaded('packageAllocations', function () use ($isAdmin) {
+                if (!$isAdmin && !($this->package_assortment_visible ?? true)) {
+                    return [];
+                }
+                return $this->packageAllocations->map(fn($pa) => [
+                    'id' => $pa->id,
+                    'package_name' => $pa->package_name ?? 'Universal Package',
+                    'product_variant_id' => $pa->product_variant_id,
+                    'quantity' => (int) $pa->quantity,
+                    'color' => $pa->color ?? ($pa->variant ? $pa->variant->color : null),
+                    'size' => $pa->size ?? ($pa->variant ? $pa->variant->size : null),
+                ]);
+            }),
+            'packageAllocations' => $this->whenLoaded('packageAllocations', function () use ($isAdmin) {
                 if (!$isAdmin && !($this->package_assortment_visible ?? true)) {
                     return [];
                 }

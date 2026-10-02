@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { AlertCircle, RefreshCw, PanelTop } from "lucide-react";
+import { AlertCircle, RefreshCw, PanelTop, Flame } from "lucide-react";
 import {
   homepageService,
   HomepageBannerModel,
@@ -45,6 +45,8 @@ export default function AdminHomepageManagement() {
   const [featuredBrands, setFeaturedBrands] = useState<HomepageFeaturedBrandModel[]>([]);
   const [hotSaleCategories, setHotSaleCategories] = useState<HomepageHotSaleCategoryModel[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<HomepageFeaturedProductModel[]>([]);
+  const [hotSaleVisible, setHotSaleVisible] = useState<boolean>(true);
+  const [savedHotSaleVisible, setSavedHotSaleVisible] = useState<boolean>(true);
 
   // Banner Form Draft State
   const [formState, setFormState] = useState<BannerFormState>({
@@ -99,6 +101,9 @@ export default function AdminHomepageManagement() {
       setFeaturedBrands(data.featured_brands || []);
       setHotSaleCategories(data.hot_sale_categories || []);
       setFeaturedProducts(data.featured_products || []);
+      const isHotSaleVisible = data.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true;
+      setHotSaleVisible(isHotSaleVisible);
+      setSavedHotSaleVisible(isHotSaleVisible);
 
       if (data.banner) {
         setFormState({
@@ -171,7 +176,8 @@ export default function AdminHomepageManagement() {
     });
   }, [tickerItems, savedTickerItems]);
 
-  const isPageDirty = isBannerDirty || isTickerDirty;
+  const isHotSaleVisibilityDirty = hotSaleVisible !== savedHotSaleVisible;
+  const isPageDirty = isBannerDirty || isTickerDirty || isHotSaleVisibilityDirty;
 
   // Reset unsaved changes to last saved state
   const handleResetChanges = () => {
@@ -194,6 +200,7 @@ export default function AdminHomepageManagement() {
       });
     }
     setTickerItems([...savedTickerItems]);
+    setHotSaleVisible(savedHotSaleVisible);
     setFormErrors({});
   };
 
@@ -260,6 +267,12 @@ export default function AdminHomepageManagement() {
         const savedList = await homepageService.syncTickerItems(tickerItems);
         setTickerItems(savedList);
         setSavedTickerItems(savedList);
+      }
+
+      // 3. Save Hot Sale visibility if dirty
+      if (isHotSaleVisibilityDirty) {
+        await homepageService.updateHotSaleVisibility(hotSaleVisible);
+        setSavedHotSaleVisible(hotSaleVisible);
       }
 
       showToast("Homepage changes saved successfully. Active on storefront.", "success");
@@ -437,7 +450,75 @@ export default function AdminHomepageManagement() {
         </section>
 
         {/* ==================================================================== */}
-        {/* SECTION 5: HOT SALE CATEGORIES                                       */}
+        {/* SECTION 5: HOT SALE VISIBILITY                                       */}
+        {/* ==================================================================== */}
+        <section>
+          <div className="bg-card rounded-2xl border border-border/80 p-4 sm:p-6 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+                  <Flame size={18} />
+                </div>
+                <div>
+                  <h2 className="text-base font-display font-bold uppercase tracking-tight text-foreground">
+                    Hot Sale Visibility
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Control whether the Hot Sale promotional section is displayed on the customer homepage.
+                  </p>
+                </div>
+              </div>
+
+              {/* ON / OFF Segmented Switch */}
+              <div className="flex items-center gap-3 self-start sm:self-auto">
+                <div
+                  className="inline-flex items-center p-1 rounded-full border border-border bg-secondary/50"
+                  role="group"
+                  aria-label="Hot Sale Visibility"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setHotSaleVisible(true)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                      hotSaleVisible
+                        ? "bg-emerald-500 text-white shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    aria-pressed={hotSaleVisible}
+                    id="btn-hot-sale-visible-on"
+                  >
+                    ON
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHotSaleVisible(false)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                      !hotSaleVisible
+                        ? "bg-red-500 text-white shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    aria-pressed={!hotSaleVisible}
+                    id="btn-hot-sale-visible-off"
+                  >
+                    OFF
+                  </button>
+                </div>
+                <span
+                  className={`text-xs font-semibold uppercase tracking-wider ${
+                    hotSaleVisible
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {hotSaleVisible ? "Visible" : "Hidden"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ==================================================================== */}
+        {/* SECTION 6: HOT SALE CATEGORIES                                       */}
         {/* ==================================================================== */}
         <section>
           <HotSaleCategoryManager

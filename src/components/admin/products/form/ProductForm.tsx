@@ -89,9 +89,10 @@ export default function ProductForm({
     if ((initialData as any)?.package_assortment_visible !== undefined) return Boolean((initialData as any).package_assortment_visible);
     return true;
   });
-  const [packageAssortmentMessage, setPackageAssortmentMessage] = useState<string>(
-    () => initialData?.packageAssortmentMessage || (initialData as any)?.package_assortment_message || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE
-  );
+  const [packageAssortmentMessage, setPackageAssortmentMessage] = useState<string>(() => {
+    const raw = initialData?.packageAssortmentMessage ?? (initialData as any)?.package_assortment_message;
+    return typeof raw === "string" && raw.trim() !== "" ? raw.trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+  });
   const [description, setDescription] = useState(initialData?.description || "");
 
   // Media
@@ -654,8 +655,9 @@ export default function ProductForm({
         categoryId: data.categoryId || (categories.length > 0 ? categories[0].id : "c_tops"),
         categoryName: activeCat?.name || categoryName || "Apparel",
         status: "draft", // Strictly forced to draft!
-        wholesalePrice: wholesalePrice || 0,
-        fullStockPrice: fullStockPrice || wholesalePrice || 0,
+        wholesalePrice: wholesalePrice !== undefined ? wholesalePrice : undefined,
+        standardPrice: wholesalePrice !== undefined ? wholesalePrice : undefined,
+        fullStockPrice: fullStockPrice !== undefined ? fullStockPrice : undefined,
         moq: moq || 1,
         colors: colors,
         sizes: sizes,
@@ -745,7 +747,8 @@ export default function ProductForm({
         setPackageAssortmentVisible(Boolean(d.packageAssortmentVisible ?? (d as any).package_assortment_visible));
       }
       if (d.packageAssortmentMessage !== undefined || (d as any).package_assortment_message !== undefined) {
-        setPackageAssortmentMessage(d.packageAssortmentMessage || (d as any).package_assortment_message || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE);
+        const raw = d.packageAssortmentMessage ?? (d as any).package_assortment_message;
+        setPackageAssortmentMessage(typeof raw === "string" && raw.trim() !== "" ? raw.trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE);
       }
       if (d.description !== undefined) setDescription(d.description || "");
       if (d.seoTitle) setSeoTitle(d.seoTitle);
@@ -1011,7 +1014,8 @@ export default function ProductForm({
     if (!designType) errs.designType = "Design Type selection is required.";
 
     if (wholesalePrice === undefined || wholesalePrice <= 0) {
-      errs.wholesalePrice = "Wholesale price must be greater than $0.00.";
+      errs.wholesalePrice = "Standard unit price must be greater than $0.00.";
+      errs.standardPrice = "Standard unit price must be greater than $0.00.";
     }
 
     // Package breakdown is optional for publishing unless configured
@@ -1162,8 +1166,18 @@ export default function ProductForm({
         colour_description: colourDescription.trim() || (isEdit ? (initialData?.colourDescription || (initialData as any)?.colour_description || undefined) : undefined),
         packageAssortmentVisible: packageAssortmentVisible !== undefined ? packageAssortmentVisible : (isEdit ? (initialData?.packageAssortmentVisible ?? (initialData as any)?.package_assortment_visible ?? true) : true),
         package_assortment_visible: packageAssortmentVisible !== undefined ? packageAssortmentVisible : (isEdit ? (initialData?.packageAssortmentVisible ?? (initialData as any)?.package_assortment_visible ?? true) : true),
-        packageAssortmentMessage: packageAssortmentMessage.trim() || (isEdit ? (initialData?.packageAssortmentMessage || (initialData as any)?.package_assortment_message || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE) : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE),
-        package_assortment_message: packageAssortmentMessage.trim() || (isEdit ? (initialData?.packageAssortmentMessage || (initialData as any)?.package_assortment_message || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE) : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE),
+        packageAssortmentMessage: (() => {
+          const trimmed = packageAssortmentMessage.trim();
+          if (trimmed) return trimmed;
+          const initialTrimmed = (initialData?.packageAssortmentMessage ?? (initialData as any)?.package_assortment_message)?.trim();
+          return initialTrimmed || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+        })(),
+        package_assortment_message: (() => {
+          const trimmed = packageAssortmentMessage.trim();
+          if (trimmed) return trimmed;
+          const initialTrimmed = (initialData?.packageAssortmentMessage ?? (initialData as any)?.package_assortment_message)?.trim();
+          return initialTrimmed || DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+        })(),
         images: (() => {
           const clean = images.map((u) => normalizeImageUrl(u)).filter((u) => isValidImageUrl(u));
           if (clean.length > 0) return clean;
@@ -1172,8 +1186,10 @@ export default function ProductForm({
         })(),
         videoUrl: videoUrl.trim() || (isEdit ? (initialData?.videoUrl || (initialData as any)?.video_url || undefined) : undefined),
         video_url: videoUrl.trim() || (isEdit ? (initialData?.videoUrl || (initialData as any)?.video_url || undefined) : undefined),
-        wholesalePrice: wholesalePrice !== undefined ? wholesalePrice : (isEdit ? (initialData?.wholesalePrice ?? undefined) : (isDraftTarget ? (undefined as any) : 0)),
-        standardPrice: wholesalePrice !== undefined ? wholesalePrice : (isEdit ? (initialData?.wholesalePrice ?? undefined) : (isDraftTarget ? (undefined as any) : 0)),
+        wholesalePrice: wholesalePrice !== undefined ? wholesalePrice : (isEdit ? (initialData?.wholesalePrice ?? initialData?.standardPrice ?? undefined) : undefined),
+        standardPrice: wholesalePrice !== undefined ? wholesalePrice : (isEdit ? (initialData?.standardPrice ?? initialData?.wholesalePrice ?? undefined) : undefined),
+        wholesale_price: wholesalePrice !== undefined ? wholesalePrice : (isEdit ? (initialData?.wholesalePrice ?? initialData?.standardPrice ?? undefined) : undefined),
+        standard_price: wholesalePrice !== undefined ? wholesalePrice : (isEdit ? (initialData?.standardPrice ?? initialData?.wholesalePrice ?? undefined) : undefined),
         bulkPricingEnabled: bulkPricingEnabled,
         bulk_pricing_enabled: bulkPricingEnabled,
         bulkThreshold: bulkPricingEnabled && bulkThreshold ? bulkThreshold : (isEdit && !bulkPricingEnabled ? undefined : (isEdit ? initialData?.bulkThreshold : undefined)),
@@ -1688,6 +1704,7 @@ export default function ProductForm({
           {/* Section 5: Pricing & Volume Tiers */}
           <ProductPricingSection
             wholesalePrice={wholesalePrice}
+            standardPrice={wholesalePrice}
             moq={moq}
             isMoqDerived={packageTotalUnits > 0}
             availableStock={
@@ -1725,6 +1742,7 @@ export default function ProductForm({
             estimatedDeliveryDate={estimatedDeliveryDate}
             errors={errors}
             onWholesalePriceChange={setWholesalePrice}
+            onStandardPriceChange={setWholesalePrice}
             onMoqChange={setCustomMoq}
             onBulkThresholdChange={setBulkThreshold}
             onBulkPriceChange={setBulkPrice}

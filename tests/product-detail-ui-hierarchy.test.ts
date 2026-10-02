@@ -123,18 +123,14 @@ test("Product Title is a commanding Manrope heading with controlled line height"
   expect(productDetailSrc).toContain("{product.name}");
 });
 
-// ▶ Suite 3: Level 2 — Dedicated Commercial Price Block
-console.log("\n▶ Suite 3: Level 2 — Dedicated Commercial Price Block");
-test("Primary B2B unit price is visually dominant with / pc suffix", () => {
-  expect(productDetailSrc).toContain("LEVEL 2: CORE COMMERCIAL DATA — DEDICATED PRICE BLOCK");
-  expect(productDetailSrc).toContain("text-3xl sm:text-4xl font-display font-extrabold text-foreground tabular-nums tracking-tight");
-  expect(productDetailSrc).toContain("/ pc");
-});
-
-test("MOQ and stock availability indicators are neatly aligned in commercial header", () => {
+// ▶ Suite 3: Level 2 — Dedicated Commercial Metadata Row
+console.log("\n▶ Suite 3: Level 2 — Dedicated Commercial Metadata Row");
+test("Standalone unit price is removed; MOQ and Initial Stock are displayed in compact row", () => {
+  expect(productDetailSrc).toContain("LEVEL 2: CORE COMMERCIAL METADATA — MOQ & INITIAL STOCK");
+  expect(productDetailSrc).notToContain("/ pc");
   expect(productDetailSrc).toContain("MOQ");
   expect(productDetailSrc).toContain("{moq} PCS");
-  expect(productDetailSrc).toContain("available");
+  expect(productDetailSrc).toContain("INITIAL STOCK");
 });
 
 // ▶ Suite 4: Level 3 — Purchasing Options & Commerce Modules
@@ -159,7 +155,7 @@ test("Order Quantity and Estimated Total are rendered in dedicated commerce bloc
 
 test("Package Assortment is enclosed in a commerce panel with total units and ratio matrix", () => {
   expect(productDetailSrc).toContain("LEVEL 3.3: PACKAGE ASSORTMENT COMMERCE MODULE");
-  expect(productDetailSrc).toContain("Package Breakdown");
+  expect(productDetailSrc).toContain("Package Assortment");
   expect(productDetailSrc).toContain("PackageAssortmentMatrix");
   expect(!productDetailSrc.includes('span className="text-muted-foreground font-medium">Colors:</span>')).toBe(true);
   expect(!productDetailSrc.includes('span className="text-muted-foreground font-medium">Sizes:</span>')).toBe(true);
@@ -189,7 +185,6 @@ test("Strictly preserves Add to Cart only: no Buy Now, direct checkout, or RFQ t
 // ▶ Suite 6: Level 5 — Supporting Information (Specifications)
 console.log("\n▶ Suite 6: Level 5 — Supporting Information");
 test("Specifications module uses CommerceSectionHeader and structured key-value tiles", () => {
-  expect(productDetailSrc).toContain("Specifications Section — Structured information module underneath gallery");
   expect(productDetailSrc).toContain("<CommerceSectionHeader");
   expect(productDetailSrc).toContain('title="Specifications"');
   expect(productDetailSrc).toContain("Design Type");
