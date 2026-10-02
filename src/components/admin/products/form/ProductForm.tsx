@@ -1185,7 +1185,7 @@ export default function ProductForm({
         fullStockPrice: fullStockPrice !== undefined ? fullStockPrice : (isEdit ? (initialData?.fullStockPrice ?? undefined) : undefined),
         full_stock_price: fullStockPrice !== undefined ? fullStockPrice : (isEdit ? (initialData?.fullStockPrice ?? undefined) : undefined),
         costPrice: costPrice !== undefined ? costPrice : (isEdit ? ((initialData as any)?.costPrice ?? (initialData as any)?.cost_price ?? undefined) : undefined),
-        moq: moq !== undefined ? moq : (isEdit ? (initialData?.moq ?? 1) : (isDraftTarget ? (undefined as any) : 1)),
+        moq: (moq && moq >= 1) ? moq : (isDraftTarget ? (undefined as any) : 1),
         stock: isEdit ? (availableStockState ?? stock ?? initialData?.stock ?? 0) : (stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0)),
         initialStock: !isEdit ? (stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0)) : undefined,
         initial_stock: !isEdit ? (stock !== undefined ? stock : (isDraftTarget ? (undefined as any) : 0)) : undefined,
@@ -1219,16 +1219,22 @@ export default function ProductForm({
           : (isEdit && (initialData?.packageAllocations || (initialData as any)?.package_allocations)
               ? (initialData?.packageAllocations || (initialData as any)?.package_allocations)
               : []),
-        shippingPackageProfiles: shippingProfiles.length > 0
-          ? shippingProfiles
-          : (isEdit && (initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles)
-              ? (initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles)
-              : []),
-        shipping_package_profiles: shippingProfiles.length > 0
-          ? shippingProfiles
-          : (isEdit && (initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles)
-              ? (initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles)
-              : []),
+        shippingPackageProfiles: (() => {
+          const valid = shippingProfiles.filter((p) => p && Number(p.gross_weight) > 0 && Number(p.package_quantity) > 0);
+          if (valid.length > 0) return valid;
+          if (isEdit && (initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles)) {
+            return initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles;
+          }
+          return [];
+        })(),
+        shipping_package_profiles: (() => {
+          const valid = shippingProfiles.filter((p) => p && Number(p.gross_weight) > 0 && Number(p.package_quantity) > 0);
+          if (valid.length > 0) return valid;
+          if (isEdit && (initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles)) {
+            return initialData?.shippingPackageProfiles || (initialData as any)?.shipping_package_profiles;
+          }
+          return [];
+        })(),
       };
 
       const priorStatus = status || initialData?.status;
@@ -1370,7 +1376,7 @@ export default function ProductForm({
         </div>
 
         {/* Action Buttons & Autosave Status */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {hasUserEdited && (
             <div
               id="autosave-status-indicator"
