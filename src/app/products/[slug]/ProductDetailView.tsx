@@ -926,17 +926,15 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 </div>
               </div>
             ) : (
-              <div>
-                <div className="rounded-md border border-border/80 bg-secondary/15 px-2.5 py-1.5 flex items-center gap-2.5 shadow-2xs">
-                  <CommerceSectionHeader
-                    title="Package Assortment"
-                    icon={<Package size={13} />}
-                    className="pb-0 mb-0 flex-1"
-                  />
-                  <p className="text-xs text-muted-foreground font-medium shrink-0">
-                    See product images.
-                  </p>
-                </div>
+              <div className="rounded-md border border-border/80 bg-secondary/15 p-2.5 shadow-2xs space-y-1.5">
+                <CommerceSectionHeader
+                  title="Package Assortment"
+                  icon={<Package size={13} />}
+                  className="pb-0 mb-0"
+                />
+                <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+                  {(product as any)?.package_assortment_message || (product as any)?.packageAssortmentMessage || "Each package includes a mixed assortment of all available colours and sizes. All listed colours and sizes will be included in the package. Quantity may vary by colour and size due to original surplus stock availability."}
+                </p>
               </div>
             )}
 
