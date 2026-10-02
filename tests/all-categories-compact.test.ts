@@ -41,15 +41,10 @@ function runTests() {
   );
 
   assert(
-    featuredContent.includes('onClick={() => handleTabClick("best-deals")}') &&
-    featuredContent.includes("Best Deals"),
-    "Best Deals tab is preserved"
-  );
-
-  assert(
-    featuredContent.includes('onClick={() => handleTabClick("new-arrivals")}') &&
-    featuredContent.includes("New Arrivals"),
-    "New Arrivals tab is preserved"
+    !featuredContent.includes('handleTabClick("best-deals")') &&
+    !featuredContent.includes("activeTab") &&
+    !featuredContent.includes('handleTabClick("new-arrivals")'),
+    "Best Deals and New Arrivals tabs are removed from Featured Products header"
   );
 
   assert(

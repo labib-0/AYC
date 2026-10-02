@@ -16,7 +16,6 @@ import {
   subscribeToExplorerActive,
 } from "@/lib/services/explorer-coordinator";
 
-type Tab = "best-deals" | "new-arrivals";
 
 const INITIAL_PRODUCT_LIMIT = 21; // Maximum 21 products displayed initially
 const FIRST_LOAD_MORE_LIMIT = 21; // Next batch loaded upon first explicit click
@@ -33,7 +32,6 @@ export default function FeaturedProducts() {
   const [hasLoadedMore, setHasLoadedMore] = useState<boolean>(false);
   const [isContinuousMode, setIsContinuousMode] = useState<boolean>(false);
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<Tab>("best-deals");
 
   // ── Filter Selection State (Preserved across filter open/close) ──────────
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -66,11 +64,6 @@ export default function FeaturedProducts() {
   // Backward compatibility alias
   const isPaginationActive = isContinuousMode;
 
-  // Active tab ref for stale response protection
-  const activeTabRef = useRef<Tab>("best-deals");
-  useEffect(() => {
-    activeTabRef.current = activeTab;
-  }, [activeTab]);
 
   // ── Load Filter Metadata (Dynamic Brands & Categories) ───────────────────
   useEffect(() => {
@@ -100,7 +93,7 @@ export default function FeaturedProducts() {
     const loadProducts = () => {
       setIsLoadingInitial(true);
       getFeaturedProducts({
-        tab: activeTabRef.current,
+        tab: "all",
         offset: 0,
         limit: INITIAL_PRODUCT_LIMIT,
         brands: selectedBrands,
@@ -151,13 +144,12 @@ export default function FeaturedProducts() {
     setIsLoadingMore(true);
     setError(null);
 
-    const currentTab = activeTab;
     const currentOffset = products.length;
     const currentGen = generationRef.current;
 
     try {
       const result = await getFeaturedProducts({
-        tab: currentTab,
+        tab: "all",
         offset: currentOffset,
         limit: FIRST_LOAD_MORE_LIMIT,
         brands: selectedBrands,
@@ -166,10 +158,7 @@ export default function FeaturedProducts() {
         categories: selectedCategories,
       });
 
-      if (
-        generationRef.current !== currentGen ||
-        activeTabRef.current !== currentTab
-      ) {
+      if (generationRef.current !== currentGen) {
         return;
       }
 
@@ -192,17 +181,11 @@ export default function FeaturedProducts() {
       isContinuousModeRef.current = true;
       // 3. SEPARATION OF STATES: NEVER trigger filter rail on Load More (Sections 1, 2, 3)
     } catch {
-      if (
-        generationRef.current === currentGen &&
-        activeTabRef.current === currentTab
-      ) {
+      if (generationRef.current === currentGen) {
         setError("Unable to load more products. Please try again.");
       }
     } finally {
-      if (
-        generationRef.current === currentGen &&
-        activeTabRef.current === currentTab
-      ) {
+      if (generationRef.current === currentGen) {
         setIsLoadingMore(false);
         isLoadingRef.current = false;
       }
@@ -227,13 +210,12 @@ export default function FeaturedProducts() {
       setIsLoadingMore(true);
       setError(null);
 
-      const currentTab = activeTabRef.current;
       const currentOffset = products.length;
       const currentGen = generationRef.current;
 
       try {
         const result = await getFeaturedProducts({
-          tab: currentTab,
+          tab: "all",
           offset: currentOffset,
           limit: CONTINUOUS_BATCH_LIMIT,
           brands: selectedBrands,
@@ -244,7 +226,6 @@ export default function FeaturedProducts() {
 
         if (
           generationRef.current !== currentGen ||
-          activeTabRef.current !== currentTab ||
           !isContinuousModeRef.current
         ) {
           return;
@@ -260,17 +241,11 @@ export default function FeaturedProducts() {
 
         setTotalCount(result.total);
       } catch {
-        if (
-          generationRef.current === currentGen &&
-          activeTabRef.current === currentTab
-        ) {
+        if (generationRef.current === currentGen) {
           setError("Unable to load additional products. Please try again.");
         }
       } finally {
-        if (
-          generationRef.current === currentGen &&
-          activeTabRef.current === currentTab
-        ) {
+        if (generationRef.current === currentGen) {
           setIsLoadingMore(false);
           isLoadingRef.current = false;
         }
@@ -373,7 +348,7 @@ export default function FeaturedProducts() {
 
     try {
       const result = await getFeaturedProducts({
-        tab: activeTab,
+        tab: "all",
         offset: 0,
         limit,
         brands,
@@ -439,56 +414,6 @@ export default function FeaturedProducts() {
     }
   };
 
-  // ── Tab Click Handler (Best Deals ↔ New Arrivals) ────────────────────────
-  const handleTabClick = async (tab: Tab) => {
-    if (tab === activeTab) return;
-    notifyExplorerActive("featured", "tab-change");
-    setActiveTab(tab);
-    generationRef.current += 1;
-    const currentGen = generationRef.current;
-
-    setError(null);
-    setIsLoadingMore(false);
-    isLoadingRef.current = false;
-
-    // CRITICAL GLOBAL RULE: On tab change, reset to manual mode with max 21 products!
-    setHasLoadedMore(false);
-    setIsContinuousMode(false);
-    isContinuousModeRef.current = false;
-
-    const initialCount = INITIAL_PRODUCT_LIMIT;
-
-    // Always fetch initial batch of max 21 products on tab selection
-    setIsLoadingInitial(true);
-    try {
-      const result = await getFeaturedProducts({
-        tab,
-        offset: 0,
-        limit: initialCount,
-        brands: selectedBrands,
-        designTypes: selectedDesignTypes,
-        audiences: selectedAudiences,
-        categories: selectedCategories,
-      });
-
-      if (generationRef.current !== currentGen) return;
-
-      setProducts(result.products);
-      setTotalCount(result.total);
-      setHasMore(result.hasMore && result.total > result.products.length);
-    } catch (err) {
-      if (generationRef.current !== currentGen) return;
-      console.error("Failed to filter featured products:", err);
-      setProducts([]);
-      setTotalCount(0);
-      setHasMore(false);
-    } finally {
-      if (generationRef.current === currentGen) {
-        setIsLoadingInitial(false);
-      }
-    }
-  };
-
   // ── URL Param / Custom Event Activation ──────────────────────────────────
   useEffect(() => {
     const scrollToFeatured = () => {
@@ -500,13 +425,11 @@ export default function FeaturedProducts() {
     };
 
     const tabParam = searchParams.get("tab");
-    if (tabParam === "new-arrivals") {
-      handleTabClick("new-arrivals");
+    if (tabParam === "new-arrivals" || tabParam === "featured") {
       scrollToFeatured();
     }
 
     const handleActivateEvent = () => {
-      handleTabClick("new-arrivals");
       scrollToFeatured();
     };
 
@@ -543,83 +466,65 @@ export default function FeaturedProducts() {
     >
       <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         {/* ── Header & Main Controls Bar ── */}
-        <div className="mb-6 md:mb-8 flex flex-col gap-3 sm:gap-4">
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           {/* Top Heading: Title */}
           <div>
-            <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight">
+            <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none">
               FEATURED PRODUCTS
             </h2>
           </div>
 
-          {/* Sub Row: Tabs on Left, Filters + Counter on Right */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-            <div className="flex items-center gap-2">
-              {/* Tab 1: BEST DEALS */}
-              <button
-                type="button"
-                onClick={() => handleTabClick("best-deals")}
-                className={`px-4 py-2 rounded-full text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                  activeTab === "best-deals"
-                    ? "bg-foreground text-background shadow-sm"
-                    : "bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Best Deals
-              </button>
-
-              {/* Tab 2: NEW ARRIVALS */}
-              <button
-                type="button"
-                onClick={() => handleTabClick("new-arrivals")}
-                className={`px-4 py-2 rounded-full text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-                  activeTab === "new-arrivals"
-                    ? "bg-foreground text-background shadow-[0_0_14px_rgba(255,255,255,0.22)] ring-1 ring-primary/40"
-                    : "bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                New Arrivals
-              </button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 self-start sm:self-auto">
+            {/* Product Counter */}
+            <div className="text-[13px] font-medium text-muted-foreground font-sans whitespace-nowrap">
+              Showing{" "}
+              <span className="font-bold text-foreground">
+                {products.length}
+              </span>{" "}
+              of {totalCount} items
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 self-start sm:self-auto">
-              {/* Product Counter */}
-              <div className="text-[13px] font-medium text-muted-foreground font-sans whitespace-nowrap">
-                Showing{" "}
-                <span className="font-bold text-foreground">
-                  {products.length}
-                </span>{" "}
-                of {totalCount} items
-              </div>
+            {/* Action Buttons Group: [FILTERS] */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Filter Toggle Button: ALWAYS VISIBLE */}
+              <button
+                type="button"
+                onClick={handleToggleFilters}
+                aria-label={isFilterOpen ? "Close filters" : "Open filters"}
+                aria-expanded={isFilterOpen}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[13px] font-sans font-bold uppercase tracking-wider border transition-all duration-200 cursor-pointer ${
+                  isFilterOpen || totalActiveFilters > 0
+                    ? "bg-foreground text-background border-foreground shadow-xs"
+                    : "bg-secondary/70 hover:bg-secondary text-foreground border-border/80"
+                }`}
+              >
+                <SlidersHorizontal size={13} />
+                <span>FILTERS</span>
+                {totalActiveFilters > 0 && (
+                  <span
+                    className={`w-4 h-4 rounded-full text-[10px] font-mono font-bold flex items-center justify-center ${
+                      isFilterOpen
+                        ? "bg-background text-foreground"
+                        : "bg-primary text-primary-foreground"
+                    }`}
+                  >
+                    {totalActiveFilters}
+                  </span>
+                )}
+              </button>
 
-              {/* Action Buttons Group: [FILTERS] */}
-              <div className="flex items-center gap-2 shrink-0">
-                {/* Filter Toggle Button: ALWAYS VISIBLE */}
+              {/* Clear All Filters Button */}
+              {totalActiveFilters > 0 && (
                 <button
                   type="button"
-                  onClick={handleToggleFilters}
-                  aria-label={isFilterOpen ? "Close filters" : "Open filters"}
-                  aria-expanded={isFilterOpen}
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[13px] font-sans font-bold uppercase tracking-wider border transition-all duration-200 cursor-pointer ${
-                    isFilterOpen || totalActiveFilters > 0
-                      ? "bg-foreground text-background border-foreground shadow-xs"
-                      : "bg-secondary/70 hover:bg-secondary text-foreground border-border/80"
-                  }`}
+                  onClick={handleClearAllFilters}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-sans font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-border/60 transition-colors cursor-pointer"
+                  aria-label="Clear all active filters"
                 >
-                  <SlidersHorizontal size={13} />
-                  <span>FILTERS</span>
-                  {totalActiveFilters > 0 && (
-                    <span
-                      className={`w-4 h-4 rounded-full text-[10px] font-mono font-bold flex items-center justify-center ${
-                        isFilterOpen
-                          ? "bg-background text-foreground"
-                          : "bg-primary text-primary-foreground"
-                      }`}
-                    >
-                      {totalActiveFilters}
-                    </span>
-                  )}
+                  <X size={12} />
+                  <span>Clear</span>
                 </button>
-              </div>
+              )}
             </div>
           </div>
         </div>
