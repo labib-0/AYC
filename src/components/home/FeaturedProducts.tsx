@@ -40,6 +40,15 @@ export default function FeaturedProducts() {
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
+  // ── Optional Featured Mode: null (default curated) | "best_deals" | "new_arrivals" ──
+  // Neither button is selected by default on initial page load
+  const [featuredMode, setFeaturedMode] = useState<"best_deals" | "new_arrivals" | null>(null);
+  const featuredModeRef = useRef<"best_deals" | "new_arrivals" | null>(null);
+
+  useEffect(() => {
+    featuredModeRef.current = featuredMode;
+  }, [featuredMode]);
+
   // Metadata for filter options
   const [availableBrands, setAvailableBrands] = useState<BrandModel[]>([]);
   const [availableCategories, setAvailableCategories] = useState<CategoryModel[]>([]);
@@ -110,7 +119,7 @@ export default function FeaturedProducts() {
     const loadProducts = () => {
       setIsLoadingInitial(true);
       getFeaturedProducts({
-        tab: "all",
+        mode: featuredModeRef.current,
         offset: 0,
         limit: INITIAL_PRODUCT_LIMIT,
         brands: selectedBrands,
@@ -152,6 +161,56 @@ export default function FeaturedProducts() {
     };
   }, [hasLoadedMore]);
 
+  // ── Mode Toggle: BEST DEALS and NEW ARRIVALS (Sections 2, 4, 7, 8, 21) ───────────
+  const handleModeToggle = useCallback((mode: "best_deals" | "new_arrivals") => {
+    // If clicking the active button again, deselect it (return to default null mode)
+    const nextMode = featuredModeRef.current === mode ? null : mode;
+    setFeaturedMode(nextMode);
+    featuredModeRef.current = nextMode;
+
+    // Reset pagination state to clean initial state
+    setHasLoadedMore(false);
+    setIsContinuousMode(false);
+    isContinuousModeRef.current = false;
+    setShowScrollDownButton(false);
+    isPaginationStoppedRef.current = false;
+
+    generationRef.current += 1;
+    const currentGen = generationRef.current;
+
+    setIsLoadingInitial(true);
+    setError(null);
+
+    getFeaturedProducts({
+      mode: nextMode,
+      offset: 0,
+      limit: INITIAL_PRODUCT_LIMIT,
+      brands: selectedBrands,
+      designTypes: selectedDesignTypes,
+      audiences: selectedAudiences,
+      categories: selectedCategories,
+    })
+      .then((result) => {
+        if (generationRef.current !== currentGen) return;
+        setProducts(result.products);
+        setTotalCount(result.total);
+        setHasMore(result.hasMore && result.total > result.products.length);
+      })
+      .catch((err) => {
+        if (generationRef.current !== currentGen) return;
+        console.error("Failed to load products for mode:", nextMode, err);
+        setProducts([]);
+        setTotalCount(0);
+        setHasMore(false);
+        setError("Unable to load products. Please try again.");
+      })
+      .finally(() => {
+        if (generationRef.current === currentGen) {
+          setIsLoadingInitial(false);
+        }
+      });
+  }, [selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories]);
+
   // ── Load More Click: First click activates Continuous Mode; subsequent clicks in manual mode reactivate it ──
   const handleLoadMoreClick = async () => {
     if (isLoadingRef.current || !hasMore) return;
@@ -170,7 +229,7 @@ export default function FeaturedProducts() {
 
     try {
       const result = await getFeaturedProducts({
-        tab: "all",
+        mode: featuredModeRef.current,
         offset: currentOffset,
         limit: FIRST_LOAD_MORE_LIMIT,
         brands: selectedBrands,
@@ -239,7 +298,7 @@ export default function FeaturedProducts() {
 
       try {
         const result = await getFeaturedProducts({
-          tab: "all",
+          mode: featuredModeRef.current,
           offset: currentOffset,
           limit: CONTINUOUS_BATCH_LIMIT,
           brands: selectedBrands,
@@ -380,7 +439,7 @@ export default function FeaturedProducts() {
 
     try {
       const result = await getFeaturedProducts({
-        tab: "all",
+        mode: featuredModeRef.current,
         offset: 0,
         limit,
         brands,
@@ -463,13 +522,14 @@ export default function FeaturedProducts() {
 
     const handleActivateEvent = () => {
       scrollToFeatured();
+      handleModeToggle("new_arrivals");
     };
 
     window.addEventListener("activate-new-arrivals", handleActivateEvent);
     return () => {
       window.removeEventListener("activate-new-arrivals", handleActivateEvent);
     };
-  }, [searchParams]);
+  }, [searchParams, handleModeToggle]);
 
   const totalActiveFilters =
     selectedBrands.length +
@@ -501,11 +561,45 @@ export default function FeaturedProducts() {
       <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         {/* ── Header & Main Controls Bar ── */}
         <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          {/* Top Heading: Title */}
+          {/* Top Heading: Title & Optional Filter Buttons */}
           <div>
             <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none">
               FEATURED PRODUCTS
             </h2>
+
+            {/* Optional Mode Filter Buttons directly under FEATURED PRODUCTS */}
+            <div
+              className="mt-2.5 sm:mt-3 flex items-center gap-2 sm:gap-2.5"
+              role="group"
+              aria-label="Featured product filters"
+            >
+              <button
+                type="button"
+                id="featured-filter-best-deals"
+                onClick={() => handleModeToggle("best_deals")}
+                aria-pressed={featuredMode === "best_deals"}
+                className={`inline-flex items-center justify-center px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-[11px] sm:text-[12px] font-sans font-bold uppercase tracking-wider leading-none transition-all duration-150 cursor-pointer min-h-[32px] sm:min-h-[36px] active:scale-[0.98] border ${
+                  featuredMode === "best_deals"
+                    ? "bg-foreground text-background border-foreground shadow-xs"
+                    : "bg-card/90 dark:bg-card/60 hover:bg-secondary/70 dark:hover:bg-secondary/60 text-foreground/80 hover:text-foreground border-slate-900/20 dark:border-white/20"
+                }`}
+              >
+                <span>BEST DEALS</span>
+              </button>
+              <button
+                type="button"
+                id="featured-filter-new-arrivals"
+                onClick={() => handleModeToggle("new_arrivals")}
+                aria-pressed={featuredMode === "new_arrivals"}
+                className={`inline-flex items-center justify-center px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-[11px] sm:text-[12px] font-sans font-bold uppercase tracking-wider leading-none transition-all duration-150 cursor-pointer min-h-[32px] sm:min-h-[36px] active:scale-[0.98] border ${
+                  featuredMode === "new_arrivals"
+                    ? "bg-foreground text-background border-foreground shadow-xs"
+                    : "bg-card/90 dark:bg-card/60 hover:bg-secondary/70 dark:hover:bg-secondary/60 text-foreground/80 hover:text-foreground border-slate-900/20 dark:border-white/20"
+                }`}
+              >
+                <span>NEW ARRIVALS</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 self-start sm:self-auto">
@@ -717,7 +811,7 @@ export default function FeaturedProducts() {
                     setError(null);
                     setIsLoadingInitial(true);
                     getFeaturedProducts({
-                      tab: "all",
+                      mode: featuredModeRef.current,
                       offset: 0,
                       limit: INITIAL_PRODUCT_LIMIT,
                       brands: selectedBrands,
@@ -774,11 +868,21 @@ export default function FeaturedProducts() {
             ) : (
               <div className="text-center py-16 px-4 border border-dashed border-border/80 rounded-2xl">
                 <p className="text-[13px] font-bold uppercase tracking-wider text-foreground mb-1 font-sans">
-                  {totalActiveFilters > 0 ? "NO MATCHING PRODUCTS FOUND" : "NO FEATURED PRODUCTS YET"}
+                  {totalActiveFilters > 0
+                    ? "NO MATCHING PRODUCTS FOUND"
+                    : featuredMode === "best_deals"
+                    ? "NO BEST DEALS FOUND"
+                    : featuredMode === "new_arrivals"
+                    ? "NO NEW ARRIVALS FOUND"
+                    : "NO FEATURED PRODUCTS YET"}
                 </p>
                 <p className="text-[13px] text-muted-foreground mb-4 font-sans">
                   {totalActiveFilters > 0
                     ? "Try changing or clearing your active filters."
+                    : featuredMode === "best_deals"
+                    ? "No products with the hot deal tag are currently available."
+                    : featuredMode === "new_arrivals"
+                    ? "No new arrival products are currently available."
                     : "No products have been featured on the landing page yet."}
                 </p>
                 {totalActiveFilters > 0 && (

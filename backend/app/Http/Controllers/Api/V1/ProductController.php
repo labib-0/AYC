@@ -353,8 +353,17 @@ class ProductController extends ApiController
             $offset = ($page - 1) * $limit;
         }
 
+        $rawMode = (string) $request->input('mode');
         $tab = (string) $request->input('tab', 'all');
-        $isNew = $tab === 'new-arrivals' || filter_var($request->input('is_new'), FILTER_VALIDATE_BOOLEAN);
+
+        // Resolve authoritative mode: default | best_deals | new_arrivals
+        if ($rawMode === 'best_deals' || $tab === 'best-deals' || $tab === 'best_deals') {
+            $mode = 'best_deals';
+        } elseif ($rawMode === 'new_arrivals' || $tab === 'new-arrivals' || $tab === 'new_arrivals') {
+            $mode = 'new_arrivals';
+        } else {
+            $mode = 'default';
+        }
 
         $parseFilter = function ($input) {
             if (empty($input) || $input === 'all') return [];
@@ -372,8 +381,8 @@ class ProductController extends ApiController
         }, $rawDesignTypes);
 
         $filterCacheKey = [
+            'mode' => $mode,
             'tab' => $tab,
-            'is_new' => $isNew,
             'brands' => $brands,
             'categories' => $categories,
             'audiences' => $audiences,
@@ -383,14 +392,11 @@ class ProductController extends ApiController
         $cachedResult = CatalogCacheService::rememberFeaturedPage(
             $offset,
             $limit,
-            $tab,
+            $mode,
             $filterCacheKey,
-            function () use ($offset, $limit, $isNew, $brands, $categories, $audiences, $designTypes) {
-                $applyStorefrontFilters = function ($q) use ($isNew, $brands, $categories, $audiences, $designTypes) {
+            function () use ($offset, $limit, $mode, $request, $brands, $categories, $audiences, $designTypes) {
+                $applyStorefrontFilters = function ($q) use ($brands, $categories, $audiences, $designTypes) {
                     $q->storefrontVisible()->whereNull('deleted_at');
-                    if ($isNew) {
-                        $q->where('is_new', true);
-                    }
                     if (!empty($brands)) {
                         $q->whereHas('brand', function ($b) use ($brands) {
                             $b->whereIn('slug', $brands)
@@ -413,39 +419,63 @@ class ProductController extends ApiController
                     }
                 };
 
-                // 1. Admin-pinned products (HomepageFeaturedProduct is authoritative)
-                $pinnedIds = HomepageFeaturedProduct::query()
-                    ->where('is_active', true)
-                    ->whereHas('product', $applyStorefrontFilters)
-                    ->orderBy('sort_order', 'asc')
-                    ->pluck('product_id')
-                    ->filter()
-                    ->values()
-                    ->toArray();
+                if ($mode === 'best_deals') {
+                    // BEST DEALS: Products with active HOT tag, storefront-eligible, sorted newest upload first
+                    $hotQuery = Product::query();
+                    $applyStorefrontFilters($hotQuery);
+                    $hotQuery->where('is_hot', true)
+                        ->where(function ($h) {
+                            $h->whereNull('hot_until')
+                              ->orWhere('hot_until', '>', now());
+                        })
+                        ->orderBy('created_at', 'desc');
+                    $allOrderedIds = $hotQuery->pluck('id')->toArray();
+                } elseif ($mode === 'new_arrivals') {
+                    // NEW ARRIVALS: Storefront-eligible products ordered by newest upload (created_at DESC)
+                    $newQuery = Product::query();
+                    $applyStorefrontFilters($newQuery);
+                    if ($request->has('is_new')) {
+                        $newQuery->where('is_new', filter_var($request->input('is_new'), FILTER_VALIDATE_BOOLEAN));
+                    }
+                    $newQuery->orderBy('created_at', 'desc');
+                    $allOrderedIds = $newQuery->pluck('id')->toArray();
+                } else {
+                    // DEFAULT:
+                    // 1. Admin-pinned products (HomepageFeaturedProduct is authoritative)
+                    $pinnedIds = HomepageFeaturedProduct::query()
+                        ->where('is_active', true)
+                        ->whereHas('product', $applyStorefrontFilters)
+                        ->orderBy('sort_order', 'asc')
+                        ->pluck('product_id')
+                        ->filter()
+                        ->values()
+                        ->toArray();
 
-                // Fallback: If no records in homepage_featured_products, check products with is_featured = true
-                if (empty($pinnedIds)) {
-                    $fallbackPinnedQuery = Product::query()->where('is_featured', true);
-                    $applyStorefrontFilters($fallbackPinnedQuery);
-                    $pinnedIds = $fallbackPinnedQuery
-                        ->orderBy('featured_sort_order', 'asc')
-                        ->orderBy('created_at', 'desc')
+                    // Fallback: If no records in homepage_featured_products, check products with is_featured = true
+                    if (empty($pinnedIds)) {
+                        $fallbackPinnedQuery = Product::query()->where('is_featured', true);
+                        $applyStorefrontFilters($fallbackPinnedQuery);
+                        $pinnedIds = $fallbackPinnedQuery
+                            ->orderBy('featured_sort_order', 'asc')
+                            ->orderBy('created_at', 'desc')
+                            ->pluck('id')
+                            ->toArray();
+                    }
+
+                    // 2. Remaining eligible products in upload order (created_at DESC — newest upload first)
+                    $remainingQuery = Product::query();
+                    $applyStorefrontFilters($remainingQuery);
+                    if (!empty($pinnedIds)) {
+                        $remainingQuery->whereNotIn('id', $pinnedIds);
+                    }
+                    $remainingIds = $remainingQuery
+                        ->orderBy('created_at', 'desc') // authoritative upload timestamp
                         ->pluck('id')
                         ->toArray();
+
+                    $allOrderedIds = array_merge($pinnedIds, $remainingIds);
                 }
 
-                // 2. Remaining eligible products in upload order (created_at DESC — newest upload first)
-                $remainingQuery = Product::query();
-                $applyStorefrontFilters($remainingQuery);
-                if (!empty($pinnedIds)) {
-                    $remainingQuery->whereNotIn('id', $pinnedIds);
-                }
-                $remainingIds = $remainingQuery
-                    ->orderBy('created_at', 'desc') // authoritative upload timestamp
-                    ->pluck('id')
-                    ->toArray();
-
-                $allOrderedIds = array_merge($pinnedIds, $remainingIds);
                 $total = count($allOrderedIds);
 
                 $pageIds = array_slice($allOrderedIds, $offset, $limit);

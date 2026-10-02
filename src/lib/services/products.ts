@@ -93,6 +93,7 @@ export async function getProductShippingSpecs(
  * Options for querying featured products with pagination and filters
  */
 export interface FeaturedProductsOptions {
+  mode?: "default" | "best_deals" | "new_arrivals" | null;
   tab?: "best-deals" | "new-arrivals" | "all";
   offset?: number;
   limit?: number;
@@ -108,7 +109,15 @@ export interface FeaturedProductsOptions {
 export async function getFeaturedProducts(
   options: FeaturedProductsOptions
 ): Promise<{ products: Product[]; total: number; hasMore: boolean }> {
-  const isNew = options.tab === "new-arrivals";
+  const resolvedMode =
+    options.mode ||
+    (options.tab === "new-arrivals"
+      ? "new_arrivals"
+      : options.tab === "best-deals"
+      ? "best_deals"
+      : "default");
+  const isNew = resolvedMode === "new_arrivals";
+  const isBestDeals = resolvedMode === "best_deals";
   const offset = options.offset ?? 0;
   const limit = options.limit ?? 21;
 
@@ -128,7 +137,8 @@ export async function getFeaturedProducts(
     const params: Record<string, any> = {
       offset,
       limit,
-      tab: options.tab || "all",
+      mode: resolvedMode,
+      tab: options.tab || (resolvedMode === "best_deals" ? "best-deals" : resolvedMode === "new_arrivals" ? "new-arrivals" : "all"),
     };
     if (options.brands && options.brands.length > 0) params.brand = options.brands.join(",");
     if (options.designTypes && options.designTypes.length > 0) params.design_type = options.designTypes.join(",");
@@ -159,13 +169,19 @@ export async function getFeaturedProducts(
         .filter((fp) => fp.product && (fp.product.status === "published" || !fp.product.status))
         .map((fp) => toStorefrontProduct(fp.product));
 
-      // Apply tab filter:
-      // When 'new-arrivals' is selected, filter to new products.
+      // Apply mode / tab filter:
       // For default Featured Products, DO NOT filter or rank by pricing or best deals (Sections 9, 10, 11, 24).
       // Priority is strictly: Admin-pinned products -> Latest uploaded product -> Remaining eligible products.
-      if (isNew) {
-        const newOnly = list.filter((p) => p.isNew);
-        if (newOnly.length > 0) list = newOnly;
+      if (isBestDeals) {
+        // Authoritative rule: BEST DEALS = products carrying the active HOT tag
+        list = list.filter((p) => p.isHot);
+      } else if (isNew) {
+        // When 'new-arrivals' is selected, order by newest upload (created_at DESC)
+        list = [...list].sort((a, b) => {
+          const timeA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+          const timeB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
       }
 
       // Apply client-side filters if any are active, preserving server ordering
@@ -208,8 +224,7 @@ export async function getFeaturedProducts(
   // Fallback: direct product query (sorted by newest upload via 'newest' sort_by)
   // When filters are active and homepage endpoint fails, fetch using sort=newest to approximate created_at DESC
   const queryParams: ProductQueryParams = {
-    // Removed is_best_deal: Featured Products does not filter by best deals or pricing
-    is_new: isNew ? true : undefined,
+    is_hot: isBestDeals ? true : undefined,
     brand: options.brands && options.brands.length > 0 ? options.brands.join(",") : undefined,
     design_type: options.designTypes && options.designTypes.length > 0 ? options.designTypes.join(",") : undefined,
     audience: options.audiences && options.audiences.length > 0 ? options.audiences.join(",") : undefined,

@@ -237,10 +237,12 @@ runTest("14. loadNextBatch guards against execution after pagination stopped", (
 // ── REQUIREMENT 12 & 13: FEATURED PRODUCT SELECTION & BEST DEALS REMOVAL ──
 console.log("\n[TEST GROUP 5]: FEATURED PRODUCT ORDERING & NO BEST-DEALS AUTO-SELECTION");
 
-runTest("15. FeaturedProducts does not contain Best Deals auto-selection or UI", () => {
+runTest("15. FeaturedProducts does not contain Best Deals auto-selection on initial load", () => {
   assert.ok(
-    !featuredProductsSource.toLowerCase().includes("best deals"),
-    "FeaturedProducts component must not reference Best Deals"
+    !featuredProductsSource.includes('useState<"best_deals" | "new_arrivals" | null>("best_deals")') &&
+    !featuredProductsSource.includes('featuredMode = "best_deals"') &&
+    !featuredProductsSource.includes('defaultMode = "best_deals"'),
+    "FeaturedProducts component must not auto-select Best Deals by default"
   );
 });
 
