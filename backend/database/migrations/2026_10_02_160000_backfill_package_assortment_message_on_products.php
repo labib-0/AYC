@@ -24,7 +24,6 @@ return new class extends Migration
         DB::table('products')
             ->whereNull('package_assortment_message')
             ->orWhereRaw("TRIM(COALESCE(package_assortment_message, '')) = ''")
-            ->orWhereRaw("TRIM(REPLACE(REPLACE(REPLACE(COALESCE(package_assortment_message, ''), CHAR(9), ''), CHAR(10), ''), CHAR(13), '')) = ''")
             ->update([
                 'package_assortment_message' => $defaultMessage,
             ]);
