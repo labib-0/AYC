@@ -57,14 +57,33 @@ export interface UseAdminOrderedListReturn<T, C = any> {
   handleMoveDown: (index: number) => void;
   handleRemove: (id: string | number) => void;
 
-  // Drag and Drop
+  // Pinned Pagination
+  pinnedPage: number;
+  setPinnedPage: (page: number) => void;
+  pinnedPageSize: number;
+  setPinnedPageSize: (size: number) => void;
+  pinnedTotalPages: number;
+  pinnedTotalCount: number;
+  visiblePinnedItems: T[];
+  pinnedStartIndex: number;
+  pinnedEndIndex: number;
+  handlePinnedPageChange: (newPage: number) => void;
+  handlePinnedPageSizeChange: (newSize: number) => void;
+
+  // Drag and Drop (Native Pointer Events + HTML5 Drag)
   draggedIndex: number | null;
-  dragOverTarget: { index: number; position: "above" | "below" } | null;
-  handleDragStart: (e: React.DragEvent, index: number) => void;
-  handleDragOver: (e: React.DragEvent, index: number) => void;
-  handleDrop: (e: React.DragEvent, targetIndex: number) => void;
+  draggedGlobalIndex: number | null;
+  isPointerDragging: boolean;
+  dragOverTarget: { index: number; globalIndex?: number; position: "above" | "below" } | null;
+  handleDragStart: (e: React.DragEvent, index: number, globalIndex?: number) => void;
+  handleDragOver: (e: React.DragEvent, index: number, globalIndex?: number) => void;
+  handleDrop: (e: React.DragEvent, targetIndex: number, targetGlobalIndex?: number) => void;
   handleDragEnd: () => void;
-  handleKeyDown: (e: React.KeyboardEvent, index: number) => void;
+  handleKeyDown: (e: React.KeyboardEvent, index: number, globalIndex?: number) => void;
+  handlePointerDown: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
+  handlePointerMove: (e: React.PointerEvent) => void;
+  handlePointerUp: (e: React.PointerEvent) => void;
+  handlePointerCancel: () => void;
   calcTargetPosition: (fromIdx: number, toIdx: number, pos: "above" | "below") => number;
 
   // Fast ID Lookup
@@ -121,10 +140,49 @@ export function useAdminOrderedList<T, C = any>({
     setSavedItems(initialItems);
   }, [initialItems]);
 
-  // Drag and Drop state
+  // Pinned list pagination (Default page size = 5)
+  const [pinnedPage, setPinnedPage] = useState<number>(1);
+  const [pinnedPageSize, setPinnedPageSize] = useState<number>(defaultPageSize);
+
+  const pinnedTotalCount = items.length;
+  const pinnedTotalPages = Math.max(1, Math.ceil(pinnedTotalCount / pinnedPageSize));
+
+  // Ensure pinnedPage is always within valid bounds
+  useEffect(() => {
+    if (pinnedPage > pinnedTotalPages) {
+      setPinnedPage(pinnedTotalPages);
+    } else if (pinnedPage < 1) {
+      setPinnedPage(1);
+    }
+  }, [pinnedPage, pinnedTotalPages]);
+
+  const pinnedStartIndex = (pinnedPage - 1) * pinnedPageSize;
+  const pinnedEndIndex = Math.min(pinnedTotalCount, pinnedPage * pinnedPageSize);
+  const visiblePinnedItems = useMemo(() => {
+    return items.slice(pinnedStartIndex, pinnedEndIndex);
+  }, [items, pinnedStartIndex, pinnedEndIndex]);
+
+  const handlePinnedPageChange = useCallback(
+    (newPage: number) => {
+      if (newPage >= 1 && newPage <= pinnedTotalPages) {
+        setPinnedPage(newPage);
+      }
+    },
+    [pinnedTotalPages]
+  );
+
+  const handlePinnedPageSizeChange = useCallback((newSize: number) => {
+    setPinnedPageSize(newSize);
+    setPinnedPage(1);
+  }, []);
+
+  // Drag and Drop state (Native Pointer Events + HTML5 Drag)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [draggedGlobalIndex, setDraggedGlobalIndex] = useState<number | null>(null);
+  const [isPointerDragging, setIsPointerDragging] = useState<boolean>(false);
   const [dragOverTarget, setDragOverTarget] = useState<{
     index: number;
+    globalIndex?: number;
     position: "above" | "below";
   } | null>(null);
 
@@ -183,33 +241,56 @@ export function useAdminOrderedList<T, C = any>({
     [setItemOrder]
   );
 
-  // Up / Down controls
+  // Up / Down controls (Operates on the full authoritative underlying order)
   const moveUp = useCallback(
-    (index: number) => {
-      if (index <= 0) return;
+    (indexOrGlobalIndex: number) => {
+      // Determine if index passed is local or global
+      const globalIdx =
+        indexOrGlobalIndex >= pinnedStartIndex && indexOrGlobalIndex < pinnedEndIndex
+          ? indexOrGlobalIndex
+          : pinnedStartIndex + indexOrGlobalIndex;
+
+      if (globalIdx <= 0 || globalIdx >= items.length) return;
+
       setItems((prev) => {
         const next = [...prev];
-        const temp = next[index - 1];
-        next[index - 1] = next[index];
-        next[index] = temp;
+        const temp = next[globalIdx - 1];
+        next[globalIdx - 1] = next[globalIdx];
+        next[globalIdx] = temp;
         return reindexItems(next);
       });
+
+      // If moving crosses page boundary upwards, follow the item to previous page
+      if (globalIdx === pinnedStartIndex && pinnedPage > 1) {
+        setPinnedPage((p) => Math.max(1, p - 1));
+      }
     },
-    [reindexItems]
+    [pinnedStartIndex, pinnedEndIndex, items.length, pinnedPage, reindexItems]
   );
 
   const moveDown = useCallback(
-    (index: number) => {
+    (indexOrGlobalIndex: number) => {
+      const globalIdx =
+        indexOrGlobalIndex >= pinnedStartIndex && indexOrGlobalIndex < pinnedEndIndex
+          ? indexOrGlobalIndex
+          : pinnedStartIndex + indexOrGlobalIndex;
+
+      if (globalIdx < 0 || globalIdx >= items.length - 1) return;
+
       setItems((prev) => {
-        if (index >= prev.length - 1) return prev;
         const next = [...prev];
-        const temp = next[index + 1];
-        next[index + 1] = next[index];
-        next[index] = temp;
+        const temp = next[globalIdx + 1];
+        next[globalIdx + 1] = next[globalIdx];
+        next[globalIdx] = temp;
         return reindexItems(next);
       });
+
+      // If moving crosses page boundary downwards, follow the item to next page
+      if (globalIdx === pinnedEndIndex - 1 && pinnedPage < pinnedTotalPages) {
+        setPinnedPage((p) => Math.min(pinnedTotalPages, p + 1));
+      }
     },
-    [reindexItems]
+    [pinnedStartIndex, pinnedEndIndex, items.length, pinnedPage, pinnedTotalPages, reindexItems]
   );
 
   const handleMoveUp = moveUp;
@@ -217,13 +298,18 @@ export function useAdminOrderedList<T, C = any>({
 
   // Item deletion / removal
   const deleteItem = useCallback(
-    (index: number) => {
+    (indexOrGlobalIndex: number) => {
+      const globalIdx =
+        indexOrGlobalIndex >= pinnedStartIndex && indexOrGlobalIndex < pinnedEndIndex
+          ? indexOrGlobalIndex
+          : pinnedStartIndex + indexOrGlobalIndex;
+
       setItems((prev) => {
-        const next = prev.filter((_, idx) => idx !== index);
+        const next = prev.filter((_, idx) => idx !== globalIdx);
         return reindexItems(next);
       });
     },
-    [reindexItems]
+    [pinnedStartIndex, pinnedEndIndex, reindexItems]
   );
 
   const handleRemove = useCallback(
@@ -237,14 +323,19 @@ export function useAdminOrderedList<T, C = any>({
   );
 
   const updateItem = useCallback(
-    (index: number, updatedItem: T) => {
+    (indexOrGlobalIndex: number, updatedItem: T) => {
+      const globalIdx =
+        indexOrGlobalIndex >= pinnedStartIndex && indexOrGlobalIndex < pinnedEndIndex
+          ? indexOrGlobalIndex
+          : pinnedStartIndex + indexOrGlobalIndex;
+
       setItems((prev) => {
         const next = [...prev];
-        next[index] = updatedItem;
+        next[globalIdx] = updatedItem;
         return next;
       });
     },
-    []
+    [pinnedStartIndex, pinnedEndIndex]
   );
 
   const resetItems = useCallback(() => {
@@ -263,95 +354,219 @@ export function useAdminOrderedList<T, C = any>({
     []
   );
 
-  // HTML5 Drag and Drop handlers
-  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(index));
+  // ── Native Pointer Events Drag and Drop (NO PLUGIN) ──
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent, globalIdx: number, localIdx: number) => {
+      // Only initiate on primary mouse button or touch
+      if (e.button !== 0) return;
 
-    // Try setting drag image from closest row element if available
-    const rowEl = (e.currentTarget as HTMLElement).closest("[data-ordered-row]") as HTMLElement | null;
-    if (rowEl && e.dataTransfer.setDragImage) {
-      const rowRect = rowEl.getBoundingClientRect();
-      const handleRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const offsetX = Math.max(10, handleRect.left - rowRect.left + handleRect.width / 2);
-      const offsetY = Math.max(10, handleRect.top - rowRect.top + handleRect.height / 2);
-      e.dataTransfer.setDragImage(rowEl, offsetX, offsetY);
-    }
+      const targetEl = e.currentTarget as HTMLElement;
+      targetEl.setPointerCapture?.(e.pointerId);
+
+      setDraggedGlobalIndex(globalIdx);
+      setDraggedIndex(localIdx);
+      setIsPointerDragging(true);
+
+      // Prevent accidental text selection during drag
+      document.body.style.userSelect = "none";
+    },
+    []
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isPointerDragging || draggedGlobalIndex === null) return;
+
+      // Locate the hovered row under the pointer
+      const targetElement = document.elementFromPoint(e.clientX, e.clientY);
+      const rowEl = targetElement?.closest("[data-ordered-row]") as HTMLElement | null;
+
+      if (!rowEl) {
+        setDragOverTarget(null);
+        return;
+      }
+
+      const rowLocalIdx = parseInt(rowEl.getAttribute("data-index") || "0", 10);
+      const rowGlobalIdx = parseInt(
+        rowEl.getAttribute("data-global-index") || String(pinnedStartIndex + rowLocalIdx),
+        10
+      );
+
+      const rect = rowEl.getBoundingClientRect();
+      const relY = e.clientY - rect.top;
+      const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
+
+      setDragOverTarget({
+        index: rowLocalIdx,
+        globalIndex: rowGlobalIdx,
+        position,
+      });
+    },
+    [isPointerDragging, draggedGlobalIndex, pinnedStartIndex]
+  );
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      const targetEl = e.currentTarget as HTMLElement;
+      try {
+        targetEl.releasePointerCapture?.(e.pointerId);
+      } catch {
+        // Safe fallback if capture was already released
+      }
+
+      document.body.style.userSelect = "";
+
+      if (isPointerDragging && draggedGlobalIndex !== null && dragOverTarget) {
+        const targetGIdx =
+          dragOverTarget.globalIndex !== undefined
+            ? dragOverTarget.globalIndex
+            : pinnedStartIndex + dragOverTarget.index;
+
+        let target = dragOverTarget.position === "below" ? targetGIdx + 1 : targetGIdx;
+        if (draggedGlobalIndex < target) {
+          target -= 1;
+        }
+
+        if (draggedGlobalIndex !== target && target >= 0 && target <= items.length) {
+          setItems((prev) => {
+            const next = [...prev];
+            const [moved] = next.splice(draggedGlobalIndex, 1);
+            next.splice(target, 0, moved);
+            return reindexItems(next);
+          });
+        }
+      }
+
+      setIsPointerDragging(false);
+      setDraggedIndex(null);
+      setDraggedGlobalIndex(null);
+      setDragOverTarget(null);
+    },
+    [isPointerDragging, draggedGlobalIndex, dragOverTarget, pinnedStartIndex, items.length, reindexItems]
+  );
+
+  const handlePointerCancel = useCallback(() => {
+    document.body.style.userSelect = "";
+    setIsPointerDragging(false);
+    setDraggedIndex(null);
+    setDraggedGlobalIndex(null);
+    setDragOverTarget(null);
   }, []);
 
+  // ── HTML5 Drag and Drop handlers (Backward Compatibility & Accessibility) ──
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, localIdx: number, globalIdx?: number) => {
+      const gIdx = globalIdx !== undefined ? globalIdx : pinnedStartIndex + localIdx;
+      setDraggedIndex(localIdx);
+      setDraggedGlobalIndex(gIdx);
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(gIdx));
+
+      // Try setting drag image from closest row element if available
+      const rowEl = (e.currentTarget as HTMLElement).closest("[data-ordered-row]") as HTMLElement | null;
+      if (rowEl && e.dataTransfer.setDragImage) {
+        const rowRect = rowEl.getBoundingClientRect();
+        const handleRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const offsetX = Math.max(10, handleRect.left - rowRect.left + handleRect.width / 2);
+        const offsetY = Math.max(10, handleRect.top - rowRect.top + handleRect.height / 2);
+        e.dataTransfer.setDragImage(rowEl, offsetX, offsetY);
+      }
+    },
+    [pinnedStartIndex]
+  );
+
   const handleDragOver = useCallback(
-    (e: React.DragEvent, index: number) => {
+    (e: React.DragEvent, localIdx: number, globalIdx?: number) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      if (draggedIndex === null) return;
+      if (draggedIndex === null && draggedGlobalIndex === null) return;
 
+      const gIdx = globalIdx !== undefined ? globalIdx : pinnedStartIndex + localIdx;
       const rect = e.currentTarget.getBoundingClientRect();
       const relY = e.clientY - rect.top;
       const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
 
       if (
         !dragOverTarget ||
-        dragOverTarget.index !== index ||
+        dragOverTarget.index !== localIdx ||
         dragOverTarget.position !== position
       ) {
-        setDragOverTarget({ index, position });
+        setDragOverTarget({ index: localIdx, globalIndex: gIdx, position });
       }
     },
-    [draggedIndex, dragOverTarget]
+    [draggedIndex, draggedGlobalIndex, dragOverTarget, pinnedStartIndex]
   );
 
   const handleDrop = useCallback(
-    (e: React.DragEvent, targetIndex: number) => {
+    (e: React.DragEvent, targetLocalIndex: number, targetGlobalIndex?: number) => {
       e.preventDefault();
-      if (draggedIndex === null) {
+      const fromIdx =
+        draggedGlobalIndex !== null
+          ? draggedGlobalIndex
+          : draggedIndex !== null
+          ? pinnedStartIndex + draggedIndex
+          : null;
+
+      if (fromIdx === null) {
         setDraggedIndex(null);
+        setDraggedGlobalIndex(null);
         setDragOverTarget(null);
         return;
       }
 
+      const toGIdx =
+        targetGlobalIndex !== undefined
+          ? targetGlobalIndex
+          : dragOverTarget?.globalIndex !== undefined
+          ? dragOverTarget.globalIndex
+          : pinnedStartIndex + targetLocalIndex;
+
       const position = dragOverTarget?.position || "above";
-      let target = position === "below" ? targetIndex + 1 : targetIndex;
-      if (draggedIndex < target) {
+      let target = position === "below" ? toGIdx + 1 : toGIdx;
+      if (fromIdx < target) {
         target -= 1;
       }
 
-      if (draggedIndex === target) {
+      if (fromIdx === target) {
         setDraggedIndex(null);
+        setDraggedGlobalIndex(null);
         setDragOverTarget(null);
         return;
       }
 
       setItems((prev) => {
         const next = [...prev];
-        const [moved] = next.splice(draggedIndex, 1);
+        const [moved] = next.splice(fromIdx, 1);
         next.splice(target, 0, moved);
         return reindexItems(next);
       });
 
       setDraggedIndex(null);
+      setDraggedGlobalIndex(null);
       setDragOverTarget(null);
     },
-    [draggedIndex, dragOverTarget, reindexItems]
+    [draggedIndex, draggedGlobalIndex, dragOverTarget, pinnedStartIndex, reindexItems]
   );
 
   const handleDragEnd = useCallback(() => {
     setDraggedIndex(null);
+    setDraggedGlobalIndex(null);
     setDragOverTarget(null);
   }, []);
 
   // Keyboard navigation for drag handle accessibility
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent, index: number) => {
+    (e: React.KeyboardEvent, localIndex: number, globalIndex?: number) => {
+      const gIdx = globalIndex !== undefined ? globalIndex : pinnedStartIndex + localIndex;
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        moveUp(index);
+        moveUp(gIdx);
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        moveDown(index);
+        moveDown(gIdx);
       }
     },
-    [moveUp, moveDown]
+    [pinnedStartIndex, moveUp, moveDown]
   );
 
   // Save changes action
@@ -417,7 +632,9 @@ export function useAdminOrderedList<T, C = any>({
 
   const handlePageSizeChange = useCallback((newSize: number) => {
     setPageSize(newSize);
+    setPinnedPageSize(newSize);
     setCurrentPage(1);
+    setPinnedPage(1);
   }, []);
 
   const handlePageChange = useCallback(
@@ -459,13 +676,33 @@ export function useAdminOrderedList<T, C = any>({
     handleMoveDown,
     handleRemove,
 
+    // Pinned Pagination
+    pinnedPage,
+    setPinnedPage,
+    pinnedPageSize,
+    setPinnedPageSize,
+    pinnedTotalPages,
+    pinnedTotalCount,
+    visiblePinnedItems,
+    pinnedStartIndex,
+    pinnedEndIndex,
+    handlePinnedPageChange,
+    handlePinnedPageSizeChange,
+
+    // Drag and Drop (Native Pointer Events + HTML5 Drag)
     draggedIndex,
+    draggedGlobalIndex,
+    isPointerDragging,
     dragOverTarget,
     handleDragStart,
     handleDragOver,
     handleDrop,
     handleDragEnd,
     handleKeyDown,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handlePointerCancel,
     calcTargetPosition,
 
     selectedItemMap,

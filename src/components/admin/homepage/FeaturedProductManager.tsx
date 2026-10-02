@@ -155,13 +155,26 @@ export default function FeaturedProductManager({
     handleMoveUp,
     handleMoveDown,
     handleRemove,
+    pinnedPage,
+    pinnedPageSize,
+    pinnedTotalPages,
+    pinnedTotalCount,
+    pinnedStartIndex,
+    pinnedEndIndex,
+    handlePinnedPageChange,
     draggedIndex,
+    draggedGlobalIndex,
+    isPointerDragging,
     dragOverTarget,
     handleDragStart,
     handleDragOver,
     handleDrop,
     handleDragEnd,
     handleKeyDown,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handlePointerCancel,
     calcTargetPosition,
     handleAddFromCatalog: handleAddProduct,
   } = orderedList;
@@ -184,6 +197,11 @@ export default function FeaturedProductManager({
     });
   }, [products, searchQuery]);
 
+  // Paginated visible pinned items (default page size: 5)
+  const visiblePinnedProducts = useMemo(() => {
+    return filteredPinnedProducts.slice(pinnedStartIndex, pinnedEndIndex);
+  }, [filteredPinnedProducts, pinnedStartIndex, pinnedEndIndex]);
+
   // Available catalog products guaranteed unpinned
   const unpinnedCatalogProducts = useMemo(() => {
     return availableProducts.filter((p) => !selectedProductMap.has(String(p.id)));
@@ -199,7 +217,7 @@ export default function FeaturedProductManager({
               <Star size={16} />
             </div>
             <h2 className="text-base sm:text-lg font-display font-bold uppercase tracking-tight text-foreground">
-              Featured Products (Landing Page)
+              Featured Products
             </h2>
             {hasUnsavedChanges && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-mono">
@@ -340,29 +358,30 @@ export default function FeaturedProductManager({
         {/* 1. SELECTED / PINNED ITEMS */}
         {filteredPinnedProducts.length > 0 && (
           <div className="bg-amber-500/5 divide-y divide-border/40">
-            {filteredPinnedProducts.map((item, index) => {
+            {visiblePinnedProducts.map((item, localIndex) => {
               const prod = item.product;
-              const position = index + 1;
+              const globalIndex = pinnedStartIndex + localIndex;
+              const position = globalIndex + 1;
               const thumb = prod?.images && prod.images.length > 0 ? prod.images[0].image_url : null;
-              const isDragging = draggedIndex === index;
-              const isDragOver = dragOverTarget?.index === index;
+              const isDragging = (draggedGlobalIndex !== null ? draggedGlobalIndex === globalIndex : draggedIndex === globalIndex) || (isPointerDragging && draggedGlobalIndex === globalIndex);
+              const isDragOver = dragOverTarget?.index === globalIndex;
 
               const isDropAbove =
                 draggedIndex !== null &&
-                dragOverTarget?.index === index &&
+                dragOverTarget?.index === globalIndex &&
                 dragOverTarget?.position === "above" &&
-                draggedIndex !== index &&
-                draggedIndex !== index - 1;
+                draggedIndex !== globalIndex &&
+                draggedIndex !== globalIndex - 1;
 
               const isDropBelow =
                 draggedIndex !== null &&
-                dragOverTarget?.index === index &&
+                dragOverTarget?.index === globalIndex &&
                 dragOverTarget?.position === "below" &&
-                draggedIndex !== index &&
-                draggedIndex !== index + 1;
+                draggedIndex !== globalIndex &&
+                draggedIndex !== globalIndex + 1;
 
-              const landingPosAbove = draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "above") : position;
-              const landingPosBelow = draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "below") : position;
+              const landingPosAbove = draggedIndex !== null ? calcTargetPosition(draggedIndex, globalIndex, "above") : position;
+              const landingPosBelow = draggedIndex !== null ? calcTargetPosition(draggedIndex, globalIndex, "below") : position;
 
               return (
                 <React.Fragment key={`pinned-fragment-${item.product_id}`}>
@@ -383,29 +402,33 @@ export default function FeaturedProductManager({
                   <div
                     data-product-row
                     data-product-id={item.product_id}
-                    data-index={index}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDrop={(e) => handleDrop(e, index)}
+                    data-index={globalIndex}
+                    onDragOver={(e) => handleDragOver(e, globalIndex)}
+                    onDrop={(e) => handleDrop(e, globalIndex)}
                     className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
                       isDragging
-                        ? "opacity-40 scale-[0.995] bg-amber-500/10 border-dashed border-amber-500/40 shadow-xs ring-1 ring-amber-500/30"
+                        ? "opacity-40 scale-[0.995] bg-amber-500/10 border-dashed border-amber-500/40 shadow-xs ring-2 ring-amber-500"
                         : isDragOver
                         ? "bg-amber-500/10 ring-1 ring-amber-500/30"
                         : "hover:bg-amber-500/10"
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      {/* Drag Handle */}
+                      {/* Drag Handle with native pointer events */}
                       <div
                         role="button"
                         tabIndex={0}
                         draggable
-                        onDragStart={(e) => handleDragStart(e, index)}
+                        onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerCancel}
+                        onDragStart={(e) => handleDragStart(e, globalIndex)}
                         onDragEnd={handleDragEnd}
-                        onKeyDown={(e) => handleKeyDown(e, index)}
+                        onKeyDown={(e) => handleKeyDown(e, globalIndex)}
                         aria-label={`Drag handle for ${prod?.name || "product"}. Current position ${position}. Press Up or Down arrow keys to reorder.`}
-                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none"
-                        title="Drag handle: Drag to reorder sequence (or use Up/Down arrow keys)"
+                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
+                        title="Drag handle: Drag to reorder sequence (native pointer events or use Up/Down arrow keys)"
                       >
                         <GripVertical size={16} />
                       </div>
@@ -442,9 +465,9 @@ export default function FeaturedProductManager({
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       <button
                         type="button"
-                        onClick={() => moveUp(index)}
-                        disabled={index === 0}
-                        title={index === 0 ? "First position" : `Move up to position ${position - 1}`}
+                        onClick={() => moveUp(globalIndex)}
+                        disabled={globalIndex === 0}
+                        title={globalIndex === 0 ? "First position" : `Move up to position ${position - 1}`}
                         aria-label={`Move ${prod?.name || "product"} up to position ${position - 1}`}
                         className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                       >
@@ -452,9 +475,9 @@ export default function FeaturedProductManager({
                       </button>
                       <button
                         type="button"
-                        onClick={() => moveDown(index)}
-                        disabled={index === products.length - 1}
-                        title={index === products.length - 1 ? "Last position" : `Move down to position ${position + 1}`}
+                        onClick={() => moveDown(globalIndex)}
+                        disabled={globalIndex === products.length - 1}
+                        title={globalIndex === products.length - 1 ? "Last position" : `Move down to position ${position + 1}`}
                         aria-label={`Move ${prod?.name || "product"} down to position ${position + 1}`}
                         className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                       >
@@ -493,6 +516,40 @@ export default function FeaturedProductManager({
                 </React.Fragment>
               );
             })}
+
+            {/* Pinned Products Pagination */}
+            {pinnedTotalPages > 1 && (
+              <div className="flex items-center justify-between px-3 py-2 bg-amber-500/10 border-t border-border/50 text-xs">
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  Showing {pinnedStartIndex + 1}–{Math.min(pinnedEndIndex, filteredPinnedProducts.length)} of {filteredPinnedProducts.length} selected products • Page {pinnedPage} of {pinnedTotalPages}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handlePinnedPageChange(pinnedPage - 1)}
+                    disabled={pinnedPage <= 1}
+                    aria-label="Previous Selected Products Page"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft size={14} />
+                    <span>Prev</span>
+                  </button>
+                  <span className="px-2 py-0.5 text-[11px] font-mono font-bold text-foreground">
+                    {pinnedPage} / {pinnedTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handlePinnedPageChange(pinnedPage + 1)}
+                    disabled={pinnedPage >= pinnedTotalPages}
+                    aria-label="Next Selected Products Page"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <span>Next</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

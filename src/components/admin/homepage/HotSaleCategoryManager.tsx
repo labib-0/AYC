@@ -167,13 +167,26 @@ export default function HotSaleCategoryManager({
     handleMoveUp,
     handleMoveDown,
     handleRemove,
+    pinnedPage,
+    pinnedPageSize,
+    pinnedTotalPages,
+    pinnedTotalCount,
+    pinnedStartIndex,
+    pinnedEndIndex,
+    handlePinnedPageChange,
     draggedIndex,
+    draggedGlobalIndex,
+    isPointerDragging,
     dragOverTarget,
     handleDragStart,
     handleDragOver,
     handleDrop,
     handleDragEnd,
     handleKeyDown,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handlePointerCancel,
     calcTargetPosition,
     handleAddFromCatalog,
   } = orderedList;
@@ -194,6 +207,11 @@ export default function HotSaleCategoryManager({
     });
   }, [categories, searchQuery]);
 
+  // Paginated visible pinned items (default page size: 5)
+  const visiblePinnedCategories = useMemo(() => {
+    return filteredPinnedCategories.slice(pinnedStartIndex, pinnedEndIndex);
+  }, [filteredPinnedCategories, pinnedStartIndex, pinnedEndIndex]);
+
   // Available catalog categories guaranteed unpinned
   const unpinnedCatalogCategories = useMemo(() => {
     return availableCategories.filter((c) => !selectedCategoryMap.has(String(c.id)));
@@ -209,7 +227,7 @@ export default function HotSaleCategoryManager({
               <Flame size={16} />
             </div>
             <h2 className="text-base sm:text-lg font-display font-bold uppercase tracking-tight text-foreground">
-              Hot Sale Categories (Landing Page)
+              Hot Sale Categories
             </h2>
             {hasUnsavedChanges && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-mono">
@@ -349,30 +367,31 @@ export default function HotSaleCategoryManager({
         {/* 1. SELECTED / PINNED ITEMS */}
         {filteredPinnedCategories.length > 0 && (
           <div className="bg-orange-500/5 divide-y divide-border/40">
-            {filteredPinnedCategories.map((item, index) => {
+            {visiblePinnedCategories.map((item, localIndex) => {
               const cat = item.category;
-              const position = index + 1;
-              const isDragging = draggedIndex === index;
-              const isDragOver = dragOverTarget?.index === index;
+              const globalIndex = pinnedStartIndex + localIndex;
+              const position = globalIndex + 1;
+              const isDragging = (draggedGlobalIndex !== null ? draggedGlobalIndex === globalIndex : draggedIndex === globalIndex) || (isPointerDragging && draggedGlobalIndex === globalIndex);
+              const isDragOver = dragOverTarget?.index === globalIndex;
 
               const isDropAbove =
                 draggedIndex !== null &&
-                dragOverTarget?.index === index &&
+                dragOverTarget?.index === globalIndex &&
                 dragOverTarget?.position === "above" &&
-                draggedIndex !== index &&
-                draggedIndex !== index - 1;
+                draggedIndex !== globalIndex &&
+                draggedIndex !== globalIndex - 1;
 
               const isDropBelow =
                 draggedIndex !== null &&
-                dragOverTarget?.index === index &&
+                dragOverTarget?.index === globalIndex &&
                 dragOverTarget?.position === "below" &&
-                draggedIndex !== index &&
-                draggedIndex !== index + 1;
+                draggedIndex !== globalIndex &&
+                draggedIndex !== globalIndex + 1;
 
               const landingPosAbove =
-                draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "above") : position;
+                draggedIndex !== null ? calcTargetPosition(draggedIndex, globalIndex, "above") : position;
               const landingPosBelow =
-                draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "below") : position;
+                draggedIndex !== null ? calcTargetPosition(draggedIndex, globalIndex, "below") : position;
 
               return (
                 <React.Fragment key={`pinned-fragment-${item.category_id}`}>
@@ -393,29 +412,33 @@ export default function HotSaleCategoryManager({
                   <div
                     data-ordered-row
                     data-category-id={item.category_id}
-                    data-index={index}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDrop={(e) => handleDrop(e, index)}
+                    data-index={globalIndex}
+                    onDragOver={(e) => handleDragOver(e, globalIndex)}
+                    onDrop={(e) => handleDrop(e, globalIndex)}
                     className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
                       isDragging
-                        ? "opacity-50 scale-[0.99] bg-orange-500/10"
+                        ? "opacity-50 scale-[0.99] bg-orange-500/10 ring-2 ring-orange-500"
                         : isDragOver
                         ? "bg-orange-500/15 ring-2 ring-orange-500/40"
                         : "hover:bg-orange-500/10"
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      {/* Drag Handle */}
+                      {/* Drag Handle with native pointer events */}
                       <div
                         role="button"
                         tabIndex={0}
                         draggable
-                        onDragStart={(e) => handleDragStart(e, index)}
+                        onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerCancel}
+                        onDragStart={(e) => handleDragStart(e, globalIndex)}
                         onDragEnd={handleDragEnd}
-                        onKeyDown={(e) => handleKeyDown(e, index)}
+                        onKeyDown={(e) => handleKeyDown(e, globalIndex)}
                         aria-label={`Drag handle for ${cat?.name || "category"}. Current position ${position}. Press Up or Down arrow keys to reorder.`}
-                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/70 hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none"
-                        title="Drag handle: Drag to reorder sequence (or use Up/Down arrow keys)"
+                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/70 hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
+                        title="Drag handle: Drag to reorder sequence (native pointer events or use Up/Down arrow keys)"
                       >
                         <GripVertical size={15} />
                       </div>
@@ -451,8 +474,8 @@ export default function HotSaleCategoryManager({
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       <button
                         type="button"
-                        onClick={() => moveUp(index)}
-                        disabled={index === 0}
+                        onClick={() => moveUp(globalIndex)}
+                        disabled={globalIndex === 0}
                         title="Move Up"
                         className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                       >
@@ -460,8 +483,8 @@ export default function HotSaleCategoryManager({
                       </button>
                       <button
                         type="button"
-                        onClick={() => moveDown(index)}
-                        disabled={index === categories.length - 1}
+                        onClick={() => moveDown(globalIndex)}
+                        disabled={globalIndex === categories.length - 1}
                         title="Move Down"
                         className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                       >
@@ -499,6 +522,40 @@ export default function HotSaleCategoryManager({
                 </React.Fragment>
               );
             })}
+
+            {/* Pinned Categories Pagination */}
+            {pinnedTotalPages > 1 && (
+              <div className="flex items-center justify-between px-3 py-2 bg-orange-500/10 border-t border-border/50 text-xs">
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  Showing {pinnedStartIndex + 1}–{Math.min(pinnedEndIndex, filteredPinnedCategories.length)} of {filteredPinnedCategories.length} selected categories • Page {pinnedPage} of {pinnedTotalPages}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handlePinnedPageChange(pinnedPage - 1)}
+                    disabled={pinnedPage <= 1}
+                    aria-label="Previous Selected Categories Page"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft size={14} />
+                    <span>Prev</span>
+                  </button>
+                  <span className="px-2 py-0.5 text-[11px] font-mono font-bold text-foreground">
+                    {pinnedPage} / {pinnedTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handlePinnedPageChange(pinnedPage + 1)}
+                    disabled={pinnedPage >= pinnedTotalPages}
+                    aria-label="Next Selected Categories Page"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <span>Next</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

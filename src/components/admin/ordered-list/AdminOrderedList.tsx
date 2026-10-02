@@ -72,13 +72,27 @@ export function AdminOrderedList<T, C = any>({
 }: AdminOrderedListProps<T, C>) {
   const {
     items,
+    pinnedPage,
+    pinnedPageSize,
+    pinnedTotalPages,
+    pinnedTotalCount,
+    visiblePinnedItems,
+    pinnedStartIndex,
+    pinnedEndIndex,
+    handlePinnedPageChange,
     draggedIndex,
+    draggedGlobalIndex,
+    isPointerDragging,
     dragOverTarget,
     handleDragStart,
     handleDragOver,
     handleDrop,
     handleDragEnd,
     handleKeyDown,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handlePointerCancel,
     calcTargetPosition,
     moveUp,
     moveDown,
@@ -135,8 +149,8 @@ export function AdminOrderedList<T, C = any>({
     },
   }[themeColor];
 
-  // Filter pinned items when searching
-  const filteredPinnedItems = items;
+  // Filter pinned items: show visible items for the current pinnedPage (default page size: 5)
+  const filteredPinnedItems = visiblePinnedItems;
 
   return (
     <div className="space-y-4">
@@ -257,30 +271,35 @@ export function AdminOrderedList<T, C = any>({
         {/* 1. PINNED / ORDERED ITEMS LIST */}
         {filteredPinnedItems.length > 0 && (
           <div className={`${colorStyles.bgSubtle} divide-y divide-border/40`}>
-            {filteredPinnedItems.map((item, index) => {
+            {filteredPinnedItems.map((item, localIndex) => {
+              const globalIndex = pinnedStartIndex + localIndex;
               const id = getItemId(item);
-              const position = index + 1;
-              const isDragging = draggedIndex === index;
-              const isDragOver = dragOverTarget?.index === index;
+              const position = globalIndex + 1; // Global position!
+              const isDragging = draggedGlobalIndex === globalIndex || draggedIndex === localIndex;
+              const isDragOver = dragOverTarget?.index === localIndex;
 
               const isDropAbove =
                 draggedIndex !== null &&
-                dragOverTarget?.index === index &&
+                dragOverTarget?.index === localIndex &&
                 dragOverTarget?.position === "above" &&
-                draggedIndex !== index &&
-                draggedIndex !== index - 1;
+                draggedIndex !== localIndex &&
+                draggedIndex !== localIndex - 1;
 
               const isDropBelow =
                 draggedIndex !== null &&
-                dragOverTarget?.index === index &&
+                dragOverTarget?.index === localIndex &&
                 dragOverTarget?.position === "below" &&
-                draggedIndex !== index &&
-                draggedIndex !== index + 1;
+                draggedIndex !== localIndex &&
+                draggedIndex !== localIndex + 1;
 
               const landingPosAbove =
-                draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "above") : position;
+                draggedGlobalIndex !== null
+                  ? calcTargetPosition(draggedGlobalIndex, globalIndex, "above")
+                  : position;
               const landingPosBelow =
-                draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "below") : position;
+                draggedGlobalIndex !== null
+                  ? calcTargetPosition(draggedGlobalIndex, globalIndex, "below")
+                  : position;
 
               return (
                 <React.Fragment key={`pinned-fragment-${id}`}>
@@ -305,9 +324,10 @@ export function AdminOrderedList<T, C = any>({
                   <div
                     data-ordered-row
                     data-id={id}
-                    data-index={index}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDrop={(e) => handleDrop(e, index)}
+                    data-index={localIndex}
+                    data-global-index={globalIndex}
+                    onDragOver={(e) => handleDragOver(e, localIndex, globalIndex)}
+                    onDrop={(e) => handleDrop(e, localIndex, globalIndex)}
                     className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
                       isDragging
                         ? `opacity-40 scale-[0.995] ${colorStyles.bgActive} border-dashed ring-1 ${colorStyles.ring}`
@@ -317,16 +337,20 @@ export function AdminOrderedList<T, C = any>({
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      {/* Drag Handle */}
+                      {/* Drag Handle: Native Pointer Events + HTML5 Drag */}
                       <div
                         role="button"
                         tabIndex={0}
                         draggable
-                        onDragStart={(e) => handleDragStart(e, index)}
+                        onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerCancel}
+                        onDragStart={(e) => handleDragStart(e, localIndex, globalIndex)}
                         onDragEnd={handleDragEnd}
-                        onKeyDown={(e) => handleKeyDown(e, index)}
+                        onKeyDown={(e) => handleKeyDown(e, localIndex, globalIndex)}
                         aria-label={`Drag handle for item position ${position}. Press Up or Down arrow keys to reorder.`}
-                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none"
+                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
                         title="Drag handle: Drag to reorder sequence (or use Up/Down arrow keys)"
                       >
                         <GripVertical size={16} />
@@ -341,7 +365,7 @@ export function AdminOrderedList<T, C = any>({
 
                       {/* Domain-specific Item Renderer */}
                       <div className="min-w-0 flex-1">
-                        {renderPinnedItem(item, position, index)}
+                        {renderPinnedItem(item, position, globalIndex)}
                       </div>
                     </div>
 
@@ -349,9 +373,9 @@ export function AdminOrderedList<T, C = any>({
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       <button
                         type="button"
-                        onClick={() => moveUp(index)}
-                        disabled={index === 0}
-                        title={index === 0 ? "First position" : `Move up to position ${position - 1}`}
+                        onClick={() => moveUp(globalIndex)}
+                        disabled={globalIndex === 0}
+                        title={globalIndex === 0 ? "First position" : `Move up to position ${position - 1}`}
                         aria-label={`Move item up to position ${position - 1}`}
                         className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                       >
@@ -359,9 +383,9 @@ export function AdminOrderedList<T, C = any>({
                       </button>
                       <button
                         type="button"
-                        onClick={() => moveDown(index)}
-                        disabled={index === items.length - 1}
-                        title={index === items.length - 1 ? "Last position" : `Move down to position ${position + 1}`}
+                        onClick={() => moveDown(globalIndex)}
+                        disabled={globalIndex === items.length - 1}
+                        title={globalIndex === items.length - 1 ? "Last position" : `Move down to position ${position + 1}`}
                         aria-label={`Move item down to position ${position + 1}`}
                         className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                       >
@@ -403,6 +427,40 @@ export function AdminOrderedList<T, C = any>({
                 </React.Fragment>
               );
             })}
+
+            {/* ── Compact Pinned Items Pagination Bar ── */}
+            {pinnedTotalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-3.5 py-2.5 bg-secondary/20 border-t border-border/60 text-xs">
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  Showing {pinnedStartIndex + 1}–{pinnedEndIndex} of {pinnedTotalCount} selected items • Page {pinnedPage} of {pinnedTotalPages}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handlePinnedPageChange(pinnedPage - 1)}
+                    disabled={pinnedPage <= 1}
+                    aria-label="Previous Page of Selected Items"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft size={14} />
+                    <span>Prev</span>
+                  </button>
+                  <span className="px-2 py-1 text-[11px] font-mono font-bold text-foreground">
+                    {pinnedPage} / {pinnedTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handlePinnedPageChange(pinnedPage + 1)}
+                    disabled={pinnedPage >= pinnedTotalPages}
+                    aria-label="Next Page of Selected Items"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <span>Next</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

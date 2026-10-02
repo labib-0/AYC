@@ -13,6 +13,8 @@ import {
   Save,
   Loader2,
   GripVertical,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { HomepageTickerItem } from "@/services/homepage.service";
 
@@ -37,6 +39,8 @@ const PRESET_KEYWORDS = [
   "BUSINESS SOURCING",
 ];
 
+export const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+
 export default function HomepageTickerManager({
   items,
   onChange,
@@ -48,10 +52,43 @@ export default function HomepageTickerManager({
 }: HomepageTickerManagerProps) {
   const [newKeyword, setNewKeyword] = useState("");
 
-  // Drag and Drop State
+  // Pagination State (Default page size = 5)
+  const [pageSize, setPageSize] = useState<number>(5);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+
+  // Ensure currentPage stays within valid bounds
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    } else if (currentPage < 1) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
+
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(items.length, currentPage * pageSize);
+  const visibleItems = items.slice(startIndex, endIndex);
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Drag and Drop State (Native Pointer Events + HTML5 Drag)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [draggedGlobalIndex, setDraggedGlobalIndex] = useState<number | null>(null);
+  const [isPointerDragging, setIsPointerDragging] = useState<boolean>(false);
   const [dragOverTarget, setDragOverTarget] = useState<{
     index: number;
+    globalIndex?: number;
     position: "above" | "below";
   } | null>(null);
 
@@ -63,61 +100,165 @@ export default function HomepageTickerManager({
     return target + 1;
   };
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(index));
+  // Native Pointer Events Drag and Drop
+  const handlePointerDown = (e: React.PointerEvent, globalIdx: number, localIdx: number) => {
+    if (e.button !== 0) return;
+    const targetEl = e.currentTarget as HTMLElement;
+    targetEl.setPointerCapture?.(e.pointerId);
+
+    setDraggedGlobalIndex(globalIdx);
+    setDraggedIndex(localIdx);
+    setIsPointerDragging(true);
+    document.body.style.userSelect = "none";
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isPointerDragging || draggedGlobalIndex === null) return;
+
+    const targetElement = document.elementFromPoint(e.clientX, e.clientY);
+    const rowEl = targetElement?.closest("[data-ordered-row]") as HTMLElement | null;
+
+    if (!rowEl) {
+      setDragOverTarget(null);
+      return;
+    }
+
+    const rowLocalIdx = parseInt(rowEl.getAttribute("data-index") || "0", 10);
+    const rowGlobalIdx = parseInt(
+      rowEl.getAttribute("data-global-index") || String(startIndex + rowLocalIdx),
+      10
+    );
+
+    const rect = rowEl.getBoundingClientRect();
+    const relY = e.clientY - rect.top;
+    const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
+
+    setDragOverTarget({
+      index: rowLocalIdx,
+      globalIndex: rowGlobalIdx,
+      position,
+    });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    const targetEl = e.currentTarget as HTMLElement;
+    try {
+      targetEl.releasePointerCapture?.(e.pointerId);
+    } catch {
+      // Safe fallback
+    }
+    document.body.style.userSelect = "";
+
+    if (isPointerDragging && draggedGlobalIndex !== null && dragOverTarget) {
+      const targetGIdx =
+        dragOverTarget.globalIndex !== undefined
+          ? dragOverTarget.globalIndex
+          : startIndex + dragOverTarget.index;
+
+      let target = dragOverTarget.position === "below" ? targetGIdx + 1 : targetGIdx;
+      if (draggedGlobalIndex < target) {
+        target -= 1;
+      }
+
+      if (draggedGlobalIndex !== target && target >= 0 && target <= items.length) {
+        const next = [...items];
+        const [moved] = next.splice(draggedGlobalIndex, 1);
+        next.splice(target, 0, moved);
+        onChange(next.map((item, idx) => ({ ...item, sort_order: idx })));
+      }
+    }
+
+    setIsPointerDragging(false);
+    setDraggedIndex(null);
+    setDraggedGlobalIndex(null);
+    setDragOverTarget(null);
+  };
+
+  const handlePointerCancel = () => {
+    document.body.style.userSelect = "";
+    setIsPointerDragging(false);
+    setDraggedIndex(null);
+    setDraggedGlobalIndex(null);
+    setDragOverTarget(null);
+  };
+
+  // HTML5 Drag Handlers
+  const handleDragStart = (e: React.DragEvent, localIdx: number, globalIdx?: number) => {
+    const gIdx = globalIdx !== undefined ? globalIdx : startIndex + localIdx;
+    setDraggedIndex(localIdx);
+    setDraggedGlobalIndex(gIdx);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(gIdx));
+  };
+
+  const handleDragOver = (e: React.DragEvent, localIdx: number, globalIdx?: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    if (draggedIndex === null) return;
+    if (draggedIndex === null && draggedGlobalIndex === null) return;
 
+    const gIdx = globalIdx !== undefined ? globalIdx : startIndex + localIdx;
     const rect = e.currentTarget.getBoundingClientRect();
     const relY = e.clientY - rect.top;
     const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
 
     if (
       !dragOverTarget ||
-      dragOverTarget.index !== index ||
+      dragOverTarget.index !== localIdx ||
       dragOverTarget.position !== position
     ) {
-      setDragOverTarget({ index, position });
+      setDragOverTarget({ index: localIdx, globalIndex: gIdx, position });
     }
   };
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+  const handleDrop = (e: React.DragEvent, targetLocalIndex: number, targetGlobalIndex?: number) => {
     e.preventDefault();
-    if (draggedIndex === null) {
+    const fromIdx =
+      draggedGlobalIndex !== null
+        ? draggedGlobalIndex
+        : draggedIndex !== null
+        ? startIndex + draggedIndex
+        : null;
+
+    if (fromIdx === null) {
       setDraggedIndex(null);
+      setDraggedGlobalIndex(null);
       setDragOverTarget(null);
       return;
     }
 
+    const toGIdx =
+      targetGlobalIndex !== undefined
+        ? targetGlobalIndex
+        : dragOverTarget?.globalIndex !== undefined
+        ? dragOverTarget.globalIndex
+        : startIndex + targetLocalIndex;
+
     const position = dragOverTarget?.position || "above";
-    let target = position === "below" ? targetIndex + 1 : targetIndex;
-    if (draggedIndex < target) {
+    let target = position === "below" ? toGIdx + 1 : toGIdx;
+    if (fromIdx < target) {
       target -= 1;
     }
 
-    if (draggedIndex === target) {
+    if (fromIdx === target) {
       setDraggedIndex(null);
+      setDraggedGlobalIndex(null);
       setDragOverTarget(null);
       return;
     }
 
     const next = [...items];
-    const [moved] = next.splice(draggedIndex, 1);
+    const [moved] = next.splice(fromIdx, 1);
     next.splice(target, 0, moved);
     onChange(next.map((item, idx) => ({ ...item, sort_order: idx })));
 
     setDraggedIndex(null);
+    setDraggedGlobalIndex(null);
     setDragOverTarget(null);
   };
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
+    setDraggedGlobalIndex(null);
     setDragOverTarget(null);
   };
 
@@ -140,9 +281,9 @@ export default function HomepageTickerManager({
     }
   };
 
-  const handleUpdateText = (index: number, newText: string) => {
+  const handleUpdateText = (globalIdx: number, newText: string) => {
     const updated = items.map((item, idx) => {
-      if (idx === index) {
+      if (idx === globalIdx) {
         return { ...item, text: newText };
       }
       return item;
@@ -150,9 +291,9 @@ export default function HomepageTickerManager({
     onChange(updated);
   };
 
-  const handleToggleActive = (index: number) => {
+  const handleToggleActive = (globalIdx: number) => {
     const updated = items.map((item, idx) => {
-      if (idx === index) {
+      if (idx === globalIdx) {
         return { ...item, is_active: !item.is_active };
       }
       return item;
@@ -160,31 +301,54 @@ export default function HomepageTickerManager({
     onChange(updated);
   };
 
-  const handleDelete = (index: number) => {
-    const updated = items.filter((_, idx) => idx !== index).map((item, idx) => ({
-      ...item,
-      sort_order: idx,
-    }));
+  const handleDelete = (globalIdx: number) => {
+    const updated = items
+      .filter((_, idx) => idx !== globalIdx)
+      .map((item, idx) => ({
+        ...item,
+        sort_order: idx,
+      }));
     onChange(updated);
   };
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
+  const handleMoveUp = (indexOrGlobalIdx: number) => {
+    const globalIdx =
+      indexOrGlobalIdx >= startIndex && indexOrGlobalIdx < endIndex
+        ? indexOrGlobalIdx
+        : startIndex + indexOrGlobalIdx;
+
+    if (globalIdx <= 0) return;
     const updated = [...items];
-    const temp = updated[index - 1];
-    updated[index - 1] = updated[index];
-    updated[index] = temp;
+    const temp = updated[globalIdx - 1];
+    updated[globalIdx - 1] = updated[globalIdx];
+    updated[globalIdx] = temp;
     onChange(updated.map((item, idx) => ({ ...item, sort_order: idx })));
+
+    if (globalIdx === startIndex && currentPage > 1) {
+      setCurrentPage((p) => Math.max(1, p - 1));
+    }
   };
 
-  const handleMoveDown = (index: number) => {
-    if (index === items.length - 1) return;
+  const handleMoveDown = (indexOrGlobalIdx: number) => {
+    const globalIdx =
+      indexOrGlobalIdx >= startIndex && indexOrGlobalIdx < endIndex
+        ? indexOrGlobalIdx
+        : startIndex + indexOrGlobalIdx;
+
+    if (globalIdx >= items.length - 1) return;
     const updated = [...items];
-    const temp = updated[index + 1];
-    updated[index + 1] = updated[index];
-    updated[index] = temp;
+    const temp = updated[globalIdx + 1];
+    updated[globalIdx + 1] = updated[globalIdx];
+    updated[globalIdx] = temp;
     onChange(updated.map((item, idx) => ({ ...item, sort_order: idx })));
+
+    if (globalIdx === endIndex - 1 && currentPage < totalPages) {
+      setCurrentPage((p) => Math.min(totalPages, p + 1));
+    }
   };
+
+  const moveUp = handleMoveUp;
+  const moveDown = handleMoveDown;
 
   const handleAddPresets = () => {
     const existingTexts = new Set(items.map((i) => i.text.trim().toUpperCase()));
@@ -230,7 +394,33 @@ export default function HomepageTickerManager({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Page Size Selector */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="text-[11px] font-medium hidden sm:inline">Page Size:</span>
+            <div
+              className="inline-flex items-center rounded-lg border border-border bg-card p-0.5"
+              role="group"
+              aria-label="Page Size"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => handlePageSizeChange(size)}
+                  aria-pressed={pageSize === size}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition-all cursor-pointer ${
+                    pageSize === size
+                      ? "bg-primary text-primary-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <span className="text-xs font-mono text-muted-foreground">
             {activeCount} Active / {items.length} Total
           </span>
@@ -340,32 +530,37 @@ export default function HomepageTickerManager({
             </button>
           </div>
         ) : (
-          items.map((item, index) => {
-            const position = index + 1;
-            const isDragging = draggedIndex === index;
-            const isDragOver = dragOverTarget?.index === index;
+          visibleItems.map((item, localIndex) => {
+            const globalIndex = startIndex + localIndex;
+            const position = globalIndex + 1; // Global position!
+            const isDragging = draggedGlobalIndex === globalIndex || draggedIndex === localIndex;
+            const isDragOver = dragOverTarget?.index === localIndex;
 
             const isDropAbove =
               draggedIndex !== null &&
-              dragOverTarget?.index === index &&
+              dragOverTarget?.index === localIndex &&
               dragOverTarget?.position === "above" &&
-              draggedIndex !== index &&
-              draggedIndex !== index - 1;
+              draggedIndex !== localIndex &&
+              draggedIndex !== localIndex - 1;
 
             const isDropBelow =
               draggedIndex !== null &&
-              dragOverTarget?.index === index &&
+              dragOverTarget?.index === localIndex &&
               dragOverTarget?.position === "below" &&
-              draggedIndex !== index &&
-              draggedIndex !== index + 1;
+              draggedIndex !== localIndex &&
+              draggedIndex !== localIndex + 1;
 
             const landingPosAbove =
-              draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "above") : position;
+              draggedGlobalIndex !== null
+                ? calcTargetPosition(draggedGlobalIndex, globalIndex, "above")
+                : position;
             const landingPosBelow =
-              draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "below") : position;
+              draggedGlobalIndex !== null
+                ? calcTargetPosition(draggedGlobalIndex, globalIndex, "below")
+                : position;
 
             return (
-              <React.Fragment key={item.id ? `item-${item.id}` : `idx-${index}`}>
+              <React.Fragment key={item.id ? `item-${item.id}` : `idx-${globalIndex}`}>
                 {/* Drop indicator above */}
                 {isDropAbove && (
                   <div
@@ -383,8 +578,10 @@ export default function HomepageTickerManager({
 
                 <div
                   data-ordered-row
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDrop={(e) => handleDrop(e, index)}
+                  data-index={localIndex}
+                  data-global-index={globalIndex}
+                  onDragOver={(e) => handleDragOver(e, localIndex, globalIndex)}
+                  onDrop={(e) => handleDrop(e, localIndex, globalIndex)}
                   className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-colors ${
                     isDragging
                       ? "opacity-50 bg-primary/10 border-primary/40 ring-1 ring-primary/30"
@@ -397,24 +594,28 @@ export default function HomepageTickerManager({
                 >
                   {/* Drag handle + order index + text input */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {/* Drag Handle */}
+                    {/* Drag Handle: Native Pointer Events + HTML5 Drag */}
                     <div
                       role="button"
                       tabIndex={0}
                       draggable
-                      onDragStart={(e) => handleDragStart(e, index)}
+                      onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      onPointerCancel={handlePointerCancel}
+                      onDragStart={(e) => handleDragStart(e, localIndex, globalIndex)}
                       onDragEnd={handleDragEnd}
                       onKeyDown={(e) => {
                         if (e.key === "ArrowUp") {
                           e.preventDefault();
-                          handleMoveUp(index);
+                          handleMoveUp(globalIndex);
                         } else if (e.key === "ArrowDown") {
                           e.preventDefault();
-                          handleMoveDown(index);
+                          handleMoveDown(globalIndex);
                         }
                       }}
                       aria-label={`Drag handle for keyword ${item.text}. Position ${position}. Use Up or Down arrow keys to reorder.`}
-                      className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none"
+                      className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
                       title="Drag to reorder keyword (or use Up/Down arrow keys)"
                     >
                       <GripVertical size={15} />
@@ -427,7 +628,7 @@ export default function HomepageTickerManager({
                     <input
                       type="text"
                       value={item.text}
-                      onChange={(e) => handleUpdateText(index, e.target.value)}
+                      onChange={(e) => handleUpdateText(globalIndex, e.target.value)}
                       className="w-full max-w-md px-2.5 py-1 text-xs rounded-lg border border-transparent hover:border-input focus:border-primary focus:bg-background focus:outline-none transition-colors uppercase font-bold text-foreground"
                       disabled={disabled || isSaving}
                     />
@@ -438,7 +639,7 @@ export default function HomepageTickerManager({
                     {/* Active / Inactive Toggle */}
                     <button
                       type="button"
-                      onClick={() => handleToggleActive(index)}
+                      onClick={() => handleToggleActive(globalIndex)}
                       disabled={disabled || isSaving}
                       className={`p-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
                         item.is_active
@@ -453,8 +654,8 @@ export default function HomepageTickerManager({
                     {/* Move Up */}
                     <button
                       type="button"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={disabled || isSaving || index === 0}
+                      onClick={() => handleMoveUp(globalIndex)}
+                      disabled={disabled || isSaving || globalIndex === 0}
                       className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
                       title="Move keyword up"
                     >
@@ -464,8 +665,8 @@ export default function HomepageTickerManager({
                     {/* Move Down */}
                     <button
                       type="button"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={disabled || isSaving || index === items.length - 1}
+                      onClick={() => handleMoveDown(globalIndex)}
+                      disabled={disabled || isSaving || globalIndex === items.length - 1}
                       className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
                       title="Move keyword down"
                     >
@@ -475,7 +676,7 @@ export default function HomepageTickerManager({
                     {/* Delete */}
                     <button
                       type="button"
-                      onClick={() => handleDelete(index)}
+                      onClick={() => handleDelete(globalIndex)}
                       disabled={disabled || isSaving}
                       className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
                       title="Delete keyword"
@@ -504,6 +705,40 @@ export default function HomepageTickerManager({
           })
         )}
       </div>
+
+      {/* ── Compact Pagination Bar for Ticker ── */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 rounded-xl bg-secondary/20 border border-border/60 text-xs">
+          <span className="text-[11px] text-muted-foreground font-mono">
+            Showing {startIndex + 1}–{endIndex} of {items.length} keywords • Page {currentPage} of {totalPages}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1 || disabled || isSaving}
+              aria-label="Previous Page"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+            >
+              <ChevronLeft size={14} />
+              <span>Prev</span>
+            </button>
+            <span className="px-2 py-1 text-[11px] font-mono font-bold text-foreground">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages || disabled || isSaving}
+              aria-label="Next Page"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+            >
+              <span>Next</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
