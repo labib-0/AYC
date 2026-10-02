@@ -99,6 +99,17 @@ export default function CategoriesSection() {
           </div>
         ) : productCategories.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-0.5" role="list">
+            {/* ALL CATEGORIES Pill - Clears Category Filter */}
+            <Link
+              href="/search?filterOpen=true"
+              role="listitem"
+              title="Browse all categories"
+              aria-label="Browse all categories"
+              className="group inline-flex items-center justify-center px-3.5 py-2 sm:px-4.5 sm:py-2.5 rounded-xl border border-slate-900/20 dark:border-white/20 bg-card/90 dark:bg-card/60 hover:bg-secondary/70 dark:hover:bg-secondary/60 hover:border-slate-900/60 dark:hover:border-white/60 text-foreground/85 hover:text-foreground text-[11px] sm:text-[12.5px] font-sans font-bold uppercase tracking-wider leading-none shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 cursor-pointer text-center min-h-[36px] sm:min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              <span className="whitespace-nowrap">ALL CATEGORIES</span>
+            </Link>
+
             {productCategories.map((cat) => {
               const categoryName = cat.name.trim();
               const categoryParam = encodeURIComponent(categoryName.toLowerCase());

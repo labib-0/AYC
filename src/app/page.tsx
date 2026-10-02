@@ -3,6 +3,7 @@ import TopBanner from "@/components/home/TopBanner";
 import ServiceStrip from "@/components/home/ServiceStrip";
 import ShopByBrand from "@/components/home/ShopByBrand";
 import AudienceSection from "@/components/home/AudienceSection";
+import DesignTypeSection from "@/components/home/DesignTypeSection";
 import CategoriesSection from "@/components/home/CategoriesSection";
 import HotSales from "@/components/home/HotSales";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
@@ -22,6 +23,9 @@ export default function Home() {
 
       {/* 4. AUDIENCE */}
       <AudienceSection />
+
+      {/* 4.5. DESIGN TYPE */}
+      <DesignTypeSection />
 
       {/* 5. CATEGORIES */}
       <CategoriesSection />
