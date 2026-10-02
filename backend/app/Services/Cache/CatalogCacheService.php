@@ -25,9 +25,36 @@ class CatalogCacheService
         return 'catalog:brands:all';
     }
 
+    public static function featuredVersionKey(): string
+    {
+        return 'catalog:products:featured:version';
+    }
+
+    public static function getFeaturedVersion(): int
+    {
+        return (int) Cache::get(self::featuredVersionKey(), 1);
+    }
+
+    public static function bumpFeaturedVersion(): void
+    {
+        if (!Cache::has(self::featuredVersionKey())) {
+            Cache::forever(self::featuredVersionKey(), 2);
+        } else {
+            Cache::increment(self::featuredVersionKey());
+        }
+    }
+
     public static function featuredKey(): string
     {
-        return 'catalog:products:featured';
+        $v = self::getFeaturedVersion();
+        return "catalog:products:featured:v{$v}";
+    }
+
+    public static function featuredPageKey(int $offset, int $limit, string $tab = 'all', array $filters = []): string
+    {
+        $v = self::getFeaturedVersion();
+        $filterHash = !empty($filters) ? md5(json_encode($filters)) : 'none';
+        return "catalog:products:featured:v{$v}:p_{$offset}_{$limit}:{$tab}:{$filterHash}";
     }
 
     public static function hotSalesKey(): string
@@ -66,6 +93,14 @@ class CatalogCacheService
     }
 
     /**
+     * Remember or retrieve paginated featured products slice.
+     */
+    public static function rememberFeaturedPage(int $offset, int $limit, string $tab, array $filters, callable $callback): mixed
+    {
+        return Cache::remember(self::featuredPageKey($offset, $limit, $tab, $filters), self::TTL_FEATURED, $callback);
+    }
+
+    /**
      * Remember or retrieve hot sales collection.
      */
     public static function rememberHotSales(callable $callback): mixed
@@ -86,6 +121,7 @@ class CatalogCacheService
      */
     public static function invalidateProduct(Product|string|int $product): void
     {
+        self::bumpFeaturedVersion();
         Cache::forget(self::featuredKey());
         Cache::forget(self::hotSalesKey());
 
@@ -111,6 +147,7 @@ class CatalogCacheService
      */
     public static function flushAllProducts(): void
     {
+        self::bumpFeaturedVersion();
         Cache::forget(self::featuredKey());
         Cache::forget(self::hotSalesKey());
 
@@ -125,6 +162,7 @@ class CatalogCacheService
      */
     public static function invalidateCategories(): void
     {
+        self::bumpFeaturedVersion();
         Cache::forget(self::categoriesKey());
         Cache::forget(self::featuredKey());
     }
@@ -134,7 +172,9 @@ class CatalogCacheService
      */
     public static function invalidateBrands(): void
     {
+        self::bumpFeaturedVersion();
         Cache::forget(self::brandsKey());
+        Cache::forget(self::featuredKey());
     }
 
     /**
@@ -142,6 +182,7 @@ class CatalogCacheService
      */
     public static function invalidateAll(): void
     {
+        self::bumpFeaturedVersion();
         Cache::forget(self::categoriesKey());
         Cache::forget(self::brandsKey());
         Cache::forget(self::featuredKey());

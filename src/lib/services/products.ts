@@ -1,3 +1,4 @@
+import { apiClient } from "@/services/api-client";
 import { 
   productService, 
   normalizeToB2BProduct, 
@@ -122,8 +123,34 @@ export async function getFeaturedProducts(
   // Remaining eligible products follow in created_at DESC (newest upload first).
   // No product appears twice. This is enforced by the backend; we trust the order returned.
 
-  // Primary path: use backend homepage data which already enforces the correct ordering:
-  //   selected products (sort_order ASC) → remaining products (created_at DESC)
+  // Primary path: fetch directly from dedicated, paginated backend featured endpoint
+  try {
+    const params: Record<string, any> = {
+      offset,
+      limit,
+      tab: options.tab || "all",
+    };
+    if (options.brands && options.brands.length > 0) params.brand = options.brands.join(",");
+    if (options.designTypes && options.designTypes.length > 0) params.design_type = options.designTypes.join(",");
+    if (options.audiences && options.audiences.length > 0) params.audience = options.audiences.join(",");
+    if (options.categories && options.categories.length > 0) params.category = options.categories.join(",");
+
+    const res = await apiClient.get<any>("/products/featured", { params });
+    const payload = res?.data !== undefined && res?.success !== undefined ? res : res?.data || res;
+    const items = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
+    const meta = payload?.meta || {};
+
+    if (items.length > 0 || (meta.total !== undefined && meta.total >= 0)) {
+      const products = items.map(toStorefrontProduct);
+      const total = typeof meta.total === "number" ? meta.total : products.length;
+      const hasMore = meta.has_more !== undefined ? Boolean(meta.has_more) : offset + products.length < total;
+      return { products, total, hasMore };
+    }
+  } catch {
+    // Fall through to storefront homepage data / direct product query
+  }
+
+  // Fallback path: use backend homepage data which also enforces the correct ordering
   try {
     const homepageData = await homepageService.getStorefrontHomepageData();
     if (homepageData?.featured_products && homepageData.featured_products.length > 0) {

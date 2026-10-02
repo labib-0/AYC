@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\Catalog\ProductQueryRequest;
 use App\Http\Resources\Api\V1\ProductResource;
+use App\Models\HomepageFeaturedProduct;
 use App\Models\Product;
 use App\Models\ProductShippingPackageProfile;
 use App\Services\Audit\ActivityLogger;
@@ -338,36 +339,161 @@ class ProductController extends ApiController
     /**
      * GET /api/v1/products/featured
      *
-     * Returns curated landing-page featured products in authoritative sort order.
+     * Returns curated landing-page featured products in authoritative sort order:
+     * 1. Admin-pinned products (sort_order ASC)
+     * 2. Remaining eligible products in upload order (created_at DESC — newest upload first)
+     * Excludes duplicates, non-storefront products, and draft/archived products.
      */
     public function featured(Request $request): JsonResponse
     {
-        $perPage = (int) ($request->input('per_page') ?? $request->input('limit') ?? 20);
+        $limit = max(1, min(100, (int) ($request->input('limit') ?? $request->input('per_page') ?? 21)));
+        $offset = max(0, (int) ($request->input('offset') ?? 0));
+        if ($request->has('page') && !$request->has('offset')) {
+            $page = max(1, (int) $request->input('page'));
+            $offset = ($page - 1) * $limit;
+        }
 
-        $query = Product::query()
-            ->storefrontVisible()
-            ->where('is_featured', true)
-            ->whereNull('deleted_at')
-            ->with([
-                'images' => fn($q) => $q->orderBy('sort_order', 'asc'),
-                'brand',
-                'categories',
-                'variants',
-                'pricingTiers',
-                'packageAllocations',
-            ])
-            ->orderBy('featured_sort_order', 'asc')
-            ->orderBy('created_at', 'desc'); // newest upload first — NOT id DESC, NOT updated_at
+        $tab = (string) $request->input('tab', 'all');
+        $isNew = $tab === 'new-arrivals' || filter_var($request->input('is_new'), FILTER_VALIDATE_BOOLEAN);
 
-        $products = $query->paginate($perPage);
+        $parseFilter = function ($input) {
+            if (empty($input) || $input === 'all') return [];
+            if (is_array($input)) return array_filter(array_map('trim', $input));
+            return array_filter(array_map('trim', explode(',', (string) $input)));
+        };
+
+        $brands = $parseFilter($request->input('brand') ?? $request->input('brands'));
+        $categories = $parseFilter($request->input('category') ?? $request->input('categories'));
+        $audiences = array_map('strtoupper', $parseFilter($request->input('audience') ?? $request->input('audiences')));
+        $rawDesignTypes = $parseFilter($request->input('design_type') ?? $request->input('designType') ?? $request->input('designTypes'));
+        $designTypes = array_map(function ($item) {
+            $dt = strtoupper($item);
+            return ($dt === 'MC' || $dt === 'REPLICA') ? 'MASTER COPY' : $dt;
+        }, $rawDesignTypes);
+
+        $filterCacheKey = [
+            'tab' => $tab,
+            'is_new' => $isNew,
+            'brands' => $brands,
+            'categories' => $categories,
+            'audiences' => $audiences,
+            'design_types' => $designTypes,
+        ];
+
+        $cachedResult = CatalogCacheService::rememberFeaturedPage(
+            $offset,
+            $limit,
+            $tab,
+            $filterCacheKey,
+            function () use ($offset, $limit, $isNew, $brands, $categories, $audiences, $designTypes) {
+                $applyStorefrontFilters = function ($q) use ($isNew, $brands, $categories, $audiences, $designTypes) {
+                    $q->storefrontVisible()->whereNull('deleted_at');
+                    if ($isNew) {
+                        $q->where('is_new', true);
+                    }
+                    if (!empty($brands)) {
+                        $q->whereHas('brand', function ($b) use ($brands) {
+                            $b->whereIn('slug', $brands)
+                              ->orWhereIn('name', $brands)
+                              ->orWhereIn('id', array_filter($brands, 'is_numeric'));
+                        });
+                    }
+                    if (!empty($categories)) {
+                        $q->whereHas('categories', function ($c) use ($categories) {
+                            $c->whereIn('slug', $categories)
+                              ->orWhereIn('name', $categories)
+                              ->orWhereIn('id', array_filter($categories, 'is_numeric'));
+                        });
+                    }
+                    if (!empty($audiences)) {
+                        $q->whereIn('audience', $audiences);
+                    }
+                    if (!empty($designTypes)) {
+                        $q->whereIn('design_type', $designTypes);
+                    }
+                };
+
+                // 1. Admin-pinned products (HomepageFeaturedProduct is authoritative)
+                $pinnedIds = HomepageFeaturedProduct::query()
+                    ->where('is_active', true)
+                    ->whereHas('product', $applyStorefrontFilters)
+                    ->orderBy('sort_order', 'asc')
+                    ->pluck('product_id')
+                    ->filter()
+                    ->values()
+                    ->toArray();
+
+                // Fallback: If no records in homepage_featured_products, check products with is_featured = true
+                if (empty($pinnedIds)) {
+                    $fallbackPinnedQuery = Product::query()->where('is_featured', true);
+                    $applyStorefrontFilters($fallbackPinnedQuery);
+                    $pinnedIds = $fallbackPinnedQuery
+                        ->orderBy('featured_sort_order', 'asc')
+                        ->orderBy('created_at', 'desc')
+                        ->pluck('id')
+                        ->toArray();
+                }
+
+                // 2. Remaining eligible products in upload order (created_at DESC — newest upload first)
+                $remainingQuery = Product::query();
+                $applyStorefrontFilters($remainingQuery);
+                if (!empty($pinnedIds)) {
+                    $remainingQuery->whereNotIn('id', $pinnedIds);
+                }
+                $remainingIds = $remainingQuery
+                    ->orderBy('created_at', 'desc') // authoritative upload timestamp
+                    ->pluck('id')
+                    ->toArray();
+
+                $allOrderedIds = array_merge($pinnedIds, $remainingIds);
+                $total = count($allOrderedIds);
+
+                $pageIds = array_slice($allOrderedIds, $offset, $limit);
+
+                if (empty($pageIds)) {
+                    $productData = [];
+                } else {
+                    $products = Product::query()
+                        ->whereIn('id', $pageIds)
+                        ->with([
+                            'images' => fn($q) => $q->orderBy('sort_order', 'asc'),
+                            'brand',
+                            'categories',
+                            'variants.inventories',
+                            'pricingTiers',
+                            'packageAllocations',
+                        ])
+                        ->get()
+                        ->sortBy(function ($product) use ($pageIds) {
+                            return array_search($product->id, $pageIds);
+                        })
+                        ->values();
+
+                    $productData = ProductResource::collection($products)->resolve();
+                }
+
+                return [
+                    'data' => $productData,
+                    'total' => $total,
+                    'offset' => $offset,
+                    'limit' => $limit,
+                    'has_more' => ($offset + count($pageIds)) < $total,
+                    'current_page' => (int) floor($offset / $limit) + 1,
+                    'per_page' => $limit,
+                ];
+            }
+        );
 
         return response()->json([
             'success' => true,
-            'data' => ProductResource::collection($products)->resolve(),
+            'data' => $cachedResult['data'],
             'meta' => [
-                'current_page' => $products->currentPage(),
-                'total' => $products->total(),
-                'per_page' => $products->perPage(),
+                'total' => $cachedResult['total'],
+                'offset' => $cachedResult['offset'],
+                'limit' => $cachedResult['limit'],
+                'has_more' => $cachedResult['has_more'],
+                'current_page' => $cachedResult['current_page'],
+                'per_page' => $cachedResult['per_page'],
             ],
         ]);
     }

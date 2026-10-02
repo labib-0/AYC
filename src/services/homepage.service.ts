@@ -130,36 +130,74 @@ export interface PaginatedProductSearchResults {
 }
 
 export class HomepageService {
+  private storefrontDataPromise: Promise<StorefrontHomepageData> | null = null;
+  private cachedStorefrontData: { data: StorefrontHomepageData; timestamp: number } | null = null;
+  private readonly CACHE_TTL_MS = 60000; // 60 seconds
+
+  constructor() {
+    if (typeof window !== "undefined") {
+      const invalidate = () => this.invalidateStorefrontCache();
+      window.addEventListener("ayaan:homepage-updated", invalidate);
+      window.addEventListener("ayaan:data-updated", invalidate);
+    }
+  }
+
+  /**
+   * Clear in-memory storefront homepage cache on client.
+   */
+  invalidateStorefrontCache(): void {
+    this.cachedStorefrontData = null;
+    this.storefrontDataPromise = null;
+  }
+
   /**
    * Fetch published landing page configuration for the customer storefront.
    * Single source of truth from Laravel API backend.
+   * Deduplicates concurrent in-flight requests across mounting homepage sections.
    */
-  async getStorefrontHomepageData(): Promise<StorefrontHomepageData> {
-    try {
-      const res = await apiClient.get<any>("/homepage");
-      const data = res?.data || res;
-      if (data && typeof data === "object") {
-        return {
-          banner: data.banner || null,
-          ticker_items: Array.isArray(data.ticker_items) ? data.ticker_items : [],
-          featured_brands: Array.isArray(data.featured_brands) ? data.featured_brands : [],
-          hot_sale_categories: Array.isArray(data.hot_sale_categories) ? data.hot_sale_categories : [],
-          featured_products: Array.isArray(data.featured_products) ? data.featured_products : [],
-          hot_sale_visible: data.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true,
-        };
-      }
-    } catch (err) {
-      console.warn("HomepageService.getStorefrontHomepageData failed:", err);
+  async getStorefrontHomepageData(forceRefresh = false): Promise<StorefrontHomepageData> {
+    const now = Date.now();
+    if (!forceRefresh && this.cachedStorefrontData && (now - this.cachedStorefrontData.timestamp) < this.CACHE_TTL_MS) {
+      return this.cachedStorefrontData.data;
     }
 
-    return {
-      banner: null,
-      ticker_items: [],
-      featured_brands: [],
-      hot_sale_categories: [],
-      featured_products: [],
-      hot_sale_visible: true,
-    };
+    if (!forceRefresh && this.storefrontDataPromise) {
+      return this.storefrontDataPromise;
+    }
+
+    this.storefrontDataPromise = (async () => {
+      try {
+        const res = await apiClient.get<any>("/homepage");
+        const data = res?.data || res;
+        if (data && typeof data === "object") {
+          const result: StorefrontHomepageData = {
+            banner: data.banner || null,
+            ticker_items: Array.isArray(data.ticker_items) ? data.ticker_items : [],
+            featured_brands: Array.isArray(data.featured_brands) ? data.featured_brands : [],
+            hot_sale_categories: Array.isArray(data.hot_sale_categories) ? data.hot_sale_categories : [],
+            featured_products: Array.isArray(data.featured_products) ? data.featured_products : [],
+            hot_sale_visible: data.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true,
+          };
+          this.cachedStorefrontData = { data: result, timestamp: Date.now() };
+          return result;
+        }
+      } catch (err) {
+        console.warn("HomepageService.getStorefrontHomepageData failed:", err);
+      } finally {
+        this.storefrontDataPromise = null;
+      }
+
+      return {
+        banner: null,
+        ticker_items: [],
+        featured_brands: [],
+        hot_sale_categories: [],
+        featured_products: [],
+        hot_sale_visible: true,
+      };
+    })();
+
+    return this.storefrontDataPromise;
   }
 
   /**

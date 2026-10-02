@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, SlidersHorizontal, RotateCcw, X, ArrowDown } from "lucide-react";
 import ProductCard from "../product/ProductCard";
+import { ProductCardSkeleton } from "../product/ProductCardSkeleton";
 import GlobalFilterRail from "@/components/common/GlobalFilterRail";
 import { Product } from "@/types";
 import {
@@ -300,8 +301,8 @@ export default function FeaturedProducts() {
       },
       {
         root: null, // Viewport
-        rootMargin: "350px 0px", // Preload 350px before reaching bottom
-        threshold: 0.05,
+        rootMargin: "180px 0px", // Moderate threshold: prefetch smoothly when nearing bottom
+        threshold: 0.1,
       }
     );
 
@@ -509,12 +510,18 @@ export default function FeaturedProducts() {
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 self-start sm:self-auto">
             {/* Product Counter */}
-            <div className="text-[13px] font-medium text-muted-foreground font-sans whitespace-nowrap">
-              Showing{" "}
-              <span className="font-bold text-foreground">
-                {products.length}
-              </span>{" "}
-              of {totalCount} items
+            <div className="text-[13px] font-medium text-muted-foreground font-sans whitespace-nowrap min-h-[20px] flex items-center">
+              {isLoadingInitial ? (
+                <span className="inline-block w-28 h-3.5 bg-secondary animate-pulse rounded-full" />
+              ) : (
+                <>
+                  Showing{" "}
+                  <span className="font-bold text-foreground">
+                    {products.length}
+                  </span>{" "}
+                  of {totalCount} items
+                </>
+              )}
             </div>
 
             {/* Action Buttons Group: [FILTERS] */}
@@ -685,11 +692,56 @@ export default function FeaturedProducts() {
           {/* Product Grid Area */}
           <div className="product-column flex-1 min-w-0 w-full">
             {isLoadingInitial ? (
-              <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                <Loader2 className="w-6 h-6 animate-spin text-foreground" />
-                <span className="text-[13px] font-semibold uppercase tracking-wider font-sans">
-                  Updating products...
-                </span>
+              <div
+                className={`grid gap-3 sm:gap-3.5 xl:gap-4 transition-all duration-200 ${
+                  isFilterOpen
+                    ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5"
+                    : "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-6"
+                }`}
+              >
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <ProductCardSkeleton key={`fp-skeleton-${i}`} />
+                ))}
+              </div>
+            ) : error && products.length === 0 ? (
+              <div className="text-center py-16 px-4 border border-dashed border-border/80 rounded-2xl">
+                <p className="text-[13px] font-bold uppercase tracking-wider text-destructive mb-1 font-sans">
+                  Unable to load featured products
+                </p>
+                <p className="text-[13px] text-muted-foreground mb-4 font-sans">
+                  {error}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setIsLoadingInitial(true);
+                    getFeaturedProducts({
+                      tab: "all",
+                      offset: 0,
+                      limit: INITIAL_PRODUCT_LIMIT,
+                      brands: selectedBrands,
+                      designTypes: selectedDesignTypes,
+                      audiences: selectedAudiences,
+                      categories: selectedCategories,
+                    })
+                      .then((result) => {
+                        setProducts(result.products);
+                        setTotalCount(result.total);
+                        setHasMore(result.hasMore && result.total > result.products.length);
+                      })
+                      .catch(() => {
+                        setError("Failed to load featured products. Please try again.");
+                      })
+                      .finally(() => {
+                        setIsLoadingInitial(false);
+                      });
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold uppercase tracking-wider bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
+                >
+                  <RotateCcw size={14} />
+                  <span>Retry</span>
+                </button>
               </div>
             ) : products.length > 0 ? (
               /*
@@ -715,8 +767,8 @@ export default function FeaturedProducts() {
                     : "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-6"
                 }`}
               >
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                {products.map((product, idx) => (
+                  <ProductCard key={product.id} product={product} priority={idx < 6} />
                 ))}
               </div>
             ) : (

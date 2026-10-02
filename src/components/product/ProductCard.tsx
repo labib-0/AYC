@@ -18,9 +18,10 @@ import ProductImageFrame from "./ProductImageFrame";
 
 interface ProductCardProps {
   product: Product;
+  priority?: boolean;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, priority = false }: ProductCardProps) {
   const { openProductModal } = useProductModal();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { user } = useAuth();
@@ -66,6 +67,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             src={coverImage}
             alt={imageAlt}
             referenceSize="listing"
+            loading={priority ? "eager" : "lazy"}
             hoverZoom
             fallbackText={product.name}
             className="w-full h-full border-0 bg-transparent dark:bg-transparent"
