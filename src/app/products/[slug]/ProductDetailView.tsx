@@ -809,10 +809,14 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* ========================================================= */}
             {/* LEVEL 3.1: VOLUME PRICING TIER MODULE */}
             {/* ========================================================= */}
-            <div>
+            <div className="space-y-1 sm:space-y-1.5">
+              <CommerceSectionHeader
+                title="Pricing"
+                className="pb-0"
+              />
               <div className="rounded-lg border border-border/80 bg-card p-2 sm:p-2.5 space-y-0.5 shadow-2xs" role="radiogroup" aria-label="Pricing Tiers">
                 {/* Column Legend (Visually Grouped: Tier + Quantity grouped, Price right-aligned) */}
-                <div className="grid grid-cols-[105px_130px_1fr] sm:grid-cols-[120px_145px_1fr] px-2.5 pb-1 text-[9.5px] font-display font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
+                <div className="grid grid-cols-[105px_130px_1fr] sm:grid-cols-[120px_145px_1fr] px-2.5 pb-1 text-[10px] sm:text-[10.5px] font-display font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
                   <div>Tier</div>
                   <div>Quantity</div>
                   <div className="text-right">Unit Price</div>
