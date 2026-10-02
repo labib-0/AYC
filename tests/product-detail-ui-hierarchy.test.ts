@@ -125,12 +125,12 @@ test("Product Title is a commanding Manrope heading with controlled line height"
 
 // ▶ Suite 3: Level 2 — Dedicated Commercial Metadata Row
 console.log("\n▶ Suite 3: Level 2 — Dedicated Commercial Metadata Row");
-test("Standalone unit price is removed; MOQ and Initial Stock are displayed in compact row", () => {
-  expect(productDetailSrc).toContain("LEVEL 2: CORE COMMERCIAL METADATA — MOQ & INITIAL STOCK");
+test("Standalone unit price is removed; MOQ and Full Stock are displayed in compact row", () => {
+  expect(productDetailSrc).toContain("LEVEL 2: CORE COMMERCIAL METADATA — MOQ & FULL STOCK");
   expect(productDetailSrc).notToContain("/ pc");
   expect(productDetailSrc).toContain("MOQ");
   expect(productDetailSrc).toContain("{moq} PCS");
-  expect(productDetailSrc).toContain("INITIAL STOCK");
+  expect(productDetailSrc).toContain("FULL STOCK");
 });
 
 // ▶ Suite 4: Level 3 — Purchasing Options & Commerce Modules

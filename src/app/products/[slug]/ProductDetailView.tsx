@@ -782,7 +782,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 </div>
               )}
 
-              {/* LEVEL 2: CORE COMMERCIAL METADATA — MOQ & INITIAL STOCK */}
+              {/* LEVEL 2: CORE COMMERCIAL METADATA — MOQ & FULL STOCK */}
               <div className="pt-1 flex items-center gap-2 sm:gap-2.5 text-[12px] sm:text-[12.5px] font-sans">
                 <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-border/80 bg-secondary/30 text-foreground font-semibold">
                   <span className="text-muted-foreground font-normal">MOQ</span>
@@ -792,14 +792,14 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 <div className="inline-flex items-center gap-1.5 text-muted-foreground">
                   <span
                     className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      initialStock > 0 ? "bg-emerald-500" : "bg-red-500"
+                      fullStockQuantity > 0 ? "bg-emerald-500" : "bg-red-500"
                     }`}
                   />
                   <span>
-                    <strong className={`font-semibold tabular-nums ${initialStock > 0 ? "text-foreground" : "text-red-600 dark:text-red-400"}`}>
-                      {initialStock.toLocaleString()} PCS
-                    </strong>{" "}
-                    INITIAL STOCK
+                    <span className="text-muted-foreground">FULL STOCK</span>{" "}
+                    <strong className={`font-semibold tabular-nums ${fullStockQuantity > 0 ? "text-foreground" : "text-red-600 dark:text-red-400"}`}>
+                      {fullStockQuantity.toLocaleString()} PCS
+                    </strong>
                   </span>
                 </div>
               </div>

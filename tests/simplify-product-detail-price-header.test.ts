@@ -66,15 +66,20 @@ test("No duplicate price exists outside the pricing tiers and summary", () => {
   expect(betweenTitleAndBox).notToContain("formatPrice");
 });
 
-// ▶ Suite 2: MOQ + Initial Stock Compact Row
-console.log("\n▶ Suite 2: MOQ + Initial Stock in Compact Metadata Row");
+// ▶ Suite 2: MOQ + Full Stock Compact Row
+console.log("\n▶ Suite 2: MOQ + Full Stock in Compact Metadata Row");
 
-test("MOQ and Initial Stock appear in one compact metadata row directly under product title", () => {
-  expect(productDetailSrc).toContain("LEVEL 2: CORE COMMERCIAL METADATA — MOQ & INITIAL STOCK");
+test("MOQ and Full Stock appear in one compact metadata row directly under product title", () => {
+  expect(productDetailSrc).toContain("LEVEL 2: CORE COMMERCIAL METADATA — MOQ & FULL STOCK");
   expect(productDetailSrc).toContain("<span className=\"text-muted-foreground font-normal\">MOQ</span>");
   expect(productDetailSrc).toContain("{moq} PCS");
-  expect(productDetailSrc).toContain("INITIAL STOCK");
-  expect(productDetailSrc).toContain("{initialStock.toLocaleString()} PCS");
+  expect(productDetailSrc).toContain("FULL STOCK");
+  expect(productDetailSrc).toContain("{fullStockQuantity.toLocaleString()} PCS");
+  // Customer-facing header does NOT display INITIAL STOCK
+  const headerSectionMatch = productDetailSrc.match(/LEVEL 2: CORE COMMERCIAL METADATA[\s\S]*?LEVEL 3\.1/);
+  if (headerSectionMatch) {
+    expect(headerSectionMatch[0]).notToContain("INITIAL STOCK");
+  }
 });
 
 test("Uses authoritative inventory field without calculated MOQ count or Reserved Stock", () => {

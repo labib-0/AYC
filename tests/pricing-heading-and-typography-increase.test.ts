@@ -57,8 +57,8 @@ test("2. 'VOLUME PRICING' does not reappear as a section title", () => {
   expect(productDetailSrc).notToContain("<TrendingDown");
 });
 
-test("3. Section heading structure follows MOQ + Initial Stock -> PRICING -> Pricing Box", () => {
-  const moqIdx = productDetailSrc.indexOf("LEVEL 2: CORE COMMERCIAL METADATA — MOQ & INITIAL STOCK");
+test("3. Section heading structure follows MOQ + Full Stock -> PRICING -> Pricing Box", () => {
+  const moqIdx = productDetailSrc.indexOf("LEVEL 2: CORE COMMERCIAL METADATA — MOQ & FULL STOCK");
   const headingIdx = productDetailSrc.indexOf('title="Pricing"');
   const radiogroupIdx = productDetailSrc.indexOf('role="radiogroup" aria-label="Pricing Tiers"');
   
