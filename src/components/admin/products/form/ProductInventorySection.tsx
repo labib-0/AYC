@@ -261,7 +261,7 @@ export default function ProductInventorySection({
       const vId = adjustTargetVariantId ? parseInt(adjustTargetVariantId, 10) : undefined;
       const pId = productId ? (typeof productId === "number" ? productId : parseInt(String(productId), 10) || productId) : undefined;
 
-      let payload: any = {
+      const payload: any = {
         reason: reason.trim(),
         notes: notes.trim() || undefined,
       };

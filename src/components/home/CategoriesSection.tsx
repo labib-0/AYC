@@ -80,9 +80,6 @@ export default function CategoriesSection() {
             <h2 className="text-xl sm:text-2xl font-display font-bold uppercase tracking-tight text-foreground leading-tight">
               CATEGORIES
             </h2>
-            <p className="text-[12px] sm:text-[13px] text-muted-foreground mt-0.5 sm:mt-1 font-sans leading-normal">
-              Explore wholesale &amp; retail apparel by product category
-            </p>
           </div>
         </div>
 

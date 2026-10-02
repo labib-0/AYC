@@ -21,9 +21,6 @@ export default function DesignTypeSection() {
             <h2 className="text-xl sm:text-2xl font-display font-bold uppercase tracking-tight text-foreground leading-tight">
               DESIGN TYPE
             </h2>
-            <p className="text-[12px] sm:text-[13px] text-muted-foreground mt-0.5 sm:mt-1 font-sans leading-normal">
-              Select a design type to explore original surplus or master copy collections
-            </p>
           </div>
         </div>
 
