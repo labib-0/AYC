@@ -185,11 +185,16 @@ export class SiteSettingsService {
   }
 
   /**
-   * Upload logo (strictly PNG).
+   * Upload logo (supports PNG and SVG).
    */
   async uploadLogo(file: File): Promise<{ logo_url: string }> {
-    if (!file.name.toLowerCase().endsWith(".png") || file.type !== "image/png") {
-      throw new Error("Strict requirement: Only PNG image files are allowed for the website logo.");
+    const name = file.name.toLowerCase();
+    const type = (file.type || "").toLowerCase();
+    const isPng = name.endsWith(".png") && (type === "image/png" || type === "");
+    const isSvg = name.endsWith(".svg") && (type === "image/svg+xml" || type === "image/svg" || type === "");
+
+    if (!isPng && !isSvg) {
+      throw new Error("Invalid file format. Only PNG and SVG image files are allowed for the website logo.");
     }
 
     const formData = new FormData();

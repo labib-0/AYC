@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\LegalPage;
 use App\Models\SystemSetting;
+use App\Services\Media\SvgSanitizer;
 use App\Services\Settings\WhatsAppNormalizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -143,8 +144,8 @@ class AdminSettingsController extends Controller
 
     /**
      * Upload Site Logo.
-     * STRICT REQUIREMENT: PNG only!
-     * Server-side MIME, extension, and binary header validation.
+     * Supports both PNG and SVG formats.
+     * Server-side MIME, extension, binary header (for PNG), and XML sanitization (for SVG).
      */
     public function uploadLogo(Request $request): JsonResponse
     {
@@ -158,31 +159,28 @@ class AdminSettingsController extends Controller
 
         $file = $request->file('logo');
 
-        // Check 1: Strict extension check (case-insensitive)
+        // Check 1: Strict extension check (case-insensitive: only png or svg allowed)
         $extension = strtolower($file->getClientOriginalExtension());
-        if ($extension !== 'png') {
+        if (!in_array($extension, ['png', 'svg'], true)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Invalid file format. The website logo must be a PNG image.',
+                'message' => 'Invalid file format. The website logo must be a PNG or SVG image.',
                 'errors' => [
-                    'logo' => ['Only PNG images are allowed. JPG, JPEG, WebP, SVG, and GIF are strictly rejected.']
+                    'logo' => ['Only PNG and SVG images are permitted. JPG, JPEG, WebP, GIF, and other formats are strictly rejected.']
                 ],
             ], 422);
         }
 
-        // Check 2: Laravel standard validation rules
+        // Check 2: Laravel standard validation rules (file presence, mimes, and max size)
         $validator = Validator::make($request->all(), [
             'logo' => [
                 'required',
                 'file',
-                'image',
-                'mimes:png',
-                'mimetypes:image/png',
+                'mimes:png,svg',
                 'max:5120', // 5MB max
             ],
         ], [
-            'logo.mimes' => 'The logo must be a PNG file.',
-            'logo.mimetypes' => 'The logo MIME type must be image/png.',
+            'logo.mimes' => 'The logo must be a PNG or SVG file.',
             'logo.max' => 'The logo image must not exceed 5MB.',
         ]);
 
@@ -194,20 +192,72 @@ class AdminSettingsController extends Controller
             ], 422);
         }
 
-        // Check 3: Binary image header verification
         $realPath = $file->getRealPath();
-        $imageInfo = @getimagesize($realPath);
-        if (!$imageInfo || $imageInfo[2] !== IMAGETYPE_PNG) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'The uploaded file does not contain valid PNG image data.',
-                'errors' => ['logo' => ['The file content is not a valid PNG image.']],
-            ], 422);
-        }
 
-        // Store to public branding storage disk
-        $path = $file->store('branding', 'public');
-        $logoUrl = asset('storage/' . $path);
+        if ($extension === 'png') {
+            // PNG Check: MIME type and binary image header verification
+            $clientMime = strtolower($file->getClientMimeType() ?: '');
+            $detectedMime = strtolower($file->getMimeType() ?: '');
+
+            if ($clientMime !== 'image/png' && $detectedMime !== 'image/png') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'The uploaded file does not have a valid PNG MIME type.',
+                    'errors' => ['logo' => ['The file MIME type must be image/png.']],
+                ], 422);
+            }
+
+            $imageInfo = @getimagesize($realPath);
+            if (!$imageInfo || $imageInfo[2] !== IMAGETYPE_PNG) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'The uploaded file does not contain valid PNG image data.',
+                    'errors' => ['logo' => ['The file content is not a valid PNG image.']],
+                ], 422);
+            }
+
+            // Store directly as PNG
+            $path = $file->store('branding', 'public');
+            $logoUrl = asset('storage/' . $path);
+        } else {
+            // SVG Check: MIME type validation
+            $validSvgMimes = ['image/svg+xml', 'image/svg', 'text/xml', 'text/plain', 'image/x-svg'];
+            $clientMime = strtolower($file->getClientMimeType() ?: '');
+            $detectedMime = strtolower($file->getMimeType() ?: '');
+
+            if (!in_array($clientMime, $validSvgMimes, true) && !in_array($detectedMime, $validSvgMimes, true)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'The uploaded file does not have a valid SVG MIME type.',
+                    'errors' => ['logo' => ['The file MIME type must be image/svg+xml.']],
+                ], 422);
+            }
+
+            // SVG Content Validation & Security Sanitization (XSS, script, attribute cleaning)
+            $rawSvg = @file_get_contents($realPath);
+            if (!$rawSvg) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unable to read the uploaded SVG file.',
+                    'errors' => ['logo' => ['The SVG file could not be read.']],
+                ], 422);
+            }
+
+            $sanitizedSvg = SvgSanitizer::sanitize($rawSvg);
+            if (!$sanitizedSvg) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'The uploaded file does not contain valid or safe SVG image data.',
+                    'errors' => ['logo' => ['The file content is malformed, not an SVG document, or contains unrecoverably unsafe content.']],
+                ], 422);
+            }
+
+            // Store sanitized SVG safely as .svg
+            $filename = Str::random(40) . '.svg';
+            $path = 'branding/' . $filename;
+            Storage::disk('public')->put($path, $sanitizedSvg);
+            $logoUrl = asset('storage/' . $path);
+        }
 
         SystemSetting::set('site_logo', $logoUrl, 'string', 'branding');
 

@@ -184,6 +184,7 @@ class SiteSettingsAndLegalPagesTest extends TestCase
         $this->assertEquals('instagram', $publicLinks[1]['provider']);
     }
 
+
     /**
      * Test PNG logo upload succeeds and stores to storage/branding.
      */
@@ -201,6 +202,7 @@ class SiteSettingsAndLegalPagesTest extends TestCase
 
         $this->assertNotNull(SystemSetting::get('site_logo'));
         $this->assertStringContainsString('storage/branding', SystemSetting::get('site_logo'));
+        $this->assertStringEndsWith('.png', SystemSetting::get('site_logo'));
 
         // Check removal
         $deleteResponse = $this->actingAs($this->superAdmin, 'sanctum')
@@ -211,9 +213,62 @@ class SiteSettingsAndLegalPagesTest extends TestCase
     }
 
     /**
-     * Test non-PNG logos (JPG, JPEG, WebP, SVG, GIF) are STRICTLY REJECTED.
+     * Test SVG logo upload succeeds, sanitizes dangerous scripts, and stores as .svg.
      */
-    public function test_non_png_logos_are_strictly_rejected(): void
+    public function test_admin_can_upload_valid_svg_logo(): void
+    {
+        $svgContent = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="navy"/></svg>';
+        $svgFile = UploadedFile::fake()->createWithContent('logo.svg', $svgContent);
+
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->postJson('/api/v1/admin/settings/logo', [
+                'logo' => $svgFile,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success');
+
+        $this->assertNotNull(SystemSetting::get('site_logo'));
+        $this->assertStringContainsString('storage/branding', SystemSetting::get('site_logo'));
+        $this->assertStringEndsWith('.svg', SystemSetting::get('site_logo'));
+
+        // Verify stored content in fake storage
+        $storedLogo = SystemSetting::get('site_logo');
+        $relativePath = str_replace(asset('storage/'), '', $storedLogo);
+        $this->assertTrue(Storage::disk('public')->exists($relativePath));
+        $storedContent = Storage::disk('public')->get($relativePath);
+        $this->assertStringContainsString('<svg', $storedContent);
+        $this->assertStringContainsString('circle', $storedContent);
+    }
+
+    /**
+     * Test SVG logo with XSS payloads has dangerous scripts stripped during sanitization.
+     */
+    public function test_svg_logo_with_xss_is_sanitized_before_storing(): void
+    {
+        $maliciousSvg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert("xss")</script><rect width="50" height="50"/></svg>';
+        $svgFile = UploadedFile::fake()->createWithContent('xss.svg', $maliciousSvg);
+
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->postJson('/api/v1/admin/settings/logo', [
+                'logo' => $svgFile,
+            ]);
+
+        $response->assertStatus(200);
+
+        $storedLogo = SystemSetting::get('site_logo');
+        $relativePath = str_replace(asset('storage/'), '', $storedLogo);
+        $storedContent = Storage::disk('public')->get($relativePath);
+
+        $this->assertStringNotContainsString('onload', $storedContent);
+        $this->assertStringNotContainsString('<script', $storedContent);
+        $this->assertStringContainsString('rect', $storedContent);
+    }
+
+    /**
+     * Test unsupported formats (JPG, JPEG, WebP, GIF, malformed SVG) are STRICTLY REJECTED.
+     */
+    public function test_unsupported_formats_are_strictly_rejected(): void
     {
         // 1. JPG rejected
         $jpgFile = UploadedFile::fake()->image('logo.jpg', 200, 200);
@@ -227,17 +282,23 @@ class SiteSettingsAndLegalPagesTest extends TestCase
             ->postJson('/api/v1/admin/settings/logo', ['logo' => $webpFile]);
         $respWebp->assertStatus(422);
 
-        // 3. SVG rejected
-        $svgFile = UploadedFile::fake()->create('logo.svg', 50, 'image/svg+xml');
-        $respSvg = $this->actingAs($this->superAdmin, 'sanctum')
-            ->postJson('/api/v1/admin/settings/logo', ['logo' => $svgFile]);
-        $respSvg->assertStatus(422);
+        // 3. GIF rejected
+        $gifFile = UploadedFile::fake()->image('logo.gif', 50, 50);
+        $respGif = $this->actingAs($this->superAdmin, 'sanctum')
+            ->postJson('/api/v1/admin/settings/logo', ['logo' => $gifFile]);
+        $respGif->assertStatus(422);
 
-        // 4. Fake file with .png extension but invalid content (spoofing attempt)
+        // 4. Fake file with .png extension but text content (spoofing attempt)
         $spoofedFile = UploadedFile::fake()->create('fake.png', 100, 'text/plain');
         $respSpoof = $this->actingAs($this->superAdmin, 'sanctum')
             ->postJson('/api/v1/admin/settings/logo', ['logo' => $spoofedFile]);
         $respSpoof->assertStatus(422);
+
+        // 5. Malformed SVG rejected
+        $malformedSvg = UploadedFile::fake()->createWithContent('broken.svg', '<<<not xml at all>>>');
+        $respBroken = $this->actingAs($this->superAdmin, 'sanctum')
+            ->postJson('/api/v1/admin/settings/logo', ['logo' => $malformedSvg]);
+        $respBroken->assertStatus(422);
     }
 
     /**

@@ -52,12 +52,14 @@ export default function StorefrontBrandingSettings({ onNotify }: StorefrontBrand
 
     setError(null);
 
-    // STRICT REQUIREMENT: PNG ONLY. Reject JPG/JPEG/WebP/SVG/GIF/etc.
+    // STRICT REQUIREMENT: PNG or SVG only. Reject JPG/JPEG/WebP/GIF/etc.
     const fileName = file.name.toLowerCase();
     const mimeType = file.type.toLowerCase();
+    const isPng = fileName.endsWith(".png") && (mimeType === "image/png" || mimeType === "");
+    const isSvg = fileName.endsWith(".svg") && (mimeType === "image/svg+xml" || mimeType === "image/svg" || mimeType === "text/xml" || mimeType === "text/plain" || mimeType === "");
 
-    if (!fileName.endsWith(".png") || (mimeType !== "image/png" && mimeType !== "")) {
-      setError("Strict requirement: Only PNG images are permitted for the website logo. JPG, JPEG, WebP, SVG, and GIF are strictly rejected.");
+    if (!isPng && !isSvg) {
+      setError("Strict requirement: Only PNG and SVG images are permitted for the website logo. JPG, JPEG, WebP, and GIF are strictly rejected.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -73,7 +75,7 @@ export default function StorefrontBrandingSettings({ onNotify }: StorefrontBrand
       const res = await siteSettingsService.uploadLogo(file);
       setSiteLogo(res.logo_url);
       window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_site_settings_updated" }));
-      onNotify("Website logo (PNG) uploaded and applied successfully.");
+      onNotify("Website logo uploaded and applied successfully.");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to upload website logo.");
     } finally {
@@ -197,19 +199,19 @@ export default function StorefrontBrandingSettings({ onNotify }: StorefrontBrand
             </p>
           </div>
 
-          {/* Site Logo Upload Field (Strict PNG Requirement) */}
+          {/* Site Logo Upload Field (PNG / SVG Requirement) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-foreground">Website Logo (PNG Only)</label>
+              <label className="text-xs font-semibold text-foreground">Website Logo (PNG / SVG)</label>
               <span className="text-[10px] font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10">
-                PNG Strictly Enforced
+                PNG / SVG Supported
               </span>
             </div>
 
             <input
               ref={fileInputRef}
               type="file"
-              accept=".png,image/png"
+              accept=".png,.svg,image/png,image/svg+xml"
               onChange={handleLogoUpload}
               className="hidden"
             />

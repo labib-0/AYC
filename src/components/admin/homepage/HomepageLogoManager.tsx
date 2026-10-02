@@ -32,6 +32,19 @@ async function validatePngMagicBytes(file: File): Promise<boolean> {
   }
 }
 
+/**
+ * Validates basic SVG structure client-side
+ */
+async function validateSvgStructure(file: File): Promise<boolean> {
+  try {
+    const text = await file.text();
+    const trimmed = text.trim().toLowerCase();
+    return trimmed.includes("<svg") && (trimmed.includes("xmlns") || trimmed.includes("viewbox") || trimmed.includes("</svg>"));
+  } catch {
+    return false;
+  }
+}
+
 export default function HomepageLogoManager({
   currentLogo,
   onLogoChange,
@@ -48,19 +61,31 @@ export default function HomepageLogoManager({
 
     setValidationError(null);
 
-    // 1. Strict extension check
+    // 1. Strict extension check: only PNG or SVG permitted
     const fileName = file.name.toLowerCase();
-    if (!fileName.endsWith(".png")) {
-      const err = "Invalid file type. Only PNG images are permitted. JPG, JPEG, WebP, SVG, and GIF are strictly rejected.";
+    const isPng = fileName.endsWith(".png");
+    const isSvg = fileName.endsWith(".svg");
+
+    if (!isPng && !isSvg) {
+      const err = "Invalid file type. Only PNG and SVG images are permitted. JPG, JPEG, WebP, and GIF are strictly rejected.";
       setValidationError(err);
       showToast(err, "error");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
-    // 2. MIME type check
-    if (file.type && file.type.toLowerCase() !== "image/png") {
+    // 2. MIME type check if provided
+    const mimeType = (file.type || "").toLowerCase();
+    if (isPng && mimeType && mimeType !== "image/png") {
       const err = "Invalid MIME type. Logo file must be image/png.";
+      setValidationError(err);
+      showToast(err, "error");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    if (isSvg && mimeType && mimeType !== "image/svg+xml" && mimeType !== "image/svg" && mimeType !== "text/xml" && mimeType !== "text/plain") {
+      const err = "Invalid MIME type. SVG logo file must be image/svg+xml.";
       setValidationError(err);
       showToast(err, "error");
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -76,14 +101,25 @@ export default function HomepageLogoManager({
       return;
     }
 
-    // 4. Binary PNG header inspection
-    const isRealPng = await validatePngMagicBytes(file);
-    if (!isRealPng) {
-      const err = "Corrupted or invalid PNG file: Binary header verification failed.";
-      setValidationError(err);
-      showToast(err, "error");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
+    // 4. Content verification
+    if (isPng) {
+      const isRealPng = await validatePngMagicBytes(file);
+      if (!isRealPng) {
+        const err = "Corrupted or invalid PNG file: Binary header verification failed.";
+        setValidationError(err);
+        showToast(err, "error");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+    } else if (isSvg) {
+      const isValidSvg = await validateSvgStructure(file);
+      if (!isValidSvg) {
+        const err = "Corrupted or invalid SVG file: Valid SVG markup not found.";
+        setValidationError(err);
+        showToast(err, "error");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
     }
 
     // 5. Upload via authoritative site-logo architecture
@@ -140,12 +176,12 @@ export default function HomepageLogoManager({
           </h2>
         </div>
         <span className="text-[11px] font-mono text-muted-foreground uppercase">
-          Format: PNG Only (1:1 Square)
+          Format: PNG / SVG (1:1 Square)
         </span>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Configure the official website logo displayed on the customer storefront header. The logo maintains a square aspect ratio and renders inside an invisible, transparent container.
+        Configure the official website logo displayed on the customer storefront header. The logo maintains a square aspect ratio and renders inside an invisible, transparent container. Supports PNG and SVG.
       </p>
 
       {validationError && (
@@ -159,7 +195,7 @@ export default function HomepageLogoManager({
       <input
         ref={fileInputRef}
         type="file"
-        accept=".png,image/png"
+        accept=".png,.svg,image/png,image/svg+xml"
         onChange={handleFileSelect}
         className="hidden"
         disabled={disabled || uploading}
@@ -210,7 +246,7 @@ export default function HomepageLogoManager({
             <div className="text-[10px] font-mono text-muted-foreground/80 flex items-center gap-2 pt-0.5">
               <span>Aspect Ratio: 1:1</span>
               <span>•</span>
-              <span>Accepts: .png</span>
+              <span>Accepts: .png, .svg</span>
               <span>•</span>
               <span>Max: 5MB</span>
             </div>
@@ -225,6 +261,7 @@ export default function HomepageLogoManager({
             disabled={disabled || uploading}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             id="btn-upload-png-logo"
+            aria-label="Upload or replace logo"
           >
             {uploading ? (
               <>
@@ -234,7 +271,7 @@ export default function HomepageLogoManager({
             ) : (
               <>
                 <Upload size={13} />
-                <span>{currentLogo ? "Replace PNG" : "Upload PNG"}</span>
+                <span>{currentLogo ? "Replace Logo" : "Upload Logo"}</span>
               </>
             )}
           </button>
