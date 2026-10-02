@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, SlidersHorizontal, RotateCcw, X } from "lucide-react";
+import { Loader2, SlidersHorizontal, RotateCcw, X, ArrowDown } from "lucide-react";
 import ProductCard from "../product/ProductCard";
 import GlobalFilterRail from "@/components/common/GlobalFilterRail";
 import { Product } from "@/types";
@@ -184,14 +184,13 @@ export default function FeaturedProducts() {
 
       setTotalCount(result.total);
 
-      // ── CRITICAL STATE TRANSITIONS (Sections 1, 3, 5, 10, 11, 15, 17) ──────
+      // ── CRITICAL STATE TRANSITIONS (Sections 1, 2, 3, 4, 8) ────────────────
       // 1. Mark that user has loaded more
       setHasLoadedMore(true);
       // 2. Activate continuous mode (auto-pagination = ON)
       setIsContinuousMode(true);
       isContinuousModeRef.current = true;
-      // 3. Open filter rail automatically ONCE (visible + sticky + 6-col grid)
-      setIsFilterOpen(true);
+      // 3. SEPARATION OF STATES: NEVER trigger filter rail on Load More (Sections 1, 2, 3)
     } catch {
       if (
         generationRef.current === currentGen &&
@@ -313,21 +312,36 @@ export default function FeaturedProducts() {
     };
   }, [isContinuousMode, hasMore, loadNextBatch]);
 
-  // ── Filter Rail Close & Toggle Handlers (Sections 13, 16, 17) ─────────────
+  // ── Filter Rail Close & Toggle Handlers (Sections 1, 2, 3, 20) ─────────────
   const handleCloseFilter = () => {
     setIsFilterOpen(false);
-    setIsContinuousMode(false);
-    isContinuousModeRef.current = false;
   };
 
   const handleToggleFilters = () => {
-    if (isFilterOpen) {
-      handleCloseFilter();
+    setIsFilterOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        notifyExplorerActive("featured", "filter");
+      }
+      return next;
+    });
+  };
+
+  // ── Jump to Certificate section and STOP auto-pagination (Sections 5, 6, 7, 8) ──
+  const handleJumpToCertificate = () => {
+    // 1. Immediately STOP future auto-pagination
+    setIsContinuousMode(false);
+    isContinuousModeRef.current = false;
+
+    // 2. Smoothly scroll directly to the existing Certificate section
+    const certElement =
+      document.getElementById("certificate") ||
+      document.getElementById("certificates");
+
+    if (certElement) {
+      certElement.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
-      setIsFilterOpen(true);
-      setIsContinuousMode(true);
-      isContinuousModeRef.current = true;
-      notifyExplorerActive("featured", "filter");
+      window.location.hash = "#certificate";
     }
   };
 
@@ -878,6 +892,19 @@ export default function FeaturedProducts() {
           </div>
         </div>
       </div>
+
+      {/* ── Floating Down Arrow: active ONLY during auto-pagination (Sections 5, 6, 7, 8) ── */}
+      {isContinuousMode && (
+        <button
+          type="button"
+          onClick={handleJumpToCertificate}
+          aria-label="Scroll down to Certificate section"
+          title="Scroll down to Certificate"
+          className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-foreground text-background shadow-lg hover:opacity-90 active:scale-95 transition-all duration-200 cursor-pointer border border-border/40 group"
+        >
+          <ArrowDown className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-y-0.5" />
+        </button>
+      )}
     </section>
   );
 }

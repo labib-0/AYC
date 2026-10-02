@@ -215,13 +215,14 @@ console.log("\n▶ Group 4: Hot Sale - Strict Initial Limit & Reset");
 console.log("\n▶ Group 5: First Load More Click: Batch + Auto-Pagination + Filter Rail");
 
 {
-  // FeaturedProducts Load More click behavior
+  // FeaturedProducts Load More click behavior: MUST NOT open filter rail (Section 1 & 2)
+  const featuredLoadMoreSection = featuredSource.split("handleLoadMoreClick = async")[1]?.split("finally {")[0] || "";
   assert(
     featuredSource.includes("handleLoadMoreClick = async") &&
       featuredSource.includes("setHasLoadedMore(true)") &&
       featuredSource.includes("setIsContinuousMode(true)") &&
-      featuredSource.includes("setIsFilterOpen(true)"),
-    "FeaturedProducts handleLoadMoreClick activates hasLoadedMore, isContinuousMode, and opens isFilterOpen"
+      !featuredLoadMoreSection.includes("setIsFilterOpen(true)"),
+    "FeaturedProducts handleLoadMoreClick activates hasLoadedMore, isContinuousMode, and NEVER opens isFilterOpen"
   );
 
   // ShopByBrand Load More click behavior

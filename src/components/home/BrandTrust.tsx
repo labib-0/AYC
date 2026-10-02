@@ -56,7 +56,8 @@ export default function BrandTrust() {
   };
 
   return (
-    <section id="certificates" className="pt-6 sm:pt-8 pb-12 sm:pb-16 bg-background scroll-mt-20">
+    <section id="certificate" className="pt-6 sm:pt-8 pb-12 sm:pb-16 bg-background scroll-mt-20">
+      <span id="certificates" className="sr-only" aria-hidden="true" />
       <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         <div className="text-left mb-6 md:mb-8">
           <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground mb-1.5">

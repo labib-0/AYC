@@ -96,7 +96,6 @@ export interface FeaturedProductsOptions {
 export async function getFeaturedProducts(
   options: FeaturedProductsOptions
 ): Promise<{ products: Product[]; total: number; hasMore: boolean }> {
-  const isDeals = options.tab === "best-deals";
   const isNew = options.tab === "new-arrivals";
   const offset = options.offset ?? 0;
   const limit = options.limit ?? 21;
@@ -122,13 +121,13 @@ export async function getFeaturedProducts(
         .filter((fp) => fp.product && (fp.product.status === "published" || !fp.product.status))
         .map((fp) => toStorefrontProduct(fp.product));
 
-      // Apply tab filter (Best Deals or New Arrivals)
+      // Apply tab filter:
+      // When 'new-arrivals' is selected, filter to new products.
+      // For default Featured Products, DO NOT filter or rank by pricing or best deals (Sections 9, 10, 11, 24).
+      // Priority is strictly: Admin-pinned products -> Latest uploaded product -> Remaining eligible products.
       if (isNew) {
         const newOnly = list.filter((p) => p.isNew);
         if (newOnly.length > 0) list = newOnly;
-      } else if (isDeals) {
-        const dealsOnly = list.filter((p) => p.isHot || p.isLimitedTimeOffer || (p as any).is_best_deal);
-        if (dealsOnly.length > 0) list = dealsOnly;
       }
 
       // Apply client-side filters if any are active, preserving server ordering
@@ -171,7 +170,7 @@ export async function getFeaturedProducts(
   // Fallback: direct product query (sorted by newest upload via 'newest' sort_by)
   // When filters are active and homepage endpoint fails, fetch using sort=newest to approximate created_at DESC
   const queryParams: ProductQueryParams = {
-    is_best_deal: isDeals ? true : undefined,
+    // Removed is_best_deal: Featured Products does not filter by best deals or pricing
     is_new: isNew ? true : undefined,
     brand: options.brands && options.brands.length > 0 ? options.brands.join(",") : undefined,
     design_type: options.designTypes && options.designTypes.length > 0 ? options.designTypes.join(",") : undefined,
