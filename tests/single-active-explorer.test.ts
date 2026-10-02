@@ -96,8 +96,8 @@ assert(
 );
 
 assert(
-  featuredSource.includes('notifyExplorerActive("featured", "tab-change")'),
-  "FeaturedProducts notifies coordinator when switching tabs (Best Deals / New Arrivals)"
+  !featuredSource.includes("handleTabClick"),
+  "FeaturedProducts has tabs removed per user requirements"
 );
 
 assert(

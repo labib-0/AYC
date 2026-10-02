@@ -42,9 +42,9 @@ export default function BrandLogoTile({
       !imgError
   );
 
-  const tileClasses = `group relative flex items-center justify-center aspect-[1.35/1] w-full p-1 sm:p-1.5 rounded-md transition-all duration-200 cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${
+  const tileClasses = `group relative flex items-center justify-center aspect-[1.6/1] w-full p-0.5 rounded transition-all duration-200 cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground ${
     isSelected
-      ? "ring-1.5 ring-foreground/40 ring-inset hover:-translate-y-[1px]"
+      ? "ring-1 ring-foreground/40 ring-inset hover:-translate-y-[1px]"
       : "hover:-translate-y-[1px]"
   } ${className}`;
 
@@ -55,7 +55,7 @@ export default function BrandLogoTile({
         <img
           src={logoUrl || undefined}
           alt={`${name} official brand logo`}
-          className={`w-auto h-auto max-h-[74%] max-w-[82%] object-contain transition-transform duration-200 group-hover:scale-105 ${
+          className={`w-auto h-auto max-h-[76%] max-w-[84%] object-contain transition-transform duration-200 group-hover:scale-105 ${
             isSelected ? "scale-102" : ""
           }`}
           loading="lazy"

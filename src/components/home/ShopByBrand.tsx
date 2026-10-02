@@ -427,13 +427,13 @@ export default function ShopByBrand() {
   return (
     <section
       id="brands"
-      className="pt-1.5 sm:pt-2 pb-1.5 sm:pb-2 bg-background scroll-mt-20 select-none"
+      className="pt-1 sm:pt-1.5 pb-1 sm:pb-1.5 bg-background scroll-mt-20 select-none"
       aria-label="Shop By Brand"
     >
       <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         
         {/* Left-Aligned Section Heading */}
-        <div className="mb-2.5 sm:mb-3.5">
+        <div className="mb-1.5 sm:mb-2">
           <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none">
             SHOP BY BRAND
           </h2>
@@ -446,7 +446,7 @@ export default function ShopByBrand() {
           - Multi-selection support with visual highlight
         */}
         {visibleBrands.length > 0 ? (
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-[repeat(20,minmax(0,1fr))] 2xl:grid-cols-[repeat(20,minmax(0,1fr))] min-[1800px]:grid-cols-[repeat(20,minmax(0,1fr))] gap-1 sm:gap-1.5">
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-[repeat(20,minmax(0,1fr))] 2xl:grid-cols-[repeat(20,minmax(0,1fr))] min-[1800px]:grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5 sm:gap-1">
             {visibleBrands.map((brand) => {
               const logoUrl = brand.logo_url || brand.logo || getBrandLogoUrl(brand.name);
               const isSelected = selectedBrands.includes(brand.name);
@@ -471,7 +471,7 @@ export default function ShopByBrand() {
           Centered Minimal Down-Arrow Load More Control for Brands:
         */}
         {visibleCount < allBrands.length && (
-          <div className="flex justify-center mt-2 sm:mt-2.5">
+          <div className="flex justify-center mt-1.5 sm:mt-2">
             <button
               type="button"
               onClick={() => setVisibleCount(allBrands.length)}

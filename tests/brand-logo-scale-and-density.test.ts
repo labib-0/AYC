@@ -52,6 +52,10 @@ assert(
   shopByBrandCode.includes("setVisibleCount(40)"),
   "ShopByBrand sets visible count to 40 on desktop viewports"
 );
+assert(
+  shopByBrandCode.includes("gap-0.5 sm:gap-1"),
+  "ShopByBrand grid uses compact gap gap-0.5 sm:gap-1"
+);
 
 // 2. Verify BrandLogoTile.tsx
 console.log("\n[GROUP 2]: BrandLogoTile Logo Constraints");
@@ -59,12 +63,16 @@ const brandLogoTilePath = path.join(process.cwd(), "src/components/common/BrandL
 const brandLogoTileCode = fs.readFileSync(brandLogoTilePath, "utf-8");
 
 assert(
-  brandLogoTileCode.includes("p-1 sm:p-1.5"),
-  "BrandLogoTile uses compact padding p-1 sm:p-1.5"
+  brandLogoTileCode.includes("p-0.5"),
+  "BrandLogoTile uses minimal compact padding p-0.5"
 );
 assert(
-  brandLogoTileCode.includes("max-h-[74%]") && brandLogoTileCode.includes("max-w-[82%]"),
-  "BrandLogoTile constrains logo image to max-h-[74%] and max-w-[82%] for slightly larger, crisp presentation"
+  brandLogoTileCode.includes("aspect-[1.6/1]"),
+  "BrandLogoTile uses compact vertical aspect ratio aspect-[1.6/1]"
+);
+assert(
+  brandLogoTileCode.includes("max-h-[76%]") && brandLogoTileCode.includes("max-w-[84%]"),
+  "BrandLogoTile constrains logo image to max-h-[76%] and max-w-[84%] for crisp, tight strip presentation"
 );
 
 // 3. Verify ProductBrandLogoOverlay.tsx
