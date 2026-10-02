@@ -55,7 +55,7 @@ export default function BrandLogoTile({
         <img
           src={logoUrl || undefined}
           alt={`${name} official brand logo`}
-          className={`w-auto h-auto max-h-[70%] max-w-[78%] object-contain transition-transform duration-200 group-hover:scale-105 ${
+          className={`w-auto h-auto max-h-[74%] max-w-[82%] object-contain transition-transform duration-200 group-hover:scale-105 ${
             isSelected ? "scale-102" : ""
           }`}
           loading="lazy"

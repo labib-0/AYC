@@ -1,11 +1,11 @@
 /**
- * AUTOMATED TEST SUITE: BRAND LOGO DENSITY & 1.5X OVERLAY SCALING
+ * AUTOMATED TEST SUITE: BRAND LOGO DENSITY (20/ROW) & 1.5X OVERLAY SCALING
  * 
  * Verifies:
- * 1. Shop By Brand displays 22 logos in a row on desktop
- * 2. Shop By Brand initial visible count is 44 (2 rows of 22)
- * 3. BrandLogoTile renders smaller logo constraints (max-h-[70%], max-w-[78%], p-1 sm:p-1.5)
- * 4. ProductBrandLogoOverlay scales 1.5x:
+ * 1. Shop By Brand displays ~20 logos in a row on desktop
+ * 2. Shop By Brand initial visible count is 40 (2 rows of 20)
+ * 3. BrandLogoTile renders slightly enlarged logo constraints for 20/row (max-h-[74%], max-w-[82%], p-1 sm:p-1.5)
+ * 4. ProductBrandLogoOverlay scales 1.5x remain unchanged:
  *    - card: 60px / 66px (was 40px / 44px)
  *    - detail: 72px / 84px (was 48px / 56px)
  *    - modal: 60px / 72px (was 40px / 48px)
@@ -32,7 +32,7 @@ function assert(condition: boolean, desc: string) {
 }
 
 console.log("================================================================================");
-console.log("TEST SUITE: BRAND LOGO DENSITY (22/ROW) & 1.5X CORNER OVERLAY SCALING");
+console.log("TEST SUITE: BRAND LOGO DENSITY (20/ROW) & 1.5X CORNER OVERLAY SCALING");
 console.log("================================================================================\n");
 
 // 1. Verify ShopByBrand.tsx
@@ -41,20 +41,20 @@ const shopByBrandPath = path.join(process.cwd(), "src/components/home/ShopByBran
 const shopByBrandCode = fs.readFileSync(shopByBrandPath, "utf-8");
 
 assert(
-  shopByBrandCode.includes("repeat(22,minmax(0,1fr))"),
-  "ShopByBrand grid specifies 22 columns per row via repeat(22,minmax(0,1fr))"
+  shopByBrandCode.includes("repeat(20,minmax(0,1fr))"),
+  "ShopByBrand grid specifies 20 columns per row via repeat(20,minmax(0,1fr))"
 );
 assert(
-  shopByBrandCode.includes("INITIAL_BRAND_TILES_DISPLAY_COUNT = 44"),
-  "ShopByBrand initial display count is 44 (2 full rows of 22)"
+  shopByBrandCode.includes("INITIAL_BRAND_TILES_DISPLAY_COUNT = 40"),
+  "ShopByBrand initial display count is 40 (2 full rows of 20)"
 );
 assert(
-  shopByBrandCode.includes("setVisibleCount(44)"),
-  "ShopByBrand sets visible count to 44 on desktop viewports"
+  shopByBrandCode.includes("setVisibleCount(40)"),
+  "ShopByBrand sets visible count to 40 on desktop viewports"
 );
 
 // 2. Verify BrandLogoTile.tsx
-console.log("\n[GROUP 2]: BrandLogoTile Smaller Logo Constraints");
+console.log("\n[GROUP 2]: BrandLogoTile Logo Constraints");
 const brandLogoTilePath = path.join(process.cwd(), "src/components/common/BrandLogoTile.tsx");
 const brandLogoTileCode = fs.readFileSync(brandLogoTilePath, "utf-8");
 
@@ -63,12 +63,12 @@ assert(
   "BrandLogoTile uses compact padding p-1 sm:p-1.5"
 );
 assert(
-  brandLogoTileCode.includes("max-h-[70%]") && brandLogoTileCode.includes("max-w-[78%]"),
-  "BrandLogoTile constrains logo image to max-h-[70%] and max-w-[78%] for smaller, crisp presentation"
+  brandLogoTileCode.includes("max-h-[74%]") && brandLogoTileCode.includes("max-w-[82%]"),
+  "BrandLogoTile constrains logo image to max-h-[74%] and max-w-[82%] for slightly larger, crisp presentation"
 );
 
 // 3. Verify ProductBrandLogoOverlay.tsx
-console.log("\n[GROUP 3]: ProductBrandLogoOverlay 1.5x Sizing");
+console.log("\n[GROUP 3]: ProductBrandLogoOverlay 1.5x Sizing Unchanged");
 const overlayPath = path.join(process.cwd(), "src/components/common/ProductBrandLogoOverlay.tsx");
 const overlayCode = fs.readFileSync(overlayPath, "utf-8");
 
