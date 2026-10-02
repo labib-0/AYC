@@ -18,7 +18,7 @@ function runTest(name: string, fn: () => void) {
 }
 
 console.log("======================================================================");
-console.log("TEST SUITE: ADMIN HOMEPAGE PAGINATION, SEARCH, SELECTION & DND");
+console.log("TEST SUITE: ADMIN HOMEPAGE UNIFIED SELECTION & ORDERING SYSTEM");
 console.log("======================================================================\n");
 
 // Read source files
@@ -36,8 +36,8 @@ const homepageServiceSource = fs.readFileSync(homepageServicePath, "utf-8");
 const backendControllerSource = fs.readFileSync(backendControllerPath, "utf-8");
 const backendRoutesSource = fs.readFileSync(backendRoutesPath, "utf-8");
 
-// ── GROUP 1: SHOP BY BRAND ADMIN MANAGEMENT ──
-console.log("▶ GROUP 1: SHOP BY BRAND ADMIN MANAGEMENT");
+// ── GROUP 1: SHOP BY BRAND UNIFIED MANAGEMENT ──
+console.log("▶ GROUP 1: SHOP BY BRAND UNIFIED MANAGEMENT");
 
 runTest("1. ShopByBrandManager has default page size 5 and selector options [5, 10, 20, 50]", () => {
   assert.ok(
@@ -61,18 +61,24 @@ runTest("2. ShopByBrandManager contains brand search input with ID brand-search-
   );
 });
 
-runTest("3. ShopByBrandManager separates Available Brands and Selected Homepage Brands", () => {
+runTest("3. ShopByBrandManager uses ONE unified list with in-place selection (NO two-panel duplication)", () => {
+  // Ensure two-panel separate available/selected duplicated panels are removed
   assert.ok(
-    brandManagerSource.includes("Available Brands"),
-    "Must have Available Brands panel"
+    !brandManagerSource.includes("Available Brands\n              </h3>") &&
+    !brandManagerSource.includes("Selected Homepage Brands\n              </h3>"),
+    "Must not use side-by-side Available Brands vs Selected Brands two-panel layout"
   );
   assert.ok(
-    brandManagerSource.includes("Selected Homepage Brands"),
-    "Must have Selected Homepage Brands panel"
+    brandManagerSource.includes("filteredPinnedBrands"),
+    "Must maintain curated pinned brands in unified list"
+  );
+  assert.ok(
+    brandManagerSource.includes("unpinnedCatalogBrands"),
+    "Must render catalog brands in unified list"
   );
 });
 
-runTest("4. ShopByBrandManager supports HTML5 drag-and-drop with GripVertical handle", () => {
+runTest("4. ShopByBrandManager supports HTML5 drag-and-drop with GripVertical handle and position badges", () => {
   assert.ok(
     brandManagerSource.includes("onDragStart"),
     "Must include onDragStart handler"
@@ -89,16 +95,24 @@ runTest("4. ShopByBrandManager supports HTML5 drag-and-drop with GripVertical ha
     brandManagerSource.includes("GripVertical"),
     "Must show GripVertical drag handle"
   );
+  assert.ok(
+    brandManagerSource.includes("Pos {position}") || brandManagerSource.includes("{position}"),
+    "Must display sequential position numbers"
+  );
 });
 
-runTest("5. ShopByBrandManager prevents duplicate additions and shows ADDED badge", () => {
+runTest("5. ShopByBrandManager prevents duplicate additions and allows in-place toggle PINNED ✓ / + ADD", () => {
   assert.ok(
-    brandManagerSource.includes("selectedBrandIds.has"),
-    "Must check selectedBrandIds for duplicate prevention"
+    brandManagerSource.includes("selectedBrandMap.has"),
+    "Must check selectedBrandMap for duplicate prevention"
   );
   assert.ok(
-    brandManagerSource.includes("ADDED"),
-    "Must show ADDED badge when item is already selected"
+    brandManagerSource.includes("PINNED ✓"),
+    "Must show PINNED ✓ on selected items"
+  );
+  assert.ok(
+    brandManagerSource.includes("+ ADD"),
+    "Must show + ADD on unselected catalog items"
   );
 });
 
@@ -117,8 +131,8 @@ runTest("6. ShopByBrandManager provides Move Up, Move Down, and Remove controls"
   );
 });
 
-// ── GROUP 2: HOT SALE CATEGORY ADMIN MANAGEMENT ──
-console.log("\n▶ GROUP 2: HOT SALE CATEGORY ADMIN MANAGEMENT");
+// ── GROUP 2: HOT SALE CATEGORY UNIFIED MANAGEMENT ──
+console.log("\n▶ GROUP 2: HOT SALE CATEGORY UNIFIED MANAGEMENT");
 
 runTest("7. HotSaleCategoryManager has default page size 5 and selector options [5, 10, 20, 50]", () => {
   assert.ok(
@@ -138,14 +152,19 @@ runTest("8. HotSaleCategoryManager contains category search input with ID catego
   );
 });
 
-runTest("9. HotSaleCategoryManager separates Available Categories and Selected Hot Sale Categories", () => {
+runTest("9. HotSaleCategoryManager uses ONE unified list with in-place selection (NO two-panel duplication)", () => {
   assert.ok(
-    hotSaleManagerSource.includes("Available Categories"),
-    "Must have Available Categories panel"
+    !hotSaleManagerSource.includes("Available Categories\n              </h3>") &&
+    !hotSaleManagerSource.includes("Selected Hot Sale Categories\n              </h3>"),
+    "Must not use side-by-side two-panel layout"
   );
   assert.ok(
-    hotSaleManagerSource.includes("Selected Hot Sale Categories"),
-    "Must have Selected Hot Sale Categories panel"
+    hotSaleManagerSource.includes("filteredPinnedCategories"),
+    "Must maintain curated pinned categories in unified list"
+  );
+  assert.ok(
+    hotSaleManagerSource.includes("unpinnedCatalogCategories"),
+    "Must render catalog categories in unified list"
   );
 });
 
@@ -168,8 +187,8 @@ runTest("10. HotSaleCategoryManager supports HTML5 drag-and-drop and sequence re
   );
 });
 
-// ── GROUP 3: FEATURED PRODUCTS ADMIN MANAGEMENT ──
-console.log("\n▶ GROUP 3: FEATURED PRODUCTS ADMIN MANAGEMENT");
+// ── GROUP 3: FEATURED PRODUCTS UNIFIED MANAGEMENT ──
+console.log("\n▶ GROUP 3: FEATURED PRODUCTS UNIFIED MANAGEMENT");
 
 runTest("11. FeaturedProductManager has default page size 5 and selector options [5, 10, 20, 50]", () => {
   assert.ok(
@@ -189,14 +208,19 @@ runTest("12. FeaturedProductManager contains product search input with ID produc
   );
 });
 
-runTest("13. FeaturedProductManager separates Available Products and Selected Featured Products", () => {
+runTest("13. FeaturedProductManager uses ONE unified list with in-place selection (NO two-panel duplication)", () => {
   assert.ok(
-    featuredManagerSource.includes("Available Products"),
-    "Must have Available Products panel"
+    !featuredManagerSource.includes("Available Products\n              </h3>") &&
+    !featuredManagerSource.includes("Selected Featured Products\n              </h3>"),
+    "Must not use side-by-side two-panel layout"
   );
   assert.ok(
-    featuredManagerSource.includes("Selected Featured Products"),
-    "Must have Selected Featured Products panel"
+    featuredManagerSource.includes("filteredPinnedProducts"),
+    "Must maintain curated pinned products in unified list"
+  );
+  assert.ok(
+    featuredManagerSource.includes("unpinnedCatalogProducts"),
+    "Must render catalog products in unified list"
   );
 });
 
@@ -327,7 +351,7 @@ runTest("20. Pagination or search change does not alter or reset selected list",
   assert.strictEqual(selectedBrands[1].brand_id, 20);
 });
 
-runTest("21. Duplicate prevention guarantees a brand cannot be added twice", () => {
+runTest("21. Duplicate prevention guarantees an item cannot be added twice", () => {
   const selectedList = [
     { brand_id: 1, sort_order: 0 },
     { brand_id: 2, sort_order: 1 },

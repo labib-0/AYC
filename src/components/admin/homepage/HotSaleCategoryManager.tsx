@@ -15,7 +15,8 @@ import {
   GripVertical,
   ChevronLeft,
   ChevronRight,
-  Loader2
+  Loader2,
+  Sparkles
 } from "lucide-react";
 import { 
   homepageService, 
@@ -92,21 +93,24 @@ export default function HotSaleCategoryManager({
   onSaveSuccess,
   showToast,
 }: HotSaleCategoryManagerProps) {
-  // Selected Hot Sale Categories State
+  // Selected Hot Sale Categories State (Authoritative Admin Sequence)
   const [categories, setCategories] = useState<HomepageHotSaleCategoryModel[]>(initialCategories);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Available Categories Pagination & Search State
+  // Unified List Pagination & Search State
   const [availableCategories, setAvailableCategories] = useState<HomepageCategoryRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState<number>(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [isLoadingAvailable, setIsLoadingAvailable] = useState(false);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
 
-  // Drag and Drop State
+  // View Filter: "all" (Pinned + Paginated Catalog) or "pinned" (Curated Sequence Only)
+  const [viewFilter, setViewFilter] = useState<"all" | "pinned">("all");
+
+  // Drag and Drop State (for pinned items)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -116,15 +120,19 @@ export default function HotSaleCategoryManager({
     setHasUnsavedChanges(false);
   }, [initialCategories]);
 
-  // Selected category IDs set for fast O(1) lookup
-  const selectedCategoryIds = useMemo(() => {
-    return new Set(categories.map((c) => String(c.category_id)));
+  // Selected category IDs map for fast O(1) lookup & position retrieval
+  const selectedCategoryMap = useMemo(() => {
+    const map = new Map<string, number>();
+    categories.forEach((c, idx) => {
+      map.set(String(c.category_id), idx + 1);
+    });
+    return map;
   }, [categories]);
 
-  // Fetch paginated available categories from backend
-  const fetchAvailableCategories = useCallback(
+  // Fetch paginated catalog categories from backend
+  const fetchCatalogCategories = useCallback(
     async (query: string, page: number, perPage: number) => {
-      setIsLoadingAvailable(true);
+      setIsLoadingCatalog(true);
       try {
         const res = await homepageService.searchCategories(query, page, perPage);
         setAvailableCategories(res.items || []);
@@ -132,7 +140,7 @@ export default function HotSaleCategoryManager({
         setTotalPages(res.pagination?.last_page || 1);
         setTotalCount(res.pagination?.total || 0);
       } catch (err) {
-        console.warn("Failed to fetch available categories via search endpoint, falling back to categoryService:", err);
+        console.warn("Failed to fetch categories via search endpoint, falling back to categoryService:", err);
         try {
           const all = await categoryService.getCategories({ all: true, isAdmin: true });
           const q = query.trim().toLowerCase();
@@ -148,8 +156,6 @@ export default function HotSaleCategoryManager({
             slug: c.slug,
             description: c.description,
             image_url: c.image_url,
-            accent_color: c.accent_color,
-            sort_order: c.sort_order,
             is_active: c.is_active !== false,
           }));
           setAvailableCategories(mapped);
@@ -160,21 +166,21 @@ export default function HotSaleCategoryManager({
           setAvailableCategories([]);
         }
       } finally {
-        setIsLoadingAvailable(false);
+        setIsLoadingCatalog(false);
       }
     },
     []
   );
 
-  // Load available categories initially and on search/page/pageSize change
+  // Load catalog categories on search/page/pageSize change
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchAvailableCategories(searchQuery, currentPage, pageSize);
+      fetchCatalogCategories(searchQuery, currentPage, pageSize);
     }, 200);
     return () => clearTimeout(timer);
-  }, [searchQuery, currentPage, pageSize, fetchAvailableCategories]);
+  }, [searchQuery, currentPage, pageSize, fetchCatalogCategories]);
 
-  // Handlers for available list controls
+  // Handlers for search, page, and page size controls
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
     setCurrentPage(1);
@@ -191,24 +197,22 @@ export default function HotSaleCategoryManager({
     }
   };
 
-  // Add category to Hot Sale selection
-  const handleAddCategory = (category: HomepageCategoryRecord) => {
-    const exists = categories.some((c) => String(c.category_id) === String(category.id));
-    if (exists) return;
+  // Add / Pin category in-place directly in the unified list
+  const handleAddCategory = (cat: HomepageCategoryRecord) => {
+    const catIdStr = String(cat.id);
+    if (selectedCategoryMap.has(catIdStr)) return;
 
     const newItem: HomepageHotSaleCategoryModel = {
-      category_id: typeof category.id === "number" ? category.id : (Number(category.id) || 0),
+      category_id: Number(cat.id),
       sort_order: categories.length,
       is_active: true,
       category: {
-        id: category.id,
-        name: category.name,
-        slug: category.slug,
-        description: category.description,
-        image_url: category.image_url,
-        accent_color: category.accent_color,
-        sort_order: category.sort_order,
-        is_active: category.is_active !== false,
+        id: Number(cat.id),
+        name: cat.name,
+        slug: cat.slug,
+        image_url: cat.image_url,
+        description: cat.description,
+        is_active: cat.is_active !== false,
       },
     };
 
@@ -216,16 +220,16 @@ export default function HotSaleCategoryManager({
     setHasUnsavedChanges(true);
   };
 
-  // Remove category from Hot Sale selection
-  const handleRemove = (categoryId: number) => {
+  // Unpin / Remove category from homepage selection in-place
+  const handleRemove = (catId: string | number) => {
     setCategories((prev) => {
-      const next = prev.filter((c) => c.category_id !== categoryId);
+      const next = prev.filter((c) => String(c.category_id) !== String(catId));
       return next.map((item, idx) => ({ ...item, sort_order: idx }));
     });
     setHasUnsavedChanges(true);
   };
 
-  // Move category up in sort order
+  // Move category up in sequence
   const handleMoveUp = (index: number) => {
     if (index <= 0) return;
     setCategories((prev) => {
@@ -238,7 +242,7 @@ export default function HotSaleCategoryManager({
     setHasUnsavedChanges(true);
   };
 
-  // Move category down in sort order
+  // Move category down in sequence
   const handleMoveDown = (index: number) => {
     if (index >= categories.length - 1) return;
     setCategories((prev) => {
@@ -251,7 +255,7 @@ export default function HotSaleCategoryManager({
     setHasUnsavedChanges(true);
   };
 
-  // HTML5 Drag and Drop Handlers
+  // HTML5 Drag and Drop Handlers for selected items
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
@@ -291,7 +295,23 @@ export default function HotSaleCategoryManager({
     setDragOverIndex(null);
   };
 
-  // Save changes to Laravel API
+  // Filtered pinned categories when searching
+  const filteredPinnedCategories = useMemo(() => {
+    if (!searchQuery.trim()) return categories;
+    const q = searchQuery.toLowerCase().trim();
+    return categories.filter((item) => {
+      const name = item.category?.name?.toLowerCase() || "";
+      const slug = item.category?.slug?.toLowerCase() || "";
+      return name.includes(q) || slug.includes(q);
+    });
+  }, [categories, searchQuery]);
+
+  // Catalog items for the current page that are NOT already pinned
+  const unpinnedCatalogCategories = useMemo(() => {
+    return availableCategories.filter((c) => !selectedCategoryMap.has(String(c.id)));
+  }, [availableCategories, selectedCategoryMap]);
+
+  // Save changes to backend
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -304,7 +324,7 @@ export default function HotSaleCategoryManager({
       const updated = await homepageService.syncHotSaleCategories(payload);
       setCategories(updated);
       setHasUnsavedChanges(false);
-      showToast("Hot Sale categories sequence saved successfully. Active on storefront.", "success");
+      showToast("Hot Sale categories saved successfully. Active on storefront carousel.", "success");
       if (onSaveSuccess) onSaveSuccess();
     } catch {
       showToast("Failed to save Hot Sale categories. Please try again.", "error");
@@ -314,12 +334,12 @@ export default function HotSaleCategoryManager({
   };
 
   return (
-    <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-6 shadow-2xs">
-      {/* Section Header Bar */}
+    <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xs">
+      {/* ── Section Header Bar ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/70">
         <div>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-600 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center">
               <Flame size={16} />
             </div>
             <h2 className="text-base sm:text-lg font-display font-bold uppercase tracking-tight text-foreground">
@@ -332,7 +352,7 @@ export default function HotSaleCategoryManager({
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Search and select categories to feature in the storefront HOT SALE showcase, then drag to determine their display sequence.
+            Manage curated categories for the Hot Sale carousel in one unified list. Select, pin, and drag items to define their exact display sequence.
           </p>
         </div>
 
@@ -359,273 +379,309 @@ export default function HotSaleCategoryManager({
         </div>
       </div>
 
-      {/* Two-Column Management Layout: Available Categories vs Selected Hot Sale Categories */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* ================================================================ */}
-        {/* LEFT COLUMN: AVAILABLE CATEGORIES (Search + 5/10/20/50 Pagination)*/}
-        {/* ================================================================ */}
-        <div className="lg:col-span-6 flex flex-col space-y-3.5 p-4 rounded-xl border border-border/60 bg-secondary/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground font-sans">
-                Available Categories
-              </h3>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-secondary text-muted-foreground border border-border/40">
-                {totalCount} total
-              </span>
-            </div>
-
-            {/* Page Size Selector */}
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="text-[11px] font-medium hidden sm:inline">Page Size:</span>
-              <div className="inline-flex items-center rounded-lg border border-border bg-card p-0.5" role="group" aria-label="Category Page Size">
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => handlePageSizeChange(size)}
-                    aria-pressed={pageSize === size}
-                    className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition-all cursor-pointer ${
-                      pageSize === size
-                        ? "bg-primary text-primary-foreground shadow-2xs"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Search Field */}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              id="category-search-input"
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search categories by name or slug..."
-              className="w-full pl-9 pr-8 py-2 rounded-xl bg-card border border-border/80 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => handleSearchChange("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
-                aria-label="Clear search"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-
-          {/* Available Categories List */}
-          <div className="space-y-2 min-h-[260px] flex flex-col justify-between">
-            <div className="space-y-1.5">
-              {isLoadingAvailable ? (
-                <div className="py-12 flex flex-col items-center justify-center space-y-2 text-muted-foreground">
-                  <Loader2 size={20} className="animate-spin text-primary" />
-                  <span className="text-xs">Loading available categories...</span>
-                </div>
-              ) : availableCategories.length === 0 ? (
-                <div className="py-10 text-center rounded-xl border border-dashed border-border/70 p-4 space-y-1">
-                  <p className="text-xs font-semibold text-foreground">No categories found</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {searchQuery ? `No matching results for "${searchQuery}".` : "No active categories available in taxonomy."}
-                  </p>
-                </div>
-              ) : (
-                availableCategories.map((category) => {
-                  const isSelected = selectedCategoryIds.has(String(category.id));
-                  return (
-                    <div
-                      key={category.id}
-                      className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-card border border-border/70 hover:border-border transition-all"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <CategoryItemThumbnail
-                          src={category.image_url}
-                          alt={category.name}
-                          fallbackSlug={category.slug}
-                          size="sm"
-                        />
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-foreground truncate font-sans">{category.name}</p>
-                          <p className="text-[10px] text-muted-foreground font-mono truncate">{category.slug}</p>
-                        </div>
-                      </div>
-
-                      {isSelected ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20 shrink-0">
-                          <Check size={11} />
-                          <span>ADDED</span>
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleAddCategory(category)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-wider border border-primary/20 transition-all cursor-pointer shrink-0 active:scale-95"
-                        >
-                          <Plus size={11} />
-                          <span>SELECT</span>
-                        </button>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs">
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage <= 1 || isLoadingAvailable}
-                    aria-label="Previous Page"
-                    className="p-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                  >
-                    <ChevronLeft size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage >= totalPages || isLoadingAvailable}
-                    aria-label="Next Page"
-                    className="p-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                  >
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+      {/* ── Toolbar: Search, View Tabs & Page Size Selector ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 rounded-xl border border-border/60 bg-secondary/20">
+        {/* Search Field */}
+        <div className="relative flex-1 max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            id="category-search-input"
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="Search categories by name or slug..."
+            className="w-full pl-9 pr-8 py-2 rounded-xl bg-card border border-border/80 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => handleSearchChange("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
+              aria-label="Clear search"
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
 
-        {/* ================================================================ */}
-        {/* RIGHT COLUMN: SELECTED HOT SALE CATEGORIES (Numbered + Drag & Drop)*/}
-        {/* ================================================================ */}
-        <div className="lg:col-span-6 flex flex-col space-y-3.5 p-4 rounded-xl border border-border/60 bg-secondary/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground font-sans">
-                Selected Hot Sale Categories
-              </h3>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
-                {categories.length} selected
+        {/* View Filter & Page Size Selector */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* View Filter Tabs */}
+          <div className="inline-flex items-center p-0.5 rounded-lg border border-border bg-card text-xs">
+            <button
+              type="button"
+              onClick={() => setViewFilter("all")}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                viewFilter === "all"
+                  ? "bg-primary text-primary-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All Categories
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewFilter("pinned")}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                viewFilter === "pinned"
+                  ? "bg-primary text-primary-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span>Selected Only</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-primary-foreground/20">
+                {categories.length}
               </span>
-            </div>
+            </button>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            Drag cards or use arrow buttons to determine their exact sequence in the storefront Hot Sale carousel.
-          </p>
 
-          {/* Selected Categories List */}
-          <div className="space-y-2 min-h-[260px]">
-            {categories.length === 0 ? (
-              <div className="py-14 text-center rounded-xl border-2 border-dashed border-border/70 p-6 space-y-2">
-                <Flame size={24} className="text-muted-foreground/40 mx-auto" />
-                <p className="text-xs font-bold text-foreground">No Hot Sale categories selected</p>
-                <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">
-                  Click &quot;+ SELECT&quot; on any available category on the left to add it to the Hot Sale section.
-                </p>
-              </div>
-            ) : (
-              categories.map((item, index) => {
-                const cat = item.category;
-                const isDragging = draggedIndex === index;
-                const isDragOver = dragOverIndex === index;
-
-                return (
-                  <div
-                    key={String(item.category_id)}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDrop={(e) => handleDrop(e, index)}
-                    onDragEnd={handleDragEnd}
-                    className={`flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-card border transition-all ${
-                      isDragging
-                        ? "opacity-50 scale-[0.98] border-orange-500"
-                        : isDragOver
-                        ? "border-orange-500 ring-2 ring-orange-500/40 bg-orange-500/5"
-                        : "border-border/80 hover:border-border"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {/* Drag Handle */}
-                      <div
-                        className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0"
-                        title="Drag to reorder"
-                      >
-                        <GripVertical size={15} />
-                      </div>
-
-                      {/* Display Order Sequence Number */}
-                      <span className="w-5 h-5 rounded-md bg-secondary text-foreground text-[10px] font-mono font-bold flex items-center justify-center shrink-0 border border-border/50">
-                        {index + 1}
-                      </span>
-
-                      {/* Thumbnail & Category Name */}
-                      <CategoryItemThumbnail
-                        src={cat?.image_url}
-                        alt={cat?.name || "Category"}
-                        fallbackSlug={cat?.slug}
-                        size="sm"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-foreground truncate font-sans">
-                          {cat?.name || `Category #${item.category_id}`}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground font-mono truncate">
-                          Position {index + 1}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Order & Remove Controls */}
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                      <button
-                        type="button"
-                        onClick={() => handleMoveUp(index)}
-                        disabled={index === 0}
-                        title="Move Up"
-                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
-                      >
-                        <ArrowUp size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleMoveDown(index)}
-                        disabled={index === categories.length - 1}
-                        title="Move Down"
-                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
-                      >
-                        <ArrowDown size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(item.category_id)}
-                        title="Remove from Hot Sale"
-                        className="p-1 rounded-lg text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-colors cursor-pointer ml-0.5"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+          {/* Page Size Selector */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="text-[11px] font-medium hidden sm:inline">Page Size:</span>
+            <div className="inline-flex items-center rounded-lg border border-border bg-card p-0.5" role="group" aria-label="Category Page Size">
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => handlePageSizeChange(size)}
+                  aria-pressed={pageSize === size}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition-all cursor-pointer ${
+                    pageSize === size
+                      ? "bg-primary text-primary-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* ── ONE UNIFIED LIST ── */}
+      <div className="rounded-xl border border-border/70 overflow-hidden bg-card divide-y divide-border/50">
+        {/* Loading State */}
+        {isLoadingCatalog && categories.length === 0 && (
+          <div className="py-12 flex flex-col items-center justify-center space-y-2 text-muted-foreground">
+            <Loader2 size={20} className="animate-spin text-primary" />
+            <span className="text-xs">Loading categories...</span>
+          </div>
+        )}
+
+        {/* Empty State when no categories match at all */}
+        {!isLoadingCatalog && categories.length === 0 && availableCategories.length === 0 && (
+          <div className="py-12 text-center p-6 space-y-2">
+            <Layers size={24} className="text-muted-foreground/40 mx-auto" />
+            <p className="text-xs font-bold text-foreground">No categories found</p>
+            <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+              {searchQuery ? `No matching categories for "${searchQuery}".` : "No active categories found in the catalog."}
+            </p>
+          </div>
+        )}
+
+        {/* 1. SELECTED / PINNED ITEMS (Always visible in-place at top of unified list with drag handle & position) */}
+        {filteredPinnedCategories.length > 0 && (
+          <div className="bg-orange-500/5 divide-y divide-border/40">
+            {filteredPinnedCategories.map((item) => {
+              // Real index in the authoritative categories array
+              const index = categories.findIndex((c) => String(c.category_id) === String(item.category_id));
+              const cat = item.category;
+              const position = index + 1;
+              const isDragging = draggedIndex === index;
+              const isDragOver = dragOverIndex === index;
+
+              return (
+                <div
+                  key={`pinned-${item.category_id}`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                  className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
+                    isDragging
+                      ? "opacity-50 scale-[0.99] bg-orange-500/10"
+                      : isDragOver
+                      ? "bg-orange-500/15 ring-2 ring-orange-500/40"
+                      : "hover:bg-orange-500/10"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {/* Drag Handle */}
+                    <div
+                      className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/70 hover:text-foreground transition-colors shrink-0"
+                      title="Drag to reorder sequence"
+                    >
+                      <GripVertical size={15} />
+                    </div>
+
+                    {/* Sequential Position Number */}
+                    <span className="w-5 h-5 rounded-md bg-orange-500/20 text-orange-600 dark:text-orange-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border border-orange-500/30">
+                      {position}
+                    </span>
+
+                    {/* Category Thumbnail & Name */}
+                    <CategoryItemThumbnail
+                      src={cat?.image_url}
+                      alt={cat?.name || "Category"}
+                      fallbackSlug={cat?.slug}
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <p className="text-xs font-bold text-foreground truncate font-sans">
+                          {cat?.name || `Category #${item.category_id}`}
+                        </p>
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-orange-500/15 text-orange-600 dark:text-orange-400">
+                          Pos {position}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground font-mono truncate">
+                        {cat?.slug || `id: ${item.category_id}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions: Reorder arrows + In-place Selected / Remove Toggle */}
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <button
+                      type="button"
+                      onClick={() => handleMoveUp(index)}
+                      disabled={index === 0}
+                      title="Move Up"
+                      className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                    >
+                      <ArrowUp size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveDown(index)}
+                      disabled={index === categories.length - 1}
+                      title="Move Down"
+                      className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                    >
+                      <ArrowDown size={13} />
+                    </button>
+
+                    {/* PINNED ✓ button (clicking directly unpins it) */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(item.category_id)}
+                      title="Click to remove from Hot Sale carousel"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-[10px] font-bold uppercase tracking-wider border border-orange-500/30 hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group"
+                    >
+                      <Check size={11} className="group-hover:hidden" />
+                      <Trash2 size={11} className="hidden group-hover:inline" />
+                      <span className="group-hover:hidden">PINNED ✓</span>
+                      <span className="hidden group-hover:inline">REMOVE</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Helper divider when both pinned items and catalog items are shown */}
+        {viewFilter === "all" && filteredPinnedCategories.length > 0 && unpinnedCatalogCategories.length > 0 && (
+          <div className="px-3 py-1.5 bg-secondary/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+            <span>Available Catalog Categories (Page {currentPage} of {totalPages})</span>
+            <span>Click + ADD to pin to carousel</span>
+          </div>
+        )}
+
+        {/* 2. UNPINNED CATALOG ITEMS (Shown in-place directly in the same list) */}
+        {viewFilter === "all" && (
+          <div className="divide-y divide-border/40">
+            {unpinnedCatalogCategories.map((cat) => {
+              return (
+                <div
+                  key={`catalog-${cat.id}`}
+                  className="flex items-center justify-between p-2.5 sm:p-3 hover:bg-secondary/20 transition-all"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {/* Placeholder space to align with drag handle & position */}
+                    <div className="w-5 flex items-center justify-center text-muted-foreground/30 text-xs">
+                      •
+                    </div>
+
+                    <CategoryItemThumbnail
+                      src={cat.image_url}
+                      alt={cat.name}
+                      fallbackSlug={cat.slug}
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-foreground truncate font-sans">
+                        {cat.name}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground font-mono truncate">
+                        {cat.slug}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* + ADD / + PIN Action */}
+                  <button
+                    type="button"
+                    onClick={() => handleAddCategory(cat)}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-wider border border-primary/20 transition-all cursor-pointer shrink-0 active:scale-95"
+                  >
+                    <Plus size={11} />
+                    <span>+ ADD</span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Empty pinned state when viewing "pinned" filter */}
+        {viewFilter === "pinned" && filteredPinnedCategories.length === 0 && (
+          <div className="py-12 text-center p-6 space-y-2">
+            <Sparkles size={24} className="text-muted-foreground/40 mx-auto" />
+            <p className="text-xs font-bold text-foreground">No categories pinned yet</p>
+            <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">
+              Switch to &quot;All Categories&quot; and click &quot;+ ADD&quot; on any category to curate the Hot Sale carousel.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Pagination Bar (Catalog Navigation) ── */}
+      {viewFilter === "all" && totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2 text-xs">
+          <span className="text-[11px] text-muted-foreground font-mono">
+            Page {currentPage} of {totalPages} ({totalCount} total catalog categories)
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1 || isLoadingCatalog}
+              aria-label="Previous Page"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+            >
+              <ChevronLeft size={14} />
+              <span>Prev</span>
+            </button>
+            <span className="px-2 py-1 text-[11px] font-mono font-bold text-foreground">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages || isLoadingCatalog}
+              aria-label="Next Page"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+            >
+              <span>Next</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
