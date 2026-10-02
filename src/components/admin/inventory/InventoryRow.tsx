@@ -53,6 +53,9 @@ export default function InventoryRow({
             alt={product?.name || "Product"}
             className="w-11 aspect-[3/4] object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60 shadow-2xs"
             loading="lazy"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";
+            }}
           />
           <div className="min-w-0 flex-1">
             <span className="font-bold text-foreground block truncate max-w-[220px] text-xs sm:text-sm">

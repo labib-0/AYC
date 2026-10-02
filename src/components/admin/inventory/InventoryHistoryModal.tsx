@@ -78,6 +78,9 @@ export default function InventoryHistoryModal({
               src={imageUrl}
               alt={product?.name || "Product"}
               className="w-12 aspect-[3/4] object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";
+              }}
             />
             <div className="min-w-0">
               <h4 className="font-bold text-foreground text-xs truncate">

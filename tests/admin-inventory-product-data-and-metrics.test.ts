@@ -108,6 +108,18 @@ assert(
   "No component displays raw inventory record.id as SKU"
 );
 
+assert(
+  inventoryKpisContent.includes('label: "Stock Items"') &&
+    !inventoryKpisContent.includes('label: "Products"'),
+  "InventoryKpis labels the primary card 'Stock Items' instead of misleading 'Products'"
+);
+
+assert(
+  inventoryKpisContent.includes("summary.totalRecords ?? summary.totalItems") &&
+    inventoryKpisContent.includes("summary.totalProducts"),
+  "InventoryKpis displays totalRecords for stock items and includes unique totalProducts in subtitle"
+);
+
 // ==================================================
 // 3. AUTHORITATIVE HELPER FUNCTIONS IN INVENTORY SERVICE
 // ==================================================

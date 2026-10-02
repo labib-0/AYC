@@ -150,6 +150,9 @@ export default function InventoryTable({
                   alt={product?.name || "Product"}
                   className="w-12 aspect-[3/4] object-contain p-0.5 rounded-lg bg-secondary/60 shrink-0 border border-border/60 shadow-2xs"
                   loading="lazy"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";
+                  }}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
