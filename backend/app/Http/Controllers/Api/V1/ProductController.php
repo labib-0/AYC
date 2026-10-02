@@ -1698,6 +1698,7 @@ class ProductController extends ApiController
                 }
             }
         }
+    }
 
         // Update shipping package profiles if provided
         if ($request->has('shipping_package_profiles') && is_array($request->input('shipping_package_profiles'))) {
