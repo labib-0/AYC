@@ -38,7 +38,7 @@ export interface HomepageFeaturedBrandModel {
 }
 
 export interface HomepageCategoryRecord {
-  id: number;
+  id: number | string;
   name: string;
   slug: string;
   description?: string | null;
@@ -121,6 +121,26 @@ export interface ProductSearchResultItem {
 
 export interface PaginatedProductSearchResults {
   items: ProductSearchResultItem[];
+  pagination: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+}
+
+export interface PaginatedBrandSearchResults {
+  items: HomepageBrandRecord[];
+  pagination: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+}
+
+export interface PaginatedCategorySearchResults {
+  items: HomepageCategoryRecord[];
   pagination: {
     current_page: number;
     last_page: number;
@@ -303,7 +323,7 @@ export class HomepageService {
     perPage?: number
   ): Promise<PaginatedProductSearchResults> {
     const params = typeof paramsOrQuery === "string"
-      ? { q: paramsOrQuery, page: page || 1, per_page: perPage || 15 }
+      ? { q: paramsOrQuery, page: page || 1, per_page: perPage || 5 }
       : paramsOrQuery;
     const res = await apiClient.get<any>("/admin/homepage/search-products", {
       params: params as any,
@@ -314,7 +334,69 @@ export class HomepageService {
       pagination: data?.pagination || {
         current_page: 1,
         last_page: 1,
-        per_page: 15,
+        per_page: perPage || 5,
+        total: 0,
+      },
+    };
+  }
+
+  /**
+   * Search and paginate brands for Shop By Brand landing page management.
+   */
+  async searchBrands(
+    paramsOrQuery?: string | {
+      q?: string;
+      search?: string;
+      page?: number;
+      per_page?: number;
+    },
+    page?: number,
+    perPage?: number
+  ): Promise<PaginatedBrandSearchResults> {
+    const params = typeof paramsOrQuery === "string"
+      ? { q: paramsOrQuery, page: page || 1, per_page: perPage || 5 }
+      : paramsOrQuery;
+    const res = await apiClient.get<any>("/admin/homepage/search-brands", {
+      params: params as any,
+    });
+    const data = res?.data || res;
+    return {
+      items: Array.isArray(data?.items) ? data.items : [],
+      pagination: data?.pagination || {
+        current_page: 1,
+        last_page: 1,
+        per_page: perPage || 5,
+        total: 0,
+      },
+    };
+  }
+
+  /**
+   * Search and paginate categories for Hot Sale landing page management.
+   */
+  async searchCategories(
+    paramsOrQuery?: string | {
+      q?: string;
+      search?: string;
+      page?: number;
+      per_page?: number;
+    },
+    page?: number,
+    perPage?: number
+  ): Promise<PaginatedCategorySearchResults> {
+    const params = typeof paramsOrQuery === "string"
+      ? { q: paramsOrQuery, page: page || 1, per_page: perPage || 5 }
+      : paramsOrQuery;
+    const res = await apiClient.get<any>("/admin/homepage/search-categories", {
+      params: params as any,
+    });
+    const data = res?.data || res;
+    return {
+      items: Array.isArray(data?.items) ? data.items : [],
+      pagination: data?.pagination || {
+        current_page: 1,
+        last_page: 1,
+        per_page: perPage || 5,
         total: 0,
       },
     };

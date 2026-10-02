@@ -473,6 +473,82 @@ class HomepageManagementController extends ApiController
     }
 
     /**
+     * GET /api/v1/admin/homepage/search-brands
+     *
+     * Paginated search for brands to add to Shop By Brand on landing page.
+     */
+    public function searchBrands(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->input('q', $request->input('search', '')));
+        $perPage = min(max((int) $request->input('per_page', 5), 1), 50);
+
+        $query = Brand::query()
+            ->where('is_active', true)
+            ->withCount('products');
+
+        if (!empty($search)) {
+            $lower = '%' . strtolower($search) . '%';
+            $query->where(function ($q) use ($lower, $search) {
+                $q->whereRaw('LOWER(name) LIKE ?', [$lower])
+                  ->orWhereRaw('LOWER(slug) LIKE ?', [$lower]);
+                if (is_numeric($search)) {
+                    $q->orWhere('id', (int) $search);
+                }
+            });
+        }
+
+        $paginated = $query->orderBy('name', 'asc')->paginate($perPage);
+
+        return $this->success([
+            'items' => $paginated->items(),
+            'pagination' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+            ],
+        ], 'Brands retrieved for landing page selector');
+    }
+
+    /**
+     * GET /api/v1/admin/homepage/search-categories
+     *
+     * Paginated search for categories to add to Hot Sale on landing page.
+     */
+    public function searchCategories(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->input('q', $request->input('search', '')));
+        $perPage = min(max((int) $request->input('per_page', 5), 1), 50);
+
+        $query = Category::query()
+            ->where('is_active', true)
+            ->withCount('products');
+
+        if (!empty($search)) {
+            $lower = '%' . strtolower($search) . '%';
+            $query->where(function ($q) use ($lower, $search) {
+                $q->whereRaw('LOWER(name) LIKE ?', [$lower])
+                  ->orWhereRaw('LOWER(slug) LIKE ?', [$lower]);
+                if (is_numeric($search)) {
+                    $q->orWhere('id', (int) $search);
+                }
+            });
+        }
+
+        $paginated = $query->orderBy('name', 'asc')->paginate($perPage);
+
+        return $this->success([
+            'items' => $paginated->items(),
+            'pagination' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+            ],
+        ], 'Categories retrieved for landing page selector');
+    }
+
+    /**
      * GET /api/v1/admin/homepage/search-products
      *
      * Paginated search for products to add to Featured Products.
@@ -482,7 +558,7 @@ class HomepageManagementController extends ApiController
         $search = trim((string) $request->input('q', $request->input('search', '')));
         $categoryId = $request->input('category_id');
         $brandId = $request->input('brand_id');
-        $perPage = min(max((int) $request->input('per_page', 15), 1), 50);
+        $perPage = min(max((int) $request->input('per_page', 5), 1), 50);
 
         $query = Product::query()
             ->where('status', 'published')
@@ -494,15 +570,19 @@ class HomepageManagementController extends ApiController
             ]);
 
         if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%")
-                  ->orWhereHas('brand', function ($bq) use ($search) {
-                      $bq->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('categories', function ($cq) use ($search) {
-                      $cq->where('name', 'like', "%{$search}%");
-                  });
+            $lower = '%' . strtolower($search) . '%';
+            $query->where(function ($q) use ($lower, $search) {
+                $q->whereRaw('LOWER(name) LIKE ?', [$lower])
+                  ->orWhereRaw('LOWER(sku) LIKE ?', [$lower]);
+                if (is_numeric($search)) {
+                    $q->orWhere('id', (int) $search);
+                }
+                $q->orWhereHas('brand', function ($bq) use ($lower) {
+                    $bq->whereRaw('LOWER(name) LIKE ?', [$lower]);
+                })
+                ->orWhereHas('categories', function ($cq) use ($lower) {
+                    $cq->whereRaw('LOWER(name) LIKE ?', [$lower]);
+                });
             });
         }
 

@@ -446,6 +446,10 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:homepage.product.manage');
             Route::get('/search-products', [AdminHomepageManagementController::class, 'searchProducts'])
                 ->middleware('permission:homepage.view');
+            Route::get('/search-brands', [AdminHomepageManagementController::class, 'searchBrands'])
+                ->middleware('permission:homepage.view');
+            Route::get('/search-categories', [AdminHomepageManagementController::class, 'searchCategories'])
+                ->middleware('permission:homepage.view');
             Route::post('/ticker', [AdminHomepageManagementController::class, 'syncTickerItems'])
                 ->middleware('permission:homepage.banner.edit');
             Route::post('/hot-sale-visibility', [AdminHomepageManagementController::class, 'updateHotSaleVisibility'])

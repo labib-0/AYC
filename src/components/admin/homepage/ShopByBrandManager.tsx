@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { 
   ArrowUp, 
   ArrowDown, 
@@ -11,15 +11,17 @@ import {
   Check, 
   Tags, 
   Save,
-  CheckCircle2,
-  AlertCircle
+  GripVertical,
+  ChevronLeft,
+  ChevronRight,
+  Loader2
 } from "lucide-react";
 import { 
   homepageService, 
-  HomepageFeaturedBrandModel 
+  HomepageFeaturedBrandModel,
+  HomepageBrandRecord
 } from "@/services/homepage.service";
-import { brandService, BrandModel } from "@/services/brand.service";
-import { getBrandLogoUrl } from "@/lib/brand-logos";
+import { brandService } from "@/services/brand.service";
 
 function BrandItemLogo({
   logo,
@@ -38,8 +40,8 @@ function BrandItemLogo({
 
   const containerClasses =
     size === "sm"
-      ? "w-9 h-9 rounded-lg bg-secondary/50 border border-border/40 overflow-hidden relative shrink-0 flex items-center justify-center p-1"
-      : "w-12 h-12 rounded-xl bg-secondary/40 border border-border/60 overflow-hidden relative shrink-0 flex items-center justify-center p-1.5";
+      ? "w-8 h-8 rounded-lg bg-secondary/50 border border-border/40 overflow-hidden relative shrink-0 flex items-center justify-center p-1"
+      : "w-10 h-10 rounded-xl bg-secondary/40 border border-border/60 overflow-hidden relative shrink-0 flex items-center justify-center p-1.5";
 
   return (
     <div className={containerClasses}>
@@ -53,7 +55,7 @@ function BrandItemLogo({
           onError={() => setHasError(true)}
         />
       ) : (
-        <Tags size={size === "sm" ? 14 : 20} className="text-muted-foreground" />
+        <Tags size={size === "sm" ? 14 : 18} className="text-muted-foreground" />
       )}
     </div>
   );
@@ -65,18 +67,30 @@ interface ShopByBrandManagerProps {
   showToast: (message: string, type: "success" | "error") => void;
 }
 
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+
 export default function ShopByBrandManager({
   initialBrands,
   onSaveSuccess,
   showToast,
 }: ShopByBrandManagerProps) {
+  // Selected Homepage Brands State
   const [brands, setBrands] = useState<HomepageFeaturedBrandModel[]>(initialBrands);
-  const [allCatalogBrands, setAllCatalogBrands] = useState<BrandModel[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalSearch, setModalSearch] = useState("");
-  const [loadingBrands, setLoadingBrands] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Available Brands Pagination & Search State
+  const [availableBrands, setAvailableBrands] = useState<HomepageBrandRecord[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pageSize, setPageSize] = useState<number>(5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoadingAvailable, setIsLoadingAvailable] = useState(false);
+
+  // Drag and Drop State
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Sync state if initialBrands changes externally
   useEffect(() => {
@@ -84,21 +98,102 @@ export default function ShopByBrandManager({
     setHasUnsavedChanges(false);
   }, [initialBrands]);
 
-  // Load backend brand directory when selector modal is opened
-  const handleOpenModal = async () => {
-    setIsModalOpen(true);
-    setModalSearch("");
-    if (allCatalogBrands.length === 0) {
-      setLoadingBrands(true);
+  // Selected brand IDs set for fast O(1) lookup
+  const selectedBrandIds = useMemo(() => {
+    return new Set(brands.map((b) => String(b.brand_id)));
+  }, [brands]);
+
+  // Fetch paginated available brands from backend
+  const fetchAvailableBrands = useCallback(
+    async (query: string, page: number, perPage: number) => {
+      setIsLoadingAvailable(true);
       try {
-        const list = await brandService.getBrands({ all: true, isAdmin: true });
-        setAllCatalogBrands(list);
+        const res = await homepageService.searchBrands(query, page, perPage);
+        setAvailableBrands(res.items || []);
+        setCurrentPage(res.pagination?.current_page || 1);
+        setTotalPages(res.pagination?.last_page || 1);
+        setTotalCount(res.pagination?.total || 0);
       } catch (err) {
-        console.error("Failed to load catalog brands:", err);
+        console.warn("Failed to fetch available brands via search endpoint, falling back to brandService:", err);
+        try {
+          const all = await brandService.getBrands({ all: true, isAdmin: true });
+          const q = query.trim().toLowerCase();
+          const filtered = all.filter((b) => {
+            if (b.is_active === false) return false;
+            if (!q) return true;
+            return b.name.toLowerCase().includes(q) || b.slug.toLowerCase().includes(q);
+          });
+          const start = (page - 1) * perPage;
+          setAvailableBrands(filtered.slice(start, start + perPage));
+          setTotalPages(Math.max(1, Math.ceil(filtered.length / perPage)));
+          setTotalCount(filtered.length);
+          setCurrentPage(page);
+        } catch {
+          setAvailableBrands([]);
+        }
       } finally {
-        setLoadingBrands(false);
+        setIsLoadingAvailable(false);
       }
+    },
+    []
+  );
+
+  // Load available brands initially and on search/page/pageSize change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchAvailableBrands(searchQuery, currentPage, pageSize);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery, currentPage, pageSize, fetchAvailableBrands]);
+
+  // Handlers for available list controls
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
     }
+  };
+
+  // Add brand to homepage selection
+  const handleAddBrand = (brand: HomepageBrandRecord) => {
+    const exists = brands.some((b) => String(b.brand_id) === String(brand.id));
+    if (exists) return;
+
+    const newItem: HomepageFeaturedBrandModel = {
+      brand_id: brand.id,
+      sort_order: brands.length,
+      is_active: true,
+      brand: {
+        id: brand.id,
+        name: brand.name,
+        slug: brand.slug,
+        logo_url: brand.logo_url || brand.logo,
+        website: brand.website,
+        sort_order: brand.sort_order,
+        is_active: brand.is_active !== false,
+      },
+    };
+
+    setBrands((prev) => [...prev, newItem]);
+    setHasUnsavedChanges(true);
+  };
+
+  // Remove brand from homepage selection
+  const handleRemove = (brandId: string | number) => {
+    setBrands((prev) => {
+      const next = prev.filter((b) => String(b.brand_id) !== String(brandId));
+      return next.map((item, idx) => ({ ...item, sort_order: idx }));
+    });
+    setHasUnsavedChanges(true);
   };
 
   // Move brand up in sort order
@@ -127,50 +222,44 @@ export default function ShopByBrandManager({
     setHasUnsavedChanges(true);
   };
 
-  // Remove brand from Shop By Brand landing list
-  const handleRemove = (brandId: string | number) => {
-    setBrands((prev) => {
-      const next = prev.filter((b) => String(b.brand_id) !== String(brandId));
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-    setHasUnsavedChanges(true);
+  // HTML5 Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
   };
 
-  // Add brand from catalog modal
-  const handleAddBrand = (catalogBrand: BrandModel) => {
-    const exists = brands.some((b) => String(b.brand_id) === String(catalogBrand.id));
-    if (exists) return;
-
-    const newItem: HomepageFeaturedBrandModel = {
-      brand_id: catalogBrand.id,
-      sort_order: brands.length,
-      is_active: true,
-      brand: {
-        id: catalogBrand.id,
-        name: catalogBrand.name,
-        slug: catalogBrand.slug,
-        logo_url: catalogBrand.logo_url || catalogBrand.logo,
-        website: catalogBrand.website,
-        sort_order: catalogBrand.sort_order,
-        is_active: catalogBrand.is_active !== false,
-      },
-    };
-
-    setBrands((prev) => [...prev, newItem]);
-    setHasUnsavedChanges(true);
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
   };
 
-  // Toggle active state
-  const handleToggleActive = (index: number) => {
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
     setBrands((prev) => {
       const next = [...prev];
-      next[index] = {
-        ...next[index],
-        is_active: !next[index].is_active,
-      };
-      return next;
+      const [moved] = next.splice(draggedIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      return next.map((item, idx) => ({ ...item, sort_order: idx }));
     });
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
     setHasUnsavedChanges(true);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   // Save changes to Laravel API
@@ -186,7 +275,7 @@ export default function ShopByBrandManager({
       const updated = await homepageService.syncFeaturedBrands(payload);
       setBrands(updated);
       setHasUnsavedChanges(false);
-      showToast("Shop By Brand selection and order updated successfully. Active on storefront.", "success");
+      showToast("Shop By Brand sequence saved successfully. Active on storefront.", "success");
       if (onSaveSuccess) onSaveSuccess();
     } catch {
       showToast("Failed to save Shop By Brand selection. Please try again.", "error");
@@ -195,28 +284,10 @@ export default function ShopByBrandManager({
     }
   };
 
-  // Filter catalog brands in modal
-  const filteredCatalogBrands = useMemo(() => {
-    const q = modalSearch.trim().toLowerCase();
-    return allCatalogBrands.filter((b) => {
-      if (b.is_active === false) return false;
-      if (!q) return true;
-      return (
-        b.name.toLowerCase().includes(q) ||
-        (b.slug && b.slug.toLowerCase().includes(q))
-      );
-    });
-  }, [allCatalogBrands, modalSearch]);
-
-  const selectedBrandIds = useMemo(
-    () => new Set(brands.map((b) => String(b.brand_id))),
-    [brands]
-  );
-
   return (
-    <div className="space-y-4">
+    <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-6 shadow-2xs">
       {/* Section Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/70">
         <div>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
@@ -225,27 +296,24 @@ export default function ShopByBrandManager({
             <h2 className="text-base sm:text-lg font-display font-bold uppercase tracking-tight text-foreground">
               Shop By Brand (Landing Page)
             </h2>
+            {hasUnsavedChanges && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-mono">
+                Unsaved Changes
+              </span>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Select and sequence the brands that appear in the &quot;SHOP BY BRAND&quot; section on the storefront homepage.
+          <p className="text-xs text-muted-foreground mt-1">
+            Search and select brands from the catalog, then drag to determine the exact display sequence on the customer homepage.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={handleOpenModal}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-foreground text-xs font-semibold hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
-          >
-            <Plus size={14} />
-            <span>Add Brand</span>
-          </button>
-
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
           <button
             type="button"
             onClick={handleSave}
             disabled={saving || !hasUnsavedChanges}
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-40 transition-all cursor-pointer shadow-2xs"
+            id="btn-save-shop-by-brand"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-40 transition-all cursor-pointer shadow-2xs"
           >
             {saving ? (
               <>
@@ -255,267 +323,270 @@ export default function ShopByBrandManager({
             ) : (
               <>
                 <Save size={14} />
-                <span>Save Brands</span>
+                <span>Save Changes</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Unsaved indicator notice */}
-      {hasUnsavedChanges && (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-300">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={15} />
-            <span>You have unsaved changes in your Shop By Brand list. Click <strong>Save Brands</strong> to persist.</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="font-bold underline uppercase tracking-wider hover:opacity-80 cursor-pointer"
-          >
-            Save Now
-          </button>
-        </div>
-      )}
+      {/* Two-Column Management Layout: Available Brands vs Selected Homepage Brands */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* ================================================================ */}
+        {/* LEFT COLUMN: AVAILABLE BRANDS (Search + 5/10/20/50 Pagination)  */}
+        {/* ================================================================ */}
+        <div className="lg:col-span-6 flex flex-col space-y-3.5 p-4 rounded-xl border border-border/60 bg-secondary/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground font-sans">
+                Available Brands
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-secondary text-muted-foreground border border-border/40">
+                {totalCount} total
+              </span>
+            </div>
 
-      {/* Brands List Display */}
-      {brands.length === 0 ? (
-        <div className="p-8 rounded-2xl border border-dashed border-border/80 text-center space-y-3 bg-secondary/10">
-          <div className="w-10 h-10 rounded-full bg-secondary text-muted-foreground flex items-center justify-center mx-auto">
-            <Tags size={20} />
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-foreground">No Brands Selected for Landing Page</p>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              The storefront Shop By Brand section will remain empty until you select brands to feature. Click &quot;Add Brand&quot; to choose from your active catalog.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleOpenModal}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
-          >
-            <Plus size={14} />
-            <span>Select Brands from Catalog</span>
-          </button>
-        </div>
-      ) : (
-        <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-2xs divide-y divide-border/60">
-          {brands.map((item, index) => {
-            const brand = item.brand;
-            const logo = brand?.logo_url || (brand?.name ? getBrandLogoUrl(brand.name) : "/placeholder.jpg");
-            const isFirst = index === 0;
-            const isLast = index === brands.length - 1;
-
-            return (
-              <div
-                key={String(item.brand_id)}
-                className={`p-3.5 sm:p-4 flex items-center justify-between gap-3 sm:gap-4 transition-colors ${
-                  item.is_active ? "hover:bg-secondary/20" : "opacity-50 bg-secondary/30"
-                }`}
-              >
-                {/* Left: Position Number & Logo + Details */}
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                  <div className="w-6 text-center font-mono text-xs font-bold text-muted-foreground">
-                    #{index + 1}
-                  </div>
-
-                  <BrandItemLogo
-                    logo={logo}
-                    alt={brand?.name || "Brand logo"}
-                    size="md"
-                  />
-
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-foreground truncate">
-                        {brand?.name || `Brand #${item.brand_id}`}
-                      </h4>
-                      {brand?.slug && (
-                        <span className="text-[11px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-secondary">
-                          {brand.slug}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {item.is_active ? "Active on landing page" : "Inactive (Hidden)"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Right: Actions (Active Toggle, Up/Down, Remove) */}
-                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                  {/* Active Toggle Button */}
+            {/* Page Size Selector */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="text-[11px] font-medium hidden sm:inline">Page Size:</span>
+              <div className="inline-flex items-center rounded-lg border border-border bg-card p-0.5" role="group" aria-label="Brand Page Size">
+                {PAGE_SIZE_OPTIONS.map((size) => (
                   <button
+                    key={size}
                     type="button"
-                    onClick={() => handleToggleActive(index)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-colors ${
-                      item.is_active
-                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20"
-                        : "bg-secondary text-muted-foreground border-border hover:text-foreground"
+                    onClick={() => handlePageSizeChange(size)}
+                    aria-pressed={pageSize === size}
+                    className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition-all cursor-pointer ${
+                      pageSize === size
+                        ? "bg-primary text-primary-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                     }`}
-                    title={item.is_active ? "Click to deactivate on landing page" : "Click to activate"}
                   >
-                    {item.is_active ? "Active" : "Hidden"}
+                    {size}
                   </button>
-
-                  {/* Move Up */}
-                  <button
-                    type="button"
-                    onClick={() => handleMoveUp(index)}
-                    disabled={isFirst}
-                    className="p-1.5 rounded-lg border border-border/60 hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-25 transition-colors cursor-pointer"
-                    aria-label={`Move ${brand?.name} up`}
-                  >
-                    <ArrowUp size={14} />
-                  </button>
-
-                  {/* Move Down */}
-                  <button
-                    type="button"
-                    onClick={() => handleMoveDown(index)}
-                    disabled={isLast}
-                    className="p-1.5 rounded-lg border border-border/60 hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-25 transition-colors cursor-pointer"
-                    aria-label={`Move ${brand?.name} down`}
-                  >
-                    <ArrowDown size={14} />
-                  </button>
-
-                  {/* Remove */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(item.brand_id)}
-                    className="p-1.5 rounded-lg border border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                    aria-label={`Remove ${brand?.name} from Shop By Brand`}
-                    title="Remove from landing page"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                ))}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          </div>
 
-      {/* Catalog Brand Selector Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs">
-          <div className="bg-card border border-border rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-border/60 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-base text-foreground">Select Brands for Landing Page</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Pick manufacturer brands from your active database catalog.
-                </p>
-              </div>
+          {/* Search Field */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              id="brand-search-input"
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search brands by name or slug..."
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-card border border-border/80 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+            />
+            {searchQuery && (
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+                onClick={() => handleSearchChange("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
+                aria-label="Clear search"
               >
-                <X size={16} />
+                <X size={13} />
               </button>
-            </div>
+            )}
+          </div>
 
-            {/* Search Input */}
-            <div className="p-4 border-b border-border/60">
-              <div className="relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search brands by name or slug..."
-                  value={modalSearch}
-                  onChange={(e) => setModalSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-secondary/50 rounded-xl text-xs text-foreground placeholder:text-muted-foreground border border-border/60 focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </div>
-
-            {/* Brands List */}
-            <div className="p-4 overflow-y-auto flex-1 divide-y divide-border/40">
-              {loadingBrands ? (
-                <div className="py-12 text-center text-xs text-muted-foreground">
-                  Loading catalog brands from database...
+          {/* Available Brands List */}
+          <div className="space-y-2 min-h-[260px] flex flex-col justify-between">
+            <div className="space-y-1.5">
+              {isLoadingAvailable ? (
+                <div className="py-12 flex flex-col items-center justify-center space-y-2 text-muted-foreground">
+                  <Loader2 size={20} className="animate-spin text-primary" />
+                  <span className="text-xs">Loading available brands...</span>
                 </div>
-              ) : filteredCatalogBrands.length === 0 ? (
-                <div className="py-12 text-center space-y-2">
-                  <p className="text-xs text-muted-foreground">No matching brands found in your database.</p>
+              ) : availableBrands.length === 0 ? (
+                <div className="py-10 text-center rounded-xl border border-dashed border-border/70 p-4 space-y-1">
+                  <p className="text-xs font-semibold text-foreground">No brands found</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {searchQuery ? `No matching results for "${searchQuery}".` : "No active brands available in the catalog."}
+                  </p>
                 </div>
               ) : (
-                filteredCatalogBrands.map((b) => {
-                  const isSelected = selectedBrandIds.has(String(b.id));
-                  const logo = b.logo_url || b.logo || (b.name ? getBrandLogoUrl(b.name) : undefined);
-
+                availableBrands.map((brand) => {
+                  const isSelected = selectedBrandIds.has(String(brand.id));
                   return (
                     <div
-                      key={String(b.id)}
-                      className="py-2.5 flex items-center justify-between gap-3 hover:bg-secondary/30 px-2 rounded-xl transition-colors"
+                      key={brand.id}
+                      className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-card border border-border/70 hover:border-border transition-all"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <BrandItemLogo
-                          logo={logo}
-                          alt={b.name}
-                          size="sm"
-                        />
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <BrandItemLogo logo={brand.logo_url || brand.logo} alt={brand.name} size="sm" />
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-foreground truncate">{b.name}</p>
-                          {b.slug && <p className="text-[11px] font-mono text-muted-foreground truncate">{b.slug}</p>}
+                          <p className="text-xs font-bold text-foreground truncate font-sans">{brand.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono truncate">{brand.slug}</p>
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            handleRemove(b.id);
-                          } else {
-                            handleAddBrand(b);
-                          }
-                        }}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1 ${
-                          isSelected
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary hover:bg-secondary/80 text-foreground border border-border"
-                        }`}
-                      >
-                        {isSelected ? (
-                          <>
-                            <Check size={12} />
-                            <span>Selected</span>
-                          </>
-                        ) : (
-                          <>
-                            <Plus size={12} />
-                            <span>Select</span>
-                          </>
-                        )}
-                      </button>
+                      {isSelected ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20 shrink-0">
+                          <Check size={11} />
+                          <span>ADDED</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleAddBrand(brand)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-wider border border-primary/20 transition-all cursor-pointer shrink-0 active:scale-95"
+                        >
+                          <Plus size={11} />
+                          <span>SELECT</span>
+                        </button>
+                      )}
                     </div>
                   );
                 })
               )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-border/60 flex items-center justify-between bg-secondary/20">
-              <span className="text-xs text-muted-foreground">
-                {brands.length} brand{brands.length === 1 ? "" : "s"} selected for Shop By Brand
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
-              >
-                Done
-              </button>
-            </div>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs">
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1 || isLoadingAvailable}
+                    aria-label="Previous Page"
+                    className="p-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages || isLoadingAvailable}
+                    aria-label="Next Page"
+                    className="p-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* ================================================================ */}
+        {/* RIGHT COLUMN: SELECTED HOMEPAGE BRANDS (Numbered + Drag & Drop) */}
+        {/* ================================================================ */}
+        <div className="lg:col-span-6 flex flex-col space-y-3.5 p-4 rounded-xl border border-border/60 bg-secondary/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground font-sans">
+                Selected Homepage Brands
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-primary/10 text-primary border border-primary/20">
+                {brands.length} selected
+              </span>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Drag items using the grip handle or use arrow buttons to define display sequence on the customer storefront.
+          </p>
+
+          {/* Selected Brands List */}
+          <div className="space-y-2 min-h-[260px]">
+            {brands.length === 0 ? (
+              <div className="py-14 text-center rounded-xl border-2 border-dashed border-border/70 p-6 space-y-2">
+                <Tags size={24} className="text-muted-foreground/40 mx-auto" />
+                <p className="text-xs font-bold text-foreground">No brands selected</p>
+                <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">
+                  Click &quot;+ SELECT&quot; on any available brand on the left to add it to the homepage.
+                </p>
+              </div>
+            ) : (
+              brands.map((item, index) => {
+                const brand = item.brand;
+                const isDragging = draggedIndex === index;
+                const isDragOver = dragOverIndex === index;
+
+                return (
+                  <div
+                    key={String(item.brand_id)}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    onDragEnd={handleDragEnd}
+                    className={`flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-card border transition-all ${
+                      isDragging
+                        ? "opacity-50 scale-[0.98] border-primary"
+                        : isDragOver
+                        ? "border-primary ring-2 ring-primary/40 bg-primary/5"
+                        : "border-border/80 hover:border-border"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {/* Drag Handle */}
+                      <div
+                        className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0"
+                        title="Drag to reorder"
+                      >
+                        <GripVertical size={15} />
+                      </div>
+
+                      {/* Display Order Sequence Number */}
+                      <span className="w-5 h-5 rounded-md bg-secondary text-foreground text-[10px] font-mono font-bold flex items-center justify-center shrink-0 border border-border/50">
+                        {index + 1}
+                      </span>
+
+                      {/* Brand Logo & Name */}
+                      <BrandItemLogo logo={brand?.logo_url || brand?.logo} alt={brand?.name || "Brand"} size="sm" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate font-sans">
+                          {brand?.name || `Brand #${item.brand_id}`}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-mono truncate">
+                          Position {index + 1}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Order & Remove Controls */}
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <button
+                        type="button"
+                        onClick={() => handleMoveUp(index)}
+                        disabled={index === 0}
+                        title="Move Up"
+                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      >
+                        <ArrowUp size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoveDown(index)}
+                        disabled={index === brands.length - 1}
+                        title="Move Down"
+                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      >
+                        <ArrowDown size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(item.brand_id)}
+                        title="Remove from Homepage"
+                        className="p-1 rounded-lg text-muted-foreground hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-colors cursor-pointer ml-0.5"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
