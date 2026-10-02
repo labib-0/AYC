@@ -13,6 +13,7 @@ use App\Models\HomepageTickerItem;
 use App\Models\Product;
 use App\Models\SystemSetting;
 use App\Services\Cache\CatalogCacheService;
+use App\Services\Catalog\HomepageOrderingService;
 use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,8 @@ use Illuminate\Support\Facades\Storage;
 class HomepageManagementController extends ApiController
 {
     public function __construct(
-        private readonly AdminAuthorizationService $authorization
+        private readonly AdminAuthorizationService $authorization,
+        private readonly HomepageOrderingService $orderingService
     ) {}
 
     /**
@@ -236,69 +238,10 @@ class HomepageManagementController extends ApiController
             'brands.*.is_active' => ['nullable', 'boolean'],
         ]);
 
-        $incomingBrands = $validated['brands'];
-
-        $seenBrandIds = [];
-        $uniqueBrands = [];
-        foreach ($incomingBrands as $idx => $item) {
-            $brandId = (int) $item['brand_id'];
-            if (!in_array($brandId, $seenBrandIds, true)) {
-                $seenBrandIds[] = $brandId;
-                $uniqueBrands[] = [
-                    'brand_id' => $brandId,
-                    'sort_order' => $item['sort_order'] ?? $idx,
-                    'is_active' => isset($item['is_active']) ? (bool) $item['is_active'] : true,
-                ];
-            }
-        }
-
-        DB::beginTransaction();
         try {
-            // Delete removed items from homepage_featured_brands
-            if (empty($seenBrandIds)) {
-                HomepageFeaturedBrand::query()->delete();
-                Brand::where('is_featured_on_landing', true)->update([
-                    'is_featured_on_landing' => false,
-                ]);
-            } else {
-                HomepageFeaturedBrand::whereNotIn('brand_id', $seenBrandIds)->delete();
-                Brand::whereNotIn('id', $seenBrandIds)->where('is_featured_on_landing', true)->update([
-                    'is_featured_on_landing' => false,
-                ]);
-            }
-
-            // Insert or update remaining items
-            foreach ($uniqueBrands as $item) {
-                HomepageFeaturedBrand::updateOrCreate(
-                    ['brand_id' => $item['brand_id']],
-                    [
-                        'sort_order' => $item['sort_order'],
-                        'is_active' => $item['is_active'],
-                    ]
-                );
-
-                // Update Brand entity directly for single source of truth
-                Brand::where('id', $item['brand_id'])->update([
-                    'is_featured_on_landing' => $item['is_active'],
-                    'landing_sort_order' => $item['sort_order'],
-                ]);
-            }
-
-            DB::commit();
-
-            CatalogCacheService::invalidateBrands();
-            CatalogCacheService::invalidateAll();
-
-            $updated = HomepageFeaturedBrand::query()
-                ->with(['brand' => function ($q) {
-                    $q->select('id', 'name', 'slug', 'logo_url', 'website', 'sort_order', 'is_active', 'is_featured_on_landing', 'landing_sort_order');
-                }])
-                ->orderBy('sort_order', 'asc')
-                ->get();
-
+            $updated = $this->orderingService->syncFeaturedBrands($validated['brands']);
             return $this->success($updated, 'Shop By Brand landing page brands updated successfully');
         } catch (\Throwable $e) {
-            DB::rollBack();
             return $this->error('Failed to update landing page brands: ' . $e->getMessage(), 500);
         }
     }
@@ -317,70 +260,10 @@ class HomepageManagementController extends ApiController
             'categories.*.is_active' => ['nullable', 'boolean'],
         ]);
 
-        $incomingCategories = $validated['categories'];
-
-        // Enforce uniqueness of category IDs
-        $seenCategoryIds = [];
-        $uniqueCategories = [];
-        foreach ($incomingCategories as $idx => $item) {
-            $catId = (int) $item['category_id'];
-            if (!in_array($catId, $seenCategoryIds, true)) {
-                $seenCategoryIds[] = $catId;
-                $uniqueCategories[] = [
-                    'category_id' => $catId,
-                    'sort_order' => $item['sort_order'] ?? $idx,
-                    'is_active' => isset($item['is_active']) ? (bool) $item['is_active'] : true,
-                ];
-            }
-        }
-
-        DB::beginTransaction();
         try {
-            // Delete removed items
-            if (empty($seenCategoryIds)) {
-                HomepageHotSaleCategory::query()->delete();
-                Category::where('is_featured_on_landing', true)->update([
-                    'is_featured_on_landing' => false,
-                ]);
-            } else {
-                HomepageHotSaleCategory::whereNotIn('category_id', $seenCategoryIds)->delete();
-                Category::whereNotIn('id', $seenCategoryIds)->where('is_featured_on_landing', true)->update([
-                    'is_featured_on_landing' => false,
-                ]);
-            }
-
-            // Insert or update remaining items
-            foreach ($uniqueCategories as $item) {
-                HomepageHotSaleCategory::updateOrCreate(
-                    ['category_id' => $item['category_id']],
-                    [
-                        'sort_order' => $item['sort_order'],
-                        'is_active' => $item['is_active'],
-                    ]
-                );
-
-                // Update Category entity directly for single source of truth
-                Category::where('id', $item['category_id'])->update([
-                    'is_featured_on_landing' => $item['is_active'],
-                    'landing_sort_order' => $item['sort_order'],
-                ]);
-            }
-
-            DB::commit();
-
-            CatalogCacheService::invalidateCategories();
-            CatalogCacheService::invalidateAll();
-
-            $updated = HomepageHotSaleCategory::query()
-                ->with(['category' => function ($q) {
-                    $q->select('id', 'name', 'slug', 'description', 'image_url', 'accent_color', 'sort_order', 'is_active', 'is_featured_on_landing', 'landing_sort_order');
-                }])
-                ->orderBy('sort_order', 'asc')
-                ->get();
-
+            $updated = $this->orderingService->syncHotSaleCategories($validated['categories']);
             return $this->success($updated, 'Hot Sale categories updated successfully');
         } catch (\Throwable $e) {
-            DB::rollBack();
             return $this->error('Failed to update Hot Sale categories: ' . $e->getMessage(), 500);
         }
     }
@@ -399,75 +282,10 @@ class HomepageManagementController extends ApiController
             'products.*.is_active' => ['nullable', 'boolean'],
         ]);
 
-        $incomingProducts = $validated['products'];
-
-        // Enforce uniqueness of product IDs and strictly normalize sequence (0, 1, 2, ...)
-        $seenProductIds = [];
-        $uniqueProducts = [];
-        foreach ($incomingProducts as $idx => $item) {
-            $prodId = (int) $item['product_id'];
-            if (!in_array($prodId, $seenProductIds, true)) {
-                $seenProductIds[] = $prodId;
-                $uniqueProducts[] = [
-                    'product_id' => $prodId,
-                    'sort_order' => $idx,
-                    'is_active' => isset($item['is_active']) ? (bool) $item['is_active'] : true,
-                ];
-            }
-        }
-
-        DB::beginTransaction();
         try {
-            // Delete removed items
-            if (empty($seenProductIds)) {
-                HomepageFeaturedProduct::query()->delete();
-                Product::where('is_featured', true)->update([
-                    'is_featured' => false,
-                ]);
-            } else {
-                HomepageFeaturedProduct::whereNotIn('product_id', $seenProductIds)->delete();
-                Product::whereNotIn('id', $seenProductIds)->where('is_featured', true)->update([
-                    'is_featured' => false,
-                ]);
-            }
-
-            // Insert or update remaining items with authoritative sort_order
-            foreach ($uniqueProducts as $item) {
-                HomepageFeaturedProduct::updateOrCreate(
-                    ['product_id' => $item['product_id']],
-                    [
-                        'sort_order' => $item['sort_order'],
-                        'is_active' => $item['is_active'],
-                    ]
-                );
-
-                // Update Product entity directly for single source of truth
-                Product::where('id', $item['product_id'])->update([
-                    'is_featured' => $item['is_active'],
-                    'featured_sort_order' => $item['sort_order'],
-                ]);
-            }
-
-            DB::commit();
-
-            CatalogCacheService::invalidateAll();
-
-            $updated = HomepageFeaturedProduct::query()
-                ->with([
-                    'product' => function ($query) {
-                        $query->with([
-                            'images' => fn($q) => $q->orderBy('sort_order', 'asc'),
-                            'brand',
-                            'categories',
-                        ]);
-                    }
-                ])
-                ->orderBy('sort_order', 'asc')
-                ->get();
-
+            $updated = $this->orderingService->syncFeaturedProducts($validated['products']);
             return $this->success($updated, 'Featured products updated successfully');
         } catch (\Throwable $e) {
-            DB::rollBack();
             return $this->error('Failed to update Featured products: ' . $e->getMessage(), 500);
         }
     }
@@ -481,10 +299,18 @@ class HomepageManagementController extends ApiController
     {
         $search = trim((string) $request->input('q', $request->input('search', '')));
         $perPage = min(max((int) $request->input('per_page', 5), 1), 50);
+        $excludeIds = $request->input('exclude_ids', []);
+        if (is_string($excludeIds)) {
+            $excludeIds = array_filter(array_map('trim', explode(',', $excludeIds)));
+        }
 
         $query = Brand::query()
             ->where('is_active', true)
             ->withCount('products');
+
+        if (!empty($excludeIds)) {
+            $query->whereNotIn('id', $excludeIds);
+        }
 
         if (!empty($search)) {
             $lower = '%' . strtolower($search) . '%';
@@ -519,10 +345,18 @@ class HomepageManagementController extends ApiController
     {
         $search = trim((string) $request->input('q', $request->input('search', '')));
         $perPage = min(max((int) $request->input('per_page', 5), 1), 50);
+        $excludeIds = $request->input('exclude_ids', []);
+        if (is_string($excludeIds)) {
+            $excludeIds = array_filter(array_map('trim', explode(',', $excludeIds)));
+        }
 
         $query = Category::query()
             ->where('is_active', true)
             ->withCount('products');
+
+        if (!empty($excludeIds)) {
+            $query->whereNotIn('id', $excludeIds);
+        }
 
         if (!empty($search)) {
             $lower = '%' . strtolower($search) . '%';
@@ -559,6 +393,10 @@ class HomepageManagementController extends ApiController
         $categoryId = $request->input('category_id');
         $brandId = $request->input('brand_id');
         $perPage = min(max((int) $request->input('per_page', 5), 1), 50);
+        $excludeIds = $request->input('exclude_ids', []);
+        if (is_string($excludeIds)) {
+            $excludeIds = array_filter(array_map('trim', explode(',', $excludeIds)));
+        }
 
         $query = Product::query()
             ->where('status', 'published')
@@ -568,6 +406,10 @@ class HomepageManagementController extends ApiController
                 'brand',
                 'categories',
             ]);
+
+        if (!empty($excludeIds)) {
+            $query->whereNotIn('id', $excludeIds);
+        }
 
         if (!empty($search)) {
             $lower = '%' . strtolower($search) . '%';
@@ -630,55 +472,10 @@ class HomepageManagementController extends ApiController
             'items.*.sort_order' => ['nullable', 'integer'],
         ]);
 
-        DB::beginTransaction();
         try {
-            $incomingItems = $validated['items'];
-            $keptIds = [];
-
-            foreach ($incomingItems as $idx => $itemData) {
-                $text = trim($itemData['text']);
-                if (empty($text)) {
-                    continue;
-                }
-                $isActive = isset($itemData['is_active']) ? (bool) $itemData['is_active'] : true;
-                $sortOrder = isset($itemData['sort_order']) ? (int) $itemData['sort_order'] : $idx;
-
-                if (!empty($itemData['id'])) {
-                    $tickerItem = HomepageTickerItem::find($itemData['id']);
-                    if ($tickerItem) {
-                        $tickerItem->update([
-                            'text' => $text,
-                            'is_active' => $isActive,
-                            'sort_order' => $sortOrder,
-                        ]);
-                        $keptIds[] = $tickerItem->id;
-                        continue;
-                    }
-                }
-
-                $newItem = HomepageTickerItem::create([
-                    'text' => $text,
-                    'is_active' => $isActive,
-                    'sort_order' => $sortOrder,
-                ]);
-                $keptIds[] = $newItem->id;
-            }
-
-            // Remove any items that were deleted by Admin
-            HomepageTickerItem::whereNotIn('id', $keptIds)->delete();
-
-            DB::commit();
-
-            CatalogCacheService::invalidateAll();
-
-            $savedItems = HomepageTickerItem::query()
-                ->orderBy('sort_order', 'asc')
-                ->orderBy('id', 'asc')
-                ->get();
-
+            $savedItems = $this->orderingService->syncTickerItems($validated['items']);
             return $this->success($savedItems, 'Homepage ticker items saved successfully.');
         } catch (\Throwable $e) {
-            DB::rollBack();
             return $this->error('Failed to save homepage ticker items: ' . $e->getMessage(), 500);
         }
     }

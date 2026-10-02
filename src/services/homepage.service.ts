@@ -314,19 +314,33 @@ export class HomepageService {
   async searchProducts(
     paramsOrQuery?: string | {
       q?: string;
+      search?: string;
       page?: number;
       category_id?: number;
       brand_id?: number;
       per_page?: number;
+      exclude_ids?: (number | string)[] | string;
     },
     page?: number,
-    perPage?: number
+    perPage?: number,
+    excludeIds?: (number | string)[]
   ): Promise<PaginatedProductSearchResults> {
-    const params = typeof paramsOrQuery === "string"
-      ? { q: paramsOrQuery, page: page || 1, per_page: perPage || 5 }
-      : paramsOrQuery;
+    let params: Record<string, any>;
+    if (typeof paramsOrQuery === "string") {
+      params = {
+        q: paramsOrQuery,
+        page: page || 1,
+        per_page: perPage || 5,
+        exclude_ids: excludeIds ? (Array.isArray(excludeIds) ? excludeIds.join(",") : excludeIds) : undefined,
+      };
+    } else {
+      params = { ...paramsOrQuery };
+      if (Array.isArray(params.exclude_ids)) {
+        params.exclude_ids = params.exclude_ids.join(",");
+      }
+    }
     const res = await apiClient.get<any>("/admin/homepage/search-products", {
-      params: params as any,
+      params,
     });
     const data = res?.data || res;
     return {
@@ -349,15 +363,28 @@ export class HomepageService {
       search?: string;
       page?: number;
       per_page?: number;
+      exclude_ids?: (number | string)[] | string;
     },
     page?: number,
-    perPage?: number
+    perPage?: number,
+    excludeIds?: (number | string)[]
   ): Promise<PaginatedBrandSearchResults> {
-    const params = typeof paramsOrQuery === "string"
-      ? { q: paramsOrQuery, page: page || 1, per_page: perPage || 5 }
-      : paramsOrQuery;
+    let params: Record<string, any>;
+    if (typeof paramsOrQuery === "string") {
+      params = {
+        q: paramsOrQuery,
+        page: page || 1,
+        per_page: perPage || 5,
+        exclude_ids: excludeIds ? (Array.isArray(excludeIds) ? excludeIds.join(",") : excludeIds) : undefined,
+      };
+    } else {
+      params = { ...paramsOrQuery };
+      if (Array.isArray(params.exclude_ids)) {
+        params.exclude_ids = params.exclude_ids.join(",");
+      }
+    }
     const res = await apiClient.get<any>("/admin/homepage/search-brands", {
-      params: params as any,
+      params,
     });
     const data = res?.data || res;
     return {
@@ -380,15 +407,28 @@ export class HomepageService {
       search?: string;
       page?: number;
       per_page?: number;
+      exclude_ids?: (number | string)[] | string;
     },
     page?: number,
-    perPage?: number
+    perPage?: number,
+    excludeIds?: (number | string)[]
   ): Promise<PaginatedCategorySearchResults> {
-    const params = typeof paramsOrQuery === "string"
-      ? { q: paramsOrQuery, page: page || 1, per_page: perPage || 5 }
-      : paramsOrQuery;
+    let params: Record<string, any>;
+    if (typeof paramsOrQuery === "string") {
+      params = {
+        q: paramsOrQuery,
+        page: page || 1,
+        per_page: perPage || 5,
+        exclude_ids: excludeIds ? (Array.isArray(excludeIds) ? excludeIds.join(",") : excludeIds) : undefined,
+      };
+    } else {
+      params = { ...paramsOrQuery };
+      if (Array.isArray(params.exclude_ids)) {
+        params.exclude_ids = params.exclude_ids.join(",");
+      }
+    }
     const res = await apiClient.get<any>("/admin/homepage/search-categories", {
-      params: params as any,
+      params,
     });
     const data = res?.data || res;
     return {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   ArrowUp, 
   ArrowDown, 
@@ -23,8 +23,8 @@ import {
   HomepageHotSaleCategoryModel,
   HomepageCategoryRecord
 } from "@/services/homepage.service";
-import { categoryService } from "@/services/category.service";
 import { getCategoryImageUrl } from "@/lib/category-images";
+import { useAdminOrderedList } from "@/components/admin/ordered-list";
 
 function CategoryItemThumbnail({
   src,
@@ -80,131 +80,59 @@ function CategoryItemThumbnail({
   );
 }
 
-interface HotSaleCategoryManagerProps {
+export interface HotSaleCategoryManagerProps {
   initialCategories: HomepageHotSaleCategoryModel[];
   onSaveSuccess?: () => void;
   showToast: (message: string, type: "success" | "error") => void;
 }
 
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+export const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
 
 export default function HotSaleCategoryManager({
   initialCategories,
   onSaveSuccess,
   showToast,
 }: HotSaleCategoryManagerProps) {
-  // Selected Hot Sale Categories State (Authoritative Admin Sequence)
-  const [categories, setCategories] = useState<HomepageHotSaleCategoryModel[]>(initialCategories);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  // Unified List Pagination & Search State
-  const [availableCategories, setAvailableCategories] = useState<HomepageCategoryRecord[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  // Page size state conforming to exact contract [5, 10, 20, 50]
   const [pageSize, setPageSize] = useState<number>(5);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
 
-  // View Filter: "all" (Pinned + Paginated Catalog) or "pinned" (Curated Sequence Only)
-  const [viewFilter, setViewFilter] = useState<"all" | "pinned">("all");
-
-  // Drag and Drop State (for pinned items)
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
-  // Sync state if initialCategories changes externally
-  useEffect(() => {
-    setCategories(initialCategories);
-    setHasUnsavedChanges(false);
-  }, [initialCategories]);
-
-  // Selected category IDs map for fast O(1) lookup & position retrieval
-  const selectedCategoryMap = useMemo(() => {
-    const map = new Map<string, number>();
-    categories.forEach((c, idx) => {
-      map.set(String(c.category_id), idx + 1);
-    });
-    return map;
-  }, [categories]);
-
-  // Fetch paginated catalog categories from backend
-  const fetchCatalogCategories = useCallback(
-    async (query: string, page: number, perPage: number) => {
-      setIsLoadingCatalog(true);
-      try {
-        const res = await homepageService.searchCategories(query, page, perPage);
-        setAvailableCategories(res.items || []);
-        setCurrentPage(res.pagination?.current_page || 1);
-        setTotalPages(res.pagination?.last_page || 1);
-        setTotalCount(res.pagination?.total || 0);
-      } catch (err) {
-        console.warn("Failed to fetch categories via search endpoint, falling back to categoryService:", err);
-        try {
-          const all = await categoryService.getCategories({ all: true, isAdmin: true });
-          const q = query.trim().toLowerCase();
-          const filtered = all.filter((c) => {
-            if (c.is_active === false) return false;
-            if (!q) return true;
-            return c.name.toLowerCase().includes(q) || (c.slug && c.slug.toLowerCase().includes(q));
-          });
-          const start = (page - 1) * perPage;
-          const mapped: HomepageCategoryRecord[] = filtered.slice(start, start + perPage).map((c) => ({
-            id: Number(c.id) || c.id,
-            name: c.name,
-            slug: c.slug,
-            description: c.description,
-            image_url: c.image_url,
-            is_active: c.is_active !== false,
-          }));
-          setAvailableCategories(mapped);
-          setTotalPages(Math.max(1, Math.ceil(filtered.length / perPage)));
-          setTotalCount(filtered.length);
-          setCurrentPage(page);
-        } catch {
-          setAvailableCategories([]);
-        }
-      } finally {
-        setIsLoadingCatalog(false);
-      }
+  // Hook owns common ordering, drag & drop, pagination, search, exclusion, and save logic
+  const orderedList = useAdminOrderedList<HomepageHotSaleCategoryModel, HomepageCategoryRecord>({
+    initialItems: initialCategories,
+    getItemId: (c) => c.category_id,
+    getItemOrder: (c) => c.sort_order,
+    setItemOrder: (c, newOrder) => ({ ...c, sort_order: newOrder }),
+    defaultPageSize: 5,
+    onSave: async (items) => {
+      const payload = items.map((c, idx) => ({
+        category_id: c.category_id,
+        sort_order: idx,
+        is_active: c.is_active !== false,
+      }));
+      const updated = await homepageService.syncHotSaleCategories(payload);
+      showToast("Hot Sale categories saved successfully. Active on storefront carousel.", "success");
+      return updated;
     },
-    []
-  );
-
-  // Load catalog categories on search/page/pageSize change
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchCatalogCategories(searchQuery, currentPage, pageSize);
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [searchQuery, currentPage, pageSize, fetchCatalogCategories]);
-
-  // Handlers for search, page, and page size controls
-  const handleSearchChange = (val: string) => {
-    setSearchQuery(val);
-    setCurrentPage(1);
-  };
-
-  const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    setCurrentPage(1);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
-
-  // Add / Pin category in-place directly in the unified list
-  const handleAddCategory = (cat: HomepageCategoryRecord) => {
-    const catIdStr = String(cat.id);
-    if (selectedCategoryMap.has(catIdStr)) return;
-
-    const newItem: HomepageHotSaleCategoryModel = {
+    onSaveSuccess,
+    showToast,
+    fetchCatalog: async ({ search, page, pageSize: size, excludeIds }) => {
+      const res = await homepageService.searchCategories({
+        q: search,
+        page,
+        per_page: size,
+        exclude_ids: excludeIds,
+      });
+      return {
+        items: res.items,
+        total: res.pagination.total,
+        currentPage: res.pagination.current_page,
+        lastPage: res.pagination.last_page,
+      };
+    },
+    getCatalogItemId: (c) => c.id,
+    onAddFromCatalog: (cat, currentItems) => ({
       category_id: Number(cat.id),
-      sort_order: categories.length,
+      sort_order: currentItems.length,
       is_active: true,
       category: {
         id: Number(cat.id),
@@ -214,88 +142,48 @@ export default function HotSaleCategoryManager({
         description: cat.description,
         is_active: cat.is_active !== false,
       },
-    };
+    }),
+  });
 
-    setCategories((prev) => [...prev, newItem]);
-    setHasUnsavedChanges(true);
+  const {
+    items: categories,
+    hasUnsavedChanges,
+    isSaving: saving,
+    handleSave,
+    selectedItemMap: selectedCategoryMap,
+    availableCatalog: availableCategories,
+    searchQuery,
+    handleSearchChange,
+    currentPage,
+    totalPages,
+    totalCount,
+    isLoadingCatalog,
+    handlePageChange,
+    handlePageSizeChange: setOrderedListPageSize,
+    viewFilter,
+    setViewFilter,
+    moveUp,
+    moveDown,
+    handleMoveUp,
+    handleMoveDown,
+    handleRemove,
+    draggedIndex,
+    dragOverTarget,
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    handleDragEnd,
+    handleKeyDown,
+    calcTargetPosition,
+    handleAddFromCatalog,
+  } = orderedList;
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setOrderedListPageSize(newSize);
   };
 
-  // Unpin / Remove category from homepage selection in-place
-  const handleRemove = (catId: string | number) => {
-    setCategories((prev) => {
-      const next = prev.filter((c) => String(c.category_id) !== String(catId));
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  // Move category up in sequence
-  const handleMoveUp = (index: number) => {
-    if (index <= 0) return;
-    setCategories((prev) => {
-      const next = [...prev];
-      const temp = next[index - 1];
-      next[index - 1] = next[index];
-      next[index] = temp;
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  // Move category down in sequence
-  const handleMoveDown = (index: number) => {
-    if (index >= categories.length - 1) return;
-    setCategories((prev) => {
-      const next = [...prev];
-      const temp = next[index + 1];
-      next[index + 1] = next[index];
-      next[index] = temp;
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  // HTML5 Drag and Drop Handlers for selected items
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(index));
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (dragOverIndex !== index) {
-      setDragOverIndex(index);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === targetIndex) {
-      setDraggedIndex(null);
-      setDragOverIndex(null);
-      return;
-    }
-
-    setCategories((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(draggedIndex, 1);
-      next.splice(targetIndex, 0, moved);
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-    setHasUnsavedChanges(true);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
-  // Filtered pinned categories when searching
+  // Curated Pinned categories
   const filteredPinnedCategories = useMemo(() => {
     if (!searchQuery.trim()) return categories;
     const q = searchQuery.toLowerCase().trim();
@@ -306,32 +194,10 @@ export default function HotSaleCategoryManager({
     });
   }, [categories, searchQuery]);
 
-  // Catalog items for the current page that are NOT already pinned
+  // Available catalog categories guaranteed unpinned
   const unpinnedCatalogCategories = useMemo(() => {
     return availableCategories.filter((c) => !selectedCategoryMap.has(String(c.id)));
   }, [availableCategories, selectedCategoryMap]);
-
-  // Save changes to backend
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const payload = categories.map((c, idx) => ({
-        category_id: c.category_id,
-        sort_order: idx,
-        is_active: c.is_active !== false,
-      }));
-
-      const updated = await homepageService.syncHotSaleCategories(payload);
-      setCategories(updated);
-      setHasUnsavedChanges(false);
-      showToast("Hot Sale categories saved successfully. Active on storefront carousel.", "success");
-      if (onSaveSuccess) onSaveSuccess();
-    } catch {
-      showToast("Failed to save Hot Sale categories. Please try again.", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xs">
@@ -480,104 +346,157 @@ export default function HotSaleCategoryManager({
           </div>
         )}
 
-        {/* 1. SELECTED / PINNED ITEMS (Always visible in-place at top of unified list with drag handle & position) */}
+        {/* 1. SELECTED / PINNED ITEMS */}
         {filteredPinnedCategories.length > 0 && (
           <div className="bg-orange-500/5 divide-y divide-border/40">
-            {filteredPinnedCategories.map((item) => {
-              // Real index in the authoritative categories array
-              const index = categories.findIndex((c) => String(c.category_id) === String(item.category_id));
+            {filteredPinnedCategories.map((item, index) => {
               const cat = item.category;
               const position = index + 1;
               const isDragging = draggedIndex === index;
-              const isDragOver = dragOverIndex === index;
+              const isDragOver = dragOverTarget?.index === index;
+
+              const isDropAbove =
+                draggedIndex !== null &&
+                dragOverTarget?.index === index &&
+                dragOverTarget?.position === "above" &&
+                draggedIndex !== index &&
+                draggedIndex !== index - 1;
+
+              const isDropBelow =
+                draggedIndex !== null &&
+                dragOverTarget?.index === index &&
+                dragOverTarget?.position === "below" &&
+                draggedIndex !== index &&
+                draggedIndex !== index + 1;
+
+              const landingPosAbove =
+                draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "above") : position;
+              const landingPosBelow =
+                draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "below") : position;
 
               return (
-                <div
-                  key={`pinned-${item.category_id}`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDrop={(e) => handleDrop(e, index)}
-                  onDragEnd={handleDragEnd}
-                  className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
-                    isDragging
-                      ? "opacity-50 scale-[0.99] bg-orange-500/10"
-                      : isDragOver
-                      ? "bg-orange-500/15 ring-2 ring-orange-500/40"
-                      : "hover:bg-orange-500/10"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    {/* Drag Handle */}
+                <React.Fragment key={`pinned-fragment-${item.category_id}`}>
+                  {isDropAbove && (
                     <div
-                      className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/70 hover:text-foreground transition-colors shrink-0"
-                      title="Drag to reorder sequence"
+                      className="relative flex items-center justify-center py-1.5 bg-orange-500/10 select-none pointer-events-none transition-all duration-150"
+                      role="status"
+                      aria-live="polite"
                     >
-                      <GripVertical size={15} />
-                    </div>
-
-                    {/* Sequential Position Number */}
-                    <span className="w-5 h-5 rounded-md bg-orange-500/20 text-orange-600 dark:text-orange-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border border-orange-500/30">
-                      {position}
-                    </span>
-
-                    {/* Category Thumbnail & Name */}
-                    <CategoryItemThumbnail
-                      src={cat?.image_url}
-                      alt={cat?.name || "Category"}
-                      fallbackSlug={cat?.slug}
-                      size="sm"
-                    />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <p className="text-xs font-bold text-foreground truncate font-sans">
-                          {cat?.name || `Category #${item.category_id}`}
-                        </p>
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-orange-500/15 text-orange-600 dark:text-orange-400">
-                          Pos {position}
-                        </span>
+                      <div className="absolute inset-x-0 h-0.5 bg-orange-500 rounded-full" />
+                      <div className="relative z-10 px-3 py-0.5 rounded-full bg-orange-500 text-white font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white opacity-70 animate-pulse" />
+                        <span>Drop here • Position {landingPosAbove}</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground font-mono truncate">
-                        {cat?.slug || `id: ${item.category_id}`}
-                      </p>
+                    </div>
+                  )}
+
+                  <div
+                    data-ordered-row
+                    data-category-id={item.category_id}
+                    data-index={index}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
+                      isDragging
+                        ? "opacity-50 scale-[0.99] bg-orange-500/10"
+                        : isDragOver
+                        ? "bg-orange-500/15 ring-2 ring-orange-500/40"
+                        : "hover:bg-orange-500/10"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {/* Drag Handle */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragEnd={handleDragEnd}
+                        onKeyDown={(e) => handleKeyDown(e, index)}
+                        aria-label={`Drag handle for ${cat?.name || "category"}. Current position ${position}. Press Up or Down arrow keys to reorder.`}
+                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/70 hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none"
+                        title="Drag handle: Drag to reorder sequence (or use Up/Down arrow keys)"
+                      >
+                        <GripVertical size={15} />
+                      </div>
+
+                      {/* Sequential Position Number */}
+                      <span className="w-5 h-5 rounded-md bg-orange-500/20 text-orange-600 dark:text-orange-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border border-orange-500/30">
+                        {position}
+                      </span>
+
+                      {/* Category Thumbnail & Name */}
+                      <CategoryItemThumbnail
+                        src={cat?.image_url}
+                        alt={cat?.name || "Category"}
+                        fallbackSlug={cat?.slug}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <p className="text-xs font-bold text-foreground truncate font-sans">
+                            {cat?.name || `Category #${item.category_id}`}
+                          </p>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-orange-500/15 text-orange-600 dark:text-orange-400">
+                            Pos {position}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-mono truncate">
+                          {cat?.slug || `id: ${item.category_id}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions: Reorder arrows + In-place Selected / Remove Toggle */}
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <button
+                        type="button"
+                        onClick={() => moveUp(index)}
+                        disabled={index === 0}
+                        title="Move Up"
+                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      >
+                        <ArrowUp size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveDown(index)}
+                        disabled={index === categories.length - 1}
+                        title="Move Down"
+                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      >
+                        <ArrowDown size={13} />
+                      </button>
+
+                      {/* PINNED ✓ button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(item.category_id)}
+                        title="Click to remove from Hot Sale carousel"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-[10px] font-bold uppercase tracking-wider border border-orange-500/30 hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group"
+                      >
+                        <Check size={11} className="group-hover:hidden" />
+                        <Trash2 size={11} className="hidden group-hover:inline" />
+                        <span className="group-hover:hidden">PINNED ✓</span>
+                        <span className="hidden group-hover:inline">REMOVE</span>
+                      </button>
                     </div>
                   </div>
 
-                  {/* Actions: Reorder arrows + In-place Selected / Remove Toggle */}
-                  <div className="flex items-center gap-1 shrink-0 ml-2">
-                    <button
-                      type="button"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                      title="Move Up"
-                      className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  {isDropBelow && (
+                    <div
+                      className="relative flex items-center justify-center py-1.5 bg-orange-500/10 select-none pointer-events-none transition-all duration-150"
+                      role="status"
+                      aria-live="polite"
                     >
-                      <ArrowUp size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === categories.length - 1}
-                      title="Move Down"
-                      className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
-                    >
-                      <ArrowDown size={13} />
-                    </button>
-
-                    {/* PINNED ✓ button (clicking directly unpins it) */}
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(item.category_id)}
-                      title="Click to remove from Hot Sale carousel"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-[10px] font-bold uppercase tracking-wider border border-orange-500/30 hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group"
-                    >
-                      <Check size={11} className="group-hover:hidden" />
-                      <Trash2 size={11} className="hidden group-hover:inline" />
-                      <span className="group-hover:hidden">PINNED ✓</span>
-                      <span className="hidden group-hover:inline">REMOVE</span>
-                    </button>
-                  </div>
-                </div>
+                      <div className="absolute inset-x-0 h-0.5 bg-orange-500 rounded-full" />
+                      <div className="relative z-10 px-3 py-0.5 rounded-full bg-orange-500 text-white font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white opacity-70 animate-pulse" />
+                        <span>Drop here • Position {landingPosBelow}</span>
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
               );
             })}
           </div>
@@ -591,7 +510,7 @@ export default function HotSaleCategoryManager({
           </div>
         )}
 
-        {/* 2. UNPINNED CATALOG ITEMS (Shown in-place directly in the same list) */}
+        {/* 2. UNPINNED CATALOG ITEMS */}
         {viewFilter === "all" && (
           <div className="divide-y divide-border/40">
             {unpinnedCatalogCategories.map((cat) => {
@@ -601,7 +520,6 @@ export default function HotSaleCategoryManager({
                   className="flex items-center justify-between p-2.5 sm:p-3 hover:bg-secondary/20 transition-all"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    {/* Placeholder space to align with drag handle & position */}
                     <div className="w-5 flex items-center justify-center text-muted-foreground/30 text-xs">
                       •
                     </div>
@@ -622,10 +540,10 @@ export default function HotSaleCategoryManager({
                     </div>
                   </div>
 
-                  {/* + ADD / + PIN Action */}
+                  {/* + ADD Action */}
                   <button
                     type="button"
-                    onClick={() => handleAddCategory(cat)}
+                    onClick={() => handleAddFromCatalog(cat)}
                     className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-wider border border-primary/20 transition-all cursor-pointer shrink-0 active:scale-95"
                   >
                     <Plus size={11} />

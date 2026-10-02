@@ -22,7 +22,7 @@ import {
   HomepageFeaturedBrandModel,
   HomepageBrandRecord
 } from "@/services/homepage.service";
-import { brandService } from "@/services/brand.service";
+import { useAdminOrderedList } from "@/components/admin/ordered-list";
 
 function BrandItemLogo({
   logo,
@@ -62,123 +62,59 @@ function BrandItemLogo({
   );
 }
 
-interface ShopByBrandManagerProps {
+export interface ShopByBrandManagerProps {
   initialBrands: HomepageFeaturedBrandModel[];
   onSaveSuccess?: () => void;
   showToast: (message: string, type: "success" | "error") => void;
 }
 
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+export const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
 
 export default function ShopByBrandManager({
   initialBrands,
   onSaveSuccess,
   showToast,
 }: ShopByBrandManagerProps) {
-  // Selected / Pinned Homepage Brands State (Authoritative Admin Sequence)
-  const [brands, setBrands] = useState<HomepageFeaturedBrandModel[]>(initialBrands);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  // Unified List Pagination & Search State
-  const [availableBrands, setAvailableBrands] = useState<HomepageBrandRecord[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  // Page size state conforming to exact contract [5, 10, 20, 50]
   const [pageSize, setPageSize] = useState<number>(5);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
 
-  // View Filter: "all" (Pinned + Paginated Catalog) or "pinned" (Curated Sequence Only)
-  const [viewFilter, setViewFilter] = useState<"all" | "pinned">("all");
-
-  // Drag and Drop State (for pinned items)
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
-  // Sync state if initialBrands changes externally
-  useEffect(() => {
-    setBrands(initialBrands);
-    setHasUnsavedChanges(false);
-  }, [initialBrands]);
-
-  // Selected brand IDs set and map for fast O(1) lookup & position retrieval
-  const selectedBrandMap = useMemo(() => {
-    const map = new Map<string, number>();
-    brands.forEach((b, idx) => {
-      map.set(String(b.brand_id), idx + 1);
-    });
-    return map;
-  }, [brands]);
-
-  // Fetch paginated catalog brands from backend
-  const fetchCatalogBrands = useCallback(
-    async (query: string, page: number, perPage: number) => {
-      setIsLoadingCatalog(true);
-      try {
-        const res = await homepageService.searchBrands(query, page, perPage);
-        setAvailableBrands(res.items || []);
-        setCurrentPage(res.pagination?.current_page || 1);
-        setTotalPages(res.pagination?.last_page || 1);
-        setTotalCount(res.pagination?.total || 0);
-      } catch (err) {
-        console.warn("Failed to fetch brands via search endpoint, falling back to brandService:", err);
-        try {
-          const all = await brandService.getBrands({ all: true, isAdmin: true });
-          const q = query.trim().toLowerCase();
-          const filtered = all.filter((b) => {
-            if (b.is_active === false) return false;
-            if (!q) return true;
-            return b.name.toLowerCase().includes(q) || b.slug.toLowerCase().includes(q);
-          });
-          const start = (page - 1) * perPage;
-          setAvailableBrands(filtered.slice(start, start + perPage));
-          setTotalPages(Math.max(1, Math.ceil(filtered.length / perPage)));
-          setTotalCount(filtered.length);
-          setCurrentPage(page);
-        } catch {
-          setAvailableBrands([]);
-        }
-      } finally {
-        setIsLoadingCatalog(false);
-      }
+  // Hook owns common ordering, drag & drop, pagination, search, exclusion, and save logic
+  const orderedList = useAdminOrderedList<HomepageFeaturedBrandModel, HomepageBrandRecord>({
+    initialItems: initialBrands,
+    getItemId: (b) => b.brand_id,
+    getItemOrder: (b) => b.sort_order,
+    setItemOrder: (b, newOrder) => ({ ...b, sort_order: newOrder }),
+    defaultPageSize: 5,
+    onSave: async (items) => {
+      const payload = items.map((b, idx) => ({
+        brand_id: b.brand_id,
+        sort_order: idx,
+        is_active: b.is_active !== false,
+      }));
+      const updated = await homepageService.syncFeaturedBrands(payload);
+      showToast("Shop By Brand sequence saved successfully. Active on storefront.", "success");
+      return updated;
     },
-    []
-  );
-
-  // Load catalog brands on search/page/pageSize change
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchCatalogBrands(searchQuery, currentPage, pageSize);
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [searchQuery, currentPage, pageSize, fetchCatalogBrands]);
-
-  // Handlers for search, page, and page size controls
-  const handleSearchChange = (val: string) => {
-    setSearchQuery(val);
-    setCurrentPage(1);
-  };
-
-  const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    setCurrentPage(1);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
-
-  // Add / Pin brand in-place directly in the unified list
-  const handleAddBrand = (brand: HomepageBrandRecord) => {
-    const brandIdStr = String(brand.id);
-    if (selectedBrandMap.has(brandIdStr)) return;
-
-    const newItem: HomepageFeaturedBrandModel = {
+    onSaveSuccess,
+    showToast,
+    fetchCatalog: async ({ search, page, pageSize: size, excludeIds }) => {
+      const res = await homepageService.searchBrands({
+        q: search,
+        page,
+        per_page: size,
+        exclude_ids: excludeIds,
+      });
+      return {
+        items: res.items,
+        total: res.pagination.total,
+        currentPage: res.pagination.current_page,
+        lastPage: res.pagination.last_page,
+      };
+    },
+    getCatalogItemId: (b) => b.id,
+    onAddFromCatalog: (brand, currentItems) => ({
       brand_id: brand.id,
-      sort_order: brands.length,
+      sort_order: currentItems.length,
       is_active: true,
       brand: {
         id: brand.id,
@@ -189,88 +125,48 @@ export default function ShopByBrandManager({
         sort_order: brand.sort_order,
         is_active: brand.is_active !== false,
       },
-    };
+    }),
+  });
 
-    setBrands((prev) => [...prev, newItem]);
-    setHasUnsavedChanges(true);
+  const {
+    items: brands,
+    hasUnsavedChanges,
+    isSaving: saving,
+    handleSave,
+    selectedItemMap: selectedBrandMap,
+    availableCatalog: availableBrands,
+    searchQuery,
+    handleSearchChange,
+    currentPage,
+    totalPages,
+    totalCount,
+    isLoadingCatalog,
+    handlePageChange,
+    handlePageSizeChange: setOrderedListPageSize,
+    viewFilter,
+    setViewFilter,
+    moveUp,
+    moveDown,
+    handleMoveUp,
+    handleMoveDown,
+    handleRemove,
+    draggedIndex,
+    dragOverTarget,
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    handleDragEnd,
+    handleKeyDown,
+    calcTargetPosition,
+    handleAddFromCatalog,
+  } = orderedList;
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setOrderedListPageSize(newSize);
   };
 
-  // Unpin / Remove brand from homepage selection in-place
-  const handleRemove = (brandId: string | number) => {
-    setBrands((prev) => {
-      const next = prev.filter((b) => String(b.brand_id) !== String(brandId));
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  // Move brand up in sequence
-  const handleMoveUp = (index: number) => {
-    if (index <= 0) return;
-    setBrands((prev) => {
-      const next = [...prev];
-      const temp = next[index - 1];
-      next[index - 1] = next[index];
-      next[index] = temp;
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  // Move brand down in sequence
-  const handleMoveDown = (index: number) => {
-    if (index >= brands.length - 1) return;
-    setBrands((prev) => {
-      const next = [...prev];
-      const temp = next[index + 1];
-      next[index + 1] = next[index];
-      next[index] = temp;
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  // HTML5 Drag and Drop Handlers for selected items
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(index));
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (dragOverIndex !== index) {
-      setDragOverIndex(index);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === targetIndex) {
-      setDraggedIndex(null);
-      setDragOverIndex(null);
-      return;
-    }
-
-    setBrands((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(draggedIndex, 1);
-      next.splice(targetIndex, 0, moved);
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-    setHasUnsavedChanges(true);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
-  // Filtered pinned brands when searching
+  // Curated Pinned items
   const filteredPinnedBrands = useMemo(() => {
     if (!searchQuery.trim()) return brands;
     const q = searchQuery.toLowerCase().trim();
@@ -281,32 +177,10 @@ export default function ShopByBrandManager({
     });
   }, [brands, searchQuery]);
 
-  // Catalog items for the current page that are NOT already pinned
+  // Available catalog items guaranteed unpinned
   const unpinnedCatalogBrands = useMemo(() => {
     return availableBrands.filter((b) => !selectedBrandMap.has(String(b.id)));
   }, [availableBrands, selectedBrandMap]);
-
-  // Save changes to backend
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const payload = brands.map((b, idx) => ({
-        brand_id: b.brand_id,
-        sort_order: idx,
-        is_active: b.is_active !== false,
-      }));
-
-      const updated = await homepageService.syncFeaturedBrands(payload);
-      setBrands(updated);
-      setHasUnsavedChanges(false);
-      showToast("Shop By Brand sequence saved successfully. Active on storefront.", "success");
-      if (onSaveSuccess) onSaveSuccess();
-    } catch {
-      showToast("Failed to save Shop By Brand selection. Please try again.", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xs">
@@ -455,99 +329,152 @@ export default function ShopByBrandManager({
           </div>
         )}
 
-        {/* 1. SELECTED / PINNED ITEMS (Always visible in-place at top of unified list with drag handle & position) */}
+        {/* 1. SELECTED / PINNED ITEMS */}
         {filteredPinnedBrands.length > 0 && (
           <div className="bg-primary/5 divide-y divide-border/40">
-            {filteredPinnedBrands.map((item) => {
-              // Real index in the authoritative brands array
-              const index = brands.findIndex((b) => String(b.brand_id) === String(item.brand_id));
+            {filteredPinnedBrands.map((item, index) => {
               const brand = item.brand;
               const position = index + 1;
               const isDragging = draggedIndex === index;
-              const isDragOver = dragOverIndex === index;
+              const isDragOver = dragOverTarget?.index === index;
+
+              const isDropAbove =
+                draggedIndex !== null &&
+                dragOverTarget?.index === index &&
+                dragOverTarget?.position === "above" &&
+                draggedIndex !== index &&
+                draggedIndex !== index - 1;
+
+              const isDropBelow =
+                draggedIndex !== null &&
+                dragOverTarget?.index === index &&
+                dragOverTarget?.position === "below" &&
+                draggedIndex !== index &&
+                draggedIndex !== index + 1;
+
+              const landingPosAbove =
+                draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "above") : position;
+              const landingPosBelow =
+                draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "below") : position;
 
               return (
-                <div
-                  key={`pinned-${item.brand_id}`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDrop={(e) => handleDrop(e, index)}
-                  onDragEnd={handleDragEnd}
-                  className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
-                    isDragging
-                      ? "opacity-50 scale-[0.99] bg-primary/10"
-                      : isDragOver
-                      ? "bg-primary/15 ring-2 ring-primary/40"
-                      : "hover:bg-primary/10"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    {/* Drag Handle */}
+                <React.Fragment key={`pinned-fragment-${item.brand_id}`}>
+                  {isDropAbove && (
                     <div
-                      className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/70 hover:text-foreground transition-colors shrink-0"
-                      title="Drag to reorder sequence"
+                      className="relative flex items-center justify-center py-1.5 bg-primary/10 select-none pointer-events-none transition-all duration-150"
+                      role="status"
+                      aria-live="polite"
                     >
-                      <GripVertical size={15} />
-                    </div>
-
-                    {/* Sequential Position Number */}
-                    <span className="w-5 h-5 rounded-md bg-primary/20 text-primary font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border border-primary/30">
-                      {position}
-                    </span>
-
-                    {/* Brand Logo & Name */}
-                    <BrandItemLogo logo={brand?.logo_url || brand?.logo} alt={brand?.name || "Brand"} size="sm" />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <p className="text-xs font-bold text-foreground truncate font-sans">
-                          {brand?.name || `Brand #${item.brand_id}`}
-                        </p>
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-primary/15 text-primary">
-                          Pos {position}
-                        </span>
+                      <div className="absolute inset-x-0 h-0.5 bg-primary rounded-full" />
+                      <div className="relative z-10 px-3 py-0.5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
+                        <span>Drop here • Position {landingPosAbove}</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground font-mono truncate">
-                        {brand?.slug || `id: ${item.brand_id}`}
-                      </p>
+                    </div>
+                  )}
+
+                  <div
+                    data-ordered-row
+                    data-brand-id={item.brand_id}
+                    data-index={index}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
+                      isDragging
+                        ? "opacity-50 scale-[0.99] bg-primary/10"
+                        : isDragOver
+                        ? "bg-primary/15 ring-2 ring-primary/40"
+                        : "hover:bg-primary/10"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {/* Drag Handle */}
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragEnd={handleDragEnd}
+                        onKeyDown={(e) => handleKeyDown(e, index)}
+                        aria-label={`Drag handle for ${brand?.name || "brand"}. Current position ${position}. Press Up or Down arrow keys to reorder.`}
+                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/70 hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none"
+                        title="Drag handle: Drag to reorder sequence (or use Up/Down arrow keys)"
+                      >
+                        <GripVertical size={15} />
+                      </div>
+
+                      {/* Sequential Position Number */}
+                      <span className="w-5 h-5 rounded-md bg-primary/20 text-primary font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border border-primary/30">
+                        {position}
+                      </span>
+
+                      {/* Brand Logo & Name */}
+                      <BrandItemLogo logo={brand?.logo_url || brand?.logo} alt={brand?.name || "Brand"} size="sm" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <p className="text-xs font-bold text-foreground truncate font-sans">
+                            {brand?.name || `Brand #${item.brand_id}`}
+                          </p>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-primary/15 text-primary">
+                            Pos {position}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-mono truncate">
+                          {brand?.slug || `id: ${item.brand_id}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions: Reorder arrows + In-place Selected / Remove Toggle */}
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <button
+                        type="button"
+                        onClick={() => moveUp(index)}
+                        disabled={index === 0}
+                        title="Move Up"
+                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      >
+                        <ArrowUp size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveDown(index)}
+                        disabled={index === brands.length - 1}
+                        title="Move Down"
+                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      >
+                        <ArrowDown size={13} />
+                      </button>
+
+                      {/* PINNED ✓ button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(item.brand_id)}
+                        title="Click to remove from homepage curation"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/30 hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group"
+                      >
+                        <Check size={11} className="group-hover:hidden" />
+                        <Trash2 size={11} className="hidden group-hover:inline" />
+                        <span className="group-hover:hidden">PINNED ✓</span>
+                        <span className="hidden group-hover:inline">REMOVE</span>
+                      </button>
                     </div>
                   </div>
 
-                  {/* Actions: Reorder arrows + In-place Selected / Remove Toggle */}
-                  <div className="flex items-center gap-1 shrink-0 ml-2">
-                    <button
-                      type="button"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                      title="Move Up"
-                      className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  {isDropBelow && (
+                    <div
+                      className="relative flex items-center justify-center py-1.5 bg-primary/10 select-none pointer-events-none transition-all duration-150"
+                      role="status"
+                      aria-live="polite"
                     >
-                      <ArrowUp size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === brands.length - 1}
-                      title="Move Down"
-                      className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
-                    >
-                      <ArrowDown size={13} />
-                    </button>
-
-                    {/* PINNED ✓ button (clicking directly unpins it) */}
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(item.brand_id)}
-                      title="Click to remove from homepage curation"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/30 hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group"
-                    >
-                      <Check size={11} className="group-hover:hidden" />
-                      <Trash2 size={11} className="hidden group-hover:inline" />
-                      <span className="group-hover:hidden">PINNED ✓</span>
-                      <span className="hidden group-hover:inline">REMOVE</span>
-                    </button>
-                  </div>
-                </div>
+                      <div className="absolute inset-x-0 h-0.5 bg-primary rounded-full" />
+                      <div className="relative z-10 px-3 py-0.5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
+                        <span>Drop here • Position {landingPosBelow}</span>
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
               );
             })}
           </div>
@@ -561,7 +488,7 @@ export default function ShopByBrandManager({
           </div>
         )}
 
-        {/* 2. UNPINNED CATALOG ITEMS (Shown in-place directly in the same list) */}
+        {/* 2. UNPINNED CATALOG ITEMS */}
         {viewFilter === "all" && (
           <div className="divide-y divide-border/40">
             {unpinnedCatalogBrands.map((brand) => {
@@ -571,7 +498,6 @@ export default function ShopByBrandManager({
                   className="flex items-center justify-between p-2.5 sm:p-3 hover:bg-secondary/20 transition-all"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    {/* Placeholder space to align with drag handle & position */}
                     <div className="w-5 flex items-center justify-center text-muted-foreground/30 text-xs">
                       •
                     </div>
@@ -587,10 +513,10 @@ export default function ShopByBrandManager({
                     </div>
                   </div>
 
-                  {/* + ADD / + PIN Action */}
+                  {/* + ADD Action */}
                   <button
                     type="button"
-                    onClick={() => handleAddBrand(brand)}
+                    onClick={() => handleAddFromCatalog(brand)}
                     className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-wider border border-primary/20 transition-all cursor-pointer shrink-0 active:scale-95"
                   >
                     <Plus size={11} />

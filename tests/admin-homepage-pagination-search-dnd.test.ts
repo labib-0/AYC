@@ -332,7 +332,7 @@ runTest("20. Pagination or search change does not alter or reset selected list",
   ];
 
   // Simulate user changing available list search
-  let searchQuery = "Adidas";
+  const searchQuery = "Adidas";
   let currentPage = 1;
   let pageSize = 10;
 

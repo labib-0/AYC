@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   ArrowUp, 
   ArrowDown, 
@@ -23,6 +23,7 @@ import {
   HomepageFeaturedProductModel, 
   ProductSearchResultItem 
 } from "@/services/homepage.service";
+import { useAdminOrderedList } from "@/components/admin/ordered-list";
 
 function ProductItemThumbnail({
   src,
@@ -66,110 +67,59 @@ function ProductItemThumbnail({
   );
 }
 
-interface FeaturedProductManagerProps {
+export interface FeaturedProductManagerProps {
   initialProducts: HomepageFeaturedProductModel[];
   onSaveSuccess?: () => void;
   showToast: (message: string, type: "success" | "error") => void;
 }
 
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+export const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
 
 export default function FeaturedProductManager({
   initialProducts,
   onSaveSuccess,
   showToast,
 }: FeaturedProductManagerProps) {
-  // Selected / Pinned Featured Products State (Authoritative Admin Sequence)
-  const [products, setProducts] = useState<HomepageFeaturedProductModel[]>(initialProducts);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  // Unified List Pagination & Search State
-  const [availableProducts, setAvailableProducts] = useState<ProductSearchResultItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  // Page size state conforming to exact contract [5, 10, 20, 50]
   const [pageSize, setPageSize] = useState<number>(5);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
 
-  // View Filter: "all" (Pinned + Paginated Catalog) or "pinned" (Curated Sequence Only)
-  const [viewFilter, setViewFilter] = useState<"all" | "pinned">("all");
-
-  // Drag and Drop State (for pinned items)
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverTarget, setDragOverTarget] = useState<{
-    index: number;
-    position: "above" | "below";
-  } | null>(null);
-
-  // Sync state if initialProducts changes externally
-  useEffect(() => {
-    setProducts(initialProducts);
-    setHasUnsavedChanges(false);
-  }, [initialProducts]);
-
-  // Selected product IDs map for fast O(1) lookup & position retrieval
-  const selectedProductMap = useMemo(() => {
-    const map = new Map<number | string, number>();
-    products.forEach((p, idx) => {
-      map.set(p.product_id, idx + 1);
-    });
-    return map;
-  }, [products]);
-
-  // Fetch paginated catalog products from backend
-  const fetchCatalogProducts = useCallback(
-    async (query: string, page: number, perPage: number) => {
-      setIsLoadingCatalog(true);
-      try {
-        const res = await homepageService.searchProducts(query, page, perPage);
-        setAvailableProducts(res.items || []);
-        setCurrentPage(res.pagination?.current_page || 1);
-        setTotalPages(res.pagination?.last_page || 1);
-        setTotalCount(res.pagination?.total || 0);
-      } catch (err) {
-        console.error("Failed to fetch products via search endpoint:", err);
-        setAvailableProducts([]);
-      } finally {
-        setIsLoadingCatalog(false);
-      }
+  // Hook owns common ordering, drag & drop, pagination, search, exclusion, and save logic
+  const orderedList = useAdminOrderedList<HomepageFeaturedProductModel, ProductSearchResultItem>({
+    initialItems: initialProducts,
+    getItemId: (p) => p.product_id,
+    getItemOrder: (p) => p.sort_order,
+    setItemOrder: (p, newOrder) => ({ ...p, sort_order: newOrder }),
+    defaultPageSize: 5,
+    onSave: async (items) => {
+      const payload = items.map((p, idx) => ({
+        product_id: p.product_id,
+        sort_order: idx,
+        is_active: p.is_active !== false,
+      }));
+      const updated = await homepageService.syncFeaturedProducts(payload);
+      showToast("Featured Products pinned sequence saved successfully. Active on storefront.", "success");
+      return updated;
     },
-    []
-  );
-
-  // Load catalog products on search/page/pageSize change
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchCatalogProducts(searchQuery, currentPage, pageSize);
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [searchQuery, currentPage, pageSize, fetchCatalogProducts]);
-
-  // Handlers for search, page, and page size controls
-  const handleSearchChange = (val: string) => {
-    setSearchQuery(val);
-    setCurrentPage(1);
-  };
-
-  const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    setCurrentPage(1);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
-
-  // Add / Pin product in-place directly in the unified list
-  const handleAddProduct = (item: ProductSearchResultItem) => {
-    if (selectedProductMap.has(item.id)) return;
-
-    const newFeatured: HomepageFeaturedProductModel = {
+    onSaveSuccess,
+    showToast,
+    fetchCatalog: async ({ search, page, pageSize: size, excludeIds }) => {
+      const res = await homepageService.searchProducts({
+        q: search,
+        page,
+        per_page: size,
+        exclude_ids: excludeIds,
+      });
+      return {
+        items: res.items,
+        total: res.pagination.total,
+        currentPage: res.pagination.current_page,
+        lastPage: res.pagination.last_page,
+      };
+    },
+    getCatalogItemId: (item) => item.id,
+    onAddFromCatalog: (item, currentItems) => ({
       product_id: item.id,
-      sort_order: products.length,
+      sort_order: currentItems.length,
       is_active: true,
       product: {
         id: item.id,
@@ -180,129 +130,48 @@ export default function FeaturedProductManager({
         images: item.images,
         brand: item.brand,
       },
-    };
+    }),
+  });
 
-    setProducts((prev) => [...prev, newFeatured]);
-    setHasUnsavedChanges(true);
+  const {
+    items: products,
+    hasUnsavedChanges,
+    isSaving: saving,
+    handleSave,
+    selectedItemMap: selectedProductMap,
+    availableCatalog: availableProducts,
+    searchQuery,
+    handleSearchChange,
+    currentPage,
+    totalPages,
+    totalCount,
+    isLoadingCatalog,
+    handlePageChange,
+    handlePageSizeChange: setOrderedListPageSize,
+    viewFilter,
+    setViewFilter,
+    moveUp,
+    moveDown,
+    handleMoveUp,
+    handleMoveDown,
+    handleRemove,
+    draggedIndex,
+    dragOverTarget,
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    handleDragEnd,
+    handleKeyDown,
+    calcTargetPosition,
+    handleAddFromCatalog: handleAddProduct,
+  } = orderedList;
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setOrderedListPageSize(newSize);
   };
 
-  // Unpin / Remove product from homepage selection in-place
-  const handleRemove = (productId: number | string) => {
-    setProducts((prev) => {
-      const next = prev.filter((p) => String(p.product_id) !== String(productId));
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  // Move product up in sequence
-  const handleMoveUp = (index: number) => {
-    if (index <= 0) return;
-    setProducts((prev) => {
-      const next = [...prev];
-      const temp = next[index - 1];
-      next[index - 1] = next[index];
-      next[index] = temp;
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  // Move product down in sequence
-  const handleMoveDown = (index: number) => {
-    if (index >= products.length - 1) return;
-    setProducts((prev) => {
-      const next = [...prev];
-      const temp = next[index + 1];
-      next[index + 1] = next[index];
-      next[index] = temp;
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  // Calculate target 1-based position for preview and insertion
-  const calcTargetPosition = (fromIdx: number, toIdx: number, pos: "above" | "below"): number => {
-    let target = pos === "below" ? toIdx + 1 : toIdx;
-    if (fromIdx < target) {
-      target -= 1;
-    }
-    return target + 1;
-  };
-
-  // HTML5 Drag and Drop Handlers for selected items
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(index));
-
-    // Use enclosing row element as drag ghost image if available
-    const rowEl = (e.currentTarget as HTMLElement).closest("[data-product-row]") as HTMLElement | null;
-    if (rowEl && e.dataTransfer.setDragImage) {
-      const rowRect = rowEl.getBoundingClientRect();
-      const handleRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const offsetX = Math.max(10, handleRect.left - rowRect.left + handleRect.width / 2);
-      const offsetY = Math.max(10, handleRect.top - rowRect.top + handleRect.height / 2);
-      e.dataTransfer.setDragImage(rowEl, offsetX, offsetY);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (draggedIndex === null) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const relY = e.clientY - rect.top;
-    const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
-
-    if (
-      !dragOverTarget ||
-      dragOverTarget.index !== index ||
-      dragOverTarget.position !== position
-    ) {
-      setDragOverTarget({ index, position });
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    if (draggedIndex === null) {
-      setDraggedIndex(null);
-      setDragOverTarget(null);
-      return;
-    }
-
-    const position = dragOverTarget?.position || "above";
-    let target = position === "below" ? targetIndex + 1 : targetIndex;
-    if (draggedIndex < target) {
-      target -= 1;
-    }
-
-    if (draggedIndex === target) {
-      setDraggedIndex(null);
-      setDragOverTarget(null);
-      return;
-    }
-
-    setProducts((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(draggedIndex, 1);
-      next.splice(target, 0, moved);
-      return next.map((item, idx) => ({ ...item, sort_order: idx }));
-    });
-
-    setDraggedIndex(null);
-    setDragOverTarget(null);
-    setHasUnsavedChanges(true);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverTarget(null);
-  };
-
-  // Filtered pinned products when searching
+  // Curated Pinned products
   const filteredPinnedProducts = useMemo(() => {
     if (!searchQuery.trim()) return products;
     const q = searchQuery.toLowerCase().trim();
@@ -315,31 +184,10 @@ export default function FeaturedProductManager({
     });
   }, [products, searchQuery]);
 
-  // Catalog items for the current page that are NOT already pinned
+  // Available catalog products guaranteed unpinned
   const unpinnedCatalogProducts = useMemo(() => {
-    return availableProducts.filter((p) => !selectedProductMap.has(p.id));
+    return availableProducts.filter((p) => !selectedProductMap.has(String(p.id)));
   }, [availableProducts, selectedProductMap]);
-
-  // Save changes to backend
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const payload = products.map((p, idx) => ({
-        product_id: p.product_id,
-        sort_order: idx,
-      }));
-
-      const updated = await homepageService.syncFeaturedProducts(payload);
-      setProducts(updated);
-      setHasUnsavedChanges(false);
-      showToast("Featured Products pinned sequence saved successfully. Active on storefront.", "success");
-      if (onSaveSuccess) onSaveSuccess();
-    } catch {
-      showToast("Failed to save Featured Products selection. Please try again.", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xs">
@@ -489,12 +337,10 @@ export default function FeaturedProductManager({
           </div>
         )}
 
-        {/* 1. SELECTED / PINNED ITEMS (Always visible in-place at top of unified list with drag handle & position) */}
+        {/* 1. SELECTED / PINNED ITEMS */}
         {filteredPinnedProducts.length > 0 && (
           <div className="bg-amber-500/5 divide-y divide-border/40">
-            {filteredPinnedProducts.map((item) => {
-              // Real index in the authoritative products array
-              const index = products.findIndex((p) => String(p.product_id) === String(item.product_id));
+            {filteredPinnedProducts.map((item, index) => {
               const prod = item.product;
               const position = index + 1;
               const thumb = prod?.images && prod.images.length > 0 ? prod.images[0].image_url : null;
@@ -520,7 +366,6 @@ export default function FeaturedProductManager({
 
               return (
                 <React.Fragment key={`pinned-fragment-${item.product_id}`}>
-                  {/* Drop indicator above */}
                   {isDropAbove && (
                     <div
                       className="relative flex items-center justify-center py-1.5 bg-amber-500/10 select-none pointer-events-none transition-all duration-150"
@@ -550,22 +395,14 @@ export default function FeaturedProductManager({
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      {/* Drag Handle: Designated Draggable Area */}
+                      {/* Drag Handle */}
                       <div
                         role="button"
                         tabIndex={0}
                         draggable
                         onDragStart={(e) => handleDragStart(e, index)}
                         onDragEnd={handleDragEnd}
-                        onKeyDown={(e) => {
-                          if (e.key === "ArrowUp") {
-                            e.preventDefault();
-                            handleMoveUp(index);
-                          } else if (e.key === "ArrowDown") {
-                            e.preventDefault();
-                            handleMoveDown(index);
-                          }
-                        }}
+                        onKeyDown={(e) => handleKeyDown(e, index)}
                         aria-label={`Drag handle for ${prod?.name || "product"}. Current position ${position}. Press Up or Down arrow keys to reorder.`}
                         className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none"
                         title="Drag handle: Drag to reorder sequence (or use Up/Down arrow keys)"
@@ -605,7 +442,7 @@ export default function FeaturedProductManager({
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       <button
                         type="button"
-                        onClick={() => handleMoveUp(index)}
+                        onClick={() => moveUp(index)}
                         disabled={index === 0}
                         title={index === 0 ? "First position" : `Move up to position ${position - 1}`}
                         aria-label={`Move ${prod?.name || "product"} up to position ${position - 1}`}
@@ -615,7 +452,7 @@ export default function FeaturedProductManager({
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleMoveDown(index)}
+                        onClick={() => moveDown(index)}
                         disabled={index === products.length - 1}
                         title={index === products.length - 1 ? "Last position" : `Move down to position ${position + 1}`}
                         aria-label={`Move ${prod?.name || "product"} down to position ${position + 1}`}
@@ -624,7 +461,7 @@ export default function FeaturedProductManager({
                         <ArrowDown size={13} />
                       </button>
 
-                      {/* PINNED ✓ button (clicking directly unpins it) */}
+                      {/* PINNED ✓ button */}
                       <button
                         type="button"
                         onClick={() => handleRemove(item.product_id)}
@@ -640,7 +477,6 @@ export default function FeaturedProductManager({
                     </div>
                   </div>
 
-                  {/* Drop indicator below */}
                   {isDropBelow && (
                     <div
                       className="relative flex items-center justify-center py-1.5 bg-amber-500/10 select-none pointer-events-none transition-all duration-150"
@@ -668,7 +504,7 @@ export default function FeaturedProductManager({
           </div>
         )}
 
-        {/* 2. UNPINNED CATALOG ITEMS (Shown in-place directly in the same list) */}
+        {/* 2. UNPINNED CATALOG ITEMS */}
         {viewFilter === "all" && (
           <div className="divide-y divide-border/40">
             {unpinnedCatalogProducts.map((item) => {
@@ -680,7 +516,6 @@ export default function FeaturedProductManager({
                   className="flex items-center justify-between p-2.5 sm:p-3 hover:bg-secondary/20 transition-all"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    {/* Placeholder space to align with drag handle & position */}
                     <div className="w-5 flex items-center justify-center text-muted-foreground/30 text-xs">
                       •
                     </div>

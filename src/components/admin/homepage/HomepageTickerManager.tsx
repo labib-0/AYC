@@ -12,7 +12,7 @@ import {
   Sparkles,
   Save,
   Loader2,
-  CheckCircle2,
+  GripVertical,
 } from "lucide-react";
 import { HomepageTickerItem } from "@/services/homepage.service";
 
@@ -47,6 +47,79 @@ export default function HomepageTickerManager({
   disabled = false,
 }: HomepageTickerManagerProps) {
   const [newKeyword, setNewKeyword] = useState("");
+
+  // Drag and Drop State
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{
+    index: number;
+    position: "above" | "below";
+  } | null>(null);
+
+  const calcTargetPosition = (fromIdx: number, toIdx: number, pos: "above" | "below"): number => {
+    let target = pos === "below" ? toIdx + 1 : toIdx;
+    if (fromIdx < target) {
+      target -= 1;
+    }
+    return target + 1;
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (draggedIndex === null) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relY = e.clientY - rect.top;
+    const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
+
+    if (
+      !dragOverTarget ||
+      dragOverTarget.index !== index ||
+      dragOverTarget.position !== position
+    ) {
+      setDragOverTarget({ index, position });
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null) {
+      setDraggedIndex(null);
+      setDragOverTarget(null);
+      return;
+    }
+
+    const position = dragOverTarget?.position || "above";
+    let target = position === "below" ? targetIndex + 1 : targetIndex;
+    if (draggedIndex < target) {
+      target -= 1;
+    }
+
+    if (draggedIndex === target) {
+      setDraggedIndex(null);
+      setDragOverTarget(null);
+      return;
+    }
+
+    const next = [...items];
+    const [moved] = next.splice(draggedIndex, 1);
+    next.splice(target, 0, moved);
+    onChange(next.map((item, idx) => ({ ...item, sort_order: idx })));
+
+    setDraggedIndex(null);
+    setDragOverTarget(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverTarget(null);
+  };
 
   const handleAddKeyword = (textToAdd?: string) => {
     const text = (textToAdd !== undefined ? textToAdd : newKeyword).trim();
@@ -150,6 +223,11 @@ export default function HomepageTickerManager({
               Homepage Ticker / Keywords
             </h2>
           </div>
+          {isDirty && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-mono">
+              Unsaved Changes
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -161,7 +239,8 @@ export default function HomepageTickerManager({
               type="button"
               onClick={onSave}
               disabled={disabled || isSaving}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+              id="btn-save-ticker"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer shadow-2xs"
             >
               {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
               <span>Save Ticker</span>
@@ -171,7 +250,7 @@ export default function HomepageTickerManager({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Customize the scrolling keyword strip displayed on the customer homepage directly below the main banner. Add, reorder, edit, and toggle keywords.
+        Customize the scrolling keyword strip displayed on the customer homepage directly below the main banner. Drag to reorder, add, edit, and toggle keywords.
       </p>
 
       {/* Live Preview Strip */}
@@ -261,82 +340,168 @@ export default function HomepageTickerManager({
             </button>
           </div>
         ) : (
-          items.map((item, index) => (
-            <div
-              key={item.id ? `item-${item.id}` : `idx-${index}`}
-              className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-colors ${
-                item.is_active
-                  ? "bg-secondary/20 border-border/70"
-                  : "bg-muted/30 border-dashed border-border/50 opacity-60"
-              }`}
-            >
-              {/* Order index + text input */}
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className="text-[11px] font-mono text-muted-foreground/80 w-5 text-center shrink-0">
-                  {index + 1}
-                </span>
+          items.map((item, index) => {
+            const position = index + 1;
+            const isDragging = draggedIndex === index;
+            const isDragOver = dragOverTarget?.index === index;
 
-                <input
-                  type="text"
-                  value={item.text}
-                  onChange={(e) => handleUpdateText(index, e.target.value)}
-                  className="w-full max-w-md px-2.5 py-1 text-xs rounded-lg border border-transparent hover:border-input focus:border-primary focus:bg-background focus:outline-none transition-colors uppercase font-bold text-foreground"
-                  disabled={disabled || isSaving}
-                />
-              </div>
+            const isDropAbove =
+              draggedIndex !== null &&
+              dragOverTarget?.index === index &&
+              dragOverTarget?.position === "above" &&
+              draggedIndex !== index &&
+              draggedIndex !== index - 1;
 
-              {/* Status and Action Buttons */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {/* Active / Inactive Toggle */}
-                <button
-                  type="button"
-                  onClick={() => handleToggleActive(index)}
-                  disabled={disabled || isSaving}
-                  className={`p-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
-                    item.is_active
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                      : "bg-muted text-muted-foreground border-border"
+            const isDropBelow =
+              draggedIndex !== null &&
+              dragOverTarget?.index === index &&
+              dragOverTarget?.position === "below" &&
+              draggedIndex !== index &&
+              draggedIndex !== index + 1;
+
+            const landingPosAbove =
+              draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "above") : position;
+            const landingPosBelow =
+              draggedIndex !== null ? calcTargetPosition(draggedIndex, index, "below") : position;
+
+            return (
+              <React.Fragment key={item.id ? `item-${item.id}` : `idx-${index}`}>
+                {/* Drop indicator above */}
+                {isDropAbove && (
+                  <div
+                    className="relative flex items-center justify-center py-1 bg-primary/10 select-none pointer-events-none transition-all duration-150"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div className="absolute inset-x-0 h-0.5 bg-primary rounded-full" />
+                    <div className="relative z-10 px-2.5 py-0.5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
+                      <span>Drop here • Position {landingPosAbove}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div
+                  data-ordered-row
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDrop={(e) => handleDrop(e, index)}
+                  className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-colors ${
+                    isDragging
+                      ? "opacity-50 bg-primary/10 border-primary/40 ring-1 ring-primary/30"
+                      : isDragOver
+                      ? "bg-primary/10 ring-1 ring-primary/40 border-primary/50"
+                      : item.is_active
+                      ? "bg-secondary/20 border-border/70 hover:bg-secondary/30"
+                      : "bg-muted/30 border-dashed border-border/50 opacity-60 hover:opacity-80"
                   }`}
-                  title={item.is_active ? "Active on ticker (click to disable)" : "Disabled (click to activate)"}
                 >
-                  {item.is_active ? <Eye size={13} /> : <EyeOff size={13} />}
-                </button>
+                  {/* Drag handle + order index + text input */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {/* Drag Handle */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragEnd={handleDragEnd}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          handleMoveUp(index);
+                        } else if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          handleMoveDown(index);
+                        }
+                      }}
+                      aria-label={`Drag handle for keyword ${item.text}. Position ${position}. Use Up or Down arrow keys to reorder.`}
+                      className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none"
+                      title="Drag to reorder keyword (or use Up/Down arrow keys)"
+                    >
+                      <GripVertical size={15} />
+                    </div>
 
-                {/* Move Up */}
-                <button
-                  type="button"
-                  onClick={() => handleMoveUp(index)}
-                  disabled={disabled || isSaving || index === 0}
-                  className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                  title="Move keyword up"
-                >
-                  <ArrowUp size={13} />
-                </button>
+                    <span className="w-5 h-5 rounded-md bg-secondary text-muted-foreground font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border border-border">
+                      {position}
+                    </span>
 
-                {/* Move Down */}
-                <button
-                  type="button"
-                  onClick={() => handleMoveDown(index)}
-                  disabled={disabled || isSaving || index === items.length - 1}
-                  className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                  title="Move keyword down"
-                >
-                  <ArrowDown size={13} />
-                </button>
+                    <input
+                      type="text"
+                      value={item.text}
+                      onChange={(e) => handleUpdateText(index, e.target.value)}
+                      className="w-full max-w-md px-2.5 py-1 text-xs rounded-lg border border-transparent hover:border-input focus:border-primary focus:bg-background focus:outline-none transition-colors uppercase font-bold text-foreground"
+                      disabled={disabled || isSaving}
+                    />
+                  </div>
 
-                {/* Delete */}
-                <button
-                  type="button"
-                  onClick={() => handleDelete(index)}
-                  disabled={disabled || isSaving}
-                  className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-                  title="Delete keyword"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            </div>
-          ))
+                  {/* Status and Action Buttons */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Active / Inactive Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(index)}
+                      disabled={disabled || isSaving}
+                      className={`p-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                        item.is_active
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                          : "bg-muted text-muted-foreground border-border"
+                      }`}
+                      title={item.is_active ? "Active on ticker (click to disable)" : "Disabled (click to activate)"}
+                    >
+                      {item.is_active ? <Eye size={13} /> : <EyeOff size={13} />}
+                    </button>
+
+                    {/* Move Up */}
+                    <button
+                      type="button"
+                      onClick={() => handleMoveUp(index)}
+                      disabled={disabled || isSaving || index === 0}
+                      className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                      title="Move keyword up"
+                    >
+                      <ArrowUp size={13} />
+                    </button>
+
+                    {/* Move Down */}
+                    <button
+                      type="button"
+                      onClick={() => handleMoveDown(index)}
+                      disabled={disabled || isSaving || index === items.length - 1}
+                      className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                      title="Move keyword down"
+                    >
+                      <ArrowDown size={13} />
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(index)}
+                      disabled={disabled || isSaving}
+                      className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                      title="Delete keyword"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Drop indicator below */}
+                {isDropBelow && (
+                  <div
+                    className="relative flex items-center justify-center py-1 bg-primary/10 select-none pointer-events-none transition-all duration-150"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div className="absolute inset-x-0 h-0.5 bg-primary rounded-full" />
+                    <div className="relative z-10 px-2.5 py-0.5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
+                      <span>Drop here • Position {landingPosBelow}</span>
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })
         )}
       </div>
     </div>
