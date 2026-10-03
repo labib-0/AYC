@@ -96,7 +96,10 @@ export default function BangladeshStorefrontAccessCard({
     setPendingTargetState(null);
   };
 
-  const isBlocked = accessState?.enabled ?? true;
+  const isCloudflareVerified = Boolean(
+    accessState?.cloudflare_configured && !accessState?.error && accessState?.status !== "unverified"
+  );
+  const isBlocked = isCloudflareVerified ? Boolean(accessState?.enabled) : false;
 
   return (
     <>
@@ -104,7 +107,7 @@ export default function BangladeshStorefrontAccessCard({
         {/* Subtle background security accent */}
         <div
           className={`pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full blur-3xl opacity-15 transition-colors ${
-            isBlocked ? "bg-rose-500" : "bg-emerald-500"
+            !isCloudflareVerified ? "bg-amber-500" : isBlocked ? "bg-rose-500" : "bg-emerald-500"
           }`}
         />
 
@@ -114,12 +117,20 @@ export default function BangladeshStorefrontAccessCard({
             <div className="flex items-center gap-2.5">
               <div
                 className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
-                  isBlocked
+                  !isCloudflareVerified
+                    ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                    : isBlocked
                     ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
                     : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                 }`}
               >
-                {isBlocked ? <ShieldAlert size={18} /> : <ShieldCheck size={18} />}
+                {!isCloudflareVerified ? (
+                  <AlertTriangle size={18} />
+                ) : isBlocked ? (
+                  <ShieldAlert size={18} />
+                ) : (
+                  <ShieldCheck size={18} />
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-sm sm:text-base font-display font-bold uppercase tracking-wider text-foreground">
@@ -144,34 +155,42 @@ export default function BangladeshStorefrontAccessCard({
                   <span>Verifying real-time edge rules…</span>
                 </div>
               ) : (
-                <div
-                  className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium border ${
-                    isBlocked
-                      ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
-                      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-                  }`}
-                >
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      isBlocked ? "bg-rose-500 animate-pulse" : "bg-emerald-500"
+                <div className="flex flex-wrap items-center gap-2">
+                  <div
+                    className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                      !isCloudflareVerified
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+                        : isBlocked
+                        ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
+                        : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
                     }`}
-                  />
-                  <span>
-                    {isBlocked
-                      ? "● Storefront blocked in Bangladesh"
-                      : "● Storefront accessible in Bangladesh"}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        !isCloudflareVerified
+                          ? "bg-amber-500"
+                          : isBlocked
+                          ? "bg-rose-500 animate-pulse"
+                          : "bg-emerald-500"
+                      }`}
+                    />
+                    <span>
+                      {!isCloudflareVerified
+                        ? "● Cloudflare Protection Not Verified"
+                        : isBlocked
+                        ? "● Storefront blocked in Bangladesh"
+                        : "● Storefront accessible in Bangladesh"}
+                    </span>
+                  </div>
+
+                  <span className="text-[11px] font-mono text-muted-foreground">
+                    [
+                    {isCloudflareVerified
+                      ? "Cloudflare Protection Active"
+                      : "Cloudflare Protection Not Verified"}
+                    ]
                   </span>
                 </div>
-              )}
-
-              {accessState?.enforcement_layer && !loading && (
-                <span className="text-[11px] font-mono text-muted-foreground">
-                  [
-                  {accessState.enforcement_layer === "dual_layer"
-                    ? "Cloudflare Edge + Origin Reverse Proxy"
-                    : "Origin Reverse Proxy Active"}
-                  ]
-                </span>
               )}
             </div>
           </div>
@@ -196,7 +215,9 @@ export default function BangladeshStorefrontAccessCard({
                   : "bg-secondary hover:bg-secondary/80 text-foreground border border-border"
               }`}
               title={
-                isBlocked
+                !isCloudflareVerified
+                  ? "Cloudflare protection not verified. Click to configure."
+                  : isBlocked
                   ? "Click to disable Bangladesh storefront restriction"
                   : "Click to enable Bangladesh storefront restriction"
               }

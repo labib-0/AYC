@@ -28,7 +28,7 @@ class BangladeshStorefrontAccessService
     ) {}
 
     /**
-     * Retrieve the authoritative real-time state of the Bangladesh storefront restriction.
+     * Retrieve the authoritative real-time state of the Bangladesh storefront restriction from Cloudflare.
      *
      * @return array
      */
@@ -41,19 +41,27 @@ class BangladeshStorefrontAccessService
             $cfRuleState = $this->cloudflareService->getStorefrontRule();
         }
 
-        // Determine Origin Nginx state
-        $originEnabled = $this->readOriginNginxState();
+        // If Cloudflare is not configured in server environment or rule does not exist
+        if (!$cfConfigured || empty($cfRuleState['exists'])) {
+            $errMessage = !$cfConfigured
+                ? 'Cloudflare API credentials (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID, CLOUDFLARE_RULESET_ID, CLOUDFLARE_RULE_ID) are not configured in the server environment.'
+                : ($cfRuleState['error'] ?? 'Target Cloudflare WAF rule could not be verified.');
 
-        // Authoritative enabled state:
-        // If Cloudflare is configured, both should match, but Origin Nginx is the final gateway
-        $enabled = $cfConfigured && isset($cfRuleState['enabled'])
-            ? (bool) $cfRuleState['enabled']
-            : $originEnabled;
-
-        $layer = 'origin_nginx_geoip2';
-        if ($cfConfigured) {
-            $layer = 'dual_layer';
+            return [
+                'enabled' => false,
+                'status' => 'unverified',
+                'display_label' => 'Cloudflare Protection Not Verified',
+                'helper_text' => 'Block customer storefront access from Bangladesh IP addresses.',
+                'enforcement_layer' => 'unverified',
+                'enforcement_status' => 'not_verified',
+                'cloudflare_configured' => $cfConfigured,
+                'cloudflare_rule' => $cfRuleState,
+                'error' => $errMessage,
+                'updated_at' => now()->toIso8601String(),
+            ];
         }
+
+        $enabled = (bool) ($cfRuleState['enabled'] ?? false);
 
         return [
             'enabled' => $enabled,
@@ -62,17 +70,17 @@ class BangladeshStorefrontAccessService
                 ? 'Storefront blocked in Bangladesh'
                 : 'Storefront accessible in Bangladesh',
             'helper_text' => 'Block customer storefront access from Bangladesh IP addresses.',
-            'enforcement_layer' => $layer,
-            'origin_nginx_active' => $originEnabled,
-            'cloudflare_configured' => $cfConfigured,
+            'enforcement_layer' => 'cloudflare',
+            'enforcement_status' => 'cloudflare_active',
+            'cloudflare_configured' => true,
             'cloudflare_rule' => $cfRuleState,
-            'error' => $cfRuleState['error'] ?? null,
+            'error' => null,
             'updated_at' => now()->toIso8601String(),
         ];
     }
 
     /**
-     * Update the Bangladesh storefront restriction across all active tiers.
+     * Update the Bangladesh storefront restriction across Cloudflare WAF.
      *
      * @param bool $enabled True = Blocked in BD (ON), False = Accessible in BD (OFF)
      * @param User|null $user The admin performing the modification
@@ -80,35 +88,29 @@ class BangladeshStorefrontAccessService
      */
     public function setEnabled(bool $enabled, ?User $user = null): array
     {
+        if (!$this->cloudflareService->isConfigured()) {
+            Log::warning('Attempted to toggle Bangladesh storefront access without Cloudflare credentials in environment');
+            throw new RuntimeException("Cloudflare API credentials are not configured in the server environment.");
+        }
+
         $previousState = $this->getStatus();
         $previousEnabled = $previousState['enabled'];
 
-        $cfUpdated = false;
-        $cfResult = null;
-
-        // 1. Cloudflare Tier: Enforce and update Cloudflare rule if configured
-        if ($this->cloudflareService->isConfigured()) {
-            try {
-                $cfResult = $this->cloudflareService->updateStorefrontRule($enabled);
-                $cfUpdated = true;
-            } catch (\Throwable $e) {
-                Log::error('Cloudflare rule update failed during toggle', [
-                    'error' => $e->getMessage(),
-                    'requested_enabled' => $enabled,
-                ]);
-                throw new RuntimeException("Cloudflare update failed: " . $e->getMessage());
-            }
-        } else {
-            Log::info('Cloudflare API credentials not configured in environment; managing active origin Nginx GeoIP2 tier');
+        // 1. Cloudflare Tier: Enforce and update exact Cloudflare rule
+        try {
+            $cfResult = $this->cloudflareService->updateStorefrontRule($enabled);
+        } catch (\Throwable $e) {
+            Log::error('Cloudflare rule update failed during toggle', [
+                'error' => $e->getMessage(),
+                'requested_enabled' => $enabled,
+            ]);
+            throw new RuntimeException("Cloudflare update failed: " . $e->getMessage());
         }
 
-        // 2. Origin Nginx Tier: Update active reverse-proxy restriction
-        $nginxUpdated = $this->setOriginNginxState($enabled);
-
-        // 3. Database SystemSetting persistence
+        // 2. Database SystemSetting persistence
         SystemSetting::set(self::SETTING_KEY, $enabled, 'boolean', 'security');
 
-        // 4. Audit Trail Recording (Section 17: BANGLADESH_STOREFRONT_BLOCK)
+        // 3. Audit Trail Recording
         ActivityLogger::log(
             action: 'BANGLADESH_STOREFRONT_BLOCK',
             subject: null,
@@ -118,23 +120,21 @@ class BangladeshStorefrontAccessService
                 'status' => $enabled ? 'blocked' : 'accessible',
                 'previous_enabled' => $previousEnabled,
                 'new_enabled' => $enabled,
-                'enforcement_layer' => $this->cloudflareService->isConfigured() ? 'dual_layer' : 'origin_nginx_geoip2',
-                'cloudflare_updated' => $cfUpdated,
-                'origin_nginx_updated' => $nginxUpdated,
+                'enforcement_layer' => 'cloudflare',
+                'cloudflare_updated' => true,
                 'changed_by' => $user?->email ?? 'System',
                 'timestamp' => now()->toIso8601String(),
             ],
             user: $user
         );
 
-        Log::info('Bangladesh storefront access state changed', [
+        Log::info('Bangladesh storefront access state changed via Cloudflare Ruleset API', [
             'action' => $enabled ? 'ENABLED' : 'DISABLED',
             'user' => $user?->email ?? 'anonymous',
-            'origin_nginx_updated' => $nginxUpdated,
-            'cloudflare_updated' => $cfUpdated,
+            'cloudflare_updated' => true,
         ]);
 
-        // 5. Re-fetch and return the verified real state
+        // 4. Re-fetch and return the verified real state from Cloudflare
         return $this->getStatus();
     }
 

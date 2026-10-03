@@ -306,4 +306,34 @@ class BangladeshStorefrontAccessTest extends TestCase
         $this->expectExceptionMessage('Rule lacks route matching constraints');
         $service->validateRuleExpression('(ip.src.country eq "BD")');
     }
+
+    public function test_unconfigured_cloudflare_returns_unverified_status(): void
+    {
+        // Unset Cloudflare credentials
+        Config::set('services.cloudflare.api_token', null);
+
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->getJson('/api/v1/admin/homepage/bangladesh-storefront-access');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.cloudflare_configured', false)
+            ->assertJsonPath('data.status', 'unverified')
+            ->assertJsonPath('data.display_label', 'Cloudflare Protection Not Verified');
+    }
+
+    public function test_unconfigured_cloudflare_rejects_toggle_safely(): void
+    {
+        // Unset Cloudflare credentials
+        Config::set('services.cloudflare.api_token', null);
+
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->patchJson('/api/v1/admin/homepage/bangladesh-storefront-access', [
+                'enabled' => true,
+            ]);
+
+        $response->assertStatus(500)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Unable to update Bangladesh storefront access. The Cloudflare configuration was not changed.');
+    }
 }
