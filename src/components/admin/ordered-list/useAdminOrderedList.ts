@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { usePointerDragReorder, DragOverTarget } from "./usePointerDragReorder";
 
 export interface PaginationInfo {
   currentPage: number;
@@ -74,7 +75,7 @@ export interface UseAdminOrderedListReturn<T, C = any> {
   draggedIndex: number | null;
   draggedGlobalIndex: number | null;
   isPointerDragging: boolean;
-  dragOverTarget: { index: number; globalIndex?: number; position: "above" | "below" } | null;
+  dragOverTarget: DragOverTarget | null;
   handleDragStart: (e: React.DragEvent, index: number, globalIndex?: number) => void;
   handleDragOver: (e: React.DragEvent, index: number, globalIndex?: number) => void;
   handleDrop: (e: React.DragEvent, targetIndex: number, targetGlobalIndex?: number) => void;
@@ -179,49 +180,6 @@ export function useAdminOrderedList<T, C = any>({
     setPinnedPage(1);
   }, []);
 
-  // Drag and Drop state (Native Pointer Events + HTML5 Drag)
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [draggedGlobalIndex, setDraggedGlobalIndex] = useState<number | null>(null);
-  const [isPointerDragging, setIsPointerDragging] = useState<boolean>(false);
-  const [dragOverTarget, setDragOverTarget] = useState<{
-    index: number;
-    globalIndex?: number;
-    position: "above" | "below";
-  } | null>(null);
-
-  // Click suppression refs
-  const justDraggedRef = useRef<boolean>(false);
-  const dragHandleRef = useRef<HTMLElement | null>(null);
-  const pointerIdRef = useRef<number | null>(null);
-
-  // Cleanup drag listeners & body styles on unmount
-  useEffect(() => {
-    return () => {
-      document.body.style.userSelect = "";
-      if (dragHandleRef.current && pointerIdRef.current !== null) {
-        try {
-          dragHandleRef.current.releasePointerCapture?.(pointerIdRef.current);
-        } catch {
-          // ignore
-        }
-      }
-    };
-  }, []);
-
-  const isClickSuppressed = useCallback(() => {
-    return justDraggedRef.current || isPointerDragging;
-  }, [isPointerDragging]);
-
-  // Catalog search and pagination state
-  const [availableCatalog, setAvailableCatalog] = useState<C[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [pageSize, setPageSize] = useState<number>(defaultPageSize);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
-  const [viewFilter, setViewFilter] = useState<"all" | "pinned">("all");
-
   // Selected item ID map for O(1) position lookup and duplication prevention
   const selectedItemMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -267,10 +225,42 @@ export function useAdminOrderedList<T, C = any>({
     [setItemOrder]
   );
 
+  // Reorder callback for unified pointer drag
+  const handleReorder = useCallback(
+    (fromGlobalIdx: number, toGlobalIdx: number) => {
+      setItems((prev) => {
+        const next = [...prev];
+        const [moved] = next.splice(fromGlobalIdx, 1);
+        next.splice(toGlobalIdx, 0, moved);
+        return reindexItems(next);
+      });
+    },
+    [reindexItems]
+  );
+
+  // Shared Native Pointer Events Drag and Drop Hook
+  const {
+    draggedIndex,
+    draggedGlobalIndex,
+    isPointerDragging,
+    dragOverTarget,
+    handlePointerDown,
+    handlePointerCancel,
+    calcTargetPosition,
+    isClickSuppressed,
+  } = usePointerDragReorder({
+    totalCount: items.length,
+    startIndex: pinnedStartIndex,
+    pageSize: pinnedPageSize,
+    onReorder: handleReorder,
+  });
+
+  const handlePointerMove = useCallback((_e: React.PointerEvent) => {}, []);
+  const handlePointerUp = useCallback((_e: React.PointerEvent) => {}, []);
+
   // Up / Down controls (Operates on the full authoritative underlying order)
   const moveUp = useCallback(
     (indexOrGlobalIndex: number) => {
-      // Determine if index passed is local or global
       const globalIdx =
         indexOrGlobalIndex >= pinnedStartIndex && indexOrGlobalIndex < pinnedEndIndex
           ? indexOrGlobalIndex
@@ -368,173 +358,14 @@ export function useAdminOrderedList<T, C = any>({
     setItems([...savedItems]);
   }, [savedItems]);
 
-  // Target position calculation for drag feedback
-  const calcTargetPosition = useCallback(
-    (fromIdx: number, toIdx: number, pos: "above" | "below"): number => {
-      let target = pos === "below" ? toIdx + 1 : toIdx;
-      if (fromIdx < target) {
-        target -= 1;
-      }
-      return target + 1;
-    },
-    []
-  );
-
-  // ── Native Pointer Events Drag and Drop (NO PLUGIN) ──
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent, globalIdx: number, localIdx: number) => {
-      // Only initiate on primary mouse button or touch
-      if (e.button !== 0) return;
-
-      const targetEl = e.currentTarget as HTMLElement;
-      dragHandleRef.current = targetEl;
-      pointerIdRef.current = e.pointerId;
-
-      try {
-        targetEl.setPointerCapture?.(e.pointerId);
-      } catch {
-        // Safe fallback
-      }
-
-      setDraggedGlobalIndex(globalIdx);
-      setDraggedIndex(localIdx);
-      setIsPointerDragging(true);
-      justDraggedRef.current = false;
-
-      // Prevent accidental text selection during drag
-      document.body.style.userSelect = "none";
-    },
-    []
-  );
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!isPointerDragging || draggedGlobalIndex === null) return;
-
-      // Locate the hovered row under the pointer
-      const targetElement = document.elementFromPoint(e.clientX, e.clientY);
-      const rowEl = targetElement?.closest("[data-ordered-row], [data-product-row]") as HTMLElement | null;
-
-      if (!rowEl) {
-        return;
-      }
-
-      // Read authoritative global index and local index from attributes
-      const rawGlobal = rowEl.getAttribute("data-global-index");
-      const rawLocal = rowEl.getAttribute("data-index");
-
-      let rowGlobalIdx: number;
-      let rowLocalIdx: number;
-
-      if (rawGlobal !== null) {
-        rowGlobalIdx = parseInt(rawGlobal, 10);
-        rowLocalIdx = rawLocal !== null ? parseInt(rawLocal, 10) : rowGlobalIdx - pinnedStartIndex;
-      } else if (rawLocal !== null) {
-        const parsed = parseInt(rawLocal, 10);
-        if (parsed < pinnedPageSize) {
-          rowLocalIdx = parsed;
-          rowGlobalIdx = pinnedStartIndex + parsed;
-        } else {
-          rowGlobalIdx = parsed;
-          rowLocalIdx = Math.max(0, parsed - pinnedStartIndex);
-        }
-      } else {
-        return;
-      }
-
-      const rect = rowEl.getBoundingClientRect();
-      const relY = e.clientY - rect.top;
-      const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
-
-      setDragOverTarget({
-        index: rowLocalIdx,
-        globalIndex: rowGlobalIdx,
-        position,
-      });
-    },
-    [isPointerDragging, draggedGlobalIndex, pinnedStartIndex, pinnedPageSize]
-  );
-
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      const targetEl = dragHandleRef.current || (e.currentTarget as HTMLElement);
-      if (pointerIdRef.current !== null) {
-        try {
-          targetEl.releasePointerCapture?.(pointerIdRef.current);
-        } catch {
-          // Safe fallback
-        }
-        pointerIdRef.current = null;
-      }
-
-      document.body.style.userSelect = "";
-
-      if (isPointerDragging && draggedGlobalIndex !== null && dragOverTarget) {
-        const targetGIdx =
-          dragOverTarget.globalIndex !== undefined
-            ? dragOverTarget.globalIndex
-            : pinnedStartIndex + dragOverTarget.index;
-
-        let target = dragOverTarget.position === "below" ? targetGIdx + 1 : targetGIdx;
-        if (draggedGlobalIndex < target) {
-          target -= 1;
-        }
-
-        if (draggedGlobalIndex !== target && target >= 0 && target <= items.length - 1) {
-          setItems((prev) => {
-            const next = [...prev];
-            const [moved] = next.splice(draggedGlobalIndex, 1);
-            next.splice(target, 0, moved);
-            return reindexItems(next);
-          });
-        }
-      }
-
-      // Suppress accidental click right after pointerup
-      if (isPointerDragging) {
-        justDraggedRef.current = true;
-        setTimeout(() => {
-          justDraggedRef.current = false;
-        }, 150);
-      }
-
-      setIsPointerDragging(false);
-      setDraggedIndex(null);
-      setDraggedGlobalIndex(null);
-      setDragOverTarget(null);
-      dragHandleRef.current = null;
-    },
-    [isPointerDragging, draggedGlobalIndex, dragOverTarget, pinnedStartIndex, items.length, reindexItems]
-  );
-
-  const handlePointerCancel = useCallback(() => {
-    document.body.style.userSelect = "";
-    if (dragHandleRef.current && pointerIdRef.current !== null) {
-      try {
-        dragHandleRef.current.releasePointerCapture?.(pointerIdRef.current);
-      } catch {
-        // Safe fallback
-      }
-      pointerIdRef.current = null;
-    }
-    setIsPointerDragging(false);
-    setDraggedIndex(null);
-    setDraggedGlobalIndex(null);
-    setDragOverTarget(null);
-    dragHandleRef.current = null;
-  }, []);
-
   // ── HTML5 Drag and Drop handlers (Backward Compatibility & Accessibility) ──
   const handleDragStart = useCallback(
     (e: React.DragEvent, localIdx: number, globalIdx?: number) => {
       const gIdx = globalIdx !== undefined ? globalIdx : pinnedStartIndex + localIdx;
-      setDraggedIndex(localIdx);
-      setDraggedGlobalIndex(gIdx);
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", String(gIdx));
 
-      // Try setting drag image from closest row element if available
-      const rowEl = (e.currentTarget as HTMLElement).closest("[data-ordered-row], [data-product-row]") as HTMLElement | null;
+      const rowEl = (e.currentTarget as HTMLElement).closest("[data-ordered-row]") as HTMLElement | null;
       if (rowEl && e.dataTransfer.setDragImage) {
         const rowRect = rowEl.getBoundingClientRect();
         const handleRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -547,41 +378,20 @@ export function useAdminOrderedList<T, C = any>({
   );
 
   const handleDragOver = useCallback(
-    (e: React.DragEvent, localIdx: number, globalIdx?: number) => {
+    (e: React.DragEvent, _localIdx: number, _globalIdx?: number) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      if (draggedIndex === null && draggedGlobalIndex === null) return;
-
-      const gIdx = globalIdx !== undefined ? globalIdx : pinnedStartIndex + localIdx;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const relY = e.clientY - rect.top;
-      const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
-
-      if (
-        !dragOverTarget ||
-        dragOverTarget.index !== localIdx ||
-        dragOverTarget.position !== position
-      ) {
-        setDragOverTarget({ index: localIdx, globalIndex: gIdx, position });
-      }
     },
-    [draggedIndex, draggedGlobalIndex, dragOverTarget, pinnedStartIndex]
+    []
   );
 
   const handleDrop = useCallback(
     (e: React.DragEvent, targetLocalIndex: number, targetGlobalIndex?: number) => {
       e.preventDefault();
-      const fromIdx =
-        draggedGlobalIndex !== null
-          ? draggedGlobalIndex
-          : draggedIndex !== null
-          ? pinnedStartIndex + draggedIndex
-          : null;
+      const rawFrom = e.dataTransfer.getData("text/plain");
+      const fromGIdx = rawFrom ? parseInt(rawFrom, 10) : draggedGlobalIndex;
 
-      if (fromIdx === null) {
-        setDraggedIndex(null);
-        setDraggedGlobalIndex(null);
-        setDragOverTarget(null);
+      if (fromGIdx === null || isNaN(fromGIdx)) {
         return;
       }
 
@@ -594,41 +404,25 @@ export function useAdminOrderedList<T, C = any>({
 
       const position = dragOverTarget?.position || "above";
       let target = position === "below" ? toGIdx + 1 : toGIdx;
-      if (fromIdx < target) {
+      if (fromGIdx < target) {
         target -= 1;
       }
 
-      if (fromIdx === target || target < 0 || target > items.length - 1) {
-        setDraggedIndex(null);
-        setDraggedGlobalIndex(null);
-        setDragOverTarget(null);
+      if (fromGIdx === target || target < 0 || target > items.length - 1) {
         return;
       }
 
-      setItems((prev) => {
-        const next = [...prev];
-        const [moved] = next.splice(fromIdx, 1);
-        next.splice(target, 0, moved);
-        return reindexItems(next);
-      });
-
-      setDraggedIndex(null);
-      setDraggedGlobalIndex(null);
-      setDragOverTarget(null);
+      handleReorder(fromGIdx, target);
     },
-    [draggedIndex, draggedGlobalIndex, dragOverTarget, pinnedStartIndex, items.length, reindexItems]
+    [draggedGlobalIndex, dragOverTarget, pinnedStartIndex, items.length, handleReorder]
   );
 
-  const handleDragEnd = useCallback(() => {
-    setDraggedIndex(null);
-    setDraggedGlobalIndex(null);
-    setDragOverTarget(null);
-  }, []);
+  const handleDragEnd = useCallback(() => {}, []);
 
-  // Keyboard navigation for drag handle accessibility
+  // Keyboard accessibility
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent, localIndex: number, globalIndex?: number) => {
-      const gIdx = globalIndex !== undefined ? globalIndex : pinnedStartIndex + localIndex;
+    (e: React.KeyboardEvent, _localIdx: number, globalIdx?: number) => {
+      const gIdx = globalIdx !== undefined ? globalIdx : 0;
       if (e.key === "ArrowUp") {
         e.preventDefault();
         moveUp(gIdx);
@@ -637,38 +431,40 @@ export function useAdminOrderedList<T, C = any>({
         moveDown(gIdx);
       }
     },
-    [pinnedStartIndex, moveUp, moveDown]
+    [moveUp, moveDown]
   );
 
-  // Save changes action - on failure, preserves local unsaved order and throws
+  // Save handler
   const handleSave = useCallback(async () => {
     if (!onSave) return;
-    setIsSaving(true);
     try {
-      const result = await onSave(items);
-      const updated = Array.isArray(result) ? result : items;
-      setItems(updated);
-      setSavedItems(updated);
-      if (onSaveSuccess) onSaveSuccess();
+      setIsSaving(true);
+      await onSave(items);
+      setSavedItems([...items]);
+      onSaveSuccess?.();
     } catch (err: any) {
-      // Do NOT revert items! Preserve the local unsaved order.
-      if (showToast) {
-        showToast(err?.message || "Failed to save ordered items. Please try again.", "error");
-      }
-      throw err;
+      console.error("useAdminOrderedList: save error:", err);
+      showToast?.(err?.message || "Failed to save order sequence.", "error");
     } finally {
       setIsSaving(false);
     }
   }, [onSave, items, onSaveSuccess, showToast]);
 
-  // Catalog Fetching
-  const isFetchingRef = useRef(false);
+  // Catalog search and pagination state
+  const [availableCatalog, setAvailableCatalog] = useState<C[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [pageSize, setPageSize] = useState<number>(defaultPageSize);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
+  const [viewFilter, setViewFilter] = useState<"all" | "pinned">("all");
+
   const refreshCatalog = useCallback(async () => {
     if (!fetchCatalog) return;
-    setIsLoadingCatalog(true);
-    isFetchingRef.current = true;
     try {
-      const excludeIds = items.map((i) => getItemId(i));
+      setIsLoadingCatalog(true);
+      const excludeIds = items.map((item) => getItemId(item));
       const res = await fetchCatalog({
         search: searchQuery,
         page: currentPage,
@@ -676,25 +472,20 @@ export function useAdminOrderedList<T, C = any>({
         excludeIds,
       });
       setAvailableCatalog(res.items || []);
-      setCurrentPage(res.currentPage || 1);
       setTotalPages(res.lastPage || 1);
       setTotalCount(res.total || 0);
-    } catch (err) {
+    } catch (err: any) {
       console.warn("useAdminOrderedList: fetchCatalog error:", err);
       setAvailableCatalog([]);
     } finally {
       setIsLoadingCatalog(false);
-      isFetchingRef.current = false;
     }
-  }, [fetchCatalog, searchQuery, currentPage, pageSize, items, getItemId]);
+  }, [fetchCatalog, items, getItemId, searchQuery, currentPage, pageSize]);
 
-  // Debounced catalog search / page / pageSize trigger
   useEffect(() => {
-    if (!fetchCatalog) return;
-    const timer = setTimeout(() => {
+    if (fetchCatalog) {
       refreshCatalog();
-    }, 200);
-    return () => clearTimeout(timer);
+    }
   }, [fetchCatalog, refreshCatalog]);
 
   const handleSearchChange = useCallback((query: string) => {
@@ -702,33 +493,25 @@ export function useAdminOrderedList<T, C = any>({
     setCurrentPage(1);
   }, []);
 
-  const handlePageSizeChange = useCallback((newSize: number) => {
-    setPageSize(newSize);
-    setPinnedPageSize(newSize);
-    setCurrentPage(1);
-    setPinnedPage(1);
+  const handlePageChange = useCallback((newPage: number) => {
+    setCurrentPage(newPage);
   }, []);
 
-  const handlePageChange = useCallback(
-    (newPage: number) => {
-      if (newPage >= 1 && newPage <= totalPages) {
-        setCurrentPage(newPage);
-      }
-    },
-    [totalPages]
-  );
+  const handlePageSizeChange = useCallback((newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  }, []);
 
-  // Add from catalog handler
   const handleAddFromCatalog = useCallback(
     (catalogItem: C) => {
       if (!onAddFromCatalog) return;
-      const catId = getCatalogItemId(catalogItem);
-      if (selectedItemMap.has(String(catId))) return;
-
       const newItem = onAddFromCatalog(catalogItem, items);
-      setItems((prev) => [...prev, newItem]);
+      setItems((prev) => {
+        const next = [...prev, newItem];
+        return reindexItems(next);
+      });
     },
-    [onAddFromCatalog, getCatalogItemId, selectedItemMap, items]
+    [onAddFromCatalog, items, reindexItems]
   );
 
   return {
@@ -748,7 +531,6 @@ export function useAdminOrderedList<T, C = any>({
     handleMoveDown,
     handleRemove,
 
-    // Pinned Pagination
     pinnedPage,
     setPinnedPage,
     pinnedPageSize,
@@ -761,7 +543,6 @@ export function useAdminOrderedList<T, C = any>({
     handlePinnedPageChange,
     handlePinnedPageSizeChange,
 
-    // Drag and Drop (Native Pointer Events + HTML5 Drag)
     draggedIndex,
     draggedGlobalIndex,
     isPointerDragging,

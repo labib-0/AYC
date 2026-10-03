@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { HomepageTickerItem } from "@/services/homepage.service";
+import { usePointerDragReorder } from "@/components/admin/ordered-list";
 
 export interface HomepageTickerManagerProps {
   items: HomepageTickerItem[];
@@ -82,254 +83,40 @@ export default function HomepageTickerManager({
     }
   };
 
-  // Drag and Drop State (Native Pointer Events)
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [draggedGlobalIndex, setDraggedGlobalIndex] = useState<number | null>(null);
-  const [isPointerDragging, setIsPointerDragging] = useState<boolean>(false);
-  const [dragOverTarget, setDragOverTarget] = useState<{
-    index: number;
-    globalIndex?: number;
-    position: "above" | "below";
-  } | null>(null);
+  // Shared Native Pointer Events Drag and Drop Hook
+  const {
+    draggedIndex,
+    draggedGlobalIndex,
+    isPointerDragging,
+    dragOverTarget,
+    handlePointerDown,
+    handlePointerCancel,
+    calcTargetPosition,
+    isClickSuppressed,
+  } = usePointerDragReorder({
+    totalCount: items.length,
+    startIndex,
+    pageSize,
+    onReorder: (fromGlobal, toGlobal) => {
+      const next = [...items];
+      const [moved] = next.splice(fromGlobal, 1);
+      next.splice(toGlobal, 0, moved);
+      onChange(next.map((item, idx) => ({ ...item, sort_order: idx })));
+    },
+  });
 
-  const justDraggedRef = useRef<boolean>(false);
-  const dragHandleRef = useRef<HTMLElement | null>(null);
-  const pointerIdRef = useRef<number | null>(null);
+  const handlePointerMove = (_e: React.PointerEvent) => {};
+  const handlePointerUp = (_e: React.PointerEvent) => {};
 
-  useEffect(() => {
-    return () => {
-      document.body.style.userSelect = "";
-      if (dragHandleRef.current && pointerIdRef.current !== null) {
-        try {
-          dragHandleRef.current.releasePointerCapture?.(pointerIdRef.current);
-        } catch {
-          // ignore
-        }
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isPointerDragging) {
-      document.body.style.userSelect = "none";
-    } else {
-      document.body.style.userSelect = "";
-    }
-    return () => {
-      document.body.style.userSelect = "";
-    };
-  }, [isPointerDragging]);
-
-  const isClickSuppressed = () => justDraggedRef.current || isPointerDragging;
-
-  const calcTargetPosition = (fromIdx: number, toIdx: number, pos: "above" | "below"): number => {
-    let target = pos === "below" ? toIdx + 1 : toIdx;
-    if (fromIdx < target) {
-      target -= 1;
-    }
-    return target + 1;
-  };
-
-  // Native Pointer Events Drag and Drop
-  const handlePointerDown = (e: React.PointerEvent, globalIdx: number, localIdx: number) => {
-    if (e.button !== 0) return;
-    const targetEl = e.currentTarget as HTMLElement;
-    dragHandleRef.current = targetEl;
-    pointerIdRef.current = e.pointerId;
-
-    try {
-      targetEl.setPointerCapture?.(e.pointerId);
-    } catch {
-      // Safe fallback
-    }
-
-    setDraggedGlobalIndex(globalIdx);
-    setDraggedIndex(localIdx);
-    setIsPointerDragging(true);
-    justDraggedRef.current = false;
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isPointerDragging || draggedGlobalIndex === null) return;
-
-    const targetElement = document.elementFromPoint(e.clientX, e.clientY);
-    const rowEl = targetElement?.closest("[data-ordered-row]") as HTMLElement | null;
-
-    if (!rowEl) return;
-
-    const rawGlobal = rowEl.getAttribute("data-global-index");
-    const rawLocal = rowEl.getAttribute("data-index");
-
-    let rowGlobalIdx: number;
-    let rowLocalIdx: number;
-
-    if (rawGlobal !== null) {
-      rowGlobalIdx = parseInt(rawGlobal, 10);
-      rowLocalIdx = rawLocal !== null ? parseInt(rawLocal, 10) : rowGlobalIdx - startIndex;
-    } else if (rawLocal !== null) {
-      const parsed = parseInt(rawLocal, 10);
-      if (parsed < pageSize) {
-        rowLocalIdx = parsed;
-        rowGlobalIdx = startIndex + parsed;
-      } else {
-        rowGlobalIdx = parsed;
-        rowLocalIdx = Math.max(0, parsed - startIndex);
-      }
-    } else {
-      return;
-    }
-
-    const rect = rowEl.getBoundingClientRect();
-    const relY = e.clientY - rect.top;
-    const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
-
-    setDragOverTarget({
-      index: rowLocalIdx,
-      globalIndex: rowGlobalIdx,
-      position,
-    });
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    const targetEl = dragHandleRef.current || (e.currentTarget as HTMLElement);
-    if (pointerIdRef.current !== null) {
-      try {
-        targetEl.releasePointerCapture?.(pointerIdRef.current);
-      } catch {
-        // Safe fallback
-      }
-      pointerIdRef.current = null;
-    }
-
-    if (isPointerDragging && draggedGlobalIndex !== null && dragOverTarget) {
-      const targetGIdx =
-        dragOverTarget.globalIndex !== undefined
-          ? dragOverTarget.globalIndex
-          : startIndex + dragOverTarget.index;
-
-      let target = dragOverTarget.position === "below" ? targetGIdx + 1 : targetGIdx;
-      if (draggedGlobalIndex < target) {
-        target -= 1;
-      }
-
-      if (draggedGlobalIndex !== target && target >= 0 && target <= items.length - 1) {
-        const next = [...items];
-        const [moved] = next.splice(draggedGlobalIndex, 1);
-        next.splice(target, 0, moved);
-        onChange(next.map((item, idx) => ({ ...item, sort_order: idx })));
-      }
-    }
-
-    if (isPointerDragging) {
-      justDraggedRef.current = true;
-      setTimeout(() => {
-        justDraggedRef.current = false;
-      }, 150);
-    }
-
-    setIsPointerDragging(false);
-    setDraggedIndex(null);
-    setDraggedGlobalIndex(null);
-    setDragOverTarget(null);
-    dragHandleRef.current = null;
-  };
-
-  const handlePointerCancel = () => {
-    document.body.style.userSelect = "";
-    if (dragHandleRef.current && pointerIdRef.current !== null) {
-      try {
-        dragHandleRef.current.releasePointerCapture?.(pointerIdRef.current);
-      } catch {
-        // Safe fallback
-      }
-      pointerIdRef.current = null;
-    }
-    setIsPointerDragging(false);
-    setDraggedIndex(null);
-    setDraggedGlobalIndex(null);
-    setDragOverTarget(null);
-    dragHandleRef.current = null;
-  };
-
-  // HTML5 Drag Handlers (Compatibility)
-  const handleDragStart = (e: React.DragEvent, localIdx: number, globalIdx?: number) => {
-    const gIdx = globalIdx !== undefined ? globalIdx : startIndex + localIdx;
-    setDraggedIndex(localIdx);
-    setDraggedGlobalIndex(gIdx);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(gIdx));
-  };
-
-  const handleDragOver = (e: React.DragEvent, localIdx: number, globalIdx?: number) => {
+  // HTML5 Drag Handlers (Compatibility stubs)
+  const handleDragStart = (_e?: React.DragEvent, _localIdx?: number, _globalIdx?: number) => {};
+  const handleDragOver = (e: React.DragEvent, _localIdx?: number, _globalIdx?: number) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (draggedIndex === null && draggedGlobalIndex === null) return;
-
-    const gIdx = globalIdx !== undefined ? globalIdx : startIndex + localIdx;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const relY = e.clientY - rect.top;
-    const position: "above" | "below" = relY < rect.height / 2 ? "above" : "below";
-
-    if (
-      !dragOverTarget ||
-      dragOverTarget.index !== localIdx ||
-      dragOverTarget.position !== position
-    ) {
-      setDragOverTarget({ index: localIdx, globalIndex: gIdx, position });
-    }
   };
-
-  const handleDrop = (e: React.DragEvent, targetLocalIndex: number, targetGlobalIndex?: number) => {
+  const handleDrop = (e: React.DragEvent, _targetLocalIndex?: number, _targetGlobalIndex?: number) => {
     e.preventDefault();
-    const fromIdx =
-      draggedGlobalIndex !== null
-        ? draggedGlobalIndex
-        : draggedIndex !== null
-        ? startIndex + draggedIndex
-        : null;
-
-    if (fromIdx === null) {
-      setDraggedIndex(null);
-      setDraggedGlobalIndex(null);
-      setDragOverTarget(null);
-      return;
-    }
-
-    const toGIdx =
-      targetGlobalIndex !== undefined
-        ? targetGlobalIndex
-        : dragOverTarget?.globalIndex !== undefined
-        ? dragOverTarget.globalIndex
-        : startIndex + targetLocalIndex;
-
-    const position = dragOverTarget?.position || "above";
-    let target = position === "below" ? toGIdx + 1 : toGIdx;
-    if (fromIdx < target) {
-      target -= 1;
-    }
-
-    if (fromIdx === target || target < 0 || target > items.length - 1) {
-      setDraggedIndex(null);
-      setDraggedGlobalIndex(null);
-      setDragOverTarget(null);
-      return;
-    }
-
-    const next = [...items];
-    const [moved] = next.splice(fromIdx, 1);
-    next.splice(target, 0, moved);
-    onChange(next.map((item, idx) => ({ ...item, sort_order: idx })));
-
-    setDraggedIndex(null);
-    setDraggedGlobalIndex(null);
-    setDragOverTarget(null);
   };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDraggedGlobalIndex(null);
-    setDragOverTarget(null);
-  };
+  const handleDragEnd = () => {};
 
   const handleAddKeyword = (textToAdd?: string) => {
     const text = (textToAdd !== undefined ? textToAdd : newKeyword).trim();
@@ -583,7 +370,7 @@ export default function HomepageTickerManager({
       </div>
 
       {/* Keywords Reorderable List */}
-      <div className="space-y-2">
+      <div data-ordered-container className="space-y-2">
         {items.length === 0 ? (
           <div className="p-8 rounded-xl border border-dashed border-border text-center space-y-2">
             <p className="text-xs sm:text-sm text-muted-foreground font-medium">
@@ -661,17 +448,12 @@ export default function HomepageTickerManager({
                 >
                   {/* Drag handle + order index + text input */}
                   <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                    {/* Drag Handle: Native Pointer Events */}
+                    {/* Drag Handle: Native Pointer Events with Pointer Capture */}
                     <div
                       role="button"
                       tabIndex={0}
-                      draggable
                       onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}
-                      onPointerMove={handlePointerMove}
-                      onPointerUp={handlePointerUp}
                       onPointerCancel={handlePointerCancel}
-                      onDragStart={(e) => handleDragStart(e, localIndex, globalIndex)}
-                      onDragEnd={handleDragEnd}
                       onKeyDown={(e) => {
                         if (e.key === "ArrowUp") {
                           e.preventDefault();

@@ -365,7 +365,7 @@ export default function HotSaleCategoryManager({
 
         {/* 1. SELECTED / PINNED ITEMS */}
         {filteredPinnedCategories.length > 0 && (
-          <div className="bg-orange-500/5 divide-y divide-border/40">
+          <div data-ordered-container className="bg-orange-500/5 divide-y divide-border/40">
             {visiblePinnedCategories.map((item, localIndex) => {
               const globalIndex = pinnedStartIndex + localIndex;
               const cat = item.category;
@@ -432,13 +432,8 @@ export default function HotSaleCategoryManager({
                       <div
                         role="button"
                         tabIndex={0}
-                        draggable
                         onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={handlePointerUp}
                         onPointerCancel={handlePointerCancel}
-                        onDragStart={(e) => handleDragStart(e, localIndex, globalIndex)}
-                        onDragEnd={handleDragEnd}
                         onKeyDown={(e) => handleKeyDown(e, localIndex, globalIndex)}
                         aria-label={`Drag handle for ${cat?.name || "category"}. Current position ${position}. Press Up or Down arrow keys to reorder.`}
                         className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"

@@ -270,7 +270,7 @@ export function AdminOrderedList<T, C = any>({
 
         {/* 1. PINNED / ORDERED ITEMS LIST */}
         {filteredPinnedItems.length > 0 && (
-          <div className={`${colorStyles.bgSubtle} divide-y divide-border/40`}>
+          <div data-ordered-container className={`${colorStyles.bgSubtle} divide-y divide-border/40`}>
             {filteredPinnedItems.map((item, localIndex) => {
               const globalIndex = pinnedStartIndex + localIndex;
               const id = getItemId(item);
@@ -336,17 +336,12 @@ export function AdminOrderedList<T, C = any>({
                     }`}
                   >
                     <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                      {/* Drag Handle: Native Pointer Events */}
+                      {/* Drag Handle: Native Pointer Events with Pointer Capture */}
                       <div
                         role="button"
                         tabIndex={0}
-                        draggable
                         onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={handlePointerUp}
                         onPointerCancel={handlePointerCancel}
-                        onDragStart={(e) => handleDragStart(e, localIndex, globalIndex)}
-                        onDragEnd={handleDragEnd}
                         onKeyDown={(e) => handleKeyDown(e, localIndex, globalIndex)}
                         aria-label={`Drag handle for item position ${position}. Press Up or Down arrow keys to reorder.`}
                         className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"

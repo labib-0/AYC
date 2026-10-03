@@ -368,7 +368,7 @@ export default function FeaturedProductManager({
 
         {/* 1. SELECTED / PINNED ITEMS */}
         {filteredPinnedProducts.length > 0 && (
-          <div className="bg-amber-500/5 divide-y divide-border/40">
+          <div data-ordered-container className="bg-amber-500/5 divide-y divide-border/40">
             {visiblePinnedProducts.map((item, localIndex) => {
               const globalIndex = pinnedStartIndex + localIndex;
               const prod = item.product;
@@ -438,13 +438,8 @@ export default function FeaturedProductManager({
                       <div
                         role="button"
                         tabIndex={0}
-                        draggable
                         onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={handlePointerUp}
                         onPointerCancel={handlePointerCancel}
-                        onDragStart={(e) => handleDragStart(e, localIndex, globalIndex)}
-                        onDragEnd={handleDragEnd}
                         onKeyDown={(e) => {
                           if (e.key === "ArrowUp") {
                             handleMoveUp(globalIndex);

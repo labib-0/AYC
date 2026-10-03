@@ -35,6 +35,7 @@ const logoManagerPath = resolve(projectRoot, "src/components/admin/homepage/Home
 const uploaderPath = resolve(projectRoot, "src/components/admin/homepage/BannerImageUploader.tsx");
 const contentFormPath = resolve(projectRoot, "src/components/admin/homepage/BannerContentForm.tsx");
 const hookPath = resolve(projectRoot, "src/components/admin/ordered-list/useAdminOrderedList.ts");
+const pointerHookPath = resolve(projectRoot, "src/components/admin/ordered-list/usePointerDragReorder.ts");
 const orderedListPath = resolve(projectRoot, "src/components/admin/ordered-list/AdminOrderedList.tsx");
 const tickerPath = resolve(projectRoot, "src/components/admin/homepage/HomepageTickerManager.tsx");
 const brandPath = resolve(projectRoot, "src/components/admin/homepage/ShopByBrandManager.tsx");
@@ -47,6 +48,7 @@ assert(existsSync(logoManagerPath), "HomepageLogoManager.tsx exists");
 assert(existsSync(uploaderPath), "BannerImageUploader.tsx exists");
 assert(existsSync(contentFormPath), "BannerContentForm.tsx exists");
 assert(existsSync(hookPath), "useAdminOrderedList.ts exists");
+assert(existsSync(pointerHookPath), "usePointerDragReorder.ts exists");
 assert(existsSync(orderedListPath), "AdminOrderedList.tsx exists");
 assert(existsSync(tickerPath), "HomepageTickerManager.tsx exists");
 assert(existsSync(brandPath), "ShopByBrandManager.tsx exists");
@@ -59,7 +61,10 @@ const previewCode = readFileSync(previewPath, "utf-8");
 const logoCode = readFileSync(logoManagerPath, "utf-8");
 const uploaderCode = readFileSync(uploaderPath, "utf-8");
 const contentCode = readFileSync(contentFormPath, "utf-8");
-const hookCode = readFileSync(hookPath, "utf-8");
+const hookCode =
+  readFileSync(hookPath, "utf-8") +
+  "\n" +
+  (existsSync(pointerHookPath) ? readFileSync(pointerHookPath, "utf-8") : "");
 const orderedListCode = readFileSync(orderedListPath, "utf-8");
 const tickerCode = readFileSync(tickerPath, "utf-8");
 const brandCode = readFileSync(brandPath, "utf-8");

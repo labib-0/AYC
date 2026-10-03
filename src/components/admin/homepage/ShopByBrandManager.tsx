@@ -346,7 +346,7 @@ export default function ShopByBrandManager({
 
         {/* 1. SELECTED / PINNED ITEMS */}
         {filteredPinnedBrands.length > 0 && (
-          <div className="bg-primary/5 divide-y divide-border/40">
+          <div data-ordered-container className="bg-primary/5 divide-y divide-border/40">
             {visiblePinnedBrands.map((item, localIndex) => {
               const globalIndex = pinnedStartIndex + localIndex;
               const brand = item.brand;
@@ -413,13 +413,8 @@ export default function ShopByBrandManager({
                       <div
                         role="button"
                         tabIndex={0}
-                        draggable
                         onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={handlePointerUp}
                         onPointerCancel={handlePointerCancel}
-                        onDragStart={(e) => handleDragStart(e, localIndex, globalIndex)}
-                        onDragEnd={handleDragEnd}
                         onKeyDown={(e) => handleKeyDown(e, localIndex, globalIndex)}
                         aria-label={`Drag handle for ${brand?.name || "brand"}. Current position ${position}. Press Up or Down arrow keys to reorder.`}
                         className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
