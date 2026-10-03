@@ -6,6 +6,7 @@ import { inferProductCategory, DEFAULT_PACKAGE_ASSORTMENT_MESSAGE } from "@/lib/
 import { getLowestValidCustomerUnitPrice } from "@/lib/product-pricing";
 import { apiClient } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
+import { productDraftService } from "@/lib/services/product-draft.service";
 
 export interface ProductQueryParams {
   page?: number;
@@ -1087,11 +1088,19 @@ export class ProductService {
    * Delete product
    */
   async deleteProduct(id: string): Promise<boolean> {
-    if (!isFrontendOnly()) {
-      await apiClient.delete(`/products/${id}`);
+    if (id === "draft_local_new" || id.startsWith("draft_") || id === "new") {
+      productDraftService.clearDraft("new");
+      productDraftService.clearDraft(id);
       return true;
     }
 
+    if (!isFrontendOnly()) {
+      await apiClient.delete(`/products/${id}`);
+      productDraftService.clearDraft(id);
+      return true;
+    }
+
+    productDraftService.clearDraft(id);
     return mockStore.deleteProduct(id);
   }
 

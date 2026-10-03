@@ -301,8 +301,29 @@ function AdminProductsContent() {
     if (!deleteTarget) return;
     setModalLoading(true);
     try {
+      const isLocalDraft =
+        deleteTarget.id === "draft_local_new" ||
+        deleteTarget.id.startsWith("draft_");
+
+      if (isLocalDraft) {
+        productDraftService.clearDraft("new");
+        if (deleteTarget.id !== "draft_local_new") {
+          productDraftService.clearDraft(deleteTarget.id);
+        }
+        addToast("success", "Draft product discarded.");
+        setDeleteTarget(null);
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(deleteTarget.id);
+          return next;
+        });
+        await Promise.all([loadProducts(), loadGlobalMetrics()]);
+        return;
+      }
+
       await deleteProduct(deleteTarget.id);
-      addToast("success", "Product deleted.");
+      productDraftService.clearDraft(deleteTarget.id);
+      addToast("success", "Product deleted successfully.");
       setDeleteTarget(null);
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -310,8 +331,12 @@ function AdminProductsContent() {
         return next;
       });
       await Promise.all([loadProducts(), loadGlobalMetrics()]);
-    } catch {
-      addToast("error", "Failed to delete product.");
+    } catch (err: any) {
+      const msg =
+        err?.data?.message ||
+        err?.message ||
+        "Failed to delete product. Please try again.";
+      addToast("error", msg);
     } finally {
       setModalLoading(false);
     }

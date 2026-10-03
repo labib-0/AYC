@@ -260,6 +260,10 @@ class Product extends Model
                     $product->sku = substr($product->sku, 0, 200) . '-del-' . $product->id . '-' . time();
                     $updates['sku'] = $product->sku;
                 }
+                if ($product->product_id && !str_contains($product->product_id, '-del-')) {
+                    $product->product_id = substr($product->product_id, 0, 200) . '-del-' . $product->id . '-' . time();
+                    $updates['product_id'] = $product->product_id;
+                }
                 if (!empty($updates)) {
                     $product->saveQuietly();
                 }

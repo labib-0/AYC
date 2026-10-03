@@ -5,15 +5,18 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\Catalog\ProductQueryRequest;
 use App\Http\Resources\Api\V1\ProductResource;
+use App\Models\CartItem;
 use App\Models\HomepageFeaturedProduct;
 use App\Models\Product;
 use App\Models\ProductShippingPackageProfile;
+use App\Models\WishlistItem;
 use App\Services\Audit\ActivityLogger;
 use App\Services\Cache\CatalogCacheService;
 use App\Services\Shipping\PackageCalculatorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -2098,33 +2101,63 @@ class ProductController extends ApiController
             return $this->forbidden("Forbidden: you do not have the 'product.delete' permission to delete products.");
         }
 
+        // If client sends a client-side draft ID (e.g. draft_local_new or draft_*), treat as successful discard
+        if ($id === 'draft_local_new' || str_starts_with($id, 'draft_') || str_starts_with($id, 'temp_')) {
+            return $this->success(null, 'Draft deleted successfully');
+        }
+
         $product = is_numeric($id)
             ? Product::find((int) $id)
             : Product::where('slug', $id)->orWhere('sku', $id)->first();
 
         if (!$product) {
-            return $this->notFound('Product not found');
+            return $this->notFound('Product not found or already deleted');
         }
 
-        CatalogCacheService::invalidateProduct($product);
-        ActivityLogger::log('product.deleted', $product, [
-            'name' => $product->name,
-            'sku' => $product->sku,
-        ]);
+        try {
+            DB::transaction(function () use ($product) {
+                CatalogCacheService::invalidateProduct($product);
+                ActivityLogger::log('product.deleted', $product, [
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                ]);
 
-        // Release the slug and SKU so they can be immediately reused
-        $uniqueSuffix = '-deleted-' . $product->id . '-' . time();
-        if (!str_contains($product->slug, '-deleted-')) {
-            $product->slug = substr($product->slug, 0, 200) . $uniqueSuffix;
+                // Release unique constraints (slug, SKU, and product_id) so they can be immediately reused
+                $uniqueSuffix = '-deleted-' . $product->id . '-' . time();
+                $needsSave = false;
+                if (!str_contains($product->slug, '-deleted-')) {
+                    $product->slug = substr($product->slug, 0, 200) . $uniqueSuffix;
+                    $needsSave = true;
+                }
+                if (!str_contains($product->sku, '-del-')) {
+                    $product->sku = substr($product->sku, 0, 200) . '-del-' . $product->id . '-' . time();
+                    $needsSave = true;
+                }
+                if ($product->product_id && !str_contains($product->product_id, '-del-')) {
+                    $product->product_id = substr($product->product_id, 0, 200) . '-del-' . $product->id . '-' . time();
+                    $needsSave = true;
+                }
+                if ($needsSave) {
+                    $product->saveQuietly();
+                }
+
+                // Clean up non-historical transient relationships
+                HomepageFeaturedProduct::where('product_id', $product->id)->delete();
+                CartItem::where('product_id', $product->id)->delete();
+                WishlistItem::where('product_id', $product->id)->delete();
+
+                // Soft-delete the product (order_items and quotation_items remain preserved with historical snapshot)
+                $product->delete();
+            });
+
+            return $this->success(null, 'Product deleted successfully');
+        } catch (\Exception $e) {
+            Log::error('Product deletion error: ' . $e->getMessage(), [
+                'product_id' => $product->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return $this->error('Failed to delete product due to a server error. Please try again.', 500);
         }
-        if (!str_contains($product->sku, '-del-')) {
-            $product->sku = substr($product->sku, 0, 200) . '-del-' . $product->id . '-' . time();
-        }
-        $product->saveQuietly();
-
-        $product->delete();
-
-        return $this->success(null, 'Product deleted successfully');
     }
 
     /**
