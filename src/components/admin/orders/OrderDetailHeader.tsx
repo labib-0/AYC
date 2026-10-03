@@ -16,7 +16,7 @@ export interface OrderDetailHeaderProps {
 
 export default function OrderDetailHeader({
   order,
-  backHref = "/admin/orders",
+  backHref = "/ayc/orders",
   onRefresh,
   isLoading = false,
 }: OrderDetailHeaderProps) {
@@ -68,7 +68,7 @@ export default function OrderDetailHeader({
         {can("document.view") && (
           <>
             <Link
-              href={`/admin/documents/ORDER_SHEET/order_${order.id}`}
+              href={`/ayc/documents/ORDER_SHEET/order_${order.id}`}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
               title="Commercial Order Sheet"
               id="btn-doc-order-sheet"
@@ -78,7 +78,7 @@ export default function OrderDetailHeader({
             </Link>
 
             <Link
-              href={`/admin/documents/PROFORMA_INVOICE/order_${order.id}`}
+              href={`/ayc/documents/PROFORMA_INVOICE/order_${order.id}`}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
               title="Proforma Invoice"
               id="btn-doc-pi"
@@ -88,7 +88,7 @@ export default function OrderDetailHeader({
             </Link>
 
             <Link
-              href={`/admin/documents/COMMERCIAL_INVOICE/order_${order.id}`}
+              href={`/ayc/documents/COMMERCIAL_INVOICE/order_${order.id}`}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
               title="Commercial Invoice"
               id="btn-doc-commercial-invoice"
@@ -98,7 +98,7 @@ export default function OrderDetailHeader({
             </Link>
 
             <Link
-              href={`/admin/documents/PACKING_LIST/order_${order.id}`}
+              href={`/ayc/documents/PACKING_LIST/order_${order.id}`}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
               title="Packing List"
               id="btn-doc-packing-list"

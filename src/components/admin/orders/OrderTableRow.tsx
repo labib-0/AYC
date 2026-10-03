@@ -15,7 +15,7 @@ export interface OrderTableRowProps {
 
 export default function OrderTableRow({
   order,
-  detailBaseUrl = "/admin/orders",
+  detailBaseUrl = "/ayc/orders",
   onReviewPaymentProof,
 }: OrderTableRowProps) {
   const { can } = useAdminAuth();

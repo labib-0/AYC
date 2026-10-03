@@ -12,7 +12,7 @@ export interface RfqTableRowProps {
 
 export default function RfqTableRow({
   rfq,
-  detailBaseUrl = "/admin/rfq",
+  detailBaseUrl = "/ayc/rfq",
 }: RfqTableRowProps) {
   const { can } = useAdminAuth();
   const customerName = rfq.buyerName || "Guest Buyer";

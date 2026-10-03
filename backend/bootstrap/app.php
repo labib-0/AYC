@@ -21,10 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
-        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') || $request->expectsJson() ? null : '/login');
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') || $request->is('ayc/api/*') || $request->expectsJson() ? null : '/login');
         $middleware->append(\App\Http\Middleware\SecurityHeadersMiddleware::class);
         $middleware->validateCsrfTokens(except: [
             'api/*',
+            'ayc/api/*',
         ]);
         $middleware->alias([
             'role'       => \App\Http\Middleware\EnsureUserHasRole::class,
@@ -33,11 +34,13 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
+            fn (Request $request) => $request->is('api/*') || $request->is('ayc/api/*') || $request->expectsJson(),
         );
 
-        $exceptions->render(function (ValidationException $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
+        $isApi = fn (Request $request) => $request->is('api/*') || $request->is('ayc/api/*') || $request->expectsJson();
+
+        $exceptions->render(function (ValidationException $e, Request $request) use ($isApi) {
+            if ($isApi($request)) {
                 return response()->json([
                     'success' => false,
                     'message' => $e->getMessage(),
@@ -46,8 +49,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (AuthenticationException $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
+        $exceptions->render(function (AuthenticationException $e, Request $request) use ($isApi) {
+            if ($isApi($request)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthenticated',
@@ -55,8 +58,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (AccessDeniedHttpException|AuthorizationException $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
+        $exceptions->render(function (AccessDeniedHttpException|AuthorizationException $e, Request $request) use ($isApi) {
+            if ($isApi($request)) {
                 return response()->json([
                     'success' => false,
                     'message' => $e->getMessage() ?: 'Forbidden',
@@ -64,8 +67,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (NotFoundHttpException|ModelNotFoundException $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
+        $exceptions->render(function (NotFoundHttpException|ModelNotFoundException $e, Request $request) use ($isApi) {
+            if ($isApi($request)) {
                 return response()->json([
                     'success' => false,
                     'message' => $e->getMessage() ?: 'Resource not found',
@@ -73,8 +76,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
+        $exceptions->render(function (ThrottleRequestsException $e, Request $request) use ($isApi) {
+            if ($isApi($request)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Too many requests. Please slow down and try again later.',
@@ -82,8 +85,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, Request $request) use ($isApi) {
+            if ($isApi($request)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'The uploaded file exceeds the maximum allowed size of 20 MB. Please select a smaller file.',
@@ -91,8 +94,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e, Request $request) use ($isApi) {
+            if ($isApi($request)) {
                 $status = $e->getStatusCode();
                 $message = match ($status) {
                     413 => 'The uploaded file exceeds the maximum allowed size of 20 MB. Please select a smaller file.',
@@ -107,8 +110,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (\Throwable $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
+        $exceptions->render(function (\Throwable $e, Request $request) use ($isApi) {
+            if ($isApi($request)) {
                 \Illuminate\Support\Facades\Log::error('Unhandled API exception', [
                     'url' => $request->fullUrl(),
                     'method' => $request->method(),

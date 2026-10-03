@@ -45,7 +45,7 @@ export default function AdminHeader({
         </button>
 
         <Link
-          href="/admin"
+          href="/ayc/dashboard"
           className="flex items-center gap-2.5 group focus:outline-none"
           aria-label="Ayaan Clothing Admin Portal Dashboard"
         >

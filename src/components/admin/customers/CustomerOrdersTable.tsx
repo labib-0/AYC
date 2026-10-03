@@ -11,7 +11,7 @@ export interface CustomerOrdersTableProps {
 
 export default function CustomerOrdersTable({
   orders,
-  orderBaseUrl = "/admin/orders",
+  orderBaseUrl = "/ayc/orders",
 }: CustomerOrdersTableProps) {
   return (
     <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">

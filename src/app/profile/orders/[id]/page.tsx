@@ -965,7 +965,7 @@ export default function OrderDetailPage({ params }: Props) {
                   <DocumentRow
                     key={idx}
                     label={`Offer Sheet: ${it.product_name}`}
-                    href={`/admin/documents/ORDER_SHEET/order_${order.id}`}
+                    href={`/ayc/documents/ORDER_SHEET/order_${order.id}`}
                     onDownload={() => {
                       downloadProductOfferSheetPDF(
                         {
@@ -991,7 +991,7 @@ export default function OrderDetailPage({ params }: Props) {
               ) : (
                 <DocumentRow
                   label="Commercial Offer Sheet"
-                  href={`/admin/documents/ORDER_SHEET/order_${order.id}`}
+                  href={`/ayc/documents/ORDER_SHEET/order_${order.id}`}
                   onDownload={() => {
                     if (order.items && order.items[0]) {
                       const it = order.items[0];
@@ -1019,18 +1019,18 @@ export default function OrderDetailPage({ params }: Props) {
               )}
               <DocumentRow
                 label="Proforma Invoice (P.I.)"
-                href={`/admin/documents/PROFORMA_INVOICE/order_${order.id}`}
+                href={`/ayc/documents/PROFORMA_INVOICE/order_${order.id}`}
                 onDownload={() => downloadProformaInvoicePDF(order)}
               />
               <DocumentRow
                 label="Commercial Invoice"
-                href={`/admin/documents/COMMERCIAL_INVOICE/order_${order.id}`}
+                href={`/ayc/documents/COMMERCIAL_INVOICE/order_${order.id}`}
                 locked={!isPaid}
                 onDownload={isPaid ? () => downloadCommercialInvoicePDF(order) : undefined}
               />
               <DocumentRow
                 label="Packing List"
-                href={`/admin/documents/PACKING_LIST/order_${order.id}`}
+                href={`/ayc/documents/PACKING_LIST/order_${order.id}`}
                 locked={!isPaid}
               />
             </div>

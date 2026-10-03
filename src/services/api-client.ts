@@ -64,7 +64,25 @@ class ApiClient {
     this.baseUrl = url;
   }
 
+  public getAdminBaseUrl(): string {
+    if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_ADMIN_API_URL) {
+      let url = process.env.NEXT_PUBLIC_ADMIN_API_URL;
+      if (url.endsWith("/")) url = url.slice(0, -1);
+      if (!url.includes("/ayc/api/v1") && !url.includes("/api")) {
+        url = `${url}/ayc/api/v1`;
+      }
+      return url;
+    }
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/ayc/api/v1`;
+    }
+    return this.baseUrl.replace(/\/api\/v1$/, "/ayc/api/v1");
+  }
+
   public getBaseUrl(): string {
+    if (this.isAdminContext()) {
+      return this.getAdminBaseUrl();
+    }
     if (typeof window !== "undefined") {
       if (window.location.hostname === "localhost" && this.baseUrl.includes("127.0.0.1")) {
         return this.baseUrl.replace("127.0.0.1", "localhost");
@@ -79,9 +97,13 @@ class ApiClient {
   public isAdminContext(): boolean {
     if (typeof window === "undefined") return false;
     return (
+      window.location.pathname === "/ayc" ||
+      window.location.pathname.startsWith("/ayc/") ||
+      window.location.pathname === "/admin" ||
+      window.location.pathname.startsWith("/admin/") ||
       window.location.port === "3001" ||
-      window.location.pathname.startsWith("/admin") ||
-      window.location.hostname.startsWith("admin.")
+      window.location.hostname.startsWith("admin.") ||
+      window.location.hostname === "admin.localhost"
     );
   }
 
@@ -146,7 +168,14 @@ class ApiClient {
   private buildUrl(path: string, params?: Record<string, string | number | boolean | undefined | null>): string {
     let cleanPath = path.startsWith("/") ? path : `/${path}`;
     const base = this.getBaseUrl();
-    if (base.endsWith("/api/v1") && cleanPath.startsWith("/api/v1")) {
+    if (base.endsWith("/ayc/api/v1")) {
+      if (cleanPath.startsWith("/ayc/api/v1")) {
+        cleanPath = cleanPath.slice(11);
+      } else if (cleanPath.startsWith("/api/v1")) {
+        cleanPath = cleanPath.slice(7);
+      }
+      if (!cleanPath.startsWith("/")) cleanPath = `/${cleanPath}`;
+    } else if (base.endsWith("/api/v1") && cleanPath.startsWith("/api/v1")) {
       cleanPath = cleanPath.slice(7);
       if (!cleanPath.startsWith("/")) cleanPath = `/${cleanPath}`;
     }

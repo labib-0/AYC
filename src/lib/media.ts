@@ -10,6 +10,19 @@
  * 6. Broken root paths (/storage, /storage/, empty) return fallback or empty string.
  */
 
+function isAdminMediaContext(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.location.pathname === "/ayc" ||
+    window.location.pathname.startsWith("/ayc/") ||
+    window.location.pathname === "/admin" ||
+    window.location.pathname.startsWith("/admin/") ||
+    window.location.port === "3001" ||
+    window.location.hostname.startsWith("admin.") ||
+    window.location.hostname === "admin.localhost"
+  );
+}
+
 export function normalizeImageUrl(url?: string | null, fallback: string = ""): string {
   if (!url || typeof url !== "string") {
     return fallback;
@@ -26,43 +39,58 @@ export function normalizeImageUrl(url?: string | null, fallback: string = ""): s
   }
 
   // Reject bare root /storage directory references (prevents broken-image 404s)
-  if (trimmed === "/storage" || trimmed === "/storage/" || trimmed === "storage") {
+  if (trimmed === "/storage" || trimmed === "/storage/" || trimmed === "storage" ||
+      trimmed === "/ayc/storage" || trimmed === "/ayc/storage/") {
     return fallback;
   }
-  if (/^https?:\/\/[^\/]+\/storage\/?$/i.test(trimmed)) {
+  if (/^https?:\/\/[^\/]+\/(ayc\/)?storage\/?$/i.test(trimmed)) {
     return fallback;
   }
 
-  // Clean localhost or IP-based storage URLs to relative /storage/...
-  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/storage\/(.+)$/i.test(trimmed)) {
-    const match = trimmed.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/storage\/(.+)$/i);
-    return `/storage/${match![3]}`;
+  const isAdmin = isAdminMediaContext();
+  const storagePrefix = isAdmin ? "/ayc/storage" : "/storage";
+
+  // Clean localhost or IP-based storage URLs to relative storage paths
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/(ayc\/)?storage\/(.+)$/i.test(trimmed)) {
+    const match = trimmed.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/(ayc\/)?storage\/(.+)$/i);
+    return `${storagePrefix}/${match![4]}`;
   }
 
   // Clean api.ayaanclothing.com or other subdomains pointing to /storage/
-  if (/^https?:\/\/api\.ayaanclothing\.com\/storage\/(.+)$/i.test(trimmed)) {
-    const match = trimmed.match(/^https?:\/\/api\.ayaanclothing\.com\/storage\/(.+)$/i);
-    return `/storage/${match![1]}`;
+  if (/^https?:\/\/api\.ayaanclothing\.com\/(ayc\/)?storage\/(.+)$/i.test(trimmed)) {
+    const match = trimmed.match(/^https?:\/\/api\.ayaanclothing\.com\/(ayc\/)?storage\/(.+)$/i);
+    return `${storagePrefix}/${match![2]}`;
   }
 
-  // Valid full HTTP/HTTPS URL
+  // Production domain with /storage/ or /ayc/storage/
+  if (/^https?:\/\/(www\.)?ayaanclothing\.com\/(ayc\/)?storage\/(.+)$/i.test(trimmed)) {
+    const match = trimmed.match(/^https?:\/\/(www\.)?ayaanclothing\.com\/(ayc\/)?storage\/(.+)$/i);
+    return `${storagePrefix}/${match![3]}`;
+  }
+
+  // Valid external HTTP/HTTPS URL (e.g. Unsplash, S3, CDN)
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  // Starts with /ayc/storage/
+  if (trimmed.startsWith("/ayc/storage/")) {
     return trimmed;
   }
 
   // Starts with /storage/
   if (trimmed.startsWith("/storage/")) {
-    return trimmed;
+    return isAdmin ? `/ayc${trimmed}` : trimmed;
   }
 
   // Starts with storage/
   if (trimmed.startsWith("storage/")) {
-    return `/${trimmed}`;
+    return `${storagePrefix}/${trimmed.slice(8)}`;
   }
 
   // Relative folder paths like products/xxx.jpg
-  if (/^(products|brands|categories|banners|documents)\//i.test(trimmed)) {
-    return `/storage/${trimmed}`;
+  if (/^(products|brands|categories|banners|documents|branding)\//i.test(trimmed)) {
+    return `${storagePrefix}/${trimmed}`;
   }
 
   // Absolute site paths like /placeholder.jpg, /logo.png, /brands/nike.svg

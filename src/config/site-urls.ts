@@ -8,8 +8,8 @@
  * - Vercel multi-project deployments
  */
 
-export const DEFAULT_CUSTOMER_APP_URL = "https://ayaan-clothing.vercel.app";
-export const DEFAULT_ADMIN_APP_URL = "https://admin-ayaan-clothing.vercel.app";
+export const DEFAULT_CUSTOMER_APP_URL = "https://ayaanclothing.com";
+export const DEFAULT_ADMIN_APP_URL = "https://ayaanclothing.com/ayc";
 
 /**
  * Resolves the absolute URL for the public customer storefront.
@@ -42,15 +42,19 @@ export function getCustomerAppUrl(): string {
  */
 export function getAdminAppUrl(): string {
   if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_ADMIN_APP_URL) {
-    return process.env.NEXT_PUBLIC_ADMIN_APP_URL.replace(/\/$/, "");
+    let url = process.env.NEXT_PUBLIC_ADMIN_APP_URL.replace(/\/$/, "");
+    if (!url.endsWith("/ayc") && !url.includes("/ayc/")) {
+      url = `${url}/ayc`;
+    }
+    return url;
   }
   if (typeof window !== "undefined") {
     const { protocol, hostname, port } = window.location;
     // If on customer port 3000 in local development, point to admin port 3001
     if (port === "3000") {
-      return `${protocol}//${hostname}:3001/admin`;
+      return `${protocol}//${hostname}:3001/ayc`;
     }
-    return `${protocol}//${hostname}${port ? `:${port}` : ""}/admin`;
+    return `${protocol}//${hostname}${port ? `:${port}` : ""}/ayc`;
   }
   return DEFAULT_ADMIN_APP_URL;
 }

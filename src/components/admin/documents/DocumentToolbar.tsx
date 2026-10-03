@@ -24,10 +24,10 @@ export default function DocumentToolbar({
   const canPrint = isSuperAdmin || can("document.print");
 
   const backHref = doc.orderNumber 
-    ? `/admin/orders/${doc.order_id || doc.orderNumber}`
+    ? `/ayc/orders/${doc.order_id || doc.orderNumber}`
     : doc.quotationNumber 
-    ? `/admin/rfq` 
-    : `/admin/documents`;
+    ? `/ayc/rfq` 
+    : `/ayc/documents`;
 
   const backLabel = doc.orderNumber
     ? `Back to Order #${doc.orderNumber}`
@@ -47,7 +47,7 @@ export default function DocumentToolbar({
         </Link>
         <span className="text-muted-foreground/40">•</span>
         <Link
-          href="/admin/documents"
+          href="/ayc/documents"
           className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
         >
           Documents Hub

@@ -28,7 +28,7 @@ export default function OrderTable({
   onRetry,
   hasFilters,
   onResetFilters,
-  detailBaseUrl = "/admin/orders",
+  detailBaseUrl = "/ayc/orders",
   onReviewPaymentProof,
 }: OrderTableProps) {
   const { can } = useAdminAuth();

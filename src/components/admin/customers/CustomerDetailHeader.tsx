@@ -14,7 +14,7 @@ export interface CustomerDetailHeaderProps {
 
 export default function CustomerDetailHeader({
   customer,
-  backHref = "/admin/customers",
+  backHref = "/ayc/customers",
   onRefresh,
   onDeleteCustomer,
   isLoading = false,

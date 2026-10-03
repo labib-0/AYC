@@ -84,7 +84,7 @@ export default function OrderAccessGatewayPage({ params }: Props) {
       const configuredAdminUrl = process.env.NEXT_PUBLIC_ADMIN_APP_URL;
       if (configuredAdminUrl) {
         const base = configuredAdminUrl.replace(/\/$/, "");
-        const adminPath = base.endsWith("/admin") ? `${base}/orders/${order.id}` : `${base}/admin/orders/${order.id}`;
+        const adminPath = base.endsWith("/ayc") ? `${base}/orders/${order.id}` : `${base}/ayc/orders/${order.id}`;
         window.location.replace(adminPath);
         return;
       }
@@ -94,7 +94,7 @@ export default function OrderAccessGatewayPage({ params }: Props) {
         return;
       }
 
-      router.replace(`/admin/orders/${order.id}`);
+      router.replace(`/ayc/orders/${order.id}`);
       return;
     }
 

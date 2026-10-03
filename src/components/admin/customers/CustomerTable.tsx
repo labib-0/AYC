@@ -25,7 +25,7 @@ export default function CustomerTable({
   onRetry,
   hasFilters,
   onResetFilters,
-  detailBaseUrl = "/admin/customers",
+  detailBaseUrl = "/ayc/customers",
   onDeleteCustomer,
 }: CustomerTableProps) {
   const { can } = useAdminAuth();

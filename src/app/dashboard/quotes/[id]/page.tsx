@@ -749,7 +749,7 @@ export default function CustomerQuotationDetailPage({ params }: Props) {
               <p className="text-[0.6875rem] text-slate-500">Printable web viewer</p>
             </div>
             <Link
-              href={`/admin/documents/QUOTATION/${quotation.id}`}
+              href={`/ayc/documents/QUOTATION/${quotation.id}`}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 transition-colors"
             >
               <span>Open</span>

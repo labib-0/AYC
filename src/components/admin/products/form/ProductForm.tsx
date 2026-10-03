@@ -47,8 +47,8 @@ export default function ProductForm({
   const canCreateCategory = isSuperAdmin || can("category.create");
 
   // Navigation back link context
-  const isUnderAdminPath = pathname.startsWith("/admin");
-  const backHref = isUnderAdminPath ? "/admin/products" : "/products";
+  const isUnderAdminPath = pathname.startsWith("/ayc") || pathname.startsWith("/admin");
+  const backHref = isUnderAdminPath ? "/ayc/products" : "/products";
 
   // Reference Data State
   const [brands, setBrands] = useState<Array<{ id: string; name: string; logo_url?: string }>>([]);

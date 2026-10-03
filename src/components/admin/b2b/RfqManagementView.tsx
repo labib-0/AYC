@@ -11,7 +11,7 @@ export default function RfqManagementView() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/admin/rfq");
+    router.replace("/ayc/rfq");
   }, [router]);
 
   return (

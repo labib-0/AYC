@@ -2,11 +2,19 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async redirects() {
+    return [];
+  },
+  async rewrites() {
+    const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
+    const apiBase = rawApiUrl.replace(/\/api\/v1\/?$/, "/api").replace(/\/$/, "");
     return [
       {
-        source: "/admin/promotions",
-        destination: "/admin/coupons",
-        permanent: true,
+        source: "/ayc/api/:path*",
+        destination: `${apiBase}/:path*`,
+      },
+      {
+        source: "/ayc/storage/:path*",
+        destination: "/storage/:path*",
       },
     ];
   },

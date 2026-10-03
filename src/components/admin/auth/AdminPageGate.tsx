@@ -46,7 +46,7 @@ export function AdminPageGate({
           You must be logged in as an authorized Ayaan Clothing administrator to view this page.
         </p>
         <Link
-          href="/admin"
+          href="/ayc"
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg font-medium text-sm hover:bg-black transition-colors"
         >
           <ArrowLeft size={16} /> Return to Admin Portal
@@ -83,7 +83,7 @@ export function AdminPageGate({
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
-            href="/admin"
+            href="/ayc/dashboard"
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg font-medium text-sm hover:bg-black transition-colors shadow-sm"
           >
             <ArrowLeft size={16} /> Back to Dashboard

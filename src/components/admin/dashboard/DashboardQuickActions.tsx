@@ -9,11 +9,11 @@ import { useAdminAuth } from "@/lib/AdminAuthContext";
 export default function DashboardQuickActions() {
   const pathname = usePathname();
   const { can, isSuperAdmin } = useAdminAuth();
-  const isUnderAdminPath = pathname.startsWith("/admin");
+  const isUnderAdminPath = pathname.startsWith("/ayc") || pathname.startsWith("/admin");
 
-  const addProductHref = isUnderAdminPath ? "/admin/products/new" : "/products/new";
-  const ordersHref = isUnderAdminPath ? "/admin/orders" : "/orders";
-  const inventoryHref = isUnderAdminPath ? "/admin/inventory" : "/inventory";
+  const addProductHref = isUnderAdminPath ? "/ayc/products/new" : "/products/new";
+  const ordersHref = isUnderAdminPath ? "/ayc/orders" : "/orders";
+  const inventoryHref = isUnderAdminPath ? "/ayc/inventory" : "/inventory";
 
   const canAddProduct = isSuperAdmin || can("product.create");
   const canReviewOrders = isSuperAdmin || can("order.view");

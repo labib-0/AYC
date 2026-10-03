@@ -52,7 +52,7 @@ function ordersToDocuments(orders: OrderRecord[]): DocumentEntry[] {
         orderNumber: order.order_number,
         date,
         available,
-        href: `/admin/documents/${typeKey}/order_${order.id}`,
+        href: `/ayc/documents/${typeKey}/order_${order.id}`,
       });
     }
   }

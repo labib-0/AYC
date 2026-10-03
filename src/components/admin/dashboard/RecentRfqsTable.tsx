@@ -46,7 +46,7 @@ export default function RecentRfqsTable({ rfqs }: RecentRfqsTableProps) {
           </h2>
         </div>
         <Link
-          href="/admin/rfq"
+          href="/ayc/rfq"
           className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 font-sans"
         >
           <span>View All</span>
@@ -83,7 +83,7 @@ export default function RecentRfqsTable({ rfqs }: RecentRfqsTableProps) {
                   >
                     <td className="py-2.5 px-3.5 font-mono font-medium text-foreground whitespace-nowrap">
                       <Link
-                        href={`/admin/rfq/${rfq.id}`}
+                        href={`/ayc/rfq/${rfq.id}`}
                         className="hover:text-primary transition-colors inline-block"
                       >
                         {rfq.rfq_number}

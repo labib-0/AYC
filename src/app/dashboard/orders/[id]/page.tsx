@@ -1247,7 +1247,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
             {order.payment_status === "paid" ? (
               <div className="flex items-center gap-2">
                 <Link
-                  href={`/admin/documents/COMMERCIAL_INVOICE/order_${order.id}`}
+                  href={`/ayc/documents/COMMERCIAL_INVOICE/order_${order.id}`}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
                 >
                   <ExternalLink size={12} />

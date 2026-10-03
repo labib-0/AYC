@@ -25,7 +25,7 @@ export default function RfqTable({
   onRetry,
   hasFilters,
   onResetFilters,
-  detailBaseUrl = "/admin/rfq",
+  detailBaseUrl = "/ayc/rfq",
 }: RfqTableProps) {
   const { can } = useAdminAuth();
 

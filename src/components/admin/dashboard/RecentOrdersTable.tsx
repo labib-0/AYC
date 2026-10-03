@@ -44,7 +44,7 @@ export default function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
           </h2>
         </div>
         <Link
-          href="/admin/orders"
+          href="/ayc/orders"
           className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 font-sans"
         >
           <span>View All</span>
@@ -87,7 +87,7 @@ export default function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
                   >
                     <td className="py-2.5 px-3.5 font-mono font-medium text-foreground whitespace-nowrap">
                       <Link
-                        href={`/admin/orders/${order.id}`}
+                        href={`/ayc/orders/${order.id}`}
                         className="hover:text-primary transition-colors inline-block"
                       >
                         {order.order_number}

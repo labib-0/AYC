@@ -85,10 +85,10 @@ export default function ProductTableRow({
   const thumbnail = product.images?.[0] || "/placeholder.jpg";
   const brandLogo = getBrandLogoUrl(product.brand);
 
-  const isUnderAdminPath = Boolean(pathname?.startsWith("/admin"));
+  const isUnderAdminPath = Boolean(pathname?.startsWith("/ayc") || pathname?.startsWith("/admin"));
   const editHref = product.id === "draft_local_new"
-    ? (isUnderAdminPath ? "/admin/products/new?resume=true" : "/products/new?resume=true")
-    : (isUnderAdminPath ? `/admin/products/${product.id}/edit` : `/products/${product.id}/edit`);
+    ? (isUnderAdminPath ? "/ayc/products/new?resume=true" : "/products/new?resume=true")
+    : (isUnderAdminPath ? `/ayc/products/${product.id}/edit` : `/products/${product.id}/edit`);
   const storefrontHref = getProductCanonicalUrl(product);
 
   return (

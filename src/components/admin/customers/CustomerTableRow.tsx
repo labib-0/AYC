@@ -12,7 +12,7 @@ export interface CustomerTableRowProps {
 
 export default function CustomerTableRow({
   customer,
-  detailBaseUrl = "/admin/customers",
+  detailBaseUrl = "/ayc/customers",
   onDeleteCustomer,
 }: CustomerTableRowProps) {
   const { can } = useAdminAuth();

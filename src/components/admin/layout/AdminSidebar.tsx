@@ -44,51 +44,51 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: "OVERVIEW",
     items: [
-      { label: "Dashboard", href: "/admin", icon: LayoutDashboard, exact: true, permission: ADMIN_PERMISSIONS.ANALYTICS_DASHBOARD_VIEW },
+      { label: "Dashboard", href: "/ayc/dashboard", icon: LayoutDashboard, exact: true, permission: ADMIN_PERMISSIONS.ANALYTICS_DASHBOARD_VIEW },
     ],
   },
   {
     title: "CATALOG",
     items: [
-      { label: "Products Catalog", href: "/admin/products", icon: Package, permission: ADMIN_PERMISSIONS.PRODUCT_VIEW },
-      { label: "Category Taxonomy", href: "/admin/categories", icon: Layers, permission: ADMIN_PERMISSIONS.CATEGORY_VIEW },
-      { label: "Brands Directory", href: "/admin/brands", icon: Tag, permission: ADMIN_PERMISSIONS.BRAND_VIEW },
-      { label: "Inventory & Stock", href: "/admin/inventory", icon: Warehouse, permission: ADMIN_PERMISSIONS.INVENTORY_VIEW },
+      { label: "Products Catalog", href: "/ayc/products", icon: Package, permission: ADMIN_PERMISSIONS.PRODUCT_VIEW },
+      { label: "Category Taxonomy", href: "/ayc/categories", icon: Layers, permission: ADMIN_PERMISSIONS.CATEGORY_VIEW },
+      { label: "Brands Directory", href: "/ayc/brands", icon: Tag, permission: ADMIN_PERMISSIONS.BRAND_VIEW },
+      { label: "Inventory & Stock", href: "/ayc/inventory", icon: Warehouse, permission: ADMIN_PERMISSIONS.INVENTORY_VIEW },
     ],
   },
   {
     title: "COMMERCE",
     items: [
-      { label: "Orders & Fulfillment", href: "/admin/orders", icon: ShoppingBag, permission: ADMIN_PERMISSIONS.ORDER_VIEW },
-      { label: "Customer Accounts", href: "/admin/customers", icon: Users, permission: ADMIN_PERMISSIONS.CUSTOMER_VIEW },
-      { label: "RFQ", href: "/admin/rfq", icon: FileText, permission: ADMIN_PERMISSIONS.RFQ_VIEW },
+      { label: "Orders & Fulfillment", href: "/ayc/orders", icon: ShoppingBag, permission: ADMIN_PERMISSIONS.ORDER_VIEW },
+      { label: "Customer Accounts", href: "/ayc/customers", icon: Users, permission: ADMIN_PERMISSIONS.CUSTOMER_VIEW },
+      { label: "RFQ", href: "/ayc/rfq", icon: FileText, permission: ADMIN_PERMISSIONS.RFQ_VIEW },
     ],
   },
   {
     title: "MARKETING",
     items: [
-      { label: "Coupons", href: "/admin/coupons", icon: Percent, permission: ADMIN_PERMISSIONS.COUPON_VIEW },
-      { label: "Homepage", href: "/admin/homepage", icon: PanelTop, permission: ADMIN_PERMISSIONS.HOMEPAGE_VIEW },
+      { label: "Coupons", href: "/ayc/coupons", icon: Percent, permission: ADMIN_PERMISSIONS.COUPON_VIEW },
+      { label: "Homepage", href: "/ayc/homepage", icon: PanelTop, permission: ADMIN_PERMISSIONS.HOMEPAGE_VIEW },
     ],
   },
   {
     title: "DOCUMENTS",
     items: [
-      { label: "Commercial Documents", href: "/admin/documents", icon: Files, permission: ADMIN_PERMISSIONS.DOCUMENT_VIEW },
+      { label: "Commercial Documents", href: "/ayc/documents", icon: Files, permission: ADMIN_PERMISSIONS.DOCUMENT_VIEW },
     ],
   },
   {
     title: "ADMINISTRATION",
     items: [
-      { label: "Administrators", href: "/admin/administrators", icon: ShieldCheck, permission: ADMIN_PERMISSIONS.ADMIN_VIEW },
-      { label: "RBAC Roles", href: "/admin/roles", icon: Layers, permission: ADMIN_PERMISSIONS.ROLE_VIEW },
-      { label: "Permissions Matrix", href: "/admin/permissions", icon: KeyRound, permission: ADMIN_PERMISSIONS.PERMISSION_VIEW },
+      { label: "Administrators", href: "/ayc/administrators", icon: ShieldCheck, permission: ADMIN_PERMISSIONS.ADMIN_VIEW },
+      { label: "RBAC Roles", href: "/ayc/roles", icon: Layers, permission: ADMIN_PERMISSIONS.ROLE_VIEW },
+      { label: "Permissions Matrix", href: "/ayc/permissions", icon: KeyRound, permission: ADMIN_PERMISSIONS.PERMISSION_VIEW },
     ],
   },
   {
     title: "SYSTEM",
     items: [
-      { label: "Settings & Config", href: "/admin/settings", icon: Settings, permission: ADMIN_PERMISSIONS.SETTINGS_VIEW },
+      { label: "Settings & Config", href: "/ayc/settings", icon: Settings, permission: ADMIN_PERMISSIONS.SETTINGS_VIEW },
     ],
   },
 ];
@@ -129,14 +129,14 @@ export default function AdminSidebar({ onNavigate }: AdminSidebarProps) {
                 let isActive = false;
                 if (itemTab) {
                   isActive = pathname === itemPath && currentTab === itemTab;
-                } else if (itemPath === "/admin/settings") {
-                  isActive = pathname === itemPath && (!currentTab || currentTab !== "users");
+                } else if (itemPath === "/ayc/settings" || itemPath === "/admin/settings") {
+                  isActive = (pathname === "/ayc/settings" || pathname === "/admin/settings") && (!currentTab || currentTab !== "users");
                 } else if (item.exact) {
-                  isActive = pathname === item.href;
+                  isActive = pathname === item.href || (item.href === "/ayc/dashboard" && pathname === "/ayc");
                 } else {
                   isActive = pathname === item.href ||
                     pathname.startsWith(item.href + "/") ||
-                    (item.href === "/admin/rfq" && (pathname.startsWith("/admin/rfq") || pathname.startsWith("/admin/rfq-quotes") || pathname.startsWith("/admin/quotations")));
+                    (item.href === "/ayc/rfq" && (pathname.startsWith("/ayc/rfq") || pathname.startsWith("/ayc/rfq-quotes") || pathname.startsWith("/ayc/quotations") || pathname.startsWith("/admin/rfq")));
                 }
 
                 return (
@@ -176,7 +176,7 @@ export default function AdminSidebar({ onNavigate }: AdminSidebarProps) {
           <div className="space-y-1">
             {can("product.create") && (
               <Link
-                href="/admin/products/new"
+                href="/ayc/products/new"
                 onClick={onNavigate}
                 className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
               >
@@ -189,7 +189,7 @@ export default function AdminSidebar({ onNavigate }: AdminSidebarProps) {
             )}
             {can("inventory.view") && (
               <Link
-                href="/admin/inventory"
+                href="/ayc/inventory"
                 onClick={onNavigate}
                 className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
               >
@@ -202,7 +202,7 @@ export default function AdminSidebar({ onNavigate }: AdminSidebarProps) {
             )}
             {can("order.view") && (
               <Link
-                href="/admin/orders"
+                href="/ayc/orders"
                 onClick={onNavigate}
                 className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
               >

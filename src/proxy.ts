@@ -35,17 +35,24 @@ export function proxy(request: NextRequest) {
     request.headers.get('x-is-admin-host') === '1' ||
     isPort3001;
 
+  const isPathAyc = url.pathname === '/ayc' || url.pathname.startsWith('/ayc/');
   const isPathAdmin = url.pathname === '/admin' || url.pathname.startsWith('/admin/');
 
-  // If on explicit admin subdomain or port 3001 with unprefixed routes, rewrite to /admin/*
-  if (isExplicitAdminSubdomain || (isPort3001 && !isPathAdmin)) {
+  // Retired legacy /admin: explicitly return 404 Not Found (Do NOT redirect to /ayc)
+  if (isPathAdmin) {
+    url.pathname = '/_not-found';
+    return NextResponse.rewrite(url, { status: 404 });
+  }
+
+  // If on explicit admin subdomain or port 3001 with unprefixed routes, rewrite to /ayc/*
+  if (isExplicitAdminSubdomain || (isPort3001 && !isPathAyc)) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-is-admin-host', '1');
     requestHeaders.set('x-admin-app', 'true');
 
-    // If on admin domain and accessing /login, rewrite to /admin/login
+    // If on admin domain and accessing /login, rewrite to /ayc
     if (url.pathname === '/login') {
-      url.pathname = '/admin/login';
+      url.pathname = '/ayc';
       return NextResponse.rewrite(url, {
         request: {
           headers: requestHeaders,
@@ -53,12 +60,12 @@ export function proxy(request: NextRequest) {
       });
     }
 
-    // Preserve authentication and static paths without /admin prefix
+    // Preserve authentication and static paths without /ayc prefix
     if (
-      !url.pathname.startsWith('/admin') &&
+      !url.pathname.startsWith('/ayc') &&
       !url.pathname.startsWith('/api')
     ) {
-      url.pathname = url.pathname === '/' ? '/admin' : `/admin${url.pathname}`;
+      url.pathname = url.pathname === '/' ? '/ayc/dashboard' : `/ayc${url.pathname}`;
       return NextResponse.rewrite(url, {
         request: {
           headers: requestHeaders,
@@ -74,7 +81,7 @@ export function proxy(request: NextRequest) {
   }
 
   // If this is an admin path or admin gateway, attach admin headers and proceed
-  if (isPathAdmin || isAdminGateway) {
+  if (isPathAyc || isAdminGateway) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-is-admin-host', '1');
     requestHeaders.set('x-admin-app', 'true');

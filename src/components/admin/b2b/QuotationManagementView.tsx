@@ -24,9 +24,9 @@ export default function QuotationManagementView() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const isUnderAdmin = pathname.startsWith("/admin");
-  const rfqBaseUrl = isUnderAdmin ? "/admin/rfq" : "/rfq";
-  const documentBaseUrl = isUnderAdmin ? "/admin/documents" : "/documents";
+  const isUnderAdmin = pathname.startsWith("/ayc") || pathname.startsWith("/admin");
+  const rfqBaseUrl = isUnderAdmin ? "/ayc/rfq" : "/rfq";
+  const documentBaseUrl = isUnderAdmin ? "/ayc/documents" : "/documents";
 
   const loadQuotations = useCallback(async () => {
     setLoading(true);

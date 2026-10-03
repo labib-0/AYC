@@ -25,7 +25,11 @@ export default function StorefrontShell({
     window.location.hostname === "admin.localhost"
   );
 
-  const isAdminRoute = isAdminHost || isClientAdmin || pathname?.startsWith("/admin");
+  const isAdminRoute =
+    isAdminHost ||
+    isClientAdmin ||
+    pathname?.startsWith("/ayc") ||
+    pathname?.startsWith("/admin");
 
   // On Admin routes: isolate completely by rendering ONLY the admin hierarchy without customer shell
   if (isAdminRoute) {

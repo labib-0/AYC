@@ -46,7 +46,7 @@ export default function LoginPage() {
       }
     }
     const u = targetUser || user;
-    if (u?.role === "admin") return "/admin";
+    if (u?.role === "admin") return "/ayc/dashboard";
     return "/dashboard";
   };
 
@@ -84,7 +84,7 @@ export default function LoginPage() {
       sessionStorage.removeItem("ayaan_session_expired_message");
     }
     let target = getRedirectUrl();
-    if (target === "/admin" || target.startsWith("/admin")) {
+    if (target === "/ayc" || target.startsWith("/ayc") || target === "/admin" || target.startsWith("/admin")) {
       target = "/dashboard";
     }
     const apiBase = apiClient.getBaseUrl();

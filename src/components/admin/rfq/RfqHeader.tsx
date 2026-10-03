@@ -24,7 +24,7 @@ export default function RfqHeader({
   onOpenQuotationBuilder,
   onRefresh,
   isLoading,
-  documentBaseUrl = "/admin/documents",
+  documentBaseUrl = "/ayc/documents",
 }: RfqHeaderProps) {
   return (
     <div className="space-y-3">
