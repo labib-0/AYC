@@ -3,6 +3,7 @@
  *
  * Standalone HTML markup returned directly by Next.js proxy for restricted regions (Bangladesh).
  * Reuses the official minimal design from public/403_geo_restricted.html with zero dependencies.
+ * Matches official Ayaan Clothing brand orange (#EA580C) from the logo and design system.
  */
 export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -12,6 +13,11 @@ export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
   <title>403 Forbidden — Regional Access Restricted | Ayaan Clothing</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --brand-orange: #EA580C;
+      --brand-orange-rgb: 234, 88, 12;
+    }
 
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -28,6 +34,7 @@ export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
       -moz-osx-font-smoothing: grayscale;
     }
 
+    /* Subtle ambient brand glow behind card */
     body::before {
       content: '';
       position: fixed;
@@ -35,7 +42,7 @@ export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
       left: 50%;
       width: 600px;
       height: 400px;
-      background: radial-gradient(ellipse, rgba(248, 113, 113, 0.025) 0%, transparent 70%);
+      background: radial-gradient(ellipse, rgba(var(--brand-orange-rgb), 0.03) 0%, transparent 70%);
       transform: translate(-50%, -50%);
       pointer-events: none;
     }
@@ -51,9 +58,10 @@ export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
       width: 100%;
       padding: 2.5rem 2.5rem 2.25rem;
       text-align: center;
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5), 0 0 80px rgba(248, 113, 113, 0.03);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5), 0 0 80px rgba(var(--brand-orange-rgb), 0.04);
     }
 
+    /* Top edge highlight */
     .card::before {
       content: '';
       position: absolute;
@@ -62,21 +70,22 @@ export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
     }
 
+    /* Status badge with brand orange accent */
     .badge {
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
-      background: rgba(248, 113, 113, 0.08);
-      border: 1px solid rgba(248, 113, 113, 0.18);
+      background: rgba(var(--brand-orange-rgb), 0.08);
+      border: 1px solid rgba(var(--brand-orange-rgb), 0.22);
       padding: 0.3rem 0.85rem;
       font-size: 0.62rem;
       font-weight: 700;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       border-radius: 9999px;
-      color: #f87171;
+      color: var(--brand-orange);
       margin-bottom: 1.75rem;
-      box-shadow: 0 0 16px rgba(248, 113, 113, 0.06);
+      box-shadow: 0 0 16px rgba(var(--brand-orange-rgb), 0.08);
     }
     .badge svg {
       width: 12px;
@@ -84,6 +93,7 @@ export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
       flex-shrink: 0;
     }
 
+    /* Heading */
     h1 {
       font-size: 1.65rem;
       font-weight: 800;
@@ -93,17 +103,19 @@ export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
       margin-bottom: 0.9rem;
     }
     h1 .accent {
-      color: #f87171;
+      color: var(--brand-orange);
     }
 
+    /* Supporting text */
     .description {
-      color: #6b7a94;
+      color: #94a3b8;
       font-size: 0.84rem;
       line-height: 1.7;
       max-width: 380px;
       margin: 0 auto 1.75rem;
     }
 
+    /* Decorative separator */
     .separator {
       display: flex;
       align-items: center;
@@ -113,7 +125,7 @@ export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
     .separator .line {
       width: 40px;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(248, 113, 113, 0.25), transparent);
+      background: linear-gradient(90deg, transparent, rgba(var(--brand-orange-rgb), 0.28), transparent);
     }
     .separator .dots {
       display: flex;
@@ -123,9 +135,10 @@ export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
       width: 3px;
       height: 3px;
       border-radius: 50%;
-      background: rgba(248, 113, 113, 0.35);
+      background: rgba(var(--brand-orange-rgb), 0.38);
     }
 
+    /* Responsive */
     @media (max-width: 600px) {
       .card {
         padding: 2rem 1.5rem 1.75rem;
@@ -150,12 +163,12 @@ export const GEO_BLOCKED_HTML = `<!DOCTYPE html>
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
         <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
       </svg>
-      HTTP 403 · Regional Access Restriction
+      HTTP 403 · REGIONAL ACCESS RESTRICTION
     </div>
 
     <h1>Ayaan Clothing Is Not<br>Available in <span class="accent">Bangladesh</span></h1>
 
-    <p class="description">The Ayaan Clothing customer storefront is designed for international wholesale export buyers and is currently restricted in your region.</p>
+    <p class="description">Ayaan Clothing serves international wholesale and export buyers. Access from Bangladesh is currently unavailable.</p>
 
     <div class="separator" aria-hidden="true">
       <div class="line"></div>
