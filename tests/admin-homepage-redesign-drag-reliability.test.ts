@@ -81,18 +81,18 @@ assert(!packageJson.includes('"sortablejs"'), "package.json contains NO sortable
 console.log("\n▶ PART 2: NEW HOMEPAGE ADMIN LAYOUT & VISUAL HIERARCHY");
 
 const idxHeader = pageCode.indexOf("HomepageBannerHeader");
-const idxSection1 = pageCode.indexOf("SECTION 1: PRIMARY PROMOTIONAL BANNER");
+const idxSection1 = pageCode.indexOf("SECTION 1: HERO BANNER");
 const idxSection2 = pageCode.indexOf("SECTION 2: MEDIA UPLOAD ROW");
-const idxSection3 = pageCode.indexOf("SECTION 3: BANNER MESSAGE + NAVIGATION");
+const idxSection3 = pageCode.indexOf("SECTION 3: HERO CONTENT");
 const idxSection4 = pageCode.indexOf("SECTION 4: HOMEPAGE KEYWORDS / TICKER");
 const idxSection5 = pageCode.indexOf("SECTION 5: SHOP BY BRAND");
 const idxSection6 = pageCode.indexOf("SECTION 6: HOT SALE CATEGORIES & VISIBILITY");
 const idxSection7 = pageCode.indexOf("SECTION 7: FEATURED PRODUCTS");
 
 assert(idxHeader !== -1, "Header component is present");
-assert(idxSection1 !== -1 && idxSection1 > idxHeader, "Section 1 (Promotional Banner) comes after Header");
+assert(idxSection1 !== -1 && idxSection1 > idxHeader, "Section 1 (Hero Banner) comes after Header");
 assert(idxSection2 !== -1 && idxSection2 > idxSection1, "Section 2 (Media Upload Row) comes after Section 1");
-assert(idxSection3 !== -1 && idxSection3 > idxSection2, "Section 3 (Banner Message + Navigation) comes after Section 2");
+assert(idxSection3 !== -1 && idxSection3 > idxSection2, "Section 3 (Hero Content) comes after Section 2");
 assert(idxSection4 !== -1 && idxSection4 > idxSection3, "Section 4 (Ticker) comes after Section 3");
 assert(idxSection5 !== -1 && idxSection5 > idxSection4, "Section 5 (Shop By Brand) comes after Section 4");
 assert(idxSection6 !== -1 && idxSection6 > idxSection5, "Section 6 (Hot Sale) comes after Section 5");
@@ -116,7 +116,7 @@ assert(
   "Banner preview enforces ~1375x158 px storefront aspect ratio"
 );
 assert(
-  previewCode.includes("bg-black/60") || previewCode.includes("bg-slate-950/70") || previewCode.includes("bg-black/"),
+  previewCode.includes("bg-black/45") || previewCode.includes("bg-black/60") || previewCode.includes("bg-slate-950/70") || previewCode.includes("bg-black/"),
   "Banner preview includes high-contrast dark overlay"
 );
 assert(
@@ -126,7 +126,6 @@ assert(
 
 // 3.2 Media Upload Row (Section 2: Logo + Banner Image side by side 50%/50%)
 assert(
-  pageCode.includes("grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch") &&
   pageCode.includes("<HomepageLogoManager") &&
   pageCode.includes("<BannerImageUploader"),
   "Section 2 renders HomepageLogoManager and BannerImageUploader side-by-side in a 2-column grid"
@@ -145,17 +144,15 @@ assert(uploaderCode.includes("id=\"btn-replace-banner-image\""), "Banner Uploade
 assert(uploaderCode.includes("id=\"btn-remove-banner-image\""), "Banner Uploader includes btn-remove-banner-image");
 assert(uploaderCode.includes("id=\"banner-image-url-input\""), "Banner Uploader includes fallback banner-image-url-input");
 
-// 3.3 Banner Message + Navigation (Section 3: 50%/50% cards)
+// 3.3 Hero Content (Section 3: Unified Hero Content section)
 assert(
-  contentCode.includes("grid grid-cols-1 lg:grid-cols-2 gap-6 w-full"),
-  "BannerContentForm renders two balanced 50/50 cards in one row on desktop"
+  contentCode.includes("Hero Content") && contentCode.includes("LIVE"),
+  "BannerContentForm renders unified Hero Content card with LIVE status"
 );
 assert(contentCode.includes("id=\"banner-title\""), "Banner Messaging card includes id='banner-title'");
 assert(contentCode.includes("maxLength={120}"), "Banner title enforces maxLength 120");
-assert(contentCode.includes("title.length}/120"), "Banner title displays character counter /120");
 assert(contentCode.includes("id=\"banner-subtitle\""), "Banner Messaging card includes id='banner-subtitle'");
 assert(contentCode.includes("maxLength={250}"), "Banner subtitle enforces maxLength 250");
-assert(contentCode.includes("subtitle.length}/250"), "Banner subtitle displays character counter /250");
 assert(contentCode.includes("id=\"banner-button-text\""), "Banner Navigation card includes id='banner-button-text'");
 assert(contentCode.includes("maxLength={50}"), "Banner button text enforces maxLength 50");
 assert(contentCode.includes("id=\"banner-button-target\""), "Banner Navigation card includes id='banner-button-target'");

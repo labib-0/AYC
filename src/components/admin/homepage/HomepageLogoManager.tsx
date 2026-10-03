@@ -128,12 +128,12 @@ export default function HomepageLogoManager({
       }
     }
 
-    // 5. Upload via authoritative site-logo architecture
+    // 5. Upload via site settings service
     setUploading(true);
     try {
       const res = await siteSettingsService.uploadLogo(file);
       onLogoChange(res.logo_url);
-      showToast("Website logo uploaded successfully.", "success");
+      showToast("Website logo updated successfully.", "success");
       if (typeof window !== "undefined") {
         window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_site_settings_updated" }));
         window.dispatchEvent(new CustomEvent("ayaan:homepage-updated", { detail: { type: "logo" } }));
@@ -161,7 +161,7 @@ export default function HomepageLogoManager({
     try {
       await siteSettingsService.removeLogo();
       onLogoChange(null);
-      showToast("Website logo removed. Storefront will display the brand title text.", "success");
+      showToast("Logo removed. Storefront will display brand title.", "success");
       if (typeof window !== "undefined") {
         window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_site_settings_updated" }));
         window.dispatchEvent(new CustomEvent("ayaan:homepage-updated", { detail: { type: "logo" } }));
@@ -201,10 +201,9 @@ export default function HomepageLogoManager({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={`bg-card rounded-2xl border transition-all p-4 sm:p-5 shadow-2xs flex flex-col justify-between ${
-        isDragging ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border/80"
+        isDragging ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border/80"
       }`}
     >
-      {/* Hidden File Input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -217,26 +216,22 @@ export default function HomepageLogoManager({
 
       <div>
         {/* Section Header */}
-        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-border/50">
+        <div className="flex items-center justify-between pb-2 mb-3 border-b border-border/50">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
               <ImageIcon size={14} />
             </div>
-            <h2 className="text-xs sm:text-sm font-display font-bold uppercase tracking-tight text-foreground">
-              Homepage Logo
-            </h2>
+            <h3 className="text-xs sm:text-sm font-semibold tracking-tight text-foreground uppercase">
+              Brand Logo
+            </h3>
           </div>
-          <span className="text-[10px] font-mono text-muted-foreground uppercase font-semibold">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase font-medium">
             Format: PNG / SVG
           </span>
         </div>
 
-        <p className="text-[11px] text-muted-foreground leading-snug mb-3">
-          Official storefront logo.
-        </p>
-
         {validationError && (
-          <div className="mb-2.5 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] flex items-center gap-1.5">
+          <div className="mb-3 p-2 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-[11px] flex items-center gap-1.5">
             <AlertCircle size={13} className="shrink-0" />
             <span>{validationError}</span>
           </div>
@@ -244,7 +239,7 @@ export default function HomepageLogoManager({
 
         {/* Compact Horizontal Media Control */}
         <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-secondary/30 border border-border/60">
-          {/* LEFT: Small Logo Preview (48–56px) */}
+          {/* Logo Preview Thumbnail */}
           <div
             onClick={() => {
               if (!disabled && !uploading) fileInputRef.current?.click();
@@ -254,7 +249,7 @@ export default function HomepageLogoManager({
           >
             {currentLogo ? (
               <div className="relative">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 aspect-square rounded-xl bg-[#0b1329] border border-white/10 flex items-center justify-center p-1.5 overflow-hidden shadow-2xs group-hover:ring-2 group-hover:ring-primary transition-all">
+                <div className="w-12 h-12 sm:w-13 sm:h-13 aspect-square rounded-xl bg-[#0b1329] border border-white/10 flex items-center justify-center p-1.5 overflow-hidden shadow-2xs group-hover:ring-2 group-hover:ring-primary transition-all">
                   <img
                     src={currentLogo}
                     alt="Saved Website Logo"
@@ -266,18 +261,18 @@ export default function HomepageLogoManager({
                 </span>
               </div>
             ) : (
-              <div className="w-12 h-12 sm:w-14 sm:h-14 aspect-square rounded-xl bg-muted/60 border border-dashed border-border flex flex-col items-center justify-center text-center p-1 group-hover:border-primary group-hover:bg-primary/5 transition-all">
-                <ImageIcon size={16} className="text-muted-foreground/60 mb-0.5 group-hover:text-primary transition-colors" />
+              <div className="w-12 h-12 sm:w-13 sm:h-13 aspect-square rounded-xl bg-muted/60 border border-dashed border-border flex flex-col items-center justify-center text-center p-1 group-hover:border-primary group-hover:bg-primary/5 transition-all">
+                <ImageIcon size={15} className="text-muted-foreground/60 mb-0.5 group-hover:text-primary transition-colors" />
                 <span className="text-[9px] font-medium text-muted-foreground group-hover:text-primary">Upload</span>
               </div>
             )}
           </div>
 
-          {/* CENTER: Current Website Logo & Metadata */}
+          {/* Center: Info */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-bold text-foreground truncate">
-                {currentLogo ? "Current Website Logo" : "No Logo Configured"}
+              <span className="text-xs font-semibold text-foreground truncate">
+                {currentLogo ? "Brand Logo" : "No Logo"}
               </span>
               {currentLogo && (
                 <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
@@ -286,19 +281,19 @@ export default function HomepageLogoManager({
               )}
             </div>
             <div className="text-[10px] font-mono text-muted-foreground/80 flex items-center gap-1.5 pt-0.5">
-              <span>PNG / SVG · 1:1</span>
+              <span>PNG / SVG</span>
               <span>•</span>
-              <span>Max 5MB</span>
+              <span>1:1 Square</span>
             </div>
           </div>
 
-          {/* RIGHT: Compact Action Buttons */}
+          {/* Right: Actions */}
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled || uploading}
-              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
               id="btn-upload-png-logo"
               aria-label="Upload or replace logo"
             >
@@ -320,7 +315,7 @@ export default function HomepageLogoManager({
                 type="button"
                 onClick={handleRemove}
                 disabled={disabled || uploading}
-                className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 font-semibold text-xs transition-colors disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 font-semibold text-xs transition-colors disabled:opacity-50 cursor-pointer"
                 id="btn-remove-logo"
                 title="Remove logo"
               >

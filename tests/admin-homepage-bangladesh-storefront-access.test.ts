@@ -65,9 +65,8 @@ const locationConfigSrc = fs.readFileSync(locationConfigPath, "utf-8");
 // ▶ Suite 1: Admin Homepage Card UI & Zero-Cloudflare Integrity
 console.log("\n▶ Suite 1: Admin Homepage Card UI & Zero-Cloudflare Integrity");
 
-test("Card renders title 'Bangladesh Storefront Access' and security badge", () => {
-  expect(cardSrc).toContain("Bangladesh Storefront Access");
-  expect(cardSrc).toContain("Security Control");
+test("Card renders title 'Storefront Access'", () => {
+  expect(cardSrc).toContain("Storefront Access");
 });
 
 test("Card implements ON and OFF buttons with accessible IDs", () => {
@@ -75,9 +74,9 @@ test("Card implements ON and OFF buttons with accessible IDs", () => {
   expect(cardSrc).toContain('id="btn-bangladesh-access-on"');
 });
 
-test("Card displays exact statuses: 'Storefront accessible in Bangladesh' and 'Storefront blocked in Bangladesh'", () => {
-  expect(cardSrc).toContain("Storefront accessible in Bangladesh");
-  expect(cardSrc).toContain("Storefront blocked in Bangladesh");
+test("Card displays exact statuses: 'Storefront is currently accessible.' and 'Storefront access is restricted in Bangladesh.'", () => {
+  expect(cardSrc).toContain("Storefront is currently accessible.");
+  expect(cardSrc).toContain("Storefront access is restricted in Bangladesh.");
 });
 
 test("Card contains confirmation modal before toggling state with exact prompt strings", () => {

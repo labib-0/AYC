@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { AlertCircle, RefreshCw, PanelTop, Flame } from "lucide-react";
+import { AlertCircle, RefreshCw, Flame } from "lucide-react";
 import {
   homepageService,
   HomepageBannerModel,
@@ -306,11 +306,11 @@ export default function AdminHomepageManagement() {
     return (
       <div className="space-y-6 animate-pulse w-full max-w-full">
         <div className="h-10 bg-secondary rounded-xl w-1/3" />
-        <div className="h-28 bg-secondary rounded-2xl w-full" />
+        <div className="h-20 bg-secondary rounded-2xl w-full" />
         <div className="h-44 bg-secondary rounded-2xl w-full" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="h-64 bg-secondary rounded-2xl" />
-          <div className="h-64 bg-secondary rounded-2xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="h-40 bg-secondary rounded-2xl" />
+          <div className="h-40 bg-secondary rounded-2xl" />
         </div>
       </div>
     );
@@ -343,14 +343,14 @@ export default function AdminHomepageManagement() {
 
   return (
     <AdminPageGate permission="homepage.view" moduleName="Homepage Merchandising">
-      <div className="space-y-8 w-full max-w-full pb-12">
+      <div className="space-y-6 w-full max-w-full pb-12">
         {/* Toast Notification Container */}
         <ProductToast toasts={toasts} onDismiss={dismissToast} />
 
         {/* Page Header */}
         <HomepageBannerHeader
           title="Homepage"
-          description="Manage the customer storefront homepage: official header logo, primary promotional banner, scrolling ticker keywords, curated brands, hot sale categories, and featured products."
+          description="Manage your storefront content and hero banner."
           storefrontUrl={storefrontUrl}
           isDirty={isPageDirty}
           isSaving={saving}
@@ -358,30 +358,16 @@ export default function AdminHomepageManagement() {
           onReset={handleResetChanges}
         />
 
-        {/* Bangladesh Storefront Access Control */}
+        {/* Storefront Access Control */}
         <BangladeshStorefrontAccessCard
           showToast={showToast}
           disabled={saving}
         />
 
         {/* ==================================================================== */}
-        {/* SECTION 1: PRIMARY PROMOTIONAL BANNER                                 */}
+        {/* SECTION 1: HERO BANNER (PRIMARY PROMOTIONAL BANNER)                   */}
         {/* ==================================================================== */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between pb-1 border-b border-border/60">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                <PanelTop size={16} />
-              </div>
-              <h2 className="text-base sm:text-lg font-display font-bold uppercase tracking-tight text-foreground">
-                Primary Promotional Banner
-              </h2>
-            </div>
-            <span className="text-xs font-mono text-muted-foreground">
-              Dimensions: ~1375 × 158 px
-            </span>
-          </div>
-
+        <section className="space-y-3">
           {/* Prominent Live Visual Preview */}
           <HomepageBannerPreview
             title={formState.title}
@@ -393,13 +379,13 @@ export default function AdminHomepageManagement() {
         </section>
 
         {/* ==================================================================== */}
-        {/* BANNER CONFIGURATION 2×2 WORKSPACE (SECTIONS 2 & 3)                  */}
+        {/* BANNER CONFIGURATION WORKSPACE (SECTIONS 2 & 3)                      */}
         {/* ==================================================================== */}
         <div className="space-y-4 sm:space-y-5">
-          {/* SECTION 2: MEDIA UPLOAD ROW (HOMEPAGE LOGO + BANNER IMAGE)            */}
+          {/* SECTION 2: MEDIA UPLOAD ROW (BRAND LOGO + HERO IMAGE)                 */}
           <section>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-              {/* Card 1: Homepage Logo */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+              {/* Card 1: Brand Logo */}
               <HomepageLogoManager
                 currentLogo={siteLogo}
                 onLogoChange={(logo) => setSiteLogo(logo)}
@@ -407,7 +393,7 @@ export default function AdminHomepageManagement() {
                 disabled={saving}
               />
 
-              {/* Card 2: Banner Image Uploader */}
+              {/* Card 2: Hero Image */}
               <BannerImageUploader
                 imageUrl={formState.imageUrl}
                 onImageChange={(url) => handleFieldChange("imageUrl", url)}
@@ -417,7 +403,7 @@ export default function AdminHomepageManagement() {
             </div>
           </section>
 
-          {/* SECTION 3: BANNER MESSAGE + NAVIGATION                                */}
+          {/* SECTION 3: HERO CONTENT (BANNER MESSAGE + NAVIGATION)                 */}
           <section>
             <BannerContentForm
               title={formState.title}
@@ -460,15 +446,15 @@ export default function AdminHomepageManagement() {
         {/* ==================================================================== */}
         {/* SECTION 6: HOT SALE CATEGORIES & VISIBILITY                          */}
         {/* ==================================================================== */}
-        <section className="space-y-6">
-          <div className="bg-card rounded-2xl border border-border/80 p-4 sm:p-6 shadow-2xs">
+        <section className="space-y-5">
+          <div className="bg-card rounded-2xl border border-border/80 p-4 sm:p-5 shadow-2xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
-                  <Flame size={18} />
+                <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+                  <Flame size={16} />
                 </div>
                 <div>
-                  <h2 className="text-base font-display font-bold uppercase tracking-tight text-foreground">
+                  <h2 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
                     Hot Sale Visibility
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -487,7 +473,7 @@ export default function AdminHomepageManagement() {
                   <button
                     type="button"
                     onClick={() => setHotSaleVisible(true)}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
                       hotSaleVisible
                         ? "bg-emerald-500 text-white shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
@@ -500,7 +486,7 @@ export default function AdminHomepageManagement() {
                   <button
                     type="button"
                     onClick={() => setHotSaleVisible(false)}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
                       !hotSaleVisible
                         ? "bg-red-500 text-white shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
@@ -512,7 +498,7 @@ export default function AdminHomepageManagement() {
                   </button>
                 </div>
                 <span
-                  className={`text-xs font-semibold uppercase tracking-wider ${
+                  className={`text-xs font-medium ${
                     hotSaleVisible
                       ? "text-emerald-600 dark:text-emerald-400"
                       : "text-muted-foreground"
