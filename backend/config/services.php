@@ -93,5 +93,12 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', 'https://ayaanclothing.com/api/v1/auth/google/callback'),
     ],
 
+    'cloudflare' => [
+        'api_token' => env('CLOUDFLARE_API_TOKEN'),
+        'zone_id' => env('CLOUDFLARE_ZONE_ID'),
+        'ruleset_id' => env('CLOUDFLARE_RULESET_ID'),
+        'rule_id' => env('CLOUDFLARE_RULE_ID'),
+    ],
+
 ];
 

@@ -20,6 +20,7 @@ import {
   ShopByBrandManager,
   HotSaleCategoryManager,
   FeaturedProductManager,
+  BangladeshStorefrontAccessCard,
 } from "@/components/admin/homepage";
 import ProductToast, {
   ToastMessage,
@@ -358,6 +359,16 @@ export default function AdminHomepageManagement() {
         />
 
         {/* ==================================================================== */}
+        {/* ACCESS CONTROL & SECURITY: BANGLADESH STOREFRONT RESTRICTION         */}
+        {/* ==================================================================== */}
+        <section>
+          <BangladeshStorefrontAccessCard
+            showToast={showToast}
+            disabled={saving}
+          />
+        </section>
+
+        {/* ==================================================================== */}
         {/* SECTION 1: PRIMARY PROMOTIONAL BANNER                                 */}
         {/* ==================================================================== */}
         <section className="space-y-4">
@@ -386,42 +397,43 @@ export default function AdminHomepageManagement() {
         </section>
 
         {/* ==================================================================== */}
-        {/* SECTION 2: MEDIA UPLOAD ROW (HOMEPAGE LOGO + BANNER IMAGE)            */}
+        {/* BANNER CONFIGURATION 2×2 WORKSPACE (SECTIONS 2 & 3)                  */}
         {/* ==================================================================== */}
-        <section className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            {/* Card 1: Homepage Logo */}
-            <HomepageLogoManager
-              currentLogo={siteLogo}
-              onLogoChange={(logo) => setSiteLogo(logo)}
-              showToast={showToast}
+        <div className="space-y-4 sm:space-y-5">
+          {/* SECTION 2: MEDIA UPLOAD ROW (HOMEPAGE LOGO + BANNER IMAGE)            */}
+          <section>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+              {/* Card 1: Homepage Logo */}
+              <HomepageLogoManager
+                currentLogo={siteLogo}
+                onLogoChange={(logo) => setSiteLogo(logo)}
+                showToast={showToast}
+                disabled={saving}
+              />
+
+              {/* Card 2: Banner Image Uploader */}
+              <BannerImageUploader
+                imageUrl={formState.imageUrl}
+                onImageChange={(url) => handleFieldChange("imageUrl", url)}
+                onRemoveImage={() => handleFieldChange("imageUrl", "")}
+                disabled={saving}
+              />
+            </div>
+          </section>
+
+          {/* SECTION 3: BANNER MESSAGE + NAVIGATION                                */}
+          <section>
+            <BannerContentForm
+              title={formState.title}
+              subtitle={formState.subtitle}
+              buttonText={formState.buttonText}
+              buttonTarget={formState.buttonTarget}
+              onChange={(field, val) => handleFieldChange(field, val)}
+              errors={formErrors}
               disabled={saving}
             />
-
-            {/* Card 2: Banner Image Uploader */}
-            <BannerImageUploader
-              imageUrl={formState.imageUrl}
-              onImageChange={(url) => handleFieldChange("imageUrl", url)}
-              onRemoveImage={() => handleFieldChange("imageUrl", "")}
-              disabled={saving}
-            />
-          </div>
-        </section>
-
-        {/* ==================================================================== */}
-        {/* SECTION 3: BANNER MESSAGE + NAVIGATION                                */}
-        {/* ==================================================================== */}
-        <section>
-          <BannerContentForm
-            title={formState.title}
-            subtitle={formState.subtitle}
-            buttonText={formState.buttonText}
-            buttonTarget={formState.buttonTarget}
-            onChange={(field, val) => handleFieldChange(field, val)}
-            errors={formErrors}
-            disabled={saving}
-          />
-        </section>
+          </section>
+        </div>
 
         {/* ==================================================================== */}
         {/* SECTION 4: HOMEPAGE KEYWORDS / TICKER                                 */}

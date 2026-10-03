@@ -200,7 +200,7 @@ export default function HomepageLogoManager({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`bg-card rounded-2xl border transition-all p-5 sm:p-6 shadow-2xs space-y-4 flex flex-col justify-between h-full ${
+      className={`bg-card rounded-2xl border transition-all p-4 sm:p-5 shadow-2xs flex flex-col justify-between ${
         isDragging ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border/80"
       }`}
     >
@@ -215,36 +215,36 @@ export default function HomepageLogoManager({
         id="homepage-logo-file-input"
       />
 
-      <div className="space-y-4">
+      <div>
         {/* Section Header */}
-        <div className="flex items-center justify-between pb-2 border-b border-border/60">
+        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-border/50">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <ImageIcon size={16} />
+            <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+              <ImageIcon size={14} />
             </div>
-            <h2 className="text-base font-display font-bold uppercase tracking-tight text-foreground">
+            <h2 className="text-xs sm:text-sm font-display font-bold uppercase tracking-tight text-foreground">
               Homepage Logo
             </h2>
           </div>
-          <span className="text-[11px] font-mono text-muted-foreground uppercase font-semibold">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase font-semibold">
             Format: PNG / SVG
           </span>
         </div>
 
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Configure the official website logo displayed on the customer storefront header. The logo maintains a square aspect ratio and renders inside an invisible, transparent container. Supports PNG and SVG.
+        <p className="text-[11px] text-muted-foreground leading-snug mb-3">
+          Official storefront logo.
         </p>
 
         {validationError && (
-          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
-            <AlertCircle size={15} className="shrink-0" />
+          <div className="mb-2.5 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] flex items-center gap-1.5">
+            <AlertCircle size={13} className="shrink-0" />
             <span>{validationError}</span>
           </div>
         )}
 
-        {/* Logo Preview & Details Card */}
-        <div className="flex flex-col xs:flex-row items-center gap-4 p-4 rounded-xl bg-secondary/30 border border-border/60">
-          {/* Logo Visual Box (clickable to replace/upload) */}
+        {/* Compact Horizontal Media Control */}
+        <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-secondary/30 border border-border/60">
+          {/* LEFT: Small Logo Preview (48–56px) */}
           <div
             onClick={() => {
               if (!disabled && !uploading) fileInputRef.current?.click();
@@ -254,90 +254,82 @@ export default function HomepageLogoManager({
           >
             {currentLogo ? (
               <div className="relative">
-                {/* Header Dark Backdrop Replica */}
-                <div className="w-20 h-20 sm:w-24 sm:h-24 aspect-square rounded-xl bg-[#0b1329] border border-white/10 flex items-center justify-center p-2.5 overflow-hidden shadow-xs group-hover:ring-2 group-hover:ring-primary transition-all">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 aspect-square rounded-xl bg-[#0b1329] border border-white/10 flex items-center justify-center p-1.5 overflow-hidden shadow-2xs group-hover:ring-2 group-hover:ring-primary transition-all">
                   <img
                     src={currentLogo}
                     alt="Saved Website Logo"
                     className="w-full h-full max-w-full max-h-full object-contain pointer-events-none"
                   />
                 </div>
-                <span className="absolute -bottom-1 -right-1 p-1 rounded-full bg-emerald-500 text-white shadow-xs">
-                  <CheckCircle2 size={12} />
+                <span className="absolute -bottom-1 -right-1 p-0.5 rounded-full bg-emerald-500 text-white shadow-2xs">
+                  <CheckCircle2 size={10} />
                 </span>
               </div>
             ) : (
-              <div className="w-20 h-20 sm:w-24 sm:h-24 aspect-square rounded-xl bg-muted/60 border border-dashed border-border flex flex-col items-center justify-center text-center p-2 group-hover:border-primary group-hover:bg-primary/5 transition-all">
-                <ImageIcon size={22} className="text-muted-foreground/60 mb-1 group-hover:text-primary transition-colors" />
-                <span className="text-[10px] font-medium text-muted-foreground group-hover:text-primary">Upload</span>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 aspect-square rounded-xl bg-muted/60 border border-dashed border-border flex flex-col items-center justify-center text-center p-1 group-hover:border-primary group-hover:bg-primary/5 transition-all">
+                <ImageIcon size={16} className="text-muted-foreground/60 mb-0.5 group-hover:text-primary transition-colors" />
+                <span className="text-[9px] font-medium text-muted-foreground group-hover:text-primary">Upload</span>
               </div>
             )}
           </div>
 
-          {/* Details */}
-          <div className="space-y-1 min-w-0 flex-1 text-center xs:text-left">
-            <div className="flex items-center justify-center xs:justify-start gap-2">
-              <span className="text-xs sm:text-sm font-bold text-foreground">
+          {/* CENTER: Current Website Logo & Metadata */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-bold text-foreground truncate">
                 {currentLogo ? "Current Website Logo" : "No Logo Configured"}
               </span>
               {currentLogo && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
                   Active
                 </span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {currentLogo
-                ? "Saved in official media storage and synced with customer storefront header."
-                : "Storefront falls back to displaying the brand title text."}
-            </p>
-            <div className="text-[11px] font-mono text-muted-foreground/80 flex flex-wrap items-center justify-center xs:justify-start gap-2 pt-0.5">
-              <span>Ratio: 1:1</span>
+            <div className="text-[10px] font-mono text-muted-foreground/80 flex items-center gap-1.5 pt-0.5">
+              <span>PNG / SVG · 1:1</span>
               <span>•</span>
-              <span>PNG / SVG</span>
-              <span>•</span>
-              <span>Max: 5MB</span>
+              <span>Max 5MB</span>
             </div>
           </div>
+
+          {/* RIGHT: Compact Action Buttons */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled || uploading}
+              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+              id="btn-upload-png-logo"
+              aria-label="Upload or replace logo"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  <span className="hidden xs:inline">Uploading...</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={12} />
+                  <span>{currentLogo ? "Replace Logo" : "Upload Logo"}</span>
+                </>
+              )}
+            </button>
+
+            {currentLogo && (
+              <button
+                type="button"
+                onClick={handleRemove}
+                disabled={disabled || uploading}
+                className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 font-semibold text-xs transition-colors disabled:opacity-50 cursor-pointer"
+                id="btn-remove-logo"
+                title="Remove logo"
+              >
+                <Trash2 size={12} />
+                <span className="hidden xs:inline">Remove</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2.5 pt-2 border-t border-border/40">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={disabled || uploading}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs sm:text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex-1 xs:flex-initial"
-          id="btn-upload-png-logo"
-          aria-label="Upload or replace logo"
-        >
-          {uploading ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              <span>Uploading...</span>
-            </>
-          ) : (
-            <>
-              <Upload size={14} />
-              <span>{currentLogo ? "Replace Logo" : "Upload Logo"}</span>
-            </>
-          )}
-        </button>
-
-        {currentLogo && (
-          <button
-            type="button"
-            onClick={handleRemove}
-            disabled={disabled || uploading}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 font-semibold text-xs sm:text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            id="btn-remove-logo"
-            title="Remove logo and fall back to website title"
-          >
-            <Trash2 size={14} />
-            <span>Remove</span>
-          </button>
-        )}
       </div>
     </div>
   );

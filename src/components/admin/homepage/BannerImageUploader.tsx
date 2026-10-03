@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useRef } from "react";
@@ -44,7 +45,7 @@ export default function BannerImageUploader({
       const ratio = img.naturalWidth / img.naturalHeight;
       if (ratio < 2.5) {
         setAspectRatioWarning(
-          `This image has a tall aspect ratio (${ratio.toFixed(1)}:1) compared with the recommended horizontal banner (~8.7:1). It will scale to fit full width but will crop vertically.`
+          `Tall aspect ratio (${ratio.toFixed(1)}:1). Recommended ~8.7:1 (1375×158 px).`
         );
       } else {
         setAspectRatioWarning(null);
@@ -60,12 +61,12 @@ export default function BannerImageUploader({
     setUploadError(null);
     const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
     if (!validTypes.includes(file.type) && !file.type.startsWith("image/")) {
-      setUploadError("Invalid file type. Please upload a PNG, JPG, or WebP banner.");
+      setUploadError("Invalid file type. Please upload PNG, JPG, or WebP.");
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      setUploadError("File size exceeds 10MB limit. Please upload an optimized banner image.");
+      setUploadError("File size exceeds 10MB limit.");
       return;
     }
 
@@ -121,7 +122,7 @@ export default function BannerImageUploader({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`bg-card rounded-2xl border transition-all p-5 sm:p-6 shadow-2xs space-y-4 flex flex-col justify-between h-full ${
+      className={`bg-card rounded-2xl border transition-all p-4 sm:p-5 shadow-2xs flex flex-col justify-between ${
         isDragging ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border/80"
       }`}
     >
@@ -139,50 +140,49 @@ export default function BannerImageUploader({
         id="banner-file-input"
       />
 
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-2 border-b border-border/60">
+      <div>
+        {/* Section Header */}
+        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-border/50">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <ImageIcon size={16} />
+            <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+              <ImageIcon size={14} />
             </div>
-            <h2 className="text-base font-display font-bold uppercase tracking-tight text-foreground">
+            <h2 className="text-xs sm:text-sm font-display font-bold uppercase tracking-tight text-foreground">
               Banner Image Asset
             </h2>
           </div>
-          <span className="text-[11px] font-mono text-muted-foreground uppercase font-semibold">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase font-semibold">
             1375 × 158 px
           </span>
         </div>
 
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          High-resolution photographic asset displayed behind the promotional banner overlay on the customer storefront. Recommended ratio ~8.7:1. Max 10MB.
+        <p className="text-[11px] text-muted-foreground leading-snug mb-3">
+          Promotional banner image.
         </p>
 
-        {/* Aspect Ratio Warning */}
+        {/* Warnings & Errors */}
         {aspectRatioWarning && (
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-700 dark:text-amber-300">
-            <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+          <div className="mb-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] flex items-center gap-1.5">
+            <AlertTriangle size={13} className="shrink-0" />
             <span>{aspectRatioWarning}</span>
           </div>
         )}
 
-        {/* Upload Error */}
         {uploadError && (
-          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-xs text-destructive">
-            <AlertTriangle size={15} className="shrink-0" />
+          <div className="mb-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] flex items-center gap-1.5">
+            <AlertTriangle size={13} className="shrink-0" />
             <span>{uploadError}</span>
           </div>
         )}
 
-        {/* Remove Confirmation */}
+        {/* Confirm Remove Banner Prompt */}
         {showConfirmRemove && (
-          <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/25 flex flex-col xs:flex-row xs:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs text-destructive font-medium">
-              <AlertTriangle size={15} className="shrink-0" />
+          <div className="mb-2.5 p-2 rounded-lg bg-destructive/10 border border-destructive/25 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-[11px] text-destructive font-medium">
+              <AlertTriangle size={13} className="shrink-0" />
               <span>Remove banner image?</span>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -190,14 +190,14 @@ export default function BannerImageUploader({
                   setShowConfirmRemove(false);
                   setAspectRatioWarning(null);
                 }}
-                className="px-3 py-1 rounded-lg bg-destructive text-destructive-foreground font-bold text-xs hover:opacity-90 transition-opacity cursor-pointer"
+                className="px-2 py-0.5 rounded-md bg-destructive text-destructive-foreground font-semibold text-[11px] hover:opacity-90 transition-opacity cursor-pointer"
               >
-                Confirm Remove
+                Confirm
               </button>
               <button
                 type="button"
                 onClick={() => setShowConfirmRemove(false)}
-                className="px-3 py-1 rounded-lg border border-border bg-card text-foreground font-semibold text-xs hover:bg-secondary transition-colors cursor-pointer"
+                className="px-2 py-0.5 rounded-md border border-border bg-card text-foreground font-medium text-[11px] hover:bg-secondary transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -205,152 +205,154 @@ export default function BannerImageUploader({
           </div>
         )}
 
-        {/* Current Image Preview (when available) OR Upload Drop Area (when empty) */}
+        {/* Compact Horizontal Media Control */}
         {imageUrl ? (
-          <div className="space-y-3 p-3.5 rounded-xl bg-secondary/30 border border-border/60">
-            {/* Thumbnail bar */}
-            <div className="relative w-full h-20 rounded-lg overflow-hidden border border-border/80 bg-background/80 group">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageUrl}
-                alt="Banner Image Preview"
-                className="w-full h-full object-cover object-center"
-              />
-              <span className="absolute bottom-1.5 right-1.5 p-1 rounded-full bg-emerald-500 text-white shadow-xs">
-                <CheckCircle2 size={12} />
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs">
-              <div className="min-w-0 flex-1 pr-2">
-                <span className="font-semibold text-foreground text-xs block truncate">
-                  Active Asset
-                </span>
-                <span className="text-[11px] font-mono text-muted-foreground block truncate">
-                  {imageUrl.startsWith("data:") ? "Local preview asset" : imageUrl}
+          <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-secondary/30 border border-border/60">
+            {/* LEFT: Small banner thumbnail */}
+            <div
+              onClick={() => {
+                if (!disabled && !isUploading) fileInputRef.current?.click();
+              }}
+              className="cursor-pointer group relative shrink-0"
+              title="Click to replace banner image"
+            >
+              <div className="relative w-20 sm:w-24 h-11 sm:h-12 rounded-lg overflow-hidden border border-border/80 bg-background/80 shadow-2xs group-hover:ring-2 group-hover:ring-primary transition-all">
+                <img
+                  src={imageUrl}
+                  alt="Banner Thumbnail"
+                  className="w-full h-full object-cover object-center pointer-events-none"
+                />
+                <span className="absolute bottom-1 right-1 p-0.5 rounded-full bg-emerald-500 text-white shadow-2xs">
+                  <CheckCircle2 size={10} />
                 </span>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono shrink-0">
-                Ready
-              </span>
             </div>
-          </div>
-        ) : (
-          /* Upload / Drop Area when Empty */
-          <div
-            onClick={() => {
-              if (!disabled && !isUploading) fileInputRef.current?.click();
-            }}
-            className={`border-2 border-dashed rounded-xl p-5 text-center flex flex-col items-center justify-center min-h-[120px] transition-all cursor-pointer ${
-              isDragging
-                ? "border-primary bg-primary/10"
-                : "border-border/80 hover:border-border hover:bg-secondary/40"
-            } ${disabled || isUploading ? "opacity-60 cursor-not-allowed" : ""}`}
-          >
-            {isUploading ? (
-              <div className="flex flex-col items-center gap-2 text-primary py-2">
-                <Loader2 size={24} className="animate-spin" />
-                <p className="text-xs font-semibold">Processing banner image...</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2 py-1">
-                <div className="p-2.5 rounded-full bg-secondary text-foreground">
-                  <Upload size={18} />
-                </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-semibold text-foreground">
-                    <span className="text-primary hover:underline">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    PNG, JPG, or WebP (max 10MB)
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
-      {/* Actions Row */}
-      <div className="space-y-3 pt-2 border-t border-border/40">
-        <div className="flex items-center gap-2.5">
-          {imageUrl && !showConfirmRemove ? (
-            <>
+            {/* CENTER: Active Asset & Metadata */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-bold text-foreground truncate">Active Asset</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
+                  Ready
+                </span>
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground/80 flex items-center gap-1.5 pt-0.5 truncate">
+                <span>1375 × 158</span>
+                <span>•</span>
+                <span>PNG/JPG/WebP</span>
+              </div>
+            </div>
+
+            {/* RIGHT: Compact Action Buttons */}
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={disabled || isUploading}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs sm:text-sm hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer flex-1 xs:flex-initial"
+                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
                 id="btn-replace-banner-image"
+                aria-label="Replace banner image"
               >
                 {isUploading ? (
-                  <Loader2 size={14} className="animate-spin" />
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    <span className="hidden xs:inline">Uploading...</span>
+                  </>
                 ) : (
-                  <RefreshCw size={14} />
+                  <>
+                    <RefreshCw size={12} />
+                    <span>Replace Image</span>
+                  </>
                 )}
-                <span>Replace Image</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowConfirmRemove(true)}
                 disabled={disabled || isUploading}
-                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 font-semibold text-xs sm:text-sm transition-colors disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 font-semibold text-xs transition-colors disabled:opacity-50 cursor-pointer"
                 id="btn-remove-banner-image"
+                title="Remove banner image"
               >
-                <Trash2 size={14} />
-                <span>Remove</span>
+                <Trash2 size={12} />
+                <span className="hidden xs:inline">Remove</span>
               </button>
-            </>
-          ) : !imageUrl ? (
+            </div>
+          </div>
+        ) : (
+          /* Empty / Upload State (Compact) */
+          <div
+            onClick={() => {
+              if (!disabled && !isUploading) fileInputRef.current?.click();
+            }}
+            className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border border-dashed transition-all cursor-pointer ${
+              isDragging
+                ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                : "border-border/80 bg-secondary/20 hover:border-primary hover:bg-primary/5"
+            } ${disabled || isUploading ? "opacity-60 cursor-not-allowed" : ""}`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                {isUploading ? (
+                  <Loader2 size={16} className="animate-spin text-primary" />
+                ) : (
+                  <Upload size={16} className="text-muted-foreground" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground">Upload Banner Asset</p>
+                <p className="text-[10px] text-muted-foreground font-mono">PNG, JPG, WebP · 1375×158 px</p>
+              </div>
+            </div>
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
               disabled={disabled || isUploading}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs sm:text-sm hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer shrink-0"
               id="btn-upload-banner-image"
             >
-              {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              {isUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
               <span>Upload Image</span>
             </button>
-          ) : null}
-        </div>
+          </div>
+        )}
 
-        {/* Advanced Direct URL Fallback (Accordion) */}
-        <div className="border border-border/60 rounded-xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setShowDirectUrlInput(!showDirectUrlInput)}
-            className="w-full px-3.5 py-2 bg-secondary/30 hover:bg-secondary/60 flex items-center justify-between text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <LinkIcon size={13} />
+        {/* Collapsible Direct Asset URL */}
+        <div className="pt-2 border-t border-border/40 mt-2.5">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setShowDirectUrlInput(!showDirectUrlInput)}
+              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <LinkIcon size={11} />
               <span>Direct Asset URL</span>
-            </div>
-            {showDirectUrlInput ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          </button>
+              {showDirectUrlInput ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+            </button>
+          </div>
 
           {showDirectUrlInput && (
-            <div className="p-3 bg-card border-t border-border/60 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={directUrlValue}
-                  onChange={(e) => setDirectUrlValue(e.target.value)}
-                  placeholder="https://... or /images/..."
-                  className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                  id="banner-image-url-input"
-                  data-fallback-id="input-direct-banner-url"
-                />
-                <button
-                  type="button"
-                  onClick={handleApplyDirectUrl}
-                  disabled={!directUrlValue.trim()}
-                  className="px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
-                >
-                  Apply
-                </button>
-              </div>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="text"
+                value={directUrlValue}
+                onChange={(e) => setDirectUrlValue(e.target.value)}
+                placeholder="https://... or /images/..."
+                className="flex-1 px-2.5 py-1 rounded-lg border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                id="banner-image-url-input"
+                data-fallback-id="input-direct-banner-url"
+              />
+              <button
+                type="button"
+                onClick={handleApplyDirectUrl}
+                disabled={!directUrlValue.trim()}
+                className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+              >
+                Apply
+              </button>
             </div>
           )}
         </div>

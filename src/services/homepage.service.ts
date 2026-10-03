@@ -500,6 +500,41 @@ export class HomepageService {
       active: Boolean(model.is_active),
     };
   }
+
+  /**
+   * Retrieve the real-time Bangladesh customer storefront access restriction state.
+   */
+  async getBangladeshStorefrontAccess(): Promise<BangladeshStorefrontAccessState> {
+    const res = await apiClient.get<{ data?: BangladeshStorefrontAccessState } & BangladeshStorefrontAccessState>(
+      "/admin/homepage/bangladesh-storefront-access"
+    );
+    return (res?.data || res) as BangladeshStorefrontAccessState;
+  }
+
+  /**
+   * Update the Bangladesh customer storefront access restriction state.
+   * @param enabled True = Blocked in BD (ON), False = Accessible in BD (OFF)
+   */
+  async updateBangladeshStorefrontAccess(enabled: boolean): Promise<BangladeshStorefrontAccessState> {
+    const res = await apiClient.patch<{ data?: BangladeshStorefrontAccessState } & BangladeshStorefrontAccessState>(
+      "/admin/homepage/bangladesh-storefront-access",
+      { enabled }
+    );
+    return (res?.data || res) as BangladeshStorefrontAccessState;
+  }
+}
+
+export interface BangladeshStorefrontAccessState {
+  enabled: boolean;
+  status: "blocked" | "accessible";
+  display_label: string;
+  helper_text?: string;
+  enforcement_layer?: string;
+  origin_nginx_active?: boolean;
+  cloudflare_configured?: boolean;
+  cloudflare_rule?: Record<string, unknown> | null;
+  error?: string | null;
+  updated_at?: string;
 }
 
 export const homepageService = new HomepageService();
