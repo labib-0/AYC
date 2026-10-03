@@ -456,12 +456,6 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:homepage.category.manage');
             Route::post('/settings', [AdminHomepageManagementController::class, 'updateSettings'])
                 ->middleware('permission:homepage.banner.edit');
-
-            // Bangladesh Regional Access Control
-            Route::get('/bangladesh-storefront-access', [AdminHomepageManagementController::class, 'getBangladeshStorefrontAccess'])
-                ->middleware('permission:homepage.view');
-            Route::patch('/bangladesh-storefront-access', [AdminHomepageManagementController::class, 'updateBangladeshStorefrontAccess'])
-                ->middleware('permission:homepage.banner.edit');
         });
 
         // ── RBAC Management (Phase 1 Foundation) ────────────────────────────

@@ -76,7 +76,6 @@ For an AI coding agent or new developer onboarding to this project, follow this 
 - **[25_FILE_STORAGE_AND_MEDIA.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/25_FILE_STORAGE_AND_MEDIA.md)**: Storage disks, upload validation, and 4:5 fashion photography rules.
 - **[26_TESTING_AND_QUALITY.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/26_TESTING_AND_QUALITY.md)**: 10-step full-stack E2E regression suite and static type gates.
 - **[27_DEPLOYMENT_AND_INFRASTRUCTURE.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/27_DEPLOYMENT_AND_INFRASTRUCTURE.md)**: Production topology, Cloudflare routing, Supervisor workers, deployment script.
-- **[33_CLOUDFLARE_STOREFRONT_RESTRICTION.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/33_CLOUDFLARE_STOREFRONT_RESTRICTION.md)**: Cloudflare WAF Bangladesh storefront-only restriction rule and route tree.
 - **[28_ENVIRONMENT_AND_CONFIGURATION.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/28_ENVIRONMENT_AND_CONFIGURATION.md)**: Complete environment variable dictionary for Next.js and Laravel.
 - **[29_CACHING_AND_SCALABILITY.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/29_CACHING_AND_SCALABILITY.md)**: Multi-tier caching, Redis tags, and horizontal scaling roadmap.
 - **[30_ANALYTICS_AND_TRACKING.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/30_ANALYTICS_AND_TRACKING.md)**: Financial COGS analytics, order milestones, and telemetry.
