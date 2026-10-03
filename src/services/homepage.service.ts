@@ -526,7 +526,7 @@ export class HomepageService {
 
 export interface BangladeshStorefrontAccessState {
   enabled: boolean;
-  status: "blocked" | "accessible";
+  status: "blocked" | "accessible" | "unverified";
   display_label: string;
   helper_text?: string;
   enforcement_layer?: string;
