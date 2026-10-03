@@ -266,8 +266,8 @@ export default function BangladeshStorefrontAccessCard({
               <div>
                 <h4 id="confirm-modal-title" className="text-base font-bold text-foreground">
                   {pendingTargetState
-                    ? "Enable Bangladesh Storefront Block?"
-                    : "Disable Bangladesh Storefront Block?"}
+                    ? "Block the customer storefront for visitors from Bangladesh?"
+                    : "Allow the customer storefront for visitors from Bangladesh?"}
                 </h4>
                 <p className="text-xs text-muted-foreground">
                   Authoritative security setting modification

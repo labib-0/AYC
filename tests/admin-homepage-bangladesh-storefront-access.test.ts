@@ -80,9 +80,9 @@ test("Card displays exact statuses: 'Storefront accessible in Bangladesh' and 'S
   expect(cardSrc).toContain("Storefront blocked in Bangladesh");
 });
 
-test("Card contains confirmation modal before toggling state", () => {
-  expect(cardSrc).toContain("Enable Bangladesh Storefront Block?");
-  expect(cardSrc).toContain("Disable Bangladesh Storefront Block?");
+test("Card contains confirmation modal before toggling state with exact prompt strings", () => {
+  expect(cardSrc).toContain("Block the customer storefront for visitors from Bangladesh?");
+  expect(cardSrc).toContain("Allow the customer storefront for visitors from Bangladesh?");
   expect(cardSrc).toContain('id="btn-confirm-bangladesh-toggle"');
   expect(cardSrc).toContain('id="btn-cancel-bangladesh-toggle"');
 });
@@ -117,6 +117,13 @@ test("Proxy strictly excludes /ayc, /api, and /storage from storefront country b
   expect(proxySrc).toContain("isPathAyc || isAdminGateway");
   expect(proxySrc).toContain("pathname.startsWith('/api')");
   expect(proxySrc).toContain("pathname.startsWith('/storage')");
+});
+
+test("Proxy explicitly classifies and excludes customer service and account routes", () => {
+  expect(proxySrc).toContain("isCustomerServiceRoute");
+  expect(proxySrc).toContain("pathname.startsWith('/order-access')");
+  expect(proxySrc).toContain("pathname.startsWith('/dashboard')");
+  expect(proxySrc).toContain("pathname.startsWith('/profile')");
 });
 
 // ▶ Suite 3: Frontend Homepage Service

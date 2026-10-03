@@ -25,3 +25,10 @@ Schedule::command('temp-files:cleanup')
     ->dailyAt('02:00')
     ->name('cleanup-temporary-files')
     ->withoutOverlapping();
+
+// Weekly MaxMind GeoIP database update and validation (Wednesday at 03:00 UTC)
+Schedule::command('geoip:update')
+    ->weeklyOn(3, '03:00')
+    ->name('update-maxmind-geoip-db')
+    ->withoutOverlapping();
+

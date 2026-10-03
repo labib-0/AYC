@@ -56,9 +56,22 @@ class StorefrontCountryAccessService
             return null;
         }
 
-        // Cache resolution for 30 minutes to eliminate repeated lookups
-        return Cache::remember(self::CACHE_PREFIX . $ip, self::CACHE_TTL_SECONDS, function () use ($ip) {
+        // Cache resolution for 30 minutes with dynamic salt so database updates invalidate instantly
+        $salt = Cache::get(GeoIpDatabaseManager::CACHE_SALT_KEY, 1);
+        $cacheKey = self::CACHE_PREFIX . "v{$salt}:" . $ip;
+
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($ip) {
             try {
+                // Monitor database file existence
+                $dbPath = app(GeoIpDatabaseManager::class)->getDatabasePath();
+                if (!file_exists($dbPath)) {
+                    if (Cache::add('log_geoip_missing_db', 1, 300)) {
+                        Log::warning('StorefrontCountryAccessService: Local MaxMind database file is missing', [
+                            'path' => $dbPath,
+                        ]);
+                    }
+                }
+
                 $position = Location::get($ip);
 
                 if (!$position) {
@@ -130,13 +143,19 @@ class StorefrontCountryAccessService
      */
     public function getStatus(): array
     {
-        $dbPath = config('location.maxmind.local.path');
+        $manager = app(GeoIpDatabaseManager::class);
+        $dbStatus = $manager->getStatus();
         $settingRecord = SystemSetting::where('key', self::SETTING_KEY)->first();
 
         return [
             'enabled' => $this->isBlockEnabled(),
             'driver' => config('location.driver', 'Stevebauman\Location\Drivers\MaxMind'),
-            'local_database_exists' => is_string($dbPath) && file_exists($dbPath),
+            'local_database_exists' => $dbStatus['database_exists'],
+            'local_database_valid' => $dbStatus['is_valid'],
+            'health_status' => $dbStatus['health_status'],
+            'file_size_human' => $dbStatus['file_size_human'],
+            'build_date' => $dbStatus['metadata']['build_date'] ?? null,
+            'last_successful_update' => $dbStatus['last_successful_update'],
             'updated_at' => $settingRecord?->updated_at?->toIso8601String() ?? now()->toIso8601String(),
         ];
     }

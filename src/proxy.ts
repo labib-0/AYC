@@ -117,13 +117,32 @@ export async function proxy(request: NextRequest) {
     pathname.endsWith('.css') ||
     pathname.endsWith('.js') ||
     pathname.endsWith('.txt') ||
-    pathname.endsWith('.xml')
+    pathname.endsWith('.xml') ||
+    pathname.endsWith('.webmanifest')
   ) {
+    return NextResponse.next();
+  }
+
+  // ── Explicit Route Scope Classification ────────────────────────────────
+  // Customer operational and account service routes are buyer fulfillment services,
+  // NOT public storefront browsing content. They remain accessible so international
+  // buyers can track orders, inspect invoices, and access account services globally.
+  const isCustomerServiceRoute =
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/rfq' ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/order-access') ||
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/profile');
+
+  if (isCustomerServiceRoute) {
     return NextResponse.next();
   }
 
   // ── Customer Storefront Bangladesh Access Check ────────────────────────
   // Check if Bangladesh storefront blocking is active via internal Laravel API.
+  // Storefront routes: /, /products, /products/*, /search, /privacy-policy, /terms-and-conditions
   try {
     const rawApiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
     const internalSecret =

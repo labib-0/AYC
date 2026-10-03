@@ -25,6 +25,7 @@ class StorefrontCountryAccessTest extends TestCase
     protected const BD_IPV4 = '103.230.104.1';
     protected const BD_IPV6 = '2400:c600:452f:11e1:3cd2:400d:95c5:e35f';
     protected const US_IPV4 = '8.8.8.8';
+    protected const US_IPV6 = '2001:4860:4860::8888';
 
     protected function setUp(): void
     {
@@ -63,6 +64,7 @@ class StorefrontCountryAccessTest extends TestCase
             self::BD_IPV4 => $bdPosition,
             self::BD_IPV6 => $bdPosition,
             self::US_IPV4 => $usPosition,
+            self::US_IPV6 => $usPosition,
         ]);
     }
 
@@ -468,5 +470,108 @@ class StorefrontCountryAccessTest extends TestCase
             ->assertJson([
                 'error' => 'Missing or invalid X-Internal-Client-IP header.',
             ]);
+    }
+
+    /**
+     * 15. Block ON + Non-Bangladesh IPv6 -> ALLOWED
+     */
+    public function test_block_on_with_non_bangladesh_ipv6_is_allowed(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        $decision = $this->service->checkAccess(self::US_IPV6);
+
+        $this->assertTrue($decision['enabled']);
+        $this->assertEquals('US', $decision['country']);
+        $this->assertFalse($decision['blocked']);
+        $this->assertTrue($decision['allowed']);
+
+        $response = $this->withHeaders([
+            'X-Internal-Secret' => config('services.internal.secret'),
+            'X-Internal-Client-IP' => self::US_IPV6,
+        ])->getJson('/api/v1/internal/storefront/access-check');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'allowed' => true,
+            ]);
+    }
+
+    /**
+     * 16. Invalid IP format -> returns null and fails open safely
+     */
+    public function test_invalid_ip_format_returns_null_and_fails_open_safely(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        $decision = $this->service->checkAccess('not-a-valid-ip');
+
+        $this->assertTrue($decision['enabled']);
+        $this->assertNull($decision['country']);
+        $this->assertFalse($decision['blocked']);
+        $this->assertTrue($decision['allowed']);
+    }
+
+    /**
+     * 17. geoip:status artisan command outputs metadata and succeeds
+     */
+    public function test_geoip_status_artisan_command_returns_success_and_metadata(): void
+    {
+        $this->artisan('geoip:status')
+            ->assertExitCode(0)
+            ->expectsOutputToContain('MAXMIND GEOIP DATABASE DIAGNOSTIC STATUS')
+            ->expectsOutputToContain('HEALTHY');
+    }
+
+    /**
+     * 18. geoip:status --json outputs valid JSON structure
+     */
+    public function test_geoip_status_json_option_returns_valid_json(): void
+    {
+        $output = '';
+        \Illuminate\Support\Facades\Artisan::call('geoip:status', ['--json' => true]);
+        $output = \Illuminate\Support\Facades\Artisan::output();
+
+        $decoded = json_decode($output, true);
+        $this->assertIsArray($decoded);
+        $this->assertArrayHasKey('database_exists', $decoded);
+        $this->assertArrayHasKey('health_status', $decoded);
+        $this->assertArrayHasKey('is_valid', $decoded);
+        $this->assertTrue($decoded['is_valid']);
+        $this->assertEquals('GeoLite2-Country', $decoded['metadata']['database_type']);
+    }
+
+    /**
+     * 19. GeoIpDatabaseManager validates authentic database and rejects corrupted file
+     */
+    public function test_geoip_database_manager_validates_authentic_file_and_rejects_corrupted_file(): void
+    {
+        $manager = app(\App\Services\Security\GeoIpDatabaseManager::class);
+        $activeDbPath = $manager->getDatabasePath();
+
+        // Active database must validate successfully
+        $this->assertTrue($manager->validateDatabaseFile($activeDbPath));
+
+        // Create a temporary corrupted file (small random text)
+        $corruptFile = tempnam(sys_get_temp_dir(), 'corrupt_mmdb_');
+        file_put_contents($corruptFile, 'not-a-real-maxmind-database');
+
+        $this->assertFalse($manager->validateDatabaseFile($corruptFile));
+
+        @unlink($corruptFile);
+    }
+
+    /**
+     * 20. Invalidate GeoIP cache bumps version salt
+     */
+    public function test_geoip_cache_invalidation_bumps_cache_salt(): void
+    {
+        $manager = app(\App\Services\Security\GeoIpDatabaseManager::class);
+
+        $initialSalt = (int) Cache::get(\App\Services\Security\GeoIpDatabaseManager::CACHE_SALT_KEY, 1);
+        $manager->invalidateGeoIpCache();
+        $newSalt = (int) Cache::get(\App\Services\Security\GeoIpDatabaseManager::CACHE_SALT_KEY, 1);
+
+        $this->assertGreaterThan($initialSalt, $newSalt);
     }
 }
