@@ -20,6 +20,7 @@ import {
   ShopByBrandManager,
   HotSaleCategoryManager,
   FeaturedProductManager,
+  BangladeshStorefrontAccessCard,
 } from "@/components/admin/homepage";
 import ProductToast, {
   ToastMessage,
@@ -357,6 +358,11 @@ export default function AdminHomepageManagement() {
           onReset={handleResetChanges}
         />
 
+        {/* Bangladesh Storefront Access Control */}
+        <BangladeshStorefrontAccessCard
+          showToast={showToast}
+          disabled={saving}
+        />
 
         {/* ==================================================================== */}
         {/* SECTION 1: PRIMARY PROMOTIONAL BANNER                                 */}

@@ -71,4 +71,21 @@ class SystemSetting extends Model
     {
         return (bool) static::get('hot_sale_visible', true);
     }
+
+    /**
+     * Check whether Bangladesh customer storefront restriction is currently enabled.
+     * Default: false (DISABLED BY DEFAULT - Storefront accessible in Bangladesh)
+     */
+    public static function isBangladeshStorefrontBlockEnabled(): bool
+    {
+        return (bool) static::get('bangladesh_storefront_block_enabled', false);
+    }
+
+    /**
+     * Set the Bangladesh customer storefront restriction setting.
+     */
+    public static function setBangladeshStorefrontBlockEnabled(bool $enabled): static
+    {
+        return static::set('bangladesh_storefront_block_enabled', $enabled, 'boolean', 'security');
+    }
 }

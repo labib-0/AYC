@@ -15,6 +15,7 @@ use App\Models\SystemSetting;
 use App\Services\Cache\CatalogCacheService;
 use App\Services\Catalog\HomepageOrderingService;
 use App\Services\Rbac\AdminAuthorizationService;
+use App\Services\Security\StorefrontCountryAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,8 @@ class HomepageManagementController extends ApiController
 {
     public function __construct(
         private readonly AdminAuthorizationService $authorization,
-        private readonly HomepageOrderingService $orderingService
+        private readonly HomepageOrderingService $orderingService,
+        private readonly StorefrontCountryAccessService $accessService
     ) {}
 
     /**
@@ -524,5 +526,48 @@ class HomepageManagementController extends ApiController
         return $this->success([
             'hot_sale_visible' => SystemSetting::isHotSaleVisible(),
         ], 'Homepage settings saved successfully.');
+    }
+
+    /**
+     * GET /api/v1/admin/homepage/bangladesh-storefront-access
+     *
+     * Retrieve the real-time status of the Bangladesh customer storefront restriction.
+     */
+    public function getBangladeshStorefrontAccess(): JsonResponse
+    {
+        $status = $this->accessService->getStatus();
+        return $this->success($status, 'Bangladesh storefront access status retrieved successfully.');
+    }
+
+    /**
+     * PATCH /api/v1/admin/homepage/bangladesh-storefront-access
+     *
+     * Toggle the Bangladesh customer storefront restriction ON (blocked) or OFF (accessible).
+     */
+    public function updateBangladeshStorefrontAccess(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $user = $request->user();
+
+        // Enforce RBAC permission: Must have settings.edit, homepage.banner.edit or be super admin
+        $canEdit = $user && (
+            $user->isSuperAdmin() ||
+            $this->authorization->can($user, 'settings.edit') ||
+            $this->authorization->can($user, 'homepage.banner.edit')
+        );
+
+        if (!$canEdit) {
+            return $this->forbidden('You do not have administrative permission to modify storefront access restrictions.');
+        }
+
+        $this->accessService->setBlockEnabled((bool) $validated['enabled']);
+
+        return $this->success(
+            $this->accessService->getStatus(),
+            'Bangladesh storefront access setting updated successfully.'
+        );
     }
 }

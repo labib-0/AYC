@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\V1\WishlistController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\PublicSettingsController;
 use App\Http\Controllers\Api\V1\Admin\AdminSettingsController;
+use App\Http\Controllers\Api\V1\Internal\InternalStorefrontAccessController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -456,6 +457,12 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:homepage.category.manage');
             Route::post('/settings', [AdminHomepageManagementController::class, 'updateSettings'])
                 ->middleware('permission:homepage.banner.edit');
+
+            // Bangladesh Regional Access Control
+            Route::get('/bangladesh-storefront-access', [AdminHomepageManagementController::class, 'getBangladeshStorefrontAccess'])
+                ->middleware('permission:homepage.view');
+            Route::patch('/bangladesh-storefront-access', [AdminHomepageManagementController::class, 'updateBangladeshStorefrontAccess'])
+                ->middleware('permission:homepage.banner.edit');
         });
 
         // ── RBAC Management (Phase 1 Foundation) ────────────────────────────
@@ -491,6 +498,12 @@ Route::prefix('v1')->group(function () {
             Route::delete('/admins/{adminId}/roles/{roleId}', [RbacController::class, 'removeRole'])
                 ->middleware('permission:role.unassign');
         });
+    });
+
+    // ── Internal Server-to-Server Endpoints ──────────────────────────────
+    // Protected by X-Internal-Secret; used exclusively by Next.js proxy
+    Route::prefix('internal')->group(function () {
+        Route::get('/storefront/access-check', [InternalStorefrontAccessController::class, 'check']);
     });
 });
 

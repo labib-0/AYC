@@ -85,6 +85,15 @@ export interface StorefrontHomepageData {
   hot_sale_visible?: boolean;
 }
 
+export interface BangladeshStorefrontAccessState {
+  enabled: boolean;
+  status: "blocked" | "accessible";
+  driver?: string;
+  local_database_exists?: boolean;
+  updated_at?: string;
+  error?: string | null;
+}
+
 export interface AdminHomepageData {
   banner: HomepageBannerModel | null;
   all_banners?: HomepageBannerModel[];
@@ -478,6 +487,43 @@ export class HomepageService {
       window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_homepage_updated" }));
     }
     return Boolean(result);
+  }
+
+  /**
+   * Fetch current Bangladesh customer storefront access status.
+   */
+  async getBangladeshStorefrontAccess(): Promise<BangladeshStorefrontAccessState> {
+    const res = await apiClient.get<any>("/admin/homepage/bangladesh-storefront-access");
+    const data = res?.data || res;
+    return {
+      enabled: Boolean(data?.enabled),
+      status: data?.enabled ? "blocked" : "accessible",
+      driver: data?.driver,
+      local_database_exists: data?.local_database_exists,
+      updated_at: data?.updated_at,
+    };
+  }
+
+  /**
+   * Update Bangladesh customer storefront access setting (ON = blocked, OFF = accessible).
+   */
+  async updateBangladeshStorefrontAccess(enabled: boolean): Promise<BangladeshStorefrontAccessState> {
+    const res = await apiClient.patch<any>("/admin/homepage/bangladesh-storefront-access", { enabled });
+    const data = res?.data || res;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("ayaan:homepage-updated", {
+          detail: { type: "bangladesh_access", enabled: data?.enabled },
+        })
+      );
+    }
+    return {
+      enabled: Boolean(data?.enabled),
+      status: data?.enabled ? "blocked" : "accessible",
+      driver: data?.driver,
+      local_database_exists: data?.local_database_exists,
+      updated_at: data?.updated_at,
+    };
   }
 
   /**

@@ -93,5 +93,9 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', 'https://ayaanclothing.com/api/v1/auth/google/callback'),
     ],
 
+    'internal' => [
+        'secret' => env('INTERNAL_API_SECRET', env('APP_ENV') === 'production' ? null : 'ayc_internal_country_lock_secret_2026'),
+    ],
+
 ];
 
