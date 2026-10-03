@@ -1,0 +1,13 @@
+[Unit]
+Description=Ayaan Clothing Daily Production Backup
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/ayaan-backup.sh
+StandardOutput=append:/var/log/ayaan-backup.log
+StandardError=append:/var/log/ayaan-backup.log
+
+[Install]
+WantedBy=multi-user.target
