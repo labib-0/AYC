@@ -15,6 +15,8 @@ export default function robots(): MetadataRoute.Robots {
           "/rfq",
         ],
         disallow: [
+          "/ayc",
+          "/ayc/*",
           "/admin",
           "/admin/*",
           "/profile",
