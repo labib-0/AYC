@@ -61,7 +61,7 @@ export function calcTargetPosition(
  * - Pointer capture on drag handle with fallback global window listeners
  * - Drop target calculation using actual row midpoints from getBoundingClientRect()
  * - Global index tracking with pagination offset awareness
- * - Post-drag click suppression to prevent accidental row/button clicks
+ * - Post-drag click suppression (200ms buffer) to prevent accidental row/button clicks
  * - Zero third-party drag libraries
  */
 export function usePointerDragReorder({
@@ -75,7 +75,7 @@ export function usePointerDragReorder({
   const [isPointerDragging, setIsPointerDragging] = useState<boolean>(false);
   const [dragOverTarget, setDragOverTarget] = useState<DragOverTarget | null>(null);
 
-  // References for pointer tracking without stale state closures
+  // References for tracking state without stale closures
   const dragCandidateRef = useRef<DragCandidateState | null>(null);
   const dragOverTargetRef = useRef<DragOverTarget | null>(null);
   const totalCountRef = useRef<number>(totalCount);
@@ -91,7 +91,7 @@ export function usePointerDragReorder({
     onReorderRef.current = onReorder;
   }, [onReorder]);
 
-  // Click suppression helper
+  // Click suppression helper: true during active drag and for 200ms after drop
   const isClickSuppressed = useCallback(() => {
     return justDraggedRef.current || isDraggingRef.current;
   }, []);
@@ -179,113 +179,125 @@ export function usePointerDragReorder({
     setDragOverTarget(newTarget);
   }, []);
 
-  // Global window listeners for infallible pointer capture and tracking
+  // Stable handler refs to prevent recreation and TDZ issues
+  const onPointerMoveRef = useRef<(e: PointerEvent) => void>(() => {});
+  const onPointerUpRef = useRef<(e: PointerEvent) => void>(() => {});
+  const onPointerCancelRef = useRef<() => void>(() => {});
+
+  // Guaranteed stable listener functions attached to window
+  const onWindowPointerMove = useCallback((e: PointerEvent) => {
+    onPointerMoveRef.current(e);
+  }, []);
+
+  const onWindowPointerUp = useCallback((e: PointerEvent) => {
+    onPointerUpRef.current(e);
+  }, []);
+
+  const onWindowPointerCancel = useCallback(() => {
+    onPointerCancelRef.current();
+  }, []);
+
   const cleanupListeners = useCallback(() => {
     window.removeEventListener("pointermove", onWindowPointerMove);
     window.removeEventListener("pointerup", onWindowPointerUp);
     window.removeEventListener("pointercancel", onWindowPointerCancel);
-  }, []);
+  }, [onWindowPointerMove, onWindowPointerUp, onWindowPointerCancel]);
 
-  const onWindowPointerMove = useCallback(
-    (e: PointerEvent) => {
-      const candidate = dragCandidateRef.current;
-      if (!candidate || candidate.pointerId !== e.pointerId) return;
+  // Actual logic for move/up/cancel updated into the stable refs
+  onPointerMoveRef.current = (e: PointerEvent) => {
+    const candidate = dragCandidateRef.current;
+    if (!candidate || candidate.pointerId !== e.pointerId) return;
 
-      if (!candidate.isDragging) {
-        const distance = Math.hypot(e.clientX - candidate.startX, e.clientY - candidate.startY);
-        // Drag threshold: must exceed 4px to distinguish genuine drag from simple click
-        if (distance < 4) {
-          return;
-        }
-
-        // Activate drag
-        candidate.isDragging = true;
-        isDraggingRef.current = true;
-
-        try {
-          candidate.handleEl.setPointerCapture?.(candidate.pointerId);
-        } catch {
-          // Fallback safely
-        }
-
-        document.body.style.userSelect = "none";
-        document.body.style.cursor = "grabbing";
-
-        setIsPointerDragging(true);
-        setDraggedGlobalIndex(candidate.globalIdx);
-        setDraggedIndex(candidate.localIdx);
+    if (!candidate.isDragging) {
+      const distance = Math.hypot(e.clientX - candidate.startX, e.clientY - candidate.startY);
+      // Drag threshold: must exceed 4px to distinguish genuine drag from simple click
+      if (distance < 4) {
+        return;
       }
+
+      // Activate drag
+      candidate.isDragging = true;
+      isDraggingRef.current = true;
+
+      try {
+        candidate.handleEl.setPointerCapture?.(candidate.pointerId);
+      } catch {
+        // Safe fallback
+      }
+
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "grabbing";
+
+      setIsPointerDragging(true);
+      setDraggedGlobalIndex(candidate.globalIdx);
+      setDraggedIndex(candidate.localIdx);
+    }
+
+    if (candidate.isDragging) {
+      e.preventDefault?.();
+      updateTargetFromPointer(e.clientY);
+    }
+  };
+
+  onPointerUpRef.current = (e: PointerEvent) => {
+    const candidate = dragCandidateRef.current;
+    cleanupListeners();
+
+    if (candidate && candidate.pointerId === e.pointerId) {
+      try {
+        candidate.handleEl.releasePointerCapture?.(candidate.pointerId);
+      } catch {
+        // Safe fallback
+      }
+
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
 
       if (candidate.isDragging) {
-        e.preventDefault?.();
-        updateTargetFromPointer(e.clientY);
-      }
-    },
-    [updateTargetFromPointer]
-  );
+        // Suppress accidental click right after drag completion
+        justDraggedRef.current = true;
+        setTimeout(() => {
+          justDraggedRef.current = false;
+        }, 200);
 
-  const onWindowPointerUp = useCallback(
-    (e: PointerEvent) => {
-      const candidate = dragCandidateRef.current;
-      cleanupListeners();
+        const fromGlobal = candidate.globalIdx;
+        const target = dragOverTargetRef.current;
 
-      if (candidate && candidate.pointerId === e.pointerId) {
-        try {
-          candidate.handleEl.releasePointerCapture?.(candidate.pointerId);
-        } catch {
-          // Safe fallback
-        }
+        if (target && target.globalIndex !== undefined) {
+          const toGlobal = target.globalIndex;
+          const pos = target.position;
 
-        document.body.style.userSelect = "";
-        document.body.style.cursor = "";
+          let destinationGlobalIdx: number;
+          if (fromGlobal < toGlobal) {
+            destinationGlobalIdx = pos === "below" ? toGlobal : toGlobal - 1;
+          } else if (fromGlobal > toGlobal) {
+            destinationGlobalIdx = pos === "above" ? toGlobal : toGlobal + 1;
+          } else {
+            destinationGlobalIdx = fromGlobal;
+          }
 
-        if (candidate.isDragging) {
-          // Suppress accidental click right after drag completion
-          justDraggedRef.current = true;
-          setTimeout(() => {
-            justDraggedRef.current = false;
-          }, 200);
-
-          const fromGlobal = candidate.globalIdx;
-          const target = dragOverTargetRef.current;
-
-          if (target && target.globalIndex !== undefined) {
-            const toGlobal = target.globalIndex;
-            const pos = target.position;
-
-            let destinationGlobalIdx: number;
-            if (fromGlobal < toGlobal) {
-              destinationGlobalIdx = pos === "below" ? toGlobal : toGlobal - 1;
-            } else if (fromGlobal > toGlobal) {
-              destinationGlobalIdx = pos === "above" ? toGlobal : toGlobal + 1;
-            } else {
-              destinationGlobalIdx = fromGlobal;
-            }
-
-            if (
-              destinationGlobalIdx !== fromGlobal &&
-              destinationGlobalIdx >= 0 &&
-              destinationGlobalIdx < totalCountRef.current
-            ) {
-              onReorderRef.current(fromGlobal, destinationGlobalIdx);
-            }
+          if (
+            destinationGlobalIdx !== fromGlobal &&
+            destinationGlobalIdx >= 0 &&
+            destinationGlobalIdx < totalCountRef.current
+          ) {
+            onReorderRef.current(fromGlobal, destinationGlobalIdx);
           }
         }
       }
+    }
 
-      // Reset state
-      dragCandidateRef.current = null;
-      dragOverTargetRef.current = null;
-      isDraggingRef.current = false;
-      setIsPointerDragging(false);
-      setDraggedIndex(null);
-      setDraggedGlobalIndex(null);
-      setDragOverTarget(null);
-    },
-    [cleanupListeners]
-  );
+    // Reset state
+    dragCandidateRef.current = null;
+    dragOverTargetRef.current = null;
+    isDraggingRef.current = false;
+    setIsPointerDragging(false);
+    setDraggedIndex(null);
+    setDraggedGlobalIndex(null);
+    setDragOverTarget(null);
+  };
 
-  const onWindowPointerCancel = useCallback(() => {
+  onPointerCancelRef.current = () => {
     const candidate = dragCandidateRef.current;
     cleanupListeners();
 
@@ -307,7 +319,7 @@ export function usePointerDragReorder({
     setDraggedIndex(null);
     setDraggedGlobalIndex(null);
     setDragOverTarget(null);
-  }, [cleanupListeners]);
+  };
 
   // Pointer down on the dedicated drag handle
   const handlePointerDown = useCallback(
@@ -317,6 +329,12 @@ export function usePointerDragReorder({
 
       const targetEl = e.currentTarget as HTMLElement;
       const containerEl = targetEl.closest("[data-ordered-container]") as HTMLElement | null;
+
+      try {
+        targetEl.setPointerCapture?.(e.pointerId);
+      } catch {
+        // Safe fallback
+      }
 
       dragCandidateRef.current = {
         startX: e.clientX,
@@ -329,7 +347,7 @@ export function usePointerDragReorder({
         isDragging: false,
       };
 
-      // Attach window listeners to ensure continuous movement capture
+      // Attach stable window listeners to ensure continuous movement capture
       window.addEventListener("pointermove", onWindowPointerMove, { passive: false });
       window.addEventListener("pointerup", onWindowPointerUp);
       window.addEventListener("pointercancel", onWindowPointerCancel);
@@ -337,7 +355,9 @@ export function usePointerDragReorder({
     [onWindowPointerMove, onWindowPointerUp, onWindowPointerCancel]
   );
 
-  const handlePointerCancel = onWindowPointerCancel;
+  const handlePointerCancel = useCallback(() => {
+    onWindowPointerCancel();
+  }, [onWindowPointerCancel]);
 
   // Cleanup on unmount
   useEffect(() => {

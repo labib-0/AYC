@@ -105,18 +105,7 @@ export default function HomepageTickerManager({
     },
   });
 
-  const handlePointerMove = (_e: React.PointerEvent) => {};
-  const handlePointerUp = (_e: React.PointerEvent) => {};
 
-  // HTML5 Drag Handlers (Compatibility stubs)
-  const handleDragStart = (_e?: React.DragEvent, _localIdx?: number, _globalIdx?: number) => {};
-  const handleDragOver = (e: React.DragEvent, _localIdx?: number, _globalIdx?: number) => {
-    e.preventDefault();
-  };
-  const handleDrop = (e: React.DragEvent, _targetLocalIndex?: number, _targetGlobalIndex?: number) => {
-    e.preventDefault();
-  };
-  const handleDragEnd = () => {};
 
   const handleAddKeyword = (textToAdd?: string) => {
     const text = (textToAdd !== undefined ? textToAdd : newKeyword).trim();
@@ -434,8 +423,6 @@ export default function HomepageTickerManager({
                   data-ordered-row
                   data-index={localIndex}
                   data-global-index={globalIndex}
-                  onDragOver={(e) => handleDragOver(e, localIndex, globalIndex)}
-                  onDrop={(e) => handleDrop(e, localIndex, globalIndex)}
                   className={`flex items-center justify-between gap-3 p-2.5 sm:p-3 rounded-xl border transition-colors ${
                     isDragging
                       ? "opacity-50 bg-primary/10 border-primary/40 ring-1 ring-primary/30"
