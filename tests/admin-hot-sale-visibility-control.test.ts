@@ -35,7 +35,9 @@ console.log("==================================================");
 console.log("HOT SALE VISIBILITY CONTROL AUDIT TESTS");
 console.log("==================================================");
 
-const adminHomepagePath = path.resolve(__dirname, "../src/app/admin/homepage/page.tsx");
+const adminHomepagePath = fs.existsSync(path.resolve(__dirname, "../src/app/ayc/homepage/page.tsx"))
+  ? path.resolve(__dirname, "../src/app/ayc/homepage/page.tsx")
+  : path.resolve(__dirname, "../src/app/admin/homepage/page.tsx");
 const adminHomepageSrc = fs.readFileSync(adminHomepagePath, "utf-8");
 
 const hotSalesPath = path.resolve(__dirname, "../src/components/home/HotSales.tsx");

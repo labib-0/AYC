@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   ListPlus,
   Plus,
@@ -59,7 +59,7 @@ export default function HomepageTickerManager({
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
 
   // Ensure currentPage stays within valid bounds
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages);
     } else if (currentPage < 1) {
@@ -82,7 +82,7 @@ export default function HomepageTickerManager({
     }
   };
 
-  // Drag and Drop State (Native Pointer Events + HTML5 Drag)
+  // Drag and Drop State (Native Pointer Events)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [draggedGlobalIndex, setDraggedGlobalIndex] = useState<number | null>(null);
   const [isPointerDragging, setIsPointerDragging] = useState<boolean>(false);
@@ -91,6 +91,36 @@ export default function HomepageTickerManager({
     globalIndex?: number;
     position: "above" | "below";
   } | null>(null);
+
+  const justDraggedRef = useRef<boolean>(false);
+  const dragHandleRef = useRef<HTMLElement | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.userSelect = "";
+      if (dragHandleRef.current && pointerIdRef.current !== null) {
+        try {
+          dragHandleRef.current.releasePointerCapture?.(pointerIdRef.current);
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isPointerDragging) {
+      document.body.style.userSelect = "none";
+    } else {
+      document.body.style.userSelect = "";
+    }
+    return () => {
+      document.body.style.userSelect = "";
+    };
+  }, [isPointerDragging]);
+
+  const isClickSuppressed = () => justDraggedRef.current || isPointerDragging;
 
   const calcTargetPosition = (fromIdx: number, toIdx: number, pos: "above" | "below"): number => {
     let target = pos === "below" ? toIdx + 1 : toIdx;
@@ -104,12 +134,19 @@ export default function HomepageTickerManager({
   const handlePointerDown = (e: React.PointerEvent, globalIdx: number, localIdx: number) => {
     if (e.button !== 0) return;
     const targetEl = e.currentTarget as HTMLElement;
-    targetEl.setPointerCapture?.(e.pointerId);
+    dragHandleRef.current = targetEl;
+    pointerIdRef.current = e.pointerId;
+
+    try {
+      targetEl.setPointerCapture?.(e.pointerId);
+    } catch {
+      // Safe fallback
+    }
 
     setDraggedGlobalIndex(globalIdx);
     setDraggedIndex(localIdx);
     setIsPointerDragging(true);
-    document.body.style.userSelect = "none";
+    justDraggedRef.current = false;
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -118,16 +155,29 @@ export default function HomepageTickerManager({
     const targetElement = document.elementFromPoint(e.clientX, e.clientY);
     const rowEl = targetElement?.closest("[data-ordered-row]") as HTMLElement | null;
 
-    if (!rowEl) {
-      setDragOverTarget(null);
+    if (!rowEl) return;
+
+    const rawGlobal = rowEl.getAttribute("data-global-index");
+    const rawLocal = rowEl.getAttribute("data-index");
+
+    let rowGlobalIdx: number;
+    let rowLocalIdx: number;
+
+    if (rawGlobal !== null) {
+      rowGlobalIdx = parseInt(rawGlobal, 10);
+      rowLocalIdx = rawLocal !== null ? parseInt(rawLocal, 10) : rowGlobalIdx - startIndex;
+    } else if (rawLocal !== null) {
+      const parsed = parseInt(rawLocal, 10);
+      if (parsed < pageSize) {
+        rowLocalIdx = parsed;
+        rowGlobalIdx = startIndex + parsed;
+      } else {
+        rowGlobalIdx = parsed;
+        rowLocalIdx = Math.max(0, parsed - startIndex);
+      }
+    } else {
       return;
     }
-
-    const rowLocalIdx = parseInt(rowEl.getAttribute("data-index") || "0", 10);
-    const rowGlobalIdx = parseInt(
-      rowEl.getAttribute("data-global-index") || String(startIndex + rowLocalIdx),
-      10
-    );
 
     const rect = rowEl.getBoundingClientRect();
     const relY = e.clientY - rect.top;
@@ -141,13 +191,15 @@ export default function HomepageTickerManager({
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    const targetEl = e.currentTarget as HTMLElement;
-    try {
-      targetEl.releasePointerCapture?.(e.pointerId);
-    } catch {
-      // Safe fallback
+    const targetEl = dragHandleRef.current || (e.currentTarget as HTMLElement);
+    if (pointerIdRef.current !== null) {
+      try {
+        targetEl.releasePointerCapture?.(pointerIdRef.current);
+      } catch {
+        // Safe fallback
+      }
+      pointerIdRef.current = null;
     }
-    document.body.style.userSelect = "";
 
     if (isPointerDragging && draggedGlobalIndex !== null && dragOverTarget) {
       const targetGIdx =
@@ -160,7 +212,7 @@ export default function HomepageTickerManager({
         target -= 1;
       }
 
-      if (draggedGlobalIndex !== target && target >= 0 && target <= items.length) {
+      if (draggedGlobalIndex !== target && target >= 0 && target <= items.length - 1) {
         const next = [...items];
         const [moved] = next.splice(draggedGlobalIndex, 1);
         next.splice(target, 0, moved);
@@ -168,21 +220,38 @@ export default function HomepageTickerManager({
       }
     }
 
+    if (isPointerDragging) {
+      justDraggedRef.current = true;
+      setTimeout(() => {
+        justDraggedRef.current = false;
+      }, 150);
+    }
+
     setIsPointerDragging(false);
     setDraggedIndex(null);
     setDraggedGlobalIndex(null);
     setDragOverTarget(null);
+    dragHandleRef.current = null;
   };
 
   const handlePointerCancel = () => {
     document.body.style.userSelect = "";
+    if (dragHandleRef.current && pointerIdRef.current !== null) {
+      try {
+        dragHandleRef.current.releasePointerCapture?.(pointerIdRef.current);
+      } catch {
+        // Safe fallback
+      }
+      pointerIdRef.current = null;
+    }
     setIsPointerDragging(false);
     setDraggedIndex(null);
     setDraggedGlobalIndex(null);
     setDragOverTarget(null);
+    dragHandleRef.current = null;
   };
 
-  // HTML5 Drag Handlers
+  // HTML5 Drag Handlers (Compatibility)
   const handleDragStart = (e: React.DragEvent, localIdx: number, globalIdx?: number) => {
     const gIdx = globalIdx !== undefined ? globalIdx : startIndex + localIdx;
     setDraggedIndex(localIdx);
@@ -239,7 +308,7 @@ export default function HomepageTickerManager({
       target -= 1;
     }
 
-    if (fromIdx === target) {
+    if (fromIdx === target || target < 0 || target > items.length - 1) {
       setDraggedIndex(null);
       setDraggedGlobalIndex(null);
       setDragOverTarget(null);
@@ -347,8 +416,7 @@ export default function HomepageTickerManager({
     }
   };
 
-  const moveUp = handleMoveUp;
-  const moveDown = handleMoveDown;
+  // handleMoveUp and handleMoveDown used directly in row actions
 
   const handleAddPresets = () => {
     const existingTexts = new Set(items.map((i) => i.text.trim().toUpperCase()));
@@ -375,9 +443,9 @@ export default function HomepageTickerManager({
   const activeCount = items.filter((i) => i.is_active && i.text.trim().length > 0).length;
 
   return (
-    <div className="bg-card rounded-2xl border border-border/80 p-5 sm:p-6 shadow-2xs space-y-5">
+    <div className="bg-card rounded-2xl border border-border/80 p-5 sm:p-6 shadow-2xs space-y-5 w-full">
       {/* Section Header */}
-      <div className="flex items-center justify-between pb-1 border-b border-border/60 flex-wrap gap-2">
+      <div className="flex items-center justify-between pb-3 border-b border-border/60 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
             <ListPlus size={16} />
@@ -397,7 +465,7 @@ export default function HomepageTickerManager({
         <div className="flex items-center gap-3">
           {/* Page Size Selector */}
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="text-[11px] font-medium hidden sm:inline">Page Size:</span>
+            <span className="text-xs font-medium hidden sm:inline">Page Size:</span>
             <div
               className="inline-flex items-center rounded-lg border border-border bg-card p-0.5"
               role="group"
@@ -409,7 +477,7 @@ export default function HomepageTickerManager({
                   type="button"
                   onClick={() => handlePageSizeChange(size)}
                   aria-pressed={pageSize === size}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold font-mono transition-all cursor-pointer ${
                     pageSize === size
                       ? "bg-primary text-primary-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -430,9 +498,9 @@ export default function HomepageTickerManager({
               onClick={onSave}
               disabled={disabled || isSaving}
               id="btn-save-ticker"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer shadow-2xs"
             >
-              {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+              {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
               <span>Save Ticker</span>
             </button>
           )}
@@ -440,27 +508,27 @@ export default function HomepageTickerManager({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Customize the scrolling keyword strip displayed on the customer homepage directly below the main banner. Drag to reorder, add, edit, and toggle keywords.
+        Customize the scrolling keyword strip displayed on the customer storefront homepage directly below the main banner. Drag to reorder, add, edit, and toggle keywords.
       </p>
 
       {/* Live Preview Strip */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Sparkles size={12} className="text-[#EA580C]" />
+        <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Sparkles size={14} className="text-[#EA580C]" />
             <span>Storefront Ticker Preview</span>
           </span>
-          <span>{activeCount === 0 ? "Hidden on Storefront (Empty)" : "Live Marquee Loop"}</span>
+          <span className="text-[11px] font-mono">{activeCount === 0 ? "Hidden on Storefront (Empty)" : "Live Marquee Loop"}</span>
         </div>
 
-        <div className="relative w-full h-8 overflow-hidden rounded-xl border border-border/60 bg-secondary/20 flex items-center px-3">
+        <div className="relative w-full h-9 overflow-hidden rounded-xl border border-border/60 bg-secondary/30 flex items-center px-3.5">
           {activeCount > 0 ? (
             <div className="flex items-center whitespace-nowrap overflow-hidden text-xs">
               {items
                 .filter((item) => item.is_active && item.text.trim().length > 0)
                 .map((item, idx) => (
                   <span key={item.id || idx} className="inline-flex items-center">
-                    <span className="font-bold uppercase tracking-tight text-foreground text-[11px]">
+                    <span className="font-bold uppercase tracking-tight text-foreground text-xs">
                       {item.text.trim()}
                     </span>
                     <span className="mx-3 text-[#EA580C] select-none">•</span>
@@ -476,7 +544,7 @@ export default function HomepageTickerManager({
       </div>
 
       {/* Add New Keyword Input Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
         <input
           type="text"
           value={newKeyword}
@@ -488,7 +556,7 @@ export default function HomepageTickerManager({
             }
           }}
           placeholder="Enter keyword (e.g. FACTORY DIRECT, EXPORT READY)..."
-          className="flex-1 px-3.5 py-2 text-xs rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 uppercase font-semibold"
+          className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 uppercase font-semibold"
           disabled={disabled || isSaving}
         />
         <div className="flex items-center gap-2">
@@ -496,19 +564,19 @@ export default function HomepageTickerManager({
             type="button"
             onClick={() => handleAddKeyword()}
             disabled={disabled || isSaving || !newKeyword.trim()}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs sm:text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            <Plus size={14} />
+            <Plus size={15} />
             <span>Add Keyword</span>
           </button>
           <button
             type="button"
             onClick={handleAddPresets}
             disabled={disabled || isSaving}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground font-semibold text-xs transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground font-semibold text-xs transition-colors cursor-pointer"
             title="Add standard wholesale apparel preset keywords"
           >
-            <Sparkles size={13} />
+            <Sparkles size={14} />
             <span className="hidden sm:inline">Presets</span>
           </button>
         </div>
@@ -518,13 +586,13 @@ export default function HomepageTickerManager({
       <div className="space-y-2">
         {items.length === 0 ? (
           <div className="p-8 rounded-xl border border-dashed border-border text-center space-y-2">
-            <p className="text-xs text-muted-foreground font-medium">
+            <p className="text-xs sm:text-sm text-muted-foreground font-medium">
               No ticker keywords configured yet.
             </p>
             <button
               type="button"
               onClick={handleAddPresets}
-              className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+              className="text-xs sm:text-sm font-semibold text-primary hover:underline cursor-pointer"
             >
               + Click here to add default wholesale presets
             </button>
@@ -532,23 +600,22 @@ export default function HomepageTickerManager({
         ) : (
           visibleItems.map((item, localIndex) => {
             const globalIndex = startIndex + localIndex;
-            const position = globalIndex + 1; // Global position!
+            const position = globalIndex + 1; // 1-based global position!
             const isDragging = draggedGlobalIndex === globalIndex || draggedIndex === localIndex;
-            const isDragOver = dragOverTarget?.index === localIndex;
 
             const isDropAbove =
-              draggedIndex !== null &&
-              dragOverTarget?.index === localIndex &&
+              draggedGlobalIndex !== null &&
+              dragOverTarget?.globalIndex === globalIndex &&
               dragOverTarget?.position === "above" &&
-              draggedIndex !== localIndex &&
-              draggedIndex !== localIndex - 1;
+              draggedGlobalIndex !== globalIndex &&
+              draggedGlobalIndex !== globalIndex - 1;
 
             const isDropBelow =
-              draggedIndex !== null &&
-              dragOverTarget?.index === localIndex &&
+              draggedGlobalIndex !== null &&
+              dragOverTarget?.globalIndex === globalIndex &&
               dragOverTarget?.position === "below" &&
-              draggedIndex !== localIndex &&
-              draggedIndex !== localIndex + 1;
+              draggedGlobalIndex !== globalIndex &&
+              draggedGlobalIndex !== globalIndex + 1;
 
             const landingPosAbove =
               draggedGlobalIndex !== null
@@ -564,12 +631,12 @@ export default function HomepageTickerManager({
                 {/* Drop indicator above */}
                 {isDropAbove && (
                   <div
-                    className="relative flex items-center justify-center py-1 bg-primary/10 select-none pointer-events-none transition-all duration-150"
+                    className="relative flex items-center justify-center py-1.5 bg-primary/10 select-none pointer-events-none transition-all duration-150"
                     role="status"
                     aria-live="polite"
                   >
                     <div className="absolute inset-x-0 h-0.5 bg-primary rounded-full" />
-                    <div className="relative z-10 px-2.5 py-0.5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                    <div className="relative z-10 px-3 py-0.5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] sm:text-xs tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
                       <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
                       <span>Drop here • Position {landingPosAbove}</span>
                     </div>
@@ -582,10 +649,10 @@ export default function HomepageTickerManager({
                   data-global-index={globalIndex}
                   onDragOver={(e) => handleDragOver(e, localIndex, globalIndex)}
                   onDrop={(e) => handleDrop(e, localIndex, globalIndex)}
-                  className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-colors ${
+                  className={`flex items-center justify-between gap-3 p-2.5 sm:p-3 rounded-xl border transition-colors ${
                     isDragging
                       ? "opacity-50 bg-primary/10 border-primary/40 ring-1 ring-primary/30"
-                      : isDragOver
+                      : dragOverTarget?.globalIndex === globalIndex
                       ? "bg-primary/10 ring-1 ring-primary/40 border-primary/50"
                       : item.is_active
                       ? "bg-secondary/20 border-border/70 hover:bg-secondary/30"
@@ -593,8 +660,8 @@ export default function HomepageTickerManager({
                   }`}
                 >
                   {/* Drag handle + order index + text input */}
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {/* Drag Handle: Native Pointer Events + HTML5 Drag */}
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    {/* Drag Handle: Native Pointer Events */}
                     <div
                       role="button"
                       tabIndex={0}
@@ -615,13 +682,13 @@ export default function HomepageTickerManager({
                         }
                       }}
                       aria-label={`Drag handle for keyword ${item.text}. Position ${position}. Use Up or Down arrow keys to reorder.`}
-                      className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
+                      className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
                       title="Drag to reorder keyword (or use Up/Down arrow keys)"
                     >
-                      <GripVertical size={15} />
+                      <GripVertical size={16} />
                     </div>
 
-                    <span className="w-5 h-5 rounded-md bg-secondary text-muted-foreground font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border border-border">
+                    <span className="w-6 h-6 rounded-md bg-secondary text-muted-foreground font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-border">
                       {position}
                     </span>
 
@@ -629,7 +696,7 @@ export default function HomepageTickerManager({
                       type="text"
                       value={item.text}
                       onChange={(e) => handleUpdateText(globalIndex, e.target.value)}
-                      className="w-full max-w-md px-2.5 py-1 text-xs rounded-lg border border-transparent hover:border-input focus:border-primary focus:bg-background focus:outline-none transition-colors uppercase font-bold text-foreground"
+                      className="w-full max-w-md px-3 py-1.5 text-xs sm:text-sm rounded-lg border border-transparent hover:border-input focus:border-primary focus:bg-background focus:outline-none transition-colors uppercase font-bold text-foreground"
                       disabled={disabled || isSaving}
                     />
                   </div>
@@ -639,7 +706,12 @@ export default function HomepageTickerManager({
                     {/* Active / Inactive Toggle */}
                     <button
                       type="button"
-                      onClick={() => handleToggleActive(globalIndex)}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isClickSuppressed()) return;
+                        handleToggleActive(globalIndex);
+                      }}
                       disabled={disabled || isSaving}
                       className={`p-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
                         item.is_active
@@ -648,40 +720,55 @@ export default function HomepageTickerManager({
                       }`}
                       title={item.is_active ? "Active on ticker (click to disable)" : "Disabled (click to activate)"}
                     >
-                      {item.is_active ? <Eye size={13} /> : <EyeOff size={13} />}
+                      {item.is_active ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
 
                     {/* Move Up */}
                     <button
                       type="button"
-                      onClick={() => handleMoveUp(globalIndex)}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isClickSuppressed()) return;
+                        handleMoveUp(globalIndex);
+                      }}
                       disabled={disabled || isSaving || globalIndex === 0}
                       className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
                       title="Move keyword up"
                     >
-                      <ArrowUp size={13} />
+                      <ArrowUp size={14} />
                     </button>
 
                     {/* Move Down */}
                     <button
                       type="button"
-                      onClick={() => handleMoveDown(globalIndex)}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isClickSuppressed()) return;
+                        handleMoveDown(globalIndex);
+                      }}
                       disabled={disabled || isSaving || globalIndex === items.length - 1}
                       className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
                       title="Move keyword down"
                     >
-                      <ArrowDown size={13} />
+                      <ArrowDown size={14} />
                     </button>
 
                     {/* Delete */}
                     <button
                       type="button"
-                      onClick={() => handleDelete(globalIndex)}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isClickSuppressed()) return;
+                        handleDelete(globalIndex);
+                      }}
                       disabled={disabled || isSaving}
                       className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
                       title="Delete keyword"
                     >
-                      <Trash2 size={13} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
@@ -689,12 +776,12 @@ export default function HomepageTickerManager({
                 {/* Drop indicator below */}
                 {isDropBelow && (
                   <div
-                    className="relative flex items-center justify-center py-1 bg-primary/10 select-none pointer-events-none transition-all duration-150"
+                    className="relative flex items-center justify-center py-1.5 bg-primary/10 select-none pointer-events-none transition-all duration-150"
                     role="status"
                     aria-live="polite"
                   >
                     <div className="absolute inset-x-0 h-0.5 bg-primary rounded-full" />
-                    <div className="relative z-10 px-2.5 py-0.5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                    <div className="relative z-10 px-3 py-0.5 rounded-full bg-primary text-primary-foreground font-bold text-[10px] sm:text-xs tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
                       <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
                       <span>Drop here • Position {landingPosBelow}</span>
                     </div>
@@ -708,8 +795,8 @@ export default function HomepageTickerManager({
 
       {/* ── Compact Pagination Bar for Ticker ── */}
       {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 rounded-xl bg-secondary/20 border border-border/60 text-xs">
-          <span className="text-[11px] text-muted-foreground font-mono">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 sm:p-3.5 rounded-xl bg-secondary/20 border border-border/60 text-xs">
+          <span className="text-xs text-muted-foreground font-mono">
             Showing {startIndex + 1}–{endIndex} of {items.length} keywords • Page {currentPage} of {totalPages}
           </span>
           <div className="flex items-center gap-1.5">
@@ -718,12 +805,12 @@ export default function HomepageTickerManager({
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage <= 1 || disabled || isSaving}
               aria-label="Previous Page"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
             >
               <ChevronLeft size={14} />
               <span>Prev</span>
             </button>
-            <span className="px-2 py-1 text-[11px] font-mono font-bold text-foreground">
+            <span className="px-2.5 py-1 text-xs font-mono font-bold text-foreground">
               {currentPage} / {totalPages}
             </span>
             <button
@@ -731,7 +818,7 @@ export default function HomepageTickerManager({
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage >= totalPages || disabled || isSaving}
               aria-label="Next Page"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
             >
               <span>Next</span>
               <ChevronRight size={14} />

@@ -283,6 +283,8 @@ class HomepageManagementController extends ApiController
         ]);
 
         try {
+            // Transaction and model updates handled by HomepageOrderingService:
+            // 'featured_sort_order' => $item['sort_order']
             $updated = $this->orderingService->syncFeaturedProducts($validated['products']);
             return $this->success($updated, 'Featured products updated successfully');
         } catch (\Throwable $e) {

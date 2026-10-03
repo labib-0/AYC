@@ -73,7 +73,6 @@ export function AdminOrderedList<T, C = any>({
   const {
     items,
     pinnedPage,
-    pinnedPageSize,
     pinnedTotalPages,
     pinnedTotalCount,
     visiblePinnedItems,
@@ -94,6 +93,7 @@ export function AdminOrderedList<T, C = any>({
     handlePointerUp,
     handlePointerCancel,
     calcTargetPosition,
+    isClickSuppressed,
     moveUp,
     moveDown,
     handleRemove,
@@ -153,14 +153,14 @@ export function AdminOrderedList<T, C = any>({
   const filteredPinnedItems = visiblePinnedItems;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       {/* ── Optional Toolbar: Search, View Filter & Page Size Selector ── */}
       {showToolbar && hasCatalog && (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 rounded-xl border border-border/60 bg-secondary/20">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 sm:p-3.5 rounded-xl border border-border/70 bg-secondary/20">
           {/* Search Field */}
           <div className="relative flex-1 max-w-md">
             <Search
-              size={14}
+              size={15}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
             />
             <input
@@ -169,7 +169,7 @@ export function AdminOrderedList<T, C = any>({
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder={searchPlaceholder}
-              className="w-full pl-9 pr-8 py-2 rounded-xl bg-card border border-border/80 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-card border border-border/80 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
             />
             {searchQuery && (
               <button
@@ -190,7 +190,7 @@ export function AdminOrderedList<T, C = any>({
                 <button
                   type="button"
                   onClick={() => setViewFilter("all")}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                     viewFilter === "all"
                       ? "bg-primary text-primary-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"
@@ -201,14 +201,14 @@ export function AdminOrderedList<T, C = any>({
                 <button
                   type="button"
                   onClick={() => setViewFilter("pinned")}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                     viewFilter === "pinned"
                       ? "bg-primary text-primary-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <span>Selected Only</span>
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-primary-foreground/20">
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-primary-foreground/20 font-bold">
                     {items.length}
                   </span>
                 </button>
@@ -217,7 +217,7 @@ export function AdminOrderedList<T, C = any>({
 
             {showPageSize && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="text-[11px] font-medium hidden sm:inline">Page Size:</span>
+                <span className="text-xs font-medium hidden sm:inline">Page Size:</span>
                 <div
                   className="inline-flex items-center rounded-lg border border-border bg-card p-0.5"
                   role="group"
@@ -229,7 +229,7 @@ export function AdminOrderedList<T, C = any>({
                       type="button"
                       onClick={() => handlePageSizeChange(size)}
                       aria-pressed={pageSize === size}
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-md text-xs font-bold font-mono transition-all cursor-pointer ${
                         pageSize === size
                           ? "bg-primary text-primary-foreground shadow-2xs"
                           : "text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -250,8 +250,8 @@ export function AdminOrderedList<T, C = any>({
         {/* Loading State */}
         {isLoadingCatalog && items.length === 0 && (
           <div className="py-12 flex flex-col items-center justify-center space-y-2 text-muted-foreground">
-            <Loader2 size={20} className="animate-spin text-primary" />
-            <span className="text-xs">Loading items...</span>
+            <Loader2 size={22} className="animate-spin text-primary" />
+            <span className="text-xs font-medium">Loading items...</span>
           </div>
         )}
 
@@ -259,9 +259,9 @@ export function AdminOrderedList<T, C = any>({
         {!isLoadingCatalog && items.length === 0 && (!hasCatalog || availableCatalog.length === 0) && (
           <div className="py-12 text-center p-6 space-y-2">
             <Sparkles size={24} className="text-muted-foreground/40 mx-auto" />
-            <p className="text-xs font-bold text-foreground">{emptyCatalogMessage}</p>
+            <p className="text-xs sm:text-sm font-bold text-foreground">{emptyCatalogMessage}</p>
             {searchQuery && (
-              <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                 No matching results found for &quot;{searchQuery}&quot;.
               </p>
             )}
@@ -274,23 +274,22 @@ export function AdminOrderedList<T, C = any>({
             {filteredPinnedItems.map((item, localIndex) => {
               const globalIndex = pinnedStartIndex + localIndex;
               const id = getItemId(item);
-              const position = globalIndex + 1; // Global position!
+              const position = globalIndex + 1; // 1-based global position
               const isDragging = draggedGlobalIndex === globalIndex || draggedIndex === localIndex;
-              const isDragOver = dragOverTarget?.index === localIndex;
 
               const isDropAbove =
-                draggedIndex !== null &&
-                dragOverTarget?.index === localIndex &&
+                draggedGlobalIndex !== null &&
+                dragOverTarget?.globalIndex === globalIndex &&
                 dragOverTarget?.position === "above" &&
-                draggedIndex !== localIndex &&
-                draggedIndex !== localIndex - 1;
+                draggedGlobalIndex !== globalIndex &&
+                draggedGlobalIndex !== globalIndex - 1;
 
               const isDropBelow =
-                draggedIndex !== null &&
-                dragOverTarget?.index === localIndex &&
+                draggedGlobalIndex !== null &&
+                dragOverTarget?.globalIndex === globalIndex &&
                 dragOverTarget?.position === "below" &&
-                draggedIndex !== localIndex &&
-                draggedIndex !== localIndex + 1;
+                draggedGlobalIndex !== globalIndex &&
+                draggedGlobalIndex !== globalIndex + 1;
 
               const landingPosAbove =
                 draggedGlobalIndex !== null
@@ -312,7 +311,7 @@ export function AdminOrderedList<T, C = any>({
                     >
                       <div className={`absolute inset-x-0 h-0.5 ${colorStyles.indicatorBg} rounded-full`} />
                       <div
-                        className={`relative z-10 px-3 py-0.5 rounded-full ${colorStyles.indicatorBg} ${colorStyles.indicatorText} font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono`}
+                        className={`relative z-10 px-3 py-0.5 rounded-full ${colorStyles.indicatorBg} ${colorStyles.indicatorText} font-bold text-[10px] sm:text-xs tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono`}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
                         <span>Drop here • Position {landingPosAbove}</span>
@@ -331,13 +330,13 @@ export function AdminOrderedList<T, C = any>({
                     className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
                       isDragging
                         ? `opacity-40 scale-[0.995] ${colorStyles.bgActive} border-dashed ring-1 ${colorStyles.ring}`
-                        : isDragOver
+                        : dragOverTarget?.globalIndex === globalIndex
                         ? `${colorStyles.bgActive} ring-1 ${colorStyles.ring}`
                         : colorStyles.bgHover
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      {/* Drag Handle: Native Pointer Events + HTML5 Drag */}
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                      {/* Drag Handle: Native Pointer Events */}
                       <div
                         role="button"
                         tabIndex={0}
@@ -350,7 +349,7 @@ export function AdminOrderedList<T, C = any>({
                         onDragEnd={handleDragEnd}
                         onKeyDown={(e) => handleKeyDown(e, localIndex, globalIndex)}
                         aria-label={`Drag handle for item position ${position}. Press Up or Down arrow keys to reorder.`}
-                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
+                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
                         title="Drag handle: Drag to reorder sequence (or use Up/Down arrow keys)"
                       >
                         <GripVertical size={16} />
@@ -358,7 +357,7 @@ export function AdminOrderedList<T, C = any>({
 
                       {/* Position Number Badge */}
                       <span
-                        className={`w-6 h-6 rounded-md ${colorStyles.badgeBg} ${colorStyles.text} font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border ${colorStyles.border}`}
+                        className={`w-6 h-6 rounded-md ${colorStyles.badgeBg} ${colorStyles.text} font-mono font-bold text-xs flex items-center justify-center shrink-0 border ${colorStyles.border}`}
                       >
                         {String(position).padStart(2, "0")}
                       </span>
@@ -370,37 +369,52 @@ export function AdminOrderedList<T, C = any>({
                     </div>
 
                     {/* Actions: Move Up, Move Down, Remove / Unpin */}
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
                       <button
                         type="button"
-                        onClick={() => moveUp(globalIndex)}
-                        disabled={globalIndex === 0}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isClickSuppressed()) return;
+                          moveUp(globalIndex);
+                        }}
+                        disabled={globalIndex === 0 || isPointerDragging}
                         title={globalIndex === 0 ? "First position" : `Move up to position ${position - 1}`}
                         aria-label={`Move item up to position ${position - 1}`}
-                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                       >
-                        <ArrowUp size={13} />
+                        <ArrowUp size={14} />
                       </button>
                       <button
                         type="button"
-                        onClick={() => moveDown(globalIndex)}
-                        disabled={globalIndex === items.length - 1}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isClickSuppressed()) return;
+                          moveDown(globalIndex);
+                        }}
+                        disabled={globalIndex === items.length - 1 || isPointerDragging}
                         title={globalIndex === items.length - 1 ? "Last position" : `Move down to position ${position + 1}`}
                         aria-label={`Move item down to position ${position + 1}`}
-                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                       >
-                        <ArrowDown size={13} />
+                        <ArrowDown size={14} />
                       </button>
 
                       {hasCatalog && (
                         <button
                           type="button"
-                          onClick={() => handleRemove(id)}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isClickSuppressed()) return;
+                            handleRemove(id);
+                          }}
                           title="Click to remove from curation"
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg ${colorStyles.badgeBg} ${colorStyles.text} hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-[10px] font-bold uppercase tracking-wider border ${colorStyles.border} hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group`}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg ${colorStyles.badgeBg} ${colorStyles.text} hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-[11px] font-bold uppercase tracking-wider border ${colorStyles.border} hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group`}
                         >
-                          <Check size={11} className="group-hover:hidden" />
-                          <Trash2 size={11} className="hidden group-hover:inline" />
+                          <Check size={12} className="group-hover:hidden" />
+                          <Trash2 size={12} className="hidden group-hover:inline" />
                           <span className="group-hover:hidden">{pinnedLabel}</span>
                           <span className="hidden group-hover:inline">{unpinLabel}</span>
                         </button>
@@ -417,7 +431,7 @@ export function AdminOrderedList<T, C = any>({
                     >
                       <div className={`absolute inset-x-0 h-0.5 ${colorStyles.indicatorBg} rounded-full`} />
                       <div
-                        className={`relative z-10 px-3 py-0.5 rounded-full ${colorStyles.indicatorBg} ${colorStyles.indicatorText} font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono`}
+                        className={`relative z-10 px-3 py-0.5 rounded-full ${colorStyles.indicatorBg} ${colorStyles.indicatorText} font-bold text-[10px] sm:text-xs tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono`}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
                         <span>Drop here • Position {landingPosBelow}</span>
@@ -431,7 +445,7 @@ export function AdminOrderedList<T, C = any>({
             {/* ── Compact Pinned Items Pagination Bar ── */}
             {pinnedTotalPages > 1 && (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-3.5 py-2.5 bg-secondary/20 border-t border-border/60 text-xs">
-                <span className="text-[11px] text-muted-foreground font-mono">
+                <span className="text-xs text-muted-foreground font-mono">
                   Showing {pinnedStartIndex + 1}–{pinnedEndIndex} of {pinnedTotalCount} selected items • Page {pinnedPage} of {pinnedTotalPages}
                 </span>
                 <div className="flex items-center gap-1.5">
@@ -440,12 +454,12 @@ export function AdminOrderedList<T, C = any>({
                     onClick={() => handlePinnedPageChange(pinnedPage - 1)}
                     disabled={pinnedPage <= 1}
                     aria-label="Previous Page of Selected Items"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
                   >
                     <ChevronLeft size={14} />
                     <span>Prev</span>
                   </button>
-                  <span className="px-2 py-1 text-[11px] font-mono font-bold text-foreground">
+                  <span className="px-2.5 py-1 text-xs font-mono font-bold text-foreground">
                     {pinnedPage} / {pinnedTotalPages}
                   </span>
                   <button
@@ -453,7 +467,7 @@ export function AdminOrderedList<T, C = any>({
                     onClick={() => handlePinnedPageChange(pinnedPage + 1)}
                     disabled={pinnedPage >= pinnedTotalPages}
                     aria-label="Next Page of Selected Items"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
                   >
                     <span>Next</span>
                     <ChevronRight size={14} />
@@ -466,7 +480,7 @@ export function AdminOrderedList<T, C = any>({
 
         {/* Helper divider when both pinned items and catalog items are shown */}
         {hasCatalog && viewFilter === "all" && filteredPinnedItems.length > 0 && availableCatalog.length > 0 && (
-          <div className="px-3 py-1.5 bg-secondary/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+          <div className="px-3 py-1.5 bg-secondary/30 text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>
               {catalogDividerLabel} (Page {currentPage} of {totalPages})
             </span>
@@ -485,7 +499,7 @@ export function AdminOrderedList<T, C = any>({
                   key={`catalog-${catId}`}
                   className="flex items-center justify-between p-2.5 sm:p-3 hover:bg-secondary/20 transition-all"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                     {/* Placeholder space to align with drag handle & position */}
                     <div className="w-6 flex items-center justify-center text-muted-foreground/30 text-xs">
                       •
@@ -500,9 +514,9 @@ export function AdminOrderedList<T, C = any>({
                   <button
                     type="button"
                     onClick={() => handleAddFromCatalog(catalogItem)}
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-wider border border-primary/20 transition-all cursor-pointer shrink-0 active:scale-95 ml-2"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-bold uppercase tracking-wider border border-primary/20 transition-all cursor-pointer shrink-0 active:scale-95 ml-2"
                   >
-                    <Plus size={11} />
+                    <Plus size={12} />
                     <span>{addLabel}</span>
                   </button>
                 </div>
@@ -515,8 +529,8 @@ export function AdminOrderedList<T, C = any>({
         {hasCatalog && viewFilter === "pinned" && filteredPinnedItems.length === 0 && (
           <div className="py-12 text-center p-6 space-y-2">
             <Sparkles size={24} className="text-muted-foreground/40 mx-auto" />
-            <p className="text-xs font-bold text-foreground">{emptyPinnedMessage}</p>
-            <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">
+            <p className="text-xs sm:text-sm font-bold text-foreground">{emptyPinnedMessage}</p>
+            <p className="text-xs text-muted-foreground max-w-xs mx-auto">
               Switch to &quot;All Items&quot; and click &quot;{addLabel}&quot; on any item to curate your list.
             </p>
           </div>
@@ -525,8 +539,8 @@ export function AdminOrderedList<T, C = any>({
 
       {/* ── Pagination Bar (Catalog Navigation) ── */}
       {hasCatalog && showPagination && viewFilter === "all" && totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2 text-xs">
-          <span className="text-[11px] text-muted-foreground font-mono">
+        <div className="flex items-center justify-between pt-1 text-xs">
+          <span className="text-xs text-muted-foreground font-mono">
             Page {currentPage} of {totalPages} ({totalCount} total catalog items)
           </span>
           <div className="flex items-center gap-1.5">
@@ -535,12 +549,12 @@ export function AdminOrderedList<T, C = any>({
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage <= 1 || isLoadingCatalog}
               aria-label="Previous Page"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
             >
               <ChevronLeft size={14} />
               <span>Prev</span>
             </button>
-            <span className="px-2 py-1 text-[11px] font-mono font-bold text-foreground">
+            <span className="px-2.5 py-1 text-xs font-mono font-bold text-foreground">
               {currentPage} / {totalPages}
             </span>
             <button
@@ -548,7 +562,7 @@ export function AdminOrderedList<T, C = any>({
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage >= totalPages || isLoadingCatalog}
               aria-label="Next Page"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
             >
               <span>Next</span>
               <ChevronRight size={14} />

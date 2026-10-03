@@ -86,6 +86,9 @@ export interface UseAdminOrderedListReturn<T, C = any> {
   handlePointerCancel: () => void;
   calcTargetPosition: (fromIdx: number, toIdx: number, pos: "above" | "below") => number;
 
+  // Click suppression after drag
+  isClickSuppressed: () => boolean;
+
   // Fast ID Lookup
   selectedItemMap: Map<string, number>;
   isPinned: (id: string | number) => boolean;
@@ -185,6 +188,29 @@ export function useAdminOrderedList<T, C = any>({
     globalIndex?: number;
     position: "above" | "below";
   } | null>(null);
+
+  // Click suppression refs
+  const justDraggedRef = useRef<boolean>(false);
+  const dragHandleRef = useRef<HTMLElement | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
+
+  // Cleanup drag listeners & body styles on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.userSelect = "";
+      if (dragHandleRef.current && pointerIdRef.current !== null) {
+        try {
+          dragHandleRef.current.releasePointerCapture?.(pointerIdRef.current);
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  const isClickSuppressed = useCallback(() => {
+    return justDraggedRef.current || isPointerDragging;
+  }, [isPointerDragging]);
 
   // Catalog search and pagination state
   const [availableCatalog, setAvailableCatalog] = useState<C[]>([]);
@@ -361,11 +387,19 @@ export function useAdminOrderedList<T, C = any>({
       if (e.button !== 0) return;
 
       const targetEl = e.currentTarget as HTMLElement;
-      targetEl.setPointerCapture?.(e.pointerId);
+      dragHandleRef.current = targetEl;
+      pointerIdRef.current = e.pointerId;
+
+      try {
+        targetEl.setPointerCapture?.(e.pointerId);
+      } catch {
+        // Safe fallback
+      }
 
       setDraggedGlobalIndex(globalIdx);
       setDraggedIndex(localIdx);
       setIsPointerDragging(true);
+      justDraggedRef.current = false;
 
       // Prevent accidental text selection during drag
       document.body.style.userSelect = "none";
@@ -379,18 +413,34 @@ export function useAdminOrderedList<T, C = any>({
 
       // Locate the hovered row under the pointer
       const targetElement = document.elementFromPoint(e.clientX, e.clientY);
-      const rowEl = targetElement?.closest("[data-ordered-row]") as HTMLElement | null;
+      const rowEl = targetElement?.closest("[data-ordered-row], [data-product-row]") as HTMLElement | null;
 
       if (!rowEl) {
-        setDragOverTarget(null);
         return;
       }
 
-      const rowLocalIdx = parseInt(rowEl.getAttribute("data-index") || "0", 10);
-      const rowGlobalIdx = parseInt(
-        rowEl.getAttribute("data-global-index") || String(pinnedStartIndex + rowLocalIdx),
-        10
-      );
+      // Read authoritative global index and local index from attributes
+      const rawGlobal = rowEl.getAttribute("data-global-index");
+      const rawLocal = rowEl.getAttribute("data-index");
+
+      let rowGlobalIdx: number;
+      let rowLocalIdx: number;
+
+      if (rawGlobal !== null) {
+        rowGlobalIdx = parseInt(rawGlobal, 10);
+        rowLocalIdx = rawLocal !== null ? parseInt(rawLocal, 10) : rowGlobalIdx - pinnedStartIndex;
+      } else if (rawLocal !== null) {
+        const parsed = parseInt(rawLocal, 10);
+        if (parsed < pinnedPageSize) {
+          rowLocalIdx = parsed;
+          rowGlobalIdx = pinnedStartIndex + parsed;
+        } else {
+          rowGlobalIdx = parsed;
+          rowLocalIdx = Math.max(0, parsed - pinnedStartIndex);
+        }
+      } else {
+        return;
+      }
 
       const rect = rowEl.getBoundingClientRect();
       const relY = e.clientY - rect.top;
@@ -402,16 +452,19 @@ export function useAdminOrderedList<T, C = any>({
         position,
       });
     },
-    [isPointerDragging, draggedGlobalIndex, pinnedStartIndex]
+    [isPointerDragging, draggedGlobalIndex, pinnedStartIndex, pinnedPageSize]
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
-      const targetEl = e.currentTarget as HTMLElement;
-      try {
-        targetEl.releasePointerCapture?.(e.pointerId);
-      } catch {
-        // Safe fallback if capture was already released
+      const targetEl = dragHandleRef.current || (e.currentTarget as HTMLElement);
+      if (pointerIdRef.current !== null) {
+        try {
+          targetEl.releasePointerCapture?.(pointerIdRef.current);
+        } catch {
+          // Safe fallback
+        }
+        pointerIdRef.current = null;
       }
 
       document.body.style.userSelect = "";
@@ -427,7 +480,7 @@ export function useAdminOrderedList<T, C = any>({
           target -= 1;
         }
 
-        if (draggedGlobalIndex !== target && target >= 0 && target <= items.length) {
+        if (draggedGlobalIndex !== target && target >= 0 && target <= items.length - 1) {
           setItems((prev) => {
             const next = [...prev];
             const [moved] = next.splice(draggedGlobalIndex, 1);
@@ -437,20 +490,38 @@ export function useAdminOrderedList<T, C = any>({
         }
       }
 
+      // Suppress accidental click right after pointerup
+      if (isPointerDragging) {
+        justDraggedRef.current = true;
+        setTimeout(() => {
+          justDraggedRef.current = false;
+        }, 150);
+      }
+
       setIsPointerDragging(false);
       setDraggedIndex(null);
       setDraggedGlobalIndex(null);
       setDragOverTarget(null);
+      dragHandleRef.current = null;
     },
     [isPointerDragging, draggedGlobalIndex, dragOverTarget, pinnedStartIndex, items.length, reindexItems]
   );
 
   const handlePointerCancel = useCallback(() => {
     document.body.style.userSelect = "";
+    if (dragHandleRef.current && pointerIdRef.current !== null) {
+      try {
+        dragHandleRef.current.releasePointerCapture?.(pointerIdRef.current);
+      } catch {
+        // Safe fallback
+      }
+      pointerIdRef.current = null;
+    }
     setIsPointerDragging(false);
     setDraggedIndex(null);
     setDraggedGlobalIndex(null);
     setDragOverTarget(null);
+    dragHandleRef.current = null;
   }, []);
 
   // ── HTML5 Drag and Drop handlers (Backward Compatibility & Accessibility) ──
@@ -463,7 +534,7 @@ export function useAdminOrderedList<T, C = any>({
       e.dataTransfer.setData("text/plain", String(gIdx));
 
       // Try setting drag image from closest row element if available
-      const rowEl = (e.currentTarget as HTMLElement).closest("[data-ordered-row]") as HTMLElement | null;
+      const rowEl = (e.currentTarget as HTMLElement).closest("[data-ordered-row], [data-product-row]") as HTMLElement | null;
       if (rowEl && e.dataTransfer.setDragImage) {
         const rowRect = rowEl.getBoundingClientRect();
         const handleRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -527,7 +598,7 @@ export function useAdminOrderedList<T, C = any>({
         target -= 1;
       }
 
-      if (fromIdx === target) {
+      if (fromIdx === target || target < 0 || target > items.length - 1) {
         setDraggedIndex(null);
         setDraggedGlobalIndex(null);
         setDragOverTarget(null);
@@ -545,7 +616,7 @@ export function useAdminOrderedList<T, C = any>({
       setDraggedGlobalIndex(null);
       setDragOverTarget(null);
     },
-    [draggedIndex, draggedGlobalIndex, dragOverTarget, pinnedStartIndex, reindexItems]
+    [draggedIndex, draggedGlobalIndex, dragOverTarget, pinnedStartIndex, items.length, reindexItems]
   );
 
   const handleDragEnd = useCallback(() => {
@@ -569,7 +640,7 @@ export function useAdminOrderedList<T, C = any>({
     [pinnedStartIndex, moveUp, moveDown]
   );
 
-  // Save changes action
+  // Save changes action - on failure, preserves local unsaved order and throws
   const handleSave = useCallback(async () => {
     if (!onSave) return;
     setIsSaving(true);
@@ -580,6 +651,7 @@ export function useAdminOrderedList<T, C = any>({
       setSavedItems(updated);
       if (onSaveSuccess) onSaveSuccess();
     } catch (err: any) {
+      // Do NOT revert items! Preserve the local unsaved order.
       if (showToast) {
         showToast(err?.message || "Failed to save ordered items. Please try again.", "error");
       }
@@ -704,6 +776,7 @@ export function useAdminOrderedList<T, C = any>({
     handlePointerUp,
     handlePointerCancel,
     calcTargetPosition,
+    isClickSuppressed,
 
     selectedItemMap,
     isPinned,

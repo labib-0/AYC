@@ -358,21 +358,9 @@ export default function AdminHomepageManagement() {
         />
 
         {/* ==================================================================== */}
-        {/* SECTION 1: HOMEPAGE LOGO                                             */}
+        {/* SECTION 1: PRIMARY PROMOTIONAL BANNER                                 */}
         {/* ==================================================================== */}
-        <section>
-          <HomepageLogoManager
-            currentLogo={siteLogo}
-            onLogoChange={(logo) => setSiteLogo(logo)}
-            showToast={showToast}
-            disabled={saving}
-          />
-        </section>
-
-        {/* ==================================================================== */}
-        {/* SECTION 2: PRIMARY PROMOTIONAL BANNER                                 */}
-        {/* ==================================================================== */}
-        <section className="space-y-5">
+        <section className="space-y-4">
           <div className="flex items-center justify-between pb-1 border-b border-border/60">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
@@ -387,7 +375,7 @@ export default function AdminHomepageManagement() {
             </span>
           </div>
 
-          {/* Live Visual Preview */}
+          {/* Prominent Live Visual Preview */}
           <HomepageBannerPreview
             title={formState.title}
             subtitle={formState.subtitle}
@@ -395,36 +383,48 @@ export default function AdminHomepageManagement() {
             buttonText={formState.buttonText}
             buttonTarget={formState.buttonTarget}
           />
+        </section>
 
-          {/* Form Controls Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column: Image Asset Uploader */}
-            <div className="space-y-6">
-              <BannerImageUploader
-                imageUrl={formState.imageUrl}
-                onImageChange={(url) => handleFieldChange("imageUrl", url)}
-                onRemoveImage={() => handleFieldChange("imageUrl", "")}
-                disabled={saving}
-              />
-            </div>
+        {/* ==================================================================== */}
+        {/* SECTION 2: MEDIA UPLOAD ROW (HOMEPAGE LOGO + BANNER IMAGE)            */}
+        {/* ==================================================================== */}
+        <section className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            {/* Card 1: Homepage Logo */}
+            <HomepageLogoManager
+              currentLogo={siteLogo}
+              onLogoChange={(logo) => setSiteLogo(logo)}
+              showToast={showToast}
+              disabled={saving}
+            />
 
-            {/* Right Column: Text Messaging, CTA & Target Destination */}
-            <div className="space-y-6">
-              <BannerContentForm
-                title={formState.title}
-                subtitle={formState.subtitle}
-                buttonText={formState.buttonText}
-                buttonTarget={formState.buttonTarget}
-                onChange={(field, val) => handleFieldChange(field, val)}
-                errors={formErrors}
-                disabled={saving}
-              />
-            </div>
+            {/* Card 2: Banner Image Uploader */}
+            <BannerImageUploader
+              imageUrl={formState.imageUrl}
+              onImageChange={(url) => handleFieldChange("imageUrl", url)}
+              onRemoveImage={() => handleFieldChange("imageUrl", "")}
+              disabled={saving}
+            />
           </div>
         </section>
 
         {/* ==================================================================== */}
-        {/* SECTION 3: HOMEPAGE KEYWORDS / TICKER                                 */}
+        {/* SECTION 3: BANNER MESSAGE + NAVIGATION                                */}
+        {/* ==================================================================== */}
+        <section>
+          <BannerContentForm
+            title={formState.title}
+            subtitle={formState.subtitle}
+            buttonText={formState.buttonText}
+            buttonTarget={formState.buttonTarget}
+            onChange={(field, val) => handleFieldChange(field, val)}
+            errors={formErrors}
+            disabled={saving}
+          />
+        </section>
+
+        {/* ==================================================================== */}
+        {/* SECTION 4: HOMEPAGE KEYWORDS / TICKER                                 */}
         {/* ==================================================================== */}
         <section>
           <HomepageTickerManager
@@ -439,7 +439,7 @@ export default function AdminHomepageManagement() {
         </section>
 
         {/* ==================================================================== */}
-        {/* SECTION 4: SHOP BY BRAND                                             */}
+        {/* SECTION 5: SHOP BY BRAND                                             */}
         {/* ==================================================================== */}
         <section>
           <ShopByBrandManager
@@ -450,9 +450,9 @@ export default function AdminHomepageManagement() {
         </section>
 
         {/* ==================================================================== */}
-        {/* SECTION 5: HOT SALE VISIBILITY                                       */}
+        {/* SECTION 6: HOT SALE CATEGORIES & VISIBILITY                          */}
         {/* ==================================================================== */}
-        <section>
+        <section className="space-y-6">
           <div className="bg-card rounded-2xl border border-border/80 p-4 sm:p-6 shadow-2xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -515,12 +515,7 @@ export default function AdminHomepageManagement() {
               </div>
             </div>
           </div>
-        </section>
 
-        {/* ==================================================================== */}
-        {/* SECTION 6: HOT SALE CATEGORIES                                       */}
-        {/* ==================================================================== */}
-        <section>
           <HotSaleCategoryManager
             initialCategories={hotSaleCategories}
             onSaveSuccess={loadHomepageData}
@@ -529,7 +524,7 @@ export default function AdminHomepageManagement() {
         </section>
 
         {/* ==================================================================== */}
-        {/* SECTION 6: FEATURED PRODUCTS                                         */}
+        {/* SECTION 7: FEATURED PRODUCTS                                         */}
         {/* ==================================================================== */}
         <section>
           <FeaturedProductManager

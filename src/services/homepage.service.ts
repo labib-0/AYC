@@ -44,6 +44,7 @@ export interface HomepageCategoryRecord {
   description?: string | null;
   image_url?: string | null;
   accent_color?: string | null;
+  parent_id?: number | string | null;
   sort_order?: number;
   is_active?: boolean;
   is_featured_on_landing?: boolean;
@@ -111,12 +112,19 @@ export interface ProductSearchResultItem {
   name: string;
   slug: string;
   sku: string;
-  wholesale_price: string | number;
-  moq: number;
-  status: string;
+  wholesale_price?: string | number;
+  price?: string | number;
+  formatted_price?: string;
+  moq?: number;
+  status?: string;
+  is_active?: boolean;
+  primary_image_url?: string;
+  brand_name?: string;
+  category_name?: string;
   brand?: { id: number; name: string };
   categories?: { id: number; name: string }[];
   images?: { id: number; image_url: string; is_primary?: boolean }[];
+  [key: string]: any;
 }
 
 export interface PaginatedProductSearchResults {

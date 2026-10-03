@@ -10,18 +10,18 @@ import {
   X, 
   Check, 
   Flame, 
-  Layers,
-  Save,
-  GripVertical,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  Sparkles
+  Layers, 
+  Save, 
+  GripVertical, 
+  ChevronLeft, 
+  ChevronRight, 
+  Loader2, 
+  Sparkles 
 } from "lucide-react";
 import { 
   homepageService, 
-  HomepageHotSaleCategoryModel,
-  HomepageCategoryRecord
+  HomepageHotSaleCategoryModel, 
+  HomepageCategoryRecord 
 } from "@/services/homepage.service";
 import { getCategoryImageUrl } from "@/lib/category-images";
 import { useAdminOrderedList } from "@/components/admin/ordered-list";
@@ -110,7 +110,7 @@ export default function HotSaleCategoryManager({
         is_active: c.is_active !== false,
       }));
       const updated = await homepageService.syncHotSaleCategories(payload);
-      showToast("Hot Sale categories saved successfully. Active on storefront carousel.", "success");
+      showToast("Hot Sale Categories sequence saved successfully. Active on storefront.", "success");
       return updated;
     },
     onSaveSuccess,
@@ -135,12 +135,14 @@ export default function HotSaleCategoryManager({
       sort_order: currentItems.length,
       is_active: true,
       category: {
-        id: Number(cat.id),
+        id: cat.id,
         name: cat.name,
         slug: cat.slug,
-        image_url: cat.image_url,
+        image_url: cat.image_url || getCategoryImageUrl(cat.slug),
         description: cat.description,
         is_active: cat.is_active !== false,
+        parent_id: cat.parent_id,
+        sort_order: cat.sort_order,
       },
     }),
   });
@@ -162,13 +164,10 @@ export default function HotSaleCategoryManager({
     handlePageSizeChange: setOrderedListPageSize,
     viewFilter,
     setViewFilter,
-    moveUp,
-    moveDown,
     handleMoveUp,
     handleMoveDown,
     handleRemove,
     pinnedPage,
-    pinnedPageSize,
     pinnedTotalPages,
     pinnedTotalCount,
     pinnedStartIndex,
@@ -176,7 +175,6 @@ export default function HotSaleCategoryManager({
     handlePinnedPageChange,
     draggedIndex,
     draggedGlobalIndex,
-    isPointerDragging,
     dragOverTarget,
     handleDragStart,
     handleDragOver,
@@ -188,6 +186,7 @@ export default function HotSaleCategoryManager({
     handlePointerUp,
     handlePointerCancel,
     calcTargetPosition,
+    isClickSuppressed,
     handleAddFromCatalog,
   } = orderedList;
 
@@ -196,7 +195,7 @@ export default function HotSaleCategoryManager({
     setOrderedListPageSize(newSize);
   };
 
-  // Curated Pinned categories
+  // Curated Pinned items
   const filteredPinnedCategories = useMemo(() => {
     if (!searchQuery.trim()) return categories;
     const q = searchQuery.toLowerCase().trim();
@@ -212,18 +211,18 @@ export default function HotSaleCategoryManager({
     return filteredPinnedCategories.slice(pinnedStartIndex, pinnedEndIndex);
   }, [filteredPinnedCategories, pinnedStartIndex, pinnedEndIndex]);
 
-  // Available catalog categories guaranteed unpinned
+  // Available catalog items guaranteed unpinned
   const unpinnedCatalogCategories = useMemo(() => {
     return availableCategories.filter((c) => !selectedCategoryMap.has(String(c.id)));
   }, [availableCategories, selectedCategoryMap]);
 
   return (
-    <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xs">
+    <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xs w-full">
       {/* ── Section Header Bar ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/70">
         <div>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center">
               <Flame size={16} />
             </div>
             <h2 className="text-base sm:text-lg font-display font-bold uppercase tracking-tight text-foreground">
@@ -236,7 +235,7 @@ export default function HotSaleCategoryManager({
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Manage curated categories for the Hot Sale carousel in one unified list. Select, pin, and drag items to define their exact display sequence.
+            Pin and sequence category tiles displayed within the storefront Hot Sale section. Define which categories appear first when buyers explore discounted wholesale lines.
           </p>
         </div>
 
@@ -245,12 +244,12 @@ export default function HotSaleCategoryManager({
             type="button"
             onClick={handleSave}
             disabled={saving || !hasUnsavedChanges}
-            id="btn-save-hot-sale-categories"
+            id="btn-save-hot-sale"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-40 transition-all cursor-pointer shadow-2xs"
           >
             {saving ? (
               <>
-                <div className="w-3.5 h-3.5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                <Loader2 size={13} className="animate-spin" />
                 <span>Saving...</span>
               </>
             ) : (
@@ -264,17 +263,17 @@ export default function HotSaleCategoryManager({
       </div>
 
       {/* ── Toolbar: Search, View Tabs & Page Size Selector ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 rounded-xl border border-border/60 bg-secondary/20">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 sm:p-3.5 rounded-xl border border-border/60 bg-secondary/20">
         {/* Search Field */}
         <div className="relative flex-1 max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
             type="text"
             id="category-search-input"
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search categories by name or slug..."
-            className="w-full pl-9 pr-8 py-2 rounded-xl bg-card border border-border/80 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+            className="w-full pl-9 pr-8 py-2 rounded-xl bg-card border border-border/80 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
           />
           {searchQuery && (
             <button
@@ -295,7 +294,7 @@ export default function HotSaleCategoryManager({
             <button
               type="button"
               onClick={() => setViewFilter("all")}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 viewFilter === "all"
                   ? "bg-primary text-primary-foreground shadow-2xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -306,14 +305,14 @@ export default function HotSaleCategoryManager({
             <button
               type="button"
               onClick={() => setViewFilter("pinned")}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 viewFilter === "pinned"
                   ? "bg-primary text-primary-foreground shadow-2xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <span>Selected Only</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-primary-foreground/20">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-primary-foreground/20 font-bold">
                 {categories.length}
               </span>
             </button>
@@ -321,7 +320,7 @@ export default function HotSaleCategoryManager({
 
           {/* Page Size Selector */}
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="text-[11px] font-medium hidden sm:inline">Page Size:</span>
+            <span className="text-xs font-medium hidden sm:inline">Page Size:</span>
             <div className="inline-flex items-center rounded-lg border border-border bg-card p-0.5" role="group" aria-label="Category Page Size">
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <button
@@ -329,7 +328,7 @@ export default function HotSaleCategoryManager({
                   type="button"
                   onClick={() => handlePageSizeChange(size)}
                   aria-pressed={pageSize === size}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-bold font-mono transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold font-mono transition-all cursor-pointer ${
                     pageSize === size
                       ? "bg-primary text-primary-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary"
@@ -348,18 +347,18 @@ export default function HotSaleCategoryManager({
         {/* Loading State */}
         {isLoadingCatalog && categories.length === 0 && (
           <div className="py-12 flex flex-col items-center justify-center space-y-2 text-muted-foreground">
-            <Loader2 size={20} className="animate-spin text-primary" />
-            <span className="text-xs">Loading categories...</span>
+            <Loader2 size={22} className="animate-spin text-orange-500" />
+            <span className="text-xs font-medium">Loading categories...</span>
           </div>
         )}
 
-        {/* Empty State when no categories match at all */}
+        {/* Empty State when no categories match */}
         {!isLoadingCatalog && categories.length === 0 && availableCategories.length === 0 && (
           <div className="py-12 text-center p-6 space-y-2">
             <Layers size={24} className="text-muted-foreground/40 mx-auto" />
-            <p className="text-xs font-bold text-foreground">No categories found</p>
-            <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
-              {searchQuery ? `No matching categories for "${searchQuery}".` : "No active categories found in the catalog."}
+            <p className="text-xs sm:text-sm font-bold text-foreground">No categories found</p>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              {searchQuery ? `No matching categories for "${searchQuery}".` : "No active categories found in the taxonomy."}
             </p>
           </div>
         )}
@@ -368,33 +367,37 @@ export default function HotSaleCategoryManager({
         {filteredPinnedCategories.length > 0 && (
           <div className="bg-orange-500/5 divide-y divide-border/40">
             {visiblePinnedCategories.map((item, localIndex) => {
-              const cat = item.category;
               const globalIndex = pinnedStartIndex + localIndex;
-              const position = globalIndex + 1;
-              const isDragging = (draggedGlobalIndex !== null ? draggedGlobalIndex === globalIndex : draggedIndex === globalIndex) || (isPointerDragging && draggedGlobalIndex === globalIndex);
-              const isDragOver = dragOverTarget?.index === globalIndex;
+              const cat = item.category;
+              const position = globalIndex + 1; // 1-based global position
+              const isDragging = draggedGlobalIndex === globalIndex || draggedIndex === localIndex;
 
               const isDropAbove =
-                draggedIndex !== null &&
-                dragOverTarget?.index === globalIndex &&
+                draggedGlobalIndex !== null &&
+                dragOverTarget?.globalIndex === globalIndex &&
                 dragOverTarget?.position === "above" &&
-                draggedIndex !== globalIndex &&
-                draggedIndex !== globalIndex - 1;
+                draggedGlobalIndex !== globalIndex &&
+                draggedGlobalIndex !== globalIndex - 1;
 
               const isDropBelow =
-                draggedIndex !== null &&
-                dragOverTarget?.index === globalIndex &&
+                draggedGlobalIndex !== null &&
+                dragOverTarget?.globalIndex === globalIndex &&
                 dragOverTarget?.position === "below" &&
-                draggedIndex !== globalIndex &&
-                draggedIndex !== globalIndex + 1;
+                draggedGlobalIndex !== globalIndex &&
+                draggedGlobalIndex !== globalIndex + 1;
 
               const landingPosAbove =
-                draggedIndex !== null ? calcTargetPosition(draggedIndex, globalIndex, "above") : position;
+                draggedGlobalIndex !== null
+                  ? calcTargetPosition(draggedGlobalIndex, globalIndex, "above")
+                  : position;
               const landingPosBelow =
-                draggedIndex !== null ? calcTargetPosition(draggedIndex, globalIndex, "below") : position;
+                draggedGlobalIndex !== null
+                  ? calcTargetPosition(draggedGlobalIndex, globalIndex, "below")
+                  : position;
 
               return (
-                <React.Fragment key={`pinned-fragment-${item.category_id}`}>
+                <React.Fragment key={`pinned-cat-${item.category_id}`}>
+                  {/* Drop Indicator Above */}
                   {isDropAbove && (
                     <div
                       className="relative flex items-center justify-center py-1.5 bg-orange-500/10 select-none pointer-events-none transition-all duration-150"
@@ -402,8 +405,8 @@ export default function HotSaleCategoryManager({
                       aria-live="polite"
                     >
                       <div className="absolute inset-x-0 h-0.5 bg-orange-500 rounded-full" />
-                      <div className="relative z-10 px-3 py-0.5 rounded-full bg-orange-500 text-white font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white opacity-70 animate-pulse" />
+                      <div className="relative z-10 px-3 py-0.5 rounded-full bg-orange-500 text-white font-bold text-[10px] sm:text-xs tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
                         <span>Drop here • Position {landingPosAbove}</span>
                       </div>
                     </div>
@@ -412,18 +415,19 @@ export default function HotSaleCategoryManager({
                   <div
                     data-ordered-row
                     data-category-id={item.category_id}
-                    data-index={globalIndex}
-                    onDragOver={(e) => handleDragOver(e, globalIndex)}
-                    onDrop={(e) => handleDrop(e, globalIndex)}
+                    data-index={localIndex}
+                    data-global-index={globalIndex}
+                    onDragOver={(e) => handleDragOver(e, localIndex, globalIndex)}
+                    onDrop={(e) => handleDrop(e, localIndex, globalIndex)}
                     className={`flex items-center justify-between p-2.5 sm:p-3 transition-all ${
                       isDragging
                         ? "opacity-50 scale-[0.99] bg-orange-500/10 ring-2 ring-orange-500"
-                        : isDragOver
+                        : dragOverTarget?.globalIndex === globalIndex
                         ? "bg-orange-500/15 ring-2 ring-orange-500/40"
                         : "hover:bg-orange-500/10"
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                       {/* Drag Handle with native pointer events */}
                       <div
                         role="button"
@@ -433,79 +437,99 @@ export default function HotSaleCategoryManager({
                         onPointerMove={handlePointerMove}
                         onPointerUp={handlePointerUp}
                         onPointerCancel={handlePointerCancel}
-                        onDragStart={(e) => handleDragStart(e, globalIndex)}
+                        onDragStart={(e) => handleDragStart(e, localIndex, globalIndex)}
                         onDragEnd={handleDragEnd}
-                        onKeyDown={(e) => handleKeyDown(e, globalIndex)}
+                        onKeyDown={(e) => handleKeyDown(e, localIndex, globalIndex)}
                         aria-label={`Drag handle for ${cat?.name || "category"}. Current position ${position}. Press Up or Down arrow keys to reorder.`}
-                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground/70 hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
-                        title="Drag handle: Drag to reorder sequence (native pointer events or use Up/Down arrow keys)"
+                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 select-none touch-none"
+                        title="Drag handle: Drag to reorder sequence (or use Up/Down arrow keys)"
                       >
-                        <GripVertical size={15} />
+                        <GripVertical size={16} />
                       </div>
 
                       {/* Sequential Position Number */}
-                      <span className="w-5 h-5 rounded-md bg-orange-500/20 text-orange-600 dark:text-orange-400 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 border border-orange-500/30">
+                      <span className="w-6 h-6 rounded-md bg-orange-500/20 text-orange-600 dark:text-orange-400 font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-orange-500/30">
                         {position}
                       </span>
 
-                      {/* Category Thumbnail & Name */}
+                      {/* Category Thumbnail */}
                       <CategoryItemThumbnail
                         src={cat?.image_url}
                         alt={cat?.name || "Category"}
                         fallbackSlug={cat?.slug}
                         size="sm"
                       />
+
+                      {/* Category Name & Slug */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 truncate">
-                          <p className="text-xs font-bold text-foreground truncate font-sans">
+                          <p className="text-xs sm:text-sm font-bold text-foreground truncate font-sans">
                             {cat?.name || `Category #${item.category_id}`}
                           </p>
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-orange-500/15 text-orange-600 dark:text-orange-400">
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold bg-orange-500/15 text-orange-600 dark:text-orange-400">
                             Pos {position}
                           </span>
                         </div>
-                        <p className="text-[10px] text-muted-foreground font-mono truncate">
+                        <p className="text-[11px] text-muted-foreground font-mono truncate">
                           {cat?.slug || `id: ${item.category_id}`}
                         </p>
                       </div>
                     </div>
 
                     {/* Actions: Reorder arrows + In-place Selected / Remove Toggle */}
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
                       <button
                         type="button"
-                        onClick={() => moveUp(globalIndex)}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isClickSuppressed()) return;
+                          handleMoveUp(globalIndex);
+                        }}
                         disabled={globalIndex === 0}
                         title="Move Up"
-                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                        aria-label={`Move ${cat?.name || "category"} up`}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                       >
-                        <ArrowUp size={13} />
+                        <ArrowUp size={14} />
                       </button>
                       <button
                         type="button"
-                        onClick={() => moveDown(globalIndex)}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isClickSuppressed()) return;
+                          handleMoveDown(globalIndex);
+                        }}
                         disabled={globalIndex === categories.length - 1}
                         title="Move Down"
-                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                        aria-label={`Move ${cat?.name || "category"} down`}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border/60 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                       >
-                        <ArrowDown size={13} />
+                        <ArrowDown size={14} />
                       </button>
 
-                      {/* PINNED ✓ button */}
+                      {/* In-place toggle button: PINNED ✓ -> REMOVE */}
                       <button
                         type="button"
-                        onClick={() => handleRemove(item.category_id)}
-                        title="Click to remove from Hot Sale carousel"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-[10px] font-bold uppercase tracking-wider border border-orange-500/30 hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isClickSuppressed()) return;
+                          handleRemove(item.category_id);
+                        }}
+                        title="Click to remove from Hot Sale categories"
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-orange-500/20 text-orange-600 dark:text-orange-400 hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 text-xs font-bold uppercase tracking-wider border border-orange-500/30 hover:border-red-500/30 transition-all cursor-pointer shrink-0 ml-1 group"
                       >
-                        <Check size={11} className="group-hover:hidden" />
-                        <Trash2 size={11} className="hidden group-hover:inline" />
+                        <Check size={12} className="group-hover:hidden" />
+                        <Trash2 size={12} className="hidden group-hover:inline" />
                         <span className="group-hover:hidden">PINNED ✓</span>
                         <span className="hidden group-hover:inline">REMOVE</span>
                       </button>
                     </div>
                   </div>
 
+                  {/* Drop Indicator Below */}
                   {isDropBelow && (
                     <div
                       className="relative flex items-center justify-center py-1.5 bg-orange-500/10 select-none pointer-events-none transition-all duration-150"
@@ -513,8 +537,8 @@ export default function HotSaleCategoryManager({
                       aria-live="polite"
                     >
                       <div className="absolute inset-x-0 h-0.5 bg-orange-500 rounded-full" />
-                      <div className="relative z-10 px-3 py-0.5 rounded-full bg-orange-500 text-white font-bold text-[10px] tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white opacity-70 animate-pulse" />
+                      <div className="relative z-10 px-3 py-0.5 rounded-full bg-orange-500 text-white font-bold text-[10px] sm:text-xs tracking-wide uppercase shadow-xs flex items-center gap-1.5 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse" />
                         <span>Drop here • Position {landingPosBelow}</span>
                       </div>
                     </div>
@@ -523,32 +547,32 @@ export default function HotSaleCategoryManager({
               );
             })}
 
-            {/* Pinned Categories Pagination */}
+            {/* ── Compact Pinned Items Pagination Bar ── */}
             {pinnedTotalPages > 1 && (
-              <div className="flex items-center justify-between px-3 py-2 bg-orange-500/10 border-t border-border/50 text-xs">
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  Showing {pinnedStartIndex + 1}–{Math.min(pinnedEndIndex, filteredPinnedCategories.length)} of {filteredPinnedCategories.length} selected categories • Page {pinnedPage} of {pinnedTotalPages}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-3.5 py-2.5 bg-secondary/20 border-t border-border/60 text-xs">
+                <span className="text-xs text-muted-foreground font-mono">
+                  Showing {pinnedStartIndex + 1}–{pinnedEndIndex} of {pinnedTotalCount} selected categories • Page {pinnedPage} of {pinnedTotalPages}
                 </span>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => handlePinnedPageChange(pinnedPage - 1)}
                     disabled={pinnedPage <= 1}
-                    aria-label="Previous Selected Categories Page"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                    aria-label="Previous Page of Selected Categories"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
                   >
                     <ChevronLeft size={14} />
                     <span>Prev</span>
                   </button>
-                  <span className="px-2 py-0.5 text-[11px] font-mono font-bold text-foreground">
+                  <span className="px-2.5 py-1 text-xs font-mono font-bold text-foreground">
                     {pinnedPage} / {pinnedTotalPages}
                   </span>
                   <button
                     type="button"
                     onClick={() => handlePinnedPageChange(pinnedPage + 1)}
                     disabled={pinnedPage >= pinnedTotalPages}
-                    aria-label="Next Selected Categories Page"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                    aria-label="Next Page of Selected Categories"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
                   >
                     <span>Next</span>
                     <ChevronRight size={14} />
@@ -559,51 +583,51 @@ export default function HotSaleCategoryManager({
           </div>
         )}
 
-        {/* Helper divider when both pinned items and catalog items are shown */}
+        {/* Divider indicating remaining unselected categories in catalog */}
         {viewFilter === "all" && filteredPinnedCategories.length > 0 && unpinnedCatalogCategories.length > 0 && (
-          <div className="px-3 py-1.5 bg-secondary/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>Available Catalog Categories (Page {currentPage} of {totalPages})</span>
-            <span>Click + ADD to pin to carousel</span>
+          <div className="px-3.5 py-2 bg-secondary/40 text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+            <span>Available Categories (Page {currentPage} of {totalPages})</span>
+            <span>Click + ADD to pin to Hot Sale</span>
           </div>
         )}
 
-        {/* 2. UNPINNED CATALOG ITEMS */}
+        {/* 2. UNPINNED CATALOG CATEGORIES */}
         {viewFilter === "all" && (
           <div className="divide-y divide-border/40">
-            {unpinnedCatalogCategories.map((cat) => {
+            {unpinnedCatalogCategories.map((category) => {
               return (
                 <div
-                  key={`catalog-${cat.id}`}
+                  key={`catalog-${category.id}`}
                   className="flex items-center justify-between p-2.5 sm:p-3 hover:bg-secondary/20 transition-all"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-5 flex items-center justify-center text-muted-foreground/30 text-xs">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div className="w-6 flex items-center justify-center text-muted-foreground/30 text-xs">
                       •
                     </div>
 
                     <CategoryItemThumbnail
-                      src={cat.image_url}
-                      alt={cat.name}
-                      fallbackSlug={cat.slug}
+                      src={category.image_url}
+                      alt={category.name}
+                      fallbackSlug={category.slug}
                       size="sm"
                     />
+
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-foreground truncate font-sans">
-                        {cat.name}
+                      <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                        {category.name}
                       </p>
-                      <p className="text-[10px] text-muted-foreground font-mono truncate">
-                        {cat.slug}
+                      <p className="text-[11px] text-muted-foreground font-mono truncate">
+                        {category.slug}
                       </p>
                     </div>
                   </div>
 
-                  {/* + ADD Action */}
                   <button
                     type="button"
-                    onClick={() => handleAddFromCatalog(cat)}
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-wider border border-primary/20 transition-all cursor-pointer shrink-0 active:scale-95"
+                    onClick={() => handleAddFromCatalog(category)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500 hover:text-white text-xs font-bold uppercase tracking-wider border border-orange-500/20 transition-all cursor-pointer shrink-0 active:scale-95 ml-2"
                   >
-                    <Plus size={11} />
+                    <Plus size={12} />
                     <span>+ ADD</span>
                   </button>
                 </div>
@@ -616,9 +640,9 @@ export default function HotSaleCategoryManager({
         {viewFilter === "pinned" && filteredPinnedCategories.length === 0 && (
           <div className="py-12 text-center p-6 space-y-2">
             <Sparkles size={24} className="text-muted-foreground/40 mx-auto" />
-            <p className="text-xs font-bold text-foreground">No categories pinned yet</p>
-            <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">
-              Switch to &quot;All Categories&quot; and click &quot;+ ADD&quot; on any category to curate the Hot Sale carousel.
+            <p className="text-xs sm:text-sm font-bold text-foreground">No categories pinned to Hot Sale yet</p>
+            <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+              Switch to &quot;All Categories&quot; and click &quot;+ ADD&quot; on any category to curate your Hot Sale sequence.
             </p>
           </div>
         )}
@@ -626,9 +650,9 @@ export default function HotSaleCategoryManager({
 
       {/* ── Pagination Bar (Catalog Navigation) ── */}
       {viewFilter === "all" && totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2 text-xs">
-          <span className="text-[11px] text-muted-foreground font-mono">
-            Page {currentPage} of {totalPages} ({totalCount} total catalog categories)
+        <div className="flex items-center justify-between pt-1 text-xs">
+          <span className="text-xs text-muted-foreground font-mono">
+            Page {currentPage} of {totalPages} ({totalCount} total categories in taxonomy)
           </span>
           <div className="flex items-center gap-1.5">
             <button
@@ -636,12 +660,12 @@ export default function HotSaleCategoryManager({
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage <= 1 || isLoadingCatalog}
               aria-label="Previous Page"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
             >
               <ChevronLeft size={14} />
               <span>Prev</span>
             </button>
-            <span className="px-2 py-1 text-[11px] font-mono font-bold text-foreground">
+            <span className="px-2.5 py-1 text-xs font-mono font-bold text-foreground">
               {currentPage} / {totalPages}
             </span>
             <button
@@ -649,7 +673,7 @@ export default function HotSaleCategoryManager({
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage >= totalPages || isLoadingCatalog}
               aria-label="Next Page"
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
             >
               <span>Next</span>
               <ChevronRight size={14} />
