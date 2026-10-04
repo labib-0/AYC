@@ -88,11 +88,26 @@
 - [x] **Priority 7 (Package Assortment)**: Re-tested after deploying commit `1de5b13` to VPS; passed.
 - [x] **Priority 4 (Minimal Draft)**: Re-tested after deploying payload serializer fix to VPS; passed.
 - [x] **Priority 11 (WhatsApp Button)**: Targeted selector re-tested in Chromium; passed.
+- [x] **Priority 13 — Compact Inventory UI & Working Adjust Stock (Add + Edit Product)**: Tested `/ayc/products/new` and `/ayc/products/prd0001/edit` in headless Chromium (1440×900 desktop viewport). Verified:
+  1. Add Product compact 3-column inputs: Initial Stock Units | MOQ | Initial Warehouse dropdown.
+  2. Add Product compact summary directly underneath: On Hand Stock: —, Available Stock: —, Complete MOQs Available: —. Zero Adjust Stock button or warehouse tables.
+  3. Edit Product compact header with active working `Adjust Stock` action (`#admin-product-adjust-stock-btn`).
+  4. Edit Product single-row horizontal summary bar: `On Hand: 1,000 PCS   Available: 1,000 PCS   Complete MOQs: 20`.
+  5. Edit Product dedicated `PRODUCT MOQ (MINIMUM ORDER)` field with mouse wheel guard and numeric step validation.
+  6. Compact Warehouse Distribution table displaying registered warehouse rows (`Uttara Warehouse`, `WH-UTTARA-01`, On Hand, Available, Action: `[Adjust]`).
+  7. Working Adjust Product Stock Modal with target warehouse selection, Add/Subtract/Set Exact mode toggles, quantity delta input, live previous/new stock preview (`1,000` -> `1,100`), reason quick-selection chips, notes, and Confirm Adjustment button.
+  (Screenshots: `admin_inventory_add_product.png`, `admin_inventory_edit_product.png`, `admin_inventory_adjust_stock_modal.png`)
+
+## Retest Results
+- [x] **Priority 7 (Package Assortment)**: Re-tested after deploying commit `1de5b13` to VPS; passed.
+- [x] **Priority 4 (Minimal Draft)**: Re-tested after deploying payload serializer fix to VPS; passed.
+- [x] **Priority 11 (WhatsApp Button)**: Targeted selector re-tested in Chromium; passed.
 - [x] **Priority 12 (Cart UI Redesign)**: Automated browser QA executed on localhost:3000; all 7 test stages passed.
+- [x] **Priority 13 (Compact Inventory UI)**: Automated browser QA executed with Puppeteer; all 4 test stages passed.
 
 ## Final Summary
-- Total tests attempted: 12
-- Passed: 12
+- Total tests attempted: 13
+- Passed: 13
 - Failed: 0
 - Blocked: 0
 - Issues found: 3 (all 3 resolved)
@@ -102,7 +117,7 @@
 - Low: 0
 
 ## Remaining Problems
-None. All 12 targeted priority checks are passing.
+None. All 13 targeted priority checks are passing.
 
 ## Recommended Next Fixes
 1. None required for the tested priorities.
