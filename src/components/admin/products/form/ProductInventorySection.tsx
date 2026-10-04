@@ -571,115 +571,120 @@ export default function ProductInventorySection({
             </div>
           </div>
 
-          {/* Editable MOQ Input (Completely independent of stock quantity) */}
-          <div className="max-w-xs">
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Product MOQ (Minimum Order) <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={moq !== undefined && moq > 0 ? moq : ""}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
-                  onMoqChange(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
-                }}
-                placeholder=""
-                className={`w-full h-10 px-3.5 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
-                  errors.moq
-                    ? "border-red-500 focus:ring-red-500/30"
-                    : "border-border focus:ring-ring/40"
-                }`}
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                PCS
-              </span>
+          {/* Product Inventory Configuration Fields */}
+          <div className="space-y-4">
+            {/* Editable MOQ Input (Completely independent of stock quantity) */}
+            <div className="max-w-xs">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+                Product MOQ (Minimum Order) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={moq !== undefined && moq > 0 ? moq : ""}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                    onMoqChange(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
+                  }}
+                  placeholder=""
+                  className={`w-full h-10 px-3.5 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
+                    errors.moq
+                      ? "border-red-500 focus:ring-red-500/30"
+                      : "border-border focus:ring-ring/40"
+                  }`}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  PCS
+                </span>
+              </div>
+              {errors.moq && (
+                <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                  <AlertCircle size={12} />
+                  {errors.moq}
+                </p>
+              )}
             </div>
-            {errors.moq && (
-              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                <AlertCircle size={12} />
-                {errors.moq}
-              </p>
-            )}
           </div>
 
-          {/* Warehouse Stock Distribution Table */}
-          <div className="border border-border/80 rounded-xl overflow-hidden bg-card">
-            <div className="px-4 py-2.5 bg-secondary/40 border-b border-border/60 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
-                <span>Warehouse Stock Distribution</span>
-              </span>
-              <span className="text-[10px] font-medium text-muted-foreground">
-                {localBreakdown && localBreakdown.length > 0
-                  ? `${localBreakdown.length} Location${localBreakdown.length !== 1 ? "s" : ""}`
-                  : "0 Registered Locations"}
-              </span>
-            </div>
+          {/* Warehouse Stock Distribution (Final Subsection at Bottom of Inventory Card) */}
+          <div className="pt-4 border-t border-border/60">
+            <div className="border border-border/80 rounded-xl overflow-hidden bg-card">
+              <div className="px-4 py-2.5 bg-secondary/40 border-b border-border/60 flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                  <span>Warehouse Stock Distribution</span>
+                </span>
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  {localBreakdown && localBreakdown.length > 0
+                    ? `${localBreakdown.length} Location${localBreakdown.length !== 1 ? "s" : ""}`
+                    : "0 Registered Locations"}
+                </span>
+              </div>
 
-            {localBreakdown && localBreakdown.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-secondary/20 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40">
-                    <tr>
-                      <th className="px-4 py-2.5">Warehouse</th>
-                      <th className="px-4 py-2.5">Code</th>
-                      <th className="px-4 py-2.5 text-right">On Hand</th>
-                      <th className="px-4 py-2.5 text-right font-bold text-foreground">Available</th>
-                      <th className="px-4 py-2.5 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {localBreakdown.map((wh) => (
-                      <tr key={wh.warehouse_id} className="hover:bg-secondary/20 transition-colors">
-                        <td className="px-4 py-2.5 font-semibold text-foreground">
-                          {wh.warehouse_name}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-[11px] text-muted-foreground">
-                          {wh.warehouse_code}
-                        </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
-                          {wh.on_hand_quantity.toLocaleString()} pcs
-                        </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums font-bold text-foreground">
-                          {wh.available_quantity.toLocaleString()} pcs
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenAdjustModal(wh)}
-                            disabled={!canAdjust}
-                            title={!canAdjust ? "Requires 'inventory.adjust' permission" : `Adjust stock at ${wh.warehouse_name}`}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-[11px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer"
-                          >
-                            <SlidersHorizontal size={11} />
-                            <span>Adjust</span>
-                          </button>
-                        </td>
+              {localBreakdown && localBreakdown.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-secondary/20 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40">
+                      <tr>
+                        <th className="px-4 py-2.5">Warehouse</th>
+                        <th className="px-4 py-2.5">Code</th>
+                        <th className="px-4 py-2.5 text-right">On Hand</th>
+                        <th className="px-4 py-2.5 text-right font-bold text-foreground">Available</th>
+                        <th className="px-4 py-2.5 text-right">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="p-5 text-center space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  No warehouse inventory records currently registered for this product.
-                </p>
-                {canAdjust && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenAdjustModal()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-xs"
-                  >
-                    <Plus size={13} />
-                    <span>Initialize Warehouse Stock</span>
-                  </button>
-                )}
-              </div>
-            )}
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {localBreakdown.map((wh) => (
+                        <tr key={wh.warehouse_id} className="hover:bg-secondary/20 transition-colors">
+                          <td className="px-4 py-2.5 font-semibold text-foreground">
+                            {wh.warehouse_name}
+                          </td>
+                          <td className="px-4 py-2.5 font-mono text-[11px] text-muted-foreground">
+                            {wh.warehouse_code}
+                          </td>
+                          <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
+                            {wh.on_hand_quantity.toLocaleString()} pcs
+                          </td>
+                          <td className="px-4 py-2.5 text-right tabular-nums font-bold text-foreground">
+                            {wh.available_quantity.toLocaleString()} pcs
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAdjustModal(wh)}
+                              disabled={!canAdjust}
+                              title={!canAdjust ? "Requires 'inventory.adjust' permission" : `Adjust stock at ${wh.warehouse_name}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-[11px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                              <SlidersHorizontal size={11} />
+                              <span>Adjust</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-5 text-center space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    No warehouse inventory records currently registered for this product.
+                  </p>
+                  {canAdjust && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAdjustModal()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-xs"
+                    >
+                      <Plus size={13} />
+                      <span>Initialize Warehouse Stock</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
