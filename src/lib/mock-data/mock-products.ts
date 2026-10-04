@@ -228,6 +228,18 @@ export function normalizeProductData(p: any): B2BProductInput {
     packageAssortmentMessage: typeof (p.packageAssortmentMessage ?? p.package_assortment_message) === "string" && (p.packageAssortmentMessage ?? p.package_assortment_message).trim() !== "" ? (p.packageAssortmentMessage ?? p.package_assortment_message).trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
     isPackageAssortment: true,
     fullStockQuantity: stock,
+    warehouseBreakdown: (p.warehouseBreakdown || (p as any).warehouse_breakdown) || [
+      {
+        inventory_id: 1,
+        warehouse_id: 1,
+        warehouse_name: "Uttara Warehouse",
+        warehouse_code: "WH-UTTARA-01",
+        warehouse_city: "Dhaka",
+        on_hand_quantity: stock,
+        available_quantity: stock,
+        reserved_quantity: 0,
+      },
+    ],
   };
 }
 

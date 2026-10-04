@@ -364,18 +364,16 @@ export default function ProductInventorySection({
   };
 
   return (
-    <div className="bg-card border border-border/80 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
+    <div className="bg-card border border-border/70 rounded-xl p-3 sm:p-4 space-y-2.5 shadow-2xs">
       {/* Header */}
-      <div className="border-b border-border/60 pb-2.5 flex items-center justify-between flex-wrap gap-2">
+      <div className="border-b border-border/50 pb-2 flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-            <WarehouseIcon size={14} />
+          <div className="w-6 h-6 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <WarehouseIcon size={13} />
           </div>
-          <div>
-            <h2 className="text-xs sm:text-sm font-bold text-foreground tracking-tight uppercase">
-              INVENTORY
-            </h2>
-          </div>
+          <h2 className="text-xs font-bold text-foreground tracking-wider uppercase">
+            INVENTORY
+          </h2>
         </div>
 
         {/* Existing Product: Visible Working Adjust Stock Action */}
@@ -387,16 +385,16 @@ export default function ProductInventorySection({
               onClick={() => handleOpenAdjustModal()}
               disabled={!canAdjust}
               title={!canAdjust ? "Requires 'inventory.adjust' permission" : "Record audited inventory stock adjustment"}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all shadow-2xs cursor-pointer"
             >
               {!canAdjust ? (
                 <>
-                  <Lock size={12} className="text-amber-200" />
+                  <Lock size={11} className="text-amber-200" />
                   <span>Adjust Stock (Locked)</span>
                 </>
               ) : (
                 <>
-                  <SlidersHorizontal size={12} />
+                  <SlidersHorizontal size={11} />
                   <span>Adjust Stock</span>
                 </>
               )}
@@ -407,15 +405,15 @@ export default function ProductInventorySection({
 
       {/* Success Notification Banner */}
       {adjustmentSuccessMsg && (
-        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-3 animate-in fade-in">
+        <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-2 animate-in fade-in">
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={15} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <span>{adjustmentSuccessMsg}</span>
+            <CheckCircle2 size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-[11px] font-medium">{adjustmentSuccessMsg}</span>
           </div>
           <button
             type="button"
             onClick={() => setAdjustmentSuccessMsg(null)}
-            className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer"
+            className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer"
           >
             Dismiss
           </button>
@@ -426,11 +424,11 @@ export default function ProductInventorySection({
         /* ========================================================================= */
         /* ADD PRODUCT: Compact 3-Column Inputs + Compact Calculated Summary          */
         /* ========================================================================= */
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        <div className="space-y-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-3">
             {/* 1. Initial Stock Units */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                 INITIAL STOCK UNITS <span className="text-red-500">*</span>
                 <span className="sr-only">Initial Stock Units</span>
               </label>
@@ -446,7 +444,7 @@ export default function ProductInventorySection({
                     onStockChange(val !== undefined && !isNaN(val) ? Math.max(0, val) : undefined);
                   }}
                   placeholder="0"
-                  className={`w-full h-9 sm:h-10 px-3 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
+                  className={`w-full h-8.5 sm:h-9 px-3 pr-11 rounded-lg border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-1 transition-colors ${
                     errors.stock || errors.initial_stock
                       ? "border-red-500 focus:ring-red-500/30"
                       : "border-border focus:ring-ring/40"
@@ -458,7 +456,7 @@ export default function ProductInventorySection({
               </div>
               {(errors.stock || errors.initial_stock) && (
                 <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                  <AlertCircle size={12} />
+                  <AlertCircle size={11} />
                   {errors.stock || errors.initial_stock}
                 </p>
               )}
@@ -466,7 +464,7 @@ export default function ProductInventorySection({
 
             {/* 2. MOQ */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                 MOQ <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -481,7 +479,7 @@ export default function ProductInventorySection({
                     onMoqChange(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
                   }}
                   placeholder="0"
-                  className={`w-full h-9 sm:h-10 px-3 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
+                  className={`w-full h-8.5 sm:h-9 px-3 pr-11 rounded-lg border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-1 transition-colors ${
                     errors.moq
                       ? "border-red-500 focus:ring-red-500/30"
                       : "border-border focus:ring-ring/40"
@@ -493,7 +491,7 @@ export default function ProductInventorySection({
               </div>
               {errors.moq && (
                 <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                  <AlertCircle size={12} />
+                  <AlertCircle size={11} />
                   {errors.moq}
                 </p>
               )}
@@ -501,7 +499,7 @@ export default function ProductInventorySection({
 
             {/* 3. Initial Warehouse */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                 INITIAL WAREHOUSE <span className="text-red-500">*</span>
                 <span className="sr-only">Initial Warehouse</span>
               </label>
@@ -510,7 +508,7 @@ export default function ProductInventorySection({
                   value={warehouseId ? String(warehouseId) : ""}
                   onChange={(e) => onWarehouseChange(e.target.value)}
                   disabled={loadingWarehouses}
-                  className={`w-full h-9 sm:h-10 px-3 pr-8 rounded-xl border bg-card text-xs font-medium text-foreground focus:outline-none focus:ring-2 transition-colors appearance-none cursor-pointer ${
+                  className={`w-full h-8.5 sm:h-9 px-3 pr-8 rounded-lg border bg-card text-xs font-medium text-foreground focus:outline-none focus:ring-1 transition-colors appearance-none cursor-pointer ${
                     errors.warehouse_id
                       ? "border-red-500 focus:ring-red-500/30"
                       : "border-border focus:ring-ring/40"
@@ -531,7 +529,7 @@ export default function ProductInventorySection({
               </div>
               {errors.warehouse_id && (
                 <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                  <AlertCircle size={12} />
+                  <AlertCircle size={11} />
                   {errors.warehouse_id}
                 </p>
               )}
@@ -539,14 +537,14 @@ export default function ProductInventorySection({
           </div>
 
           {warehouseFetchError && (
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
-              <AlertCircle size={13} className="shrink-0" />
+            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
+              <AlertCircle size={12} className="shrink-0" />
               <span>{warehouseFetchError} Please choose an active warehouse before publishing.</span>
             </div>
           )}
 
           {/* Compact Calculated Summary */}
-          <div className="bg-secondary/40 border border-border/70 rounded-xl px-3.5 py-2 flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs">
+          <div className="bg-secondary/30 border border-border/60 rounded-lg px-3 py-1.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
             <div className="flex items-center gap-1.5">
               <span className="text-muted-foreground font-medium">On Hand Stock:</span>
               <span className="font-bold text-foreground tabular-nums">
@@ -571,34 +569,41 @@ export default function ProductInventorySection({
         /* ========================================================================= */
         /* EDIT PRODUCT: Compact Summary Bar, Product MOQ, Warehouse Distribution    */
         /* ========================================================================= */
-        <div className="space-y-3.5">
+        <div className="space-y-2.5">
           {/* Authoritative Horizontal Stock Metrics Summary Bar */}
-          <div className="bg-secondary/40 border border-border/70 rounded-xl px-3.5 py-2 flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs">
+          <div className="bg-secondary/30 border border-border/60 rounded-lg px-3 py-1.5 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
             <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground font-medium">On Hand:</span>
+              <span className="text-muted-foreground font-medium">
+                On Hand<span className="hidden sm:inline"> Stock</span>:
+              </span>
               <span className="font-bold text-foreground tabular-nums">
                 {editOnHand.toLocaleString()} PCS
               </span>
               <span className="sr-only">On Hand Stock</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground font-medium">Available:</span>
+              <span className="text-muted-foreground font-medium">
+                Available<span className="hidden sm:inline"> Stock</span>:
+              </span>
               <span className="font-bold text-foreground tabular-nums">
                 {editAvailable.toLocaleString()} PCS
               </span>
               <span className="sr-only">Available Stock</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground font-medium">Complete MOQs:</span>
+              <span className="text-muted-foreground font-medium">
+                Complete MOQs<span className="hidden sm:inline"> Available</span>:
+              </span>
               <span className="font-black text-primary tabular-nums">
                 {editCompleteMoqs.toLocaleString()}
               </span>
+              <span className="sr-only">Complete MOQs Available</span>
             </div>
           </div>
 
           {/* Product MOQ (Minimum Order) */}
-          <div className="max-w-xs">
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
+          <div className="max-w-xs space-y-1">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               PRODUCT MOQ (MINIMUM ORDER) <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -613,7 +618,7 @@ export default function ProductInventorySection({
                   onMoqChange(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
                 }}
                 placeholder="1"
-                className={`w-full h-9 sm:h-10 px-3 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
+                className={`w-full h-8 sm:h-8.5 px-3 pr-11 rounded-lg border bg-card text-xs font-semibold text-foreground tabular-nums focus:outline-none focus:ring-1 transition-colors ${
                   errors.moq
                     ? "border-red-500 focus:ring-red-500/30"
                     : "border-border focus:ring-ring/40"
@@ -624,15 +629,15 @@ export default function ProductInventorySection({
               </span>
             </div>
             {errors.moq && (
-              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                <AlertCircle size={12} />
+              <p className="text-[11px] text-red-500 flex items-center gap-1 font-medium">
+                <AlertCircle size={11} />
                 {errors.moq}
               </p>
             )}
           </div>
 
           {/* Warehouse Stock Distribution (Compact Table) */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
                 Warehouse Distribution
@@ -645,7 +650,7 @@ export default function ProductInventorySection({
               </span>
             </div>
 
-            <div className="border border-border/80 rounded-xl overflow-hidden bg-card">
+            <div className="border border-border/70 rounded-lg overflow-hidden bg-card">
               {localBreakdown && localBreakdown.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
@@ -661,27 +666,27 @@ export default function ProductInventorySection({
                     <tbody className="divide-y divide-border/40">
                       {localBreakdown.map((wh) => (
                         <tr key={wh.warehouse_id} className="hover:bg-secondary/20 transition-colors">
-                          <td className="px-3 py-2 font-medium text-foreground">
+                          <td className="px-3 py-1.5 font-medium text-foreground">
                             {wh.warehouse_name}
                           </td>
-                          <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
+                          <td className="px-3 py-1.5 font-mono text-[11px] text-muted-foreground">
                             {wh.warehouse_code}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                          <td className="px-3 py-1.5 text-right tabular-nums text-foreground">
                             {wh.on_hand_quantity.toLocaleString()} PCS
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums font-bold text-foreground">
+                          <td className="px-3 py-1.5 text-right tabular-nums font-bold text-foreground">
                             {wh.available_quantity.toLocaleString()} PCS
                           </td>
-                          <td className="px-3 py-2 text-right">
+                          <td className="px-3 py-1.5 text-right">
                             <button
                               type="button"
                               onClick={() => handleOpenAdjustModal(wh)}
                               disabled={!canAdjust}
                               title={!canAdjust ? "Requires 'inventory.adjust' permission" : `Adjust stock at ${wh.warehouse_name}`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-[11px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border bg-card hover:bg-secondary text-foreground text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
                             >
-                              <SlidersHorizontal size={10} />
+                              <SlidersHorizontal size={9} />
                               <span>Adjust</span>
                             </button>
                           </td>
@@ -691,7 +696,7 @@ export default function ProductInventorySection({
                   </table>
                 </div>
               ) : (
-                <div className="p-3.5 text-center space-y-1.5">
+                <div className="p-3 text-center space-y-1">
                   <p className="text-xs text-muted-foreground">
                     No warehouse inventory records currently registered for this product.
                   </p>
@@ -699,9 +704,9 @@ export default function ProductInventorySection({
                     <button
                       type="button"
                       onClick={() => handleOpenAdjustModal()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-xs"
                     >
-                      <Plus size={12} />
+                      <Plus size={11} />
                       <span>Initialize Warehouse Stock</span>
                     </button>
                   )}
@@ -722,17 +727,17 @@ export default function ProductInventorySection({
           aria-modal="true"
           aria-labelledby="product-edit-stock-adjust-title"
         >
-          <div className="bg-card border border-border/80 rounded-3xl p-5 sm:p-7 max-w-lg w-full shadow-2xl space-y-5 my-8 animate-in zoom-in-95">
+          <div className="bg-card border border-border/80 rounded-2xl p-4 sm:p-5 max-w-md w-full shadow-2xl space-y-3.5 my-6 animate-in zoom-in-95">
             {/* Modal Header */}
-            <div className="flex items-start justify-between pb-3 border-b border-border/60">
+            <div className="flex items-start justify-between pb-2 border-b border-border/60">
               <div>
                 <h3
                   id="product-edit-stock-adjust-title"
-                  className="font-display font-bold text-lg uppercase tracking-tight text-foreground"
+                  className="font-display font-bold text-base uppercase tracking-tight text-foreground"
                 >
                   Adjust Product Stock
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-[11px] text-muted-foreground mt-0.5">
                   Record auditable inventory adjustment using authoritative warehouse services.
                 </p>
               </div>
@@ -740,28 +745,28 @@ export default function ProductInventorySection({
                 type="button"
                 onClick={() => setIsAdjustModalOpen(false)}
                 disabled={isSubmittingAdjustment}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-secondary transition-colors cursor-pointer"
+                className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-secondary transition-colors cursor-pointer"
                 aria-label="Close modal"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             {adjustmentError && (
-              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
-                <AlertCircle size={15} className="shrink-0" />
+              <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+                <AlertCircle size={14} className="shrink-0" />
                 <span>{adjustmentError}</span>
               </div>
             )}
 
-            <form onSubmit={handleConfirmAdjustment} noValidate className="space-y-4 text-xs">
+            <form onSubmit={handleConfirmAdjustment} noValidate className="space-y-3 text-xs">
               {/* Product Info Summary */}
-              <div className="p-3.5 rounded-2xl border border-border/70 bg-secondary/20 flex items-center justify-between gap-3">
+              <div className="p-2.5 rounded-xl border border-border/70 bg-secondary/20 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <h4 className="font-bold text-foreground text-xs truncate">
                     {productName || "—"}
                   </h4>
-                  <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                  <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
                     SKU: {productSku || "—"}
                   </div>
                 </div>
@@ -769,15 +774,15 @@ export default function ProductInventorySection({
                   <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider">
                     Current Available
                   </span>
-                  <span className="text-xl font-display font-bold text-foreground tabular-nums">
+                  <span className="text-lg font-display font-bold text-foreground tabular-nums">
                     {modalCurrentStock.toLocaleString()} PCS
                   </span>
                 </div>
               </div>
 
               {/* Warehouse Target Selector */}
-              <div className="space-y-1.5">
-                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+              <div className="space-y-1">
+                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[10px]">
                   Target Warehouse *
                 </label>
                 <select
@@ -796,7 +801,7 @@ export default function ProductInventorySection({
                     }
                   }}
                   disabled={isSubmittingAdjustment || warehouses.length === 0}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-secondary/30 text-foreground focus:ring-1 focus:ring-primary outline-none"
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-secondary/20 text-foreground focus:ring-1 focus:ring-primary outline-none"
                 >
                   {warehouses.length === 0 ? (
                     <option value="">No active warehouses configured</option>
@@ -809,14 +814,14 @@ export default function ProductInventorySection({
                   )}
                 </select>
                 {!hasValidWarehouse && (
-                  <p className="text-[11px] text-amber-500 font-medium">Please select a target warehouse.</p>
+                  <p className="text-[10px] text-amber-500 font-medium">Please select a target warehouse.</p>
                 )}
               </div>
 
               {/* Variant Target Selector (if product has variants) */}
               {variants.length > 0 && (
-                <div className="space-y-1.5">
-                  <label className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+                <div className="space-y-1">
+                  <label className="font-bold uppercase tracking-wider text-muted-foreground text-[10px]">
                     Target Variant (Optional)
                   </label>
                   <select
@@ -833,7 +838,7 @@ export default function ProductInventorySection({
                       }
                     }}
                     disabled={isSubmittingAdjustment}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-secondary/30 text-foreground focus:ring-1 focus:ring-primary outline-none"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-secondary/20 text-foreground focus:ring-1 focus:ring-primary outline-none"
                   >
                     <option value="">All / Product Level Inventory</option>
                     {variants.map((v) => (
@@ -846,18 +851,18 @@ export default function ProductInventorySection({
               )}
 
               {/* Adjustment Mode Selector */}
-              <div className="space-y-1.5">
-                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+              <div className="space-y-1">
+                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[10px]">
                   Adjustment Type *
                 </label>
-                <div className="grid grid-cols-2 gap-2 p-1 bg-secondary/40 rounded-xl border border-border/60">
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-secondary/30 rounded-lg border border-border/60">
                   <button
                     type="button"
                     onClick={() => setAdjustMode("delta")}
                     disabled={isSubmittingAdjustment}
-                    className={`py-1.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    className={`py-1 px-2.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                       adjustMode === "delta"
-                        ? "bg-foreground text-background shadow-xs"
+                        ? "bg-foreground text-background shadow-2xs"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -870,9 +875,9 @@ export default function ProductInventorySection({
                       setTargetQuantity(String(modalCurrentStock));
                     }}
                     disabled={isSubmittingAdjustment}
-                    className={`py-1.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    className={`py-1 px-2.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                       adjustMode === "set"
-                        ? "bg-foreground text-background shadow-xs"
+                        ? "bg-foreground text-background shadow-2xs"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -883,19 +888,19 @@ export default function ProductInventorySection({
 
               {/* Quantity Input */}
               {adjustMode === "delta" ? (
-                <div className="space-y-1.5">
-                  <label className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+                <div className="space-y-1">
+                  <label className="font-bold uppercase tracking-wider text-muted-foreground text-[10px]">
                     Stock Quantity Delta *
                   </label>
                   <div className="flex items-center gap-2">
-                    <div className="flex p-1 bg-secondary/40 rounded-xl border border-border/60">
+                    <div className="flex p-0.5 bg-secondary/30 rounded-lg border border-border/60">
                       <button
                         type="button"
                         onClick={() => setDeltaSign("+")}
                         disabled={isSubmittingAdjustment}
-                        className={`px-3 py-2 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1.5 rounded-md font-bold text-xs transition-colors cursor-pointer ${
                           deltaSign === "+"
-                            ? "bg-emerald-500 text-white shadow-xs"
+                            ? "bg-emerald-500 text-white shadow-2xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
                         title="Add units"
@@ -906,9 +911,9 @@ export default function ProductInventorySection({
                         type="button"
                         onClick={() => setDeltaSign("-")}
                         disabled={isSubmittingAdjustment}
-                        className={`px-3 py-2 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1.5 rounded-md font-bold text-xs transition-colors cursor-pointer ${
                           deltaSign === "-"
-                            ? "bg-rose-500 text-white shadow-xs"
+                            ? "bg-rose-500 text-white shadow-2xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
                         title="Deduct units"
@@ -924,16 +929,16 @@ export default function ProductInventorySection({
                       onWheel={handleNumberInputWheel}
                       onChange={(e) => setDeltaQuantity(e.target.value)}
                       disabled={isSubmittingAdjustment}
-                      className="flex-1 px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-foreground font-display font-bold text-base focus:ring-1 focus:ring-primary outline-none"
+                      className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-secondary/20 text-foreground font-display font-bold text-sm focus:ring-1 focus:ring-primary outline-none"
                     />
                   </div>
                   {!isDeltaValid && (
-                    <p className="text-[11px] text-amber-500 font-medium">Please enter a valid quantity of 1 or more.</p>
+                    <p className="text-[10px] text-amber-500 font-medium">Please enter a valid quantity of 1 or more.</p>
                   )}
                 </div>
               ) : (
-                <div className="space-y-1.5">
-                  <label className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+                <div className="space-y-1">
+                  <label className="font-bold uppercase tracking-wider text-muted-foreground text-[10px]">
                     New Target Stock Quantity *
                   </label>
                   <input
@@ -943,57 +948,57 @@ export default function ProductInventorySection({
                     onWheel={handleNumberInputWheel}
                     onChange={(e) => setTargetQuantity(e.target.value)}
                     disabled={isSubmittingAdjustment}
-                    className="w-full px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-foreground font-display font-bold text-base focus:ring-1 focus:ring-primary outline-none"
+                    className="w-full px-3 py-1.5 rounded-lg border border-border bg-secondary/20 text-foreground font-display font-bold text-sm focus:ring-1 focus:ring-primary outline-none"
                   />
                   {!isTargetValid && (
-                    <p className="text-[11px] text-amber-500 font-medium">Please enter a non-negative quantity (0 or more).</p>
+                    <p className="text-[10px] text-amber-500 font-medium">Please enter a non-negative quantity (0 or more).</p>
                   )}
                 </div>
               )}
 
               {/* Live Preview Box */}
               <div
-                className={`p-3 rounded-xl border flex items-center justify-between text-xs transition-colors ${
+                className={`p-2.5 rounded-lg border flex items-center justify-between text-xs transition-colors ${
                   isInvalidNegative
                     ? "bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400"
-                    : "bg-secondary/40 border-border/70 text-foreground"
+                    : "bg-secondary/30 border-border/70 text-foreground"
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground font-medium">Previous:</span>
                   <span className="font-bold tabular-nums">{modalCurrentStock.toLocaleString()}</span>
-                  <ArrowRight size={13} className="text-muted-foreground" />
+                  <ArrowRight size={12} className="text-muted-foreground" />
                   <span className="text-muted-foreground font-medium">New Stock:</span>
-                  <span className="font-display font-bold text-sm tabular-nums">
+                  <span className="font-display font-bold text-xs sm:text-sm tabular-nums">
                     {projectedQuantity.toLocaleString()}
                   </span>
                 </div>
 
                 {isInvalidNegative && (
-                  <span className="font-bold uppercase tracking-wider text-[10px]">
+                  <span className="font-bold uppercase tracking-wider text-[9px]">
                     Invalid Negative Result
                   </span>
                 )}
               </div>
 
               {/* Reason Selection */}
-              <div className="space-y-1.5">
-                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+              <div className="space-y-1">
+                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[10px]">
                   Reason for Adjustment *
                 </label>
 
                 {/* Quick Chips */}
-                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                <div className="flex flex-wrap gap-1 mb-1">
                   {COMMON_REASONS.map((r) => (
                     <button
                       key={r}
                       type="button"
                       onClick={() => setReason(r)}
                       disabled={isSubmittingAdjustment}
-                      className={`text-[10px] px-2.5 py-1 rounded-full font-semibold border transition-all cursor-pointer ${
+                      className={`text-[9px] px-2 py-0.5 rounded-md font-semibold border transition-all cursor-pointer ${
                         reason === r
                           ? "bg-foreground text-background border-foreground shadow-2xs"
-                          : "bg-secondary/30 border-border/70 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          : "bg-secondary/20 border-border/70 text-muted-foreground hover:text-foreground hover:bg-secondary"
                       }`}
                     >
                       {r}
@@ -1007,16 +1012,16 @@ export default function ProductInventorySection({
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   disabled={isSubmittingAdjustment}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-border bg-secondary/30 text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none"
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-secondary/20 text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none"
                 />
                 {!hasValidReason && (
-                  <p className="text-[11px] text-amber-500 font-medium">Reason for adjustment is required.</p>
+                  <p className="text-[10px] text-amber-500 font-medium">Reason for adjustment is required.</p>
                 )}
               </div>
 
               {/* Optional Notes */}
-              <div className="space-y-1.5">
-                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+              <div className="space-y-1">
+                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[10px]">
                   Notes (Optional)
                 </label>
                 <textarea
@@ -1025,17 +1030,17 @@ export default function ProductInventorySection({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   disabled={isSubmittingAdjustment}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-border bg-secondary/30 text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none resize-none"
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-secondary/20 text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none resize-none"
                 />
               </div>
 
               {/* Footer Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/60">
+              <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-border/60">
                 <button
                   type="button"
                   onClick={() => setIsAdjustModalOpen(false)}
                   disabled={isSubmittingAdjustment}
-                  className="px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1043,21 +1048,21 @@ export default function ProductInventorySection({
                   type="submit"
                   disabled={isSubmittingAdjustment || !canAdjust || !isAdjustmentFormValid}
                   title={!canAdjust ? "Requires 'inventory.adjust' permission" : !isAdjustmentFormValid ? "Please complete all required fields" : undefined}
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all shadow-2xs cursor-pointer"
                 >
                   {isSubmittingAdjustment ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
                       <span>Saving...</span>
                     </>
                   ) : !canAdjust ? (
                     <>
-                      <Lock size={14} className="text-amber-300" />
+                      <Lock size={12} className="text-amber-300" />
                       <span>Adjustment Unauthorized</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 size={14} />
+                      <CheckCircle2 size={12} />
                       <span>Confirm Adjustment</span>
                     </>
                   )}

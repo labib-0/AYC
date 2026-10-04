@@ -1,4 +1,6 @@
 import { apiClient } from "@/services/api-client";
+import { isFrontendOnly } from "@/lib/frontend-mode";
+import { mockStore } from "@/lib/mock-data/mock-store";
 
 // ============================================================================
 // Unified Low-Stock Threshold & Status Logic (Single Source of Truth)
@@ -288,6 +290,41 @@ export class AdminInventoryService {
   }
 
   async adjustInventory(payload: InventoryAdjustmentPayload): Promise<InventoryAdjustmentResult | null> {
+    if (isFrontendOnly()) {
+      const inv = mockStore.adjustInventory(payload);
+      const resultingQty = inv?.quantity ?? (payload.new_quantity !== undefined ? payload.new_quantity : ((payload.adjustment_amount ?? 0) >= 0 ? 1000 + (payload.adjustment_amount ?? 0) : Math.max(0, 1000 + (payload.adjustment_amount ?? 0))));
+      return {
+        inventory: inv || ({
+          id: payload.inventory_id || 1,
+          quantity: resultingQty,
+          warehouse: mockStore.getWarehouses()[0],
+        } as any),
+        quantity: resultingQty,
+        adjustment: {
+          id: Date.now(),
+          previous_quantity: 1000,
+          adjustment_amount: payload.adjustment_amount ?? 0,
+          resulting_quantity: resultingQty,
+          reason: payload.reason,
+          notes: payload.notes,
+          created_at: new Date().toISOString(),
+        },
+        product_stock: resultingQty,
+        on_hand_stock: resultingQty,
+        available_stock: resultingQty,
+        available_moqs: Math.floor(resultingQty / 50),
+        warehouse_breakdown: [
+          {
+            inventory_id: payload.inventory_id || 1,
+            warehouse_id: payload.warehouse_id || 1,
+            warehouse_name: "Uttara Warehouse",
+            warehouse_code: "WH-UTTARA-01",
+            on_hand_quantity: resultingQty,
+            available_quantity: resultingQty,
+          },
+        ],
+      };
+    }
     try {
       const res = await apiClient.post<any>("/admin/inventory/adjust", payload);
       const data = res?.data || res;
@@ -313,6 +350,9 @@ export class AdminInventoryService {
   }
 
   async getWarehouses(): Promise<Warehouse[]> {
+    if (isFrontendOnly()) {
+      return mockStore.getWarehouses();
+    }
     try {
       const res = await apiClient.get<any>("/admin/warehouses");
       const list = Array.isArray(res) ? res : res?.data;
@@ -320,7 +360,7 @@ export class AdminInventoryService {
       return [];
     } catch (err) {
       console.warn("Failed to fetch warehouses from API:", err);
-      return [];
+      return mockStore.getWarehouses();
     }
   }
 
