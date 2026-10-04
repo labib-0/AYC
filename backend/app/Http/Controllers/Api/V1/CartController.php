@@ -258,7 +258,7 @@ class CartController extends ApiController
         $cartItem = null;
         if ($itemId && is_numeric($itemId)) {
             $cartItem = $cart->items()->where('id', (int) $itemId)->first();
-        } elseif ($request->filled('item_id')) {
+        } elseif ($request->filled('item_id') && is_numeric($request->input('item_id'))) {
             $cartItem = $cart->items()->where('id', (int) $request->input('item_id'))->first();
         } elseif ($request->filled('product_id') && $request->filled('size')) {
             $cartItem = $cart->items()

@@ -312,7 +312,7 @@ export class CartService {
     if (quantity > 0 && targetItem && !isFrontendOnly()) {
       try {
         await apiClient.put("/cart/items", {
-          item_id: targetItem.id,
+          item_id: /^\d+$/.test(String(targetItem.id)) ? targetItem.id : undefined,
           product_id: targetItem.product_id,
           product_variant_id: targetItem.product_variant_id,
           size: targetItem.size,
