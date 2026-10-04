@@ -17,7 +17,7 @@ export default function CheckoutPage() {
         sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
       }
       router.replace(
-        `/login?returnUrl=${encodeURIComponent("/products")}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`
+        `/login?returnUrl=${encodeURIComponent("/cart?openCheckout=true")}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`
       );
       return;
     }
@@ -25,7 +25,7 @@ export default function CheckoutPage() {
     if (typeof window !== "undefined") {
       sessionStorage.setItem("ayaan_open_checkout", "true");
     }
-    router.replace("/products");
+    router.replace("/cart?openCheckout=true");
   }, [user, loading, router]);
 
   return (

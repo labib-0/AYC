@@ -65,7 +65,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           sessionStorage.setItem("ayaan_open_checkout", "true");
           sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
           const currentPath = window.location.pathname + window.location.search;
-          const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") ? "/products" : currentPath;
+          const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") ? "/cart?openCheckout=true" : (currentPath === "/cart" ? "/cart?openCheckout=true" : currentPath);
           router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
         }
         return;
@@ -562,7 +562,9 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
         }
         onClose();
-        router.push(`/login?returnUrl=${encodeURIComponent("/products")}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
+        const currentPath = typeof window !== "undefined" ? (window.location.pathname + window.location.search) : "/cart?openCheckout=true";
+        const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") ? "/cart?openCheckout=true" : (currentPath === "/cart" ? "/cart?openCheckout=true" : currentPath);
+        router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
         return;
       }
       const orderUserId = String(user.id);
@@ -674,7 +676,9 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
         }
         onClose();
-        router.push(`/login?returnUrl=${encodeURIComponent("/products")}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
+        const currentPath = typeof window !== "undefined" ? (window.location.pathname + window.location.search) : "/cart?openCheckout=true";
+        const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") ? "/cart?openCheckout=true" : (currentPath === "/cart" ? "/cart?openCheckout=true" : currentPath);
+        router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
         return;
       }
       const errData = err?.data?.data || err?.data;

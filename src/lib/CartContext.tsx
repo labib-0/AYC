@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Product } from "@/types";
 import { cartService, CartItemData, CartStockViolation } from "@/services/cart.service";
 import { useAuth } from "./AuthContext";
@@ -52,8 +52,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stockViolations, setStockViolations] = useState<CartStockViolation[]>([]);
+  const mergedUserIdRef = useRef<string | null>(null);
 
-  const applyCartData = (data: { items: CartItemData[]; total_items: number; subtotal: number }) => {
+  const applyCartData = useCallback((data: { items: CartItemData[]; total_items: number; subtotal: number }) => {
     const formatted: CartItem[] = data.items.map((i) => ({
       id: i.id,
       product: i.product,
@@ -68,13 +69,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(formatted);
     setTotalItems(data.total_items);
     setSubtotal(data.subtotal);
-  };
+  }, []);
 
   const revalidateCart = useCallback(async (): Promise<CartStockViolation[]> => {
     try {
       const res = await cartService.revalidateCart();
-      setStockViolations(res.violations);
-      return res.violations;
+      const newViolations = res.violations || [];
+      setStockViolations((prev) => {
+        if (prev.length === 0 && newViolations.length === 0) return prev;
+        return newViolations;
+      });
+      return newViolations;
     } catch {
       return [];
     }
@@ -86,15 +91,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const data = await cartService.getCart();
       applyCartData(data);
-      revalidateCart();
+      await revalidateCart();
     } catch (err: any) {
       setError(err?.message || "Failed to load cart");
     } finally {
       setLoading(false);
     }
-  }, [revalidateCart]);
+  }, [applyCartData, revalidateCart]);
 
-  // Initial load
+  // Initial load once on mount
   useEffect(() => {
     refreshCart();
   }, [refreshCart]);
@@ -106,9 +111,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isCartOpen, revalidateCart]);
 
-  // When user logs in, merge guest cart
+  // When user logs in, merge guest cart once per user
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
+      const currentId = String(user.id);
+      if (mergedUserIdRef.current === currentId) return;
+      mergedUserIdRef.current = currentId;
+
       cartService.mergeGuestCart().then((merged) => {
         if (merged) {
           applyCartData(merged);
@@ -116,8 +125,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           refreshCart();
         }
       });
+    } else {
+      mergedUserIdRef.current = null;
     }
-  }, [user, refreshCart]);
+  }, [user?.id, refreshCart]);
 
   const addToCart = async (
     product: Product,

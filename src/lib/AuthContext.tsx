@@ -31,12 +31,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const currentUser = await authService.getCurrentUser();
       if (currentUser) {
-        setUser({
-          ...currentUser,
-          id: String(currentUser.id),
+        const nextId = String(currentUser.id);
+        setUser((prev) => {
+          if (
+            prev &&
+            prev.id === nextId &&
+            prev.email === currentUser.email &&
+            prev.role === currentUser.role &&
+            prev.name === currentUser.name
+          ) {
+            return prev;
+          }
+          return {
+            ...currentUser,
+            id: nextId,
+          };
         });
       } else {
-        setUser(null);
+        setUser((prev) => (prev === null ? prev : null));
       }
     } catch (err: any) {
       if (err?.status === 401) {

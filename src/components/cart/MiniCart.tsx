@@ -162,7 +162,7 @@ export default function MiniCart() {
         sessionStorage.setItem("ayaan_open_checkout", "true");
         sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
         const currentPath = window.location.pathname + window.location.search;
-        const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") ? "/products" : currentPath;
+        const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") ? "/cart?openCheckout=true" : (currentPath === "/cart" ? "/cart?openCheckout=true" : currentPath);
         router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
       }
       return;

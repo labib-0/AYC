@@ -65,9 +65,11 @@ export default function LoginPage() {
     return "/dashboard";
   };
 
+  const isRedirectingRef = React.useRef(false);
   // If already logged in, redirect to target or role-based dashboard
   React.useEffect(() => {
-    if (user) {
+    if (user && !isRedirectingRef.current) {
+      isRedirectingRef.current = true;
       router.push(getRedirectUrl(user));
     }
   }, [user, router]);

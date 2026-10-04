@@ -36,9 +36,11 @@ export default function SignUpPage() {
     return "/dashboard";
   };
 
+  const isRedirectingRef = React.useRef(false);
   // If already logged in, redirect to intended target or dashboard
   React.useEffect(() => {
-    if (user) {
+    if (user && !isRedirectingRef.current) {
+      isRedirectingRef.current = true;
       router.push(getRedirectUrl(user));
     }
   }, [user, router]);

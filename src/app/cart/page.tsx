@@ -46,7 +46,8 @@ export default function CartPage() {
   // Resume checkout flow seamlessly after guest logs in
   useEffect(() => {
     if (user && typeof window !== "undefined") {
-      if (sessionStorage.getItem("ayaan_open_checkout") === "true") {
+      const params = new URLSearchParams(window.location.search);
+      if (sessionStorage.getItem("ayaan_open_checkout") === "true" || params.get("openCheckout") === "true") {
         sessionStorage.removeItem("ayaan_open_checkout");
         setIsCheckoutOpen(true);
       }
@@ -169,7 +170,7 @@ export default function CartPage() {
         sessionStorage.setItem("ayaan_open_checkout", "true");
         sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
         router.push(
-          `/login?returnUrl=${encodeURIComponent("/cart")}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`
+          `/login?returnUrl=${encodeURIComponent("/cart?openCheckout=true")}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`
         );
       }
       return;
@@ -576,6 +577,7 @@ export default function CartPage() {
 
                 <div className="space-y-2.5 pt-1">
                   <button
+                    id="proceed-to-checkout-btn"
                     type="button"
                     disabled={stockViolations.length > 0}
                     onClick={handleProceedToCheckout}
@@ -586,6 +588,7 @@ export default function CartPage() {
                   </button>
 
                   <button
+                    id="request-quote-cart-btn"
                     type="button"
                     onClick={handleRequestQuoteFromCart}
                     className="w-full py-3 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-xs"
