@@ -369,66 +369,50 @@ export default function CartPage() {
                             : "hover:bg-muted/5"
                         }`}
                       >
-                        <div className="flex items-start gap-3.5">
-                          {/* Checkbox */}
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleItem(key)}
-                            className="w-4 h-4 rounded border-border text-foreground accent-foreground cursor-pointer focus:ring-1 focus:ring-ring mt-1 shrink-0"
-                            aria-label={`Select ${item.product.name}`}
-                          />
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                          {/* Left: Checkbox + Thumbnail + Product Info */}
+                          <div className="flex items-start gap-3 sm:gap-3.5 flex-1 min-w-0">
+                            {/* Checkbox */}
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleItem(key)}
+                              className="w-4 h-4 rounded border-border text-foreground accent-foreground cursor-pointer focus:ring-1 focus:ring-ring mt-1 shrink-0"
+                              aria-label={`Select ${item.product.name}`}
+                            />
 
-                          {/* Thumbnail */}
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={item.product.images?.[0] || "/placeholder-image.jpg"}
-                            alt={item.product.name}
-                            className={`w-14 h-18 sm:w-16 sm:h-20 aspect-[3/4] object-contain rounded-md bg-secondary/40 border border-border/40 p-0.5 shrink-0 ${
-                              isSoldOut ? "opacity-75 grayscale-[0.35]" : ""
-                            }`}
-                          />
+                            {/* Thumbnail */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={item.product.images?.[0] || "/placeholder-image.jpg"}
+                              alt={item.product.name}
+                              className={`w-14 h-18 sm:w-16 sm:h-20 aspect-[3/4] object-contain rounded-md bg-secondary/40 border border-border/40 p-0.5 shrink-0 ${
+                                isSoldOut ? "opacity-75 grayscale-[0.35]" : ""
+                              }`}
+                            />
 
-                          {/* Product Info & Controls Container */}
-                          <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch gap-2">
-                            {/* Top Line: Title on Left, Total Price on Right */}
-                            <div className="flex items-start justify-between gap-3">
+                            {/* Product Info */}
+                            <div className="flex-1 min-w-0 space-y-1">
                               <Link
                                 href={`/products/${item.product.slug}`}
-                                className="font-semibold text-xs sm:text-sm uppercase tracking-tight text-foreground hover:text-primary transition-colors line-clamp-1"
+                                className="font-semibold text-xs sm:text-sm uppercase tracking-tight text-foreground hover:text-primary transition-colors line-clamp-2 sm:line-clamp-1 block"
                               >
                                 {item.product.name}
                               </Link>
-                              <div className="text-right shrink-0">
-                                {unitPrice > 0 ? (
-                                  <div className="text-sm sm:text-base font-bold text-foreground tabular-nums leading-tight">
-                                    {formatPrice(lineTotal)}
-                                  </div>
-                                ) : (
-                                  <span className="text-xs font-semibold text-muted-foreground">
-                                    Price on Request
+                              <div className="text-xs text-muted-foreground font-medium truncate">
+                                {item.product.brand && <span>{item.product.brand} · </span>}
+                                <span>Size: {item.size || "Standard"}</span>
+                                {Boolean(
+                                  item.color || (item as any).color || item.product.color
+                                ) && (
+                                  <span>
+                                    {" "}· Color: {item.color || (item as any).color || item.product.color}
                                   </span>
                                 )}
                               </div>
-                            </div>
 
-                            {/* Middle Line: Brand, Size, Color */}
-                            <div className="text-xs text-muted-foreground font-medium truncate">
-                              {item.product.brand && <span>{item.product.brand} · </span>}
-                              <span>Size: {item.size || "Standard"}</span>
-                              {Boolean(
-                                item.color || (item as any).color || item.product.color
-                              ) && (
-                                <span>
-                                  {" "}· Color: {item.color || (item as any).color || item.product.color}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Bottom Line: Status/MOQ on Left, Stepper + Delete on Right */}
-                            <div className="flex items-center justify-between gap-3 pt-1">
-                              {/* Status / MOQ / Unit Price */}
-                              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                              {/* Status / MOQ */}
+                              <div className="flex items-center gap-2 flex-wrap min-w-0 pt-0.5">
                                 {isSoldOut ? (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold tracking-wider uppercase bg-slate-800 text-white leading-none">
                                     SOLD OUT
@@ -454,61 +438,82 @@ export default function CartPage() {
                                   <span className="text-xs text-muted-foreground font-medium truncate">
                                     MOQ: {itemMoq} pcs
                                     {unitPrice > 0 && (
-                                      <span className="text-muted-foreground/80">
+                                      <span className="text-muted-foreground/80 sm:hidden">
                                         {" "}· {formatPrice(unitPrice)}/pc
                                       </span>
                                     )}
                                   </span>
                                 )}
                               </div>
+                            </div>
+                          </div>
 
-                              {/* Stepper + Delete Action */}
-                              <div className="flex items-center gap-2 shrink-0">
-                                {/* Stepper */}
-                                <div className="flex items-center border border-border rounded-md h-7 sm:h-8 bg-background shadow-2xs">
-                                  <button
-                                    type="button"
-                                    className="w-6 sm:w-7 h-full flex items-center justify-center hover:bg-secondary rounded-l-md transition-colors text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                                    onClick={() =>
-                                      handleUpdateQuantity(
-                                        item,
-                                        Math.max(itemMoq, item.quantity - itemMoq)
-                                      )
-                                    }
-                                    disabled={item.quantity <= itemMoq || isUpdating}
-                                    aria-label={`Decrease quantity of ${item.product.name}`}
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  <span className="px-2 text-center text-xs sm:text-sm font-bold tabular-nums min-w-[32px] sm:min-w-[40px]">
-                                    {item.quantity.toLocaleString()}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="w-6 sm:w-7 h-full flex items-center justify-center hover:bg-secondary rounded-r-md transition-colors text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                                    onClick={() => handleUpdateQuantity(item, item.quantity + itemMoq)}
-                                    disabled={isUpdating}
-                                    aria-label={`Increase quantity of ${item.product.name}`}
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
+                          {/* Row 2 on Mobile (Price + Stepper + Delete) / Right side on Desktop */}
+                          <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pl-7 sm:pl-0 pt-2 sm:pt-0 border-t border-border/40 sm:border-t-0 shrink-0">
+                            {/* Price Breakdown */}
+                            <div className="text-left sm:text-right shrink-0">
+                              {unitPrice > 0 ? (
+                                <div>
+                                  <div className="text-sm sm:text-base font-bold text-foreground tabular-nums leading-tight">
+                                    {formatPrice(lineTotal)}
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground font-medium hidden sm:block">
+                                    {formatPrice(unitPrice)}/pc
+                                  </div>
                                 </div>
+                              ) : (
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  Price on Request
+                                </span>
+                              )}
+                            </div>
 
-                                {/* Delete Button */}
+                            {/* Stepper + Delete Action */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {/* Stepper */}
+                              <div className="flex items-center border border-border rounded-md h-7 sm:h-8 bg-background shadow-2xs">
                                 <button
                                   type="button"
-                                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer shrink-0 disabled:opacity-30"
-                                  onClick={() => handleDeleteSingle(item)}
-                                  disabled={isDeleting || isBulkDeleting}
-                                  aria-label={`Remove ${item.product.name} from cart`}
+                                  className="w-6 sm:w-7 h-full flex items-center justify-center hover:bg-secondary rounded-l-md transition-colors text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                  onClick={() =>
+                                    handleUpdateQuantity(
+                                      item,
+                                      Math.max(itemMoq, item.quantity - itemMoq)
+                                    )
+                                  }
+                                  disabled={item.quantity <= itemMoq || isUpdating}
+                                  aria-label={`Decrease quantity of ${item.product.name}`}
                                 >
-                                  {isDeleting ? (
-                                    <Loader2 className="w-4 h-4 animate-spin text-destructive" />
-                                  ) : (
-                                    <Trash2 className="w-4 h-4" />
-                                  )}
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="px-2 text-center text-xs sm:text-sm font-bold tabular-nums min-w-[32px] sm:min-w-[40px]">
+                                  {item.quantity.toLocaleString()}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="w-6 sm:w-7 h-full flex items-center justify-center hover:bg-secondary rounded-r-md transition-colors text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                  onClick={() => handleUpdateQuantity(item, item.quantity + itemMoq)}
+                                  disabled={isUpdating}
+                                  aria-label={`Increase quantity of ${item.product.name}`}
+                                >
+                                  <Plus className="w-3 h-3" />
                                 </button>
                               </div>
+
+                              {/* Delete Button */}
+                              <button
+                                type="button"
+                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer shrink-0 disabled:opacity-30"
+                                onClick={() => handleDeleteSingle(item)}
+                                disabled={isDeleting || isBulkDeleting}
+                                aria-label={`Remove ${item.product.name} from cart`}
+                              >
+                                {isDeleting ? (
+                                  <Loader2 className="w-4 h-4 animate-spin text-destructive" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </button>
                             </div>
                           </div>
                         </div>

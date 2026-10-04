@@ -795,7 +795,7 @@ export async function downloadProductOfferSheetPDF(
     galleryDataUrls = loaded.filter((u): u is string => Boolean(u));
   }
 
-  let mainDataUrl = product.imageDataUrl || (galleryDataUrls.length > 0 ? galleryDataUrls[0] : null);
+  const mainDataUrl = product.imageDataUrl || (galleryDataUrls.length > 0 ? galleryDataUrls[0] : null);
 
   // Load official website logo data URL
   let logoDataUrl = product.logoDataUrl || null;
@@ -873,7 +873,7 @@ export async function downloadCombinedProductOfferSheetsPDF(
     const galleryDataUrls = loadedUrls.filter((u): u is string => Boolean(u));
     const mainDataUrl = galleryDataUrls[0] || (imageSource ? await loadImageAsDataUrl(imageSource) : null);
 
-    let logoDataUrl = (await loadImageAsDataUrl(OFFICIAL_AYC_SITE_LOGO_PATH)) || OFFICIAL_AYC_SITE_LOGO_DATA_URL;
+    const logoDataUrl = (await loadImageAsDataUrl(OFFICIAL_AYC_SITE_LOGO_PATH)) || OFFICIAL_AYC_SITE_LOGO_DATA_URL;
 
     const productInput: OfferSheetProductInput = {
       name: item.product_name || "Garment",

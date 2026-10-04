@@ -74,15 +74,25 @@
 - [x] **Priority 9 — Homepage Admin Configuration**: Admin route `/admin/homepage`. Confirmed branding logo, hero banner, and announcement ticker configuration sections. Confirmed complete elimination of deprecated "Homepage Visibility" section/tab. (Screenshot: `qa_p9_admin_homepage.png`)
 - [x] **Priority 10 — Featured Products Order**: Customer homepage `/`. Featured products display first, followed by latest uploaded products. (Screenshot: `qa_p10_homepage_featured.png`)
 - [x] **Priority 11 — WhatsApp Product Link**: Inspected WhatsApp inquiry CTA on product detail page `/products/ladies-ruffle-sleeve-crop-blouse`. Confirmed URL contains `wa.me/8801982183886` with prefilled text including product name, SKU, MOQ quantity, and canonical product URL (`https://ayaanclothing.com/products/ladies-ruffle-sleeve-crop-blouse`).
+- [x] **Priority 12 — Cart UI Redesign (Desktop & Mobile)**: Tested `/cart` in headless Chromium (1440×900 desktop & 390×844 mobile viewports). Verified:
+  1. Top Cart Toolbar with native HTML indeterminate `Select All` checkbox & dynamic count (`ALL SELECTED (3)`, `SELECTED 2 OF 3`, `SELECT ALL (3)`).
+  2. Bulk Delete button disabled when 0 items selected; active with spinner during bulk delete.
+  3. Compact horizontal rows on desktop: `[Checkbox] [Thumbnail] [Info] [Price + /pc] [Stepper] [Delete]` cleanly aligned.
+  4. Intelligent two-row reflow on mobile: Row 1 = Checkbox + Thumbnail + Product Info (no squished titles); Row 2 = Price on left + Stepper & Delete on right.
+  5. Zero horizontal overflow at 390px mobile viewport (`scrollWidth <= clientWidth`).
+  6. Stepper quantity controls increment/decrement in strict accordance with product MOQ step size.
+  7. Individual row delete & bulk delete transition seamlessly to clean minimal Empty Cart state.
+  (Screenshots: `cart_desktop_initial.png`, `cart_mobile_view.png`, `cart_empty_state.png`)
 
 ## Retest Results
 - [x] **Priority 7 (Package Assortment)**: Re-tested after deploying commit `1de5b13` to VPS; passed.
 - [x] **Priority 4 (Minimal Draft)**: Re-tested after deploying payload serializer fix to VPS; passed.
 - [x] **Priority 11 (WhatsApp Button)**: Targeted selector re-tested in Chromium; passed.
+- [x] **Priority 12 (Cart UI Redesign)**: Automated browser QA executed on localhost:3000; all 7 test stages passed.
 
 ## Final Summary
-- Total tests attempted: 11
-- Passed: 11
+- Total tests attempted: 12
+- Passed: 12
 - Failed: 0
 - Blocked: 0
 - Issues found: 3 (all 3 resolved)
@@ -92,7 +102,7 @@
 - Low: 0
 
 ## Remaining Problems
-None. All 11 targeted priority checks are passing on the live VPS deployment (`https://ayaanclothing.com`).
+None. All 12 targeted priority checks are passing.
 
 ## Recommended Next Fixes
 1. None required for the tested priorities.

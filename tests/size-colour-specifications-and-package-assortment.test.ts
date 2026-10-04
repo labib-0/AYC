@@ -130,7 +130,10 @@ console.log("\n▶ 5. Customer Product Detail Component Inspection");
   const detailSrc = fs.readFileSync(detailFile, "utf8");
 
   // Check 2x2 specification grid
-  assert(detailSrc.includes("grid grid-cols-2 gap-2 text-xs font-sans"), "Must render 2-column grid for 4 specification tiles");
+  assert(
+    detailSrc.includes("grid-cols-1 sm:grid-cols-2") || detailSrc.includes("grid grid-cols-2 gap-2 text-xs font-sans"),
+    "Must render 2-column grid for 4 specification tiles"
+  );
   assert(detailSrc.includes("Design Type"), "Must include Design Type tile");
   assert(detailSrc.includes("Material"), "Must include Material tile");
   assert(detailSrc.includes("Size"), "Must include Size tile");

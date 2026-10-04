@@ -34,6 +34,7 @@ import QuantityStepper from "@/components/product/QuantityStepper";
 import CommerceSummary from "@/components/product/CommerceSummary";
 import PackageAssortmentMatrix from "@/components/product/PackageAssortmentMatrix";
 import ProductSelectedLogisticsRow from "@/components/product/ProductSelectedLogisticsRow";
+import SpecificationCard from "@/components/product/SpecificationCard";
 
 interface ProductDetailViewProps {
   initialProduct?: B2BProductInput | null;
@@ -690,54 +691,38 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   title="Specifications"
                   icon={<Sliders size={14} />}
                 />
-                <div className="grid grid-cols-2 gap-2 text-xs font-sans">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-sans items-start">
                   {/* Tile 1: Design Type */}
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
-                    <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
-                      Design Type
-                    </span>
-                    <span className="font-semibold text-foreground block truncate">
-                      {(product.designType || "").toUpperCase() === "MASTER COPY"
+                  <SpecificationCard
+                    label="Design Type"
+                    value={
+                      (product.designType || "").toUpperCase() === "MASTER COPY"
                         ? "MASTER COPY"
-                        : "ORIGINAL"}
-                    </span>
-                  </div>
+                        : product.designType || "ORIGINAL"
+                    }
+                    testId="spec-card-design-type"
+                  />
 
                   {/* Tile 2: Material */}
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
-                    <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
-                      Material
-                    </span>
-                    <span className="font-semibold text-foreground block truncate" title={product.material || undefined}>
-                      {product.material || "—"}
-                    </span>
-                  </div>
+                  <SpecificationCard
+                    label="Material"
+                    value={product.material || "—"}
+                    testId="spec-card-material"
+                  />
 
                   {/* Tile 3: Size (Explicit admin entry only — NEVER derived from variants) */}
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
-                    <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
-                      Size
-                    </span>
-                    <span
-                      className="font-semibold text-foreground block truncate"
-                      title={product.sizeDescription || product.size_description || undefined}
-                    >
-                      {product.sizeDescription || product.size_description || "—"}
-                    </span>
-                  </div>
+                  <SpecificationCard
+                    label="Size"
+                    value={product.sizeDescription || product.size_description || "—"}
+                    testId="spec-card-size"
+                  />
 
                   {/* Tile 4: Colour (Explicit admin entry only — NEVER derived from variants) */}
-                  <div className="p-2.5 rounded-lg border border-border/60 bg-card space-y-1 shadow-2xs">
-                    <span className="text-[10px] text-muted-foreground block uppercase font-bold tracking-wider">
-                      Colour
-                    </span>
-                    <span
-                      className="font-semibold text-foreground block truncate"
-                      title={product.colourDescription || product.colour_description || undefined}
-                    >
-                      {product.colourDescription || product.colour_description || "—"}
-                    </span>
-                  </div>
+                  <SpecificationCard
+                    label="Colour"
+                    value={product.colourDescription || product.colour_description || "—"}
+                    testId="spec-card-colour"
+                  />
                 </div>
               </div>
             </div>
