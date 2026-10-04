@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Sparkles, Flame, Star, Clock } from "lucide-react";
+import { AlertCircle, Sparkles, Flame, Star, Clock, Ban } from "lucide-react";
 import { handleNumberInputWheel } from "@/components/common/GlobalNumberInputWheelGuard";
 
 interface ProductPricingSectionProps {
@@ -22,6 +22,7 @@ interface ProductPricingSectionProps {
   isFeatured?: boolean;
   featuredUntil?: string | null;
   isPreorder?: boolean;
+  isSoldOut?: boolean;
   estimatedDeliveryDate?: string | null;
   errors: Record<string, string>;
   onWholesalePriceChange: (val: number | undefined) => void;
@@ -36,6 +37,7 @@ interface ProductPricingSectionProps {
   onIsHotChange: (val: boolean, until?: string | null) => void;
   onIsFeaturedChange: (val: boolean, until?: string | null) => void;
   onIsPreorderChange?: (val: boolean, date?: string | null) => void;
+  onIsSoldOutChange?: (val: boolean) => void;
 }
 
 export default function ProductPricingSection({
@@ -57,6 +59,7 @@ export default function ProductPricingSection({
   isFeatured,
   featuredUntil,
   isPreorder,
+  isSoldOut,
   estimatedDeliveryDate,
   errors,
   onWholesalePriceChange,
@@ -71,6 +74,7 @@ export default function ProductPricingSection({
   onIsHotChange,
   onIsFeaturedChange,
   onIsPreorderChange,
+  onIsSoldOutChange,
 }: ProductPricingSectionProps) {
   const currentStandardPrice = standardPrice !== undefined ? standardPrice : wholesalePrice;
   const standardPriceError = errors.standardPrice || errors.standard_price || errors.wholesalePrice || errors.wholesale_price;
@@ -814,6 +818,41 @@ export default function ProductPricingSection({
                   )}
                 </div>
               )}
+            </div>
+
+            {/* 5. Sold Out Card */}
+            <div
+              className={`p-3.5 rounded-xl border transition-all ${
+                isSoldOut
+                  ? "bg-slate-100 dark:bg-slate-900/60 border-slate-400 dark:border-slate-700"
+                  : "bg-card border-border hover:bg-secondary/40"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isSoldOut)}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      onIsSoldOutChange?.(enabled);
+                    }}
+                    className="w-4 h-4 rounded border-border text-slate-800 focus:ring-slate-700 accent-slate-800 cursor-pointer"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <Ban size={14} className="text-slate-700 dark:text-slate-300 shrink-0" />
+                    <span className="text-xs font-bold text-foreground">SOLD OUT</span>
+                  </div>
+                </label>
+                {isSoldOut && (
+                  <span className="text-[10px] font-sans font-semibold text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-300 dark:border-slate-700">
+                    Product marked as Sold Out
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1.5 ml-6.5">
+                Displays the product as Sold Out on the storefront with subdued visuals. Prevents purchasing while keeping the product visible, searchable, and wishlist-enabled.
+              </p>
             </div>
           </div>
         </div>

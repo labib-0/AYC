@@ -248,6 +248,17 @@ export default function MiniCart() {
         )}
 
         {/* Cart Items List */}
+        {items.length > 0 && items.some((item) => Boolean(item.product?.isPreorder || (item.product as any)?.is_preorder)) && (
+          <div className="mx-4 sm:mx-5 mt-2 mb-1 p-2 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-xs text-foreground flex items-center gap-2">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold uppercase tracking-wider bg-indigo-600 text-white leading-none shrink-0">
+              PRE-ORDER
+            </span>
+            <span className="text-[11px] font-medium text-foreground">
+              Cart contains Pre-Order items with late fulfillment dates.
+            </span>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-1 divide-y divide-border/60 font-sans">
           {items.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground px-6 py-12">
@@ -280,6 +291,9 @@ export default function MiniCart() {
               const isUpdating = updatingKeys.has(key);
               const isPreorder = Boolean(
                 item.product.isPreorder || (item.product as any).is_preorder
+              );
+              const isSoldOut = Boolean(
+                item.product.isSoldOut || (item.product as any).is_sold_out
               );
               const estDelivery =
                 item.product.estimatedDeliveryDate ||
@@ -316,7 +330,9 @@ export default function MiniCart() {
                     <img
                       src={item.product.images?.[0] || "/placeholder-image.jpg"}
                       alt={item.product.name}
-                      className="w-13 h-16 aspect-[3/4] object-contain rounded-md bg-secondary/50 dark:bg-white/5 shrink-0 border border-border/40 p-0.5"
+                      className={`w-13 h-16 aspect-[3/4] object-contain rounded-md bg-secondary/50 dark:bg-white/5 shrink-0 border border-border/40 p-0.5 ${
+                        isSoldOut ? "opacity-75 grayscale-[0.35]" : ""
+                      }`}
                     />
 
                     {/* Product Information */}
@@ -341,18 +357,25 @@ export default function MiniCart() {
                       </div>
 
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                        {isPreorder ? (
+                        {isSoldOut ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold tracking-wider uppercase bg-slate-800 text-white leading-none">
+                            SOLD OUT
+                          </span>
+                        ) : isPreorder ? (
                           <>
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold tracking-wider uppercase bg-indigo-600 text-white leading-none">
-                              Preorder
+                              PRE-ORDER
                             </span>
                             {estDelivery && (
                               <span className="text-[10px] text-muted-foreground font-medium">
-                                Est:{" "}
-                                {new Date(estDelivery).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                })}
+                                Expected:{" "}
+                                <strong className="text-foreground">
+                                  {new Date(estDelivery).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </strong>
                               </span>
                             )}
                           </>
@@ -445,7 +468,9 @@ export default function MiniCart() {
                       <img
                         src={item.product.images?.[0] || "/placeholder-image.jpg"}
                         alt={item.product.name}
-                        className="w-12 h-15 aspect-[3/4] object-contain rounded-md bg-secondary/50 dark:bg-white/5 shrink-0 border border-border/40 p-0.5"
+                        className={`w-12 h-15 aspect-[3/4] object-contain rounded-md bg-secondary/50 dark:bg-white/5 shrink-0 border border-border/40 p-0.5 ${
+                          isSoldOut ? "opacity-75 grayscale-[0.35]" : ""
+                        }`}
                       />
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-xs uppercase tracking-tight text-foreground line-clamp-1">
@@ -467,18 +492,25 @@ export default function MiniCart() {
                           )}
                         </div>
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          {isPreorder ? (
+                          {isSoldOut ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold tracking-wider uppercase bg-slate-800 text-white leading-none">
+                              SOLD OUT
+                            </span>
+                          ) : isPreorder ? (
                             <>
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold tracking-wider uppercase bg-indigo-600 text-white leading-none">
-                                Preorder
+                                PRE-ORDER
                               </span>
                               {estDelivery && (
                                 <span className="text-[10px] text-muted-foreground font-medium">
-                                  Est:{" "}
-                                  {new Date(estDelivery).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
+                                  Expected:{" "}
+                                  <strong className="text-foreground">
+                                    {new Date(estDelivery).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    })}
+                                  </strong>
                                 </span>
                               )}
                             </>

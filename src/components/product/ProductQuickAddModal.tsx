@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { X, Minus, Plus, ShoppingCart, Check, FileText, AlertCircle, Package } from "lucide-react";
+import { X, Minus, Plus, ShoppingCart, Check, FileText, AlertCircle } from "lucide-react";
 import { useProductModal } from "@/lib/ProductModalContext";
 import { useCart } from "@/lib/CartContext";
 import { useRfq } from "@/lib/RfqContext";
@@ -75,9 +75,15 @@ export default function ProductQuickAddModal() {
       : (typeof product.variants === "object" ? (Object.values(product.variants) as any[]) : []);
   }, [product]);
 
+  const isPreorder = Boolean(product?.isPreorder || (product as any)?.is_preorder);
+  const isSoldOut = Boolean(product?.isSoldOut || (product as any)?.is_sold_out);
+  const estimatedDelivery = product?.estimatedDeliveryDate || (product as any)?.estimated_delivery_date;
+
   // Authoritative Maximum Complete Packages Supported by Live Variant Inventory
   const maxCompletePackages = useMemo<number>(() => {
     if (!product) return 0;
+    if (isSoldOut) return 0;
+    if (isPreorder) return 9999;
     if (typeof product.max_complete_packages === "number") {
       return product.max_complete_packages;
     }
@@ -106,10 +112,12 @@ export default function ProductQuickAddModal() {
       }
     }
     return Math.max(0, minPackages ?? 0);
-  }, [product, moq, packageAllocations, variantsList]);
+  }, [product, moq, packageAllocations, variantsList, isPreorder, isSoldOut]);
 
   // Authoritative Complete Package Stock (in total pcs)
   const completePackageStock = useMemo(() => {
+    if (isSoldOut) return 0;
+    if (isPreorder) return 9999;
     if (typeof product?.complete_package_stock === "number") {
       return product.complete_package_stock;
     }
@@ -117,7 +125,7 @@ export default function ProductQuickAddModal() {
       return product.completePackageStock;
     }
     return maxCompletePackages * moq;
-  }, [product, maxCompletePackages, moq]);
+  }, [product, maxCompletePackages, moq, isPreorder, isSoldOut]);
 
   const totalQuantity = packageCount * moq;
 
@@ -189,18 +197,22 @@ export default function ProductQuickAddModal() {
 
   const increasePackages = useCallback(() => {
     setStockError(null);
-    setPackageCount((prev) => Math.min(maxCompletePackages > 0 ? maxCompletePackages : 9999, prev + 1));
-  }, [maxCompletePackages]);
+    setPackageCount((prev) => Math.min(isPreorder ? 9999 : (maxCompletePackages > 0 ? maxCompletePackages : 9999), prev + 1));
+  }, [maxCompletePackages, isPreorder]);
 
   const handleAddToCart = useCallback(async () => {
     if (!product) return;
+    if (isSoldOut) {
+      setStockError("This product is sold out and cannot be purchased.");
+      return;
+    }
     const lowestPrice = getLowestValidCustomerUnitPrice(product);
     const hasValidPrice = lowestPrice !== null && lowestPrice > 0;
     if (!hasValidPrice) {
       setStockError("This product does not have a configured customer selling price. Please request a quote.");
       return;
     }
-    if (completePackageStock > 0 && totalQuantity > completePackageStock) {
+    if (!isPreorder && completePackageStock > 0 && totalQuantity > completePackageStock) {
       setStockError(
         `Requested ${totalQuantity.toLocaleString()} pcs exceeds available stock of ${completePackageStock.toLocaleString()} pcs.`
       );
@@ -215,9 +227,9 @@ export default function ProductQuickAddModal() {
         setIsCartOpen(true);
       }, 800);
     } catch (err: any) {
-      setStockError(err?.message || "Insufficient stock available for this package configuration.");
+      setStockError(err?.message || "Failed to add product to cart.");
     }
-  }, [product, packageCount, totalQuantity, maxCompletePackages, completePackageStock, currentOrderBreakdown, addToCart, closeProductModal, setIsCartOpen]);
+  }, [product, isPreorder, isSoldOut, packageCount, totalQuantity, maxCompletePackages, completePackageStock, currentOrderBreakdown, addToCart, closeProductModal, setIsCartOpen]);
 
   const handleAddToRfq = useCallback(() => {
     if (!product) return;
@@ -352,11 +364,43 @@ export default function ProductQuickAddModal() {
                     />
                     <InfoItem
                       label="Available Stock"
-                      value={completePackageStock > 0 ? `${completePackageStock.toLocaleString()} PCS` : "Out of Stock"}
+                      value={
+                        isSoldOut
+                          ? "Sold Out"
+                          : isPreorder
+                          ? "Pre-Order"
+                          : completePackageStock > 0
+                          ? `${completePackageStock.toLocaleString()} PCS`
+                          : "Out of Stock"
+                      }
                     />
                     <InfoItem label="MOQ" value={`${moq} pcs`} />
                   </div>
                 </div>
+
+                {/* Pre-order Delivery Date Information */}
+                {isPreorder && (
+                  <div className="p-2.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-xs text-foreground flex items-center gap-2">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold uppercase tracking-wider bg-indigo-600 text-white leading-none shrink-0">
+                      PRE-ORDER
+                    </span>
+                    <span>
+                      {estimatedDelivery ? (
+                        <>Expected delivery: <strong className="text-indigo-700 dark:text-indigo-300 font-semibold">{new Date(estimatedDelivery).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</strong></>
+                      ) : (
+                        "Pre-Order item. Delivery timeframe will be confirmed upon order."
+                      )}
+                    </span>
+                  </div>
+                )}
+
+                {/* Sold Out Banner */}
+                {isSoldOut && (
+                  <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center gap-2">
+                    <AlertCircle size={15} className="shrink-0 text-slate-600 dark:text-slate-400" />
+                    <span>This product is marked as Sold Out and cannot be purchased.</span>
+                  </div>
+                )}
 
                 {/* ═══ ORDER QUANTITY (PCS) ═══ */}
                 <div className="space-y-3 pt-1">
@@ -375,7 +419,7 @@ export default function ProductQuickAddModal() {
                         <button
                           type="button"
                           onClick={decreasePackages}
-                          disabled={packageCount <= 1}
+                          disabled={packageCount <= 1 || isSoldOut}
                           className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-l-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
                           aria-label="Decrease quantity"
                         >
@@ -387,7 +431,7 @@ export default function ProductQuickAddModal() {
                         <button
                           type="button"
                           onClick={increasePackages}
-                          disabled={maxCompletePackages > 0 && packageCount >= maxCompletePackages}
+                          disabled={isSoldOut || (!isPreorder && maxCompletePackages > 0 && packageCount >= maxCompletePackages)}
                           className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-r-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
                           aria-label="Increase quantity"
                         >
@@ -400,7 +444,9 @@ export default function ProductQuickAddModal() {
                     </div>
 
                     <p className="text-[11px] text-muted-foreground mt-1.5 font-sans">
-                      <strong className="text-foreground">{totalQuantity.toLocaleString()} pcs</strong> · MOQ: {moq} pcs · Available: {completePackageStock.toLocaleString()} pcs
+                      <strong className="text-foreground">{totalQuantity.toLocaleString()} pcs</strong> · MOQ: {moq} pcs · {
+                        isSoldOut ? "Sold Out" : isPreorder ? "Pre-Order" : `Available: ${completePackageStock.toLocaleString()} pcs`
+                      }
                     </p>
                   </div>
 
@@ -416,14 +462,24 @@ export default function ProductQuickAddModal() {
                     <button
                       type="button"
                       onClick={handleAddToCart}
-                      disabled={!(getLowestValidCustomerUnitPrice(product) !== null && (getLowestValidCustomerUnitPrice(product) ?? 0) > 0) || addedSuccess || (maxCompletePackages > 0 && packageCount > maxCompletePackages) || maxCompletePackages <= 0}
+                      disabled={
+                        isSoldOut ||
+                        !(getLowestValidCustomerUnitPrice(product) !== null && (getLowestValidCustomerUnitPrice(product) ?? 0) > 0) ||
+                        addedSuccess ||
+                        (!isPreorder && maxCompletePackages > 0 && packageCount > maxCompletePackages) ||
+                        (!isPreorder && maxCompletePackages <= 0)
+                      }
                       className={`w-full h-11 sm:h-12 rounded-xl text-xs sm:text-sm font-sans font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                         addedSuccess
                           ? "bg-emerald-600 text-white cursor-default"
+                          : isSoldOut
+                          ? "bg-secondary text-muted-foreground cursor-not-allowed border border-border"
                           : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.99]"
                       }`}
                     >
-                      {addedSuccess ? (
+                      {isSoldOut ? (
+                        <span>Sold Out</span>
+                      ) : addedSuccess ? (
                         <>
                           <Check size={16} strokeWidth={2.5} />
                           <span>Added to Cart</span>

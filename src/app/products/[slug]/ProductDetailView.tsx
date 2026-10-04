@@ -208,6 +208,9 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     0
   );
   const availableInventory = Number(product?.availableStock ?? (product as any)?.available_stock ?? product?.stock ?? 0);
+  const isPreorder = Boolean(product?.isPreorder ?? (product as any)?.is_preorder);
+  const isSoldOut = Boolean(product?.isSoldOut ?? (product as any)?.is_sold_out);
+  const estimatedDelivery = product?.estimatedDeliveryDate ?? (product as any)?.estimated_delivery_date;
   const fullStockQuantity = availableInventory;
   const totalStock = availableInventory;
   const fullStockPackages = maxCompletePackages;
@@ -508,6 +511,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
       });
     }
 
+    if (isSoldOut) {
+      setErrorMessage("This product is sold out and cannot be purchased.");
+      return;
+    }
+
     try {
       await addToCart(
         {
@@ -522,6 +530,12 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           sizes: sizesList,
           color: colorsList.join(", "),
           isNew: product.isNew,
+          isPreorder: isPreorder,
+          is_preorder: isPreorder,
+          isSoldOut: isSoldOut,
+          is_sold_out: isSoldOut,
+          estimatedDeliveryDate: estimatedDelivery,
+          estimated_delivery_date: estimatedDelivery,
           moq: moq,
         } as any,
         sizesList.length > 0 ? (sizesList.length === 1 ? sizesList[0] : "Assorted") : "",
@@ -611,7 +625,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         <div className="grid grid-cols-1 lg:grid-cols-[39%_minmax(0,1fr)] gap-5 lg:gap-6 xl:gap-7 items-start w-full max-w-[1480px] xl:max-w-[1560px] 2xl:max-w-[1600px] mx-auto">
           
           {/* LEFT: GALLERY / MEDIA + DESCRIPTION + SPECIFICATIONS */}
-          <div className="space-y-3.5 w-full max-w-[440px] sm:max-w-[480px] lg:max-w-none mx-auto lg:mx-0">
+          <div className={`space-y-3.5 w-full max-w-[440px] sm:max-w-[480px] lg:max-w-none mx-auto lg:mx-0 ${isSoldOut ? "opacity-80 grayscale-[0.35]" : ""}`}>
             {/* Unified Media Experience (Images + Video + Lightbox) */}
             <ProductGallery
               images={product.images}
@@ -761,17 +775,26 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 {product.name}
               </h1>
 
-              {/* Preorder Merchandising Strip */}
-              {(product.isPreorder || (product as any).is_preorder) && (
+              {/* Merchandising Strip (Pre-Order / Sold Out) */}
+              {isSoldOut ? (
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-sans mt-2">
+                  <ProductBadge variant="soldout">
+                    SOLD OUT
+                  </ProductBadge>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    This product is sold out and currently unavailable for purchase.
+                  </span>
+                </div>
+              ) : isPreorder ? (
                 <div className="flex items-center gap-2.5 p-2.5 px-3 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-xs font-sans mt-2">
                   <ProductBadge variant="preorder">
-                    PREORDER
+                    PRE-ORDER
                   </ProductBadge>
-                  {(product.estimatedDeliveryDate || (product as any).estimated_delivery_date) && (
+                  {estimatedDelivery && (
                     <span className="font-medium text-foreground">
-                      Estimated delivery:{" "}
+                      Expected delivery:{" "}
                       <strong className="text-indigo-700 dark:text-indigo-300 font-semibold">
-                        {new Date(product.estimatedDeliveryDate || (product as any).estimated_delivery_date).toLocaleDateString("en-US", {
+                        {new Date(estimatedDelivery).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
@@ -780,7 +803,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     </span>
                   )}
                 </div>
-              )}
+              ) : null}
 
               {/* LEVEL 2: CORE COMMERCIAL METADATA — MOQ & FULL STOCK */}
               <div className="pt-1 flex items-center gap-2 sm:gap-2.5 text-[12px] sm:text-[12.5px] font-sans">
@@ -870,11 +893,11 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     quantity={quantity}
                     moq={moq}
                     step={moq}
-                    maxStock={fullStockQuantity}
+                    maxStock={isPreorder ? 9999 : fullStockQuantity}
                     onIncrement={handleIncrement}
                     onDecrement={handleDecrement}
-                    isDecrementDisabled={quantity <= Math.min(moq, fullStockQuantity > 0 ? fullStockQuantity : moq)}
-                    isIncrementDisabled={fullStockQuantity > 0 && quantity >= fullStockQuantity}
+                    isDecrementDisabled={quantity <= Math.min(moq, (!isPreorder && fullStockQuantity > 0) ? fullStockQuantity : moq)}
+                    isIncrementDisabled={!isPreorder && fullStockQuantity > 0 && quantity >= fullStockQuantity}
                   />
                 </div>
 
@@ -937,20 +960,36 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
             {/* LEVEL 4: PRIMARY ACTION (ADD TO CART) & SECONDARY CTAS */}
             {/* ========================================================= */}
             <div className="space-y-1.5 pt-0.5 font-sans">
+              {/* Pre-order Notice near CTA */}
+              {isPreorder && (
+                <div className="p-2 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-xs text-foreground flex items-center gap-2 mb-1">
+                  <ProductBadge variant="preorder">PRE-ORDER</ProductBadge>
+                  <span className="text-[11.5px] font-medium text-foreground">
+                    {estimatedDelivery ? (
+                      <>Expected delivery: <strong className="text-indigo-700 dark:text-indigo-300 font-semibold">{new Date(estimatedDelivery).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</strong></>
+                    ) : (
+                      "Pre-Order item with extended delivery timeline."
+                    )}
+                  </span>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-2.5">
                 <button
                   type="button"
                   id="add-to-cart-button"
                   onClick={handleAddToCart}
-                  disabled={currentPrice <= 0}
+                  disabled={isSoldOut || currentPrice <= 0}
                   className={`w-full sm:flex-1 h-10 lg:h-11 px-5 rounded-xl font-display font-extrabold text-[13px] sm:text-[14px] uppercase tracking-wider transition-all duration-150 shadow-md flex items-center justify-center gap-2 group ${
-                    currentPrice <= 0
+                    isSoldOut
+                      ? "bg-secondary text-muted-foreground border border-border cursor-not-allowed"
+                      : currentPrice <= 0
                       ? "bg-secondary text-muted-foreground border border-border cursor-not-allowed"
                       : "bg-foreground text-background hover:bg-foreground/90 active:scale-[0.99] cursor-pointer"
                   }`}
                 >
-                  <ShoppingCart size={17} className="group-hover:scale-110 transition-transform" />
-                  <span>{currentPrice <= 0 ? "Quote Only" : "Add to Cart"}</span>
+                  <ShoppingCart size={17} className={!isSoldOut ? "group-hover:scale-110 transition-transform" : ""} />
+                  <span>{isSoldOut ? "Sold Out" : currentPrice <= 0 ? "Quote Only" : "Add to Cart"}</span>
                 </button>
 
                 <button

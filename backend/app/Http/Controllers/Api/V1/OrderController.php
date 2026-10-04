@@ -138,6 +138,27 @@ class OrderController extends ApiController
             return $this->error('No items provided for checkout validation.', 422);
         }
 
+        // Verify sold out and incompatible cart mixing
+        $hasPreorder = false;
+        $hasReadyStock = false;
+        foreach ($itemsToProcess as $item) {
+            $pId = $item['product_id'] ?? null;
+            $prod = is_numeric($pId) ? Product::find((int) $pId) : Product::where('slug', $pId)->orWhere('sku', $pId)->first();
+            if ($prod) {
+                if ($prod->is_sold_out) {
+                    return $this->error("Product '{$prod->name}' is sold out and cannot be purchased.", 422);
+                }
+                if ($prod->is_preorder) {
+                    $hasPreorder = true;
+                } else {
+                    $hasReadyStock = true;
+                }
+            }
+        }
+        if ($hasPreorder && $hasReadyStock) {
+            return $this->error("Ready Stock and Pre-Order products cannot be ordered together. Please place them as separate orders.", 422);
+        }
+
         try {
             $calc = $calculationService->calculate(
                 $itemsToProcess,
@@ -207,6 +228,27 @@ class OrderController extends ApiController
 
         if (empty($itemsToProcess)) {
             return $this->error('Your cart is empty. Please add items before placing an order.', 422);
+        }
+
+        // Verify sold out and incompatible cart mixing
+        $hasPreorder = false;
+        $hasReadyStock = false;
+        foreach ($itemsToProcess as $item) {
+            $pId = $item['product_id'] ?? null;
+            $prod = is_numeric($pId) ? Product::find((int) $pId) : Product::where('slug', $pId)->orWhere('sku', $pId)->first();
+            if ($prod) {
+                if ($prod->is_sold_out) {
+                    return $this->error("Product '{$prod->name}' is sold out and cannot be purchased.", 422);
+                }
+                if ($prod->is_preorder) {
+                    $hasPreorder = true;
+                } else {
+                    $hasReadyStock = true;
+                }
+            }
+        }
+        if ($hasPreorder && $hasReadyStock) {
+            return $this->error("Ready Stock and Pre-Order products cannot be ordered together. Please place them as separate orders.", 422);
         }
 
         $paymentMethod = $request->input('payment_method', 'card');
@@ -295,6 +337,9 @@ class OrderController extends ApiController
                     if ($product->status !== 'published') {
                         throw new \Exception("Product '{$product->name}' is currently unavailable.", 422);
                     }
+                    if ($product->is_sold_out) {
+                        throw new \Exception("Product '{$product->name}' is sold out and cannot be purchased.", 422);
+                    }
 
                     $totalStock = $product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock();
 
@@ -362,27 +407,31 @@ class OrderController extends ApiController
                                             ->first();
                                     }
                                     if (!$variant || $variant->stock < $qtyToDeduct) {
-                                        $av = $variant ? (int) $variant->stock : 0;
-                                        $cLabel = $bd['color'] ?? '';
-                                        $sizeLabel = $bd['size'] ?? '';
-                                        throw new InsufficientStockException(
-                                            "Insufficient stock for '{$product->name}' variant '{$cLabel} / {$sizeLabel}' (Requested: {$qtyToDeduct}, Available: {$av}).",
-                                            [
-                                                'product_id' => $product->id,
-                                                'product_name' => $product->name,
-                                                'variant_id' => $variant?->id,
-                                                'size' => $sizeLabel,
-                                                'color' => $cLabel,
-                                                'sku' => $variant?->sku ?? $product->sku,
-                                                'requested_quantity' => $qtyToDeduct,
-                                                'available_quantity' => $av,
-                                            ]
-                                        );
+                                        if (!$product->is_preorder) {
+                                            $av = $variant ? (int) $variant->stock : 0;
+                                            $cLabel = $bd['color'] ?? '';
+                                            $sizeLabel = $bd['size'] ?? '';
+                                            throw new InsufficientStockException(
+                                                "Insufficient stock for '{$product->name}' variant '{$cLabel} / {$sizeLabel}' (Requested: {$qtyToDeduct}, Available: {$av}).",
+                                                [
+                                                    'product_id' => $product->id,
+                                                    'product_name' => $product->name,
+                                                    'variant_id' => $variant?->id,
+                                                    'size' => $sizeLabel,
+                                                    'color' => $cLabel,
+                                                    'sku' => $variant?->sku ?? $product->sku,
+                                                    'requested_quantity' => $qtyToDeduct,
+                                                    'available_quantity' => $av,
+                                                ]
+                                            );
+                                        }
                                     }
-                                    $lockedVariants[] = [
-                                        'variant' => $variant,
-                                        'deduct_qty' => $qtyToDeduct
-                                    ];
+                                    if ($variant) {
+                                        $lockedVariants[] = [
+                                            'variant' => $variant,
+                                            'deduct_qty' => $qtyToDeduct
+                                        ];
+                                    }
                                 }
                             }
                         }
@@ -399,39 +448,45 @@ class OrderController extends ApiController
                             $variant = ProductVariant::where('id', $variantId)->lockForUpdate()->first();
                             $av = $variant ? (int) $variant->stock : 0;
                             if (!$variant || $av < $quantity) {
-                                throw new InsufficientStockException(
-                                    "Insufficient stock for '{$product->name}' size {$size} (Requested: {$quantity}, Available: {$av}).",
-                                    [
-                                        'product_id' => $product->id,
-                                        'product_name' => $product->name,
-                                        'variant_id' => $variant?->id,
-                                        'size' => $variant?->size ?? $size,
-                                        'color' => $variant?->color ?? $product->color_name,
-                                        'sku' => $variant?->sku ?? $product->sku,
-                                        'requested_quantity' => $quantity,
-                                        'available_quantity' => $av,
-                                    ]
-                                );
+                                if (!$product->is_preorder) {
+                                    throw new InsufficientStockException(
+                                        "Insufficient stock for '{$product->name}' size {$size} (Requested: {$quantity}, Available: {$av}).",
+                                        [
+                                            'product_id' => $product->id,
+                                            'product_name' => $product->name,
+                                            'variant_id' => $variant?->id,
+                                            'size' => $variant?->size ?? $size,
+                                            'color' => $variant?->color ?? $product->color_name,
+                                            'sku' => $variant?->sku ?? $product->sku,
+                                            'requested_quantity' => $quantity,
+                                            'available_quantity' => $av,
+                                        ]
+                                    );
+                                }
                             }
-                            $lockedVariants[] = [
-                                'variant' => $variant,
-                                'deduct_qty' => $quantity,
-                            ];
+                            if ($variant) {
+                                $lockedVariants[] = [
+                                    'variant' => $variant,
+                                    'deduct_qty' => $quantity,
+                                ];
+                            }
                         } else {
                             if ($quantity > $totalStock) {
-                                throw new InsufficientStockException(
-                                    "Insufficient stock for '{$product->name}' (Requested: {$quantity}, Available: {$totalStock}).",
-                                    [
-                                        'product_id' => $product->id,
-                                        'product_name' => $product->name,
-                                        'variant_id' => null,
-                                        'size' => $size ?: 'Assorted',
-                                        'color' => $product->color_name,
-                                        'sku' => $product->sku,
-                                        'requested_quantity' => $quantity,
-                                        'available_quantity' => $totalStock,
-                                    ]
-                                );
+                                if (!$product->is_preorder) {
+                                    throw new InsufficientStockException(
+                                        "Insufficient stock for '{$product->name}' (Requested: {$quantity}, Available: {$totalStock}).",
+                                        [
+                                            'product_id' => $product->id,
+                                            'product_name' => $product->name,
+                                            'variant_id' => null,
+                                            'size' => $size ?: 'Assorted',
+                                            'color' => $product->color_name,
+                                            'sku' => $product->sku,
+                                            'requested_quantity' => $quantity,
+                                            'available_quantity' => $totalStock,
+                                        ]
+                                    );
+                                }
                             }
                         }
                     }
@@ -627,18 +682,24 @@ class OrderController extends ApiController
                     // Decrement variant stock AND warehouse inventory atomically
                     if (!empty($line['locked_variants'])) {
                         foreach ($line['locked_variants'] as $lv) {
-                            $lv['variant']->decrement('stock', $lv['deduct_qty']);
+                            $deduct = min((int) $lv['variant']->stock, $lv['deduct_qty']);
+                            if ($deduct > 0) {
+                                $lv['variant']->decrement('stock', $deduct);
+                            }
                             $inv = Inventory::where('product_variant_id', $lv['variant']->id)->lockForUpdate()->first();
-                            if ($inv) {
-                                $inv->decrement('quantity', min($inv->quantity, $lv['deduct_qty']));
+                            if ($inv && $deduct > 0) {
+                                $inv->decrement('quantity', min($inv->quantity, $deduct));
                             }
                         }
                     } else {
                         $p = $line['product'];
-                        $p->decrement('stock', $line['quantity']);
+                        $deduct = min((int) $p->stock, $line['quantity']);
+                        if ($deduct > 0) {
+                            $p->decrement('stock', $deduct);
+                        }
                         $inv = Inventory::where('product_id', $p->id)->lockForUpdate()->first();
-                        if ($inv) {
-                            $inv->decrement('quantity', min($inv->quantity, $line['quantity']));
+                        if ($inv && $deduct > 0) {
+                            $inv->decrement('quantity', min($inv->quantity, $deduct));
                         }
                     }
                 }

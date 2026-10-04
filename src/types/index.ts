@@ -46,6 +46,8 @@ export interface Product {
   isLimitedTimeOffer?: boolean;
   isPreorder?: boolean;
   is_preorder?: boolean;
+  isSoldOut?: boolean;
+  is_sold_out?: boolean;
   estimatedDeliveryDate?: string | null;
   estimated_delivery_date?: string | null;
   promotionType?: "limited-time" | "featured" | "clearance" | string;

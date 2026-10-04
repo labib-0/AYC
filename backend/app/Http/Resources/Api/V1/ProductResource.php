@@ -161,6 +161,8 @@ class ProductResource extends JsonResource
             'isBestDeal' => (bool) $this->is_best_deal,
             'isPreorder' => (bool) $this->is_preorder,
             'is_preorder' => (bool) $this->is_preorder,
+            'isSoldOut' => (bool) $this->is_sold_out,
+            'is_sold_out' => (bool) $this->is_sold_out,
             'estimatedDeliveryDate' => $this->estimated_delivery_date?->format('Y-m-d'),
             'estimated_delivery_date' => $this->estimated_delivery_date?->format('Y-m-d'),
             'sizes' => $sizes,

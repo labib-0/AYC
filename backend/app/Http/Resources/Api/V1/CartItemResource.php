@@ -56,6 +56,8 @@ class CartItemResource extends JsonResource
                 'availableStock' => (int) ($variant ? $variant->stock : ($product->variants->isNotEmpty() ? $product->variants->sum('stock') : $product->getTotalAvailableStock())),
                 'isPreorder' => (bool) $product->is_preorder,
                 'is_preorder' => (bool) $product->is_preorder,
+                'isSoldOut' => (bool) $product->is_sold_out,
+                'is_sold_out' => (bool) $product->is_sold_out,
                 'estimatedDeliveryDate' => $product->estimated_delivery_date?->format('Y-m-d'),
                 'estimated_delivery_date' => $product->estimated_delivery_date?->format('Y-m-d'),
             ] : null,

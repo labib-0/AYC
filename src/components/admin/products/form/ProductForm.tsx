@@ -156,6 +156,7 @@ export default function ProductForm({
     (initialData as any)?.featuredUntil || (initialData as any)?.featured_until || null
   );
   const [isPreorder, setIsPreorder] = useState(Boolean(initialData?.isPreorder || (initialData as any)?.is_preorder));
+  const [isSoldOut, setIsSoldOut] = useState(Boolean(initialData?.isSoldOut || (initialData as any)?.is_sold_out));
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState<string | null>(
     (initialData as any)?.estimatedDeliveryDate || (initialData as any)?.estimated_delivery_date || null
   );
@@ -688,6 +689,9 @@ export default function ProductForm({
         packageAllocations: colors.length > 0 && sizes.length > 0 ? packageAllocations : [],
         shippingPackageProfiles: shippingProfiles,
         isPreorder: isPreorder,
+        is_preorder: isPreorder,
+        isSoldOut: isSoldOut,
+        is_sold_out: isSoldOut,
         estimatedDeliveryDate: isPreorder ? estimatedDeliveryDate : null,
       };
 
@@ -813,6 +817,7 @@ export default function ProductForm({
       if (d.isFeatured !== undefined) setIsFeatured(d.isFeatured);
       if (d.featuredUntil !== undefined) setFeaturedUntil(d.featuredUntil);
       if (d.isPreorder !== undefined) setIsPreorder(d.isPreorder);
+      if (d.isSoldOut !== undefined) setIsSoldOut(d.isSoldOut);
       if (d.estimatedDeliveryDate !== undefined) setEstimatedDeliveryDate(d.estimatedDeliveryDate);
       if ((d.status === "draft" || d.status === "published") && initialData?.status !== "published") {
         setStatus(d.status);
@@ -835,7 +840,7 @@ export default function ProductForm({
     material, description, images, videoUrl, wholesalePrice, bulkPricingEnabled, bulkThreshold,
     bulkPrice, fullStockPrice, costPrice, stock, warehouseId, customMoq,
     colors, sizes, packageAllocations, shippingProfiles, isNew, isHot,
-    isFeatured, isPreorder, estimatedDeliveryDate
+    isFeatured, isPreorder, isSoldOut, estimatedDeliveryDate
   ]);
 
   // Debounced auto-save of current draft
@@ -850,7 +855,7 @@ export default function ProductForm({
     persistDraftToBackendAndStorage, hasUserEdited,
     productId, name, slug, brand, categoryId, description, images, wholesalePrice,
     bulkPricingEnabled, bulkThreshold, bulkPrice, fullStockPrice, costPrice, stock, warehouseId, customMoq,
-    colors, sizes, packageAllocations, shippingProfiles, isPreorder, estimatedDeliveryDate
+    colors, sizes, packageAllocations, shippingProfiles, isPreorder, isSoldOut, estimatedDeliveryDate
   ]);
 
   // Navigation Guard: auto-save draft before user leaves via link clicks
@@ -1077,6 +1082,10 @@ export default function ProductForm({
       errs.estimatedDeliveryDate = "Estimated delivery date is required when publishing a Preorder product.";
     }
 
+    if (isPreorder && isSoldOut) {
+      errs.is_sold_out = "A product cannot be marked as both Pre-Order and Sold Out. Please choose either Pre-Order or Sold Out.";
+    }
+
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
       setGeneralError("Please review the highlighted fields before publishing.");
@@ -1243,6 +1252,8 @@ export default function ProductForm({
         featured_until: isFeatured ? featuredUntil : null,
         isPreorder: isPreorder,
         is_preorder: isPreorder,
+        isSoldOut: isSoldOut,
+        is_sold_out: isSoldOut,
         estimatedDeliveryDate: isPreorder ? estimatedDeliveryDate : null,
         estimated_delivery_date: isPreorder ? estimatedDeliveryDate : null,
         colors: colors.length > 0 ? colors : (isEdit && initialData?.colors ? initialData.colors : []),
@@ -1783,6 +1794,7 @@ export default function ProductForm({
             isFeatured={isFeatured}
             featuredUntil={featuredUntil}
             isPreorder={isPreorder}
+            isSoldOut={isSoldOut}
             estimatedDeliveryDate={estimatedDeliveryDate}
             errors={errors}
             onWholesalePriceChange={setWholesalePrice}
@@ -1792,10 +1804,29 @@ export default function ProductForm({
             onBulkPriceChange={setBulkPrice}
             onIsPreorderChange={(val, date) => {
               setIsPreorder(val);
+              if (val) {
+                setIsSoldOut(false);
+              }
               setEstimatedDeliveryDate(val ? (date ?? null) : null);
               if (errors.estimatedDeliveryDate) {
                 setErrors((prev) => {
                   const next = { ...prev };
+                  delete next.estimatedDeliveryDate;
+                  delete next.is_sold_out;
+                  return next;
+                });
+              }
+            }}
+            onIsSoldOutChange={(val) => {
+              setIsSoldOut(val);
+              if (val) {
+                setIsPreorder(false);
+                setEstimatedDeliveryDate(null);
+              }
+              if (errors.is_sold_out) {
+                setErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.is_sold_out;
                   delete next.estimatedDeliveryDate;
                   return next;
                 });

@@ -201,7 +201,7 @@ class ProductController extends ApiController
         }
 
         // Flags (storefront only matches active, unexpired promotional badges)
-        $isAdmin = $request->boolean('isAdmin');
+        $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
         if ($request->boolean('is_featured')) {
             $query->where('is_featured', true);
             if (!$isAdmin) {
@@ -235,6 +235,19 @@ class ProductController extends ApiController
         if ($request->boolean('is_preorder')) {
             $query->where('is_preorder', true);
         }
+        if ($request->has('is_sold_out')) {
+            $query->where('is_sold_out', $request->boolean('is_sold_out'));
+        }
+        if ($request->filled('availability')) {
+            $avail = $request->input('availability');
+            if ($avail === 'ready_stock') {
+                $query->where('is_preorder', false)->where('is_sold_out', false);
+            } elseif ($avail === 'preorder') {
+                $query->where('is_preorder', true);
+            } elseif ($avail === 'sold_out') {
+                $query->where('is_sold_out', true);
+            }
+        }
 
         // In Stock filter
         if ($request->boolean('in_stock')) {
@@ -260,6 +273,9 @@ class ProductController extends ApiController
 
         // Sorting whitelist
         $sortBy = $request->input('sort') ?? $request->input('sort_by') ?? 'newest';
+        if (!$isAdmin) {
+            $query->orderBy('is_sold_out', 'asc');
+        }
         switch ($sortBy) {
             case 'price_asc':
                 $query->orderBy('wholesale_price', 'asc');
@@ -472,6 +488,7 @@ class ProductController extends ApiController
                         $remainingQuery->whereNotIn('id', $pinnedIds);
                     }
                     $remainingIds = $remainingQuery
+                        ->orderBy('is_sold_out', 'asc') // 0 (active/available) first, 1 (sold out) last
                         ->orderBy('created_at', 'desc') // authoritative upload timestamp
                         ->pluck('id')
                         ->toArray();
@@ -712,6 +729,7 @@ class ProductController extends ApiController
             'is_limited_deal' => ['nullable', 'boolean'],
             'is_best_deal' => ['nullable', 'boolean'],
             'is_preorder' => ['nullable', 'boolean'],
+            'is_sold_out' => ['nullable', 'boolean'],
             'estimated_delivery_date' => ($request->boolean('is_preorder') && $isPublished)
                 ? ['required', 'date', 'after_or_equal:today']
                 : ['nullable', 'date', 'after_or_equal:today'],
@@ -754,6 +772,15 @@ class ProductController extends ApiController
             'full_stock_price.required' => 'Full stock price is required.',
             'full_stock_price.gt' => 'Full stock price must be greater than 0.',
         ]);
+
+        if ($request->boolean('is_sold_out') && $request->boolean('is_preorder')) {
+            return response()->json([
+                'message' => 'A product cannot be marked as both Pre-Order and Sold Out. Please choose either Pre-Order or Sold Out.',
+                'errors' => [
+                    'is_sold_out' => ['A product cannot be marked as both Pre-Order and Sold Out. Please choose either Pre-Order or Sold Out.']
+                ]
+            ], 422);
+        }
 
         $user = $request->user();
         $targetStatus = $validated['status'] ?? 'draft';
@@ -922,6 +949,10 @@ class ProductController extends ApiController
         // Preorder: clear estimated_delivery_date when preorder is explicitly disabled
         if (isset($validated['is_preorder']) && !$validated['is_preorder']) {
             $productData['estimated_delivery_date'] = null;
+        }
+
+        if (isset($validated['is_sold_out'])) {
+            $productData['is_sold_out'] = (bool) $validated['is_sold_out'];
         }
 
         $rawDesignType = $validated['design_type'] ?? $validated['designType'] ?? null;
@@ -1455,6 +1486,7 @@ class ProductController extends ApiController
             'is_limited_deal' => ['nullable', 'boolean'],
             'is_best_deal' => ['nullable', 'boolean'],
             'is_preorder' => ['nullable', 'boolean'],
+            'is_sold_out' => ['nullable', 'boolean'],
             'estimated_delivery_date' => $isPreorderPublish
                 ? ['required', 'date', 'after_or_equal:today']
                 : ['nullable', 'date', 'after_or_equal:today'],
@@ -1492,6 +1524,22 @@ class ProductController extends ApiController
             'standard_price.required' => 'Standard unit price is required to publish.',
             'standard_price.min' => 'Standard unit price must be greater than $0.00 to publish.',
         ]);
+
+        $effectiveSoldOut = $request->has('is_sold_out')
+            ? $request->boolean('is_sold_out')
+            : (bool) $product->is_sold_out;
+        $effectivePreorder = $request->has('is_preorder')
+            ? $request->boolean('is_preorder')
+            : (bool) $product->is_preorder;
+
+        if ($effectiveSoldOut && $effectivePreorder) {
+            return response()->json([
+                'message' => 'A product cannot be marked as both Pre-Order and Sold Out. Please choose either Pre-Order or Sold Out.',
+                'errors' => [
+                    'is_sold_out' => ['A product cannot be marked as both Pre-Order and Sold Out. Please choose either Pre-Order or Sold Out.']
+                ]
+            ], 422);
+        }
 
         $user = $request->user();
 
@@ -1668,6 +1716,10 @@ class ProductController extends ApiController
         // Preorder: clear estimated_delivery_date when preorder is explicitly disabled
         if (isset($validated['is_preorder']) && !$validated['is_preorder']) {
             $productData['estimated_delivery_date'] = null;
+        }
+
+        if (isset($validated['is_sold_out'])) {
+            $productData['is_sold_out'] = (bool) $validated['is_sold_out'];
         }
 
         // Validate Video URL if provided (YouTube ONLY)

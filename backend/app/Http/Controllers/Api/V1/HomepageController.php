@@ -176,6 +176,7 @@ class HomepageController extends ApiController
                     'pricingTiers',
                     'packageAllocations',
                 ])
+                ->orderBy('is_sold_out', 'asc') // 0 (active/available) first, 1 (sold out) last
                 ->orderBy('created_at', 'desc') // authoritative upload timestamp; NOT updated_at, NOT id
                 ->get()
                 ->map(function ($p, $idx) use ($selectedFeatured) {
@@ -236,6 +237,7 @@ class HomepageController extends ApiController
                             'pricingTiers',
                             'packageAllocations',
                         ])
+                        ->orderBy('is_sold_out', 'asc') // 0 (active/available) first, 1 (sold out) last
                         ->orderBy('created_at', 'desc') // newest upload first — NOT updated_at, NOT id
                         ->get()
                         ->map(function ($p, $idx) use ($fallbackPinned) {

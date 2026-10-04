@@ -11,6 +11,7 @@ export interface ProductFilters {
   category: string;
   designType: string;
   purchasePriceStatus: string;
+  availability: string;
 }
 
 interface ProductSearchFiltersProps {
@@ -33,6 +34,13 @@ const STATUSES = [
   { value: "all", label: "All Statuses" },
   { value: "published", label: "Published" },
   { value: "draft", label: "Draft" },
+];
+
+const AVAILABILITIES = [
+  { value: "all", label: "All Availability" },
+  { value: "ready_stock", label: "Ready Stock" },
+  { value: "preorder", label: "Pre-Order" },
+  { value: "sold_out", label: "Sold Out" },
 ];
 
 const PURCHASE_PRICE_STATUSES = [
@@ -62,6 +70,7 @@ export default function ProductSearchFilters({
     filters.category !== "all" ||
     filters.designType !== "all" ||
     filters.purchasePriceStatus !== "all" ||
+    (filters.availability && filters.availability !== "all") ||
     filters.search.trim() !== "";
 
   const activeFilterCount = [
@@ -71,6 +80,7 @@ export default function ProductSearchFilters({
     filters.category !== "all",
     filters.designType !== "all",
     filters.purchasePriceStatus !== "all",
+    filters.availability && filters.availability !== "all",
   ].filter(Boolean).length;
 
   const update = (key: keyof ProductFilters, value: string) => {
@@ -86,6 +96,7 @@ export default function ProductSearchFilters({
       category: "all",
       designType: "all",
       purchasePriceStatus: "all",
+      availability: "all",
     });
   };
 
@@ -157,6 +168,19 @@ export default function ProductSearchFilters({
           {STATUSES.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={filters.availability || "all"}
+          onChange={(e) => update("availability", e.target.value)}
+          className={`${selectClasses} ${filters.availability && filters.availability !== "all" ? "border-primary text-primary font-bold" : ""}`}
+          aria-label="Filter by availability"
+        >
+          {AVAILABILITIES.map((av) => (
+            <option key={av.value} value={av.value}>
+              {av.label}
             </option>
           ))}
         </select>

@@ -219,6 +219,25 @@ export class CartService {
 
     const newQty = existingIndex > -1 ? items[existingIndex].quantity + quantity : quantity;
 
+    const isIncomingPreorder = Boolean(product.isPreorder ?? (product as any).is_preorder);
+    const isIncomingSoldOut = Boolean(product.isSoldOut ?? (product as any).is_sold_out);
+
+    if (isIncomingSoldOut) {
+      throw new Error(`'${product.name}' is sold out and cannot be purchased.`);
+    }
+
+    if (items.length > 0) {
+      const hasPreorderInCart = items.some((item) => Boolean(item.product?.isPreorder ?? (item.product as any)?.is_preorder));
+      const hasReadyStockInCart = items.some((item) => !Boolean(item.product?.isPreorder ?? (item.product as any)?.is_preorder));
+
+      if (isIncomingPreorder && hasReadyStockInCart) {
+        throw new Error("Ready Stock and Pre-Order products cannot be ordered together. Please place them as separate orders.");
+      }
+      if (!isIncomingPreorder && hasPreorderInCart) {
+        throw new Error("Ready Stock and Pre-Order products cannot be ordered together. Please place them as separate orders.");
+      }
+    }
+
     // Authoritative backend validation
     if (!isFrontendOnly()) {
       try {

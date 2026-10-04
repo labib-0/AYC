@@ -32,6 +32,9 @@ export interface ProductQueryParams {
   is_limited_deal?: boolean;
   is_preorder?: boolean;
   isPreorder?: boolean;
+  is_sold_out?: boolean;
+  isSoldOut?: boolean;
+  availability?: "ready_stock" | "preorder" | "sold_out" | "all";
   in_stock?: boolean;
   sort?: string;
   sort_by?: "price_asc" | "price_desc" | "newest" | "popular" | "hot" | "featured" | "name_asc" | "name_desc";
@@ -173,6 +176,7 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
   );
 
   const isPreorder = Boolean(p.isPreorder ?? p.is_preorder);
+  const isSoldOut = Boolean(p.isSoldOut ?? p.is_sold_out);
   const estimatedDeliveryDate = p.estimatedDeliveryDate ?? p.estimated_delivery_date ?? null;
 
   let status: "published" | "draft" | "unpublished" = "published";
@@ -440,6 +444,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     isBestDeal: isBestDeal,
     isPreorder: isPreorder,
     is_preorder: isPreorder,
+    isSoldOut: isSoldOut,
+    is_sold_out: isSoldOut,
     estimatedDeliveryDate: estimatedDeliveryDate,
     estimated_delivery_date: estimatedDeliveryDate,
     sizes: p.sizes || ["S", "M", "L", "XL", "2XL"],
@@ -571,6 +577,8 @@ export function toStorefrontProduct(p: any): Product {
     isLimitedTimeOffer: Boolean(p.isLimitedDeal ?? p.is_limited_deal),
     isPreorder: Boolean(p.isPreorder ?? p.is_preorder),
     is_preorder: Boolean(p.isPreorder ?? p.is_preorder),
+    isSoldOut: Boolean(p.isSoldOut ?? p.is_sold_out),
+    is_sold_out: Boolean(p.isSoldOut ?? p.is_sold_out),
     estimatedDeliveryDate: p.estimatedDeliveryDate ?? p.estimated_delivery_date ?? null,
     estimated_delivery_date: p.estimatedDeliveryDate ?? p.estimated_delivery_date ?? null,
     videoProvider: p.videoProvider || p.video_provider,
@@ -1028,6 +1036,8 @@ export class ProductService {
     if (input.isLimitedDeal !== undefined) payload.is_limited_deal = input.isLimitedDeal;
     if (input.isBestDeal !== undefined) payload.is_best_deal = input.isBestDeal;
     if (input.isPreorder !== undefined) payload.is_preorder = input.isPreorder;
+    if (input.isSoldOut !== undefined) payload.is_sold_out = input.isSoldOut;
+    if ((input as any)?.is_sold_out !== undefined) payload.is_sold_out = (input as any).is_sold_out;
     if (input.estimatedDeliveryDate !== undefined) payload.estimated_delivery_date = input.estimatedDeliveryDate;
 
     if (input.packageAllocations !== undefined) payload.package_allocations = input.packageAllocations;
@@ -1289,6 +1299,12 @@ export class ProductService {
       if (options?.is_best_deal && !p.isBestDeal) return false;
       if (options?.is_limited_deal && !p.isLimitedDeal) return false;
       if (options?.is_preorder && !p.isPreorder) return false;
+      if (options?.is_sold_out !== undefined && Boolean(p.isSoldOut) !== Boolean(options.is_sold_out)) return false;
+      if (options?.availability) {
+        if (options.availability === 'ready_stock' && (p.isPreorder || p.isSoldOut)) return false;
+        if (options.availability === 'preorder' && !p.isPreorder) return false;
+        if (options.availability === 'sold_out' && !p.isSoldOut) return false;
+      }
       return true;
     });
 

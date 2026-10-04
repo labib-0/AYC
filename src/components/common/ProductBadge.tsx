@@ -28,13 +28,17 @@ export const PRODUCT_BADGE_FEATURED_CLASS =
 export const PRODUCT_BADGE_PREORDER_CLASS =
   "bg-indigo-600/90 text-white border border-indigo-700/30 dark:border-indigo-400/30";
 
+// SOLD OUT badge surface (subdued charcoal/slate surface)
+export const PRODUCT_BADGE_SOLDOUT_CLASS =
+  "bg-slate-800/90 text-white border border-slate-700/50 dark:bg-slate-900/90 dark:text-slate-200 dark:border-slate-700/50";
+
 // Brand logo container surface — transparent: only the logo itself is visually present.
 // The wrapper div is kept for sizing, positioning, and alignment.
 export const BRAND_LOGO_CONTAINER_SURFACE_CLASS =
   "bg-transparent border-0 shadow-none rounded";
 
 export interface ProductBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "neutral" | "hot" | "featured" | "preorder";
+  variant?: "neutral" | "hot" | "featured" | "preorder" | "soldout";
   children: React.ReactNode;
 }
 
@@ -45,7 +49,9 @@ export function ProductBadge({
   ...props
 }: ProductBadgeProps) {
   const variantClass =
-    variant === "hot"
+    variant === "soldout"
+      ? PRODUCT_BADGE_SOLDOUT_CLASS
+      : variant === "hot"
       ? PRODUCT_BADGE_HOT_CLASS
       : variant === "featured"
       ? PRODUCT_BADGE_FEATURED_CLASS

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { formatPrice } from "@/lib/formatters";
@@ -52,14 +51,20 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
   const availableMoqs = product.availableMoqs !== undefined 
     ? Number(product.availableMoqs) 
     : Math.floor(availableStock / effectiveMoq);
-  const isOutOfStock = availableMoqs <= 0 || availableStock <= 0;
+  const isPreorder = Boolean(product.isPreorder ?? (product as any).is_preorder);
+  const isSoldOut = Boolean(product.isSoldOut ?? (product as any).is_sold_out);
+  const isOutOfStock = !isPreorder && (availableMoqs <= 0 || availableStock <= 0);
 
   // Authoritative lowest valid customer-facing unit price across Full Stock, Bulk, and Standard tiers
   const lowestUnitPrice = getLowestValidCustomerUnitPrice(product);
   const hasValidPrice = lowestUnitPrice !== null && lowestUnitPrice > 0;
 
+  const estimatedDelivery = product.estimatedDeliveryDate || (product as any).estimated_delivery_date;
+
   return (
-    <div className="group relative flex flex-col w-full h-full bg-card rounded-2xl border border-border/80 shadow-[0_1px_4px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:shadow-md hover:border-border transition-all duration-300 overflow-hidden font-sans">
+    <div className={`group relative flex flex-col w-full h-full bg-card rounded-2xl border border-border/80 shadow-[0_1px_4px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:shadow-md hover:border-border transition-all duration-300 overflow-hidden font-sans ${
+      isSoldOut ? "opacity-80 grayscale-[0.35]" : ""
+    }`}>
       {/* Top Image Container (Flush with upper card boundaries) — Canonical 3:4 */}
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-secondary/40 dark:bg-white/5 shrink-0">
         <Link href={`/products/${product.slug}`} className="block w-full h-full">
@@ -68,7 +73,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             alt={imageAlt}
             referenceSize="listing"
             loading={priority ? "eager" : "lazy"}
-            hoverZoom
+            hoverZoom={!isSoldOut}
             fallbackText={product.name}
             className="w-full h-full border-0 bg-transparent dark:bg-transparent"
           />
@@ -77,7 +82,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         {/* Global Normalized Promotional Badges (Top Left) */}
         <ProductPromotionBadges product={product} variant="card" />
 
-        {/* Wishlist Button — only shown to authenticated users */}
+        {/* Wishlist Button — only shown to authenticated users, stays available even if sold out */}
         {user && (
           <button
             type="button"
@@ -118,15 +123,15 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         {/* Quick Add Button */}
         <div className="absolute bottom-0 left-0 w-full p-2.5 sm:p-3 translate-y-5 opacity-0 transition-all duration-400 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] z-10 group-hover:translate-y-0 group-hover:opacity-100">
           <button
-            disabled={isOutOfStock}
+            disabled={isSoldOut || isOutOfStock}
             className={`w-full p-2 text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-300 backdrop-blur-md rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none shadow-sm ${
-              isOutOfStock
+              isSoldOut || isOutOfStock
                 ? "bg-secondary text-muted-foreground cursor-not-allowed border border-border"
                 : "bg-background/95 text-foreground border border-transparent hover:bg-foreground hover:text-background cursor-pointer"
             }`}
             onClick={handleQuickAdd}
           >
-            {isOutOfStock ? "Out of Stock" : !hasValidPrice ? "Inquire / Quote" : "Quick Add"}
+            {isSoldOut ? "Sold Out" : isOutOfStock ? "Out of Stock" : !hasValidPrice ? "Inquire / Quote" : "Quick Add"}
           </button>
         </div>
       </div>
@@ -158,11 +163,27 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
               </span>
             )}
           </div>
+
+          {/* Pre-order Delivery Date Information (where space permits) */}
+          {isPreorder && estimatedDelivery && (
+            <p className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 mt-0.5 truncate">
+              Delivery: {new Date(estimatedDelivery).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            </p>
+          )}
+
           <div className="flex items-center justify-between gap-1 mt-0.5">
             <p className="text-[13px] font-body text-muted-foreground font-medium">
               MOQ {effectiveMoq} pcs
             </p>
-            {isOutOfStock ? (
+            {isSoldOut ? (
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Sold Out
+              </span>
+            ) : isPreorder ? (
+              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                Pre-Order
+              </span>
+            ) : isOutOfStock ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
                 Out of Stock
               </span>

@@ -76,6 +76,8 @@ export default function ProductTableRow({
   const isHiddenFromStorefront = Boolean(
     product.isHiddenFromStorefront || (product as any).is_hidden_from_storefront
   );
+  const isPreorder = Boolean(product.isPreorder || (product as any).is_preorder);
+  const isSoldOut = Boolean(product.isSoldOut || (product as any).is_sold_out);
   const effectiveMoq = Math.max(1, product.moq || 1);
   const availableStock = product.availableStock !== undefined ? Number(product.availableStock) : Number(product.stock);
   const completeMoqs = product.availableMoqs !== undefined 
@@ -142,6 +144,16 @@ export default function ProductTableRow({
                 ? "MASTER COPY"
                 : "ORIGINAL"}
             </span>
+            {isSoldOut && (
+              <span className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-200 shrink-0">
+                Sold Out
+              </span>
+            )}
+            {isPreorder && (
+              <span className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shrink-0">
+                Pre-Order
+              </span>
+            )}
             {product.isNew && (
               <span className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 shrink-0">
                 New
@@ -241,7 +253,7 @@ export default function ProductTableRow({
           <span className="text-[9px] text-muted-foreground ml-0.5">pcs</span>
           {isLowStock && (
             <span className="block text-[8px] font-bold uppercase text-red-500 dark:text-red-400 leading-none mt-0.5">
-              {availableStock === 0 ? "Out" : "Low"}
+              {isPreorder ? "Pre-Order" : (availableStock === 0 ? "Out" : "Low")}
             </span>
           )}
         </div>
@@ -253,7 +265,9 @@ export default function ProductTableRow({
           className={`inline-flex items-center px-1 py-0.2 rounded text-[9.5px] font-mono font-bold tabular-nums ${
             completeMoqs > 0
               ? "bg-primary/10 text-primary border border-primary/20"
-              : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-200 dark:border-red-900/40"
+              : isPreorder
+                ? "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-200 dark:border-red-900/40"
           }`}
         >
           {completeMoqs} MOQ{completeMoqs !== 1 ? "s" : ""}
@@ -272,6 +286,22 @@ export default function ProductTableRow({
           >
             {product.status}
           </span>
+          {isSoldOut && (
+            <span
+              className="inline-flex items-center px-1 py-0.2 rounded text-[7.5px] font-bold uppercase tracking-wider bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-200 whitespace-nowrap"
+              title="Sold Out"
+            >
+              Sold Out
+            </span>
+          )}
+          {isPreorder && (
+            <span
+              className="inline-flex items-center px-1 py-0.2 rounded text-[7.5px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-300 dark:border-purple-700 whitespace-nowrap"
+              title={product.estimatedDeliveryDate ? `Pre-Order (Est: ${product.estimatedDeliveryDate})` : "Pre-Order"}
+            >
+              Pre-Order
+            </span>
+          )}
           {isHiddenFromStorefront && (
             <span
               className="inline-flex items-center px-1 py-0.2 rounded text-[7.5px] font-bold uppercase tracking-wider bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 whitespace-nowrap"

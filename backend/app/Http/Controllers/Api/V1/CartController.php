@@ -82,6 +82,46 @@ class CartController extends ApiController
             return $this->error('This product is currently unavailable', 422);
         }
 
+        if ($product->is_sold_out) {
+            return response()->json([
+                'success' => false,
+                'error_code' => 'PRODUCT_SOLD_OUT',
+                'message' => "'{$product->name}' is sold out and cannot be purchased.",
+                'errors' => [
+                    'product' => ["'{$product->name}' is sold out and cannot be purchased."]
+                ]
+            ], 422);
+        }
+
+        $existingCartItems = $cart->items()->with('product')->get();
+        if ($existingCartItems->isNotEmpty()) {
+            $isIncomingPreorder = (bool) $product->is_preorder;
+            $hasPreorderInCart = $existingCartItems->contains(fn($item) => (bool) $item->product?->is_preorder);
+            $hasReadyStockInCart = $existingCartItems->contains(fn($item) => !(bool) $item->product?->is_preorder);
+
+            if ($isIncomingPreorder && $hasReadyStockInCart) {
+                return response()->json([
+                    'success' => false,
+                    'error_code' => 'INCOMPATIBLE_CART_ITEMS',
+                    'message' => 'Ready Stock and Pre-Order products cannot be ordered together. Please place them as separate orders.',
+                    'errors' => [
+                        'cart' => ['Ready Stock and Pre-Order products cannot be ordered together. Please place them as separate orders.']
+                    ]
+                ], 422);
+            }
+
+            if (!$isIncomingPreorder && $hasPreorderInCart) {
+                return response()->json([
+                    'success' => false,
+                    'error_code' => 'INCOMPATIBLE_CART_ITEMS',
+                    'message' => 'Ready Stock and Pre-Order products cannot be ordered together. Please place them as separate orders.',
+                    'errors' => [
+                        'cart' => ['Ready Stock and Pre-Order products cannot be ordered together. Please place them as separate orders.']
+                    ]
+                ], 422);
+            }
+        }
+
         $hasAllocations = $product->packageAllocations->isNotEmpty();
 
         // Rule: In universal package assortment model, customer CANNOT order individual sizes/variants
@@ -108,7 +148,7 @@ class CartController extends ApiController
         $packageBreakdown = null;
         $variant = null;
 
-        if (!$hasAllocations) {
+        if (!$hasAllocations && !$product->is_preorder) {
             if ($variantId) {
                 $variant = ProductVariant::where('product_id', $productId)->where('id', (int) $variantId)->first();
             }
@@ -183,7 +223,8 @@ class CartController extends ApiController
             $packageBreakdown = $product->getPackageBreakdownForQuantity($newQuantity);
 
             // Per-variant inventory verification for complete package requirement
-            foreach ($packageBreakdown as $bd) {
+            if (!$product->is_preorder) {
+                foreach ($packageBreakdown as $bd) {
                 $needed = (int) ($bd['quantity'] ?? 0);
                 if ($needed > 0) {
                     $vMatch = $bd['product_variant_id'] ? $product->variants->firstWhere('id', $bd['product_variant_id']) : null;
@@ -219,6 +260,7 @@ class CartController extends ApiController
                     }
                 }
             }
+        }
         }
 
         if ($cartItem) {
@@ -282,6 +324,17 @@ class CartController extends ApiController
             $product = $cartItem->product()->with(['variants', 'pricingTiers', 'packageAllocations'])->first();
             
             if ($product) {
+                if ($product->is_sold_out) {
+                    return response()->json([
+                        'success' => false,
+                        'error_code' => 'PRODUCT_SOLD_OUT',
+                        'message' => "'{$product->name}' is sold out and cannot be purchased.",
+                        'errors' => [
+                            'product' => ["'{$product->name}' is sold out and cannot be purchased."]
+                        ]
+                    ], 422);
+                }
+
                 $effectiveMoq = max(1, (int) $product->moq);
                 if ($request->has('package_count') && (int) $request->input('package_count') > 0) {
                     $quantity = (int) $request->input('package_count') * $effectiveMoq;
@@ -328,39 +381,41 @@ class CartController extends ApiController
 
                 if ($hasAllocations) {
                     $packageBreakdown = $product->getPackageBreakdownForQuantity($quantity);
-                    foreach ($packageBreakdown as $bd) {
-                        $needed = (int) ($bd['quantity'] ?? 0);
-                        if ($needed > 0) {
-                            $vMatch = $bd['product_variant_id'] ? $product->variants->firstWhere('id', $bd['product_variant_id']) : null;
-                            if (!$vMatch) {
-                                $vMatch = $product->variants->first(fn($var) =>
-                                    strtolower(trim($var->color ?? '')) === strtolower(trim($bd['color'] ?? '')) &&
-                                    strtolower(trim($var->size ?? '')) === strtolower(trim($bd['size'] ?? ''))
-                                );
-                            }
-                            $av = $vMatch ? (int) $vMatch->stock : 0;
-                            if ($av < $needed) {
-                                $cLabel = $bd['color'] ?? '';
-                                $sLabel = $bd['size'] ?? '';
-                                return response()->json([
-                                    'success' => false,
-                                    'error_code' => 'INSUFFICIENT_STOCK',
-                                    'message' => "Insufficient stock for variant '{$cLabel} / {$sLabel}' in '{$product->name}' (Requested: {$needed}, Available: {$av}).",
-                                    'errors' => [
-                                        'stock' => ["Insufficient stock for variant '{$cLabel} / {$sLabel}' in '{$product->name}' (Requested: {$needed}, Available: {$av})."]
-                                    ],
-                                    'data' => [
-                                        'product_id' => $product->id,
-                                        'product_name' => $product->name,
-                                        'variant_id' => $vMatch?->id,
-                                        'size' => $sLabel,
-                                        'color' => $cLabel,
-                                        'sku' => $vMatch?->sku ?? $product->sku,
-                                        'requested_quantity' => $needed,
-                                        'available_quantity' => $av,
-                                        'package_count' => (int) ($quantity / $effectiveMoq),
-                                    ]
-                                ], 422);
+                    if (!$product->is_preorder) {
+                        foreach ($packageBreakdown as $bd) {
+                            $needed = (int) ($bd['quantity'] ?? 0);
+                            if ($needed > 0) {
+                                $vMatch = $bd['product_variant_id'] ? $product->variants->firstWhere('id', $bd['product_variant_id']) : null;
+                                if (!$vMatch) {
+                                    $vMatch = $product->variants->first(fn($var) =>
+                                        strtolower(trim($var->color ?? '')) === strtolower(trim($bd['color'] ?? '')) &&
+                                        strtolower(trim($var->size ?? '')) === strtolower(trim($bd['size'] ?? ''))
+                                    );
+                                }
+                                $av = $vMatch ? (int) $vMatch->stock : 0;
+                                if ($av < $needed) {
+                                    $cLabel = $bd['color'] ?? '';
+                                    $sLabel = $bd['size'] ?? '';
+                                    return response()->json([
+                                        'success' => false,
+                                        'error_code' => 'INSUFFICIENT_STOCK',
+                                        'message' => "Insufficient stock for variant '{$cLabel} / {$sLabel}' in '{$product->name}' (Requested: {$needed}, Available: {$av}).",
+                                        'errors' => [
+                                            'stock' => ["Insufficient stock for variant '{$cLabel} / {$sLabel}' in '{$product->name}' (Requested: {$needed}, Available: {$av})."]
+                                        ],
+                                        'data' => [
+                                            'product_id' => $product->id,
+                                            'product_name' => $product->name,
+                                            'variant_id' => $vMatch?->id,
+                                            'size' => $sLabel,
+                                            'color' => $cLabel,
+                                            'sku' => $vMatch?->sku ?? $product->sku,
+                                            'requested_quantity' => $needed,
+                                            'available_quantity' => $av,
+                                            'package_count' => (int) ($quantity / $effectiveMoq),
+                                        ]
+                                    ], 422);
+                                }
                             }
                         }
                     }
@@ -379,7 +434,7 @@ class CartController extends ApiController
                     $variant = $cartItem->variant;
                     $availableStock = $variant ? (int) $variant->stock : ($product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock());
                     
-                    if ($quantity > $availableStock) {
+                    if (!$product->is_preorder && $quantity > $availableStock) {
                         $sizeLabel = $variant ? " size {$variant->size}" : (!empty($cartItem->size) && $cartItem->size !== 'Assorted' ? " size {$cartItem->size}" : "");
                         return response()->json([
                             'success' => false,
@@ -596,6 +651,26 @@ class CartController extends ApiController
                 continue;
             }
 
+            if ($product->is_sold_out) {
+                $violations[] = [
+                    'item_id' => $it['id'],
+                    'product_id' => $productId,
+                    'product_name' => $product->name,
+                    'error_code' => 'PRODUCT_SOLD_OUT',
+                    'message' => "'{$product->name}' is sold out and cannot be purchased.",
+                ];
+                $validatedList[] = [
+                    'item_id' => $it['id'],
+                    'product_id' => $productId,
+                    'variant_id' => $variantId,
+                    'size' => $size,
+                    'requested_quantity' => $requestedQty,
+                    'available_quantity' => 0,
+                    'is_valid' => false,
+                ];
+                continue;
+            }
+
             // Resolve variant
             $variant = null;
             if ($variantId) {
@@ -609,8 +684,8 @@ class CartController extends ApiController
             $effectiveMoq = max(1, (int) $product->moq);
             $isBelowMoq = $effectiveMoq > 1 && $requestedQty < $effectiveMoq;
             $isInvalidMultiple = $effectiveMoq > 1 && ($requestedQty % $effectiveMoq !== 0);
-            $isOutOfStock = $requestedQty > $availableStock;
-            $isValid = !$isOutOfStock && !$isBelowMoq && !$isInvalidMultiple && $availableStock > 0;
+            $isOutOfStock = !$product->is_preorder && ($requestedQty > $availableStock);
+            $isValid = !$isOutOfStock && !$isBelowMoq && !$isInvalidMultiple && ($product->is_preorder || $availableStock > 0);
 
             if ($isOutOfStock) {
                 $sizeLabel = $variant ? " size {$variant->size}" : (!empty($size) && $size !== 'Assorted' ? " size {$size}" : "");
@@ -656,6 +731,26 @@ class CartController extends ApiController
                 'available_quantity' => $availableStock,
                 'moq' => $effectiveMoq,
                 'is_valid' => $isValid,
+            ];
+        }
+
+        $hasPreorderInList = false;
+        $hasReadyStockInList = false;
+        foreach ($itemsToValidate as $it) {
+            $pId = $it['product_id'];
+            $prod = is_numeric($pId) ? Product::find((int) $pId) : Product::where('slug', $pId)->orWhere('sku', $pId)->first();
+            if ($prod && !$prod->is_sold_out && $prod->status === 'published') {
+                if ($prod->is_preorder) {
+                    $hasPreorderInList = true;
+                } else {
+                    $hasReadyStockInList = true;
+                }
+            }
+        }
+        if ($hasPreorderInList && $hasReadyStockInList) {
+            $violations[] = [
+                'error_code' => 'INCOMPATIBLE_CART_ITEMS',
+                'message' => 'Ready Stock and Pre-Order products cannot be ordered together. Please place them as separate orders.',
             ];
         }
 

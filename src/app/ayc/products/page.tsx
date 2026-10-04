@@ -68,6 +68,7 @@ function AdminProductsContent() {
     category: "all",
     designType: "all",
     purchasePriceStatus: "all",
+    availability: "all",
   });
 
   // ── Sync URL with Status Filter ──
@@ -167,6 +168,7 @@ function AdminProductsContent() {
         status: filters.status !== "all" ? filters.status : undefined,
         category: filters.category !== "all" ? filters.category : undefined,
         purchase_price_status: filters.purchasePriceStatus !== "all" ? filters.purchasePriceStatus : undefined,
+        availability: filters.availability && filters.availability !== "all" ? (filters.availability as any) : undefined,
       });
 
       // Apply design type filter locally
@@ -180,6 +182,19 @@ function AdminProductsContent() {
             return pDt === "MASTER COPY";
           }
           return pDt === "ORIGINAL";
+        });
+      }
+
+      // Apply availability filter locally as safeguard
+      if (filters.availability && filters.availability !== "all") {
+        const avail = filters.availability;
+        filtered = filtered.filter((p) => {
+          const isPreorder = Boolean(p.isPreorder || (p as any).is_preorder);
+          const isSoldOut = Boolean(p.isSoldOut || (p as any).is_sold_out);
+          if (avail === "preorder") return isPreorder;
+          if (avail === "sold_out") return isSoldOut;
+          if (avail === "ready_stock") return !isPreorder && !isSoldOut;
+          return true;
         });
       }
 
@@ -243,7 +258,8 @@ function AdminProductsContent() {
     filters.status !== "all" ||
     filters.category !== "all" ||
     filters.designType !== "all" ||
-    filters.purchasePriceStatus !== "all";
+    filters.purchasePriceStatus !== "all" ||
+    Boolean(filters.availability && filters.availability !== "all");
 
   // ── Status Filter Click from Summary Cards ──
   const handleStatusFilterClick = (targetStatus: "all" | "published" | "draft") => {
@@ -405,6 +421,7 @@ function AdminProductsContent() {
       category: "all",
       designType: "all",
       purchasePriceStatus: "all",
+      availability: "all",
     });
   };
 
