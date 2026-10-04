@@ -1012,7 +1012,12 @@ class OrderController extends ApiController
             ], 403);
         }
 
-        $docPayload = $order->getCommercialDocument($docType);
+        if ($normalizedType === 'ORDER_SHEET') {
+            $offerSheetService = app(\App\Services\Documents\OfferSheetService::class);
+            $docPayload = $offerSheetService->generateForOrder($order);
+        } else {
+            $docPayload = $order->getCommercialDocument($docType);
+        }
 
         return $this->success($docPayload, "Commercial document '{$docType}' generated successfully");
     }

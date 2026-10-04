@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { deduplicateMediaUrls } from "@/lib/media";
+import { useSiteSettings } from "@/lib/SiteSettingsContext";
+import { OFFICIAL_AYC_SITE_LOGO_PATH } from "@/lib/site-logo";
 
 export interface CommercialGalleryItem {
   description: string;
@@ -25,7 +28,9 @@ export interface CommercialProductGalleryProps {
  * - Compact 4-5 column grid with canonical 4:5 aspect ratio tiles
  * - Non-destructive object-contain fitting: zero cropping, stretching, or squashing
  * - Automatic row wrapping; incomplete rows remain strictly left-aligned
- * - Includes EVERY available product image in original order without omission
+ * - Includes EVERY available unique product image in authoritative website gallery order
+ * - Official Ayaan Clothing website logo overlay in top-right corner of EVERY image container
+ * - Strictly NO promotional or index badges over the image
  * - Graceful fallback when images are missing or broken
  * - Multiple products support with seamless tab switching
  */
@@ -36,6 +41,9 @@ export default function CommercialProductGallery({
   items,
   className = "",
 }: CommercialProductGalleryProps) {
+  const { settings } = useSiteSettings();
+  const resolvedSiteLogo = settings?.site_logo || OFFICIAL_AYC_SITE_LOGO_PATH;
+
   // If multiple items exist in the order/document, determine active item
   const hasMultipleItems = Boolean(items && items.length > 1);
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
@@ -47,18 +55,20 @@ export default function CommercialProductGallery({
     ? activeItem.product_images
     : images;
 
-  // Normalize image list (primary image first, deduplicated, non-empty)
+  // Normalize image list: authoritative website gallery order, primary first, strictly unique
   const allImages = useMemo(() => {
-    const list: string[] = [];
+    const rawList: string[] = [];
     if (effectivePrimaryImage && typeof effectivePrimaryImage === "string" && effectivePrimaryImage.trim().length > 0) {
-      list.push(effectivePrimaryImage);
+      rawList.push(effectivePrimaryImage);
     }
-    (effectiveImagesList || []).forEach((img) => {
-      if (img && typeof img === "string" && img.trim().length > 0 && !list.includes(img)) {
-        list.push(img);
-      }
-    });
-    return list;
+    if (Array.isArray(effectiveImagesList) && effectiveImagesList.length > 0) {
+      effectiveImagesList.forEach((img) => {
+        if (img && typeof img === "string" && img.trim().length > 0) {
+          rawList.push(img);
+        }
+      });
+    }
+    return deduplicateMediaUrls(rawList);
   }, [effectivePrimaryImage, effectiveImagesList]);
 
   // Selected image for enlarged preview in web mode
@@ -130,9 +140,23 @@ export default function CommercialProductGallery({
             <div
               key={idx}
               onClick={() => setSelectedPreviewImage(imgUrl)}
-              className="group relative aspect-[3/4] rounded-xl border border-border/80 bg-secondary/30 p-1.5 flex items-center justify-center overflow-hidden transition-all hover:border-primary/50 hover:shadow-xs cursor-pointer print:border-slate-300 print:bg-slate-50 print:p-1 print:cursor-default"
+              className="group relative aspect-[4/5] rounded-xl border border-border/80 bg-secondary/30 p-1.5 flex items-center justify-center overflow-hidden transition-all hover:border-primary/50 hover:shadow-xs cursor-pointer print:border-slate-300 print:bg-slate-50 print:p-1 print:cursor-default"
               title={`View ${effectiveProductName} sample #${idx + 1}`}
             >
+              {/* Official Ayaan Clothing Website Logo inside top-right corner of EVERY image container */}
+              <div
+                className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 w-5 h-5 sm:w-6 sm:h-6 aspect-square pointer-events-none select-none flex items-center justify-center"
+                aria-hidden="true"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolvedSiteLogo}
+                  alt="Ayaan Clothing"
+                  className="w-full h-full object-contain pointer-events-none drop-shadow-xs"
+                />
+              </div>
+
+              {/* Product Image strictly non-destructive contain fitting without distortion */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imgUrl}
@@ -143,9 +167,6 @@ export default function CommercialProductGallery({
                   (e.currentTarget.parentElement as HTMLElement)?.classList.add("hidden");
                 }}
               />
-              <span className="absolute bottom-1 right-1.5 text-[9px] font-mono font-semibold px-1 py-0.2 rounded bg-black/60 text-white/90 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
-                #{idx + 1}
-              </span>
             </div>
           ))}
         </div>
@@ -173,7 +194,20 @@ export default function CommercialProductGallery({
                 ✕
               </button>
             </div>
-            <div className="w-full aspect-[3/4] max-h-[70vh] bg-secondary/20 rounded-xl flex items-center justify-center overflow-hidden p-2">
+            <div className="w-full aspect-[4/5] max-h-[70vh] bg-secondary/20 rounded-xl relative flex items-center justify-center overflow-hidden p-2">
+              {/* Official Ayaan Clothing Website Logo inside top-right corner of preview container */}
+              <div
+                className="absolute top-3 right-3 z-10 w-8 h-8 aspect-square pointer-events-none select-none flex items-center justify-center"
+                aria-hidden="true"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolvedSiteLogo}
+                  alt="Ayaan Clothing"
+                  className="w-full h-full object-contain pointer-events-none drop-shadow-xs"
+                />
+              </div>
+
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={selectedPreviewImage}
@@ -187,3 +221,4 @@ export default function CommercialProductGallery({
     </section>
   );
 }
+

@@ -3,6 +3,8 @@ import autoTable from "jspdf-autotable";
 import BUSINESS_PROFILE from "@/config/business-profile";
 import { OrderRecord } from "@/services/order.service";
 import { CommercialDocument } from "@/types/b2b";
+import { deduplicateMediaUrls, getCanonicalMediaKey } from "@/lib/media";
+import { OFFICIAL_AYC_SITE_LOGO_DATA_URL, OFFICIAL_AYC_SITE_LOGO_PATH } from "@/lib/site-logo";
 
 /**
  * Robust caller for jspdf-autotable across different bundler module resolutions.
@@ -168,6 +170,7 @@ export interface OfferSheetProductInput {
   images?: string[];
   imageDataUrl?: string | null;
   galleryDataUrls?: string[];
+  logoDataUrl?: string | null;
   cartonDimensions?: { length: number; width: number; height: number; unit?: string };
   grossWeight?: number | string;
   netWeight?: number | string;
@@ -297,34 +300,40 @@ export function generateProductOfferSheetDoc(
 
   y += 22;
 
-  // 3. PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES (Full-Width Multi-Image 3:4 Grid)
-  // Canonical 3:4 ratio reference (3:4 ratio standard for document thumbnails/tiles)
-  const thumbW = 12; const thumbH = 16;
-  void thumbW; void thumbH;
-
+  // 3. PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES (Full-Width Multi-Image 4:5 Grid)
+  // Canonical 4:5 ratio reference (4:5 ratio standard matching website product gallery)
   const galleryImages: string[] = [];
-  // 3.1 Primary Image first
-  const primaryImg = product.imageDataUrl || product.imageUrl || product.image;
-  if (primaryImg && typeof primaryImg === "string" && primaryImg.trim().length > 0) {
-    galleryImages.push(primaryImg);
-  }
+  const seenKeys = new Set<string>();
 
-  // 3.2 Secondary Gallery Data URLs in order
+  // Determine effective logo data url
+  const effectiveLogoDataUrl = product.logoDataUrl || OFFICIAL_AYC_SITE_LOGO_DATA_URL;
+
+  // 3.1 Prefer galleryDataUrls if provided, otherwise collect primary and secondary sources
   if (product.galleryDataUrls && product.galleryDataUrls.length > 0) {
     product.galleryDataUrls.forEach((g) => {
-      if (g && typeof g === "string" && g.trim().length > 0 && !galleryImages.includes(g)) {
-        galleryImages.push(g);
+      if (g && typeof g === "string" && g.trim().length > 0) {
+        const key = getCanonicalMediaKey(g);
+        if (key && !seenKeys.has(key)) {
+          seenKeys.add(key);
+          galleryImages.push(g);
+        }
       }
     });
-  }
-
-  // 3.3 Secondary Product Images in order
-  if (product.images && product.images.length > 0) {
-    product.images.forEach((img) => {
-      if (img && typeof img === "string" && img.trim().length > 0 && !galleryImages.includes(img)) {
-        galleryImages.push(img);
-      }
-    });
+  } else {
+    const rawSources: string[] = [];
+    const primaryImg = product.imageDataUrl || product.imageUrl || product.image;
+    if (primaryImg && typeof primaryImg === "string" && primaryImg.trim().length > 0) {
+      rawSources.push(primaryImg);
+    }
+    if (product.images && product.images.length > 0) {
+      product.images.forEach((img) => {
+        if (img && typeof img === "string" && img.trim().length > 0) {
+          rawSources.push(img);
+        }
+      });
+    }
+    const deduplicated = deduplicateMediaUrls(rawSources);
+    galleryImages.push(...deduplicated);
   }
 
   // Section Header Label
@@ -349,7 +358,7 @@ export function generateProductOfferSheetDoc(
     const cols = galleryImages.length <= 4 ? 4 : 5;
     const gap = 3; // mm
     const tileW = (contentWidth - (cols - 1) * gap) / cols;
-    const tileH = tileW * (4 / 3); // Canonical 3:4 ratio
+    const tileH = tileW * (5 / 4); // Canonical 4:5 ratio matching website gallery
 
     let curCol = 0;
 
@@ -378,7 +387,7 @@ export function generateProductOfferSheetDoc(
       const tileX = margin + curCol * (tileW + gap);
       const tileY = y;
 
-      // Draw bounding 3:4 frame tile
+      // Draw bounding 4:5 frame tile
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
       doc.roundedRect(tileX, tileY, tileW, tileH, 1.5, 1.5, "FD");
@@ -406,6 +415,24 @@ export function generateProductOfferSheetDoc(
         } catch {
           // If image cannot be rendered (e.g. invalid string or unsupported format),
           // skip safely without crashing the document
+        }
+      }
+
+      // Official Ayaan Clothing website logo in top-right corner of EVERY image container
+      const logoInset = 1.2; // mm
+      const logoSize = 4.2; // mm square
+      const logoX = tileX + tileW - logoInset - logoSize;
+      const logoY = tileY + logoInset;
+
+      if (effectiveLogoDataUrl) {
+        try {
+          doc.addImage(effectiveLogoDataUrl, "PNG", logoX, logoY, logoSize, logoSize);
+        } catch {
+          try {
+            doc.addImage(effectiveLogoDataUrl, logoX, logoY, logoSize, logoSize);
+          } catch {
+            // safe fallback
+          }
         }
       }
 
@@ -708,56 +735,81 @@ export async function downloadProductOfferSheetPDF(
   selectedQty?: number
 ) {
   // Collect all available image sources for gallery: primary first, followed by secondary images
-  const imageSources: string[] = [];
+  let imageSources: string[] = [];
   const primarySrc = product.imageUrl || product.image;
   if (primarySrc && typeof primarySrc === "string" && primarySrc.trim().length > 0) {
     imageSources.push(primarySrc);
   }
   if (product.images && product.images.length > 0) {
     product.images.forEach((img) => {
-      if (img && typeof img === "string" && img.trim().length > 0 && !imageSources.includes(img)) {
+      if (img && typeof img === "string" && img.trim().length > 0) {
         imageSources.push(img);
       }
     });
   }
 
-  // Fallback: If no images provided, check mockStore
-  if (imageSources.length === 0 && (product.sku || product.name)) {
+  // Deduplicate before loading data URLs
+  imageSources = deduplicateMediaUrls(imageSources);
+
+  // If 0 or 1 image provided, enrich with authoritative product images from product service / store
+  if (imageSources.length <= 1 && (product.id || product.sku || product.name)) {
     try {
-      const { mockStore } = await import("@/lib/mock-data/mock-store");
-      const found = mockStore.getProducts().find(
-        (p) =>
-          (product.sku && p.sku?.toUpperCase() === product.sku.toUpperCase()) ||
-          (product.name && p.name.toLowerCase() === product.name.toLowerCase())
-      );
-      if (found && found.images && found.images.length > 0) {
-        found.images.forEach((img) => {
-          if (img && !imageSources.includes(img)) imageSources.push(img);
-        });
+      const { getProductBySlugOrId } = await import("@/lib/services/products");
+      const authoritativeProduct = await getProductBySlugOrId(product.id || product.sku || product.name);
+      if (authoritativeProduct && authoritativeProduct.images && authoritativeProduct.images.length > 0) {
+        const combined = [
+          authoritativeProduct.images[0] || imageSources[0],
+          ...authoritativeProduct.images,
+          ...imageSources,
+        ];
+        imageSources = deduplicateMediaUrls(combined);
       }
     } catch {
-      // fallback
+      // Fallback: check mockStore
+      try {
+        const { mockStore } = await import("@/lib/mock-data/mock-store");
+        const found = mockStore.getProducts().find(
+          (p) =>
+            (product.sku && p.sku?.toUpperCase() === product.sku.toUpperCase()) ||
+            (product.name && p.name.toLowerCase() === product.name.toLowerCase())
+        );
+        if (found && found.images && found.images.length > 0) {
+          const combined = [
+            found.images[0] || imageSources[0],
+            ...found.images,
+            ...imageSources,
+          ];
+          imageSources = deduplicateMediaUrls(combined);
+        }
+      } catch {}
     }
   }
 
-  let galleryDataUrls: string[] = product.galleryDataUrls || [];
-  let mainDataUrl = product.imageDataUrl || null;
-
-  if (galleryDataUrls.length === 0 && imageSources.length > 0) {
+  let galleryDataUrls: string[] = [];
+  if (product.galleryDataUrls && product.galleryDataUrls.length > 0) {
+    galleryDataUrls = deduplicateMediaUrls(product.galleryDataUrls);
+  } else if (imageSources.length > 0) {
     const loaded = await Promise.all(
       imageSources.map((s) => loadImageAsDataUrl(s))
     );
     galleryDataUrls = loaded.filter((u): u is string => Boolean(u));
   }
 
-  if (!mainDataUrl && galleryDataUrls.length > 0) {
-    mainDataUrl = galleryDataUrls[0];
-  } else if (!mainDataUrl && imageSources.length > 0) {
-    mainDataUrl = await loadImageAsDataUrl(imageSources[0]);
+  let mainDataUrl = product.imageDataUrl || (galleryDataUrls.length > 0 ? galleryDataUrls[0] : null);
+
+  // Load official website logo data URL
+  let logoDataUrl = product.logoDataUrl || null;
+  if (!logoDataUrl) {
+    logoDataUrl = (await loadImageAsDataUrl(OFFICIAL_AYC_SITE_LOGO_PATH)) || OFFICIAL_AYC_SITE_LOGO_DATA_URL;
   }
 
   const doc = generateProductOfferSheetDoc(
-    { ...product, imageDataUrl: mainDataUrl, galleryDataUrls },
+    {
+      ...product,
+      imageDataUrl: mainDataUrl,
+      galleryDataUrls,
+      logoDataUrl: logoDataUrl || OFFICIAL_AYC_SITE_LOGO_DATA_URL,
+    },
     buyerInfo,
     selectedQty
   );
@@ -783,17 +835,36 @@ export async function downloadCombinedProductOfferSheetsPDF(
   for (let i = 0; i < totalItems; i++) {
     const item = order.items[i];
     
-    const imageSources: string[] = [];
+    let imageSources: string[] = [];
     const imageSource = item.product_image_url || null;
     if (imageSource && typeof imageSource === "string" && imageSource.trim().length > 0) {
       imageSources.push(imageSource);
     }
     if (item.product_images && item.product_images.length > 0) {
       item.product_images.forEach((img: string) => {
-        if (img && typeof img === "string" && img.trim().length > 0 && !imageSources.includes(img)) {
+        if (img && typeof img === "string" && img.trim().length > 0) {
           imageSources.push(img);
         }
       });
+    }
+
+    imageSources = deduplicateMediaUrls(imageSources);
+
+    // Enrich if item has <= 1 image
+    const itemProductId = (item as any).product_id || item.sku || item.product_name;
+    if (imageSources.length <= 1 && itemProductId) {
+      try {
+        const { getProductBySlugOrId } = await import("@/lib/services/products");
+        const authoritativeProduct = await getProductBySlugOrId(itemProductId);
+        if (authoritativeProduct && authoritativeProduct.images && authoritativeProduct.images.length > 0) {
+          const combined = [
+            authoritativeProduct.images[0] || imageSources[0],
+            ...authoritativeProduct.images,
+            ...imageSources,
+          ];
+          imageSources = deduplicateMediaUrls(combined);
+        }
+      } catch {}
     }
 
     const loadedUrls = await Promise.all(
@@ -801,6 +872,8 @@ export async function downloadCombinedProductOfferSheetsPDF(
     );
     const galleryDataUrls = loadedUrls.filter((u): u is string => Boolean(u));
     const mainDataUrl = galleryDataUrls[0] || (imageSource ? await loadImageAsDataUrl(imageSource) : null);
+
+    let logoDataUrl = (await loadImageAsDataUrl(OFFICIAL_AYC_SITE_LOGO_PATH)) || OFFICIAL_AYC_SITE_LOGO_DATA_URL;
 
     const productInput: OfferSheetProductInput = {
       name: item.product_name || "Garment",
@@ -811,6 +884,7 @@ export async function downloadCombinedProductOfferSheetsPDF(
       images: imageSources,
       imageDataUrl: mainDataUrl,
       galleryDataUrls,
+      logoDataUrl,
       packageBreakdown: item.package_breakdown || (item as any).packageBreakdown,
     };
 

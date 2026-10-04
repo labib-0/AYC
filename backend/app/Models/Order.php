@@ -185,6 +185,9 @@ class Order extends Model
                 $hsCode = '6110.20.00';
             }
 
+            $product = $item->product_id ? \App\Models\Product::with('images')->find($item->product_id) : null;
+            $gallery = \App\Services\Documents\DocumentHelper::getProductGallery($product, $item->product_image_url);
+
             return [
                 'id' => (string) $item->id,
                 'item_no' => $idx + 1,
@@ -194,7 +197,8 @@ class Order extends Model
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'hs_code' => $hsCode,
                 'marks_and_numbers' => "AYN/{$this->order_number}/ITEM-" . ($idx + 1),
-                'product_image_url' => $item->product_image_url ?: '/placeholder.jpg',
+                'product_image_url' => $gallery[0] ?? $item->product_image_url ?: '/placeholder.jpg',
+                'product_images' => $gallery,
                 'size' => $item->size,
                 'color' => $item->color,
                 'package_breakdown' => $item->package_breakdown,
@@ -204,6 +208,15 @@ class Order extends Model
                 'details' => $item->variant_title,
             ];
         })->toArray();
+
+        $allGalleryImages = [];
+        foreach ($items as $it) {
+            foreach ($it['product_images'] ?? [] as $g) {
+                if (!in_array($g, $allGalleryImages)) {
+                    $allGalleryImages[] = $g;
+                }
+            }
+        }
 
         $cartonCount = (int) ($snapshot['carton_count'] ?? 1);
         $grossWeight = (float) ($snapshot['gross_weight'] ?? 20.0);
@@ -346,6 +359,7 @@ class Order extends Model
                 'amount_in_words' => self::numberToWords((float) $this->total_amount),
             ],
             'items' => $items,
+            'product_gallery' => $allGalleryImages,
             'packing_cartons' => $packingCartons,
             'totals_summary' => [
                 'total_quantity' => $this->items->sum('quantity'),

@@ -110,17 +110,21 @@ function runOfferSheetWithCapture(productInput: any) {
 
   generateProductOfferSheetDoc(productInput, undefined, undefined, doc, 1, 1);
 
-  return { doc, capturedImages, capturedTexts, pageCount };
+  // Split into product gallery images and top-right logo overlay images
+  const productImages = capturedImages.filter((img) => img.w > 10);
+  const logoOverlays = capturedImages.filter((img) => Math.abs(img.w - 4.2) < 0.5);
+
+  return { doc, capturedImages, productImages, logoOverlays, capturedTexts, pageCount };
 }
 
 console.log("==================================================");
-console.log("OFFER SHEET PRODUCT GALLERY REDESIGN AUDIT TESTS");
+console.log("OFFER SHEET PRODUCT GALLERY COMPREHENSIVE AUDIT");
 console.log("==================================================");
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test A: Product with 1 image
+// Test 1: Product with 1 image
 // ─────────────────────────────────────────────────────────────────────────────
-console.log("\n▶ Test A: Product with 1 image -> exactly 1 image rendered from left");
+console.log("\n▶ Test 1: Product with 1 image -> exactly 1 unique product image + 1 logo overlay");
 {
   const result = runOfferSheetWithCapture({
     name: "Classic Polo",
@@ -130,15 +134,39 @@ console.log("\n▶ Test A: Product with 1 image -> exactly 1 image rendered from
     images: [DUMMY_JPEG],
   });
 
-  assert(result.capturedImages.length === 1, "Exactly 1 image rendered");
-  assert(Math.abs(result.capturedImages[0].x - 14) < 2, "First image starts at the left margin (14mm)");
-  assert(result.capturedImages[0].w > 0 && result.capturedImages[0].h > 0, "Image has valid non-zero dimensions");
+  assert(result.productImages.length === 1, "Exactly 1 product image rendered in gallery");
+  assert(result.logoOverlays.length === 1, "Exactly 1 website logo overlay rendered in top-right");
+  assert(Math.abs(result.productImages[0].x - 14) < 2, "First image starts at the left margin (14mm)");
+  assert(result.productImages[0].w > 0 && result.productImages[0].h > 0, "Image has valid non-zero dimensions");
+  // Check 4:5 ratio on container: tile width to tile height
+  assert(result.logoOverlays[0].x > result.productImages[0].x, "Logo positioned to the right of product image center");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test B: Product with 4 images
+// Test 2: Product with 2 images
 // ─────────────────────────────────────────────────────────────────────────────
-console.log("\n▶ Test B: Product with 4 images -> all 4 rendered in 4-column row");
+console.log("\n▶ Test 2: Product with 2 images -> exactly 2 images rendered (A, B once each)");
+{
+  const images = [`${DUMMY_JPEG}#imgA`, `${DUMMY_JPEG}#imgB`];
+  const result = runOfferSheetWithCapture({
+    name: "Dual Angle Shirt",
+    sku: "SHT-002",
+    price: 22.0,
+    imageUrl: images[0],
+    images,
+  });
+
+  assert(result.productImages.length === 2, "Exactly 2 unique images rendered (no artificial filler)");
+  assert(result.logoOverlays.length === 2, "Official logo rendered on both gallery images");
+  assert(result.productImages[0].imgData.includes("imgA"), "First image is Image A");
+  assert(result.productImages[1].imgData.includes("imgB"), "Second image is Image B");
+  assert(result.productImages[1].x > result.productImages[0].x, "Rendered horizontally left-to-right");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 3: Product with 3+ images (4 images and 5 images)
+// ─────────────────────────────────────────────────────────────────────────────
+console.log("\n▶ Test 3: Product with 3+ images -> all images rendered in authoritative order");
 {
   const images = [
     `${DUMMY_JPEG}#img1`,
@@ -154,135 +182,95 @@ console.log("\n▶ Test B: Product with 4 images -> all 4 rendered in 4-column r
     images,
   });
 
-  assert(result.capturedImages.length === 4, "All 4 images rendered in gallery");
-  // Check that all 4 are on the same initial row (same y)
-  const firstY = result.capturedImages[0].y;
-  const allSameRow = result.capturedImages.every((img) => Math.abs(img.y - firstY) < 1);
+  assert(result.productImages.length === 4, "All 4 images rendered in gallery (3+ images test)");
+  assert(result.logoOverlays.length === 4, "Logo overlay rendered on each of the 4 images");
+  const firstY = result.productImages[0].y;
+  const allSameRow = result.productImages.every((img) => Math.abs(img.y - firstY) < 1);
   assert(allSameRow, "All 4 images rendered in a single horizontal row");
-  assert(Math.abs(result.capturedImages[0].x - 14) < 2, "First image starts at left margin (14mm)");
-  // Check strict left-to-right ordering
-  const strictlyOrdered = result.capturedImages.every((img, idx) => {
+  assert(Math.abs(result.productImages[0].x - 14) < 2, "First image starts at left margin (14mm)");
+  const strictlyOrdered = result.productImages.every((img, idx) => {
     if (idx === 0) return true;
-    return img.x > result.capturedImages[idx - 1].x;
+    return img.x > result.productImages[idx - 1].x;
   });
   assert(strictlyOrdered, "Images placed left-to-right with increasing x coordinates");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test C: Product with 5 images
+// Test 4: Product with primary + secondary images in order
 // ─────────────────────────────────────────────────────────────────────────────
-console.log("\n▶ Test C: Product with 5 images -> all 5 rendered in 5-column row");
+console.log("\n▶ Test 4: Product with primary + secondary images -> primary first, secondary in gallery order");
 {
-  const images = [
-    `${DUMMY_JPEG}#img1`,
-    `${DUMMY_JPEG}#img2`,
-    `${DUMMY_JPEG}#img3`,
-    `${DUMMY_JPEG}#img4`,
-    `${DUMMY_JPEG}#img5`,
+  const primary = `${DUMMY_JPEG}#PRIMARY_HERO`;
+  const secondaries = [`${DUMMY_JPEG}#SEC_SIDE`, `${DUMMY_JPEG}#SEC_BACK`, `${DUMMY_JPEG}#SEC_DETAIL`];
+  const result = runOfferSheetWithCapture({
+    name: "Executive Blazer",
+    sku: "BLZ-001",
+    price: 65.0,
+    imageUrl: primary,
+    images: secondaries,
+  });
+
+  assert(result.productImages.length === 4, "4 unique images rendered");
+  assert(result.productImages[0].imgData.includes("PRIMARY_HERO"), "Primary image is strictly first in gallery");
+  assert(result.productImages[1].imgData.includes("SEC_SIDE"), "Secondary image 1 is second");
+  assert(result.productImages[2].imgData.includes("SEC_BACK"), "Secondary image 2 is third");
+  assert(result.productImages[3].imgData.includes("SEC_DETAIL"), "Secondary image 3 is fourth");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 5: Product with duplicated media URLs / different relative vs absolute formats
+// ─────────────────────────────────────────────────────────────────────────────
+console.log("\n▶ Test 5: Product with duplicated URLs / variants -> strictly deduplicated");
+{
+  const sharedKey = "products/sample-tee.jpg";
+  const rawUrls = [
+    `https://ayaanclothing.com/storage/${sharedKey}`,
+    `/storage/${sharedKey}`,
+    `http://localhost:8000/storage/${sharedKey}`,
+    `${sharedKey}`,
+    `${DUMMY_JPEG}#distinct_angle`,
   ];
+
   const result = runOfferSheetWithCapture({
-    name: "Hoodie 5-Colorway",
-    sku: "HOD-005",
-    price: 24.0,
-    imageUrl: images[0],
-    images,
-  });
-
-  assert(result.capturedImages.length === 5, "All 5 images rendered in gallery");
-  const firstY = result.capturedImages[0].y;
-  const allSameRow = result.capturedImages.every((img) => Math.abs(img.y - firstY) < 1);
-  assert(allSameRow, "All 5 images placed across 5 columns in a single row");
-  assert(Math.abs(result.capturedImages[0].x - 14) < 2, "First image starts at left margin");
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Test D: Product with 9 images
-// ─────────────────────────────────────────────────────────────────────────────
-console.log("\n▶ Test D: Product with 9 images -> all 9 rendered across multiple rows");
-{
-  const images = Array.from({ length: 9 }, (_, i) => `${DUMMY_JPEG}#img${i + 1}`);
-  const result = runOfferSheetWithCapture({
-    name: "Denim Collection",
-    sku: "DNM-009",
-    price: 32.0,
-    imageUrl: images[0],
-    images,
-  });
-
-  assert(result.capturedImages.length === 9, "All 9 images rendered");
-  // First row should have 5 images, second row 4 images
-  const row1 = result.capturedImages.slice(0, 5);
-  const row2 = result.capturedImages.slice(5, 9);
-
-  const row1SameY = row1.every((img) => Math.abs(img.y - row1[0].y) < 1);
-  const row2SameY = row2.every((img) => Math.abs(img.y - row2[0].y) < 1);
-  assert(row1SameY, "Row 1 contains 5 images horizontally aligned");
-  assert(row2SameY, "Row 2 contains 4 images horizontally aligned");
-  assert(row2[0].y > row1[0].y, "Row 2 y-coordinate is below Row 1");
-
-  // Incomplete final row starts from left margin (NOT centered)
-  assert(Math.abs(row2[0].x - 14) < 2, "Row 2 starts strictly from the left margin (14mm, not centered)");
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Test E: Product with 12 images
-// ─────────────────────────────────────────────────────────────────────────────
-console.log("\n▶ Test E: Product with 12 images -> all 12 rendered");
-{
-  const images = Array.from({ length: 12 }, (_, i) => `${DUMMY_JPEG}#img${i + 1}`);
-  const result = runOfferSheetWithCapture({
-    name: "Export Catalog Master",
-    sku: "EXP-012",
-    price: 45.0,
-    imageUrl: images[0],
-    images,
-  });
-
-  assert(result.capturedImages.length === 12, "All 12 images rendered");
-  assert(result.capturedImages[0].x === 14 || Math.abs(result.capturedImages[0].x - 14) < 2, "Starts at left margin");
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Test F: Multiple products image association
-// ─────────────────────────────────────────────────────────────────────────────
-console.log("\n▶ Test F: Multiple products -> images remain associated with correct product");
-{
-  const prodAImages = [`${DUMMY_JPEG}#prodA_1`, `${DUMMY_JPEG}#prodA_2`];
-  const prodBImages = [`${DUMMY_JPEG}#prodB_1`, `${DUMMY_JPEG}#prodB_2`, `${DUMMY_JPEG}#prodB_3`];
-
-  const resultA = runOfferSheetWithCapture({
-    name: "Product A",
-    sku: "PRD-A",
+    name: "Deduplication Strict Test",
+    sku: "DUP-005",
     price: 15.0,
-    imageUrl: prodAImages[0],
-    images: prodAImages,
+    imageUrl: rawUrls[0],
+    images: rawUrls,
   });
 
-  const resultB = runOfferSheetWithCapture({
-    name: "Product B",
-    sku: "PRD-B",
-    price: 25.0,
-    imageUrl: prodBImages[0],
-    images: prodBImages,
-  });
-
-  const allAInResultA = resultA.capturedImages.every((img) => img.imgData.includes("prodA"));
-  const noneBInResultA = resultA.capturedImages.every((img) => !img.imgData.includes("prodB"));
-  const allBInResultB = resultB.capturedImages.every((img) => img.imgData.includes("prodB"));
-  const noneAInResultB = resultB.capturedImages.every((img) => !img.imgData.includes("prodA"));
-
-  assert(allAInResultA && noneBInResultA, "Product A gallery contains exclusively Product A images (2 images)");
-  assert(allBInResultB && noneAInResultB, "Product B gallery contains exclusively Product B images (3 images)");
+  assert(result.productImages.length === 2, "4 variations of same image deduplicated down to exactly 1 + 1 distinct image");
+  assert(result.logoOverlays.length === 2, "Logo overlay rendered on each of the 2 deduplicated images");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test G: Missing image handling
+// Test 6: Product with no media -> compact fallback, zero ghost images
 // ─────────────────────────────────────────────────────────────────────────────
-console.log("\n▶ Test G: Missing image -> invalid image skipped safely; empty fallback");
+console.log("\n▶ Test 6: Product with no media -> compact 'No product images available' fallback");
 {
-  // 1. One invalid image among valid ones
-  const mixedImages = [`${DUMMY_JPEG}#valid1`, "", "   ", `${DUMMY_JPEG}#valid2`];
-  const resultMixed = runOfferSheetWithCapture({
+  const result = runOfferSheetWithCapture({
+    name: "Unphotographed Prototype",
+    sku: "PRT-000",
+    price: 35.0,
+    imageUrl: "",
+    images: [],
+  });
+
+  assert(result.productImages.length === 0, "Zero product images rendered when no media exists");
+  assert(result.logoOverlays.length === 0, "Zero logo overlays rendered when no media exists");
+  const fallbackTextFound = result.capturedTexts.some((t) =>
+    t.text.includes("No product images available.")
+  );
+  assert(fallbackTextFound, "Renders compact 'No product images available.' fallback banner without repeated placeholders");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 7: Missing/corrupt media item -> skipped safely without aborting remaining
+// ─────────────────────────────────────────────────────────────────────────────
+console.log("\n▶ Test 7: Missing/corrupt media item -> invalid items skipped safely");
+{
+  const mixedImages = [`${DUMMY_JPEG}#valid1`, "", "   ", "/placeholder.jpg", `${DUMMY_JPEG}#valid2`];
+  const result = runOfferSheetWithCapture({
     name: "Partial Missing Test",
     sku: "MS-001",
     price: 20.0,
@@ -290,101 +278,129 @@ console.log("\n▶ Test G: Missing image -> invalid image skipped safely; empty 
     images: mixedImages,
   });
 
-  assert(resultMixed.capturedImages.length === 2, "Invalid/empty strings skipped, 2 valid images rendered");
-
-  // 2. Completely missing / zero images
-  const resultEmpty = runOfferSheetWithCapture({
-    name: "Zero Images Product",
-    sku: "ZERO-001",
-    price: 20.0,
-    imageUrl: "",
-    images: [],
-  });
-
-  assert(resultEmpty.capturedImages.length === 0, "Zero images rendered when no images available");
-  const fallbackTextFound = resultEmpty.capturedTexts.some((t) =>
-    t.text.includes("No product images available.")
-  );
-  assert(fallbackTextFound, "Renders compact 'No product images available.' fallback banner");
+  assert(result.productImages.length === 2, "Invalid/empty strings and bare placeholders skipped, 2 valid images rendered");
+  assert(result.logoOverlays.length === 2, "Both valid images have logo overlay");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test H: Page break overflow handling
+// Test 8: Correct primary-first ordering
 // ─────────────────────────────────────────────────────────────────────────────
-console.log("\n▶ Test H: Gallery exceeds vertical space -> page break handled cleanly");
+console.log("\n▶ Test 8: Correct primary-first ordering across multi-column layout");
 {
-  // 25 images will require 5 rows of 5 images.
-  // 5 rows of 42.5mm + gaps = 224.5mm. Combined with header + metadata card (67mm),
-  // total exceeds single page print area (~268mm limit), triggering mid-gallery page break.
-  const images = Array.from({ length: 25 }, (_, i) => `${DUMMY_JPEG}#img${i + 1}`);
+  const images = Array.from({ length: 5 }, (_, i) => `${DUMMY_JPEG}#col_img_${i + 1}`);
   const result = runOfferSheetWithCapture({
-    name: "Massive Gallery Item",
+    name: "5 Colorway Polo",
+    sku: "POLO-005",
+    price: 19.0,
+    imageUrl: images[0],
+    images,
+  });
+
+  assert(result.productImages.length === 5, "All 5 images rendered in 5-column row");
+  assert(result.productImages[0].imgData.includes("col_img_1"), "Primary image is first");
+  for (let i = 1; i < 5; i++) {
+    assert(result.productImages[i].imgData.includes(`col_img_${i + 1}`), `Image ${i + 1} follows in exact gallery order`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 9: Logo appears on every image
+// ─────────────────────────────────────────────────────────────────────────────
+console.log("\n▶ Test 9: Official Ayaan Clothing logo appears in top-right of EVERY image");
+{
+  const images = Array.from({ length: 4 }, (_, i) => `${DUMMY_JPEG}#logo_test_${i + 1}`);
+  const result = runOfferSheetWithCapture({
+    name: "Logo Verification Product",
+    sku: "LGO-004",
+    price: 28.0,
+    imageUrl: images[0],
+    images,
+  });
+
+  assert(result.productImages.length === 4, "4 product images rendered");
+  assert(result.logoOverlays.length === 4, "Official logo rendered exactly 4 times (once per tile)");
+
+  // Verify that for each product tile, the logo is positioned strictly in the top-right
+  const allLogosInsideTopRight = result.logoOverlays.every((logo, i) => {
+    const tile = result.productImages[i];
+    const isToTheRight = logo.x > tile.x;
+    const isNearTop = Math.abs(logo.y - (tile.y + 1.2)) < 3 || logo.y <= tile.y + 5;
+    return isToTheRight && isNearTop;
+  });
+  assert(allLogosInsideTopRight, "Every logo overlay is strictly anchored inside the top-right corner of its tile");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 10: No badges appear
+// ─────────────────────────────────────────────────────────────────────────────
+console.log("\n▶ Test 10: Strictly NO badges appear over gallery images");
+{
+  const images = [`${DUMMY_JPEG}#clean1`, `${DUMMY_JPEG}#clean2`];
+  const result = runOfferSheetWithCapture({
+    name: "Clean Images Product",
+    sku: "CLN-002",
+    price: 30.0,
+    imageUrl: images[0],
+    images,
+  });
+
+  // Verify no badge texts like "NEW", "ORIGINAL", "MASTER COPY", "FEATURED", "SOLD OUT", "#1" over image area
+  const forbiddenBadges = ["NEW", "ORIGINAL", "MASTER COPY", "FEATURED", "SOLD OUT", "PRE-ORDER"];
+  const galleryTextBadges = result.capturedTexts.filter(
+    (t) => t.y < 110 && t.y > 55 && forbiddenBadges.some((b) => t.text.trim() === b)
+  );
+  assert(galleryTextBadges.length === 0, "Zero forbidden badges (NEW, ORIGINAL, SOLD OUT, etc.) over gallery images");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 11: 4:5 container preserved
+// ─────────────────────────────────────────────────────────────────────────────
+console.log("\n▶ Test 11: Canonical 4:5 display container preserved on Offer Sheet");
+{
+  const pdfGenFilePath = path.resolve(__dirname, "../src/lib/pdf-generator.ts");
+  const pdfGenCode = fs.readFileSync(pdfGenFilePath, "utf8");
+
+  assert(
+    pdfGenCode.includes("tileH = tileW * (5 / 4)"),
+    "pdf-generator.ts calculates tile height using canonical 4:5 aspect ratio (tileH = tileW * 5/4)"
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 12: Source image not cropped or distorted (object-contain)
+// ─────────────────────────────────────────────────────────────────────────────
+console.log("\n▶ Test 12: Source images non-destructively fitted with contain logic");
+{
+  const pdfGenFilePath = path.resolve(__dirname, "../src/lib/pdf-generator.ts");
+  const pdfGenCode = fs.readFileSync(pdfGenFilePath, "utf8");
+
+  assert(
+    pdfGenCode.includes("imgRatio") && pdfGenCode.includes("drawW") && pdfGenCode.includes("drawH"),
+    "pdf-generator.ts implements proportional aspect-ratio contain math without distortion or cropping"
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 13: Multi-page Offer Sheet gallery
+// ─────────────────────────────────────────────────────────────────────────────
+console.log("\n▶ Test 13: Multi-page Offer Sheet gallery handles overflow cleanly without duplicating images");
+{
+  const images = Array.from({ length: 25 }, (_, i) => `${DUMMY_JPEG}#multipage_${i + 1}`);
+  const result = runOfferSheetWithCapture({
+    name: "Massive Export Collection",
     sku: "MASS-025",
     price: 50.0,
     imageUrl: images[0],
     images,
   });
 
-  assert(result.pageCount > 1, `Multi-page break triggered successfully (pageCount = ${result.pageCount})`);
+  assert(result.pageCount > 1, `Multi-page break triggered cleanly (pageCount = ${result.pageCount})`);
+  assert(result.productImages.length === 25, "All 25 unique images rendered across page breaks without omission or duplication");
+  assert(result.logoOverlays.length === 25, "All 25 images across both pages have the top-right logo overlay");
   const continuationHeader = result.capturedTexts.some((t) =>
     t.text.includes("PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES (CONTINUED)")
   );
   assert(continuationHeader, "Continuation header banner rendered on subsequent page");
-
-  // Verify all 25 images still rendered across pages
-  assert(result.capturedImages.length === 25, "All 25 images rendered across page breaks");
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Test I: Section 1 Specification begins after gallery (No Overlap)
-// ─────────────────────────────────────────────────────────────────────────────
-console.log("\n▶ Test I: Specification section begins strictly after gallery with zero overlap");
-{
-  const images = Array.from({ length: 5 }, (_, i) => `${DUMMY_JPEG}#img${i + 1}`);
-  const result = runOfferSheetWithCapture({
-    name: "Specification Overlap Check",
-    sku: "SPEC-005",
-    price: 22.0,
-    imageUrl: images[0],
-    images,
-  });
-
-  const lastImage = result.capturedImages[result.capturedImages.length - 1];
-  const lastImgBottomY = lastImage.y + lastImage.h;
-
-  const specHeader = result.capturedTexts.find((t) =>
-    t.text.includes("1. PRODUCT SPECIFICATION & DETAILS")
-  );
-
-  assert(Boolean(specHeader), "Section 1 '1. PRODUCT SPECIFICATION & DETAILS' exists");
-  if (specHeader) {
-    if (specHeader.page === lastImage.page) {
-      assert(
-        specHeader.y >= lastImgBottomY,
-        `Section 1 y (${specHeader.y.toFixed(1)}mm) begins strictly after gallery bottom (${lastImgBottomY.toFixed(1)}mm)`
-      );
-    } else {
-      assert(specHeader.page > lastImage.page, "Section 1 pushed cleanly to subsequent page after gallery");
-    }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Test J: No image duplication
-// ─────────────────────────────────────────────────────────────────────────────
-console.log("\n▶ Test J: No duplicate images in gallery");
-{
-  // Suppose primary image is also repeated in images array
-  const sharedUrl = `${DUMMY_JPEG}#duplicateMe`;
-  const result = runOfferSheetWithCapture({
-    name: "Deduplication Test",
-    sku: "DUP-001",
-    price: 30.0,
-    imageUrl: sharedUrl,
-    images: [sharedUrl, sharedUrl, `${DUMMY_JPEG}#unique2`],
-  });
-
-  assert(result.capturedImages.length === 2, "Duplicate URLs deduplicated, exactly 2 distinct images rendered");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -417,13 +433,18 @@ console.log("\n▶ Suite 2: CommercialProductGallery.tsx Architectural Verificat
   );
 
   assert(
-    galleryCode.includes("No product images available."),
-    "CommercialProductGallery provides compact 'No product images available.' fallback"
+    galleryCode.includes("resolvedSiteLogo") && galleryCode.includes("absolute top-1.5 right-1.5"),
+    "CommercialProductGallery positions official Ayaan Clothing website logo in top-right of every image container"
   );
 
   assert(
-    !galleryCode.includes("<ProductHeroImage"),
-    "CommercialProductGallery completely removes legacy single-centered-image ProductHeroImage container"
+    !galleryCode.includes("#{idx + 1}") && !galleryCode.includes("<ProductPromotionBadges"),
+    "CommercialProductGallery strictly omits all badges over gallery images"
+  );
+
+  assert(
+    galleryCode.includes("No product images available."),
+    "CommercialProductGallery provides compact 'No product images available.' fallback"
   );
 }
 

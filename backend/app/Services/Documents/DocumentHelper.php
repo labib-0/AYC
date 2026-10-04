@@ -64,38 +64,72 @@ class DocumentHelper
     public static function getProductGallery(?Product $product, ?string $fallbackPrimaryUrl = null): array
     {
         $gallery = [];
+        $seenKeys = [];
+
+        $getKey = function (?string $url): string {
+            if (!$url) return '';
+            $trimmed = trim($url);
+            if ($trimmed === '' || $trimmed === '/placeholder.jpg' || stripos($trimmed, 'placeholder') !== false) {
+                return '';
+            }
+            $clean = explode('?', explode('#', $trimmed)[0])[0];
+            $clean = preg_replace('#^https?://[^/]+#i', '', $clean);
+            $clean = preg_replace('#^/ayc#i', '', $clean);
+            $clean = preg_replace('#^/?storage/#i', '', $clean);
+            return strtolower(ltrim($clean, '/'));
+        };
 
         if ($product) {
             $images = $product->images()->orderBy('sort_order')->get();
             if ($images->isNotEmpty()) {
+                // 1. Authoritative primary image first
                 $primary = $images->firstWhere('is_primary', true);
                 if ($primary && !empty($primary->image_url)) {
-                    $gallery[] = $primary->image_url;
+                    $key = $getKey($primary->image_url);
+                    if ($key && !in_array($key, $seenKeys)) {
+                        $gallery[] = $primary->image_url;
+                        $seenKeys[] = $key;
+                    }
                 }
+                // 2. Remaining gallery images in existing gallery order
                 foreach ($images as $img) {
-                    if (!empty($img->image_url) && !in_array($img->image_url, $gallery)) {
-                        $gallery[] = $img->image_url;
+                    if (!empty($img->image_url)) {
+                        $key = $getKey($img->image_url);
+                        if ($key && !in_array($key, $seenKeys)) {
+                            $gallery[] = $img->image_url;
+                            $seenKeys[] = $key;
+                        }
                     }
                 }
             } elseif (!empty($product->images) && is_array($product->images)) {
                 foreach ($product->images as $imgUrl) {
-                    if (is_string($imgUrl) && !empty($imgUrl) && !in_array($imgUrl, $gallery)) {
-                        $gallery[] = $imgUrl;
+                    if (is_string($imgUrl) && !empty($imgUrl)) {
+                        $key = $getKey($imgUrl);
+                        if ($key && !in_array($key, $seenKeys)) {
+                            $gallery[] = $imgUrl;
+                            $seenKeys[] = $key;
+                        }
                     }
                 }
             }
 
-            if (!empty($product->primary_image_url) && !in_array($product->primary_image_url, $gallery)) {
-                array_unshift($gallery, $product->primary_image_url);
+            if (!empty($product->primary_image_url)) {
+                $key = $getKey($product->primary_image_url);
+                if ($key && !in_array($key, $seenKeys)) {
+                    array_unshift($gallery, $product->primary_image_url);
+                    $seenKeys[] = $key;
+                }
             }
         }
 
-        if ($fallbackPrimaryUrl && !in_array($fallbackPrimaryUrl, $gallery)) {
-            array_unshift($gallery, $fallbackPrimaryUrl);
-        }
-
-        if (empty($gallery)) {
-            $gallery[] = '/placeholder.jpg';
+        if ($fallbackPrimaryUrl) {
+            $key = $getKey($fallbackPrimaryUrl);
+            if ($key && !in_array($key, $seenKeys)) {
+                if (empty($gallery)) {
+                    $gallery[] = $fallbackPrimaryUrl;
+                    $seenKeys[] = $key;
+                }
+            }
         }
 
         return $gallery;

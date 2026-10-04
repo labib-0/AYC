@@ -11,15 +11,17 @@
  */
 
 function isAdminMediaContext(): boolean {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined" || !window.location || typeof window.location.pathname !== "string") return false;
+  const pathname = window.location.pathname;
+  const hostname = window.location.hostname || "";
   return (
-    window.location.pathname === "/ayc" ||
-    window.location.pathname.startsWith("/ayc/") ||
-    window.location.pathname === "/admin" ||
-    window.location.pathname.startsWith("/admin/") ||
+    pathname === "/ayc" ||
+    pathname.startsWith("/ayc/") ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
     window.location.port === "3001" ||
-    window.location.hostname.startsWith("admin.") ||
-    window.location.hostname === "admin.localhost"
+    hostname.startsWith("admin.") ||
+    hostname === "admin.localhost"
   );
 }
 
@@ -112,3 +114,44 @@ export function isValidImageUrl(url?: string | null): boolean {
   if (/^https?:\/\/[^\/]+\/storage\/?$/i.test(trimmed)) return false;
   return true;
 }
+
+/**
+ * Generates a normalized, canonical uniqueness key for media records to prevent duplicate rendering.
+ * Strips origin domain, /ayc prefix, /storage prefix, query parameters, and hashes.
+ */
+export function getCanonicalMediaKey(url?: string | null): string {
+  if (!url || typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "/placeholder.jpg" || trimmed.includes("placeholder")) return "";
+  if (trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
+    return trimmed;
+  }
+  let clean = trimmed.split("?")[0].split("#")[0];
+  clean = clean.replace(/^https?:\/\/[^\/]+/i, "");
+  clean = clean.replace(/^\/ayc/, "");
+  clean = clean.replace(/^\/?storage\//, "");
+  clean = clean.replace(/^\/+/, "");
+  return clean.toLowerCase();
+}
+
+/**
+ * Deduplicates an array of media URLs, preserving order (primary image first)
+ * and skipping invalid/placeholder entries.
+ */
+export function deduplicateMediaUrls(urls: Array<string | null | undefined>): string[] {
+  const seenKeys = new Set<string>();
+  const result: string[] = [];
+
+  for (const raw of urls) {
+    if (!raw || typeof raw !== "string") continue;
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === "/placeholder.jpg" || trimmed.includes("placeholder")) continue;
+    const key = getCanonicalMediaKey(trimmed);
+    if (!key || seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    result.push(normalizeImageUrl(trimmed));
+  }
+
+  return result;
+}
+
