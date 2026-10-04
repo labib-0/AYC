@@ -2,7 +2,28 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async redirects() {
-    return [];
+    return [
+      {
+        source: "/orders",
+        destination: "/dashboard/orders",
+        permanent: false,
+      },
+      {
+        source: "/account",
+        destination: "/profile",
+        permanent: false,
+      },
+      {
+        source: "/addresses",
+        destination: "/dashboard/addresses",
+        permanent: false,
+      },
+      {
+        source: "/quotations",
+        destination: "/dashboard/quotes",
+        permanent: false,
+      },
+    ];
   },
   async rewrites() {
     const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";

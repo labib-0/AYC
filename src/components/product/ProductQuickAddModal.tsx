@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/AuthContext";
 import { X, Minus, Plus, ShoppingCart, Check, FileText, AlertCircle } from "lucide-react";
 import { useProductModal } from "@/lib/ProductModalContext";
 import { useCart } from "@/lib/CartContext";
@@ -49,6 +51,8 @@ type ExtendedProduct = Product & {
 };
 
 export default function ProductQuickAddModal() {
+  const router = useRouter();
+  const { user } = useAuth();
   const { selectedProduct: rawProduct, closeProductModal } = useProductModal();
   const product = rawProduct as ExtendedProduct | null;
   const { addToCart, setIsCartOpen } = useCart();
@@ -238,12 +242,20 @@ export default function ProductQuickAddModal() {
       color: "Standard",
       buyerNotes: `Quantity: ${totalQuantity.toLocaleString()} pcs`,
     });
+    closeProductModal();
+    if (!user) {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("ayaan_intended_destination", "/rfq");
+        sessionStorage.setItem("ayaan_login_notice", "Please log in to submit an RFQ.");
+      }
+      router.push(`/login?returnUrl=${encodeURIComponent("/rfq")}&notice=${encodeURIComponent("Please log in to submit an RFQ.")}`);
+      return;
+    }
     setAddedRfqSuccess(true);
     setTimeout(() => {
       setAddedRfqSuccess(false);
-      closeProductModal();
     }, 800);
-  }, [product, packageCount, totalQuantity, addToRfq, closeProductModal]);
+  }, [product, packageCount, totalQuantity, addToRfq, closeProductModal, user, router]);
 
   if (!product) return null;
 

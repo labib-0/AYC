@@ -240,4 +240,58 @@ class CustomerAuthEnforcementTest extends TestCase
         $this->assertEquals($this->customer->id, $quote->user_id);
         $this->assertNotEquals($this->otherCustomer->id, $quote->user_id);
     }
+
+    /**
+     * 9. Guest cannot view orders, RFQs, or addresses.
+     */
+    public function test_guest_cannot_view_orders_or_rfqs(): void
+    {
+        $this->getJson('/api/v1/orders')->assertStatus(401);
+        $this->getJson('/api/v1/rfq')->assertStatus(401);
+        $this->getJson('/api/v1/addresses')->assertStatus(401);
+    }
+
+    /**
+     * 10. Customer cannot view another customer's order or RFQ (Access isolation).
+     */
+    public function test_customer_cannot_view_another_customers_order_or_rfq(): void
+    {
+        $order = Order::create([
+            'order_number' => 'AYN-TEST-123',
+            'user_id' => $this->otherCustomer->id,
+            'status' => 'pending',
+            'payment_status' => 'pending',
+            'fulfillment_status' => 'unfulfilled',
+            'currency' => 'USD',
+            'subtotal' => 100,
+            'total_amount' => 100,
+            'email' => 'victim@example.com',
+            'shipping_name' => 'Victim User',
+            'shipping_phone' => '+1234567890',
+            'shipping_address1' => '123 Victim Street',
+            'shipping_city' => 'Victim City',
+            'shipping_postal_code' => '10001',
+            'shipping_country_code' => 'US',
+        ]);
+
+        $quote = Quote::create([
+            'rfq_number' => 'RFQ-TEST-123',
+            'user_id' => $this->otherCustomer->id,
+            'buyer_name' => 'Victim User',
+            'buyer_email' => 'victim@example.com',
+            'company_name' => 'Victim Corp',
+            'status' => 'SUBMITTED',
+        ]);
+
+        // Customer cannot access other customer's order (403)
+        $this->actingAs($this->customer, 'sanctum')
+            ->getJson('/api/v1/orders/' . $order->id)
+            ->assertStatus(403);
+
+        // Customer cannot access other customer's rfq (403)
+        $this->actingAs($this->customer, 'sanctum')
+            ->getJson('/api/v1/rfq/' . $quote->id)
+            ->assertStatus(403);
+    }
 }
+

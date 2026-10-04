@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/AuthContext";
 import { getProductBySlugOrId, getBrandProducts, toStorefrontProduct } from "@/lib/services/products";
 import { useCart } from "@/lib/CartContext";
 import { useWishlist } from "@/lib/WishlistContext";
@@ -39,6 +41,8 @@ interface ProductDetailViewProps {
 }
 
 export default function ProductDetailView({ initialProduct, slug }: ProductDetailViewProps) {
+  const router = useRouter();
+  const { user } = useAuth();
   const { addToCart, setIsCartOpen } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { addToRfq } = useRfq();
@@ -567,6 +571,14 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
       targetPrice: currentPrice,
       buyerNotes: `Tier: ${tierName}, Quantity: ${quantity} pcs`,
     });
+    if (!user) {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("ayaan_intended_destination", "/rfq");
+        sessionStorage.setItem("ayaan_login_notice", "Please log in to submit an RFQ.");
+      }
+      router.push(`/login?returnUrl=${encodeURIComponent("/rfq")}&notice=${encodeURIComponent("Please log in to submit an RFQ.")}`);
+      return;
+    }
     setAddedRfqSuccess(true);
     setTimeout(() => {
       setAddedRfqSuccess(false);

@@ -327,7 +327,7 @@ class AuthoritativeAdminDashboardTest extends TestCase
             'subtotal' => 3000.00,
             'discount_amount' => 100.00,
             'total_amount' => 2900.00,
-            'created_at' => Carbon::now('Asia/Dhaka'),
+            'created_at' => Carbon::parse($today . ' 12:00:00', 'Asia/Dhaka')->setTimezone('UTC'),
         ]);
 
         OrderItem::create([
@@ -348,7 +348,7 @@ class AuthoritativeAdminDashboardTest extends TestCase
             'payment_status' => 'pending',
             'subtotal' => 500.00,
             'total_amount' => 500.00,
-            'created_at' => Carbon::now('Asia/Dhaka'),
+            'created_at' => Carbon::parse($today . ' 12:00:00', 'Asia/Dhaka')->setTimezone('UTC'),
         ]);
         OrderItem::create([
             'order_id' => $pendingOrder->id,
