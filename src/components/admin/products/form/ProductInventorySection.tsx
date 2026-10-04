@@ -176,10 +176,11 @@ export default function ProductInventorySection({
     setAdjustmentError(null);
     setAdjustmentSuccessMsg(null);
     setAdjustMode("delta");
-    setDeltaQuantity("0");
+    setDeltaQuantity("");
     setDeltaSign("+");
     setReason("");
     setNotes("");
+    setAdjustTargetVariantId("");
 
     if (targetWarehouse) {
       setAdjustTargetWarehouseId(String(targetWarehouse.warehouse_id));
@@ -197,12 +198,6 @@ export default function ProductInventorySection({
       setAdjustTargetWarehouseId("");
       setAdjustInventoryId(undefined);
       setTargetQuantity(String(editAvailable));
-    }
-
-    if (variants.length > 0 && variants[0].id) {
-      setAdjustTargetVariantId(String(variants[0].id));
-    } else {
-      setAdjustTargetVariantId("");
     }
 
     setIsAdjustModalOpen(true);
@@ -240,9 +235,39 @@ export default function ProductInventorySection({
 
   const isInvalidNegative = projectedQuantity < 0;
 
+  // Granular validation checks for button & submission
+  const parsedDelta = parseInt(deltaQuantity, 10);
+  const isDeltaValid = !isNaN(parsedDelta) && parsedDelta > 0;
+  const parsedTarget = parseInt(targetQuantity, 10);
+  const isTargetValid = !isNaN(parsedTarget) && parsedTarget >= 0;
+  const isQuantityValid = adjustMode === "delta" ? isDeltaValid : isTargetValid;
+  const hasValidWarehouse = Boolean(adjustTargetWarehouseId);
+  const hasValidReason = Boolean(reason.trim());
+  const isAdjustmentFormValid = hasValidWarehouse && hasValidReason && isQuantityValid && !isInvalidNegative;
+
   // Handle Adjustment Submit
   const handleConfirmAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!adjustTargetWarehouseId) {
+      setAdjustmentError("Please select a target warehouse.");
+      return;
+    }
+
+    if (adjustMode === "delta") {
+      const rawDelta = parseInt(deltaQuantity, 10);
+      if (isNaN(rawDelta) || rawDelta <= 0) {
+        setAdjustmentError("Please enter a valid adjustment quantity greater than 0.");
+        return;
+      }
+    } else {
+      const newQty = parseInt(targetQuantity, 10);
+      if (isNaN(newQty) || newQty < 0) {
+        setAdjustmentError("New target quantity must be a non-negative integer (0 or more).");
+        return;
+      }
+    }
+
     if (!reason.trim()) {
       setAdjustmentError("Please select or enter a reason for this inventory adjustment.");
       return;
@@ -266,10 +291,12 @@ export default function ProductInventorySection({
         notes: notes.trim() || undefined,
       };
 
-      if (adjustInventoryId) {
-        payload.inventory_id = adjustInventoryId;
-      } else if (vId) {
+      // Prioritize variant ID when explicitly adjusting variant inventory
+      if (vId) {
         payload.variant_id = vId;
+        if (whId) payload.warehouse_id = whId;
+      } else if (adjustInventoryId) {
+        payload.inventory_id = adjustInventoryId;
         if (whId) payload.warehouse_id = whId;
       } else if (pId) {
         payload.product_id = pId;
@@ -731,7 +758,7 @@ export default function ProductInventorySection({
               </div>
             )}
 
-            <form onSubmit={handleConfirmAdjustment} className="space-y-4 text-xs">
+            <form onSubmit={handleConfirmAdjustment} noValidate className="space-y-4 text-xs">
               {/* Product Info Summary */}
               <div className="p-3.5 rounded-2xl border border-border/70 bg-secondary/20 flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -762,7 +789,7 @@ export default function ProductInventorySection({
                   onChange={(e) => {
                     const chosenId = e.target.value;
                     setAdjustTargetWarehouseId(chosenId);
-                    if (localBreakdown) {
+                    if (localBreakdown && !adjustTargetVariantId) {
                       const found = localBreakdown.find((item) => String(item.warehouse_id) === chosenId);
                       setAdjustInventoryId(found?.inventory_id);
                       if (found) {
@@ -783,6 +810,9 @@ export default function ProductInventorySection({
                     ))
                   )}
                 </select>
+                {!hasValidWarehouse && (
+                  <p className="text-[11px] text-amber-500 font-medium">Please select a target warehouse.</p>
+                )}
               </div>
 
               {/* Variant Target Selector (if product has variants) */}
@@ -794,8 +824,12 @@ export default function ProductInventorySection({
                   <select
                     value={adjustTargetVariantId}
                     onChange={(e) => {
-                      setAdjustTargetVariantId(e.target.value);
-                      const found = variants.find((v) => String(v.id) === e.target.value);
+                      const chosenVariant = e.target.value;
+                      setAdjustTargetVariantId(chosenVariant);
+                      if (chosenVariant) {
+                        setAdjustInventoryId(undefined);
+                      }
+                      const found = variants.find((v) => String(v.id) === chosenVariant);
                       if (found && found.stock !== undefined) {
                         setTargetQuantity(String(found.stock));
                       }
@@ -887,7 +921,6 @@ export default function ProductInventorySection({
                     <input
                       type="number"
                       min={1}
-                      required
                       placeholder="e.g. 50"
                       value={deltaQuantity}
                       onWheel={handleNumberInputWheel}
@@ -896,6 +929,9 @@ export default function ProductInventorySection({
                       className="flex-1 px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-foreground font-display font-bold text-base focus:ring-1 focus:ring-primary outline-none"
                     />
                   </div>
+                  {!isDeltaValid && (
+                    <p className="text-[11px] text-amber-500 font-medium">Please enter a valid quantity of 1 or more.</p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-1.5">
@@ -905,13 +941,15 @@ export default function ProductInventorySection({
                   <input
                     type="number"
                     min={0}
-                    required
                     value={targetQuantity}
                     onWheel={handleNumberInputWheel}
                     onChange={(e) => setTargetQuantity(e.target.value)}
                     disabled={isSubmittingAdjustment}
                     className="w-full px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-foreground font-display font-bold text-base focus:ring-1 focus:ring-primary outline-none"
                   />
+                  {!isTargetValid && (
+                    <p className="text-[11px] text-amber-500 font-medium">Please enter a non-negative quantity (0 or more).</p>
+                  )}
                 </div>
               )}
 
@@ -967,13 +1005,15 @@ export default function ProductInventorySection({
 
                 <input
                   type="text"
-                  required
                   placeholder="Or enter custom reason..."
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   disabled={isSubmittingAdjustment}
                   className="w-full px-3.5 py-2 text-xs rounded-xl border border-border bg-secondary/30 text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none"
                 />
+                {!hasValidReason && (
+                  <p className="text-[11px] text-amber-500 font-medium">Reason for adjustment is required.</p>
+                )}
               </div>
 
               {/* Optional Notes */}
@@ -1003,8 +1043,8 @@ export default function ProductInventorySection({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingAdjustment || !canAdjust || isInvalidNegative || !reason.trim()}
-                  title={!canAdjust ? "Requires 'inventory.adjust' permission" : undefined}
+                  disabled={isSubmittingAdjustment || !canAdjust || !isAdjustmentFormValid}
+                  title={!canAdjust ? "Requires 'inventory.adjust' permission" : !isAdjustmentFormValid ? "Please complete all required fields" : undefined}
                   className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all shadow-xs cursor-pointer"
                 >
                   {isSubmittingAdjustment ? (

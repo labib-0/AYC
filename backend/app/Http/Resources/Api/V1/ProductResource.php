@@ -51,6 +51,14 @@ class ProductResource extends JsonResource
             'brand_logo' => $this->brand ? ($this->brand->logo_url ?: ($this->brand->slug ? "/brands/{$this->brand->slug}.svg" : null)) : null,
             'brandLogo' => $this->brand ? ($this->brand->logo_url ?: ($this->brand->slug ? "/brands/{$this->brand->slug}.svg" : null)) : null,
             'brand_data' => $this->brand ? new BrandResource($this->brand) : null,
+            'supplier_id' => $this->when($isAdmin, $this->supplier_id ? (int) $this->supplier_id : null),
+            'supplierId' => $this->when($isAdmin, $this->supplier_id ? (int) $this->supplier_id : null),
+            'supplier' => $this->when($isAdmin, $this->supplier ? [
+                'id' => (int) $this->supplier->id,
+                'code' => $this->supplier->code,
+                'name' => $this->supplier->name,
+                'is_active' => (bool) $this->supplier->is_active,
+            ] : null),
             'categoryId' => $firstCategory ? (string) $firstCategory->id : null,
             'categoryName' => $firstCategory ? $firstCategory->name : null,
             'categories' => CategoryResource::collection($this->whenLoaded('categories')),
@@ -159,7 +167,7 @@ class ProductResource extends JsonResource
             'colors' => $colors,
             'variants' => $this->relationLoaded('variants')
                 ? ProductVariantResource::collection($this->variants)
-                : ($this->variants()->exists() ? ProductVariantResource::collection($this->variants) : []),
+                : ($this->exists && $this->variants()->exists() ? ProductVariantResource::collection($this->variants) : []),
             'pricing_tiers' => $this->whenLoaded('pricingTiers', function () {
                 return $this->pricingTiers->map(fn($t) => [
                     'min_quantity' => $t->min_quantity,
@@ -193,7 +201,9 @@ class ProductResource extends JsonResource
                     'size' => $pa->size ?? ($pa->variant ? $pa->variant->size : null),
                 ]);
             }),
-            'is_package_assortment' => $this->packageAllocations && $this->packageAllocations->isNotEmpty(),
+            'is_package_assortment' => $this->relationLoaded('packageAllocations')
+                ? ($this->packageAllocations && $this->packageAllocations->isNotEmpty())
+                : ($this->exists && $this->packageAllocations()->exists()),
             'shipping_package_profiles' => $this->whenLoaded('shippingPackageProfiles', function () {
                 return $this->shippingPackageProfiles->map(fn($p) => [
                     'id' => (string) $p->id,

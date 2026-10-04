@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, Globe, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Check, Eye, EyeOff } from "lucide-react";
-import { B2BProductInput, B2BProductVariant } from "@/types/b2b";
+import { B2BProductInput, B2BProductVariant, SupplierModel } from "@/types/b2b";
 import { ShippingPackageProfile, PackageAllocation } from "@/types";
 import { getBrands } from "@/lib/services/brands";
 import { categoryService } from "@/services/category.service";
@@ -67,6 +67,12 @@ export default function ProductForm({
   const [brand, setBrand] = useState(initialData?.brand || "");
   const [brandId, setBrandId] = useState<string | number | undefined>(initialData?.brand_id);
   const [brandLogo, setBrandLogo] = useState<string | undefined>(initialData?.brandLogo);
+  const [supplierId, setSupplierId] = useState<string | number | undefined>(
+    initialData?.supplierId || (initialData as any)?.supplier_id
+  );
+  const [selectedSupplier, setSelectedSupplier] = useState<SupplierModel | null>(
+    (initialData?.supplier as SupplierModel) || null
+  );
   const [categoryId, setCategoryId] = useState(initialData?.categoryId || "");
   const [categoryName, setCategoryName] = useState(initialData?.categoryName || "");
   const [audience, setAudience] = useState<"MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "">(
@@ -412,6 +418,18 @@ export default function ProductForm({
       if (Array.isArray(rawProfiles) && rawProfiles.length > 0) {
         setShippingProfiles((current) => current.length > 0 ? current : rawProfiles);
       }
+      if (initialData.supplierId !== undefined || (initialData as any)?.supplier_id !== undefined) {
+        setSupplierId(initialData.supplierId ?? (initialData as any)?.supplier_id);
+      }
+      if (initialData.supplier !== undefined) {
+        setSelectedSupplier((initialData.supplier as SupplierModel) || null);
+      }
+      if (initialData.images && Array.isArray(initialData.images)) {
+        const clean = initialData.images.map((u) => normalizeImageUrl(u)).filter((u) => isValidImageUrl(u));
+        if (clean.length > 0) {
+          setImages(clean);
+        }
+      }
     }
   }, [initialData, isEdit]);
 
@@ -555,6 +573,9 @@ export default function ProductForm({
       seo_keywords: keywords,
       images,
       videoUrl,
+      supplierId: supplierId || undefined,
+      supplier_id: supplierId ? Number(supplierId) : undefined,
+      supplier: selectedSupplier,
       wholesalePrice,
       bulkPricingEnabled,
       bulk_pricing_enabled: bulkPricingEnabled,
@@ -580,7 +601,7 @@ export default function ProductForm({
       status: "draft",
     };
   }, [
-    productId, name, slug, sku, isHiddenFromStorefront, brand, brandId, brandLogo, categoryId, categoryName,
+    productId, name, slug, sku, isHiddenFromStorefront, brand, brandId, brandLogo, supplierId, selectedSupplier, categoryId, categoryName,
     audience, designType, material, sizeDescription, colourDescription,
     packageAssortmentVisible, packageAssortmentMessage, description, seoTitle, seoDescription,
     keywords, images, videoUrl, wholesalePrice, bulkPricingEnabled, bulkThreshold, bulkPrice,
@@ -1143,6 +1164,9 @@ export default function ProductForm({
         sku: sku.trim() || (isEdit ? (initialData?.sku || undefined) : (name.trim() ? generatedSku : (undefined as any))),
         isHiddenFromStorefront: isHiddenFromStorefront,
         is_hidden_from_storefront: isHiddenFromStorefront,
+        supplierId: supplierId || undefined,
+        supplier_id: supplierId ? Number(supplierId) : null,
+        supplier: selectedSupplier,
         brand: brand.trim() || (isEdit ? (initialData?.brand || undefined) : (undefined as any)),
         brandLogo: activeBrand?.logo_url || brandLogo || (isEdit ? (initialData?.brandLogo || undefined) : undefined),
         brand_id: activeBrand?.id ? String(activeBrand.id) : (brandId ? String(brandId) : (isEdit ? (initialData?.brand_id ? String(initialData.brand_id) : undefined) : undefined)),
@@ -1286,6 +1310,20 @@ export default function ProductForm({
       if ((res as any).id) {
         persistedDraftIdRef.current = String((res as any).id);
         setPersistedDraftId(String((res as any).id));
+      }
+
+      // Rehydrate local images and supplier from server response
+      if (res.images && Array.isArray(res.images)) {
+        const clean = res.images.map((u) => normalizeImageUrl(u)).filter((u) => isValidImageUrl(u));
+        if (clean.length > 0) {
+          setImages(clean);
+        }
+      }
+      if ((res as any).supplier_id !== undefined) {
+        setSupplierId((res as any).supplier_id);
+      }
+      if ((res as any).supplier !== undefined) {
+        setSelectedSupplier((res as any).supplier);
       }
       
       // On success: clear draft, update status, notify
@@ -1550,6 +1588,12 @@ export default function ProductForm({
             brandId={brandId}
             categoryId={categoryId}
             categoryName={categoryName}
+            supplierId={supplierId}
+            selectedSupplier={selectedSupplier}
+            onSupplierChange={(sId, sup) => {
+              setSupplierId(sId ?? undefined);
+              setSelectedSupplier(sup);
+            }}
             audience={audience}
             designType={designType}
             material={material}

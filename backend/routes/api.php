@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Api\V1\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\InventoryController as AdminInventoryController;
+use App\Http\Controllers\Api\V1\Admin\SupplierController as AdminSupplierController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\V1\Admin\RbacController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -309,6 +310,11 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:inventory.view_warehouse');
         Route::post('/warehouses', [AdminInventoryController::class, 'storeWarehouse'])
             ->middleware('permission:inventory.adjust');
+
+        // Supplier Master & Search (Admin Only)
+        Route::get('/suppliers', [AdminSupplierController::class, 'index']);
+        Route::get('/suppliers/{id}', [AdminSupplierController::class, 'show']);
+        Route::post('/suppliers', [AdminSupplierController::class, 'store']);
 
         // Customer & Account Management (Customers Only)
         Route::get('/customers/summary', [AdminCustomerController::class, 'summary'])

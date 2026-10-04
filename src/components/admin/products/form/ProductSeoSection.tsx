@@ -39,28 +39,57 @@ export default function ProductSeoSection({
 
   const handleAddKeyword = (rawText: string) => {
     setInputError(null);
-    const cleaned = rawText.trim().replace(/^,+|,+$/g, "");
-    if (!cleaned) return;
+    if (!rawText || !rawText.trim()) return;
 
-    if (keywords.length >= MAX_KEYWORDS) {
+    // Split by comma to support single and comma-separated entries
+    const rawTokens = rawText.split(",");
+    const tokensToAdd: string[] = [];
+    const existingLowerSet = new Set(keywords.map((k) => k.toLowerCase()));
+    let overLengthItem: string | null = null;
+    let hitMaxLimit = false;
+
+    for (const rawToken of rawTokens) {
+      // Trim & normalize whitespace
+      const normalized = rawToken.trim().replace(/\s+/g, " ");
+      if (!normalized) continue;
+
+      // Validate 50 characters per individual keyword
+      if (normalized.length > MAX_KEYWORD_LENGTH) {
+        overLengthItem = normalized;
+        continue;
+      }
+
+      const lower = normalized.toLowerCase();
+      // Remove duplicates case-insensitively
+      if (existingLowerSet.has(lower)) {
+        continue;
+      }
+
+      if (keywords.length + tokensToAdd.length >= MAX_KEYWORDS) {
+        hitMaxLimit = true;
+        break;
+      }
+
+      existingLowerSet.add(lower);
+      tokensToAdd.push(normalized);
+    }
+
+    if (overLengthItem) {
+      setInputError(`Each keyword must be ${MAX_KEYWORD_LENGTH} characters or less (e.g. "${overLengthItem.slice(0, 30)}..." exceeds limit).`);
+    } else if (hitMaxLimit) {
       setInputError(`Maximum of ${MAX_KEYWORDS} SEO keywords allowed.`);
-      return;
     }
 
-    if (cleaned.length > MAX_KEYWORD_LENGTH) {
-      setInputError(`Keyword must be ${MAX_KEYWORD_LENGTH} characters or less.`);
-      return;
+    if (tokensToAdd.length > 0) {
+      const updated = [...keywords, ...tokensToAdd];
+      onKeywordsChange?.(updated);
+      setKeywordInput("");
+    } else if (!overLengthItem && !hitMaxLimit) {
+      if (rawText.trim()) {
+        setInputError("Keyword(s) already added.");
+      }
+      setKeywordInput("");
     }
-
-    const lower = cleaned.toLowerCase();
-    if (keywords.some((k) => k.toLowerCase() === lower)) {
-      setInputError("Keyword is already added.");
-      return;
-    }
-
-    const updated = [...keywords, cleaned];
-    onKeywordsChange?.(updated);
-    setKeywordInput("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

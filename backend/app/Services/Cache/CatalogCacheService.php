@@ -131,6 +131,12 @@ class CatalogCacheService
             if ($product->slug) {
                 $identifiers[] = $product->slug;
             }
+            if ($product->sku) {
+                $identifiers[] = $product->sku;
+            }
+            if ($product->product_id) {
+                $identifiers[] = $product->product_id;
+            }
         } else {
             $identifiers[] = $product;
         }

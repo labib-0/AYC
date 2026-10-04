@@ -41,6 +41,7 @@ class Product extends Model
 
     protected $fillable = [
         'brand_id',
+        'supplier_id',
         'product_id',
         'name',
         'slug',
@@ -175,11 +176,8 @@ class Product extends Model
             return null;
         }
 
-        // Normalize Windows CRLF and CR to LF
-        $clean = str_replace(["\r\n", "\r"], "\n", $description);
-
         // Remove dangerous tags and their content
-        $clean = preg_replace('/<(script|style|iframe|object|embed|applet)[^>]*?>.*?<\/\1>/si', '', $clean);
+        $clean = preg_replace('/<(script|style|iframe|object|embed|applet)[^>]*?>.*?<\/\1>/si', '', $description);
 
         // Whitelist only safe formatting tags: strong, b, em, i, u, p, br
         $clean = strip_tags($clean, ['strong', 'b', 'em', 'i', 'u', 'p', 'br']);
@@ -283,6 +281,11 @@ class Product extends Model
         });
     }
 
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
@@ -348,7 +351,7 @@ class Product extends Model
     {
         $allocations = $this->relationLoaded('packageAllocations')
             ? $this->packageAllocations
-            : $this->packageAllocations()->get();
+            : ($this->exists ? $this->packageAllocations()->get() : collect());
 
         $activeAllocations = $allocations->filter(fn($a) => (int) $a->quantity > 0);
 
@@ -360,7 +363,7 @@ class Product extends Model
 
         $variants = $this->relationLoaded('variants')
             ? $this->variants
-            : $this->variants()->get();
+            : ($this->exists ? $this->variants()->get() : collect());
 
         $variantsById = $variants->keyBy('id');
         $variantsByKey = $variants->keyBy(fn($v) => strtolower(trim($v->color ?? '')) . '|' . strtolower(trim($v->size ?? '')));
@@ -500,7 +503,7 @@ class Product extends Model
 
         // 2. Pricing tiers (match MOQ or first valid tier sorted by min_quantity)
         $moq = max(1, (int) $this->moq);
-        $tiers = $this->relationLoaded('pricingTiers') ? $this->pricingTiers : $this->pricingTiers()->get();
+        $tiers = $this->relationLoaded('pricingTiers') ? $this->pricingTiers : ($this->exists ? $this->pricingTiers()->get() : collect());
         if ($tiers && $tiers->isNotEmpty()) {
             foreach ($tiers as $tier) {
                 if ((float) $tier->unit_price > 0 && $moq >= $tier->min_quantity && ($tier->max_quantity === null || $moq <= $tier->max_quantity)) {
@@ -554,7 +557,7 @@ class Product extends Model
             $validPrices[] = (float) $this->wholesale_price;
         } else {
             $moq = max(1, (int) $this->moq);
-            $tiers = $this->relationLoaded('pricingTiers') ? $this->pricingTiers : $this->pricingTiers()->get();
+            $tiers = $this->relationLoaded('pricingTiers') ? $this->pricingTiers : ($this->exists ? $this->pricingTiers()->get() : collect());
             if ($tiers && $tiers->isNotEmpty()) {
                 foreach ($tiers as $tier) {
                     if ((float) $tier->unit_price > 0 && $moq >= $tier->min_quantity && ($tier->max_quantity === null || $moq <= $tier->max_quantity)) {
@@ -811,6 +814,10 @@ class Product extends Model
      */
     public function getOnHandStock(): int
     {
+        if (!$this->exists) {
+            return max(0, (int) ($this->stock ?? 0));
+        }
+
         $variants = $this->relationLoaded('variants')
             ? $this->variants
             : $this->variants()->with('inventories')->get();

@@ -563,7 +563,7 @@ class ProductController extends ApiController
             return $this->success($cached, 'Product retrieved');
         }
 
-        $product = Product::with(['brand', 'categories', 'images', 'variants.inventories.warehouse', 'pricingTiers', 'packageAllocations.variant', 'shippingPackageProfiles'])
+        $product = Product::with(['brand', 'supplier', 'categories', 'images', 'variants.inventories.warehouse', 'pricingTiers', 'packageAllocations.variant', 'shippingPackageProfiles'])
             ->where(function ($q) use ($slugOrId) {
                 $q->where('slug', $slugOrId);
                 $q->orWhere('sku', $slugOrId);
@@ -599,6 +599,9 @@ class ProductController extends ApiController
 
         if ($request->has('productId') && !$request->has('product_id')) {
             $request->merge(['product_id' => $request->input('productId')]);
+        }
+        if ($request->has('supplierId') && !$request->has('supplier_id')) {
+            $request->merge(['supplier_id' => $request->input('supplierId')]);
         }
         if ($request->has('product_id')) {
             $rawPid = (string) $request->input('product_id');
@@ -641,6 +644,8 @@ class ProductController extends ApiController
             'sku' => ['nullable', 'string', Rule::unique('products', 'sku')->whereNull('deleted_at')],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'brand' => ['nullable', 'string'],
+            'supplier_id' => ['nullable', 'exists:suppliers,id'],
+            'supplierId' => ['nullable', 'exists:suppliers,id'],
             'new_brand_name' => ['nullable', 'string', 'max:255'],
             'new_brand_logo' => ['nullable', 'string'],
             'short_description' => ['nullable', 'string'],
@@ -1297,6 +1302,7 @@ class ProductController extends ApiController
 
         $product->load([
             'brand',
+            'supplier',
             'categories',
             'images',
             'variants.inventories.warehouse',
@@ -1369,6 +1375,9 @@ class ProductController extends ApiController
         if ($request->has('costPrice') && !$request->has('cost_price')) {
             $request->merge(['cost_price' => $request->input('costPrice')]);
         }
+        if ($request->has('supplierId') && !$request->has('supplier_id')) {
+            $request->merge(['supplier_id' => $request->input('supplierId')]);
+        }
 
         $validated = $request->validate([
             'product_id' => [
@@ -1384,6 +1393,8 @@ class ProductController extends ApiController
             'sku' => ['sometimes', 'string', Rule::unique('products', 'sku')->ignore($product->id)->whereNull('deleted_at')],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'brand' => ['nullable', 'string'],
+            'supplier_id' => ['nullable', 'exists:suppliers,id'],
+            'supplierId' => ['nullable', 'exists:suppliers,id'],
             'new_brand_name' => ['nullable', 'string', 'max:255'],
             'new_brand_logo' => ['nullable', 'string'],
             'short_description' => ['nullable', 'string'],
@@ -1799,8 +1810,8 @@ class ProductController extends ApiController
                         'product_id' => $product->id,
                         'image_url' => $imageUrl,
                         'alt_text' => $img['alt_text'] ?? null,
-                        'sort_order' => $img['sort_order'] ?? $order,
-                        'is_primary' => $img['is_primary'] ?? ($order === 0),
+                        'sort_order' => $order,
+                        'is_primary' => $order === 0,
                     ]);
                 }
                 $order++;
@@ -1895,9 +1906,10 @@ class ProductController extends ApiController
             // If the product has NO inventories yet (e.g. uninitialized draft first publishing),
             // initialize initial stock and warehouse with audit record.
             $hasExistingInventory = $product->directInventories()->exists() || $product->inventories()->exists();
+            $whInputId = $request->input('warehouse_id') ?? $request->input('warehouseId') ?? $request->input('initial_inventory.warehouse_id');
+            $hasStockInput = $request->has('stock') || $request->has('initial_stock');
+
             if (!$hasExistingInventory) {
-                $whInputId = $request->input('warehouse_id') ?? $request->input('warehouseId') ?? $request->input('initial_inventory.warehouse_id');
-                $hasStockInput = $request->has('stock') || $request->has('initial_stock');
                 if ($hasStockInput) {
                     $stockVal = (int) ($request->input('stock') ?? $request->input('initial_stock') ?? 0);
                     $product->stock = $stockVal;
@@ -1923,6 +1935,31 @@ class ProductController extends ApiController
                                 'reason' => 'Initial stock on product publication',
                             ]);
                         }
+                    }
+                }
+            } elseif ($product->status === 'draft' && !empty($whInputId) && !$product->variants()->where('is_active', true)->exists()) {
+                // In draft lifecycle, admin can reassign warehouse and stock before publication
+                $wh = \App\Models\Warehouse::where('id', $whInputId)->where('is_active', true)->first();
+                if ($wh) {
+                    $stockVal = $hasStockInput ? (int) ($request->input('stock') ?? $request->input('initial_stock') ?? 0) : ($product->stock ?? 0);
+                    $product->stock = $stockVal;
+                    $product->save();
+
+                    $existingInv = \App\Models\Inventory::where('product_id', $product->id)
+                        ->whereNull('product_variant_id')
+                        ->first();
+                    if ($existingInv) {
+                        $existingInv->update([
+                            'warehouse_id' => $wh->id,
+                            'quantity' => $stockVal,
+                        ]);
+                    } else {
+                        \App\Models\Inventory::create([
+                            'product_id' => $product->id,
+                            'product_variant_id' => null,
+                            'warehouse_id' => $wh->id,
+                            'quantity' => $stockVal,
+                        ]);
                     }
                 }
             }
@@ -2042,7 +2079,7 @@ class ProductController extends ApiController
             }
         }
 
-        $product->load(['brand', 'categories', 'images', 'variants', 'pricingTiers', 'packageAllocations', 'shippingPackageProfiles']);
+        $product->load(['brand', 'supplier', 'categories', 'images', 'variants', 'pricingTiers', 'packageAllocations', 'shippingPackageProfiles']);
 
         CatalogCacheService::invalidateProduct($product);
         ActivityLogger::log('product.updated', $product, [

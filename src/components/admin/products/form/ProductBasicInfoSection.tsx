@@ -9,6 +9,8 @@ import { CategoryModel } from "@/services/category.service";
 import { useOptionalAdminAuth } from "@/lib/AdminAuthContext";
 import ProductDescriptionEditor from "./ProductDescriptionEditor";
 import SearchableSelect from "@/components/common/SearchableSelect";
+import SupplierSelect from "./SupplierSelect";
+import { SupplierModel } from "@/types/b2b";
 
 interface CategoryOption {
   id: string;
@@ -36,6 +38,8 @@ interface ProductBasicInfoSectionProps {
   sizeDescription?: string;
   colourDescription?: string;
   description: string;
+  supplierId?: string | number | null;
+  selectedSupplier?: SupplierModel | null;
   brands: BrandOption[];
   categories: CategoryOption[];
   isEdit?: boolean;
@@ -48,6 +52,7 @@ interface ProductBasicInfoSectionProps {
   onSkuChange: (val: string) => void;
   onBrandChange: (brandName: string, brandId?: string, brandLogo?: string) => void;
   onCategoryChange: (catId: string, catName?: string) => void;
+  onSupplierChange?: (supplierId: number | null, supplier: SupplierModel | null) => void;
   onAudienceChange: (val: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "") => void;
   onDesignTypeChange: (val: "ORIGINAL" | "MASTER COPY" | "") => void;
   onMaterialChange: (val: string) => void;
@@ -86,6 +91,8 @@ export default function ProductBasicInfoSection({
   sizeDescription,
   colourDescription,
   description,
+  supplierId,
+  selectedSupplier,
   brands,
   categories,
   isEdit,
@@ -98,6 +105,7 @@ export default function ProductBasicInfoSection({
   onSkuChange,
   onBrandChange,
   onCategoryChange,
+  onSupplierChange,
   onAudienceChange,
   onDesignTypeChange,
   onMaterialChange,
@@ -221,24 +229,35 @@ export default function ProductBasicInfoSection({
           )}
         </div>
 
-        {/* 4. SKU */}
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-            SKU
-          </label>
-          <input
-            type="text"
-            value={sku}
-            onChange={(e) => onSkuChange(e.target.value)}
-            placeholder="e.g. AYC-XXXX-001"
-            className={`font-mono ${inputClass(Boolean(errors.sku))}`}
-          />
-          {errors.sku && (
-            <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-              <AlertCircle size={12} />
-              {errors.sku}
-            </p>
-          )}
+        {/* 4. SKU & Supplier Selector 2-Column Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+              SKU
+            </label>
+            <input
+              type="text"
+              value={sku}
+              onChange={(e) => onSkuChange(e.target.value)}
+              placeholder="e.g. AYC-XXXX-001"
+              className={`font-mono ${inputClass(Boolean(errors.sku))}`}
+            />
+            {errors.sku && (
+              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                <AlertCircle size={12} />
+                {errors.sku}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <SupplierSelect
+              value={supplierId}
+              selectedSupplier={selectedSupplier}
+              onChange={(supId, sup) => onSupplierChange?.(supId, sup)}
+              error={errors.supplier_id || errors.supplierId}
+            />
+          </div>
         </div>
 
         {/* Brand & Category 2-Column */}

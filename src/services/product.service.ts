@@ -331,6 +331,9 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     brand: brandName,
     brandLogo: brandLogo,
     brand_id: p.brand_id ? String(p.brand_id) : undefined,
+    supplier_id: p.supplier_id ? (Number(p.supplier_id) || p.supplier_id) : (p.supplierId ? (Number(p.supplierId) || p.supplierId) : undefined),
+    supplierId: p.supplierId ? (Number(p.supplierId) || p.supplierId) : (p.supplier_id ? (Number(p.supplier_id) || p.supplier_id) : undefined),
+    supplier: p.supplier || undefined,
     categoryId: categoryInfo.id,
     categoryName: categoryInfo.name,
     audience: audienceVal,
@@ -982,6 +985,13 @@ export class ProductService {
     }
 
     if (input.brand_id !== undefined) payload.brand_id = input.brand_id;
+    if (input.supplier_id !== undefined) {
+      payload.supplier_id = input.supplier_id ? Number(input.supplier_id) : null;
+      payload.supplierId = payload.supplier_id;
+    } else if ((input as any).supplierId !== undefined) {
+      payload.supplier_id = (input as any).supplierId ? Number((input as any).supplierId) : null;
+      payload.supplierId = payload.supplier_id;
+    }
     if (input.categoryId !== undefined && !payload.categories) {
       const numId = Number(input.categoryId);
       if (!isNaN(numId) && Number.isInteger(numId) && numId > 0) {

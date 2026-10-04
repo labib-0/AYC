@@ -5,10 +5,12 @@ namespace Tests\Unit;
 use App\Models\Product;
 use App\Http\Resources\Api\V1\ProductResource;
 use Illuminate\Http\Request;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class LowestCustomerUnitPriceTest extends TestCase
 {
+    use RefreshDatabase;
     /**
      * CASE A: Standard = $5.00, Bulk = $4.50, Full Stock = $4.20
      * Should return $4.20
@@ -16,6 +18,7 @@ class LowestCustomerUnitPriceTest extends TestCase
     public function test_case_a_full_stock_lowest(): void
     {
         $product = new Product([
+            'stock' => 500,
             'wholesale_price' => 5.00,
             'moq' => 10,
             'bulk_pricing_enabled' => true,
@@ -38,6 +41,7 @@ class LowestCustomerUnitPriceTest extends TestCase
     public function test_case_b_bulk_lowest_when_full_stock_unavailable(): void
     {
         $product = new Product([
+            'stock' => 50,
             'wholesale_price' => 5.00,
             'moq' => 10,
             'bulk_pricing_enabled' => true,
@@ -60,6 +64,7 @@ class LowestCustomerUnitPriceTest extends TestCase
     public function test_case_c_full_stock_lowest_when_bulk_disabled(): void
     {
         $product = new Product([
+            'stock' => 300,
             'wholesale_price' => 5.00,
             'moq' => 10,
             'bulk_pricing_enabled' => false,
@@ -211,6 +216,7 @@ class LowestCustomerUnitPriceTest extends TestCase
             'bulk_threshold' => 50,
             'bulk_price' => 8.50,
             'full_stock_price' => 7.80,
+            'stock' => 200,
         ]);
         $product = \Mockery::mock($product)->makePartial();
         $product->shouldReceive('getTotalAvailableStock')->andReturn(200);

@@ -17,6 +17,7 @@ export default function EditProductPage({
   const { id } = use(params);
   const pathname = usePathname();
   const [product, setProduct] = useState<B2BProductInput | null>(null);
+  const [version, setVersion] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +45,7 @@ export default function EditProductPage({
     const res = await updateProduct(product.id, data);
     if (res) {
       setProduct(res);
+      setVersion((v) => v + 1);
     }
     return res;
   };
@@ -115,7 +117,7 @@ export default function EditProductPage({
     <AdminPageGate permission="product.edit" moduleName="Edit Product">
       <div className="w-full max-w-full">
         <ProductForm
-          key={product.id}
+          key={`${product.id}-${version}`}
           initialData={product}
           mode="edit"
           onSubmit={handleUpdate}

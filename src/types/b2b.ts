@@ -1,5 +1,16 @@
 export type ProductStatus = "draft" | "active" | "archived" | "published" | "unpublished";
 
+export interface SupplierModel {
+  id: number;
+  code: string;
+  name: string;
+  is_active?: boolean;
+  contact_person?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  notes?: string | null;
+}
+
 export interface B2BProductVariant {
   id?: string;
   sku?: string;
@@ -24,6 +35,9 @@ export interface B2BProductInput {
   brand: string;
   brandLogo?: string;
   brand_id?: string;
+  supplierId?: number | string | null;
+  supplier_id?: number | string | null;
+  supplier?: { id: number; code: string; name: string; is_active?: boolean } | null;
   categoryId?: string;
   categoryName?: string;
   categories?: (number | string)[];
