@@ -11,7 +11,6 @@ import {
   Lock,
   X,
   Plus,
-  ShieldCheck,
 } from "lucide-react";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 import {
@@ -212,9 +211,11 @@ export default function ProductInventorySection({
     }
 
     // If a warehouse is selected
-    if (adjustTargetWarehouseId && localBreakdown) {
-      const wh = localBreakdown.find((item) => String(item.warehouse_id) === String(adjustTargetWarehouseId));
-      if (wh) return Number(wh.available_quantity);
+    if (adjustTargetWarehouseId) {
+      if (localBreakdown && localBreakdown.length > 0) {
+        const wh = localBreakdown.find((item) => String(item.warehouse_id) === String(adjustTargetWarehouseId));
+        return wh ? Number(wh.available_quantity) : 0;
+      }
     }
 
     return editAvailable;
@@ -363,21 +364,21 @@ export default function ProductInventorySection({
   };
 
   return (
-    <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xs">
+    <div className="bg-card border border-border/80 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xs">
       {/* Header */}
-      <div className="border-b border-border/60 pb-3 flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-            <WarehouseIcon size={16} />
+      <div className="border-b border-border/60 pb-2.5 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <WarehouseIcon size={14} />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-foreground tracking-tight uppercase">
+            <h2 className="text-xs sm:text-sm font-bold text-foreground tracking-tight uppercase">
               INVENTORY
             </h2>
           </div>
         </div>
 
-        {/* Existing Product: Visible Adjust Stock Action */}
+        {/* Existing Product: Visible Working Adjust Stock Action */}
         {isEdit && (
           <div className="flex items-center gap-2">
             <button
@@ -386,16 +387,16 @@ export default function ProductInventorySection({
               onClick={() => handleOpenAdjustModal()}
               disabled={!canAdjust}
               title={!canAdjust ? "Requires 'inventory.adjust' permission" : "Record audited inventory stock adjustment"}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all shadow-xs cursor-pointer"
             >
               {!canAdjust ? (
                 <>
-                  <Lock size={13} className="text-amber-200" />
+                  <Lock size={12} className="text-amber-200" />
                   <span>Adjust Stock (Locked)</span>
                 </>
               ) : (
                 <>
-                  <SlidersHorizontal size={13} />
+                  <SlidersHorizontal size={12} />
                   <span>Adjust Stock</span>
                 </>
               )}
@@ -406,9 +407,9 @@ export default function ProductInventorySection({
 
       {/* Success Notification Banner */}
       {adjustmentSuccessMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-3 animate-in fade-in">
+        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-3 animate-in fade-in">
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <CheckCircle2 size={15} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span>{adjustmentSuccessMsg}</span>
           </div>
           <button
@@ -423,14 +424,15 @@ export default function ProductInventorySection({
 
       {!isEdit ? (
         /* ========================================================================= */
-        /* CREATE MODE: 3 Inputs + Compact Calculated Summary                        */
+        /* ADD PRODUCT: Compact 3-Column Inputs + Compact Calculated Summary          */
         /* ========================================================================= */
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             {/* 1. Initial Stock Units */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-                Initial Stock Units <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
+                INITIAL STOCK UNITS <span className="text-red-500">*</span>
+                <span className="sr-only">Initial Stock Units</span>
               </label>
               <div className="relative">
                 <input
@@ -443,14 +445,14 @@ export default function ProductInventorySection({
                     const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
                     onStockChange(val !== undefined && !isNaN(val) ? Math.max(0, val) : undefined);
                   }}
-                  placeholder=""
-                  className={`w-full h-10 px-3.5 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
+                  placeholder="0"
+                  className={`w-full h-9 sm:h-10 px-3 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
                     errors.stock || errors.initial_stock
                       ? "border-red-500 focus:ring-red-500/30"
                       : "border-border focus:ring-ring/40"
                   }`}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground pointer-events-none">
                   PCS
                 </span>
               </div>
@@ -464,7 +466,7 @@ export default function ProductInventorySection({
 
             {/* 2. MOQ */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
                 MOQ <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -478,14 +480,14 @@ export default function ProductInventorySection({
                     const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
                     onMoqChange(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
                   }}
-                  placeholder=""
-                  className={`w-full h-10 px-3.5 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
+                  placeholder="0"
+                  className={`w-full h-9 sm:h-10 px-3 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
                     errors.moq
                       ? "border-red-500 focus:ring-red-500/30"
                       : "border-border focus:ring-ring/40"
                   }`}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground pointer-events-none">
                   PCS
                 </span>
               </div>
@@ -499,15 +501,16 @@ export default function ProductInventorySection({
 
             {/* 3. Initial Warehouse */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-                Initial Warehouse <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
+                INITIAL WAREHOUSE <span className="text-red-500">*</span>
+                <span className="sr-only">Initial Warehouse</span>
               </label>
               <div className="relative">
                 <select
                   value={warehouseId ? String(warehouseId) : ""}
                   onChange={(e) => onWarehouseChange(e.target.value)}
                   disabled={loadingWarehouses}
-                  className={`w-full h-10 px-3.5 pr-8 rounded-xl border bg-card text-xs font-medium text-foreground focus:outline-none focus:ring-2 transition-colors appearance-none cursor-pointer ${
+                  className={`w-full h-9 sm:h-10 px-3 pr-8 rounded-xl border bg-card text-xs font-medium text-foreground focus:outline-none focus:ring-2 transition-colors appearance-none cursor-pointer ${
                     errors.warehouse_id
                       ? "border-red-500 focus:ring-red-500/30"
                       : "border-border focus:ring-ring/40"
@@ -536,27 +539,27 @@ export default function ProductInventorySection({
           </div>
 
           {warehouseFetchError && (
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
-              <AlertCircle size={14} className="shrink-0" />
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
+              <AlertCircle size={13} className="shrink-0" />
               <span>{warehouseFetchError} Please choose an active warehouse before publishing.</span>
             </div>
           )}
 
           {/* Compact Calculated Summary */}
-          <div className="bg-secondary/40 border border-border/70 rounded-xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
+          <div className="bg-secondary/40 border border-border/70 rounded-xl px-3.5 py-2 flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs">
+            <div className="flex items-center gap-1.5">
               <span className="text-muted-foreground font-medium">On Hand Stock:</span>
               <span className="font-bold text-foreground tabular-nums">
                 {stock !== undefined ? `${initialStockQty.toLocaleString()} PCS` : "—"}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span className="text-muted-foreground font-medium">Available Stock:</span>
               <span className="font-bold text-foreground tabular-nums">
                 {stock !== undefined ? `${createAvailable.toLocaleString()} PCS` : "—"}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span className="text-muted-foreground font-medium">Complete MOQs Available:</span>
               <span className="font-black text-primary tabular-nums">
                 {stock !== undefined && moq && moq > 0 ? createCompleteMoqs.toLocaleString() : "—"}
@@ -566,126 +569,119 @@ export default function ProductInventorySection({
         </div>
       ) : (
         /* ========================================================================= */
-        /* EDIT MODE: Authoritative Current Inventory, Warehouse Table & Adjustments */
+        /* EDIT PRODUCT: Compact Summary Bar, Product MOQ, Warehouse Distribution    */
         /* ========================================================================= */
-        <div className="space-y-4">
-          {/* Authoritative Stock Metrics Summary */}
-          <div className="bg-secondary/40 border border-border/70 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-4 text-xs">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground font-medium">On Hand Stock:</span>
-                <span className="font-bold text-foreground tabular-nums">
-                  {editOnHand.toLocaleString()} PCS
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground font-medium">Available Stock:</span>
-                <span className="font-bold text-foreground tabular-nums">
-                  {editAvailable.toLocaleString()} PCS
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground font-medium">Complete MOQs Available:</span>
-                <span className="font-black text-primary tabular-nums">
-                  {editCompleteMoqs.toLocaleString()}
-                </span>
-              </div>
+        <div className="space-y-3.5">
+          {/* Authoritative Horizontal Stock Metrics Summary Bar */}
+          <div className="bg-secondary/40 border border-border/70 rounded-xl px-3.5 py-2 flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground font-medium">On Hand:</span>
+              <span className="font-bold text-foreground tabular-nums">
+                {editOnHand.toLocaleString()} PCS
+              </span>
+              <span className="sr-only">On Hand Stock</span>
             </div>
-
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
-              <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-400" />
-              <span>Live Authoritative Inventory</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground font-medium">Available:</span>
+              <span className="font-bold text-foreground tabular-nums">
+                {editAvailable.toLocaleString()} PCS
+              </span>
+              <span className="sr-only">Available Stock</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground font-medium">Complete MOQs:</span>
+              <span className="font-black text-primary tabular-nums">
+                {editCompleteMoqs.toLocaleString()}
+              </span>
             </div>
           </div>
 
-          {/* Product Inventory Configuration Fields */}
-          <div className="space-y-4">
-            {/* Editable MOQ Input (Completely independent of stock quantity) */}
-            <div className="max-w-xs">
-              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-                Product MOQ (Minimum Order) <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={moq !== undefined && moq > 0 ? moq : ""}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
-                    onMoqChange(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
-                  }}
-                  placeholder=""
-                  className={`w-full h-10 px-3.5 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
-                    errors.moq
-                      ? "border-red-500 focus:ring-red-500/30"
-                      : "border-border focus:ring-ring/40"
-                  }`}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  PCS
-                </span>
-              </div>
-              {errors.moq && (
-                <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
-                  <AlertCircle size={12} />
-                  {errors.moq}
-                </p>
-              )}
+          {/* Product MOQ (Minimum Order) */}
+          <div className="max-w-xs">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground mb-1">
+              PRODUCT MOQ (MINIMUM ORDER) <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={moq !== undefined && moq > 0 ? moq : ""}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                  onMoqChange(val !== undefined && !isNaN(val) ? Math.max(1, val) : undefined);
+                }}
+                placeholder="1"
+                className={`w-full h-9 sm:h-10 px-3 pr-12 rounded-xl border bg-card text-xs font-medium text-foreground tabular-nums focus:outline-none focus:ring-2 transition-colors ${
+                  errors.moq
+                    ? "border-red-500 focus:ring-red-500/30"
+                    : "border-border focus:ring-ring/40"
+                }`}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground pointer-events-none">
+                PCS
+              </span>
             </div>
+            {errors.moq && (
+              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                <AlertCircle size={12} />
+                {errors.moq}
+              </p>
+            )}
           </div>
 
-          {/* Warehouse Stock Distribution (Final Subsection at Bottom of Inventory Card) */}
-          <div className="pt-4 border-t border-border/60">
+          {/* Warehouse Stock Distribution (Compact Table) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
+                Warehouse Distribution
+                <span className="sr-only">Warehouse Stock Distribution</span>
+              </span>
+              <span className="text-[10px] font-medium text-muted-foreground">
+                {localBreakdown && localBreakdown.length > 0
+                  ? `${localBreakdown.length} ${localBreakdown.length === 1 ? "Warehouse" : "Warehouses"}`
+                  : "0 Registered Warehouses"}
+              </span>
+            </div>
+
             <div className="border border-border/80 rounded-xl overflow-hidden bg-card">
-              <div className="px-4 py-2.5 bg-secondary/40 border-b border-border/60 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
-                  <span>Warehouse Stock Distribution</span>
-                </span>
-                <span className="text-[10px] font-medium text-muted-foreground">
-                  {localBreakdown && localBreakdown.length > 0
-                    ? `${localBreakdown.length} Location${localBreakdown.length !== 1 ? "s" : ""}`
-                    : "0 Registered Locations"}
-                </span>
-              </div>
-
               {localBreakdown && localBreakdown.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-secondary/20 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40">
+                    <thead className="bg-secondary/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
                       <tr>
-                        <th className="px-4 py-2.5">Warehouse</th>
-                        <th className="px-4 py-2.5">Code</th>
-                        <th className="px-4 py-2.5 text-right">On Hand</th>
-                        <th className="px-4 py-2.5 text-right font-bold text-foreground">Available</th>
-                        <th className="px-4 py-2.5 text-right">Action</th>
+                        <th className="px-3 py-1.5 font-bold">Warehouse</th>
+                        <th className="px-3 py-1.5 font-bold">Code</th>
+                        <th className="px-3 py-1.5 text-right font-bold">On Hand</th>
+                        <th className="px-3 py-1.5 text-right font-bold text-foreground">Available</th>
+                        <th className="px-3 py-1.5 text-right font-bold">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/40">
                       {localBreakdown.map((wh) => (
                         <tr key={wh.warehouse_id} className="hover:bg-secondary/20 transition-colors">
-                          <td className="px-4 py-2.5 font-semibold text-foreground">
+                          <td className="px-3 py-2 font-medium text-foreground">
                             {wh.warehouse_name}
                           </td>
-                          <td className="px-4 py-2.5 font-mono text-[11px] text-muted-foreground">
+                          <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
                             {wh.warehouse_code}
                           </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
-                            {wh.on_hand_quantity.toLocaleString()} pcs
+                          <td className="px-3 py-2 text-right tabular-nums text-foreground">
+                            {wh.on_hand_quantity.toLocaleString()} PCS
                           </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums font-bold text-foreground">
-                            {wh.available_quantity.toLocaleString()} pcs
+                          <td className="px-3 py-2 text-right tabular-nums font-bold text-foreground">
+                            {wh.available_quantity.toLocaleString()} PCS
                           </td>
-                          <td className="px-4 py-2.5 text-right">
+                          <td className="px-3 py-2 text-right">
                             <button
                               type="button"
                               onClick={() => handleOpenAdjustModal(wh)}
                               disabled={!canAdjust}
                               title={!canAdjust ? "Requires 'inventory.adjust' permission" : `Adjust stock at ${wh.warehouse_name}`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-[11px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-[11px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
                             >
-                              <SlidersHorizontal size={11} />
+                              <SlidersHorizontal size={10} />
                               <span>Adjust</span>
                             </button>
                           </td>
@@ -695,7 +691,7 @@ export default function ProductInventorySection({
                   </table>
                 </div>
               ) : (
-                <div className="p-5 text-center space-y-2">
+                <div className="p-3.5 text-center space-y-1.5">
                   <p className="text-xs text-muted-foreground">
                     No warehouse inventory records currently registered for this product.
                   </p>
@@ -703,9 +699,9 @@ export default function ProductInventorySection({
                     <button
                       type="button"
                       onClick={() => handleOpenAdjustModal()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer shadow-xs"
                     >
-                      <Plus size={13} />
+                      <Plus size={12} />
                       <span>Initialize Warehouse Stock</span>
                     </button>
                   )}
@@ -789,11 +785,13 @@ export default function ProductInventorySection({
                   onChange={(e) => {
                     const chosenId = e.target.value;
                     setAdjustTargetWarehouseId(chosenId);
-                    if (localBreakdown && !adjustTargetVariantId) {
-                      const found = localBreakdown.find((item) => String(item.warehouse_id) === chosenId);
+                    if (!adjustTargetVariantId) {
+                      const found = localBreakdown?.find((item) => String(item.warehouse_id) === chosenId);
                       setAdjustInventoryId(found?.inventory_id);
                       if (found) {
                         setTargetQuantity(String(found.available_quantity));
+                      } else {
+                        setTargetQuantity("0");
                       }
                     }
                   }}
