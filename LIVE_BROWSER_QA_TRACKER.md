@@ -8,8 +8,8 @@
 - Local/Development URL: https://ayaanclothing.com (VPS Production Environment)
 
 ## Summary
-- Tests planned: 11
-- Tests passed: 11
+- Tests planned: 14
+- Tests passed: 14
 - Tests failed: 0
 - Tests blocked: 0
 - Issues found: 3
@@ -97,6 +97,15 @@
   6. Compact Warehouse Distribution table displaying registered warehouse rows (`Uttara Warehouse`, `WH-UTTARA-01`, On Hand, Available, Action: `[Adjust]`).
   7. Working Adjust Product Stock Modal with target warehouse selection, Add/Subtract/Set Exact mode toggles, quantity delta input, live previous/new stock preview (`1,000` -> `1,100`), reason quick-selection chips, notes, and Confirm Adjustment button.
   (Screenshots: `admin_inventory_add_product.png`, `admin_inventory_edit_product.png`, `admin_inventory_adjust_stock_modal.png`)
+- [x] **Priority 14 — Customer Authentication Enforcement (Checkout, RFQ, Forms, Dashboard)**: Tested live headless Chromium browser and backend API boundaries across all 10 critical authentication scenarios. Verified:
+  1. Guest Storefront Browsing remains 100% public (Homepage `/`, `/products`, `/search`, `/brands`, `/categories`).
+  2. Guest Cart Browsing & Item Management remains functional without forced login.
+  3. Guest Checkout (`#proceed-to-checkout-btn`, `/checkout`) intercepts unauthenticated access, preserves the guest cart, and redirects to `/login` with amber advisory notice banner.
+  4. Post-Login Return Flow resumes intended checkout flow seamlessly without losing cart items or quantities.
+  5. Guest RFQ CTAs and `/rfq` route intercepted and redirected to `/login` with return destination preserved.
+  6. Customer Dashboard (`/dashboard`, `/profile`, `/orders`, `/addresses`) route guards prevent unauthenticated access.
+  7. Backend Security Boundary: Laravel Sanctum (`auth:sanctum`) returns `401 Unauthorized` for all unauthenticated direct mutations (`POST /api/v1/orders`, `POST /api/v1/rfq`, `POST /checkout/validate`, `POST /api/v1/addresses`, `GET /api/v1/users/me`).
+  (Screenshots: `guest_cart_view.png`, `checkout_login_required.png`, `resumed_checkout_modal.png`, `rfq_login_required.png`)
 
 ## Retest Results
 - [x] **Priority 7 (Package Assortment)**: Re-tested after deploying commit `1de5b13` to VPS; passed.
@@ -104,10 +113,11 @@
 - [x] **Priority 11 (WhatsApp Button)**: Targeted selector re-tested in Chromium; passed.
 - [x] **Priority 12 (Cart UI Redesign)**: Automated browser QA executed on localhost:3000; all 7 test stages passed.
 - [x] **Priority 13 (Compact Inventory UI)**: Automated browser QA executed with Puppeteer; all 4 test stages passed.
+- [x] **Priority 14 (Customer Authentication Enforcement)**: Automated browser QA and API contract tests executed; all 10 test stages passed.
 
 ## Final Summary
-- Total tests attempted: 13
-- Passed: 13
+- Total tests attempted: 14
+- Passed: 14
 - Failed: 0
 - Blocked: 0
 - Issues found: 3 (all 3 resolved)
@@ -117,7 +127,7 @@
 - Low: 0
 
 ## Remaining Problems
-None. All 13 targeted priority checks are passing.
+None. All 14 targeted priority checks are passing.
 
 ## Recommended Next Fixes
 1. None required for the tested priorities.
