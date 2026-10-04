@@ -181,14 +181,17 @@ Route::prefix('v1')->group(function () {
     });
 
     // Checkout & Orders (Customer)
-    Route::post('/checkout/validate', [OrderController::class, 'validateCheckout'])->middleware('throttle:checkout-order');
     Route::post('/coupons/validate', [CouponController::class, 'validateCoupon'])->middleware('throttle:coupons-validate');
 
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/checkout/validate', [OrderController::class, 'validateCheckout'])->middleware('throttle:checkout-order');
+    });
+
     Route::prefix('orders')->group(function () {
-        Route::post('/', [OrderController::class, 'store'])->middleware('throttle:checkout-order');
         Route::get('/{id}/tracking', [OrderController::class, 'tracking']);
 
         Route::middleware('auth:sanctum')->group(function () {
+            Route::post('/', [OrderController::class, 'store'])->middleware('throttle:checkout-order');
             Route::get('/', [OrderController::class, 'index']);
             Route::get('/{id}', [OrderController::class, 'show']);
             Route::get('/{id}/documents/{docType}', [OrderController::class, 'document']);
@@ -220,9 +223,8 @@ Route::prefix('v1')->group(function () {
 
     // RFQ / Quotes
     Route::prefix('rfq')->group(function () {
-        Route::post('/', [RfqController::class, 'store'])->middleware('throttle:rfq-create');
-
         Route::middleware('auth:sanctum')->group(function () {
+            Route::post('/', [RfqController::class, 'store'])->middleware('throttle:rfq-create');
             Route::get('/', [RfqController::class, 'index']);
             Route::get('/{id}', [RfqController::class, 'show']);
             Route::patch('/{id}/status', [RfqController::class, 'updateStatus']);

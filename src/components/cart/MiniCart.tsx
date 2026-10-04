@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCart, CartItem } from "@/lib/CartContext";
 import { useRfq } from "@/lib/RfqContext";
+import { useAuth } from "@/lib/AuthContext";
 import { formatPrice } from "@/lib/formatters";
 import { useRouter } from "next/navigation";
 import CheckoutModal from "./CheckoutModal";
@@ -29,8 +30,20 @@ export default function MiniCart() {
     stockViolations,
   } = useCart();
   const { addToRfq } = useRfq();
+  const { user } = useAuth();
   const router = useRouter();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+
+  // Resume checkout flow seamlessly after guest logs in
+  useEffect(() => {
+    if (user && typeof window !== "undefined") {
+      if (sessionStorage.getItem("ayaan_open_checkout") === "true") {
+        sessionStorage.removeItem("ayaan_open_checkout");
+        setIsCartOpen(false);
+        setIsCheckoutOpen(true);
+      }
+    }
+  }, [user, setIsCartOpen]);
 
   // Helper to reliably identify cart items
   const getItemKey = (item: CartItem) =>
@@ -140,6 +153,22 @@ export default function MiniCart() {
     }
   };
 
+  const handleProceedToCheckout = () => {
+    if (!user) {
+      setIsCartOpen(false);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("ayaan_open_checkout", "true");
+        sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
+        const currentPath = window.location.pathname + window.location.search;
+        const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") ? "/products" : currentPath;
+        router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
+      }
+      return;
+    }
+    setIsCartOpen(false);
+    setIsCheckoutOpen(true);
+  };
+
   const handleRequestQuoteFromCart = () => {
     for (const item of items) {
       addToRfq(
@@ -161,6 +190,14 @@ export default function MiniCart() {
       );
     }
     setIsCartOpen(false);
+    if (!user) {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("ayaan_intended_destination", "/rfq");
+        sessionStorage.setItem("ayaan_login_notice", "Please log in to submit an RFQ.");
+      }
+      router.push(`/login?returnUrl=${encodeURIComponent("/rfq")}&notice=${encodeURIComponent("Please log in to submit an RFQ.")}`);
+      return;
+    }
     router.push("/rfq");
   };
 
@@ -627,10 +664,7 @@ export default function MiniCart() {
             <button
               type="button"
               disabled={stockViolations.length > 0}
-              onClick={() => {
-                setIsCartOpen(false);
-                setIsCheckoutOpen(true);
-              }}
+              onClick={handleProceedToCheckout}
               className="w-full py-3 rounded-full bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Proceed to Checkout</span>

@@ -253,7 +253,7 @@ export default function OrderAccessGatewayPage({ params }: Props) {
 
   // ─── STATE D: NOT AUTHENTICATED (Prompt Sign In) ───────────────────────────
   const redirectTarget = `/order-access/${encodeURIComponent(cleanRef)}`;
-  const loginUrl = `/login?redirect=${encodeURIComponent(redirectTarget)}`;
+  const loginUrl = `/login?returnUrl=${encodeURIComponent(redirectTarget)}&notice=${encodeURIComponent("Please log in to continue.")}`;
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4 py-12">

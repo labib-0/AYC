@@ -59,9 +59,20 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   useEffect(() => {
     if (isOpen) {
+      if (!user) {
+        onClose();
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("ayaan_open_checkout", "true");
+          sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
+          const currentPath = window.location.pathname + window.location.search;
+          const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") ? "/products" : currentPath;
+          router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
+        }
+        return;
+      }
       revalidateCart();
     }
-  }, [isOpen, revalidateCart]);
+  }, [isOpen, user, onClose, router, revalidateCart]);
 
   // Stable ref to the latest authenticated user — used in submit handler and address mapping
   // so we never read stale user data regardless of when React batches the state update.
@@ -544,7 +555,17 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     setLoading(true);
 
     try {
-      const orderUserId = user?.id || `guest_${Date.now()}`;
+      if (!user) {
+        setError("Please log in to continue to checkout.");
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("ayaan_open_checkout", "true");
+          sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
+        }
+        onClose();
+        router.push(`/login?returnUrl=${encodeURIComponent("/products")}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
+        return;
+      }
+      const orderUserId = String(user.id);
 
       // Build shipping title based on selected option (ARAMEX or DISCUSS DIRECTLY)
       let shippingMethodTitle: string;
@@ -646,6 +667,16 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       setPromoInput("");
       setConfirmedOrder(newOrder);
     } catch (err: any) {
+      if (err?.status === 401 || err?.isAuthError) {
+        setError("Please log in to continue to checkout.");
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("ayaan_open_checkout", "true");
+          sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
+        }
+        onClose();
+        router.push(`/login?returnUrl=${encodeURIComponent("/products")}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
+        return;
+      }
       const errData = err?.data?.data || err?.data;
       if (err?.data?.error_code === "INSUFFICIENT_STOCK" || errData?.available_quantity !== undefined) {
         const prod = errData?.product_name || "item";

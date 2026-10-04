@@ -91,13 +91,16 @@ class OrderController extends ApiController
      */
     public function validateCheckout(Request $request, OrderCalculationService $calculationService): JsonResponse
     {
-        $user = $request->user();
+        $user = $request->user() ?: auth('sanctum')->user();
+        if (!$user) {
+            return $this->unauthorized('Please log in to continue to checkout.');
+        }
 
         // Resolve Items to Process (from request items or active cart)
         $itemsToProcess = [];
         if ($request->filled('items') && is_array($request->input('items'))) {
             $itemsToProcess = $request->input('items');
-        } elseif ($user) {
+        } else {
             $activeCart = Cart::where('user_id', $user->id)
                 ->where('status', 'active')
                 ->with(['items.product', 'items.variant'])
@@ -111,25 +114,6 @@ class OrderController extends ApiController
                         'quantity' => (int) $cartItem->quantity,
                         'package_breakdown' => $cartItem->package_breakdown,
                     ];
-                }
-            }
-        } else {
-            $sessionId = $request->header('X-Session-Id') ?? $request->input('session_id');
-            if ($sessionId) {
-                $activeCart = Cart::where('session_id', $sessionId)
-                    ->where('status', 'active')
-                    ->with(['items.product', 'items.variant'])
-                    ->first();
-                if ($activeCart && $activeCart->items->isNotEmpty()) {
-                    foreach ($activeCart->items as $cartItem) {
-                        $itemsToProcess[] = [
-                            'product_id' => $cartItem->product_id,
-                            'variant_id' => $cartItem->product_variant_id,
-                            'size' => $cartItem->size,
-                            'quantity' => (int) $cartItem->quantity,
-                            'package_breakdown' => $cartItem->package_breakdown,
-                        ];
-                    }
                 }
             }
         }
@@ -182,26 +166,17 @@ class OrderController extends ApiController
      */
     public function store(CreateOrderRequest $request): JsonResponse
     {
-        $user = $request->user() ?? auth('sanctum')->user();
+        $user = $request->user() ?: auth('sanctum')->user();
+        if (!$user) {
+            return $this->unauthorized('Please log in to continue to checkout.');
+        }
 
         // 1. Resolve Items to Purchase (from active cart or request payload)
         $itemsToProcess = [];
-        $activeCart = null;
-
-        if ($user) {
-            $activeCart = Cart::where('user_id', $user->id)
-                ->where('status', 'active')
-                ->with(['items.product', 'items.variant'])
-                ->first();
-        } else {
-            $sessionId = $request->header('X-Session-Id') ?? $request->input('session_id');
-            if ($sessionId) {
-                $activeCart = Cart::where('session_id', $sessionId)
-                    ->where('status', 'active')
-                    ->with(['items.product', 'items.variant'])
-                    ->first();
-            }
-        }
+        $activeCart = Cart::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->with(['items.product', 'items.variant'])
+            ->first();
 
         if ($activeCart && $activeCart->items->isNotEmpty()) {
             foreach ($activeCart->items as $cartItem) {
@@ -261,7 +236,10 @@ class OrderController extends ApiController
             }
         }
 
-        $email = $request->input('email');
+        $email = $request->input('email', $user->email);
+        if (empty($email)) {
+            $email = $user->email;
+        }
         $shippingName = $request->input('shipping_name');
         $shippingPhone = $request->input('shipping_phone');
         $shippingAddress1 = $request->input('shipping_address1');
@@ -629,7 +607,7 @@ class OrderController extends ApiController
                 // Create Order
                 $createdOrder = Order::create([
                     'order_number' => $orderNumber,
-                    'user_id' => $user?->id,
+                    'user_id' => $user->id,
                     'status' => $orderStatus,
                     'payment_status' => $paymentStatus,
                     'fulfillment_status' => 'unfulfilled',
@@ -717,7 +695,7 @@ class OrderController extends ApiController
                 // Record Timeline Events
                 OrderStatusEvent::create([
                     'order_id' => $createdOrder->id,
-                    'user_id' => $user?->id,
+                    'user_id' => $user->id,
                     'event_type' => 'order_placed',
                     'message' => "Order #{$orderNumber} placed successfully.",
                 ]);
@@ -725,14 +703,14 @@ class OrderController extends ApiController
                 if ($isPaid) {
                     OrderStatusEvent::create([
                         'order_id' => $createdOrder->id,
-                        'user_id' => $user?->id,
+                        'user_id' => $user->id,
                         'event_type' => 'payment_succeeded',
                         'message' => "Payment of \${$totalAmount} processed successfully.",
                     ]);
                 } elseif ($isTerms) {
                     OrderStatusEvent::create([
                         'order_id' => $createdOrder->id,
-                        'user_id' => $user?->id,
+                        'user_id' => $user->id,
                         'event_type' => 'payment_terms_approved',
                         'message' => "Commercial credit terms ({$paymentMethod}) approved for B2B order. Processing initiated.",
                     ]);

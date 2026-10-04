@@ -244,8 +244,9 @@ class CartInventoryValidationTest extends TestCase
     public function test_case_8_checkout_final_atomic_validation_with_insufficient_stock(): void
     {
         [$product, $variantS] = $this->createProductWithVariants();
+        $user = User::factory()->create();
 
-        $response = $this->postJson('/api/v1/orders', [
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/v1/orders', [
             'shipping_name' => 'John Buyer',
             'email' => 'john@buyer.com',
             'shipping_phone' => '+12025550192',

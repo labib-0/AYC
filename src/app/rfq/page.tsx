@@ -41,8 +41,19 @@ const COUNTRIES = [
 
 export default function RfqPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { rfqItems, removeFromRfq, updateRfqItemQuantity, updateRfqItemNotes, clearRfq } = useRfq();
+
+  // Authentication Guard: Guests must log in to submit or view the RFQ form
+  useEffect(() => {
+    if (!authLoading && !user) {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("ayaan_intended_destination", "/rfq");
+        sessionStorage.setItem("ayaan_login_notice", "Please log in to submit an RFQ.");
+      }
+      router.push(`/login?returnUrl=${encodeURIComponent("/rfq")}&notice=${encodeURIComponent("Please log in to submit an RFQ.")}`);
+    }
+  }, [user, authLoading, router]);
 
   // Form State
   const [buyerName, setBuyerName] = useState("");
@@ -79,6 +90,15 @@ export default function RfqPage() {
     e.preventDefault();
     setErrorMsg("");
 
+    if (!user) {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("ayaan_intended_destination", "/rfq");
+        sessionStorage.setItem("ayaan_login_notice", "Please log in to submit an RFQ.");
+      }
+      router.push(`/login?returnUrl=${encodeURIComponent("/rfq")}&notice=${encodeURIComponent("Please log in to submit an RFQ.")}`);
+      return;
+    }
+
     if (rfqItems.length === 0) {
       setErrorMsg("Please add at least one product to your quotation request.");
       return;
@@ -92,7 +112,7 @@ export default function RfqPage() {
     setIsSubmitting(true);
     try {
       const created = await createRfq({
-        userId: user ? String(user.id) : undefined,
+        userId: String(user.id),
         buyerName,
         buyerEmail,
         buyerPhone,
@@ -113,11 +133,33 @@ export default function RfqPage() {
       setSubmittedRfqId(created.id);
       clearRfq();
     } catch (err: any) {
+      if (err?.status === 401 || err?.isAuthError) {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("ayaan_intended_destination", "/rfq");
+          sessionStorage.setItem("ayaan_login_notice", "Please log in to submit an RFQ.");
+        }
+        router.push(`/login?returnUrl=${encodeURIComponent("/rfq")}&notice=${encodeURIComponent("Please log in to submit an RFQ.")}`);
+        return;
+      }
       setErrorMsg(err?.message || "Failed to submit quotation request. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Unauthenticated or Loading State
+  if (authLoading || !user) {
+    return (
+      <div className="w-full min-h-[70vh] flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-medium text-muted-foreground">
+            Verifying Customer Account...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Success Confirmation Screen
   if (submittedRfqNumber) {

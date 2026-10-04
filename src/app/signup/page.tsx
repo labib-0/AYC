@@ -18,10 +18,28 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // If already logged in, redirect to dashboard
+  const getRedirectUrl = (targetUser?: any) => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const rawTarget =
+        params.get("returnUrl") ||
+        params.get("redirect") ||
+        sessionStorage.getItem("ayaan_intended_destination");
+
+      if (rawTarget && rawTarget.startsWith("/") && !rawTarget.startsWith("//") && !rawTarget.includes(":")) {
+        sessionStorage.removeItem("ayaan_intended_destination");
+        return rawTarget;
+      }
+    }
+    const u = targetUser || user;
+    if (u?.role === "admin") return "/ayc/dashboard";
+    return "/dashboard";
+  };
+
+  // If already logged in, redirect to intended target or dashboard
   React.useEffect(() => {
     if (user) {
-      router.push("/dashboard");
+      router.push(getRedirectUrl(user));
     }
   }, [user, router]);
 
@@ -45,7 +63,7 @@ export default function SignUpPage() {
       const errMsg = typeof res.error === "string" ? res.error : res.error.message || "Failed to create account. Please try again.";
       setError(errMsg);
     } else {
-      router.push("/dashboard");
+      router.push(getRedirectUrl(res.user));
     }
   };
 
@@ -154,7 +172,7 @@ export default function SignUpPage() {
         <div className="mt-8 pt-6 border-t border-slate-100 dark:border-white/10 text-center text-sm text-slate-500 dark:text-slate-400">
           Already have an account?{" "}
           <Link
-            href="/login"
+            href={typeof window !== "undefined" && window.location.search ? `/login${window.location.search}` : "/login"}
             className="font-bold text-amber-600 dark:text-amber-400 hover:underline"
           >
             Sign In

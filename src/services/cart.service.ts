@@ -464,6 +464,16 @@ export class CartService {
    * Merge guest cart upon user login
    */
   async mergeGuestCart(): Promise<CartData | null> {
+    if (!isFrontendOnly()) {
+      try {
+        const sessionId = apiClient.getSessionId();
+        if (sessionId) {
+          await apiClient.post("/cart/merge", { session_id: sessionId });
+        }
+      } catch (e) {
+        console.warn("Cart backend merge notice:", e);
+      }
+    }
     return this.getCart();
   }
 

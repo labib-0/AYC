@@ -31,7 +31,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("ayaan_intended_destination", pathname);
+        sessionStorage.setItem("ayaan_login_notice", "Please log in to continue.");
+      }
+      router.push(`/login?returnUrl=${encodeURIComponent(pathname)}&notice=${encodeURIComponent("Please log in to continue.")}`);
     }
   }, [user, loading, router, pathname]);
 

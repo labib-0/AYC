@@ -28,10 +28,21 @@ export default function LoginPage() {
         setError(urlError);
       }
 
-      const msg = sessionStorage.getItem("ayaan_session_expired_message");
-      if (msg) {
-        setSessionNotice(msg);
-        sessionStorage.removeItem("ayaan_session_expired_message");
+      const urlNotice = params.get("notice");
+      if (urlNotice) {
+        setSessionNotice(urlNotice);
+      } else {
+        const storedNotice = sessionStorage.getItem("ayaan_login_notice");
+        if (storedNotice) {
+          setSessionNotice(storedNotice);
+          sessionStorage.removeItem("ayaan_login_notice");
+        } else {
+          const msg = sessionStorage.getItem("ayaan_session_expired_message");
+          if (msg) {
+            setSessionNotice(msg);
+            sessionStorage.removeItem("ayaan_session_expired_message");
+          }
+        }
       }
     }
   }, []);
@@ -39,10 +50,14 @@ export default function LoginPage() {
   const getRedirectUrl = (targetUser?: any) => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const target = params.get("redirect") || sessionStorage.getItem("ayaan_intended_destination");
-      if (target && target.startsWith("/") && !target.startsWith("//")) {
+      const rawTarget =
+        params.get("returnUrl") ||
+        params.get("redirect") ||
+        sessionStorage.getItem("ayaan_intended_destination");
+
+      if (rawTarget && rawTarget.startsWith("/") && !rawTarget.startsWith("//") && !rawTarget.includes(":")) {
         sessionStorage.removeItem("ayaan_intended_destination");
-        return target;
+        return rawTarget;
       }
     }
     const u = targetUser || user;
@@ -227,7 +242,7 @@ export default function LoginPage() {
         <div className="mt-8 pt-6 border-t border-slate-100 dark:border-white/10 text-center text-sm text-slate-500 dark:text-slate-400">
           Don&apos;t have an account yet?{" "}
           <Link
-            href="/signup"
+            href={typeof window !== "undefined" && window.location.search ? `/signup${window.location.search}` : "/signup"}
             className="font-bold text-amber-600 dark:text-amber-400 hover:underline"
           >
             Create an Account

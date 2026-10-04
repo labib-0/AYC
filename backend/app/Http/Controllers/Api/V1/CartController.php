@@ -547,6 +547,7 @@ class CartController extends ApiController
 
             if ($guestCart && $guestCart->items->isNotEmpty()) {
                 foreach ($guestCart->items as $guestItem) {
+                    $isPreorder = (bool) ($guestItem->product?->is_preorder);
                     $availableStock = $guestItem->variant 
                         ? (int) $guestItem->variant->stock 
                         : (int) ($guestItem->product ? ($guestItem->product->variants->isNotEmpty() ? $guestItem->product->variants->sum('stock') : $guestItem->product->getTotalAvailableStock()) : 9999);
@@ -556,19 +557,39 @@ class CartController extends ApiController
                         ->where('size', $guestItem->size)
                         ->first();
 
-                    if ($existing) {
-                        $combinedQty = min($availableStock, $existing->quantity + $guestItem->quantity);
-                        $existing->update([
-                            'quantity' => $combinedQty,
-                            'product_variant_id' => $guestItem->product_variant_id ?: $existing->product_variant_id,
-                        ]);
+                    if ($isPreorder) {
+                        $targetQty = $guestItem->quantity;
+                        if ($existing) {
+                            $existing->update([
+                                'quantity' => $existing->quantity + $targetQty,
+                                'product_variant_id' => $guestItem->product_variant_id ?: $existing->product_variant_id,
+                            ]);
+                        } else {
+                            $userCart->items()->create([
+                                'product_id' => $guestItem->product_id,
+                                'product_variant_id' => $guestItem->product_variant_id,
+                                'size' => $guestItem->size,
+                                'quantity' => $targetQty,
+                            ]);
+                        }
                     } else {
-                        $userCart->items()->create([
-                            'product_id' => $guestItem->product_id,
-                            'product_variant_id' => $guestItem->product_variant_id,
-                            'size' => $guestItem->size,
-                            'quantity' => min($availableStock, $guestItem->quantity),
-                        ]);
+                        $combinedQty = $existing 
+                            ? min($availableStock, $existing->quantity + $guestItem->quantity)
+                            : min($availableStock, $guestItem->quantity);
+
+                        if ($existing) {
+                            $existing->update([
+                                'quantity' => max(1, $combinedQty),
+                                'product_variant_id' => $guestItem->product_variant_id ?: $existing->product_variant_id,
+                            ]);
+                        } else {
+                            $userCart->items()->create([
+                                'product_id' => $guestItem->product_id,
+                                'product_variant_id' => $guestItem->product_variant_id,
+                                'size' => $guestItem->size,
+                                'quantity' => max(1, $combinedQty),
+                            ]);
+                        }
                     }
                 }
 

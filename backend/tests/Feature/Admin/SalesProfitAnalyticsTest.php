@@ -203,7 +203,7 @@ class SalesProfitAnalyticsTest extends TestCase
             ],
         ];
 
-        $res = $this->postJson('/api/v1/orders', $payload)->assertStatus(201);
+        $res = $this->actingAs($this->customer, 'sanctum')->postJson('/api/v1/orders', $payload)->assertStatus(201);
 
         $orderId = $res->json('data.id');
         $this->assertNotNull($orderId);

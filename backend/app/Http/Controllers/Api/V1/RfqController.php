@@ -181,6 +181,9 @@ class RfqController extends ApiController
     public function store(Request $request): JsonResponse
     {
         $user = $request->user() ?: auth('sanctum')->user();
+        if (!$user) {
+            return $this->unauthorized('Please log in to submit an RFQ.');
+        }
 
         // Support both snake_case and camelCase payloads seamlessly
         $rawItems = $request->input('items', []);
@@ -207,13 +210,13 @@ class RfqController extends ApiController
         }
 
         $mergeData = [
-            'buyer_name' => $request->input('buyer_name', $request->input('buyerName', $request->input('contact_name', $user?->name ?? ''))),
-            'buyer_email' => $request->input('buyer_email', $request->input('buyerEmail', $request->input('contact_email', $user?->email ?? ''))),
-            'buyer_phone' => $request->input('buyer_phone', $request->input('buyerPhone', $request->input('contact_phone', $user?->phone ?? null))),
-            'company_name' => $request->input('company_name', $request->input('companyName', $user?->company_name ?? 'Individual Buyer')),
+            'buyer_name' => $request->input('buyer_name', $request->input('buyerName', $request->input('contact_name', $user->name ?? ''))),
+            'buyer_email' => $request->input('buyer_email', $request->input('buyerEmail', $request->input('contact_email', $user->email ?? ''))),
+            'buyer_phone' => $request->input('buyer_phone', $request->input('buyerPhone', $request->input('contact_phone', $user->phone ?? null))),
+            'company_name' => $request->input('company_name', $request->input('companyName', $user->company_name ?? 'Individual Buyer')),
             'business_type' => $request->input('business_type', $request->input('businessType', 'Wholesale Buyer')),
             'website' => $request->input('website', null),
-            'tax_number' => $request->input('tax_number', $request->input('taxNumber', $user?->tax_id ?? null)),
+            'tax_number' => $request->input('tax_number', $request->input('taxNumber', $user->tax_id ?? null)),
             'destination_country' => $request->input('destination_country', $request->input('destinationCountry', $request->input('country_code', 'United States'))),
             'destination_city' => $request->input('destination_city', $request->input('destinationCity', '')),
             'shipping_port' => $request->input('shipping_port', $request->input('shippingPort', null)),
@@ -262,7 +265,7 @@ class RfqController extends ApiController
         $rfq = DB::transaction(function () use ($validated, $user, $rfqNumber) {
             $quote = Quote::create([
                 'rfq_number' => $rfqNumber,
-                'user_id' => $user?->id,
+                'user_id' => $user->id,
                 'buyer_name' => $validated['buyer_name'],
                 'buyer_email' => $validated['buyer_email'],
                 'buyer_phone' => $validated['buyer_phone'] ?? null,

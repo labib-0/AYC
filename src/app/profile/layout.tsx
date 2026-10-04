@@ -25,9 +25,13 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/login");
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("ayaan_intended_destination", pathname);
+        sessionStorage.setItem("ayaan_login_notice", "Please log in to continue.");
+      }
+      router.push(`/login?returnUrl=${encodeURIComponent(pathname)}&notice=${encodeURIComponent("Please log in to continue.")}`);
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, pathname]);
 
   if (loading) {
     return (
