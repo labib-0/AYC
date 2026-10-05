@@ -3,6 +3,7 @@
 namespace App\Services\Order;
 
 use App\Models\AdminInventoryAdjustment;
+use App\Models\Coupon;
 use App\Models\Inventory;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -191,30 +192,48 @@ class AdminPosSaleService
     public function calculatePreview(
         array $items,
         User $customer,
+        ?User $admin = null,
         ?string $couponCode = null,
+        ?array $manualDiscount = null,
         ?float $shippingCost = null,
-        ?string $shippingMethod = null
+        ?string $shippingMethod = null,
+        ?array $payment = null
     ): array {
         if (empty($items)) {
             return [
                 'subtotal' => 0.00,
+                'coupon_discount_amount' => 0.00,
+                'manual_discount_amount' => 0.00,
                 'discount_amount' => 0.00,
                 'shipping_cost' => 0.00,
                 'tax_amount' => 0.00,
                 'other_charges' => 0.00,
                 'total_amount' => 0.00,
+                'paid_amount' => 0.00,
+                'balance_due' => 0.00,
+                'payment_status' => 'pending',
                 'total_quantity' => 0,
                 'lines' => [],
             ];
         }
 
+        // Check manual discount RBAC permission if requested
+        if (!empty($manualDiscount) && is_array($manualDiscount)) {
+            if ($admin && !$this->authorization->can($admin, 'pos.discount')) {
+                throw ValidationException::withMessages([
+                    'manual_discount' => 'You do not have permission to apply manual discounts on POS sales.'
+                ]);
+            }
+        }
+
         $calc = $this->calculationService->calculate(
             itemsInput: $items,
             couponCode: $couponCode,
-            shippingMethod: $shippingMethod ?? 'discuss_directly',
+            shippingMethod: $shippingMethod ?? 'POS In-Store Fulfillment',
             carrier: 'POS Direct',
             shippingCostOverride: $shippingCost ?? 0.00,
-            user: $customer
+            user: $customer,
+            manualDiscount: $manualDiscount
         );
 
         $cleanLines = array_map(function ($line) {
@@ -235,15 +254,43 @@ class AdminPosSaleService
             ];
         }, $calc['lines']);
 
+        $totalAmount = (float) $calc['total_amount'];
+        $paidAmount = isset($payment['paid_amount']) ? (float) $payment['paid_amount'] : $totalAmount;
+
+        if ($paidAmount < 0) {
+            throw ValidationException::withMessages([
+                'paid_amount' => 'Paid amount cannot be negative.'
+            ]);
+        }
+        if ($paidAmount > $totalAmount) {
+            throw ValidationException::withMessages([
+                'paid_amount' => "Paid amount (\${$paidAmount}) cannot exceed the grand total (\${$totalAmount})."
+            ]);
+        }
+
+        $balanceDue = max(0.0, round($totalAmount - $paidAmount, 2));
+        $paymentStatus = 'pending';
+        if ($paidAmount >= $totalAmount && $totalAmount > 0) {
+            $paymentStatus = 'paid';
+        } elseif ($paidAmount > 0) {
+            $paymentStatus = 'partially_paid';
+        }
+
         return [
             'subtotal' => (float) $calc['subtotal'],
+            'coupon_discount_amount' => (float) ($calc['coupon_discount_amount'] ?? 0.00),
+            'manual_discount_amount' => (float) ($calc['manual_discount_amount'] ?? 0.00),
             'discount_amount' => (float) $calc['discount_amount'],
             'coupon_code' => $calc['applied_coupon']?->code,
+            'manual_discount' => $calc['manual_discount'] ?? null,
             'shipping_cost' => (float) $calc['shipping_cost'],
             'shipping_method' => $calc['shipping_method'],
             'tax_amount' => (float) $calc['tax_amount'],
             'other_charges' => (float) $calc['other_charges'],
-            'total_amount' => (float) $calc['total_amount'],
+            'total_amount' => $totalAmount,
+            'paid_amount' => round($paidAmount, 2),
+            'balance_due' => $balanceDue,
+            'payment_status' => $paymentStatus,
             'total_quantity' => (int) $calc['total_quantity'],
             'lines' => $cleanLines,
         ];
@@ -273,6 +320,25 @@ class AdminPosSaleService
             throw ValidationException::withMessages(['items' => 'Sale items cannot be empty.']);
         }
 
+        // Validate manual discount permissions
+        $manualDiscount = $options['manual_discount'] ?? null;
+        if (!empty($manualDiscount) && is_array($manualDiscount)) {
+            if (!$this->authorization->can($admin, 'pos.discount')) {
+                throw ValidationException::withMessages([
+                    'manual_discount' => 'You do not have permission to apply manual discounts on POS sales.'
+                ]);
+            }
+        }
+
+        // Validate payment method
+        $paymentMethod = $options['payment_method'] ?? 'pos_cash';
+        $allowedPaymentMethods = ['pos_cash', 'card', 'bank_transfer', 'mobile_banking', 'transfer'];
+        if (!in_array($paymentMethod, $allowedPaymentMethods, true)) {
+            throw ValidationException::withMessages([
+                'payment_method' => "Unsupported payment method '{$paymentMethod}'. Supported methods: pos_cash, card, bank_transfer, mobile_banking."
+            ]);
+        }
+
         // Idempotency check to prevent duplicate order creation on rapid double-submit
         $idempotencyKey = $options['idempotency_key'] ?? null;
         if (!empty($idempotencyKey)) {
@@ -293,7 +359,7 @@ class AdminPosSaleService
         }
 
         try {
-            $createdOrder = DB::transaction(function () use ($admin, $customer, $items, $options) {
+            $createdOrder = DB::transaction(function () use ($admin, $customer, $items, $options, $manualDiscount, $paymentMethod) {
                 // 1. Authoritative calculation and business rule verification
                 $couponCode = $options['coupon_code'] ?? null;
                 $shippingCost = isset($options['shipping_cost']) ? (float) $options['shipping_cost'] : 0.00;
@@ -305,8 +371,42 @@ class AdminPosSaleService
                     shippingMethod: $shippingMethod,
                     carrier: 'POS Direct',
                     shippingCostOverride: $shippingCost,
-                    user: $customer
+                    user: $customer,
+                    manualDiscount: $manualDiscount
                 );
+
+                $totalAmount = (float) $calc['total_amount'];
+                $paidAmount = isset($options['paid_amount']) ? (float) $options['paid_amount'] : $totalAmount;
+
+                if ($paidAmount < 0) {
+                    throw ValidationException::withMessages([
+                        'paid_amount' => 'Paid amount cannot be negative.'
+                    ]);
+                }
+                if ($paidAmount > $totalAmount) {
+                    throw ValidationException::withMessages([
+                        'paid_amount' => "Paid amount (\${$paidAmount}) cannot exceed the grand total (\${$totalAmount})."
+                    ]);
+                }
+
+                $balanceDue = max(0.0, round($totalAmount - $paidAmount, 2));
+                $paymentStatus = 'pending';
+                if ($paidAmount >= $totalAmount && $totalAmount > 0) {
+                    $paymentStatus = 'paid';
+                } elseif ($paidAmount > 0) {
+                    $paymentStatus = 'partially_paid';
+                }
+
+                // If coupon applied, lock and validate usage limit atomically
+                if ($calc['applied_coupon']) {
+                    $cLocked = Coupon::where('id', $calc['applied_coupon']->id)->lockForUpdate()->first();
+                    if ($cLocked->usage_limit && $cLocked->usage_count >= $cLocked->usage_limit) {
+                        throw ValidationException::withMessages([
+                            'coupon' => 'This promo code has reached its usage limit.'
+                        ]);
+                    }
+                    $cLocked->increment('usage_count');
+                }
 
                 // 2. Strict Inventory Re-Validation & Locking (pessimistic lock)
                 $warehouseId = !empty($options['warehouse_id']) ? (int) $options['warehouse_id'] : null;
@@ -361,7 +461,7 @@ class AdminPosSaleService
                 } while (Order::where('order_number', $orderNumber)->exists());
 
                 // 4. Create the Authoritative Order Record
-                $paymentMethod = $options['payment_method'] ?? 'pos_cash';
+                $paymentReference = trim((string) ($options['payment_reference'] ?? ''));
                 $notes = $options['notes'] ?? null;
 
                 $order = Order::create([
@@ -372,7 +472,7 @@ class AdminPosSaleService
                     'coupon_id' => $calc['applied_coupon']?->id,
                     'coupon_code' => $calc['applied_coupon']?->code,
                     'status' => 'processing',
-                    'payment_status' => 'paid',
+                    'payment_status' => $paymentStatus,
                     'fulfillment_status' => 'unfulfilled',
                     'currency' => 'USD',
                     'subtotal' => $calc['subtotal'],
@@ -380,7 +480,13 @@ class AdminPosSaleService
                     'tax_amount' => $calc['tax_amount'],
                     'other_charges' => $calc['other_charges'],
                     'discount_amount' => $calc['discount_amount'],
-                    'total_amount' => $calc['total_amount'],
+                    'manual_discount_amount' => (float) ($calc['manual_discount_amount'] ?? 0.00),
+                    'manual_discount_type' => $calc['manual_discount']['type'] ?? null,
+                    'manual_discount_value' => isset($calc['manual_discount']['value']) ? (float) $calc['manual_discount']['value'] : null,
+                    'manual_discount_reason' => $calc['manual_discount']['reason'] ?? null,
+                    'total_amount' => $totalAmount,
+                    'paid_amount' => round($paidAmount, 2),
+                    'balance_due' => $balanceDue,
                     'email' => $customer->email,
                     'shipping_name' => $customer->name,
                     'shipping_phone' => $customer->phone ?: 'N/A',
@@ -394,6 +500,15 @@ class AdminPosSaleService
                     'carrier' => 'POS Direct',
                     'shipping_snapshot' => $calc['shipping_snapshot'] ?? null,
                     'payment_method' => $paymentMethod,
+                    'payment_details' => [
+                        'method' => $paymentMethod,
+                        'reference' => $paymentReference ?: null,
+                        'paid_amount' => round($paidAmount, 2),
+                        'balance_due' => $balanceDue,
+                        'status' => $paymentStatus,
+                    ],
+                    'payment_confirmed_at' => $paidAmount > 0 ? now() : null,
+                    'payment_confirmed_by' => $paidAmount > 0 ? $admin->id : null,
                     'notes' => $notes ? "[POS Note] {$notes}" : 'Point of Sale transaction',
                     'placed_at' => now(),
                 ]);
@@ -537,23 +652,54 @@ class AdminPosSaleService
                     }
                 }
 
-                // 6. Record Payment
-                Payment::create([
-                    'order_id' => $order->id,
-                    'customer_id' => $customer->id,
-                    'transaction_id' => 'pos_' . strtolower(Str::random(16)),
-                    'provider' => $paymentMethod,
-                    'payment_method' => $paymentMethod,
-                    'amount' => $order->total_amount,
-                    'currency' => 'USD',
-                    'status' => 'succeeded',
-                    'payer_name' => $customer->name,
-                    'payment_date' => now(),
-                    'confirmed_at' => now(),
-                    'notes' => "POS payment confirmed by {$admin->name}",
-                ]);
+                // 6. Record Payment if paid amount > 0
+                if ($paidAmount > 0) {
+                    $trxId = !empty($paymentReference) ? $paymentReference : ('pos_' . strtolower(Str::random(16)));
 
-                // 7. Record Timeline Events
+                    $payment = Payment::create([
+                        'order_id' => $order->id,
+                        'customer_id' => $customer->id,
+                        'transaction_id' => $trxId,
+                        'provider' => $paymentMethod,
+                        'payment_method' => $paymentMethod,
+                        'amount' => round($paidAmount, 2),
+                        'currency' => 'USD',
+                        'status' => 'succeeded',
+                        'payer_name' => $customer->name,
+                        'account_number' => $paymentReference ?: null,
+                        'payment_date' => now(),
+                        'confirmed_at' => now(),
+                        'confirmed_by' => $admin->id,
+                        'notes' => "POS payment of \${$paidAmount} ({$paymentMethod}) confirmed by {$admin->name}. Reference: " . ($paymentReference ?: 'N/A'),
+                    ]);
+
+                    ActivityLogger::log('pos.payment_recorded', $payment, [
+                        'order_id' => $order->id,
+                        'order_number' => $orderNumber,
+                        'payment_status' => $paymentStatus,
+                        'payment_method' => $paymentMethod,
+                        'paid_amount' => round($paidAmount, 2),
+                        'balance_due' => $balanceDue,
+                        'transaction_id' => $trxId,
+                    ]);
+                }
+
+                // 7. Audit manual discount if applied
+                if (!empty($calc['manual_discount'])) {
+                    ActivityLogger::log('pos.manual_discount', $order, [
+                        'admin_id' => $admin->id,
+                        'admin_name' => $admin->name,
+                        'order_number' => $orderNumber,
+                        'previous_total' => (float) $calc['subtotal'],
+                        'discount_type' => $calc['manual_discount']['type'],
+                        'discount_value' => (float) $calc['manual_discount']['value'],
+                        'discount_amount' => (float) $calc['manual_discount_amount'],
+                        'reason' => $calc['manual_discount']['reason'],
+                        'final_total' => (float) $order->total_amount,
+                    ]);
+                }
+
+                // 8. Record Timeline Events
                 OrderStatusEvent::create([
                     'order_id' => $order->id,
                     'user_id' => $admin->id,
@@ -561,14 +707,20 @@ class AdminPosSaleService
                     'message' => "Order #{$orderNumber} created via POS by {$admin->name} for customer {$customer->name}.",
                 ]);
 
-                OrderStatusEvent::create([
-                    'order_id' => $order->id,
-                    'user_id' => $admin->id,
-                    'event_type' => 'payment_succeeded',
-                    'message' => "POS payment of \${$order->total_amount} ({$paymentMethod}) processed successfully.",
-                ]);
+                if ($paidAmount > 0) {
+                    $eventMsg = $paymentStatus === 'paid'
+                        ? "POS payment of \${$paidAmount} ({$paymentMethod}) processed in full."
+                        : "POS partial payment of \${$paidAmount} ({$paymentMethod}) processed. Balance due: \${$balanceDue}.";
 
-                // 8. Log system activity audit
+                    OrderStatusEvent::create([
+                        'order_id' => $order->id,
+                        'user_id' => $admin->id,
+                        'event_type' => $paymentStatus === 'paid' ? 'payment_succeeded' : 'payment_partial',
+                        'message' => $eventMsg,
+                    ]);
+                }
+
+                // 9. Log system activity audit
                 ActivityLogger::log('pos.order_created', $order, [
                     'order_number' => $orderNumber,
                     'admin_id' => $admin->id,
@@ -576,6 +728,9 @@ class AdminPosSaleService
                     'customer_id' => $customer->id,
                     'customer_name' => $customer->name,
                     'total_amount' => (float) $order->total_amount,
+                    'paid_amount' => round($paidAmount, 2),
+                    'balance_due' => $balanceDue,
+                    'payment_status' => $paymentStatus,
                     'items_count' => count($calc['lines']),
                 ]);
 

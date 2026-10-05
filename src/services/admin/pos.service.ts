@@ -83,15 +83,28 @@ export interface PosCalculationPreviewLine {
   package_breakdown?: any;
 }
 
+export interface PosManualDiscount {
+  type: "percentage" | "fixed" | "flat";
+  value: number;
+  reason: string;
+  amount?: number;
+}
+
 export interface PosCalculationPreview {
   subtotal: number;
+  coupon_discount_amount?: number;
+  manual_discount_amount?: number;
   discount_amount: number;
   coupon_code?: string;
+  manual_discount?: PosManualDiscount | null;
   shipping_cost: number;
   shipping_method: string;
   tax_amount: number;
   other_charges: number;
   total_amount: number;
+  paid_amount: number;
+  balance_due: number;
+  payment_status: "paid" | "partially_paid" | "pending";
   total_quantity: number;
   lines: PosCalculationPreviewLine[];
 }
@@ -109,9 +122,12 @@ export interface PosSalePayload {
   items: PosSaleItemPayload[];
   warehouse_id?: number | null;
   coupon_code?: string | null;
+  manual_discount?: PosManualDiscount | null;
   shipping_cost?: number | null;
   shipping_method?: string | null;
   payment_method?: string | null;
+  paid_amount?: number | null;
+  payment_reference?: string | null;
   notes?: string | null;
   idempotency_key?: string | null;
 }
@@ -164,8 +180,12 @@ export class AdminPosService {
     customer_id: number;
     items: PosSaleItemPayload[];
     coupon_code?: string | null;
+    manual_discount?: PosManualDiscount | null;
     shipping_cost?: number | null;
     shipping_method?: string | null;
+    paid_amount?: number | null;
+    payment_method?: string | null;
+    payment_reference?: string | null;
   }): Promise<PosCalculationPreview> {
     const res = await apiClient.post<any>("/admin/pos/calculate", payload);
     return res?.data || res;

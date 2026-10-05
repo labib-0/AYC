@@ -104,6 +104,12 @@ export interface OrderRecord {
   other_charges_cents?: number;
   discount_amount: number;
   discount_cents: number;
+  manual_discount_amount?: number;
+  manual_discount_type?: "percentage" | "fixed" | string;
+  manual_discount_value?: number;
+  manual_discount_reason?: string;
+  paid_amount?: number;
+  balance_due?: number;
   coupon_code?: string;
   promo_code?: string;
   total_amount: number;

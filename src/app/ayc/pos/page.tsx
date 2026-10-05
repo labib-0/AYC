@@ -27,6 +27,10 @@ import {
   ShieldCheck,
   Copy,
   Check,
+  Tag,
+  Percent,
+  Smartphone,
+  X,
 } from "lucide-react";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 import { ADMIN_PERMISSIONS } from "@/lib/permissions";
@@ -39,6 +43,7 @@ import {
   PosWarehouse,
   PosCalculationPreview,
   PosSaleItemPayload,
+  PosManualDiscount,
 } from "@/services/admin/pos.service";
 import { OrderRecord } from "@/services/order.service";
 
@@ -79,8 +84,31 @@ export default function AdminPosPage() {
   const [previewTotals, setPreviewTotals] = useState<PosCalculationPreview | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  // ── Checkout & Options ────────────────────────────────────────────────────
+  // ── Phase 2: Coupon State ─────────────────────────────────────────────────
+  const [couponCodeInput, setCouponCodeInput] = useState<string>("");
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState<boolean>(false);
+
+  // ── Phase 2: Manual Admin Discount State ──────────────────────────────────
+  const [manualDiscountType, setManualDiscountType] = useState<"percentage" | "fixed">("percentage");
+  const [manualDiscountValue, setManualDiscountValue] = useState<string>("");
+  const [manualDiscountReason, setManualDiscountReason] = useState<string>("");
+  const [appliedManualDiscount, setAppliedManualDiscount] = useState<{
+    type: "percentage" | "fixed";
+    value: number;
+    reason: string;
+  } | null>(null);
+  const [manualDiscountError, setManualDiscountError] = useState<string | null>(null);
+  const [showManualDiscountForm, setShowManualDiscountForm] = useState<boolean>(false);
+
+  // ── Phase 2: Payment Handling State ───────────────────────────────────────
   const [paymentMethod, setPaymentMethod] = useState<string>("pos_cash");
+  const [paidAmountInput, setPaidAmountInput] = useState<string>("");
+  const [isManualPaidAmount, setIsManualPaidAmount] = useState<boolean>(false);
+  const [paymentReference, setPaymentReference] = useState<string>("");
+
+  // ── Checkout & Options ────────────────────────────────────────────────────
   const [orderNotes, setOrderNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -169,7 +197,7 @@ export default function AdminPosPage() {
     }
   }, [activeProduct]);
 
-  // Authoritative live recalculation preview whenever cart or customer changes
+  // Authoritative live recalculation preview whenever cart, customer, coupon, or manual discount changes
   useEffect(() => {
     if (!selectedCustomer || cart.length === 0) {
       setPreviewTotals(null);
@@ -192,13 +220,29 @@ export default function AdminPosPage() {
           items: payloadItems,
           shipping_cost: 0,
           shipping_method: "POS In-Store Fulfillment",
+          coupon_code: appliedCouponCode || undefined,
+          manual_discount: appliedManualDiscount
+            ? {
+                type: appliedManualDiscount.type,
+                value: appliedManualDiscount.value,
+                reason: appliedManualDiscount.reason,
+              }
+            : undefined,
         });
 
         if (isCurrent) {
           setPreviewTotals(preview);
+          if (!isManualPaidAmount) {
+            setPaidAmountInput(preview.total_amount.toFixed(2));
+          }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Calculation error:", err);
+        const msg = err?.response?.data?.message || err?.message;
+        if (appliedCouponCode && msg && (msg.toLowerCase().includes("coupon") || msg.toLowerCase().includes("minimum spend"))) {
+          setCouponError(msg);
+          setAppliedCouponCode(null);
+        }
       } finally {
         if (isCurrent) setIsCalculating(false);
       }
@@ -209,7 +253,7 @@ export default function AdminPosPage() {
     return () => {
       isCurrent = false;
     };
-  }, [cart, selectedCustomer]);
+  }, [cart, selectedCustomer, appliedCouponCode, appliedManualDiscount, isManualPaidAmount]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -369,6 +413,134 @@ export default function AdminPosPage() {
     setCart((prev) => prev.filter((i) => i.id !== lineId));
   };
 
+  const handleApplyCoupon = async () => {
+    if (!couponCodeInput.trim()) {
+      setCouponError("Please enter a coupon code.");
+      return;
+    }
+    if (!selectedCustomer || cart.length === 0) {
+      setCouponError("Select a customer and add items before applying coupon.");
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    setCouponError(null);
+    const code = couponCodeInput.trim().toUpperCase();
+
+    try {
+      const payloadItems: PosSaleItemPayload[] = cart.map((item) => ({
+        product_id: item.product.id,
+        variant_id: item.variant?.id ?? null,
+        size: item.size ?? null,
+        quantity: item.quantity,
+      }));
+
+      const preview = await posService.calculatePreview({
+        customer_id: selectedCustomer.id,
+        items: payloadItems,
+        coupon_code: code,
+        manual_discount: appliedManualDiscount
+          ? {
+              type: appliedManualDiscount.type,
+              value: appliedManualDiscount.value,
+              reason: appliedManualDiscount.reason,
+            }
+          : undefined,
+        shipping_cost: 0,
+        shipping_method: "POS In-Store Fulfillment",
+      });
+
+      setAppliedCouponCode(code);
+      setPreviewTotals(preview);
+      if (!isManualPaidAmount) {
+        setPaidAmountInput(preview.total_amount.toFixed(2));
+      }
+      setCouponCodeInput("");
+      setCouponError(null);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Invalid or ineligible coupon code for this sale.";
+      setCouponError(msg);
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCouponCode(null);
+    setCouponError(null);
+  };
+
+  const handleApplyManualDiscount = async () => {
+    if (!can(ADMIN_PERMISSIONS.POS_DISCOUNT)) {
+      setManualDiscountError("You lack permission to apply manual discounts (pos.discount).");
+      return;
+    }
+    const val = parseFloat(manualDiscountValue);
+    if (isNaN(val) || val <= 0) {
+      setManualDiscountError("Please enter a valid positive discount amount.");
+      return;
+    }
+    if (manualDiscountType === "percentage" && val > 100) {
+      setManualDiscountError("Percentage discount cannot exceed 100%.");
+      return;
+    }
+    if (!manualDiscountReason.trim()) {
+      setManualDiscountError("A reason is mandatory for manual discount override.");
+      return;
+    }
+    if (!selectedCustomer || cart.length === 0) {
+      setManualDiscountError("Select a customer and add items first.");
+      return;
+    }
+
+    setManualDiscountError(null);
+    try {
+      const payloadItems: PosSaleItemPayload[] = cart.map((item) => ({
+        product_id: item.product.id,
+        variant_id: item.variant?.id ?? null,
+        size: item.size ?? null,
+        quantity: item.quantity,
+      }));
+
+      const preview = await posService.calculatePreview({
+        customer_id: selectedCustomer.id,
+        items: payloadItems,
+        coupon_code: appliedCouponCode || undefined,
+        manual_discount: {
+          type: manualDiscountType,
+          value: val,
+          reason: manualDiscountReason.trim(),
+        },
+        shipping_cost: 0,
+        shipping_method: "POS In-Store Fulfillment",
+      });
+
+      setAppliedManualDiscount({
+        type: manualDiscountType,
+        value: val,
+        reason: manualDiscountReason.trim(),
+      });
+      setPreviewTotals(preview);
+      if (!isManualPaidAmount) {
+        setPaidAmountInput(preview.total_amount.toFixed(2));
+      }
+      setShowManualDiscountForm(false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Failed to apply manual discount.";
+      setManualDiscountError(msg);
+    }
+  };
+
+  const handleRemoveManualDiscount = () => {
+    setAppliedManualDiscount(null);
+    setManualDiscountError(null);
+    setManualDiscountValue("");
+    setManualDiscountReason("");
+  };
+
   const handleCompleteSale = async () => {
     if (!selectedCustomer) {
       setSubmissionError("Please select a customer for this sale.");
@@ -401,6 +573,16 @@ export default function AdminPosPage() {
         items: payload,
         warehouse_id: selectedWarehouseId,
         payment_method: paymentMethod,
+        paid_amount: numericPaid,
+        payment_reference: paymentReference.trim() || undefined,
+        coupon_code: appliedCouponCode || undefined,
+        manual_discount: appliedManualDiscount
+          ? {
+              type: appliedManualDiscount.type,
+              value: appliedManualDiscount.value,
+              reason: appliedManualDiscount.reason,
+            }
+          : undefined,
         shipping_cost: 0,
         shipping_method: "POS In-Store Fulfillment",
         notes: orderNotes.trim() || undefined,
@@ -412,6 +594,11 @@ export default function AdminPosPage() {
       setCart([]);
       setSelectedCustomer(null);
       setPreviewTotals(null);
+      setAppliedCouponCode(null);
+      setAppliedManualDiscount(null);
+      setPaidAmountInput("");
+      setIsManualPaidAmount(false);
+      setPaymentReference("");
       setOrderNotes("");
     } catch (err: any) {
       console.error("POS transaction failed:", err);
@@ -438,6 +625,12 @@ export default function AdminPosPage() {
     setSelectedCustomer(null);
     setPreviewTotals(null);
     setSubmissionError(null);
+    setAppliedCouponCode(null);
+    setAppliedManualDiscount(null);
+    setPaidAmountInput("");
+    setIsManualPaidAmount(false);
+    setPaymentReference("");
+    setPaymentMethod("pos_cash");
     setOrderNotes("");
   };
 
@@ -445,11 +638,39 @@ export default function AdminPosPage() {
   const subtotal = previewTotals
     ? previewTotals.subtotal
     : cart.reduce((sum, item) => sum + item.line_total, 0);
-  const taxAmount = previewTotals ? previewTotals.tax_amount : Math.round(subtotal * 0.05 * 100) / 100;
-  const grandTotal = previewTotals ? previewTotals.total_amount : subtotal + taxAmount;
+  const couponDiscountAmount = previewTotals?.coupon_discount_amount ?? 0;
+  const manualDiscountAmount = previewTotals?.manual_discount_amount ?? 0;
+  const totalDiscount = previewTotals?.discount_amount ?? (couponDiscountAmount + manualDiscountAmount);
+  const taxAmount = previewTotals ? previewTotals.tax_amount : 0;
+  const grandTotal = previewTotals ? previewTotals.total_amount : Math.max(0, subtotal - totalDiscount + taxAmount);
   const totalPcs = previewTotals
     ? previewTotals.total_quantity
     : cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  const numericPaid = paidAmountInput === "" ? grandTotal : Math.max(0, parseFloat(paidAmountInput) || 0);
+  const balanceDue = Math.max(0, Math.round((grandTotal - numericPaid) * 100) / 100);
+
+  let paymentStatusBadge = {
+    label: "PENDING / UNPAID",
+    bg: "bg-rose-500/10",
+    text: "text-rose-500",
+    border: "border-rose-500/20",
+  };
+  if (numericPaid >= grandTotal && grandTotal > 0) {
+    paymentStatusBadge = {
+      label: "PAID IN FULL",
+      bg: "bg-emerald-500/10",
+      text: "text-emerald-500",
+      border: "border-emerald-500/20",
+    };
+  } else if (numericPaid > 0 && numericPaid < grandTotal) {
+    paymentStatusBadge = {
+      label: "PARTIALLY PAID",
+      bg: "bg-amber-500/10",
+      text: "text-amber-500",
+      border: "border-amber-500/20",
+    };
+  }
 
   return (
     <AdminPageGate permission={ADMIN_PERMISSIONS.POS_VIEW} moduleName="Point of Sale (POS)">
@@ -464,12 +685,12 @@ export default function AdminPosPage() {
               <div>
                 <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
                   Point of Sale (POS)
-                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 font-semibold">
-                    Phase 1
+                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-semibold">
+                    Phase 2
                   </span>
                 </h1>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Direct In-Store Counter & Manual B2B Order Entry
+                  Direct In-Store Counter, Custom Discounts & Authoritative Settlement
                 </p>
               </div>
             </div>
@@ -1024,76 +1245,255 @@ export default function AdminPosPage() {
                 )}
               </div>
 
-              {/* Payment Method Selector */}
-              <div>
-                <label className="text-[11px] font-medium text-muted-foreground block mb-2 uppercase font-mono tracking-wider">
-                  Payment Method:
-                </label>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("pos_cash")}
-                    className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
-                      paymentMethod === "pos_cash"
-                        ? "bg-primary text-primary-foreground border-primary font-bold shadow-sm"
-                        : "bg-background border-border hover:bg-secondary/40 text-foreground"
-                    }`}
-                  >
-                    <Banknote size={16} />
-                    <span className="text-[11px]">Cash</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("card")}
-                    className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
-                      paymentMethod === "card"
-                        ? "bg-primary text-primary-foreground border-primary font-bold shadow-sm"
-                        : "bg-background border-border hover:bg-secondary/40 text-foreground"
-                    }`}
-                  >
-                    <CreditCard size={16} />
-                    <span className="text-[11px]">Card</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("bank_transfer")}
-                    className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
-                      paymentMethod === "bank_transfer"
-                        ? "bg-primary text-primary-foreground border-primary font-bold shadow-sm"
-                        : "bg-background border-border hover:bg-secondary/40 text-foreground"
-                    }`}
-                  >
-                    <Landmark size={16} />
-                    <span className="text-[11px]">Bank</span>
-                  </button>
+              {/* ── Phase 2: Coupon Section ── */}
+              <div className="pt-2 border-t border-border/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-medium text-muted-foreground uppercase font-mono tracking-wider flex items-center gap-1.5">
+                    <Tag size={13} className="text-primary" />
+                    Coupon Code:
+                  </label>
+                  {appliedCouponCode && (
+                    <span className="text-[10px] text-emerald-500 font-mono font-semibold">
+                      Applied
+                    </span>
+                  )}
                 </div>
+
+                {appliedCouponCode ? (
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Tag size={14} className="text-emerald-500" />
+                      <div>
+                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          {appliedCouponCode}
+                        </span>
+                        {couponDiscountAmount > 0 && (
+                          <span className="text-[10px] text-muted-foreground ml-2 font-mono">
+                            (-${couponDiscountAmount.toFixed(2)})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Remove coupon"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponCodeInput}
+                        onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleApplyCoupon();
+                          }
+                        }}
+                        placeholder="ENTER COUPON CODE"
+                        disabled={isValidatingCoupon || !selectedCustomer || cart.length === 0}
+                        className="flex-1 px-3 py-2 bg-background border border-border rounded-xl text-xs font-mono uppercase text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-50"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={
+                          isValidatingCoupon ||
+                          !couponCodeInput.trim() ||
+                          !selectedCustomer ||
+                          cart.length === 0
+                        }
+                        className="px-3 py-2 bg-secondary text-foreground hover:bg-secondary/80 font-bold text-xs rounded-xl border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                      >
+                        {isValidatingCoupon ? "..." : "Apply"}
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p className="text-[11px] text-destructive flex items-center gap-1 font-medium">
+                        <AlertCircle size={12} className="shrink-0" />
+                        {couponError}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Order Notes */}
-              <div>
-                <label className="text-[11px] font-medium text-muted-foreground block mb-1.5 uppercase font-mono tracking-wider">
-                  Sale Notes (Optional):
-                </label>
-                <textarea
-                  value={orderNotes}
-                  onChange={(e) => setOrderNotes(e.target.value)}
-                  placeholder="Cash counter notes, walk-in reference, or special packaging notes…"
-                  rows={2}
-                  className="w-full p-2.5 bg-background border border-border/80 rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
-                />
+              {/* ── Phase 2: Manual Admin Discount Section ── */}
+              <div className="pt-2 border-t border-border/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-medium text-muted-foreground uppercase font-mono tracking-wider flex items-center gap-1.5">
+                    <Percent size={13} className="text-purple-500" />
+                    Admin Discount Override:
+                  </label>
+                  {appliedManualDiscount && (
+                    <span className="text-[10px] text-purple-500 font-mono font-semibold">
+                      Applied
+                    </span>
+                  )}
+                </div>
+
+                {!can(ADMIN_PERMISSIONS.POS_DISCOUNT) ? (
+                  <div className="p-2.5 rounded-xl bg-secondary/30 border border-border/40 text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <ShieldCheck size={13} className="text-muted-foreground/60 shrink-0" />
+                    <span>Manual discount requires pos.discount permission.</span>
+                  </div>
+                ) : appliedManualDiscount ? (
+                  <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-purple-600 dark:text-purple-400">
+                        {appliedManualDiscount.type === "percentage"
+                          ? `${appliedManualDiscount.value}% Off`
+                          : `$${appliedManualDiscount.value.toFixed(2)} Flat Off`}
+                        {manualDiscountAmount > 0 && (
+                          <span className="ml-1 text-[10px] text-muted-foreground">
+                            (-${manualDiscountAmount.toFixed(2)})
+                          </span>
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveManualDiscount}
+                        className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Remove manual discount"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground italic truncate">
+                      Reason: {appliedManualDiscount.reason}
+                    </p>
+                  </div>
+                ) : showManualDiscountForm ? (
+                  <div className="p-3 rounded-xl bg-secondary/40 border border-border/80 text-xs space-y-2.5">
+                    {/* Toggle percentage vs fixed */}
+                    <div className="grid grid-cols-2 gap-1.5 bg-background p-1 rounded-lg border border-border">
+                      <button
+                        type="button"
+                        onClick={() => setManualDiscountType("percentage")}
+                        className={`py-1 text-center font-mono text-[11px] rounded transition-all ${
+                          manualDiscountType === "percentage"
+                            ? "bg-purple-600 text-white font-bold"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Percentage (%)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setManualDiscountType("fixed")}
+                        className={`py-1 text-center font-mono text-[11px] rounded transition-all ${
+                          manualDiscountType === "fixed"
+                            ? "bg-purple-600 text-white font-bold"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Fixed Amount ($)
+                      </button>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-medium text-muted-foreground block">
+                        Discount Value ({manualDiscountType === "percentage" ? "%" : "$"}):
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step={manualDiscountType === "percentage" ? "1" : "0.01"}
+                        value={manualDiscountValue}
+                        onChange={(e) => setManualDiscountValue(e.target.value)}
+                        placeholder={manualDiscountType === "percentage" ? "e.g. 10" : "e.g. 250.00"}
+                        className="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-medium text-muted-foreground block">
+                        Mandatory Audit Reason:
+                      </label>
+                      <input
+                        type="text"
+                        value={manualDiscountReason}
+                        onChange={(e) => setManualDiscountReason(e.target.value)}
+                        placeholder="e.g. Counter VIP agreement / B2B bulk quote"
+                        className="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    {manualDiscountError && (
+                      <p className="text-[11px] text-destructive flex items-center gap-1 font-medium">
+                        <AlertCircle size={12} className="shrink-0" />
+                        {manualDiscountError}
+                      </p>
+                    )}
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleApplyManualDiscount}
+                        className="flex-1 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-lg transition-colors shadow-sm"
+                      >
+                        Apply Override
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowManualDiscountForm(false);
+                          setManualDiscountError(null);
+                        }}
+                        className="px-3 py-1.5 border border-border text-muted-foreground hover:text-foreground text-xs rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowManualDiscountForm(true)}
+                    disabled={!selectedCustomer || cart.length === 0}
+                    className="w-full py-2 px-3 border border-dashed border-border rounded-xl text-xs text-muted-foreground hover:text-foreground hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-center flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={13} /> Add Manual Admin Discount
+                  </button>
+                )}
               </div>
 
               {/* Authoritative Financial Breakdown */}
-              <div className="space-y-2 pt-2 border-t border-border/50 text-xs font-mono">
+              <div className="space-y-2 pt-3 border-t border-border/50 text-xs font-mono">
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span>Subtotal ({totalPcs} pcs)</span>
                   <span className="text-foreground">${subtotal.toFixed(2)}</span>
                 </div>
 
+                {couponDiscountAmount > 0 && (
+                  <div className="flex items-center justify-between text-emerald-500">
+                    <span>Coupon ({appliedCouponCode})</span>
+                    <span>-${couponDiscountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {manualDiscountAmount > 0 && (
+                  <div className="flex items-center justify-between text-purple-500">
+                    <span>Manual Admin Override</span>
+                    <span>-${manualDiscountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {totalDiscount > 0 && !couponDiscountAmount && !manualDiscountAmount && (
+                  <div className="flex items-center justify-between text-emerald-500">
+                    <span>Total Discounts</span>
+                    <span>-${totalDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Tax (5% Gov Standard)</span>
+                  <span>Tax (In-Store Direct)</span>
                   <span className="text-foreground">${taxAmount.toFixed(2)}</span>
                 </div>
 
@@ -1114,6 +1514,189 @@ export default function AdminPosPage() {
                   </span>
                 </div>
               </div>
+
+              {/* ── Phase 2: Payment Settlement Section ── */}
+              <div className="pt-3 border-t border-border/60 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-foreground uppercase font-mono tracking-wider">
+                    Payment Settlement:
+                  </label>
+                  <span
+                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full border font-bold ${paymentStatusBadge.bg} ${paymentStatusBadge.text} ${paymentStatusBadge.border}`}
+                  >
+                    {paymentStatusBadge.label}
+                  </span>
+                </div>
+
+                {/* 4 Payment Methods */}
+                <div>
+                  <div className="grid grid-cols-4 gap-1.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("pos_cash")}
+                      className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                        paymentMethod === "pos_cash"
+                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-sm"
+                          : "bg-background border-border hover:bg-secondary/40 text-foreground"
+                      }`}
+                    >
+                      <Banknote size={15} />
+                      <span className="text-[10px]">Cash</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("card")}
+                      className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                        paymentMethod === "card"
+                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-sm"
+                          : "bg-background border-border hover:bg-secondary/40 text-foreground"
+                      }`}
+                    >
+                      <CreditCard size={15} />
+                      <span className="text-[10px]">Card</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("bank_transfer")}
+                      className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                        paymentMethod === "bank_transfer"
+                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-sm"
+                          : "bg-background border-border hover:bg-secondary/40 text-foreground"
+                      }`}
+                    >
+                      <Landmark size={15} />
+                      <span className="text-[10px]">Bank</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("mobile_banking")}
+                      className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                        paymentMethod === "mobile_banking"
+                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-sm"
+                          : "bg-background border-border hover:bg-secondary/40 text-foreground"
+                      }`}
+                    >
+                      <Smartphone size={15} />
+                      <span className="text-[10px]">Mobile</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Paid Amount Input & Quick Shortcuts */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-medium text-muted-foreground uppercase font-mono">
+                      Paid / Tendered ($):
+                    </label>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      Max: ${grandTotal.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <input
+                    type="number"
+                    min="0"
+                    max={grandTotal}
+                    step="0.01"
+                    value={paidAmountInput}
+                    onChange={(e) => {
+                      setIsManualPaidAmount(true);
+                      setPaidAmountInput(e.target.value);
+                    }}
+                    placeholder={grandTotal.toFixed(2)}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm font-mono font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+
+                  {/* Quick Action Shortcuts */}
+                  <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaidAmountInput(grandTotal.toFixed(2));
+                        setIsManualPaidAmount(true);
+                      }}
+                      className="py-1 px-2 text-[10px] font-mono rounded-lg border border-border bg-secondary/50 hover:bg-secondary text-foreground text-center font-medium transition-colors"
+                    >
+                      Pay Full
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaidAmountInput((Math.round((grandTotal / 2) * 100) / 100).toFixed(2));
+                        setIsManualPaidAmount(true);
+                      }}
+                      className="py-1 px-2 text-[10px] font-mono rounded-lg border border-border bg-secondary/50 hover:bg-secondary text-foreground text-center font-medium transition-colors"
+                    >
+                      Split 50%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaidAmountInput("0.00");
+                        setIsManualPaidAmount(true);
+                      }}
+                      className="py-1 px-2 text-[10px] font-mono rounded-lg border border-border bg-secondary/50 hover:bg-secondary text-foreground text-center font-medium transition-colors"
+                    >
+                      Unpaid ($0)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Payment Reference / Transaction ID */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase font-mono block">
+                    Payment Reference / Trx ID (Optional):
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    placeholder="e.g. Card Slip #, Trx ID, bKash Trx ID, Check #"
+                    className="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+
+                {/* Balance Due Display Card */}
+                <div
+                  className={`p-2.5 rounded-xl border text-xs font-mono flex items-center justify-between ${
+                    balanceDue > 0
+                      ? "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400"
+                      : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                  }`}
+                >
+                  <span className="font-semibold uppercase tracking-wider text-[10px]">
+                    {balanceDue > 0 ? "Balance Remaining Due:" : "Balance Settled:"}
+                  </span>
+                  <span className="font-bold text-sm">
+                    ${balanceDue.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Order Notes */}
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground block mb-1.5 uppercase font-mono tracking-wider">
+                  Sale Notes (Optional):
+                </label>
+                <textarea
+                  value={orderNotes}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  placeholder="Counter notes, walk-in reference, or special packaging notes…"
+                  rows={2}
+                  className="w-full p-2.5 bg-background border border-border/80 rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                />
+              </div>
+
+              {/* Submission error */}
+              {submissionError && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-start gap-2">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                  <span>{submissionError}</span>
+                </div>
+              )}
 
               {/* Action Button: Complete Sale */}
               <div className="pt-2">
@@ -1186,21 +1769,53 @@ export default function AdminPosPage() {
               {/* Order Quick Details */}
               <div className="text-xs text-left p-3.5 rounded-xl bg-secondary/20 border border-border/60 space-y-2 font-mono">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Paid:</span>
+                  <span className="text-muted-foreground">Total Amount:</span>
                   <span className="font-bold text-foreground">
                     ${Number(createdOrder.total_amount).toFixed(2)}
                   </span>
                 </div>
+
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount Paid:</span>
+                  <span className="font-bold text-emerald-500">
+                    ${Number(createdOrder.paid_amount ?? (createdOrder.payment_status === "paid" ? createdOrder.total_amount : 0)).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Balance Due:</span>
+                  <span className={`font-bold ${Number(createdOrder.balance_due ?? 0) > 0 ? "text-amber-500" : "text-foreground"}`}>
+                    ${Number(createdOrder.balance_due ?? 0).toFixed(2)}
+                  </span>
+                </div>
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Customer:</span>
                   <span className="font-medium text-foreground">{createdOrder.shipping_name}</span>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Payment Status:</span>
-                  <span className="text-emerald-500 font-bold uppercase text-[10px]">
+                  <span
+                    className={`font-bold uppercase text-[10px] px-2 py-0.5 rounded ${
+                      createdOrder.payment_status === "paid"
+                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                        : createdOrder.payment_status === "partially_paid"
+                        ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                        : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                    }`}
+                  >
                     {createdOrder.payment_status}
                   </span>
                 </div>
+
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment Method:</span>
+                  <span className="font-medium text-foreground uppercase text-[10px]">
+                    {createdOrder.payment_method}
+                  </span>
+                </div>
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Order Source:</span>
                   <span className="text-amber-500 font-bold uppercase text-[10px]">POS</span>

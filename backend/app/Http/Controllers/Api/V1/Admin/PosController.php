@@ -66,6 +66,8 @@ class PosController extends ApiController
      */
     public function calculate(Request $request): JsonResponse
     {
+        $admin = $request->user();
+
         $validated = $request->validate([
             'customer_id' => ['required', 'integer', 'exists:users,id'],
             'items' => ['required', 'array', 'min:1'],
@@ -75,8 +77,15 @@ class PosController extends ApiController
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'items.*.pricing_mode' => ['nullable', 'string'],
             'coupon_code' => ['nullable', 'string', 'max:50'],
+            'manual_discount' => ['nullable', 'array'],
+            'manual_discount.type' => ['required_with:manual_discount', 'string', 'in:percentage,fixed,flat'],
+            'manual_discount.value' => ['required_with:manual_discount', 'numeric', 'min:0.01'],
+            'manual_discount.reason' => ['required_with:manual_discount', 'string', 'min:3', 'max:255'],
             'shipping_cost' => ['nullable', 'numeric', 'min:0'],
             'shipping_method' => ['nullable', 'string', 'max:100'],
+            'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'payment_method' => ['nullable', 'string', 'in:pos_cash,card,bank_transfer,mobile_banking,transfer'],
+            'payment_reference' => ['nullable', 'string', 'max:100'],
         ]);
 
         $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
@@ -88,12 +97,21 @@ class PosController extends ApiController
             $preview = $this->posSaleService->calculatePreview(
                 items: $validated['items'],
                 customer: $customer,
+                admin: $admin,
                 couponCode: $validated['coupon_code'] ?? null,
+                manualDiscount: $validated['manual_discount'] ?? null,
                 shippingCost: isset($validated['shipping_cost']) ? (float) $validated['shipping_cost'] : null,
-                shippingMethod: $validated['shipping_method'] ?? null
+                shippingMethod: $validated['shipping_method'] ?? null,
+                payment: isset($validated['paid_amount']) ? [
+                    'paid_amount' => (float) $validated['paid_amount'],
+                    'payment_method' => $validated['payment_method'] ?? 'pos_cash',
+                    'payment_reference' => $validated['payment_reference'] ?? null,
+                ] : null
             );
 
             return $this->success($preview, 'Calculation preview updated successfully');
+        } catch (ValidationException $e) {
+            return $this->error($e->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY, $e->errors());
         } catch (InvalidArgumentException $e) {
             return $this->error($e->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Throwable $e) {
@@ -119,9 +137,15 @@ class PosController extends ApiController
             'items.*.pricing_mode' => ['nullable', 'string'],
             'warehouse_id' => ['nullable', 'integer', 'exists:warehouses,id'],
             'coupon_code' => ['nullable', 'string', 'max:50'],
+            'manual_discount' => ['nullable', 'array'],
+            'manual_discount.type' => ['required_with:manual_discount', 'string', 'in:percentage,fixed,flat'],
+            'manual_discount.value' => ['required_with:manual_discount', 'numeric', 'min:0.01'],
+            'manual_discount.reason' => ['required_with:manual_discount', 'string', 'min:3', 'max:255'],
             'shipping_cost' => ['nullable', 'numeric', 'min:0'],
             'shipping_method' => ['nullable', 'string', 'max:100'],
-            'payment_method' => ['nullable', 'string', 'max:50'],
+            'payment_method' => ['nullable', 'string', 'in:pos_cash,card,bank_transfer,mobile_banking,transfer'],
+            'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'payment_reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'idempotency_key' => ['nullable', 'string', 'max:100'],
         ]);
@@ -139,9 +163,12 @@ class PosController extends ApiController
                 options: [
                     'warehouse_id' => $validated['warehouse_id'] ?? null,
                     'coupon_code' => $validated['coupon_code'] ?? null,
+                    'manual_discount' => $validated['manual_discount'] ?? null,
                     'shipping_cost' => $validated['shipping_cost'] ?? 0.00,
                     'shipping_method' => $validated['shipping_method'] ?? 'POS In-Store Fulfillment',
                     'payment_method' => $validated['payment_method'] ?? 'pos_cash',
+                    'paid_amount' => isset($validated['paid_amount']) ? (float) $validated['paid_amount'] : null,
+                    'payment_reference' => $validated['payment_reference'] ?? null,
                     'notes' => $validated['notes'] ?? null,
                     'idempotency_key' => $validated['idempotency_key'] ?? $request->header('X-Idempotency-Key'),
                 ]

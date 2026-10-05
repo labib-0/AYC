@@ -515,7 +515,7 @@ class RbacFoundationTest extends TestCase
 
     public function test_all_139_permissions_are_present_in_db(): void
     {
-        $this->assertEquals(139, Permission::count());
+        $this->assertEquals(count(Permission::catalog()), Permission::count());
     }
 
     public function test_all_system_roles_are_present(): void

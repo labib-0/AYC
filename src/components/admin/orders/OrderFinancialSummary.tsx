@@ -101,11 +101,59 @@ export default function OrderFinancialSummary({ order }: OrderFinancialSummaryPr
           </div>
         )}
 
+        {/* Section: Manual Admin Discount (POS Phase 2) */}
+        {(order as any).manual_discount_amount > 0 && (
+          <div className="p-3 my-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-foreground flex items-center gap-1.5">
+                <Tag size={12} className="text-amber-500" />
+                <span>Admin Manual Discount:</span>
+              </span>
+              <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                -${Number((order as any).manual_discount_amount).toFixed(2)}
+              </span>
+            </div>
+            {(order as any).manual_discount_value != null && (
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Override Value:</span>
+                <span className="font-mono font-medium text-foreground">
+                  {(order as any).manual_discount_type === "percentage"
+                    ? `${(order as any).manual_discount_value}%`
+                    : `$${Number((order as any).manual_discount_value).toFixed(2)}`}
+                </span>
+              </div>
+            )}
+            {(order as any).manual_discount_reason && (
+              <div className="text-[11px] text-muted-foreground pt-1 border-t border-amber-500/10">
+                <span className="font-medium text-foreground">Reason: </span>
+                <span className="italic">{(order as any).manual_discount_reason}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex justify-between items-center font-bold text-base text-foreground pt-3 border-t border-border/60">
-          <span>Total Payable</span>
+          <span>Grand Total</span>
           <span className="font-mono text-primary text-lg">
             ${totalAmount.toFixed(2)} <span className="text-xs font-sans text-muted-foreground uppercase">{currency}</span>
           </span>
+        </div>
+
+        {/* Payment Tracking: Paid vs Balance Due */}
+        <div className="pt-2 border-t border-border/40 space-y-1.5 text-xs">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Paid Amount</span>
+            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+              ${Number((order as any).paid_amount ?? (order.payment_status === "paid" ? totalAmount : 0)).toFixed(2)}
+            </span>
+          </div>
+
+          <div className="flex justify-between text-muted-foreground">
+            <span>Balance Due</span>
+            <span className={`font-mono font-bold ${Number((order as any).balance_due ?? 0) > 0 ? "text-rose-500" : "text-foreground"}`}>
+              ${Number((order as any).balance_due ?? Math.max(0, totalAmount - Number((order as any).paid_amount ?? (order.payment_status === "paid" ? totalAmount : 0)))).toFixed(2)}
+            </span>
+          </div>
         </div>
       </div>
     </div>

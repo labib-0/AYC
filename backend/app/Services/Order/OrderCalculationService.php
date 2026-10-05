@@ -34,7 +34,8 @@ class OrderCalculationService
         ?float $shippingCostOverride = null,
         ?array $shippingSnapshotReq = null,
         float $otherCharges = 0.0,
-        ?User $user = null
+        ?User $user = null,
+        ?array $manualDiscount = null
     ): array {
         if (empty($itemsInput)) {
             throw new InvalidArgumentException('Order items cannot be empty.');
@@ -184,30 +185,93 @@ class OrderCalculationService
         }
 
         // 4. Authoritative Coupon / Promotion Calculation
-        $discountAmount = 0.00;
+        $couponDiscountAmount = 0.00;
         $appliedCoupon = null;
         if (!empty($couponCode)) {
             $code = strtoupper(trim($couponCode));
             $coupon = Coupon::where('code', $code)->first();
 
-            if ($coupon && $coupon->isValid()) {
-                $minSpend = (float) ($coupon->min_spend ?? 0);
-                if ($minSpend <= 0 || $subtotal >= $minSpend) {
-                    if ($coupon->discount_type === 'percentage') {
-                        $discountAmount = round(($subtotal * (float) $coupon->discount_value) / 100, 2);
-                    } else {
-                        $discountAmount = min($subtotal, (float) $coupon->discount_value);
-                    }
-
-                    if ($coupon->max_discount && (float) $coupon->max_discount > 0) {
-                        $discountAmount = min($discountAmount, (float) $coupon->max_discount);
-                    }
-
-                    $discountAmount = min($subtotal, max(0.0, round($discountAmount, 2)));
-                    $appliedCoupon = $coupon;
-                }
+            if (!$coupon) {
+                throw new InvalidArgumentException("Invalid promo code '{$code}'.");
             }
+            if (!$coupon->is_active) {
+                throw new InvalidArgumentException('This promo code is currently inactive.');
+            }
+            if ($coupon->starts_at && now()->lt($coupon->starts_at)) {
+                throw new InvalidArgumentException('This promo code is not active yet.');
+            }
+            if ($coupon->expires_at && now()->gt($coupon->expires_at)) {
+                throw new InvalidArgumentException('Promo code has expired.');
+            }
+            if ($coupon->usage_limit && $coupon->usage_count >= $coupon->usage_limit) {
+                throw new InvalidArgumentException('This promo code has reached its usage limit.');
+            }
+            $minSpend = (float) ($coupon->min_spend ?? 0);
+            if ($minSpend > 0 && $subtotal < $minSpend) {
+                throw new InvalidArgumentException("Minimum order of \${$minSpend} is required for this promo code.");
+            }
+
+            if ($coupon->discount_type === 'percentage') {
+                $couponDiscountAmount = round(($subtotal * (float) $coupon->discount_value) / 100, 2);
+            } else {
+                $couponDiscountAmount = min($subtotal, (float) $coupon->discount_value);
+            }
+
+            if ($coupon->max_discount && (float) $coupon->max_discount > 0) {
+                $couponDiscountAmount = min($couponDiscountAmount, (float) $coupon->max_discount);
+            }
+
+            $couponDiscountAmount = min($subtotal, max(0.0, round($couponDiscountAmount, 2)));
+            $appliedCoupon = $coupon;
         }
+
+        // 4b. Authoritative Manual Admin Discount Calculation
+        $manualDiscountAmount = 0.00;
+        $manualDiscountData = null;
+        if (!empty($manualDiscount) && is_array($manualDiscount)) {
+            $mType = strtolower(trim((string) ($manualDiscount['type'] ?? 'fixed')));
+            $mValue = (float) ($manualDiscount['value'] ?? 0.0);
+            $mReason = trim((string) ($manualDiscount['reason'] ?? ''));
+
+            if (!in_array($mType, ['percentage', 'fixed', 'flat'], true)) {
+                throw new InvalidArgumentException("Invalid manual discount type '{$mType}'. Must be percentage or fixed.");
+            }
+            if ($mValue <= 0) {
+                throw new InvalidArgumentException('Manual discount value must be greater than zero.');
+            }
+            if (empty($mReason)) {
+                throw new InvalidArgumentException('A reason is required when applying a manual discount.');
+            }
+
+            if ($mType === 'percentage') {
+                if ($mValue > 100) {
+                    throw new InvalidArgumentException('Manual discount percentage cannot exceed 100%.');
+                }
+                $manualDiscountAmount = round(($subtotal * $mValue) / 100, 2);
+            } else {
+                // fixed / flat
+                if ($mValue > $subtotal) {
+                    throw new InvalidArgumentException("Manual discount cannot exceed the order subtotal (\${$subtotal}).");
+                }
+                $manualDiscountAmount = round($mValue, 2);
+            }
+
+            // Stacking / combining safety rule:
+            // Total discount cannot exceed subtotal
+            $remainingSubtotal = max(0.0, round($subtotal - $couponDiscountAmount, 2));
+            if ($manualDiscountAmount > $remainingSubtotal) {
+                $manualDiscountAmount = $remainingSubtotal;
+            }
+
+            $manualDiscountData = [
+                'type' => $mType === 'flat' ? 'fixed' : $mType,
+                'value' => round($mValue, 2),
+                'amount' => round($manualDiscountAmount, 2),
+                'reason' => $mReason,
+            ];
+        }
+
+        $totalDiscountAmount = min($subtotal, round($couponDiscountAmount + $manualDiscountAmount, 2));
 
         // 5. Authoritative Shipping Calculation
         $isDiscussDirectly = in_array(strtolower(trim((string) $shippingMethod)), ['discuss_directly', 'discuss directly']);
@@ -230,8 +294,10 @@ class OrderCalculationService
         }
 
         // 6. Taxes and Final Grand Total (USD)
-        $taxableAmount = max(0.0, $subtotal - $discountAmount);
-        $taxAmount = round($taxableAmount * 0.05, 2);
+        $isPos = ($carrier === 'POS Direct' || $shippingMethod === 'POS In-Store Fulfillment' || in_array(strtolower(trim((string) $shippingMethod)), ['pos in-store fulfillment', 'pos direct']));
+        $taxRate = $isPos ? 0.0 : 0.05;
+        $taxableAmount = max(0.0, $subtotal - $totalDiscountAmount);
+        $taxAmount = round($taxableAmount * $taxRate, 2);
         $cleanOtherCharges = max(0.0, round($otherCharges, 2));
         $totalAmount = round($taxableAmount + $shippingCost + $taxAmount + $cleanOtherCharges, 2);
 
@@ -286,8 +352,11 @@ class OrderCalculationService
 
         return [
             'subtotal' => round($subtotal, 2),
-            'discount_amount' => round($discountAmount, 2),
+            'coupon_discount_amount' => round($couponDiscountAmount, 2),
+            'manual_discount_amount' => round($manualDiscountAmount, 2),
+            'discount_amount' => round($totalDiscountAmount, 2),
             'applied_coupon' => $appliedCoupon,
+            'manual_discount' => $manualDiscountData,
             'shipping_cost' => round($shippingCost, 2),
             'shipping_method' => $shippingMethodName,
             'carrier' => $carrierName,

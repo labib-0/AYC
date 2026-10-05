@@ -179,6 +179,7 @@ class Permission extends Model
             // ── Point of Sale (POS) ─────────────────────────────────────────
             'pos.view'                => ['name' => 'View POS',               'module' => 'POS', 'action' => 'view',                 'description' => 'Access Point of Sale interface and view POS data', 'requires' => []],
             'pos.create'              => ['name' => 'Create POS Sale',        'module' => 'POS', 'action' => 'create',               'description' => 'Create and confirm Point of Sale orders',           'requires' => ['pos.view']],
+            'pos.discount'            => ['name' => 'Apply Manual POS Discount','module' => 'POS', 'action' => 'discount',             'description' => 'Apply manual discounts and price overrides on POS sales', 'requires' => ['pos.view', 'pos.create']],
 
             // ── Payment ────────────────────────────────────────────────────
             'payment.view'                => ['name' => 'View Payments',           'module' => 'Payment', 'action' => 'view',               'description' => 'View payment records',                  'requires' => []],

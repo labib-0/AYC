@@ -49,6 +49,7 @@ export const ADMIN_PERMISSIONS = {
   // Point of Sale (POS)
   POS_VIEW: "pos.view",
   POS_CREATE: "pos.create",
+  POS_DISCOUNT: "pos.discount",
 
   // Payments
   PAYMENT_VIEW: "payment.view",

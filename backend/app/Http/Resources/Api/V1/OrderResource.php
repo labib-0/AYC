@@ -56,6 +56,12 @@ class OrderResource extends JsonResource
             'other_charges_cents' => (int) round($otherCharges * 100),
             'discount_amount' => $discountAmount,
             'discount_cents' => (int) round($discountAmount * 100),
+            'manual_discount_amount' => (float) ($this->manual_discount_amount ?? 0.00),
+            'manual_discount_type' => $this->manual_discount_type,
+            'manual_discount_value' => $this->manual_discount_value !== null ? (float) $this->manual_discount_value : null,
+            'manual_discount_reason' => $this->when($isAdmin, $this->manual_discount_reason),
+            'paid_amount' => (float) ($this->paid_amount ?? ($this->payment_status === 'paid' ? $totalAmount : 0.00)),
+            'balance_due' => (float) ($this->balance_due ?? max(0.0, round($totalAmount - (float) ($this->paid_amount ?? ($this->payment_status === 'paid' ? $totalAmount : 0.00)), 2))),
             'coupon_id' => $this->coupon_id ? (string) $this->coupon_id : null,
             'coupon_code' => $this->coupon_code,
             'coupon' => $this->whenLoaded('coupon', function () {
