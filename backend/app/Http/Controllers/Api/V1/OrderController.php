@@ -499,6 +499,7 @@ class OrderController extends ApiController
 
                 // Process Coupon / Discounts
                 $discountAmount = 0.00;
+                $appliedCoupon = null;
                 if (!empty($couponCodeReq)) {
                     $coupon = Coupon::where('code', strtoupper(trim($couponCodeReq)))->first();
                     if ($coupon && $coupon->isValid()) {
@@ -512,6 +513,7 @@ class OrderController extends ApiController
                                 $discountAmount = min($subtotal, (float) $coupon->discount_value);
                             }
                             $coupon->increment('usage_count');
+                            $appliedCoupon = $coupon;
                         }
                     }
                 } elseif ($discountAmountReq !== null && (float) $discountAmountReq > 0) {
@@ -608,6 +610,8 @@ class OrderController extends ApiController
                 $createdOrder = Order::create([
                     'order_number' => $orderNumber,
                     'user_id' => $user->id,
+                    'coupon_id' => $appliedCoupon?->id,
+                    'coupon_code' => $appliedCoupon?->code,
                     'status' => $orderStatus,
                     'payment_status' => $paymentStatus,
                     'fulfillment_status' => 'unfulfilled',

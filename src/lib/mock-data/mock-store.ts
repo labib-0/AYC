@@ -808,6 +808,114 @@ class MockStore {
     }));
   }
 
+  // ── Coupon Sales Reporting (Prompt 2 Mock) ───────────────────────────
+  getCouponSalesSummary(params?: { coupon_id?: number; date_filter?: string; start_date?: string; end_date?: string; search?: string }): any {
+    const bindings = this.getCouponBindings();
+    const boundCouponIds = bindings.map((b) => Number(b.coupon_id));
+    const allCoupons = this.getCoupons();
+    const boundCoupons = allCoupons.filter((c) => boundCouponIds.includes(Number(c.id)));
+
+    const orders = this.getOrders().filter((o) => {
+      const cid = (o as any).coupon_id ? Number((o as any).coupon_id) : null;
+      if (!cid || !boundCouponIds.includes(cid)) return false;
+      if (params?.coupon_id && cid !== Number(params.coupon_id)) return false;
+      const status = String(o.status).toLowerCase();
+      if (status === "cancelled" || status === "refunded") return false;
+      return true;
+    });
+
+    const totalOrders = orders.length;
+    const totalSales = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+    const totalDiscounts = orders.reduce((sum, o) => sum + Number(o.discount_amount || 0), 0);
+
+    return {
+      has_bindings: bindings.length > 0,
+      bound_coupons_count: boundCoupons.length,
+      bound_coupons: boundCoupons.map((c) => ({
+        id: Number(c.id),
+        code: c.code,
+        discount_type: c.discount_type,
+        discount_value: Number(c.discount_value),
+        is_active: Boolean(c.is_active),
+      })),
+      total_orders: totalOrders,
+      total_sales: Math.round(totalSales * 100) / 100,
+      total_discounts: Math.round(totalDiscounts * 100) / 100,
+      currency: "USD",
+    };
+  }
+
+  getCouponSalesOrders(params?: { coupon_id?: number; date_filter?: string; start_date?: string; end_date?: string; search?: string; page?: number; per_page?: number }): any {
+    const bindings = this.getCouponBindings();
+    const boundCouponIds = bindings.map((b) => Number(b.coupon_id));
+    const coupons = this.getCoupons();
+
+    let list = this.getOrders().filter((o) => {
+      const cid = (o as any).coupon_id ? Number((o as any).coupon_id) : null;
+      if (!cid || !boundCouponIds.includes(cid)) return false;
+      if (params?.coupon_id && cid !== Number(params.coupon_id)) return false;
+      const status = String(o.status).toLowerCase();
+      if (status === "cancelled" || status === "refunded") return false;
+      return true;
+    });
+
+    if (params?.search) {
+      const q = params.search.toLowerCase().trim();
+      list = list.filter((o) => 
+        o.order_number?.toLowerCase().includes(q) ||
+        o.email?.toLowerCase().includes(q) ||
+        o.shipping_name?.toLowerCase().includes(q)
+      );
+    }
+
+    const page = params?.page || 1;
+    const perPage = params?.per_page || 20;
+    const total = list.length;
+    const start = (page - 1) * perPage;
+    const slice = list.slice(start, start + perPage).map((o) => {
+      const coupon = coupons.find((c) => Number(c.id) === Number((o as any).coupon_id));
+      return {
+        id: String(o.id),
+        order_number: o.order_number,
+        status: o.status,
+        payment_status: o.payment_status,
+        fulfillment_status: o.fulfillment_status,
+        currency: o.currency || "USD",
+        subtotal: Number(o.subtotal || 0),
+        shipping_cost: Number(o.shipping_cost || 0),
+        tax_amount: Number(o.tax_amount || 0),
+        discount_amount: Number(o.discount_amount || 0),
+        total_amount: Number(o.total_amount || 0),
+        coupon_id: (o as any).coupon_id ? String((o as any).coupon_id) : null,
+        coupon_code: coupon ? coupon.code : (o as any).coupon_code || null,
+        coupon: coupon ? {
+          id: String(coupon.id),
+          code: coupon.code,
+          discount_type: coupon.discount_type,
+          discount_value: Number(coupon.discount_value),
+        } : null,
+        email: o.email,
+        shipping_name: o.shipping_name,
+        placed_at: o.placed_at || o.created_at,
+        created_at: o.created_at,
+      };
+    });
+
+    return {
+      data: slice,
+      current_page: page,
+      last_page: Math.ceil(total / perPage) || 1,
+      per_page: perPage,
+      total,
+      from: total > 0 ? start + 1 : null,
+      to: total > 0 ? Math.min(start + perPage, total) : null,
+    };
+  }
+
+  getCouponSalesOrder(id: number | string): any {
+    return this.getOrders().find((o) => String(o.id) === String(id) || o.order_number === String(id)) || null;
+  }
+
   // ==========================================
   // BUSINESS PROFILE & PREFERENCES
   // ==========================================

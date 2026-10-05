@@ -170,6 +170,21 @@ class OrderController extends ApiController
             return $this->notFound('Order not found');
         }
 
+        // Section 11 & 12: Enforce coupon sales data scoping
+        $admin = request()->user();
+        if ($admin && !$admin->isSuperAdmin()) {
+            $isCouponSalesAdmin = $admin->rbacRoles()->where('slug', 'coupon_sales')->exists()
+                && !$admin->rbacRoles()->whereIn('slug', ['order_manager', 'order_viewer'])->exists();
+
+            if ($isCouponSalesAdmin) {
+                $bindingService = app(\App\Services\Coupon\CouponAdminBindingService::class);
+                $boundIds = $bindingService->getBoundCouponIds($admin);
+                if (!$order->coupon_id || !in_array((int) $order->coupon_id, $boundIds, true)) {
+                    return $this->forbidden("Forbidden: You do not have permission to view orders outside your assigned coupon scope.");
+                }
+            }
+        }
+
         return $this->success(new OrderResource($order), 'Order details retrieved');
     }
 

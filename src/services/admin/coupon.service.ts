@@ -148,6 +148,99 @@ export class AdminCouponService {
     }
     return mockStore.getActiveAdmins(search);
   }
+
+  // ── Coupon Sales Reporting (Prompt 2) ─────────────────────────────────
+
+  async getCouponSalesSummary(params?: {
+    coupon_id?: number;
+    date_filter?: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+  }): Promise<CouponSalesSummary> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/admin/coupon-sales/summary", { params });
+      return (res?.data || res) as CouponSalesSummary;
+    }
+    return mockStore.getCouponSalesSummary(params);
+  }
+
+  async getCouponSalesOrders(params?: {
+    coupon_id?: number;
+    date_filter?: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+    page?: number;
+    per_page?: number;
+  }): Promise<CouponSalesOrdersResponse> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/admin/coupon-sales/orders", { params });
+      return (res?.data || res) as CouponSalesOrdersResponse;
+    }
+    return mockStore.getCouponSalesOrders(params);
+  }
+
+  async getCouponSalesOrder(id: number | string): Promise<any> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>(`/admin/coupon-sales/orders/${id}`);
+      return res?.data || res;
+    }
+    return mockStore.getCouponSalesOrder(id);
+  }
+}
+
+export interface CouponSalesSummary {
+  has_bindings: boolean;
+  bound_coupons_count: number;
+  bound_coupons: Array<{
+    id: number;
+    code: string;
+    discount_type: string;
+    discount_value: number;
+    is_active: boolean;
+  }>;
+  total_orders: number;
+  total_sales: number;
+  total_discounts: number;
+  currency: string;
+}
+
+export interface CouponSalesOrderRecord {
+  id: string;
+  order_number: string;
+  status: string;
+  payment_status: string;
+  fulfillment_status: string;
+  currency: string;
+  subtotal: number;
+  shipping_cost: number;
+  tax_amount: number;
+  discount_amount: number;
+  total_amount: number;
+  coupon_id?: string | null;
+  coupon_code?: string | null;
+  coupon?: {
+    id: string;
+    code: string;
+    discount_type: string;
+    discount_value: number;
+    min_spend?: number | null;
+  } | null;
+  email?: string | null;
+  shipping_name?: string | null;
+  placed_at?: string;
+  created_at: string;
+}
+
+export interface CouponSalesOrdersResponse {
+  data: CouponSalesOrderRecord[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+  from: number | null;
+  to: number | null;
 }
 
 export const adminCouponService = new AdminCouponService();

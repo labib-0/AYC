@@ -68,6 +68,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
     title: "MARKETING",
     items: [
       { label: "Coupons", href: "/ayc/coupons", icon: Percent, permission: ADMIN_PERMISSIONS.COUPON_VIEW },
+      { label: "Coupon Sales", href: "/ayc/coupon-sales", icon: TrendingUp, permission: ADMIN_PERMISSIONS.ANALYTICS_SALES_VIEW },
       { label: "Homepage", href: "/ayc/homepage", icon: PanelTop, permission: ADMIN_PERMISSIONS.HOMEPAGE_VIEW },
     ],
   },

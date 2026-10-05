@@ -62,4 +62,12 @@ class Coupon extends Model
             ->withPivot('created_by')
             ->withTimestamps();
     }
+
+    /**
+     * Orders placed using this coupon.
+     */
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'coupon_id');
+    }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\Admin\AnalyticsController as AdminAnalyticsController;
 use App\Http\Controllers\Api\V1\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Api\V1\Admin\CouponAdminBindingController;
+use App\Http\Controllers\Api\V1\Admin\CouponSalesReportController;
 use App\Http\Controllers\Api\V1\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\InventoryController as AdminInventoryController;
@@ -420,6 +421,14 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:coupon.edit');
         Route::delete('/coupon-bindings/{id}', [CouponAdminBindingController::class, 'destroy'])
             ->middleware('permission:coupon.edit');
+
+        // Coupon Sales Reporting (Prompt 2)
+        Route::get('/coupon-sales/summary', [CouponSalesReportController::class, 'summary'])
+            ->middleware('permission:analytics.sales.view');
+        Route::get('/coupon-sales/orders', [CouponSalesReportController::class, 'orders'])
+            ->middleware('permission:order.view');
+        Route::get('/coupon-sales/orders/{id}', [CouponSalesReportController::class, 'show'])
+            ->middleware('permission:order.view');
 
         // Settings & Shipping Configuration
         Route::get('/settings/shipping', [ShippingController::class, 'settings'])

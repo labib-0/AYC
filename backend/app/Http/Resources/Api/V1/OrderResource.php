@@ -56,6 +56,17 @@ class OrderResource extends JsonResource
             'other_charges_cents' => (int) round($otherCharges * 100),
             'discount_amount' => $discountAmount,
             'discount_cents' => (int) round($discountAmount * 100),
+            'coupon_id' => $this->coupon_id ? (string) $this->coupon_id : null,
+            'coupon_code' => $this->coupon_code,
+            'coupon' => $this->whenLoaded('coupon', function () {
+                return $this->coupon ? [
+                    'id' => (string) $this->coupon->id,
+                    'code' => $this->coupon->code,
+                    'discount_type' => $this->coupon->discount_type,
+                    'discount_value' => (float) $this->coupon->discount_value,
+                    'min_spend' => $this->coupon->min_spend ? (float) $this->coupon->min_spend : null,
+                ] : null;
+            }),
             'total_amount' => $totalAmount,
             'total_cents' => (int) round($totalAmount * 100),
             'email' => $canViewCustomer ? $this->email : null,

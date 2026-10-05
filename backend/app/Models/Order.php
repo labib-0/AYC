@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +16,8 @@ class Order extends Model
     protected $fillable = [
         'order_number',
         'user_id',
+        'coupon_id',
+        'coupon_code',
         'status',
         'payment_status',
         'fulfillment_status',
@@ -70,11 +73,17 @@ class Order extends Model
         'last_carrier_update' => 'datetime',
         'placed_at' => 'datetime',
         'is_demo' => 'boolean',
+        'coupon_id' => 'integer',
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
     }
 
     public function items(): HasMany
@@ -95,6 +104,57 @@ class Order extends Model
     public function paymentConfirmedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'payment_confirmed_by');
+    }
+
+    /**
+     * Scope query to qualifying orders attributed to coupons bound to the given admin.
+     * Enforces strict server-side scoping:
+     * - Resolves bound coupon IDs from CouponAdminBindingService.
+     * - If admin is not Super Admin, filters strictly to coupon_id IN (boundCouponIds).
+     * - If admin has no bound coupons and is not Super Admin, returns an empty set.
+     */
+    public function scopeForCouponSalesAdmin(Builder $query, User $adminUser, ?int $filterCouponId = null): Builder
+    {
+        $bindingService = app(\App\Services\Coupon\CouponAdminBindingService::class);
+        $boundIds = $bindingService->getBoundCouponIds($adminUser);
+
+        if (!$adminUser->isSuperAdmin()) {
+            if (empty($boundIds)) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            if ($filterCouponId !== null) {
+                // Reject/clamp any requested coupon outside the admin's bound scope
+                if (!in_array($filterCouponId, $boundIds, true)) {
+                    return $query->whereRaw('1 = 0');
+                }
+                return $query->where('coupon_id', $filterCouponId);
+            }
+
+            return $query->whereIn('coupon_id', $boundIds);
+        }
+
+        // Super Admin / privileged view:
+        if ($filterCouponId !== null) {
+            return $query->where('coupon_id', $filterCouponId);
+        }
+
+        return $query->whereNotNull('coupon_id');
+    }
+
+    /**
+     * Scope query to canonical completed/qualifying sales.
+     * Excludes cancelled, refunded, soft-deleted, and unconfirmed pending orders.
+     */
+    public function scopeQualifyingSales(Builder $query): Builder
+    {
+        return $query->whereNull('deleted_at')
+            ->where('status', '!=', 'cancelled')
+            ->where('payment_status', '!=', 'refunded')
+            ->where(function (Builder $q) {
+                $q->whereIn('status', ['confirmed', 'processing', 'shipped', 'delivered'])
+                  ->orWhere('payment_status', 'paid');
+            });
     }
 
     /**
