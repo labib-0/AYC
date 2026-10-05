@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Admin\ActivityController as AdminActivityControl
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\Admin\AnalyticsController as AdminAnalyticsController;
 use App\Http\Controllers\Api\V1\Admin\CouponController as AdminCouponController;
+use App\Http\Controllers\Api\V1\Admin\CouponAdminBindingController;
 use App\Http\Controllers\Api\V1\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\InventoryController as AdminInventoryController;
@@ -410,6 +411,15 @@ Route::prefix('v1')->group(function () {
         })->middleware('permission:coupon.deactivate');
         Route::delete('/coupons/{id}', [AdminCouponController::class, 'destroy'])
             ->middleware('permission:coupon.delete');
+
+        // Coupon Admin Bindings (Prompt 1)
+        Route::get('/coupon-bindings', [CouponAdminBindingController::class, 'index'])
+            ->middleware('permission:coupon.view');
+        Route::get('/coupon-bindings/my-bindings', [CouponAdminBindingController::class, 'myBindings']);
+        Route::post('/coupon-bindings', [CouponAdminBindingController::class, 'store'])
+            ->middleware('permission:coupon.edit');
+        Route::delete('/coupon-bindings/{id}', [CouponAdminBindingController::class, 'destroy'])
+            ->middleware('permission:coupon.edit');
 
         // Settings & Shipping Configuration
         Route::get('/settings/shipping', [ShippingController::class, 'settings'])

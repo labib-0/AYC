@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 class Coupon extends Model
 {
     use HasFactory;
@@ -40,5 +43,23 @@ class Coupon extends Model
         if ($this->starts_at && now()->lt($this->starts_at)) return false;
         if ($this->expires_at && now()->gt($this->expires_at)) return false;
         return true;
+    }
+
+    /**
+     * Admin bindings associated with this coupon.
+     */
+    public function adminBindings(): HasMany
+    {
+        return $this->hasMany(CouponAdminBinding::class, 'coupon_id');
+    }
+
+    /**
+     * Administrators bound to this coupon.
+     */
+    public function admins(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'coupon_admin_bindings', 'coupon_id', 'admin_user_id')
+            ->withPivot('created_by')
+            ->withTimestamps();
     }
 }

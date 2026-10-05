@@ -732,6 +732,83 @@ class MockStore {
   }
 
   // ==========================================
+  // COUPON ADMIN BINDINGS (Prompt 1)
+  // ==========================================
+  getCouponBindings(params?: { search?: string; admin_id?: number; coupon_id?: number }): any[] {
+    let list = this.getItem<any[]>("ayaan_mock_coupon_bindings", []);
+    if (params?.admin_id) {
+      list = list.filter((b) => b.admin_user_id === params.admin_id);
+    }
+    if (params?.coupon_id) {
+      list = list.filter((b) => b.coupon_id === params.coupon_id);
+    }
+    if (params?.search) {
+      const q = params.search.toLowerCase();
+      list = list.filter((b) => 
+        (b.coupon?.code || "").toLowerCase().includes(q) ||
+        (b.adminUser?.name || "").toLowerCase().includes(q) ||
+        (b.adminUser?.email || "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }
+
+  createCouponBinding(couponId: number, adminUserId: number): any {
+    const bindings = this.getCouponBindings();
+    const existing = bindings.find((b) => b.coupon_id === couponId && b.admin_user_id === adminUserId);
+    if (existing) {
+      throw new Error("This administrator is already bound to this coupon.");
+    }
+    const coupon = this.getCoupons().find((c) => Number(c.id) === Number(couponId));
+    const user = this.getUsers().find((u) => Number(u.id) === Number(adminUserId));
+    const newBinding = {
+      id: Date.now(),
+      coupon_id: couponId,
+      admin_user_id: adminUserId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      coupon: coupon ? {
+        id: coupon.id,
+        code: coupon.code,
+        discount_type: coupon.discount_type,
+        discount_value: coupon.discount_value,
+        is_active: coupon.is_active,
+      } : undefined,
+      adminUser: user ? {
+        id: Number(user.id),
+        name: user.name,
+        email: user.email,
+        role: String(user.role || "admin"),
+        status: (user as any).status || (user.is_active !== false ? "active" : "inactive"),
+      } : undefined,
+    };
+    bindings.unshift(newBinding);
+    this.setItem("ayaan_mock_coupon_bindings", bindings);
+    return newBinding;
+  }
+
+  deleteCouponBinding(bindingId: number): boolean {
+    const bindings = this.getCouponBindings().filter((b) => Number(b.id) !== Number(bindingId));
+    this.setItem("ayaan_mock_coupon_bindings", bindings);
+    return true;
+  }
+
+  getActiveAdmins(search?: string): Array<{ id: number; name: string; email: string; role: string; status: string }> {
+    let users = this.getUsers().filter((u) => u.role === "admin" && ((u as any).status || (u.is_active !== false ? "active" : "inactive")) === "active");
+    if (search) {
+      const q = search.toLowerCase();
+      users = users.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+    }
+    return users.map((u) => ({
+      id: Number(u.id),
+      name: u.name,
+      email: u.email,
+      role: String(u.role || "admin"),
+      status: (u as any).status || "active",
+    }));
+  }
+
+  // ==========================================
   // BUSINESS PROFILE & PREFERENCES
   // ==========================================
   getBusinessProfile(): BusinessProfile {

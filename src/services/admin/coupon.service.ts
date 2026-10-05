@@ -20,6 +20,45 @@ export interface CouponRecord {
   created_at: string;
 }
 
+export interface CouponAdminBindingRecord {
+  id: number;
+  coupon_id: number;
+  admin_user_id: number;
+  created_by?: number | null;
+  created_at: string;
+  updated_at: string;
+  coupon?: {
+    id: number;
+    code: string;
+    discount_type: string;
+    discount_value: number;
+    min_spend?: number;
+    max_discount?: number;
+    is_active: boolean;
+    expires_at?: string;
+    usage_count: number;
+  };
+  adminUser?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    status: string;
+  };
+  admin_user?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    status: string;
+  };
+  creator?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
 export class AdminCouponService {
   async getCoupons(params?: { status?: string; search?: string; type?: string }): Promise<CouponRecord[]> {
     if (!isFrontendOnly()) {
@@ -67,6 +106,47 @@ export class AdminCouponService {
       return true;
     }
     return mockStore.deleteCoupon(id);
+  }
+
+  // ── Coupon Admin Bindings (Prompt 1) ───────────────────────────────────
+
+  async getBindings(params?: { search?: string; admin_id?: number; coupon_id?: number }): Promise<CouponAdminBindingRecord[]> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/admin/coupon-bindings", { params });
+      const list = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(list)) return list;
+      return [];
+    }
+    return mockStore.getCouponBindings(params);
+  }
+
+  async bindAdmin(couponId: number, adminUserId: number): Promise<CouponAdminBindingRecord> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>("/admin/coupon-bindings", {
+        coupon_id: couponId,
+        admin_user_id: adminUserId,
+      });
+      return (res?.data || res) as CouponAdminBindingRecord;
+    }
+    return mockStore.createCouponBinding(couponId, adminUserId);
+  }
+
+  async unbindAdmin(bindingId: number): Promise<boolean> {
+    if (!isFrontendOnly()) {
+      await apiClient.delete(`/admin/coupon-bindings/${bindingId}`);
+      return true;
+    }
+    return mockStore.deleteCouponBinding(bindingId);
+  }
+
+  async getEligibleAdmins(search?: string): Promise<Array<{ id: number; name: string; email: string; role: string; status: string }>> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/admin/administrators", { params: { search, status: "active" } });
+      const list = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(list)) return list;
+      return [];
+    }
+    return mockStore.getActiveAdmins(search);
   }
 }
 

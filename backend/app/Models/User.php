@@ -137,6 +137,24 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    /**
+     * Coupon bindings associated with this administrator.
+     */
+    public function couponBindings(): HasMany
+    {
+        return $this->hasMany(CouponAdminBinding::class, 'admin_user_id');
+    }
+
+    /**
+     * Coupons bound to this administrator.
+     */
+    public function boundCoupons(): BelongsToMany
+    {
+        return $this->belongsToMany(Coupon::class, 'coupon_admin_bindings', 'admin_user_id', 'coupon_id')
+            ->withPivot('created_by')
+            ->withTimestamps();
+    }
+
     // ── Core Relationships ────────────────────────────────────────────────
 
     public function addresses(): HasMany

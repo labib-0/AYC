@@ -12,7 +12,9 @@ import {
   CouponModal,
   CouponDeleteDialog,
   CouponPagination,
+  CouponAdminBindingsSection,
 } from "@/components/admin/coupons";
+import { Tag, UserCheck } from "lucide-react";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
@@ -25,6 +27,7 @@ export default function AdminCouponsPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "percentage" | "flat">("all");
   const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<"coupons" | "bindings">("coupons");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Coupon Modals State
@@ -162,66 +165,103 @@ export default function AdminCouponsPage() {
           isRefreshing={isRefreshing}
         />
 
-        {/* 2. Filters & Search */}
-        <CouponToolbar
-          search={search}
-          onSearchChange={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
-          statusFilter={statusFilter}
-          onStatusFilterChange={(v) => {
-            setStatusFilter(v);
-            setPage(1);
-          }}
-          typeFilter={typeFilter}
-          onTypeFilterChange={(v) => {
-            setTypeFilter(v);
-            setPage(1);
-          }}
-          onResetFilters={handleResetFilters}
-          hasActiveFilters={hasActiveFilters}
-        />
+        {/* 2. Navigation Tabs */}
+        <div className="flex items-center gap-1.5 p-1 bg-secondary/50 border border-border/70 rounded-xl w-fit">
+          <button
+            type="button"
+            onClick={() => setActiveTab("coupons")}
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              activeTab === "coupons"
+                ? "bg-card text-foreground shadow-2xs border border-border/80"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            id="tab-all-coupons"
+          >
+            <Tag size={13} />
+            <span>All Coupons ({coupons.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("bindings")}
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              activeTab === "bindings"
+                ? "bg-card text-foreground shadow-2xs border border-border/80"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            id="tab-admin-bindings"
+          >
+            <UserCheck size={13} />
+            <span>Admin Bindings</span>
+          </button>
+        </div>
 
-        {/* 3. Table */}
-        <CouponTable
-          coupons={paginatedCoupons}
-          loading={loading}
-          search={search}
-          hasActiveFilters={hasActiveFilters}
-          onEdit={handleOpenEdit}
-          onToggleActive={handleToggleActive}
-          onDelete={handleOpenDelete}
-          onAddCoupon={handleOpenAdd}
-          onResetFilters={handleResetFilters}
-        />
+        {activeTab === "coupons" ? (
+          <>
+            {/* 3. Filters & Search */}
+            <CouponToolbar
+              search={search}
+              onSearchChange={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              statusFilter={statusFilter}
+              onStatusFilterChange={(v) => {
+                setStatusFilter(v);
+                setPage(1);
+              }}
+              typeFilter={typeFilter}
+              onTypeFilterChange={(v) => {
+                setTypeFilter(v);
+                setPage(1);
+              }}
+              onResetFilters={handleResetFilters}
+              hasActiveFilters={hasActiveFilters}
+            />
 
-        {/* 4. Pagination */}
-        <CouponPagination
-          currentPage={page}
-          totalPages={totalPages}
-          totalItems={filteredCoupons.length}
-          pageSize={PER_PAGE}
-          onPageChange={setPage}
-        />
+            {/* 4. Table */}
+            <CouponTable
+              coupons={paginatedCoupons}
+              loading={loading}
+              search={search}
+              hasActiveFilters={hasActiveFilters}
+              onEdit={handleOpenEdit}
+              onToggleActive={handleToggleActive}
+              onDelete={handleOpenDelete}
+              onAddCoupon={handleOpenAdd}
+              onResetFilters={handleResetFilters}
+            />
 
-        {/* 5. Modals */}
-        <CouponModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          coupon={editingCoupon}
-          onSave={handleSave}
-        />
+            {/* 5. Pagination */}
+            <CouponPagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={filteredCoupons.length}
+              pageSize={PER_PAGE}
+              onPageChange={setPage}
+            />
 
-        <CouponDeleteDialog
-          isOpen={Boolean(deletingCoupon)}
-          coupon={deletingCoupon}
-          onClose={() => setDeletingCoupon(null)}
-          onConfirmDelete={handleConfirmDelete}
-          isDeleting={isDeleting}
-        />
+            {/* 6. Modals */}
+            <CouponModal
+              isOpen={isModalOpen}
+              onClose={() => setIsModalOpen(false)}
+              coupon={editingCoupon}
+              onSave={handleSave}
+            />
 
-        {/* 6. Toasts */}
+            <CouponDeleteDialog
+              isOpen={Boolean(deletingCoupon)}
+              coupon={deletingCoupon}
+              onClose={() => setDeletingCoupon(null)}
+              onConfirmDelete={handleConfirmDelete}
+              isDeleting={isDeleting}
+            />
+          </>
+        ) : (
+          /* 7. Coupon Admin Bindings Section */
+          <CouponAdminBindingsSection showToast={showToast} />
+        )}
+
+        {/* 8. Toasts */}
         <ProductToast toasts={toasts} onDismiss={dismissToast} />
       </div>
     </AdminPageGate>

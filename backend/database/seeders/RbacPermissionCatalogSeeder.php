@@ -311,6 +311,20 @@ class RbacPermissionCatalogSeeder extends Seeder
                     'analytics.orders.view',
                 ],
             ],
+            [
+                'name'        => 'Coupon Sales Manager',
+                'slug'        => 'coupon_sales',
+                'description' => 'View sales, orders, and performance metrics attributed to bound discount coupons.',
+                'is_system'   => false, // Normal editable role per Section 5
+                'permissions' => [
+                    'coupon.view',
+                    'order.view',
+                    'order.view_customer',
+                    'order.view_items',
+                    'analytics.sales.view',
+                    'analytics.orders.view',
+                ],
+            ],
         ];
 
         foreach ($systemRoles as $roleData) {
@@ -319,7 +333,7 @@ class RbacPermissionCatalogSeeder extends Seeder
                 [
                     'name'        => $roleData['name'],
                     'description' => $roleData['description'],
-                    'is_system'   => true,
+                    'is_system'   => $roleData['is_system'] ?? true,
                     'is_active'   => true,
                 ]
             );

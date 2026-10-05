@@ -18,3 +18,9 @@ export type { CouponDeleteDialogProps } from "./CouponDeleteDialog";
 
 export { default as CouponPagination } from "./CouponPagination";
 export type { CouponPaginationProps } from "./CouponPagination";
+
+export { default as CouponAdminBindingsSection } from "./CouponAdminBindingsSection";
+export type { CouponAdminBindingsSectionProps } from "./CouponAdminBindingsSection";
+
+export { default as CouponBindModal } from "./CouponBindModal";
+export type { CouponBindModalProps } from "./CouponBindModal";
