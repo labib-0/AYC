@@ -65,9 +65,31 @@ export interface BusinessProfile {
   };
 }
 
-export const WHATSAPP_BUSINESS_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "8801982183886";
-export const WHATSAPP_BUSINESS_DISPLAY = process.env.NEXT_PUBLIC_WHATSAPP_DISPLAY || "+880 1982-183886";
-export const WHATSAPP_BUSINESS_URL = `https://wa.me/${WHATSAPP_BUSINESS_NUMBER.replace(/[^0-9]/g, "")}`;
+export const CANONICAL_WHATSAPP_NUMBER = "8801982183886";
+export const CANONICAL_WHATSAPP_DISPLAY = "+880 1982-183886";
+export const CANONICAL_WHATSAPP_URL = "https://wa.me/8801982183886";
+
+export const STALE_WHATSAPP_NUMBERS = [
+  "8801826304930",
+  "8801620853502",
+  "8801711000000",
+  "1826304930",
+  "1620853502",
+];
+
+const rawEnvNumber = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "").replace(/\D+/g, "");
+export const WHATSAPP_BUSINESS_NUMBER =
+  rawEnvNumber && !STALE_WHATSAPP_NUMBERS.includes(rawEnvNumber)
+    ? rawEnvNumber
+    : CANONICAL_WHATSAPP_NUMBER;
+
+const rawEnvDisplay = (process.env.NEXT_PUBLIC_WHATSAPP_DISPLAY || "").trim();
+export const WHATSAPP_BUSINESS_DISPLAY =
+  rawEnvDisplay && !STALE_WHATSAPP_NUMBERS.some((old) => rawEnvDisplay.includes(old))
+    ? rawEnvDisplay
+    : CANONICAL_WHATSAPP_DISPLAY;
+
+export const WHATSAPP_BUSINESS_URL = CANONICAL_WHATSAPP_URL;
 
 /**
  * Helper to generate a standardized wa.me URL for the official business contact
@@ -81,18 +103,26 @@ export function getWhatsAppUrl(prefilledText?: string): string {
       const cached = localStorage.getItem("ayaan_site_settings_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed?.whatsapp?.number) {
-          targetNumber = String(parsed.whatsapp.number);
+        const cachedNum = parsed?.whatsapp?.number ? String(parsed.whatsapp.number).replace(/\D+/g, "") : "";
+        if (cachedNum && !STALE_WHATSAPP_NUMBERS.includes(cachedNum)) {
+          targetNumber = cachedNum;
+        } else if (cachedNum && STALE_WHATSAPP_NUMBERS.includes(cachedNum)) {
+          localStorage.removeItem("ayaan_site_settings_cache");
+          targetNumber = CANONICAL_WHATSAPP_NUMBER;
         }
       }
     } catch {}
   }
 
   const cleanNumber = targetNumber.replace(/[^0-9]/g, "");
+  const finalNumber = STALE_WHATSAPP_NUMBERS.includes(cleanNumber) || !cleanNumber
+    ? CANONICAL_WHATSAPP_NUMBER
+    : cleanNumber;
+
   if (!prefilledText) {
-    return `https://wa.me/${cleanNumber}`;
+    return `https://wa.me/${finalNumber}`;
   }
-  return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(prefilledText)}`;
+  return `https://wa.me/${finalNumber}?text=${encodeURIComponent(prefilledText)}`;
 }
 
 /**

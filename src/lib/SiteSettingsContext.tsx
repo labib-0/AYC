@@ -74,12 +74,32 @@ const SiteSettingsContext = createContext<SiteSettingsContextValue>({
   getWhatsAppUrl: () => INITIAL_SETTINGS.whatsapp.url,
 });
 
+const STALE_WHATSAPP_NUMBERS = [
+  "8801826304930",
+  "8801620853502",
+  "8801711000000",
+  "1826304930",
+  "1620853502",
+];
+
 export function SiteSettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<PublicSiteSettings>(() => {
     if (typeof window !== "undefined") {
       try {
         const cached = localStorage.getItem("ayaan_site_settings_cache");
-        if (cached) return JSON.parse(cached);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const cachedNum = parsed?.whatsapp?.number ? String(parsed.whatsapp.number).replace(/\D+/g, "") : "";
+          const cachedDisplay = parsed?.whatsapp?.display ? String(parsed.whatsapp.display) : "";
+          if (
+            (cachedNum && STALE_WHATSAPP_NUMBERS.includes(cachedNum)) ||
+            STALE_WHATSAPP_NUMBERS.some((old) => cachedDisplay.includes(old))
+          ) {
+            localStorage.removeItem("ayaan_site_settings_cache");
+            return INITIAL_SETTINGS;
+          }
+          return parsed;
+        }
       } catch {}
     }
     return INITIAL_SETTINGS;
@@ -90,6 +110,13 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     try {
       const data = await siteSettingsService.getPublicSettings();
       if (data) {
+        // Sanitize data if backend ever returned stale number
+        const num = data.whatsapp?.number ? String(data.whatsapp.number).replace(/\D+/g, "") : "";
+        if (num && STALE_WHATSAPP_NUMBERS.includes(num)) {
+          data.whatsapp.number = WHATSAPP_BUSINESS_NUMBER;
+          data.whatsapp.display = WHATSAPP_BUSINESS_DISPLAY;
+          data.whatsapp.url = WHATSAPP_BUSINESS_URL;
+        }
         setSettings(data);
         if (typeof window !== "undefined") {
           localStorage.setItem("ayaan_site_settings_cache", JSON.stringify(data));
@@ -117,14 +144,17 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
 
   const getWhatsAppUrl = useCallback(
     (prefilledText?: string): string => {
-      const num = settings.whatsapp.number || WHATSAPP_BUSINESS_NUMBER;
+      const num = settings.whatsapp?.number || WHATSAPP_BUSINESS_NUMBER;
       const clean = num.replace(/\D+/g, "");
+      const finalNumber = STALE_WHATSAPP_NUMBERS.includes(clean) || !clean
+        ? WHATSAPP_BUSINESS_NUMBER
+        : clean;
       if (!prefilledText) {
-        return `https://wa.me/${clean}`;
+        return `https://wa.me/${finalNumber}`;
       }
-      return `https://wa.me/${clean}?text=${encodeURIComponent(prefilledText)}`;
+      return `https://wa.me/${finalNumber}?text=${encodeURIComponent(prefilledText)}`;
     },
-    [settings.whatsapp.number]
+    [settings.whatsapp?.number]
   );
 
   return (

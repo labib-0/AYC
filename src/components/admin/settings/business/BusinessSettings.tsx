@@ -39,7 +39,9 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
     setCountry(data.address.country || "Bangladesh");
     setPhone(data.contact.phone || "");
     setEmail(data.contact.email || "export@ayaanclothing.com");
-    setWhatsapp(data.contact.whatsappNumber || "8801982183886");
+    const rawWa = (data.contact?.whatsappNumber || "").replace(/\D+/g, "");
+    const isStale = ["8801826304930", "8801620853502", "8801711000000", "1826304930", "1620853502"].includes(rawWa);
+    setWhatsapp(isStale || !rawWa ? "8801982183886" : (data.contact.whatsappNumber || "8801982183886"));
     setWebsite(data.contact.website || "www.ayaanclothing.com");
   }, []);
 

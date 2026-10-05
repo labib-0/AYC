@@ -23,11 +23,22 @@ class AdminSettingsController extends Controller
     {
         $siteTitle = SystemSetting::get('site_title', config('app.name', 'AYAAN CLOTHING'));
         $siteLogo = SystemSetting::get('site_logo', null);
-        $whatsappDisplay = SystemSetting::get('whatsapp_display', env('NEXT_PUBLIC_WHATSAPP_DISPLAY', '+880 1982-183886'));
+        $whatsappDisplay = SystemSetting::get('whatsapp_display', env('NEXT_PUBLIC_WHATSAPP_DISPLAY', WhatsAppNormalizationService::CANONICAL_DISPLAY));
         $whatsappNumber = SystemSetting::get('whatsapp_number');
         if (empty($whatsappNumber)) {
             $whatsappNumber = WhatsAppNormalizationService::deriveMachineNumber($whatsappDisplay);
         }
+
+        // Self-heal known stale numbers to canonical
+        $cleanDisplay = preg_replace('/\D+/', '', $whatsappDisplay ?? '') ?? '';
+        $cleanNumber = preg_replace('/\D+/', '', $whatsappNumber ?? '') ?? '';
+        if (in_array($cleanDisplay, WhatsAppNormalizationService::STALE_NUMBERS, true) || in_array($cleanNumber, WhatsAppNormalizationService::STALE_NUMBERS, true)) {
+            $whatsappDisplay = WhatsAppNormalizationService::CANONICAL_DISPLAY;
+            $whatsappNumber = WhatsAppNormalizationService::CANONICAL_NUMBER;
+            SystemSetting::set('whatsapp_display', $whatsappDisplay, 'string', 'contact');
+            SystemSetting::set('whatsapp_number', $whatsappNumber, 'string', 'contact');
+        }
+
         $whatsappUrl = WhatsAppNormalizationService::buildWhatsAppUrl($whatsappNumber);
 
         $socialLinks = SystemSetting::get('social_links', [

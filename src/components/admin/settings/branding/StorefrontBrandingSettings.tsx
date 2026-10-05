@@ -31,9 +31,11 @@ export default function StorefrontBrandingSettings({ onNotify }: StorefrontBrand
       try {
         const data = await siteSettingsService.getAdminSettings();
         if (data) {
+          const rawNum = (data.whatsapp_number || "").replace(/\D+/g, "");
+          const isStale = ["8801826304930", "8801620853502", "8801711000000", "1826304930", "1620853502"].includes(rawNum);
           setSiteTitle(data.site_title || "AYAAN CLOTHING");
           setSiteLogo(data.site_logo || null);
-          setWhatsappDisplay(data.whatsapp_display || "+880 1982-183886");
+          setWhatsappDisplay(isStale ? "+880 1982-183886" : (data.whatsapp_display || "+880 1982-183886"));
           setFooterDescription(data.footer_description || "");
           setSocialLinks(data.social_links || []);
         }

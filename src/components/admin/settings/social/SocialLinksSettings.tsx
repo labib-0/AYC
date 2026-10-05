@@ -59,6 +59,9 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
     const raw = (display || "").trim();
     const digits = raw.replace(/\D+/g, "");
     if (!digits) return "";
+    if (["8801826304930", "8801620853502", "8801711000000", "1826304930", "1620853502"].includes(digits)) {
+      return "8801982183886";
+    }
     if (digits.startsWith("0") && digits.length === 11) {
       return "880" + digits.slice(1);
     }
@@ -76,7 +79,9 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
       try {
         const data = await siteSettingsService.getAdminSettings();
         if (data) {
-          setWhatsappDisplay(data.whatsapp_display || "+880 1982-183886");
+          const rawNum = (data.whatsapp_number || "").replace(/\D+/g, "");
+          const isStale = ["8801826304930", "8801620853502", "8801711000000", "1826304930", "1620853502"].includes(rawNum);
+          setWhatsappDisplay(isStale ? "+880 1982-183886" : (data.whatsapp_display || "+880 1982-183886"));
           setSiteTitle(data.site_title || "AYAAN CLOTHING");
           setFooterDesc(data.footer_description || "");
           setLinks(data.social_links || []);
