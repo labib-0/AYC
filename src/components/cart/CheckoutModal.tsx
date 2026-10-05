@@ -54,25 +54,35 @@ type ServiceType = "door_to_door" | "door_to_port" | "port_to_door" | "port_to_p
 export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const router = useRouter();
   const { items, subtotal, clearCart, stockViolations, revalidateCart } = useCart();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const userId = String(user?.id || "guest");
 
   useEffect(() => {
     if (isOpen) {
+      // Do not redirect while auth state is resolving or hydrating
+      if (authLoading) return;
+
+      const currentPath = typeof window !== "undefined" ? window.location.pathname + window.location.search : "";
+      // Never trigger login redirect while on transient authentication callback routes
+      if (currentPath.startsWith("/auth/")) {
+        return;
+      }
+
       if (!user || user.role !== "customer") {
         onClose();
         if (typeof window !== "undefined") {
           sessionStorage.setItem("ayaan_open_checkout", "true");
           sessionStorage.setItem("ayaan_login_notice", "Please log in with a customer account to continue to checkout.");
-          const currentPath = window.location.pathname + window.location.search;
-          const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") ? "/cart?openCheckout=true" : (currentPath === "/cart" ? "/cart?openCheckout=true" : currentPath);
+          const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") || currentPath.startsWith("/auth/")
+            ? "/cart?openCheckout=true"
+            : (currentPath === "/cart" ? "/cart?openCheckout=true" : currentPath);
           router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in with a customer account to continue to checkout.")}`);
         }
         return;
       }
       revalidateCart();
     }
-  }, [isOpen, user, onClose, router, revalidateCart]);
+  }, [isOpen, user, authLoading, onClose, router, revalidateCart]);
 
   // Stable ref to the latest authenticated user — used in submit handler and address mapping
   // so we never read stale user data regardless of when React batches the state update.

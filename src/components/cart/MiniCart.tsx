@@ -37,6 +37,11 @@ export default function MiniCart() {
   // Resume checkout flow seamlessly after guest logs in
   useEffect(() => {
     if (user && typeof window !== "undefined") {
+      const path = window.location.pathname;
+      // Do not open checkout modal while on transient authentication or login routes
+      if (path.startsWith("/auth/") || path.startsWith("/login") || path.startsWith("/signup")) {
+        return;
+      }
       if (sessionStorage.getItem("ayaan_open_checkout") === "true") {
         sessionStorage.removeItem("ayaan_open_checkout");
         setIsCartOpen(false);

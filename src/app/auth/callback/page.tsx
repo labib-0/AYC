@@ -24,6 +24,9 @@ function CallbackHandler() {
     const ticket = searchParams.get("ticket");
 
     if (error) {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("ayaan_login_notice");
+      }
       setErrorMessage(decodeURIComponent(error));
       const timer = setTimeout(() => {
         router.replace(`/login?error=${encodeURIComponent(error)}`);
@@ -68,7 +71,7 @@ function CallbackHandler() {
             });
             const authData = "data" in res && res.data ? res.data : res;
             if (authData?.user && authData.user.role !== "customer") {
-              throw new Error("Google Sign-In is restricted to customer accounts only.");
+              throw new Error("Google Sign-In is restricted to customer accounts only. Administrators must sign in using the admin login page at /ayc.");
             }
             if (authData?.token) {
               tokenToSet = authData.token;
@@ -107,6 +110,12 @@ function CallbackHandler() {
         apiClient.setToken(tokenToSet);
         if (isMounted) setIsSuccess(true);
 
+        // Clear any stale login notice or expired session messages
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("ayaan_login_notice");
+          sessionStorage.removeItem("ayaan_session_expired_message");
+        }
+
         // Hydrate customer profile
         try {
           await refreshSession();
@@ -120,11 +129,14 @@ function CallbackHandler() {
       } catch (err: any) {
         if (!isMounted) return;
         console.error("Failed to store authentication token:", err);
-        const msg = err?.message || "Failed to finalize authentication session.";
+        const msg = err?.message || "Google sign-in could not be completed. Please try again.";
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("ayaan_login_notice");
+        }
         setErrorMessage(msg);
         setTimeout(() => {
           router.replace(`/login?error=${encodeURIComponent(msg)}`);
-        }, 3000);
+        }, 2500);
       }
     };
 

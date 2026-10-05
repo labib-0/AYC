@@ -186,8 +186,10 @@ class GoogleAuthController extends ApiController
             ], 'Login successful');
         }
 
-        // SECURE HANDOFF (No tokens in callback URL):
+        // SECURE HANDOFF (Ephemeral single-use exchange ticket):
         // Generate a single-use exchange ticket with a strict 2-minute lifetime
+        // Note: The ticket is a random single-use opaque token (NOT a bearer token or Sanctum token).
+        // It expires in 2 minutes and is destroyed from Cache immediately upon first read.
         $ticket = Str::random(64);
         Cache::put("google_auth_ticket:{$ticket}", [
             'token' => $token,
@@ -203,15 +205,11 @@ class GoogleAuthController extends ApiController
         $frontendUrl = $this->getFrontendBaseUrl();
         $isProduction = config('app.env') === 'production' || str_starts_with($frontendUrl, 'https://');
 
-        // In production: NEVER include tokens or tickets in the browser URL.
-        // In local/testing development: include ?ticket= for cross-origin local port support.
-        if ($isProduction) {
-            $callbackUrl = rtrim($frontendUrl, '/') . '/auth/callback?redirect=' . urlencode($intended);
-        } else {
-            $callbackUrl = rtrim($frontendUrl, '/') . '/auth/callback?ticket=' . urlencode($ticket) . '&redirect=' . urlencode($intended);
-        }
+        // Robust handoff: Pass ?ticket= in callback URL alongside HttpOnly cookie
+        // Ensures authentication handoff succeeds even when browsers restrict cross-domain cookies
+        $callbackUrl = rtrim($frontendUrl, '/') . '/auth/callback?ticket=' . urlencode($ticket) . '&redirect=' . urlencode($intended);
 
-        // Attach secure HttpOnly, SameSite=Lax cookie for first-party session handoff
+        // Attach secure HttpOnly, SameSite=Lax cookie for additional first-party session handoff
         $cookie = cookie(
             'google_auth_ticket',
             $ticket,
@@ -233,11 +231,11 @@ class GoogleAuthController extends ApiController
      */
     public function exchange(Request $request): JsonResponse
     {
-        // 1. Resolve ticket from HttpOnly cookie, session, or request input
+        // 1. Resolve ticket from request input, HttpOnly cookie, or session
         $sessionTicket = $request->hasSession() ? $request->session()->pull('google_auth_ticket') : null;
-        $ticket = $request->cookie('google_auth_ticket')
-            ?: $sessionTicket
-            ?: $request->input('ticket');
+        $ticket = $request->input('ticket')
+            ?: $request->cookie('google_auth_ticket')
+            ?: $sessionTicket;
 
         if (empty($ticket) || !is_string($ticket)) {
             return response()->json([

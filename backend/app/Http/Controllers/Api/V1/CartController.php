@@ -527,7 +527,7 @@ class CartController extends ApiController
      */
     public function merge(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $request->user('sanctum') ?? $request->user();
         if (!$user) {
             return $this->unauthorized('Authentication required to merge cart');
         }

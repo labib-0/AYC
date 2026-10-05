@@ -26,21 +26,23 @@ export default function LoginPage() {
       const urlError = params.get("error");
       if (urlError) {
         setError(urlError);
-      }
-
-      const urlNotice = params.get("notice");
-      if (urlNotice) {
-        setSessionNotice(urlNotice);
+        setSessionNotice(null);
+        sessionStorage.removeItem("ayaan_login_notice");
       } else {
-        const storedNotice = sessionStorage.getItem("ayaan_login_notice");
-        if (storedNotice) {
-          setSessionNotice(storedNotice);
-          sessionStorage.removeItem("ayaan_login_notice");
+        const urlNotice = params.get("notice");
+        if (urlNotice) {
+          setSessionNotice(urlNotice);
         } else {
-          const msg = sessionStorage.getItem("ayaan_session_expired_message");
-          if (msg) {
-            setSessionNotice(msg);
-            sessionStorage.removeItem("ayaan_session_expired_message");
+          const storedNotice = sessionStorage.getItem("ayaan_login_notice");
+          if (storedNotice) {
+            setSessionNotice(storedNotice);
+            sessionStorage.removeItem("ayaan_login_notice");
+          } else {
+            const msg = sessionStorage.getItem("ayaan_session_expired_message");
+            if (msg) {
+              setSessionNotice(msg);
+              sessionStorage.removeItem("ayaan_session_expired_message");
+            }
           }
         }
       }
@@ -100,8 +102,10 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = () => {
     setError("");
+    setSessionNotice(null);
     setGoogleLoading(true);
     if (typeof window !== "undefined") {
+      sessionStorage.removeItem("ayaan_login_notice");
       sessionStorage.removeItem("ayaan_session_expired_message");
     }
     let target = getRedirectUrl();
