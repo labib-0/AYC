@@ -976,17 +976,15 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   type="button"
                   id="add-to-cart-button"
                   onClick={handleAddToCart}
-                  disabled={isSoldOut || currentPrice <= 0}
+                  disabled={isSoldOut || (availableInventory <= 0 && !isPreorder) || currentPrice <= 0}
                   className={`w-full sm:flex-1 h-10 lg:h-11 px-5 rounded-xl font-display font-extrabold text-[13px] sm:text-[14px] uppercase tracking-wider transition-all duration-150 shadow-md flex items-center justify-center gap-2 group ${
-                    isSoldOut
-                      ? "bg-secondary text-muted-foreground border border-border cursor-not-allowed"
-                      : currentPrice <= 0
+                    isSoldOut || (availableInventory <= 0 && !isPreorder) || currentPrice <= 0
                       ? "bg-secondary text-muted-foreground border border-border cursor-not-allowed"
                       : "bg-foreground text-background hover:bg-foreground/90 active:scale-[0.99] cursor-pointer"
                   }`}
                 >
-                  <ShoppingCart size={17} className={!isSoldOut ? "group-hover:scale-110 transition-transform" : ""} />
-                  <span>{isSoldOut ? "Sold Out" : currentPrice <= 0 ? "Quote Only" : "Add to Cart"}</span>
+                  <ShoppingCart size={17} className={!isSoldOut && (availableInventory > 0 || isPreorder) ? "group-hover:scale-110 transition-transform" : ""} />
+                  <span>{isSoldOut ? "Sold Out" : (availableInventory <= 0 && !isPreorder) ? "Out of Stock" : currentPrice <= 0 ? "Quote Only" : "Add to Cart"}</span>
                 </button>
 
                 <button
@@ -1026,8 +1024,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                       ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/30 dark:border-rose-800"
                       : "border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/40 hover:border-border"
                   }`}
-                  title={product && isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
-                  aria-label="Toggle wishlist"
+                  title={product && isInWishlist(product.id) ? "Saved to Wishlist" : "Add to Wishlist"}
+                  aria-label={product && isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
                 >
                   <Heart size={18} className={product && isInWishlist(product.id) ? "fill-current text-rose-600" : ""} />
                 </button>

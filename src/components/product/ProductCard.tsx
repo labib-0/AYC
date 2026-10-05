@@ -82,21 +82,20 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         {/* Global Normalized Promotional Badges (Top Left) */}
         <ProductPromotionBadges product={product} variant="card" />
 
-        {/* Wishlist Button — only shown to authenticated users, stays available even if sold out */}
-        {user && (
-          <button
-            type="button"
-            onClick={handleWishlistToggle}
-            className={`absolute bottom-2.5 right-2.5 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-md cursor-pointer ${
-              isWishlisted
-                ? "bg-rose-500 text-white shadow-md scale-105 opacity-100"
-                : "bg-background/80 text-foreground/80 hover:bg-background hover:text-foreground hover:scale-105 opacity-0 group-hover:opacity-100"
-            }`}
-            aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          >
-            <Heart size={13} className={isWishlisted ? "fill-current" : ""} />
-          </button>
-        )}
+        {/* Wishlist Button — available for all products including sold-out / zero inventory */}
+        <button
+          type="button"
+          onClick={handleWishlistToggle}
+          className={`absolute bottom-2.5 right-2.5 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-md cursor-pointer ${
+            isWishlisted
+              ? "bg-rose-500 text-white shadow-md scale-105 opacity-100"
+              : "bg-background/85 text-foreground/80 hover:bg-background hover:text-foreground hover:scale-105 opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+          }`}
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          title={isWishlisted ? "Saved to Wishlist" : "Add to Wishlist"}
+        >
+          <Heart size={13} className={isWishlisted ? "fill-current text-white" : ""} />
+        </button>
 
         {/* Actual Brand Logo Overlay (Top Right) */}
         <ProductBrandLogoOverlay

@@ -12,6 +12,7 @@ function getBreadcrumbLabel(pathname: string): string {
   if (pathname === "/profile") return "Overview";
   if (pathname.startsWith("/profile/orders/")) return "Order Details";
   if (pathname.startsWith("/profile/orders")) return "Orders";
+  if (pathname.startsWith("/profile/wishlist")) return "Saved Items";
   if (pathname.startsWith("/profile/addresses")) return "Addresses";
   if (pathname.startsWith("/profile/documents")) return "Documents";
   if (pathname.startsWith("/profile/details")) return "Account Details";

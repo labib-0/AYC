@@ -9,12 +9,14 @@ import {
   Package,
   MapPin,
   FileText,
+  Heart,
   LogOut,
 } from "lucide-react";
 
 const mobileNav = [
   { label: "Overview", href: "/profile", icon: LayoutDashboard, exact: true },
   { label: "Orders", href: "/profile/orders", icon: Package, exact: false },
+  { label: "Saved Items", href: "/profile/wishlist", icon: Heart, exact: false },
   { label: "Addresses", href: "/profile/addresses", icon: MapPin, exact: false },
   { label: "Documents", href: "/profile/documents", icon: FileText, exact: false },
 ];

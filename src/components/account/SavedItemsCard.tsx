@@ -33,10 +33,10 @@ export function SavedItemsCard() {
             )}
           </div>
           <Link
-            href="/#categories"
+            href="/profile/wishlist"
             className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
           >
-            Catalog
+            View All
           </Link>
         </div>
 
@@ -62,65 +62,99 @@ export function SavedItemsCard() {
         ) : (
           /* Compact saved items list */
           <div className="divide-y divide-slate-100 dark:divide-white/[0.06]">
-            {previewItems.map((item) => (
-              <div
-                key={item.id}
-                className="py-3 first:pt-3 last:pb-1 flex items-center justify-between gap-3 group"
-              >
-                <Link
-                  href={`/products/${item.product.slug}`}
-                  className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity"
-                >
-                  <img
-                    src={item.product.images[0] || "/placeholder.jpg"}
-                    alt={item.product.name}
-                    className="w-10 aspect-[3/4] rounded-lg object-contain object-center bg-slate-100 dark:bg-white/5 shrink-0 border border-slate-100 dark:border-white/5 p-0.5"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate leading-tight">
-                      {item.product.name}
-                    </p>
-                    <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
-                      {item.product.price && item.product.price > 0 ? `$${item.product.price.toFixed(2)}` : "Price on Request"}
-                    </p>
-                    <span className="text-[0.625rem] text-slate-400 block truncate">
-                      {item.product.brand || "Ayaan Export"}
-                    </span>
-                  </div>
-                </Link>
+            {previewItems.map((item) => {
+              const isSoldOut = Boolean(item.product?.isSoldOut ?? (item.product as any)?.is_sold_out);
+              const availableStock = item.product?.availableStock !== undefined 
+                ? Number(item.product.availableStock) 
+                : Number(item.product?.stock ?? 0);
+              const isPreorder = Boolean(item.product?.isPreorder ?? (item.product as any)?.is_preorder);
+              const isOutOfStock = !isPreorder && (availableStock <= 0 || item.product?.in_stock === false);
+              const isUnavailable = isSoldOut || isOutOfStock;
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addToCart(item.product, "One Size", 1);
-                      setIsCartOpen(true);
-                    }}
-                    title="Add to cart"
-                    className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors"
+              return (
+                <div
+                  key={item.id}
+                  className="py-3 first:pt-3 last:pb-1 flex items-center justify-between gap-3 group"
+                >
+                  <Link
+                    href={`/products/${item.product.slug}`}
+                    className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity"
                   >
-                    <ShoppingCart size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeFromWishlist(item.product_id)}
-                    title="Remove from saved"
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                    <img
+                      src={item.product.images?.[0] || "/placeholder.jpg"}
+                      alt={item.product.name}
+                      className={`w-10 aspect-[3/4] rounded-lg object-contain object-center bg-slate-100 dark:bg-white/5 shrink-0 border border-slate-100 dark:border-white/5 p-0.5 ${
+                        isUnavailable ? "opacity-75 grayscale-[0.3]" : ""
+                      }`}
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate leading-tight">
+                          {item.product.name}
+                        </p>
+                        {isSoldOut ? (
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 shrink-0">
+                            Sold Out
+                          </span>
+                        ) : isOutOfStock ? (
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 shrink-0">
+                            Out of Stock
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
+                        {item.product.price && item.product.price > 0 ? `$${item.product.price.toFixed(2)}` : "Price on Request"}
+                      </p>
+                      <span className="text-[0.625rem] text-slate-400 block truncate">
+                        {item.product.brand || "Ayaan Export"}
+                      </span>
+                    </div>
+                  </Link>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      disabled={isUnavailable}
+                      onClick={() => {
+                        if (!isUnavailable) {
+                          addToCart(item.product, "One Size", 1);
+                          setIsCartOpen(true);
+                        }
+                      }}
+                      title={isSoldOut ? "Sold Out" : isOutOfStock ? "Out of Stock" : "Add to cart"}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        isUnavailable
+                          ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+                          : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 cursor-pointer"
+                      }`}
+                    >
+                      <ShoppingCart size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeFromWishlist(item.product_id)}
+                      title="Remove from saved"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       {wishlistItems.length > 3 && (
         <div className="pt-3 mt-2 border-t border-slate-100 dark:border-white/10 text-right">
-          <span className="text-xs text-slate-400">
-            +{wishlistItems.length - 3} more saved items
-          </span>
+          <Link
+            href="/profile/wishlist"
+            className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1"
+          >
+            <span>+{wishlistItems.length - 3} more saved items</span>
+            <ArrowRight size={12} />
+          </Link>
         </div>
       )}
     </div>
