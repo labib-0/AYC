@@ -19,6 +19,7 @@ use App\Exceptions\InvalidMoqMultipleException;
 use App\Services\Order\OrderCalculationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -962,10 +963,10 @@ class OrderController extends ApiController
 
     /**
      * GET /api/v1/orders/{id}/documents/{docType}
-     * Generate official commercial document (PI, Order Sheet, Commercial Invoice, Packing List)
-     * strictly from the immutable order and shipping snapshot.
+     * Generate official commercial document (Invoice, PI, Order Sheet, Commercial Invoice, Packing List)
+     * strictly from the immutable order and historical pricing snapshot.
      */
-    public function document(Request $request, int|string $id, string $docType): JsonResponse
+    public function document(Request $request, int|string $id, string $docType): Response|JsonResponse
     {
         $user = $request->user();
         if (!$user) {
@@ -983,11 +984,20 @@ class OrderController extends ApiController
             return $this->notFound('Order not found');
         }
 
-        // Enforce access control: customer owner or admin with document.view or document.download
+        $normalizedType = strtoupper(str_replace('-', '_', trim($docType)));
+
+        // Enforce access control: customer owner or admin with required permissions
         if ($user->role === 'admin') {
             $authorization = app(\App\Services\Rbac\AdminAuthorizationService::class);
-            if (!$authorization->can($user, 'document.view') && !$authorization->can($user, 'document.download')) {
-                return $this->forbidden("Forbidden: you do not have permission to view or download commercial documents.");
+            $hasGeneralAccess = $authorization->can($user, 'document.view') || $authorization->can($user, 'document.download');
+            $hasSpecificAccess = match ($normalizedType) {
+                'INVOICE', 'SALES_INVOICE', 'TAX_INVOICE' => $authorization->can($user, 'document.invoice.generate'),
+                'PROFORMA_INVOICE' => $authorization->can($user, 'document.proforma.generate'),
+                'COMMERCIAL_INVOICE' => $authorization->can($user, 'document.commercial_invoice.generate'),
+                default => false,
+            };
+            if (!$hasGeneralAccess && !$hasSpecificAccess) {
+                return $this->forbidden("Forbidden: you do not have permission to view or generate commercial documents.");
             }
         } else {
             $isOwner = false;
@@ -1001,9 +1011,7 @@ class OrderController extends ApiController
             }
         }
 
-        $normalizedType = strtoupper(str_replace('-', '_', trim($docType)));
-
-        // Payment Gating: Commercial Invoice and Packing List require verified payment
+        // Payment Gating: Commercial Invoice and Packing List require verified payment for non-admins
         $isPaid = in_array($order->payment_status, ['paid'])
             || in_array($order->status, ['processing', 'shipped', 'delivered', 'confirmed'])
             || in_array($order->payment_method, ['net_30', 'net_60', 'terms']);
@@ -1014,12 +1022,12 @@ class OrderController extends ApiController
             return response()->json([
                 'success' => false,
                 'is_gated' => true,
-                'message' => "Commercial Invoice and Packing List are generated exclusively upon payment confirmation. Please complete payment or view your Proforma Invoice (PI) / Commercial Order Sheet.",
+                'message' => "Commercial Invoice and Packing List are generated exclusively upon payment confirmation. Please complete payment or view your Proforma Invoice (PI) / Sales Invoice.",
                 'data' => [
                     'order_id' => (string) $order->id,
                     'order_number' => $order->order_number,
                     'payment_status' => $order->payment_status,
-                    'available_documents' => ['PROFORMA_INVOICE', 'ORDER_SHEET'],
+                    'available_documents' => ['INVOICE', 'PROFORMA_INVOICE', 'ORDER_SHEET'],
                 ],
             ], 403);
         }
@@ -1027,11 +1035,43 @@ class OrderController extends ApiController
         if ($normalizedType === 'ORDER_SHEET') {
             $offerSheetService = app(\App\Services\Documents\OfferSheetService::class);
             $docPayload = $offerSheetService->generateForOrder($order);
+        } elseif (in_array($normalizedType, ['INVOICE', 'SALES_INVOICE', 'TAX_INVOICE'])) {
+            $invoiceService = app(\App\Services\Documents\InvoiceService::class);
+            $docPayload = $invoiceService->generateForOrder($order, $isAdmin);
         } else {
             $docPayload = $order->getCommercialDocument($docType);
         }
 
+        // Privacy protection: Mask internal admin notes and operator reasons for customers
+        if (!$isAdmin && isset($docPayload['financials']['manual_discount_reason'])) {
+            $docPayload['financials']['manual_discount_reason'] = null;
+        }
+
+        // Direct PDF binary streaming if format=pdf requested
+        if ($request->query('format') === 'pdf' || $request->has('pdf')) {
+            $pdfService = app(\App\Services\Documents\DocumentPdfService::class);
+            $pdfContent = $pdfService->render($docPayload)->output();
+            $filename = ($docPayload['doc_number'] ?? "{$normalizedType}-{$order->order_number}") . ".pdf";
+
+            return response($pdfContent, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => ($request->query('download') ? 'attachment' : 'inline') . "; filename=\"{$filename}\"",
+                'Cache-Control' => 'private, max-age=3600',
+            ]);
+        }
+
         return $this->success($docPayload, "Commercial document '{$docType}' generated successfully");
+    }
+
+    /**
+     * GET /api/v1/orders/{id}/documents/{docType}/pdf
+     * Direct binary PDF download endpoint.
+     */
+    public function downloadDocumentPdf(Request $request, int|string $id, string $docType): Response|JsonResponse
+    {
+        $request->query->set('format', 'pdf');
+        $request->query->set('download', '1');
+        return $this->document($request, $id, $docType);
     }
 
     /**

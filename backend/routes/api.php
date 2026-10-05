@@ -209,6 +209,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware('auth:sanctum')->group(function () {
             Route::get('/{id}', [OrderController::class, 'show']);
             Route::get('/{id}/documents/{docType}', [OrderController::class, 'document']);
+            Route::get('/{id}/documents/{docType}/pdf', [OrderController::class, 'downloadDocumentPdf']);
         });
     });
 
@@ -307,6 +308,8 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:quotation.view');
         Route::get('/quotations/{id}/documents/{docType}', [QuotationController::class, 'document'])
             ->middleware('permission:document.view');
+        Route::get('/quotations/{id}/documents/{docType}/pdf', [QuotationController::class, 'document'])
+            ->middleware('permission:document.download');
         Route::get('/quotations/{id}/document/{docType}', [QuotationController::class, 'document'])
             ->middleware('permission:document.view');
         Route::put('/quotations/{id}', [QuotationController::class, 'update'])
@@ -395,6 +398,10 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:order.view');
         Route::get('/orders/{id}', [AdminOrderController::class, 'show'])
             ->middleware('permission:order.view');
+        Route::get('/orders/{id}/documents/{docType}', [OrderController::class, 'document'])
+            ->middleware('permission:document.view');
+        Route::get('/orders/{id}/documents/{docType}/pdf', [OrderController::class, 'downloadDocumentPdf'])
+            ->middleware('permission:document.download');
         Route::patch('/orders/{id}/status', [AdminOrderController::class, 'updateStatus'])
             ->middleware('permission:order.update_status');
         Route::patch('/orders/{id}/fulfillment', [AdminOrderController::class, 'updateFulfillment'])

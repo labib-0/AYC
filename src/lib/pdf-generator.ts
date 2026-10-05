@@ -1752,7 +1752,7 @@ export async function downloadCommercialDocumentPDF(docData: CommercialDocument)
     return;
   }
 
-  if (docData.docType === "COMMERCIAL_INVOICE") {
+  if (docData.docType === "COMMERCIAL_INVOICE" || docData.docType === "INVOICE") {
     const pseudoOrder: OrderRecord = {
       id: docData.order_id || docData.id,
       order_number: docData.orderNumber || docData.docNumber.replace(/^INV-/, ""),

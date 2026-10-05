@@ -98,6 +98,11 @@ class CommercialInvoiceService
                 'shipping_charge' => (float) $order->shipping_cost,
                 'tax_amount' => (float) $order->tax_amount,
                 'discount_amount' => (float) $order->discount_amount,
+                'coupon_code' => $order->coupon_code,
+                'coupon_discount_amount' => (float) ($order->coupon_discount_amount ?? max(0, (float) $order->discount_amount - (float) ($order->manual_discount_amount ?? 0))),
+                'manual_discount_amount' => (float) ($order->manual_discount_amount ?? 0),
+                'paid_amount' => (float) ($order->paid_amount ?? ($order->payment_status === 'paid' ? $order->total_amount : 0)),
+                'balance_due' => (float) max(0, round($order->total_amount - ($order->paid_amount ?? ($order->payment_status === 'paid' ? $order->total_amount : 0)), 2)),
                 'grand_total' => (float) $order->total_amount,
                 'total_payable' => (float) $order->total_amount,
                 'amount_in_words' => DocumentHelper::numberToWords((float) $order->total_amount),
@@ -117,6 +122,8 @@ class CommercialInvoiceService
             'shipping' => (float) $order->shipping_cost,
             'tax' => (float) $order->tax_amount,
             'discount' => (float) $order->discount_amount,
+            'coupon_discount' => (float) ($order->coupon_discount_amount ?? 0),
+            'manual_discount' => (float) ($order->manual_discount_amount ?? 0),
             'grandTotal' => (float) $order->total_amount,
             'currency' => $order->currency ?: 'USD',
             'paymentTerms' => $order->payment_method === 'net_30' ? 'Commercial Credit Net 30' : ($order->payment_method === 'card' ? 'Prepaid Credit Card (Full in Advance)' : 'Bank Wire Transfer (T/T Advance)'),
@@ -242,6 +249,16 @@ class CommercialInvoiceService
             'bankDetails' => DocumentHelper::getBankDetails(),
             'notes' => 'Commercial Invoice. Official customs and clearance document.',
         ];
+    }
+
+    /**
+     * Generate PDF object for asynchronous job pipeline
+     */
+    public function generate(Quotation $quotation): DocumentPdfService
+    {
+        $payload = $this->generateForQuotation($quotation);
+        $pdfService = app(DocumentPdfService::class);
+        return $pdfService->render($payload);
     }
 }
 

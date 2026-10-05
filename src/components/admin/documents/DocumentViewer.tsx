@@ -38,6 +38,7 @@ export default function DocumentViewer({ doc }: DocumentViewerProps) {
       case "PACKING_LIST":
         return <PackingListDocument doc={doc} />;
       case "COMMERCIAL_INVOICE":
+      case "INVOICE":
         return <CommercialInvoiceDocument doc={doc} />;
       case "PROFORMA_INVOICE":
         return <ProformaInvoiceDocument doc={doc} />;

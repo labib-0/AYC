@@ -97,6 +97,7 @@ export const ADMIN_PERMISSIONS = {
   DOCUMENT_VIEW: "document.view",
   DOCUMENT_GENERATE: "document.generate",
   DOCUMENT_DOWNLOAD: "document.download",
+  DOCUMENT_INVOICE_GENERATE: "document.invoice.generate",
 
   // Analytics
   ANALYTICS_DASHBOARD_VIEW: "analytics.dashboard.view",

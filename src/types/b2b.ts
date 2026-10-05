@@ -298,7 +298,7 @@ export interface QuotationRecord {
   proformaInvoiceId?: string;
 }
 
-export type CommercialDocType = "QUOTATION" | "PROFORMA_INVOICE" | "ORDER_SHEET" | "COMMERCIAL_INVOICE" | "PACKING_LIST" | "CHALAN";
+export type CommercialDocType = "INVOICE" | "QUOTATION" | "PROFORMA_INVOICE" | "ORDER_SHEET" | "COMMERCIAL_INVOICE" | "PACKING_LIST" | "CHALAN";
 
 export interface OrderShippingSnapshot {
   provider?: "aramex" | "akij" | string;

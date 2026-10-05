@@ -177,4 +177,14 @@ class OfferSheetService
             'show_all_pricing_tiers' => false,
         ];
     }
+
+    /**
+     * Generate PDF object for asynchronous job pipeline
+     */
+    public function generate(Quotation $quotation): DocumentPdfService
+    {
+        $payload = $this->generateForQuotation($quotation);
+        $pdfService = app(DocumentPdfService::class);
+        return $pdfService->render($payload);
+    }
 }

@@ -9,7 +9,7 @@ import { formatOrderDate } from "@/lib/order-status";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type DocType = "ORDER_SHEET" | "PROFORMA_INVOICE" | "COMMERCIAL_INVOICE" | "PACKING_LIST";
+type DocType = "INVOICE" | "ORDER_SHEET" | "PROFORMA_INVOICE" | "COMMERCIAL_INVOICE" | "PACKING_LIST";
 
 interface DocumentEntry {
   type: DocType;
@@ -22,6 +22,7 @@ interface DocumentEntry {
 }
 
 const DOC_META: Record<DocType, { label: string; alwaysAvailable: boolean }> = {
+  INVOICE: { label: "Sales Invoice", alwaysAvailable: true },
   ORDER_SHEET: { label: "Commercial Offer Sheet", alwaysAvailable: true },
   PROFORMA_INVOICE: { label: "Proforma Invoice (P.I.)", alwaysAvailable: true },
   COMMERCIAL_INVOICE: { label: "Commercial Invoice", alwaysAvailable: false },

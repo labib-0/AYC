@@ -30,6 +30,7 @@ import {
   Tag,
   Percent,
   Smartphone,
+  Printer,
   X,
 } from "lucide-react";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
@@ -55,6 +56,10 @@ interface CartLineItem {
   quantity: number;
   unit_price: number;
   line_total: number;
+}
+
+function generatePosIdempotencyKey(): string {
+  return `pos_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
 export default function AdminPosPage() {
@@ -558,7 +563,7 @@ export default function AdminPosPage() {
     setIsSubmitting(true);
     setSubmissionError(null);
 
-    const idempotencyKey = `pos_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const idempotencyKey = generatePosIdempotencyKey();
 
     try {
       const payload: PosSaleItemPayload[] = cart.map((item) => ({
@@ -1823,10 +1828,19 @@ export default function AdminPosPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                <Link
+                  href={`/ayc/documents/INVOICE/order_${createdOrder.id}`}
+                  target="_blank"
+                  className="flex-1 py-2.5 px-3 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
+                  id="btn-pos-print-invoice"
+                >
+                  <Printer size={14} /> Print Invoice
+                </Link>
+
                 <Link
                   href={`/ayc/orders/${createdOrder.id}`}
-                  className="flex-1 py-2.5 px-4 rounded-xl border border-border bg-background hover:bg-secondary font-bold text-xs text-foreground transition-colors flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 px-3 rounded-xl border border-border bg-background hover:bg-secondary font-bold text-xs text-foreground transition-colors flex items-center justify-center gap-1.5"
                 >
                   <ExternalLink size={14} /> View Order
                 </Link>
@@ -1834,9 +1848,9 @@ export default function AdminPosPage() {
                 <button
                   type="button"
                   onClick={handleResetForNewSale}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
                 >
-                  <RotateCcw size={14} /> Start New Sale
+                  <RotateCcw size={14} /> New Sale
                 </button>
               </div>
             </div>

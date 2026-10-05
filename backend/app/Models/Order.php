@@ -228,6 +228,7 @@ class Order extends Model
         $snapshot = $this->shipping_snapshot ?? [];
 
         $docTitle = match ($normalizedType) {
+            'INVOICE', 'SALES_INVOICE', 'TAX_INVOICE' => 'SALES INVOICE',
             'PROFORMA_INVOICE' => 'PROFORMA INVOICE',
             'ORDER_SHEET' => 'COMMERCIAL ORDER SHEET',
             'COMMERCIAL_INVOICE' => 'COMMERCIAL INVOICE',
@@ -237,6 +238,7 @@ class Order extends Model
         };
 
         $prefix = match ($normalizedType) {
+            'INVOICE', 'SALES_INVOICE', 'TAX_INVOICE' => 'INV',
             'PROFORMA_INVOICE' => 'PI',
             'ORDER_SHEET' => 'ORD',
             'COMMERCIAL_INVOICE' => 'INV',
@@ -437,6 +439,14 @@ class Order extends Model
                 'tax_amount' => (float) $this->tax_amount,
                 'other_charges' => (float) $this->other_charges,
                 'discount_amount' => (float) $this->discount_amount,
+                'coupon_code' => $this->coupon_code,
+                'coupon_discount_amount' => (float) ($this->coupon_discount_amount ?? max(0, (float) $this->discount_amount - (float) ($this->manual_discount_amount ?? 0))),
+                'manual_discount_amount' => (float) ($this->manual_discount_amount ?? 0),
+                'manual_discount_type' => $this->manual_discount_type,
+                'manual_discount_value' => $this->manual_discount_value !== null ? (float) $this->manual_discount_value : null,
+                'manual_discount_reason' => $this->manual_discount_reason,
+                'paid_amount' => (float) ($this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)),
+                'balance_due' => (float) max(0, round($this->total_amount - ($this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)), 2)),
                 'total_payable' => (float) $this->total_amount,
                 'grand_total' => (float) $this->total_amount,
                 'amount_in_words' => self::numberToWords((float) $this->total_amount),
@@ -452,7 +462,14 @@ class Order extends Model
                 'total_cbm' => $cbm,
                 'weight_unit' => 'KG',
             ],
-            'payment_terms' => $this->payment_method === 'net_30' ? 'Commercial Credit Net 30' : ($this->payment_method === 'card' ? 'Prepaid Credit/Debit Card (Full In Advance)' : 'Bank Wire Transfer (T/T Advance)'),
+            'payment_terms' => match ($this->payment_method) {
+                'net_30' => 'Commercial Credit Net 30',
+                'card' => 'Prepaid Credit/Debit Card (Full In Advance)',
+                'cash' => 'Cash on Counter',
+                'pos' => 'POS Terminal / Counter Sale',
+                'bank_transfer' => 'Bank Wire Transfer (T/T Advance)',
+                default => $this->payment_method ? ucwords(str_replace('_', ' ', $this->payment_method)) : 'Bank Wire Transfer (T/T Advance)',
+            },
             'shipping_terms' => $isSea ? 'Ocean Container Freight (DAP / CIF)' : 'Express Air Freight (DAP / DDP)',
             'incoterm' => 'DAP',
             'notes' => $this->notes ?: 'Commercial Wholesale Export Order. Ready-made Garments Manufactured in Bangladesh.',
@@ -465,15 +482,23 @@ class Order extends Model
                 'branch' => config('business.banking.branch'),
                 'routing_no' => config('business.banking.routing_no'),
             ],
-            'payment_details' => $this->payment_details ?? [
-                'payment_status' => $this->payment_status === 'paid' ? 'PAID' : strtoupper($this->payment_status),
-                'payment_method' => $this->payment_method === 'net_30' ? 'Commercial Credit Net 30' : ($this->payment_method === 'card' ? 'Prepaid Credit/Debit Card' : 'Bank Wire Transfer (T/T Advance)'),
-                'transaction_id' => $this->payments()->whereIn('status', ['confirmed', 'succeeded'])->latest()->value('transaction_id') ?? null,
-                'payer_name' => $this->shipping_name,
+            'payment_details' => [
+                'payment_status' => $this->payment_status === 'paid' ? 'PAID' : strtoupper($this->payment_status ?: 'PENDING'),
+                'payment_method' => match ($this->payment_method) {
+                    'net_30' => 'Commercial Credit Net 30',
+                    'card' => 'Prepaid Credit/Debit Card',
+                    'cash' => 'Cash',
+                    'pos' => 'POS Terminal / Counter',
+                    'bank_transfer' => 'Bank Wire Transfer (T/T Advance)',
+                    default => $this->payment_method ? ucwords(str_replace('_', ' ', $this->payment_method)) : 'Bank Wire Transfer (T/T Advance)',
+                },
+                'transaction_id' => $this->payment_reference ?: ($this->payments()->whereIn('status', ['confirmed', 'succeeded'])->latest()->value('transaction_id') ?? null),
+                'payer_name' => $this->shipping_name ?: ($this->user?->name ?? 'Valued Customer'),
                 'bank_name' => config('business.banking.bank_name', 'Pubali Bank Limited'),
-                'payment_date' => $this->payment_confirmed_at?->format('Y-m-d') ?? ($this->payment_status === 'paid' ? date('Y-m-d', strtotime($this->updated_at)) : null),
-                'amount_paid' => (float) $this->total_amount,
-                'receipt_reference' => $this->payments()->latest()->value('receipt_original_name') ?? null,
+                'payment_date' => $this->payment_confirmed_at?->format('Y-m-d') ?? ($this->payment_status === 'paid' ? date('Y-m-d', strtotime($this->updated_at)) : date('Y-m-d', strtotime($this->created_at ?: now()))),
+                'amount_paid' => (float) ($this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)),
+                'balance_due' => (float) max(0, round($this->total_amount - ($this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)), 2)),
+                'receipt_reference' => $this->payment_reference ?: ($this->payments()->latest()->value('receipt_original_name') ?? null),
             ],
         ];
     }
@@ -541,6 +566,26 @@ class Order extends Model
         }
 
         return trim($words);
+    }
+
+    /**
+     * Get official deterministic Invoice Number (e.g., INV-2026-000123)
+     */
+    public function getInvoiceNumberAttribute(): string
+    {
+        $year = date('Y', strtotime($this->created_at ?: now()));
+        $docSuffix = substr($this->order_number, -6);
+        return "INV-{$year}-{$docSuffix}";
+    }
+
+    /**
+     * Get official deterministic Proforma Invoice Number (e.g., PI-2026-000123)
+     */
+    public function getProformaInvoiceNumberAttribute(): string
+    {
+        $year = date('Y', strtotime($this->created_at ?: now()));
+        $docSuffix = substr($this->order_number, -6);
+        return "PI-{$year}-{$docSuffix}";
     }
 }
 

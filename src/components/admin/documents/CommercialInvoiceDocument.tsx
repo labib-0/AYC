@@ -16,8 +16,8 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
     <div className="space-y-6 text-xs font-sans">
       {/* Header */}
       <DocumentHeader
-        badgeText="Commercial Invoice"
-        title="COMMERCIAL INVOICE"
+        badgeText={doc.title === "SALES INVOICE" || doc.docType === "INVOICE" ? "Sales Invoice" : (doc.title || "Commercial Invoice")}
+        title={doc.title || (doc.docType === "INVOICE" ? "SALES INVOICE" : "COMMERCIAL INVOICE")}
         docNumber={doc.docNumber}
         date={doc.date}
         orderNumber={doc.orderNumber}
@@ -137,6 +137,13 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
             <span className="font-bold text-foreground">${(doc.goods_value ?? doc.subtotal).toFixed(2)}</span>
           </div>
 
+          {Number(doc.discount || (doc as any).coupon_discount || (doc as any).manual_discount || 0) > 0 && (
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+              <span>Discounts:</span>
+              <span className="font-bold">-${Number(doc.discount || ((doc as any).coupon_discount || 0) + ((doc as any).manual_discount || 0)).toFixed(2)}</span>
+            </div>
+          )}
+
           <div className="flex justify-between text-muted-foreground">
             <span>Shipping &amp; Freight:</span>
             <span className="font-bold text-foreground">
@@ -162,6 +169,20 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
             <span>TOTAL PAYABLE:</span>
             <span>${(doc.total_payable ?? doc.grandTotal).toFixed(2)} {doc.currency}</span>
           </div>
+
+          {Number((doc as any).paid_amount ?? (doc.payment_details as any)?.amount_paid ?? 0) > 0 && (
+            <div className="flex justify-between text-muted-foreground pt-1 border-t border-border/40 text-[11px]">
+              <span>Amount Paid:</span>
+              <span className="font-bold text-foreground">${Number((doc as any).paid_amount ?? (doc.payment_details as any)?.amount_paid).toFixed(2)}</span>
+            </div>
+          )}
+
+          {Number((doc as any).balance_due ?? (doc.payment_details as any)?.balance_due ?? 0) > 0 && (
+            <div className="flex justify-between text-destructive font-medium text-[11px]">
+              <span>Balance Due:</span>
+              <span className="font-bold">${Number((doc as any).balance_due ?? (doc.payment_details as any)?.balance_due).toFixed(2)}</span>
+            </div>
+          )}
         </div>
       </div>
 

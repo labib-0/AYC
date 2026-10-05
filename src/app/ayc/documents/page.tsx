@@ -39,6 +39,7 @@ interface DocumentHubItem {
 }
 
 const TYPE_BADGES: Record<CommercialDocType, { label: string; color: string }> = {
+  INVOICE: { label: "Sales Invoice", color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20" },
   PROFORMA_INVOICE: { label: "Proforma Invoice (PI)", color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" },
   ORDER_SHEET: { label: "Offer Sheet", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" },
   COMMERCIAL_INVOICE: { label: "Commercial Invoice", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" },
@@ -95,6 +96,25 @@ export default function AdminDocumentsHubPage() {
       const buyer = order.shipping_name || "Buyer";
       const totalAmount = order.total_amount || 0;
       const currency = order.currency || "USD";
+
+      // Sales Invoice (Always available)
+      docs.push({
+        id: `doc_INVOICE_order_${order.id}`,
+        docNumber: `INV-${order.order_number}`,
+        docType: "INVOICE",
+        title: "Commercial Sales Invoice",
+        sourceType: "ORDER",
+        sourceId: order.id,
+        sourceRef: `#${order.order_number}`,
+        companyName: company,
+        buyerName: buyer,
+        date: dateStr,
+        amount: totalAmount,
+        currency,
+        isAvailable: true,
+        isGated: false,
+        href: `/ayc/documents/INVOICE/order_${order.id}`,
+      });
 
       // Order Sheet (Always available)
       docs.push({
@@ -277,6 +297,7 @@ export default function AdminDocumentsHubPage() {
   const kpiCounts = useMemo(() => {
     return {
       total: allDocuments.length,
+      invoice: allDocuments.filter((d) => d.docType === "INVOICE").length,
       pi: allDocuments.filter((d) => d.docType === "PROFORMA_INVOICE").length,
       offerSheets: allDocuments.filter((d) => d.docType === "ORDER_SHEET" || d.docType === "QUOTATION").length,
       ci: allDocuments.filter((d) => d.docType === "COMMERCIAL_INVOICE").length,
@@ -410,9 +431,10 @@ export default function AdminDocumentsHubPage() {
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           {[
             { id: "ALL", label: "All Types" },
+            { id: "INVOICE", label: "Invoice" },
             { id: "PROFORMA_INVOICE", label: "PI" },
             { id: "ORDER_SHEET", label: "Offer Sheet" },
-            { id: "COMMERCIAL_INVOICE", label: "Invoice" },
+            { id: "COMMERCIAL_INVOICE", label: "CI" },
             { id: "PACKING_LIST", label: "Packing List" },
             { id: "QUOTATION", label: "Quote" },
           ].map((tab) => (

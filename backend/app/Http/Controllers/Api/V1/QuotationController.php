@@ -15,12 +15,15 @@ use App\Notifications\QuotationCreatedNotification;
 use App\Notifications\QuotationStatusNotification;
 use App\Services\Audit\ActivityLogger;
 use App\Services\Documents\CommercialInvoiceService;
+use App\Services\Documents\DocumentPdfService;
+use App\Services\Documents\InvoiceService;
 use App\Services\Documents\OfferSheetService;
 use App\Services\Documents\ProformaInvoiceService;
 use App\Services\Rbac\AdminAuthorizationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class QuotationController extends ApiController
@@ -386,7 +389,7 @@ class QuotationController extends ApiController
         OfferSheetService $offerSheetService,
         ProformaInvoiceService $piService,
         CommercialInvoiceService $ciService
-    ): JsonResponse {
+    ): Response|JsonResponse {
         $user = $request->user() ?: auth('sanctum')->user();
         if (!$user) {
             return $this->unauthorized('Authentication required to view quotation documents');
@@ -413,7 +416,10 @@ class QuotationController extends ApiController
 
         $normalizedType = strtoupper(trim($docType));
 
-        if ($normalizedType === 'COMMERCIAL_INVOICE') {
+        if (in_array($normalizedType, ['INVOICE', 'SALES_INVOICE', 'TAX_INVOICE'])) {
+            $invoiceService = app(InvoiceService::class);
+            $payload = $invoiceService->generateForQuotation($quotation, $user->isAdmin());
+        } elseif ($normalizedType === 'COMMERCIAL_INVOICE') {
             $isPaid = in_array(strtoupper($quotation->status ?? ''), ['PAID', 'CONFIRMED'])
                 || ($quotation->payment_status === 'paid')
                 || ($quotation->convertedOrder && in_array($quotation->convertedOrder->payment_status, ['paid']));
@@ -424,14 +430,27 @@ class QuotationController extends ApiController
                     'payment_status' => $quotation->payment_status ?? 'pending',
                 ]);
             }
-            return $this->success($ciService->generateForQuotation($quotation), "Commercial document '{$docType}' generated successfully");
+            $payload = $ciService->generateForQuotation($quotation);
+        } else {
+            $payload = match ($normalizedType) {
+                'PROFORMA_INVOICE' => $piService->generateForQuotation($quotation),
+                'OFFER_SHEET', 'QUOTATION' => $offerSheetService->generateForQuotation($quotation),
+                default => $offerSheetService->generateForQuotation($quotation),
+            };
         }
 
-        $payload = match ($normalizedType) {
-            'PROFORMA_INVOICE' => $piService->generateForQuotation($quotation),
-            'OFFER_SHEET', 'QUOTATION' => $offerSheetService->generateForQuotation($quotation),
-            default => $offerSheetService->generateForQuotation($quotation),
-        };
+        // Direct PDF binary streaming if format=pdf requested
+        if ($request->query('format') === 'pdf' || $request->has('pdf')) {
+            $pdfService = app(DocumentPdfService::class);
+            $pdfContent = $pdfService->render($payload)->output();
+            $filename = ($payload['doc_number'] ?? "{$normalizedType}-{$quotation->quotation_number}") . ".pdf";
+
+            return response($pdfContent, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => ($request->query('download') ? 'attachment' : 'inline') . "; filename=\"{$filename}\"",
+                'Cache-Control' => 'private, max-age=3600',
+            ]);
+        }
 
         return $this->success($payload, "Commercial document '{$docType}' generated successfully");
     }
