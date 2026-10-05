@@ -204,7 +204,13 @@ export class HomepageService {
 
     this.storefrontDataPromise = (async () => {
       try {
-        const res = await apiClient.get<any>("/homepage");
+        const fetchOptions: any =
+          typeof window === "undefined"
+            ? forceRefresh
+              ? { cache: "no-store" }
+              : { next: { revalidate: 60 } }
+            : undefined;
+        const res = await apiClient.get<any>("/homepage", fetchOptions);
         const data = res?.data || res;
         if (data && typeof data === "object") {
           const result: StorefrontHomepageData = {

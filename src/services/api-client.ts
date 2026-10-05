@@ -54,7 +54,11 @@ class ApiClient {
   private tokenKey = "ayaan_auth_token";
 
   constructor() {
-    let url = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
+    const envUrl =
+      typeof window === "undefined" && process.env.INTERNAL_API_URL
+        ? process.env.INTERNAL_API_URL
+        : process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
+    let url = envUrl;
     if (url.endsWith("/")) {
       url = url.slice(0, -1);
     }
@@ -83,27 +87,37 @@ class ApiClient {
     if (this.isAdminContext()) {
       return this.getAdminBaseUrl();
     }
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && window.location) {
       if (window.location.hostname === "localhost" && this.baseUrl.includes("127.0.0.1")) {
         return this.baseUrl.replace("127.0.0.1", "localhost");
       }
       if (window.location.hostname === "127.0.0.1" && this.baseUrl.includes("localhost")) {
         return this.baseUrl.replace("localhost", "127.0.0.1");
       }
+    } else if (process.env.INTERNAL_API_URL) {
+      let internal = process.env.INTERNAL_API_URL;
+      if (internal.endsWith("/")) internal = internal.slice(0, -1);
+      if (!internal.includes("/api/v1") && !internal.includes("/api")) {
+        internal = `${internal}/api/v1`;
+      }
+      return internal;
     }
     return this.baseUrl;
   }
 
   public isAdminContext(): boolean {
-    if (typeof window === "undefined") return false;
+    if (typeof window === "undefined" || !window.location) return false;
+    const pathname = window.location.pathname || "";
+    const port = window.location.port || "";
+    const hostname = window.location.hostname || "";
     return (
-      window.location.pathname === "/ayc" ||
-      window.location.pathname.startsWith("/ayc/") ||
-      window.location.pathname === "/admin" ||
-      window.location.pathname.startsWith("/admin/") ||
-      window.location.port === "3001" ||
-      window.location.hostname.startsWith("admin.") ||
-      window.location.hostname === "admin.localhost"
+      pathname === "/ayc" ||
+      pathname.startsWith("/ayc/") ||
+      pathname === "/admin" ||
+      pathname.startsWith("/admin/") ||
+      port === "3001" ||
+      hostname.startsWith("admin.") ||
+      hostname === "admin.localhost"
     );
   }
 
