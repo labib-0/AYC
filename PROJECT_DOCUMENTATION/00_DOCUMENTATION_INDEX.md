@@ -85,6 +85,7 @@ For an AI coding agent or new developer onboarding to this project, follow this 
 - **[32_MISSING_FEATURES_AND_GAPS.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/32_MISSING_FEATURES_AND_GAPS.md)**: Implemented, partial, and referenced future capabilities.
 - **[33_LARAVEL_GEOIP_STOREFRONT_RESTRICTION.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/33_LARAVEL_GEOIP_STOREFRONT_RESTRICTION.md)**: Laravel GeoIP Bangladesh storefront restriction specification and verification.
 - **[33_ARCHITECTURAL_DECISIONS.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/33_ARCHITECTURAL_DECISIONS.md)**: Formal Architectural Decision Records (ADRs).
+- **[34_COUPON_SALES_REPORTING_ARCHITECTURE.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/34_COUPON_SALES_REPORTING_ARCHITECTURE.md)**: Coupon-Bound Admin Sales Reporting architecture, scoping, exports, and security invariants.
 - **[34_AI_IMPLEMENTATION_GUIDE.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/34_AI_IMPLEMENTATION_GUIDE.md)**: Mandatory rules and checklists for AI agents.
 - **[35_AI_HANDOFF.md](file:///Users/luhasan/Documents/ayaan/PROJECT_DOCUMENTATION/35_AI_HANDOFF.md)**: 20 core questions, authoritative answers, and 6-step onboarding protocol.
 
