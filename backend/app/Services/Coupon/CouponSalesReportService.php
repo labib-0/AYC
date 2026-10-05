@@ -4,11 +4,13 @@ namespace App\Services\Coupon;
 
 use App\Models\Order;
 use App\Models\User;
+use App\Services\Audit\ActivityLogger;
 use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CouponSalesReportService
 {
@@ -104,7 +106,7 @@ class CouponSalesReportService
 
         return [
             'has_bindings'        => $isSuperAdmin ? true : ($boundCount > 0),
-            'bound_coupons_count' => $boundCount,
+            'bound_coupons_count' => $couponId ? 1 : $boundCount,
             'bound_coupons'       => $boundCouponsList,
             'total_orders'        => (int) ($stats->total_orders ?? 0),
             'total_sales'         => round((float) ($stats->total_sales ?? 0), 2),
@@ -114,7 +116,7 @@ class CouponSalesReportService
     }
 
     /**
-     * Retrieve paginated qualifying orders with eager-loaded relations.
+     * Retrieve paginated qualifying orders with eager-loaded relations and server-side sorting.
      */
     public function getOrders(
         User $adminUser,
@@ -126,19 +128,109 @@ class CouponSalesReportService
         $startDate = $filters['start_date'] ?? $filters['date_from'] ?? null;
         $endDate = $filters['end_date'] ?? $filters['date_to'] ?? null;
         $search = $filters['search'] ?? null;
+        $sort = $filters['sort'] ?? 'newest';
 
         $query = $this->buildQualifyingQuery($adminUser, $couponId, $dateFilter, $startDate, $endDate, $search)
             ->with([
                 'coupon:id,code,discount_type,discount_value,min_spend',
                 'user:id,name,email,company_name',
-            ])
-            ->orderBy('orders.created_at', 'desc');
+            ]);
+
+        $this->applySorting($query, $sort);
 
         return $query->paginate(max(1, min($perPage, 100)));
     }
 
     /**
-     * Retrieve full order detail strictly scoped to administrator's bound coupons.
+     * Stream a CSV export of qualifying orders strictly scoped to admin\'s bound coupons.
+     */
+    public function exportOrdersCsv(User $adminUser, array $filters = []): StreamedResponse
+    {
+        $couponId = !empty($filters['coupon_id']) ? (int) $filters['coupon_id'] : null;
+        $dateFilter = $filters['date_filter'] ?? null;
+        $startDate = $filters['start_date'] ?? $filters['date_from'] ?? null;
+        $endDate = $filters['end_date'] ?? $filters['date_to'] ?? null;
+        $search = $filters['search'] ?? null;
+        $sort = $filters['sort'] ?? 'newest';
+
+        $query = $this->buildQualifyingQuery($adminUser, $couponId, $dateFilter, $startDate, $endDate, $search)
+            ->with([
+                'coupon:id,code,discount_type,discount_value',
+                'user:id,name,email,company_name',
+            ]);
+
+        $this->applySorting($query, $sort);
+
+        $filename = 'coupon-sales-export-' . now()->format('Y-m-d-His') . '.csv';
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Pragma'              => 'no-cache',
+            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires'             => '0',
+        ];
+
+        $callback = function () use ($query, $adminUser, $filters) {
+            $handle = fopen('php://output', 'w');
+            // Write UTF-8 BOM for accurate opening in Excel
+            fputs($handle, "\xEF\xBB\xBF");
+
+            // CSV Columns according to Section 16
+            fputcsv($handle, [
+                'Order Number',
+                'Order Date',
+                'Customer',
+                'Coupon',
+                'Discount',
+                'Order Total',
+                'Status',
+            ]);
+
+            $exportedCount = 0;
+
+            // Stream chunked to ensure low memory footprint
+            $query->chunk(250, function ($orders) use ($handle, &$exportedCount) {
+                foreach ($orders as $order) {
+                    $exportedCount++;
+                    $orderDate = $order->created_at
+                        ? Carbon::parse($order->created_at)->setTimezone(self::TIMEZONE)->format('Y-m-d H:i:s')
+                        : '';
+                    $customer = $order->shipping_name ?: ($order->user?->name ?: ($order->email ?: 'Customer'));
+                    $couponCode = $order->coupon_code ?: ($order->coupon?->code ?: 'N/A');
+                    $discount = number_format((float) ($order->coupon_discount ?? $order->discount_amount ?? 0), 2, '.', '');
+                    $total = number_format((float) ($order->total_amount ?? 0), 2, '.', '');
+                    $status = ucfirst($order->status ?? 'Pending');
+
+                    fputcsv($handle, [
+                        $order->order_number,
+                        $orderDate,
+                        $customer,
+                        $couponCode,
+                        $discount,
+                        $total,
+                        $status,
+                    ]);
+                }
+            });
+
+            fclose($handle);
+
+            // Audit log export action
+            ActivityLogger::log('coupon_sales.exported', null, [
+                'coupon_id'        => $filters['coupon_id'] ?? null,
+                'date_filter'      => $filters['date_filter'] ?? null,
+                'search'           => $filters['search'] ?? null,
+                'sort'             => $filters['sort'] ?? 'newest',
+                'exported_records' => $exportedCount,
+            ], $adminUser);
+        };
+
+        return new StreamedResponse($callback, 200, $headers);
+    }
+
+    /**
+     * Retrieve full order detail strictly scoped to administrator\'s bound coupons.
      *
      * @throws AuthorizationException
      */
@@ -191,6 +283,10 @@ class CouponSalesReportService
                     $from = $now->copy()->startOfDay();
                     $to = $now->copy()->endOfDay();
                     break;
+                case 'yesterday':
+                    $from = $now->copy()->subDay()->startOfDay();
+                    $to = $now->copy()->subDay()->endOfDay();
+                    break;
                 case 'this_week':
                 case 'week':
                     $from = $now->copy()->startOfWeek();
@@ -200,6 +296,10 @@ class CouponSalesReportService
                 case 'month':
                     $from = $now->copy()->startOfMonth();
                     $to = $now->copy()->endOfMonth();
+                    break;
+                case 'last_month':
+                    $from = $now->copy()->subMonth()->startOfMonth();
+                    $to = $now->copy()->subMonth()->endOfMonth();
                     break;
             }
         } elseif (!empty($startDate) || !empty($endDate)) {
@@ -221,5 +321,18 @@ class CouponSalesReportService
         } elseif ($to) {
             $query->where('orders.created_at', '<=', $to->copy()->setTimezone('UTC'));
         }
+    }
+
+    /**
+     * Apply server-side sorting to qualifying orders query.
+     */
+    protected function applySorting(Builder $query, ?string $sort = 'newest'): void
+    {
+        match ($sort) {
+            'oldest'        => $query->orderBy('orders.created_at', 'asc'),
+            'highest_value' => $query->orderBy('orders.total_amount', 'desc')->orderBy('orders.created_at', 'desc'),
+            'lowest_value'  => $query->orderBy('orders.total_amount', 'asc')->orderBy('orders.created_at', 'desc'),
+            default         => $query->orderBy('orders.created_at', 'desc'), // newest
+        };
     }
 }

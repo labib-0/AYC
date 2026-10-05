@@ -171,6 +171,7 @@ export class AdminCouponService {
     start_date?: string;
     end_date?: string;
     search?: string;
+    sort?: string;
     page?: number;
     per_page?: number;
   }): Promise<CouponSalesOrdersResponse> {
@@ -188,6 +189,65 @@ export class AdminCouponService {
     }
     return mockStore.getCouponSalesOrder(id);
   }
+
+  async exportCouponSalesCsv(params?: {
+    coupon_id?: number;
+    date_filter?: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+    sort?: string;
+  }): Promise<Blob> {
+    if (!isFrontendOnly()) {
+      const baseUrl = apiClient.getBaseUrl();
+      const token = apiClient.getToken();
+      const url = new URL(`${baseUrl}/admin/coupon-sales/export`);
+      if (params) {
+        Object.entries(params).forEach(([key, val]) => {
+          if (val !== undefined && val !== null && val !== "") {
+            url.searchParams.append(key, String(val));
+          }
+        });
+      }
+
+      const res = await fetch(url.toString(), {
+        headers: {
+          Accept: "text/csv",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!res.ok) {
+        let msg = `Export failed with status ${res.status}`;
+        try {
+          const json = await res.json();
+          if (json?.message) msg = json.message;
+        } catch {
+          // ignore
+        }
+        throw new Error(msg);
+      }
+
+      return await res.blob();
+    }
+
+    return mockStore.exportCouponSalesCsv(params);
+  }
+}
+
+export function downloadBlob(blob: Blob, filename: string): void {
+  if (typeof window === "undefined") return;
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.style.display = "none";
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }, 100);
 }
 
 export interface CouponSalesSummary {

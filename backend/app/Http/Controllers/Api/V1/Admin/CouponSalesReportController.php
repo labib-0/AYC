@@ -8,6 +8,7 @@ use App\Services\Coupon\CouponSalesReportService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CouponSalesReportController extends ApiController
 {
@@ -91,5 +92,19 @@ class CouponSalesReportController extends ApiController
         } catch (AuthorizationException $e) {
             return $this->forbidden($e->getMessage());
         }
+    }
+
+    /**
+     * GET /api/v1/admin/coupon-sales/export
+     * Stream CSV export strictly scoped to admin's bound coupons and applied filters.
+     */
+    public function export(Request $request): StreamedResponse|JsonResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAdmin()) {
+            return $this->forbidden('Administrator access required.');
+        }
+
+        return $this->reportService->exportOrdersCsv($user, $request->all());
     }
 }

@@ -845,7 +845,7 @@ class MockStore {
     };
   }
 
-  getCouponSalesOrders(params?: { coupon_id?: number; date_filter?: string; start_date?: string; end_date?: string; search?: string; page?: number; per_page?: number }): any {
+  getCouponSalesOrders(params?: { coupon_id?: number; date_filter?: string; start_date?: string; end_date?: string; search?: string; sort?: string; page?: number; per_page?: number }): any {
     const bindings = this.getCouponBindings();
     const boundCouponIds = bindings.map((b) => Number(b.coupon_id));
     const coupons = this.getCoupons();
@@ -866,6 +866,16 @@ class MockStore {
         o.email?.toLowerCase().includes(q) ||
         o.shipping_name?.toLowerCase().includes(q)
       );
+    }
+
+    if (params?.sort === "oldest") {
+      list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    } else if (params?.sort === "highest_value") {
+      list.sort((a, b) => Number(b.total_amount || 0) - Number(a.total_amount || 0));
+    } else if (params?.sort === "lowest_value") {
+      list.sort((a, b) => Number(a.total_amount || 0) - Number(b.total_amount || 0));
+    } else {
+      list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
     const page = params?.page || 1;
@@ -914,6 +924,28 @@ class MockStore {
 
   getCouponSalesOrder(id: number | string): any {
     return this.getOrders().find((o) => String(o.id) === String(id) || o.order_number === String(id)) || null;
+  }
+
+  exportCouponSalesCsv(params?: { coupon_id?: number; date_filter?: string; start_date?: string; end_date?: string; search?: string; sort?: string }): Blob {
+    const ordersRes = this.getCouponSalesOrders({ ...params, page: 1, per_page: 10000 });
+    const rows = [
+      ["Order Number", "Order Date", "Customer", "Coupon", "Discount", "Order Total", "Status"]
+    ];
+
+    for (const o of ordersRes.data) {
+      rows.push([
+        o.order_number,
+        o.created_at,
+        o.shipping_name || o.email || "Customer",
+        o.coupon_code || "N/A",
+        Number(o.discount_amount || 0).toFixed(2),
+        Number(o.total_amount || 0).toFixed(2),
+        o.status || "Pending",
+      ]);
+    }
+
+    const csvContent = "\uFEFF" + rows.map((r) => r.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    return new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   }
 
   // ==========================================

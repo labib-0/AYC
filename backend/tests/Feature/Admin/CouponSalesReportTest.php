@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Coupon\CouponAdminBindingService;
 use App\Services\Coupon\CouponSalesReportService;
+use Carbon\Carbon;
 use Database\Seeders\RbacPermissionCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -433,5 +434,144 @@ class CouponSalesReportTest extends TestCase
         $this->actingAs($this->customer, 'sanctum')
             ->getJson('/api/v1/admin/coupon-sales/orders')
             ->assertForbidden();
+
+        $this->actingAs($this->customer, 'sanctum')
+            ->get('/api/v1/admin/coupon-sales/export')
+            ->assertForbidden();
+    }
+
+    // ── 5. Prompt 3: CSV Export, Sorting & Advanced Filter Tests ─────────────
+
+    public function test_admin_a_exports_csv_strictly_scoped_to_their_bound_coupons(): void
+    {
+        $response = $this->actingAs($this->salesAdminA, 'sanctum')
+            ->get('/api/v1/admin/coupon-sales/export');
+
+        $response->assertOk();
+        $this->assertStringContainsString('text/csv', $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('attachment; filename="coupon-sales-export-', $response->headers->get('Content-Disposition'));
+
+        $content = $response->streamedContent();
+
+        // Must include header columns
+        $this->assertStringContainsString('Order Number', $content);
+        $this->assertStringContainsString('Order Date', $content);
+        $this->assertStringContainsString('Customer', $content);
+        $this->assertStringContainsString('Coupon', $content);
+        $this->assertStringContainsString('Discount', $content);
+        $this->assertStringContainsString('Order Total', $content);
+        $this->assertStringContainsString('Status', $content);
+
+        // Must include Admin A's orders (A1 and A2)
+        $this->assertStringContainsString('AYN-20261005-AAA001', $content);
+        $this->assertStringContainsString('AYN-20261005-AAA002', $content);
+
+        // Must NOT include Admin B's order (B1)
+        $this->assertStringNotContainsString('AYN-20261005-BBB001', $content);
+
+        // Must NOT include unassigned order
+        $this->assertStringNotContainsString('AYN-20261005-NOCOUPON', $content);
+    }
+
+    public function test_admin_b_exports_csv_containing_only_their_bound_coupons(): void
+    {
+        $response = $this->actingAs($this->salesAdminB, 'sanctum')
+            ->get('/api/v1/admin/coupon-sales/export');
+
+        $response->assertOk();
+        $content = $response->streamedContent();
+
+        // Must include B1
+        $this->assertStringContainsString('AYN-20261005-BBB001', $content);
+
+        // Must NOT include A1 or A2
+        $this->assertStringNotContainsString('AYN-20261005-AAA001', $content);
+        $this->assertStringNotContainsString('AYN-20261005-AAA002', $content);
+    }
+
+    public function test_export_csv_respects_search_and_coupon_filters(): void
+    {
+        // Admin A exports with search filter for AAA001
+        $response = $this->actingAs($this->salesAdminA, 'sanctum')
+            ->get('/api/v1/admin/coupon-sales/export?search=AAA001');
+
+        $response->assertOk();
+        $content = $response->streamedContent();
+
+        $this->assertStringContainsString('AYN-20261005-AAA001', $content);
+        $this->assertStringNotContainsString('AYN-20261005-AAA002', $content);
+    }
+
+    public function test_export_csv_triggers_audit_activity_log(): void
+    {
+        $response = $this->actingAs($this->salesAdminA, 'sanctum')
+            ->get('/api/v1/admin/coupon-sales/export');
+
+        $response->assertOk();
+        $response->streamedContent(); // Execute stream callback
+
+        $this->assertDatabaseHas('activities', [
+            'user_id' => $this->salesAdminA->id,
+            'action'  => 'coupon_sales.exported',
+        ]);
+    }
+
+    public function test_orders_sorting_highest_value_and_oldest(): void
+    {
+        // 1. Highest value first: AAA002 (300) then AAA001 (100)
+        $resHigh = $this->actingAs($this->salesAdminA, 'sanctum')
+            ->getJson('/api/v1/admin/coupon-sales/orders?sort=highest_value');
+
+        $resHigh->assertOk();
+        $dataHigh = $resHigh->json('data.data');
+        $this->assertCount(2, $dataHigh);
+        $this->assertEquals('AYN-20261005-AAA002', $dataHigh[0]['order_number']);
+        $this->assertEquals('AYN-20261005-AAA001', $dataHigh[1]['order_number']);
+
+        // 2. Lowest value first: AAA001 (100) then AAA002 (300)
+        $resLow = $this->actingAs($this->salesAdminA, 'sanctum')
+            ->getJson('/api/v1/admin/coupon-sales/orders?sort=lowest_value');
+
+        $resLow->assertOk();
+        $dataLow = $resLow->json('data.data');
+        $this->assertEquals('AYN-20261005-AAA001', $dataLow[0]['order_number']);
+        $this->assertEquals('AYN-20261005-AAA002', $dataLow[1]['order_number']);
+    }
+
+    public function test_advanced_date_filters_yesterday_and_last_month(): void
+    {
+        // Create an order yesterday
+        $yesterdayOrder = Order::create([
+            'order_number'         => 'AYN-20261004-YESTERDAY',
+            'user_id'              => $this->customer->id,
+            'email'                => $this->customer->email,
+            'shipping_name'        => 'Yesterday Customer',
+            'shipping_address1'    => '123 Commercial Ave',
+            'shipping_city'        => 'New York',
+            'shipping_postal_code' => '10001',
+            'shipping_country_code'=> 'US',
+            'coupon_id'            => $this->couponA->id,
+            'coupon_code'          => $this->couponA->code,
+            'currency'             => 'USD',
+            'subtotal'             => 50.00,
+            'discount_amount'      => 5.00,
+            'shipping_cost'        => 0.00,
+            'tax_amount'           => 0.00,
+            'total_amount'         => 45.00,
+            'status'               => 'completed',
+            'payment_status'       => 'paid',
+        ]);
+        Order::where('id', $yesterdayOrder->id)->update([
+            'created_at' => Carbon::now('Asia/Dhaka')->subDay(),
+            'updated_at' => Carbon::now('Asia/Dhaka')->subDay(),
+        ]);
+
+        $resYesterday = $this->actingAs($this->salesAdminA, 'sanctum')
+            ->getJson('/api/v1/admin/coupon-sales/orders?date_filter=yesterday');
+
+        $resYesterday->assertOk();
+        $yesterdayOrders = $resYesterday->json('data.data');
+        $this->assertCount(1, $yesterdayOrders);
+        $this->assertEquals('AYN-20261004-YESTERDAY', $yesterdayOrders[0]['order_number']);
     }
 }

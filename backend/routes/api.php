@@ -422,10 +422,12 @@ Route::prefix('v1')->group(function () {
         Route::delete('/coupon-bindings/{id}', [CouponAdminBindingController::class, 'destroy'])
             ->middleware('permission:coupon.edit');
 
-        // Coupon Sales Reporting (Prompt 2)
+        // Coupon Sales Reporting (Prompt 2 & 3)
         Route::get('/coupon-sales/summary', [CouponSalesReportController::class, 'summary'])
             ->middleware('permission:analytics.sales.view');
         Route::get('/coupon-sales/orders', [CouponSalesReportController::class, 'orders'])
+            ->middleware('permission:order.view');
+        Route::get('/coupon-sales/export', [CouponSalesReportController::class, 'export'])
             ->middleware('permission:order.view');
         Route::get('/coupon-sales/orders/{id}', [CouponSalesReportController::class, 'show'])
             ->middleware('permission:order.view');

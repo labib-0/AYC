@@ -13,47 +13,46 @@ export default function CouponSalesSummaryCards({
   summary,
   loading = false,
 }: CouponSalesSummaryCardsProps) {
+  const currency = summary?.currency || "USD";
+  const currencySymbol = currency === "BDT" ? "৳" : currency === "EUR" ? "€" : "$";
+
+  const formatAmount = (num?: number) => {
+    const val = Number(num || 0);
+    return `${currencySymbol}${val.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
   const cards = [
     {
       title: "TOTAL ORDERS",
       value: summary ? summary.total_orders.toLocaleString() : "0",
-      description: "Qualifying completed or confirmed orders",
+      description: "Attributed qualifying sales",
       icon: ShoppingBag,
-      color: "text-blue-500",
-      bg: "bg-blue-500/10",
-      border: "border-blue-500/20",
     },
     {
       title: "TOTAL SALES",
-      value: summary ? `$${summary.total_sales.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
-      description: "Authoritative order value attributed",
+      value: summary ? formatAmount(summary.total_sales) : `${currencySymbol}0.00`,
+      description: "Authoritative revenue generated",
       icon: DollarSign,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/20",
     },
     {
-      title: "TOTAL DISCOUNTS",
-      value: summary ? `$${summary.total_discounts.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00",
-      description: "Savings provided by bound coupons",
+      title: "TOTAL DISCOUNT",
+      value: summary ? formatAmount(summary.total_discounts) : `${currencySymbol}0.00`,
+      description: "Savings via assigned coupons",
       icon: Percent,
-      color: "text-amber-500",
-      bg: "bg-amber-500/10",
-      border: "border-amber-500/20",
     },
     {
-      title: "ASSIGNED COUPONS",
+      title: "COUPONS",
       value: summary ? summary.bound_coupons_count.toString() : "0",
-      description: "Coupons bound to your reporting scope",
+      description: "Active coupons in scope",
       icon: Tag,
-      color: "text-purple-500",
-      bg: "bg-purple-500/10",
-      border: "border-purple-500/20",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (
@@ -61,12 +60,12 @@ export default function CouponSalesSummaryCards({
             key={idx}
             className="p-4 rounded-2xl bg-card border border-border/80 shadow-2xs transition-all hover:border-border"
           >
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-between gap-3 mb-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
                 {card.title}
               </span>
-              <div className={`p-2 rounded-xl ${card.bg} ${card.color} ${card.border} border`}>
-                <Icon size={16} />
+              <div className="p-1.5 rounded-lg bg-secondary/70 text-foreground border border-border/60">
+                <Icon size={14} className="text-primary" />
               </div>
             </div>
             <div className="text-2xl font-display font-bold tracking-tight text-foreground">
@@ -76,7 +75,7 @@ export default function CouponSalesSummaryCards({
                 card.value
               )}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">
+            <p className="text-[11px] text-muted-foreground mt-1 truncate">
               {card.description}
             </p>
           </div>

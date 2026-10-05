@@ -1,7 +1,17 @@
 "use client";
 
 import React from "react";
-import { Search, RefreshCw, Calendar, Tag, X } from "lucide-react";
+import { 
+  Search, 
+  RefreshCw, 
+  Calendar, 
+  Tag, 
+  X, 
+  Download, 
+  RotateCcw, 
+  ArrowUpDown,
+  Filter
+} from "lucide-react";
 
 export interface BoundCouponItem {
   id: number;
@@ -23,8 +33,13 @@ export interface CouponSalesFilterToolbarProps {
   onEndDateChange: (date: string) => void;
   search: string;
   onSearchChange: (search: string) => void;
+  sort: string;
+  onSortChange: (sort: string) => void;
+  onReset: () => void;
   onRefresh: () => void;
+  onExportCsv: () => void;
   isRefreshing?: boolean;
+  isExporting?: boolean;
 }
 
 export default function CouponSalesFilterToolbar({
@@ -39,137 +54,195 @@ export default function CouponSalesFilterToolbar({
   onEndDateChange,
   search,
   onSearchChange,
+  sort,
+  onSortChange,
+  onReset,
   onRefresh,
+  onExportCsv,
   isRefreshing = false,
+  isExporting = false,
 }: CouponSalesFilterToolbarProps) {
   const dateOptions = [
     { label: "All Time", value: "all" },
     { label: "Today", value: "today" },
+    { label: "Yesterday", value: "yesterday" },
     { label: "This Week", value: "this_week" },
     { label: "This Month", value: "this_month" },
-    { label: "Custom", value: "custom" },
+    { label: "Last Month", value: "last_month" },
+    { label: "Custom Range", value: "custom" },
   ];
+
+  const sortOptions = [
+    { label: "Newest First", value: "newest" },
+    { label: "Oldest First", value: "oldest" },
+    { label: "Highest Order Value", value: "highest_value" },
+    { label: "Lowest Order Value", value: "lowest_value" },
+  ];
+
+  const isFiltered = Boolean(
+    selectedCouponId !== null ||
+    (dateFilter && dateFilter !== "all") ||
+    search ||
+    startDate ||
+    endDate ||
+    (sort && sort !== "newest")
+  );
 
   return (
     <div className="space-y-3 p-4 bg-card border border-border/80 rounded-2xl shadow-2xs">
-      {/* 1. Bound Coupons Selector (Pills) */}
-      {boundCoupons.length > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 shrink-0">
-            <Tag size={13} className="text-primary" />
-            <span>Scope Filter:</span>
-          </span>
-          <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto py-0.5">
-            <button
-              type="button"
-              onClick={() => onSelectCouponId(null)}
-              className={`px-3 py-1 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-                selectedCouponId === null
-                  ? "bg-primary text-primary-foreground shadow-2xs"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              All Assigned ({boundCoupons.length})
-            </button>
-            {boundCoupons.map((c) => {
-              const isSelected = selectedCouponId === c.id;
-              const discountText =
-                c.discount_type === "percentage"
-                  ? `${c.discount_value}% OFF`
-                  : `$${Number(c.discount_value).toFixed(2)} OFF`;
-
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => onSelectCouponId(isSelected ? null : c.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
-                      : "bg-secondary/40 text-foreground hover:bg-secondary/80 border border-border/60"
-                  }`}
-                >
-                  <span className="font-mono font-bold">{c.code}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    isSelected ? "bg-white/20 text-white" : "bg-secondary text-muted-foreground"
-                  }`}>
-                    {discountText}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 2. Secondary Row: Search, Date Filter & Refresh */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2 border-t border-border/60">
-        {/* Search Input */}
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search order #, customer, coupon..."
-            className="w-full pl-9 pr-8 py-1.5 text-xs rounded-xl border border-border bg-secondary/20 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-            id="input-coupon-sales-search"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => onSearchChange("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X size={13} />
-            </button>
-          )}
-        </div>
-
-        {/* Date Filter & Refresh */}
+      {/* Primary Filter Bar: Coupon Selector, Date Range, Search & Actions */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        {/* Left Controls: Coupon & Date Selectors */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Quick Date Pills */}
-          <div className="flex items-center p-0.5 rounded-xl bg-secondary/50 border border-border/70">
-            {dateOptions.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onDateFilterChange(opt.value)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
-                  dateFilter === opt.value
-                    ? "bg-card text-foreground shadow-2xs font-bold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+          {/* Section 4: Coupon Filter Dropdown */}
+          <div className="relative inline-flex items-center">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs font-medium focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
+              <Tag size={13} className="text-primary shrink-0" />
+              <select
+                value={selectedCouponId !== null ? String(selectedCouponId) : "all"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onSelectCouponId(val === "all" ? null : Number(val));
+                }}
+                className="bg-transparent text-foreground text-xs font-semibold focus:outline-hidden cursor-pointer pr-2"
+                id="select-coupon-filter"
+                aria-label="Filter by assigned coupon"
               >
-                {opt.label}
-              </button>
-            ))}
+                <option value="all" className="bg-card text-foreground">
+                  All Coupons ({boundCoupons.length})
+                </option>
+                {boundCoupons.map((c) => {
+                  const discountLabel =
+                    c.discount_type === "percentage"
+                      ? `${c.discount_value}% OFF`
+                      : `$${Number(c.discount_value).toFixed(2)} OFF`;
+                  return (
+                    <option key={c.id} value={String(c.id)} className="bg-card text-foreground">
+                      {c.code} ({discountLabel})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
           </div>
 
-          {/* Custom Date Inputs */}
+          {/* Section 5: Date Filter Dropdown */}
+          <div className="relative inline-flex items-center">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs font-medium focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
+              <Calendar size={13} className="text-muted-foreground shrink-0" />
+              <select
+                value={dateFilter}
+                onChange={(e) => onDateFilterChange(e.target.value)}
+                className="bg-transparent text-foreground text-xs font-medium focus:outline-hidden cursor-pointer pr-2"
+                id="select-date-filter"
+                aria-label="Filter by date range"
+              >
+                {dateOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value} className="bg-card text-foreground">
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Section 12: Server-side Sort Dropdown */}
+          <div className="relative inline-flex items-center">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs font-medium focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
+              <ArrowUpDown size={13} className="text-muted-foreground shrink-0" />
+              <select
+                value={sort}
+                onChange={(e) => onSortChange(e.target.value)}
+                className="bg-transparent text-foreground text-xs font-medium focus:outline-hidden cursor-pointer pr-2"
+                id="select-sort-order"
+                aria-label="Sort orders"
+              >
+                {sortOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value} className="bg-card text-foreground">
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Custom Date Range Picker */}
           {dateFilter === "custom" && (
             <div className="flex items-center gap-1.5 animate-in fade-in duration-150">
               <div className="flex items-center gap-1 bg-secondary/20 border border-border rounded-xl px-2 py-1 text-xs">
-                <Calendar size={12} className="text-muted-foreground" />
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => onStartDateChange(e.target.value)}
                   className="bg-transparent text-foreground text-xs focus:outline-hidden"
+                  aria-label="Start date"
                 />
               </div>
               <span className="text-xs text-muted-foreground font-medium">to</span>
               <div className="flex items-center gap-1 bg-secondary/20 border border-border rounded-xl px-2 py-1 text-xs">
-                <Calendar size={12} className="text-muted-foreground" />
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => onEndDateChange(e.target.value)}
                   className="bg-transparent text-foreground text-xs focus:outline-hidden"
+                  aria-label="End date"
                 />
               </div>
             </div>
           )}
+        </div>
+
+        {/* Right Controls: Search, Reset, Export & Refresh */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Section 6: Search Input */}
+          <div className="relative flex-1 sm:w-64 min-w-[200px]">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search order #, customer..."
+              className="w-full pl-8.5 pr-8 py-1.5 text-xs rounded-xl border border-border bg-secondary/20 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary focus:border-primary"
+              id="input-coupon-sales-search"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => onSearchChange("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Section 7: Reset Filters Button */}
+          {isFiltered && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-xl border border-border bg-secondary/40 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Reset all filters to default"
+              id="btn-coupon-sales-reset"
+            >
+              <RotateCcw size={12} />
+              <span>Reset</span>
+            </button>
+          )}
+
+          {/* Section 15: Export CSV Button */}
+          <button
+            type="button"
+            onClick={onExportCsv}
+            disabled={isExporting}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+            title="Export filtered qualifying orders to CSV"
+            id="btn-coupon-sales-export-csv"
+          >
+            <Download size={13} className={isExporting ? "animate-bounce" : ""} />
+            <span>{isExporting ? "Exporting..." : "Export CSV"}</span>
+          </button>
 
           {/* Refresh Button */}
           <button
@@ -179,6 +252,7 @@ export default function CouponSalesFilterToolbar({
             className="p-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
             title="Refresh sales data"
             aria-label="Refresh sales data"
+            id="btn-coupon-sales-refresh"
           >
             <RefreshCw size={14} className={isRefreshing ? "animate-spin text-primary" : ""} />
           </button>
