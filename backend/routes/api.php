@@ -399,18 +399,21 @@ Route::prefix('v1')->group(function () {
         Route::post('/coupons', [AdminCouponController::class, 'store'])
             ->middleware('permission:coupon.create');
         Route::get('/coupons/{id}', [AdminCouponController::class, 'show'])
+            ->whereNumber('id')
             ->middleware('permission:coupon.view');
         Route::put('/coupons/{id}', [AdminCouponController::class, 'update'])
+            ->whereNumber('id')
             ->middleware('permission:coupon.edit');
         Route::patch('/coupons/{id}/activate', function ($id, \Illuminate\Http\Request $request) {
             $request->merge(['is_active' => true]);
             return app(AdminCouponController::class)->update($request, (int) $id);
-        })->middleware('permission:coupon.activate');
+        })->whereNumber('id')->middleware('permission:coupon.activate');
         Route::patch('/coupons/{id}/deactivate', function ($id, \Illuminate\Http\Request $request) {
             $request->merge(['is_active' => false]);
             return app(AdminCouponController::class)->update($request, (int) $id);
-        })->middleware('permission:coupon.deactivate');
+        })->whereNumber('id')->middleware('permission:coupon.deactivate');
         Route::delete('/coupons/{id}', [AdminCouponController::class, 'destroy'])
+            ->whereNumber('id')
             ->middleware('permission:coupon.delete');
 
         // Coupon Admin Bindings (Prompt 1)
@@ -420,6 +423,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/coupon-bindings', [CouponAdminBindingController::class, 'store'])
             ->middleware('permission:coupon.edit');
         Route::delete('/coupon-bindings/{id}', [CouponAdminBindingController::class, 'destroy'])
+            ->whereNumber('id')
             ->middleware('permission:coupon.edit');
 
         // Coupon Sales Reporting (Prompt 2 & 3)
@@ -430,6 +434,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/coupon-sales/export', [CouponSalesReportController::class, 'export'])
             ->middleware('permission:order.view');
         Route::get('/coupon-sales/orders/{id}', [CouponSalesReportController::class, 'show'])
+            ->whereNumber('id')
             ->middleware('permission:order.view');
 
         // Settings & Shipping Configuration
