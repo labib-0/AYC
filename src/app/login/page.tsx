@@ -61,14 +61,16 @@ export default function LoginPage() {
       }
     }
     const u = targetUser || user;
-    if (u?.role === "admin") return "/ayc/dashboard";
+    if (u && u.role !== "customer") {
+      return "/login";
+    }
     return "/dashboard";
   };
 
   const isRedirectingRef = React.useRef(false);
-  // If already logged in, redirect to target or role-based dashboard
+  // If already logged in as customer, redirect to target or customer dashboard
   React.useEffect(() => {
-    if (user && !isRedirectingRef.current) {
+    if (user && user.role === "customer" && !isRedirectingRef.current) {
       isRedirectingRef.current = true;
       router.push(getRedirectUrl(user));
     }
@@ -87,10 +89,12 @@ export default function LoginPage() {
     setLoading(false);
 
     if (res.error) {
-      const errMsg = typeof res.error === "string" ? res.error : res.error.message || "Failed to sign in. Please verify your credentials.";
+      const errMsg = typeof res.error === "string" ? res.error : res.error.message || "These credentials cannot be used for customer login.";
       setError(errMsg);
-    } else {
+    } else if (res.user && res.user.role === "customer") {
       router.push(getRedirectUrl(res.user));
+    } else {
+      setError("These credentials cannot be used for customer login.");
     }
   };
 

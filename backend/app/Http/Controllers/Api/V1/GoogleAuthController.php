@@ -296,7 +296,10 @@ class GoogleAuthController extends ApiController
         }
 
         // Google OAuth is customer-only: never redirect to admin paths!
-        if ($target === '/admin' || str_starts_with($target, '/admin')) {
+        if (
+            $target === '/admin' || str_starts_with($target, '/admin') ||
+            $target === '/ayc' || str_starts_with($target, '/ayc')
+        ) {
             return '/dashboard';
         }
 

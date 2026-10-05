@@ -136,7 +136,13 @@ class RbacSecurityHardeningTest extends TestCase
     {
         $this->normalAdmin->update(['status' => 'inactive']);
 
-        $response = $this->postJson('/api/v1/auth/login', [
+        $responseCust = $this->postJson('/api/v1/auth/login', [
+            'email'    => 'admin@test.local',
+            'password' => 'Secret123!',
+        ]);
+        $responseCust->assertStatus(422);
+
+        $response = $this->postJson('/api/v1/auth/admin/login', [
             'email'    => 'admin@test.local',
             'password' => 'Secret123!',
         ]);

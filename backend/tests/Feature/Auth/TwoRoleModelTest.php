@@ -115,14 +115,24 @@ class TwoRoleModelTest extends TestCase
             ]);
     }
 
-    public function test_2_admin_role_accepted_at_login(): void
+    public function test_2_admin_role_rejected_at_customer_login_and_accepted_at_admin_login(): void
     {
-        $response = $this->postJson('/api/v1/auth/login', [
+        // 1. Admin credentials rejected at public customer login endpoint
+        $customerLoginResponse = $this->postJson('/api/v1/auth/login', [
             'email' => 'admin@ayaan-demo.local',
             'password' => 'Admin@12345',
         ]);
 
-        $response->assertStatus(200)
+        $customerLoginResponse->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+
+        // 2. Admin credentials accepted at dedicated admin login endpoint
+        $adminLoginResponse = $this->postJson('/api/v1/auth/admin/login', [
+            'email' => 'admin@ayaan-demo.local',
+            'password' => 'Admin@12345',
+        ]);
+
+        $adminLoginResponse->assertStatus(200)
             ->assertJson([
                 'success' => true,
                 'data' => [

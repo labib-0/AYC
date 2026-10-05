@@ -185,6 +185,10 @@ class RfqController extends ApiController
             return $this->unauthorized('Please log in to submit an RFQ.');
         }
 
+        if ($user->isAdmin() || !$user->isCustomer()) {
+            return $this->forbidden('Only customer accounts may submit quotation requests.');
+        }
+
         // Support both snake_case and camelCase payloads seamlessly
         $rawItems = $request->input('items', []);
         $formattedItems = [];

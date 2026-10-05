@@ -45,25 +45,73 @@ class AuthController extends ApiController
 
     /**
      * POST /api/v1/auth/login
+     * Public Customer Login Endpoint. Strictly authenticates customer accounts only.
+     * Administrative accounts are rejected before token/session creation.
      */
     public function login(LoginRequest $request): JsonResponse
+    {
+        return $this->authenticate($request, User::ROLE_CUSTOMER);
+    }
+
+    /**
+     * POST /api/v1/auth/admin/login
+     * Dedicated Administrator Login Endpoint. Strictly authenticates administrator accounts only.
+     * Customer accounts are rejected before token/session creation.
+     */
+    public function adminLogin(LoginRequest $request): JsonResponse
+    {
+        return $this->authenticate($request, User::ROLE_ADMIN);
+    }
+
+    /**
+     * Core authentication and role-policy enforcement handler.
+     *
+     * Order of operations (strictly enforces security):
+     *   1. Validate credentials against database password hash
+     *   2. Check account status (reject deactivated accounts)
+     *   3. Authorize account against required context role (reject unauthorized roles)
+     *   4. Create Sanctum personal access token ONLY after role policy passes
+     *
+     * Zero tokens or sessions are created for rejected administrative or unauthorized attempts.
+     */
+    protected function authenticate(LoginRequest $request, string $requiredRole): JsonResponse
     {
         $validated = $request->validated();
 
         $user = User::where('email', $validated['email'])->first();
 
+        // 1. Verify user exists and credentials match
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials do not match our records.'],
             ]);
         }
 
+        // 2. Verify account is active
         if ($user->status === 'inactive') {
             throw ValidationException::withMessages([
                 'email' => ['This account has been deactivated. Please contact an administrator.'],
             ]);
         }
 
+        // 3. Strict Role Separation & Authorization Check
+        if ($requiredRole === User::ROLE_CUSTOMER) {
+            // Reject admin, super admin, or any non-customer account attempting customer login
+            if ($user->isAdmin() || ! $user->isCustomer()) {
+                throw ValidationException::withMessages([
+                    'email' => ['These credentials cannot be used for customer login.'],
+                ]);
+            }
+        } elseif ($requiredRole === User::ROLE_ADMIN) {
+            // Reject customer accounts attempting administrator login
+            if (! $user->isAdmin()) {
+                throw ValidationException::withMessages([
+                    'email' => ['These credentials cannot be used for administrator login.'],
+                ]);
+            }
+        }
+
+        // 4. Token creation ONLY occurs after successful credentials, status, and role validation
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return $this->success([

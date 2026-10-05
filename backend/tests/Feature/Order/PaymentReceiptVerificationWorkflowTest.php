@@ -27,12 +27,12 @@ class PaymentReceiptVerificationWorkflowTest extends TestCase
         Storage::fake('public');
 
         $this->customer = User::factory()->create([
-            'role' => 'buyer',
+            'role' => User::ROLE_CUSTOMER,
             'b2b_approval_status' => 'approved',
         ]);
 
         $this->otherCustomer = User::factory()->create([
-            'role' => 'buyer',
+            'role' => User::ROLE_CUSTOMER,
             'b2b_approval_status' => 'approved',
         ]);
 

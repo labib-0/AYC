@@ -139,33 +139,31 @@ class ApiClient {
     };
 
     if (isAdmin) {
-      const cleanAdmin = sanitizeToken(adminToken);
-      if (cleanAdmin) return cleanAdmin;
-      return sanitizeToken(customerToken);
+      // In Admin Context (/ayc): strictly return ONLY adminToken
+      return sanitizeToken(adminToken);
     }
 
-    const cleanCustomer = sanitizeToken(customerToken);
-    if (cleanCustomer) return cleanCustomer;
-    return sanitizeToken(adminToken);
+    // In Customer Storefront Context: strictly return ONLY customerToken
+    return sanitizeToken(customerToken);
   }
 
   public setToken(token: string): void {
     if (typeof window === "undefined") return;
     localStorage.setItem(this.tokenKey, token);
-    if (this.isAdminContext()) {
-      localStorage.setItem("ayaan_admin_token", token);
-    }
   }
 
   public setAdminToken(token: string): void {
     if (typeof window === "undefined") return;
     localStorage.setItem("ayaan_admin_token", token);
-    localStorage.setItem(this.tokenKey, token);
   }
 
   public removeToken(): void {
     if (typeof window === "undefined") return;
     localStorage.removeItem(this.tokenKey);
+  }
+
+  public removeAdminToken(): void {
+    if (typeof window === "undefined") return;
     localStorage.removeItem("ayaan_admin_token");
   }
 

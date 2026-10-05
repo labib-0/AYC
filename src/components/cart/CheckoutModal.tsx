@@ -59,14 +59,14 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      if (!user) {
+      if (!user || user.role !== "customer") {
         onClose();
         if (typeof window !== "undefined") {
           sessionStorage.setItem("ayaan_open_checkout", "true");
-          sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
+          sessionStorage.setItem("ayaan_login_notice", "Please log in with a customer account to continue to checkout.");
           const currentPath = window.location.pathname + window.location.search;
           const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") ? "/cart?openCheckout=true" : (currentPath === "/cart" ? "/cart?openCheckout=true" : currentPath);
-          router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
+          router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in with a customer account to continue to checkout.")}`);
         }
         return;
       }

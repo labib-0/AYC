@@ -31,6 +31,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const currentUser = await authService.getCurrentUser();
       if (currentUser) {
+        // Security isolation: Customer AuthContext strictly rejects non-customer roles
+        if (currentUser.role !== "customer") {
+          setUser(null);
+          return;
+        }
         const nextId = String(currentUser.id);
         setUser((prev) => {
           if (
@@ -81,6 +86,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await authService.login({ email, password });
       if (res?.user) {
+        if (res.user.role !== "customer") {
+          setUser(null);
+          return { error: "These credentials cannot be used for customer login." };
+        }
         const u = { ...res.user, id: String(res.user.id) };
         setUser(u);
         return { user: u };

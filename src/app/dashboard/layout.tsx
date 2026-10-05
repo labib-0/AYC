@@ -30,12 +30,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && (!user || user.role !== "customer")) {
       if (typeof window !== "undefined") {
         sessionStorage.setItem("ayaan_intended_destination", pathname);
-        sessionStorage.setItem("ayaan_login_notice", "Please log in to continue.");
+        sessionStorage.setItem("ayaan_login_notice", "Please log in with a customer account to continue.");
       }
-      router.push(`/login?returnUrl=${encodeURIComponent(pathname)}&notice=${encodeURIComponent("Please log in to continue.")}`);
+      router.push(`/login?returnUrl=${encodeURIComponent(pathname)}&notice=${encodeURIComponent("Please log in with a customer account to continue.")}`);
     }
   }, [user, loading, router, pathname]);
 
@@ -52,7 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!user) {
+  if (!user || user.role !== "customer") {
     return null;
   }
 

@@ -49,7 +49,9 @@ function CallbackHandler() {
       !rawRedirect.startsWith("/\\") &&
       !rawRedirect.includes("\\") &&
       !rawRedirect.startsWith("/admin") &&
-      rawRedirect !== "/admin"
+      rawRedirect !== "/admin" &&
+      !rawRedirect.startsWith("/ayc") &&
+      rawRedirect !== "/ayc"
     ) {
       target = rawRedirect;
     }
@@ -65,12 +67,17 @@ function CallbackHandler() {
               ticket: ticket || undefined,
             });
             const authData = "data" in res && res.data ? res.data : res;
+            if (authData?.user && authData.user.role !== "customer") {
+              throw new Error("Google Sign-In is restricted to customer accounts only.");
+            }
             if (authData?.token) {
               tokenToSet = authData.token;
               if (
                 authData.redirect &&
                 !authData.redirect.startsWith("/admin") &&
-                authData.redirect !== "/admin"
+                authData.redirect !== "/admin" &&
+                !authData.redirect.startsWith("/ayc") &&
+                authData.redirect !== "/ayc"
               ) {
                 target = authData.redirect;
               }

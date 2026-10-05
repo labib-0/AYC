@@ -172,8 +172,14 @@ class DevelopmentSeederTest extends TestCase
     {
         $this->seed(DevelopmentDemoSeeder::class);
 
-        // 1. Admin login
-        $adminRes = $this->postJson('/api/v1/auth/login', [
+        // 1. Admin login (dedicated admin login endpoint succeeds, customer login rejected)
+        $adminCustReject = $this->postJson('/api/v1/auth/login', [
+            'email' => 'admin@ayaan-demo.local',
+            'password' => 'Admin@12345',
+        ]);
+        $adminCustReject->assertStatus(422);
+
+        $adminRes = $this->postJson('/api/v1/auth/admin/login', [
             'email' => 'admin@ayaan-demo.local',
             'password' => 'Admin@12345',
         ]);

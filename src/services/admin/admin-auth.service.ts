@@ -108,7 +108,7 @@ export class AdminAuthService {
     const password = credentials.password || "";
 
     if (!isFrontendOnly()) {
-      const res = await apiClient.post<any>("/auth/login", { email, password });
+      const res = await apiClient.post<any>("/auth/admin/login", { email, password });
       const authData = "data" in res && res.data ? res.data : res;
       const user = authData?.user;
       const token = authData?.token;
@@ -127,7 +127,6 @@ export class AdminAuthService {
         window.dispatchEvent(new CustomEvent("ayaan:admin-auth-changed", { detail: { user, token } }));
       }
       apiClient.setAdminToken(token);
-      mockStore.setActiveUser(user);
 
       return { user, token };
     }
@@ -167,7 +166,7 @@ export class AdminAuthService {
       } catch {}
     }
     this.clearAdminSession();
-    apiClient.removeToken();
+    apiClient.removeAdminToken();
   }
 
   /**

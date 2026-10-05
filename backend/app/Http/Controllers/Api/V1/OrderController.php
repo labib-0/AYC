@@ -96,6 +96,10 @@ class OrderController extends ApiController
             return $this->unauthorized('Please log in to continue to checkout.');
         }
 
+        if ($user->isAdmin() || !$user->isCustomer()) {
+            return $this->forbidden('Only customer accounts may perform checkout.');
+        }
+
         // Resolve Items to Process (from request items or active cart)
         $itemsToProcess = [];
         if ($request->filled('items') && is_array($request->input('items'))) {
@@ -169,6 +173,10 @@ class OrderController extends ApiController
         $user = $request->user() ?: auth('sanctum')->user();
         if (!$user) {
             return $this->unauthorized('Please log in to continue to checkout.');
+        }
+
+        if ($user->isAdmin() || !$user->isCustomer()) {
+            return $this->forbidden('Only customer accounts may perform checkout.');
         }
 
         // 1. Resolve Items to Purchase (from active cart or request payload)

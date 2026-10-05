@@ -44,14 +44,14 @@ export default function RfqPage() {
   const { user, loading: authLoading } = useAuth();
   const { rfqItems, removeFromRfq, updateRfqItemQuantity, updateRfqItemNotes, clearRfq } = useRfq();
 
-  // Authentication Guard: Guests must log in to submit or view the RFQ form
+  // Authentication Guard: Customers only must log in to submit or view the RFQ form
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && (!user || user.role !== "customer")) {
       if (typeof window !== "undefined") {
         sessionStorage.setItem("ayaan_intended_destination", "/rfq");
-        sessionStorage.setItem("ayaan_login_notice", "Please log in to submit an RFQ.");
+        sessionStorage.setItem("ayaan_login_notice", "Please log in with a customer account to submit an RFQ.");
       }
-      router.push(`/login?returnUrl=${encodeURIComponent("/rfq")}&notice=${encodeURIComponent("Please log in to submit an RFQ.")}`);
+      router.push(`/login?returnUrl=${encodeURIComponent("/rfq")}&notice=${encodeURIComponent("Please log in with a customer account to submit an RFQ.")}`);
     }
   }, [user, authLoading, router]);
 

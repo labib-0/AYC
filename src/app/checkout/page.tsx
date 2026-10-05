@@ -11,13 +11,13 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (loading) return;
 
-    if (!user) {
+    if (!user || user.role !== "customer") {
       if (typeof window !== "undefined") {
         sessionStorage.setItem("ayaan_open_checkout", "true");
-        sessionStorage.setItem("ayaan_login_notice", "Please log in to continue to checkout.");
+        sessionStorage.setItem("ayaan_login_notice", "Please log in with a customer account to continue to checkout.");
       }
       router.replace(
-        `/login?returnUrl=${encodeURIComponent("/cart?openCheckout=true")}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`
+        `/login?returnUrl=${encodeURIComponent("/cart?openCheckout=true")}&notice=${encodeURIComponent("Please log in with a customer account to continue to checkout.")}`
       );
       return;
     }

@@ -64,7 +64,11 @@ Route::prefix('v1')->group(function () {
     // Authentication Endpoints
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-register');
+        // Public Customer Login (default and explicit alias)
         Route::post('/login', [AuthController::class, 'login'])->name('login')->middleware('throttle:auth-login');
+        Route::post('/customer/login', [AuthController::class, 'login'])->middleware('throttle:auth-login');
+        // Dedicated Administrator Login
+        Route::post('/admin/login', [AuthController::class, 'adminLogin'])->name('admin.login')->middleware('throttle:auth-login');
         
         // Password Reset Endpoints
         Route::post('/password/forgot', [AuthController::class, 'forgotPassword'])->middleware('throttle:password-reset');
@@ -88,14 +92,14 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // User Profile
-    Route::middleware('auth:sanctum')->prefix('users')->group(function () {
+    // User Profile (Customer)
+    Route::middleware(['auth:sanctum', 'role:customer'])->prefix('users')->group(function () {
         Route::get('/me', [UserController::class, 'me']);
         Route::put('/me', [UserController::class, 'update']);
     });
 
-    // Addresses
-    Route::middleware('auth:sanctum')->prefix('addresses')->group(function () {
+    // Addresses (Customer)
+    Route::middleware(['auth:sanctum', 'role:customer'])->prefix('addresses')->group(function () {
         Route::get('/', [AddressController::class, 'index']);
         Route::post('/', [AddressController::class, 'store']);
         Route::put('/{id}', [AddressController::class, 'update']);
@@ -185,20 +189,25 @@ Route::prefix('v1')->group(function () {
     // Checkout & Orders (Customer)
     Route::post('/coupons/validate', [CouponController::class, 'validateCoupon'])->middleware('throttle:coupons-validate');
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
         Route::post('/checkout/validate', [OrderController::class, 'validateCheckout'])->middleware('throttle:checkout-order');
     });
 
     Route::prefix('orders')->group(function () {
         Route::get('/{id}/tracking', [OrderController::class, 'tracking']);
 
-        Route::middleware('auth:sanctum')->group(function () {
+        // Strictly customer mutations & customer personal order listing
+        Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
             Route::post('/', [OrderController::class, 'store'])->middleware('throttle:checkout-order');
             Route::get('/', [OrderController::class, 'index']);
-            Route::get('/{id}', [OrderController::class, 'show']);
-            Route::get('/{id}/documents/{docType}', [OrderController::class, 'document']);
             Route::post('/{id}/cancel', [OrderController::class, 'cancel']);
             Route::post('/{id}/payment-proof', [OrderController::class, 'uploadPaymentProof']);
+        });
+
+        // Detail and document views (accessible by customer owner or admin)
+        Route::middleware('auth:sanctum')->group(function () {
+            Route::get('/{id}', [OrderController::class, 'show']);
+            Route::get('/{id}/documents/{docType}', [OrderController::class, 'document']);
         });
     });
 
@@ -214,8 +223,8 @@ Route::prefix('v1')->group(function () {
     });
 
 
-    // Wishlist
-    Route::middleware('auth:sanctum')->prefix('wishlist')->group(function () {
+    // Wishlist (Customer)
+    Route::middleware(['auth:sanctum', 'role:customer'])->prefix('wishlist')->group(function () {
         Route::get('/', [WishlistController::class, 'index']);
         Route::post('/', [WishlistController::class, 'store']);
         Route::post('/items', [WishlistController::class, 'store']);
@@ -225,8 +234,13 @@ Route::prefix('v1')->group(function () {
 
     // RFQ / Quotes
     Route::prefix('rfq')->group(function () {
-        Route::middleware('auth:sanctum')->group(function () {
+        // Customer submission (strictly customer-only)
+        Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
             Route::post('/', [RfqController::class, 'store'])->middleware('throttle:rfq-create');
+        });
+
+        // RFQ management & messages
+        Route::middleware('auth:sanctum')->group(function () {
             Route::get('/', [RfqController::class, 'index']);
             Route::get('/{id}', [RfqController::class, 'show']);
             Route::patch('/{id}/status', [RfqController::class, 'updateStatus']);
@@ -239,9 +253,16 @@ Route::prefix('v1')->group(function () {
     Route::prefix('quotations')->middleware('auth:sanctum')->group(function () {
         Route::get('/', [QuotationController::class, 'index']);
         Route::get('/{id}', [QuotationController::class, 'show']);
-        Route::post('/{id}/respond', [QuotationController::class, 'respond'])->middleware('throttle:quotation-action');
+        Route::middleware('role:customer')->post('/{id}/respond', [QuotationController::class, 'respond'])->middleware('throttle:quotation-action');
         Route::get('/{id}/documents/{docType}', [QuotationController::class, 'document']);
     });
+
+    // ==========================================
+    // ADMIN ROUTES (Protected by Sanctum Auth and role:admin)
+    // ==========================================
+    // Dedicated Admin Login Aliases
+    Route::post('/admin/login', [AuthController::class, 'adminLogin'])->middleware('throttle:auth-login');
+    Route::post('/admin/auth/login', [AuthController::class, 'adminLogin'])->middleware('throttle:auth-login');
 
     // ==========================================
     // Dedicated Admin Management Suite
