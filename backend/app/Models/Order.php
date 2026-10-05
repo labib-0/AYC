@@ -57,6 +57,8 @@ class Order extends Model
         'notes',
         'placed_at',
         'is_demo',
+        'order_source',
+        'created_by_admin_id',
     ];
 
     protected $casts = [
@@ -74,11 +76,22 @@ class Order extends Model
         'placed_at' => 'datetime',
         'is_demo' => 'boolean',
         'coupon_id' => 'integer',
+        'created_by_admin_id' => 'integer',
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function createdByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_admin_id');
+    }
+
+    public function isPos(): bool
+    {
+        return $this->order_source === 'pos';
     }
 
     public function coupon(): BelongsTo

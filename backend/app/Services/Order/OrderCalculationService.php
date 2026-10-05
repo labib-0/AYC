@@ -73,7 +73,9 @@ class OrderCalculationService
                 throw new InvalidArgumentException("Product '{$name}' is currently unavailable.");
             }
 
-            $totalStock = (int) $product->variants->sum('stock');
+            $totalStock = $product->variants->isNotEmpty()
+                ? (int) $product->variants->sum('stock')
+                : (int) ($product->stock ?? $product->getTotalAvailableStock());
 
             // 1. Server-Side MOQ and Increment Enforcement
             if ($product->moq > 1) {

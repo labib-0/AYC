@@ -22,7 +22,8 @@ import {
   ChevronRight,
   PlusCircle,
   TrendingUp,
-  Boxes
+  Boxes,
+  Store
 } from "lucide-react";
 
 import { useAdminAuth } from "@/lib/AdminAuthContext";
@@ -59,6 +60,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: "COMMERCE",
     items: [
+      { label: "POS", href: "/ayc/pos", icon: Store, permission: ADMIN_PERMISSIONS.POS_VIEW },
       { label: "Orders & Fulfillment", href: "/ayc/orders", icon: ShoppingBag, permission: ADMIN_PERMISSIONS.ORDER_VIEW },
       { label: "Customer Accounts", href: "/ayc/customers", icon: Users, permission: ADMIN_PERMISSIONS.CUSTOMER_VIEW },
       { label: "RFQ", href: "/ayc/rfq", icon: FileText, permission: ADMIN_PERMISSIONS.RFQ_VIEW },

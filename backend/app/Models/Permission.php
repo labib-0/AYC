@@ -176,6 +176,10 @@ class Permission extends Model
             'order.mark_shipped'      => ['name' => 'Mark Order Shipped',    'module' => 'Orders', 'action' => 'mark_shipped',       'description' => 'Mark order as shipped',                 'requires' => ['order.view', 'order.update_fulfillment']],
             'order.mark_delivered'    => ['name' => 'Mark Order Delivered',  'module' => 'Orders', 'action' => 'mark_delivered',     'description' => 'Mark order as delivered',               'requires' => ['order.view', 'order.update_fulfillment']],
 
+            // ── Point of Sale (POS) ─────────────────────────────────────────
+            'pos.view'                => ['name' => 'View POS',               'module' => 'POS', 'action' => 'view',                 'description' => 'Access Point of Sale interface and view POS data', 'requires' => []],
+            'pos.create'              => ['name' => 'Create POS Sale',        'module' => 'POS', 'action' => 'create',               'description' => 'Create and confirm Point of Sale orders',           'requires' => ['pos.view']],
+
             // ── Payment ────────────────────────────────────────────────────
             'payment.view'                => ['name' => 'View Payments',           'module' => 'Payment', 'action' => 'view',               'description' => 'View payment records',                  'requires' => []],
             'payment.receipt.view'        => ['name' => 'View Payment Receipt',    'module' => 'Payment', 'action' => 'receipt.view',       'description' => 'View uploaded payment proof/receipt',   'requires' => ['payment.view']],

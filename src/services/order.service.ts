@@ -50,6 +50,13 @@ export interface OrderRecord {
   id: string;
   order_number: string;
   user_id?: string | number | null;
+  order_source?: "storefront" | "pos" | string;
+  created_by_admin_id?: string | number | null;
+  created_by_admin?: {
+    id?: string | number;
+    name?: string;
+    email?: string;
+  } | null;
   status: "pending" | "processing" | "confirmed" | "fulfilled" | "cancelled" | "shipped" | "delivered" | string;
   payment_status: "pending" | "paid" | "failed" | "refunded" | string;
   fulfillment_status: "unfulfilled" | "processing" | "shipped" | "delivered" | "returned" | string;

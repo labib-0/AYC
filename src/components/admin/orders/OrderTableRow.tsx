@@ -42,18 +42,25 @@ export default function OrderTableRow({
     <tr className="border-b border-border/50 hover:bg-secondary/20 transition-colors text-xs">
       {/* 1. Order Number */}
       <td className="py-3 px-4">
-        {can("order.view") ? (
-          <Link
-            href={detailHref}
-            className="font-mono font-bold text-foreground hover:text-primary transition-colors block"
-          >
-            {order.order_number}
-          </Link>
-        ) : (
-          <span className="font-mono font-bold text-foreground block">
-            {order.order_number}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {can("order.view") ? (
+            <Link
+              href={detailHref}
+              className="font-mono font-bold text-foreground hover:text-primary transition-colors block"
+            >
+              {order.order_number}
+            </Link>
+          ) : (
+            <span className="font-mono font-bold text-foreground block">
+              {order.order_number}
+            </span>
+          )}
+          {order.order_source === "pos" && (
+            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20" title="Point of Sale Order">
+              POS
+            </span>
+          )}
+        </div>
         <span className="text-[10px] text-muted-foreground block font-mono">
           {formattedDate}
         </span>

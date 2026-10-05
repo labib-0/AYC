@@ -46,6 +46,10 @@ export const ADMIN_PERMISSIONS = {
   ORDER_UPDATE_FULFILLMENT: "order.update_fulfillment",
   ORDER_SHIPPING_UPDATE: "order.shipping.update",
 
+  // Point of Sale (POS)
+  POS_VIEW: "pos.view",
+  POS_CREATE: "pos.create",
+
   // Payments
   PAYMENT_VIEW: "payment.view",
   PAYMENT_RECEIPT_VIEW: "payment.receipt.view",

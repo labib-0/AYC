@@ -107,6 +107,15 @@ class OrderResource extends JsonResource
             }),
             'payment_confirmed_at' => $this->payment_confirmed_at?->toISOString(),
             'payment_confirmed_by' => $this->when($request->user()?->role === 'admin', fn () => $this->payment_confirmed_by ? (string) $this->payment_confirmed_by : null),
+            'order_source' => $this->order_source ?? 'storefront',
+            'created_by_admin_id' => $this->when($isAdmin, fn () => $this->created_by_admin_id ? (string) $this->created_by_admin_id : null),
+            'created_by_admin' => $this->when($isAdmin && $this->relationLoaded('createdByAdmin'), function () {
+                return $this->createdByAdmin ? [
+                    'id' => (string) $this->createdByAdmin->id,
+                    'name' => $this->createdByAdmin->name,
+                    'email' => $this->createdByAdmin->email,
+                ] : null;
+            }),
             'placed_at' => $this->placed_at?->toISOString() ?: $this->created_at?->toISOString(),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

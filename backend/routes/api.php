@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardContr
 use App\Http\Controllers\Api\V1\Admin\InventoryController as AdminInventoryController;
 use App\Http\Controllers\Api\V1\Admin\SupplierController as AdminSupplierController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Api\V1\Admin\PosController as AdminPosController;
 use App\Http\Controllers\Api\V1\Admin\RbacController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BrandController;
@@ -414,6 +415,20 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:shipment.create');
         Route::post('/orders/{id}/tracking/refresh', [AdminOrderController::class, 'refreshTracking'])
             ->middleware('permission:tracking.refresh');
+
+        // Point of Sale (POS) Phase 1
+        Route::prefix('pos')->group(function () {
+            Route::get('/customers', [AdminPosController::class, 'customers'])
+                ->middleware('permission:pos.view');
+            Route::get('/products', [AdminPosController::class, 'products'])
+                ->middleware('permission:pos.view');
+            Route::get('/warehouses', [AdminPosController::class, 'warehouses'])
+                ->middleware('permission:pos.view');
+            Route::post('/calculate', [AdminPosController::class, 'calculate'])
+                ->middleware('permission:pos.view');
+            Route::post('/orders', [AdminPosController::class, 'store'])
+                ->middleware('permission:pos.create');
+        });
 
         // Coupons (Granular RBAC Protection)
         Route::get('/coupons', [AdminCouponController::class, 'index'])
