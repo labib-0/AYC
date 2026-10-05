@@ -12,6 +12,10 @@ class Coupon extends Model
 {
     use HasFactory;
 
+    public const TYPE_PERCENTAGE = 'percentage';
+    public const TYPE_FLAT = 'flat';
+    public const TYPE_FIXED = 'fixed';
+
     protected $fillable = [
         'code',
         'discount_type',

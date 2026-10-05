@@ -79,7 +79,11 @@ export default function AdminCouponsPage() {
     return coupons.filter((c) => {
       if (statusFilter === "active" && !c.is_active) return false;
       if (statusFilter === "inactive" && c.is_active) return false;
-      if (typeFilter !== "all" && c.discount_type !== typeFilter) return false;
+      if (typeFilter !== "all") {
+        const isPerc = c.discount_type === "percentage";
+        if (typeFilter === "percentage" && !isPerc) return false;
+        if (typeFilter === "flat" && isPerc) return false;
+      }
       if (search) {
         const q = search.toLowerCase().trim();
         if (!c.code.toLowerCase().includes(q)) return false;

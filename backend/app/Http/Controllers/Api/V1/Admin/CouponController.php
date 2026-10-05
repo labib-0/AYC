@@ -57,7 +57,7 @@ class CouponController extends ApiController
 
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:50', 'unique:coupons,code'],
-            'discount_type' => ['required', 'string', 'in:percentage,fixed'],
+            'discount_type' => ['required', 'string', 'in:percentage,flat,fixed,fixed_amount'],
             'discount_value' => ['required', 'numeric', 'min:0'],
             'min_spend' => ['nullable', 'numeric', 'min:0'],
             'max_discount' => ['nullable', 'numeric', 'min:0'],
@@ -66,6 +66,14 @@ class CouponController extends ApiController
             'expires_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'is_active' => ['nullable', 'boolean'],
         ]);
+
+        $validated['code'] = strtoupper(trim($validated['code']));
+
+        // Canonical discount types: percentage or flat
+        if (in_array($validated['discount_type'], ['fixed', 'fixed_amount', 'flat'], true)) {
+            $validated['discount_type'] = 'flat';
+            $validated['max_discount'] = null; // Cap only applies to percentage
+        }
 
         $coupon = Coupon::create($validated);
 
@@ -106,7 +114,7 @@ class CouponController extends ApiController
 
         $validated = $request->validate([
             'code' => ['sometimes', 'string', 'max:50', 'unique:coupons,code,' . $id],
-            'discount_type' => ['sometimes', 'string', 'in:percentage,fixed'],
+            'discount_type' => ['sometimes', 'string', 'in:percentage,flat,fixed,fixed_amount'],
             'discount_value' => ['sometimes', 'numeric', 'min:0'],
             'min_spend' => ['nullable', 'numeric', 'min:0'],
             'max_discount' => ['nullable', 'numeric', 'min:0'],
@@ -115,6 +123,16 @@ class CouponController extends ApiController
             'expires_at' => ['nullable', 'date'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+
+        if (isset($validated['code'])) {
+            $validated['code'] = strtoupper(trim($validated['code']));
+        }
+
+        // Canonical discount types: percentage or flat
+        if (isset($validated['discount_type']) && in_array($validated['discount_type'], ['fixed', 'fixed_amount', 'flat'], true)) {
+            $validated['discount_type'] = 'flat';
+            $validated['max_discount'] = null; // Cap only applies to percentage
+        }
 
         if (array_key_exists('is_active', $validated) && $validated['is_active'] !== $coupon->is_active) {
             if ($validated['is_active'] && !$this->authorization->can($user, 'coupon.activate')) {

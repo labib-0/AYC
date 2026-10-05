@@ -11,11 +11,11 @@ export interface CouponRecord {
   discount_type: CouponDiscountType;
   discount_value: number;
   min_spend: number; // Minimum Order Amount (USD) - mandatory, must be > 0
-  max_discount?: number;
-  usage_limit?: number;
+  max_discount?: number | null;
+  usage_limit?: number | null;
   usage_count: number;
-  starts_at?: string;
-  expires_at?: string;
+  starts_at?: string | null;
+  expires_at?: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -70,7 +70,8 @@ export class AdminCouponService {
 
     let list = mockStore.getCoupons();
     if (params?.type && params.type !== "all") {
-      list = list.filter((c) => c.discount_type === params.type);
+      const isPerc = params.type === "percentage";
+      list = list.filter((c) => (c.discount_type === "percentage") === isPerc);
     }
     if (params?.status === "active") {
       list = list.filter((c) => c.is_active);

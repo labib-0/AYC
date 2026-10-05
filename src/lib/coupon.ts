@@ -160,7 +160,7 @@ export function validateCoupon(
     canonicalType,
     coupon.discount_value,
     subtotal,
-    coupon.max_discount
+    coupon.max_discount ?? undefined
   );
 
   const discountLabel =
