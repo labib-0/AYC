@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Services\Documents\DocumentHelper;
 
 class Order extends Model
 {
@@ -382,28 +383,7 @@ class Order extends Model
             'is_gated' => $isGated,
             'payment_status' => $this->payment_status,
             'fulfillment_status' => $this->fulfillment_status,
-            'exporter' => [
-                'company_name' => config('business.name', 'AYAAN CLOTHING'),
-                'brand' => config('business.name', 'AYAAN CLOTHING'),
-                'brand_mark' => config('business.brand_mark', 'AYC'),
-                'business_type' => config('business.business_type', 'Ready-made Garments Manufacturer & Exporter'),
-                'address' => config('business.address.formatted', 'House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh'),
-                'city' => config('business.address.city', 'Dhaka'),
-                'postal_code' => config('business.address.postal_code', '1230'),
-                'country' => config('business.address.country', 'Bangladesh'),
-                'country_code' => config('business.address.country_code', 'BD'),
-                'phone' => config('business.contact.phone'),
-                'email' => config('business.contact.email'),
-                'whatsapp' => SystemSetting::get('whatsapp_display', config('business.contact.whatsapp', '+880 1620-853502')),
-                'whatsapp_number' => SystemSetting::get('whatsapp_number', config('business.contact.whatsapp_number', '8801620853502')),
-                'whatsapp_url' => \App\Services\Settings\WhatsAppNormalizationService::buildWhatsAppUrl(SystemSetting::get('whatsapp_number', config('business.contact.whatsapp_number', '8801620853502'))),
-                'web' => config('business.contact.website', 'www.ayaanclothing.com'),
-                'reg_number' => config('business.legal.registration_number'),
-                'tin_number' => config('business.legal.tin_number'),
-                'bin_number' => config('business.legal.bin_number'),
-                'bgmea_reg' => config('business.legal.bgmea_reg'),
-                'est_year' => config('business.established_year', 2010),
-            ],
+            'exporter' => DocumentHelper::getExporterProfile(),
             'buyer' => [
                 'name' => $this->shipping_name,
                 'company_name' => $this->user?->company_name ?? $this->shipping_name,
@@ -501,15 +481,7 @@ class Order extends Model
             'shipping_terms' => $isSea ? 'Ocean Container Freight (DAP / CIF)' : 'Express Air Freight (DAP / DDP)',
             'incoterm' => 'DAP',
             'notes' => $this->notes ?: 'Commercial Wholesale Export Order. Ready-made Garments Manufactured in Bangladesh.',
-            'bank_details' => [
-                'is_configured' => (bool) config('business.banking.is_configured', false),
-                'beneficiary_name' => config('business.banking.beneficiary_name', 'AYAAN CLOTHING'),
-                'bank_name' => config('business.banking.bank_name'),
-                'account_number' => config('business.banking.account_number'),
-                'swift_code' => config('business.banking.swift_code'),
-                'branch' => config('business.banking.branch'),
-                'routing_no' => config('business.banking.routing_no'),
-            ],
+            'bank_details' => DocumentHelper::getBankDetails(),
             'payment_details' => [
                 'payment_status' => $this->payment_status === 'paid' ? 'PAID' : strtoupper($this->payment_status ?: 'PENDING'),
                 'payment_method' => match ($this->payment_method) {

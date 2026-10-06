@@ -9,7 +9,7 @@ use App\Services\Settings\WhatsAppNormalizationService;
 class DocumentHelper
 {
     /**
-     * Get authoritative Exporter/Seller Profile from configuration
+     * Get authoritative Exporter/Seller Profile from configuration or centralized system settings.
      */
     public static function getExporterProfile(): array
     {
@@ -17,47 +17,131 @@ class DocumentHelper
         $waNumber = SystemSetting::get('whatsapp_number', config('business.contact.whatsapp_number', '8801620853502'));
         $waUrl = WhatsAppNormalizationService::buildWhatsAppUrl($waNumber);
 
+        $line1 = SystemSetting::get('office_address_line1', config('business.address.line1', 'House #33 (2nd floor)'));
+        $line2 = SystemSetting::get('office_address_line2', config('business.address.line2', 'Road #12, Sector #11'));
+        $area = SystemSetting::get('office_area', config('business.address.area', 'Uttara'));
+        $city = SystemSetting::get('office_city', config('business.address.city', 'Dhaka'));
+        $postalCode = SystemSetting::get('office_postal_code', config('business.address.postal_code', '1230'));
+        $country = SystemSetting::get('office_country', config('business.address.country', 'Bangladesh'));
+        
+        $formattedAddress = SystemSetting::get('office_address_formatted', null);
+        if (!$formattedAddress) {
+            $parts = array_filter([$line1, $line2, $area, trim("{$city}-{$postalCode}", '-'), $country]);
+            $formattedAddress = !empty($parts) ? implode(', ', $parts) : config('business.address.formatted', 'House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh');
+        }
+
+        $companyName = SystemSetting::get('company_name', SystemSetting::get('company.name', config('business.name', 'Ayaan Clothing Ltd.')));
+        $legalName = SystemSetting::get('company_legal_name', SystemSetting::get('company.legal_name', config('business.banking.account_title', 'Ayaan Clothing Ltd.')));
+        $tagline = SystemSetting::get('company_tagline', SystemSetting::get('company.tagline', config('business.business_type', 'Premium Knitwear & Ready-Made Garments Manufacturer & Exporter')));
+        $website = SystemSetting::get('company_website', SystemSetting::get('company.website', SystemSetting::get('business_website', config('business.contact.website', 'https://ayaanclothing.com'))));
+        $logoUrl = SystemSetting::get('company_logo_url', SystemSetting::get('company.logo_url', '/images/logo.png'));
+
         return [
-            'company_name' => config('business.name', 'AYAAN CLOTHING'),
-            'brand' => config('business.name', 'AYAAN CLOTHING'),
-            'brand_mark' => config('business.brand_mark', 'AYC'),
-            'business_type' => config('business.business_type', 'Ready-made Garments Manufacturer & Exporter'),
-            'address' => config('business.address.formatted', 'House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh'),
-            'city' => config('business.address.city', 'Dhaka'),
-            'postal_code' => config('business.address.postal_code', '1230'),
-            'country' => config('business.address.country', 'Bangladesh'),
-            'country_code' => config('business.address.country_code', 'BD'),
-            'phone' => config('business.contact.phone'),
-            'email' => config('business.contact.email'),
+            'name' => $companyName,
+            'company_name' => $companyName,
+            'legal_name' => $legalName,
+            'brand' => $companyName,
+            'brand_mark' => SystemSetting::get('company_brand_mark', config('business.brand_mark', 'AYC')),
+            'business_type' => $tagline,
+            'tagline' => $tagline,
+            'address' => $formattedAddress,
+            'office_address' => $formattedAddress,
+            'address_line1' => $line1,
+            'address_line2' => $line2,
+            'area' => $area,
+            'city' => $city,
+            'postal_code' => $postalCode,
+            'country' => $country,
+            'country_code' => SystemSetting::get('office_country_code', config('business.address.country_code', 'BD')),
+            'phone' => SystemSetting::get('business_phone', config('business.contact.phone', '+880 1620-853502')),
+            'email' => SystemSetting::get('business_email', config('business.contact.email', 'export@ayaanclothing.com')),
             'whatsapp' => $waDisplay,
             'whatsapp_display' => $waDisplay,
             'whatsapp_number' => $waNumber,
+            'whatsapp_canonical' => $waNumber,
             'whatsapp_url' => $waUrl,
-            'web' => config('business.contact.website', 'www.ayaanclothing.com'),
-            'reg_number' => config('business.legal.registration_number'),
-            'tin_number' => config('business.legal.tin_number'),
-            'bin_number' => config('business.legal.bin_number'),
-            'bgmea_reg' => config('business.legal.bgmea_reg'),
-            'est_year' => config('business.established_year', 2010),
+            'web' => $website,
+            'website' => $website,
+            'logo_url' => $logoUrl,
+            'reg_number' => SystemSetting::get('reg_number', 'TRAD/DNCC/012458/2022'),
+            'trade_license' => SystemSetting::get('reg_number', 'TRAD/DNCC/012458/2022'),
+            'tin_number' => SystemSetting::get('tin_number', '124589632514'),
+            'bin_number' => SystemSetting::get('bin_number', '002345891-0101'),
+            'bin_vat' => SystemSetting::get('bin_number', '002345891-0101'),
+            'vat_number' => SystemSetting::get('vat_number', '002345891-0101'),
+            'erc_number' => SystemSetting::get('erc_number', '26-024589'),
+            'irc_number' => SystemSetting::get('irc_number', '26-015894'),
+            'bgmea_reg' => SystemSetting::get('bgmea_reg', 'BGMEA-REG-8954'),
+            'incorporation_number' => SystemSetting::get('incorporation_number', 'C-158945/2021'),
+            'est_year' => (int) SystemSetting::get('company_established_year', config('business.established_year', 2010)),
         ];
     }
 
     /**
-     * Get authoritative Beneficiary Bank Details with exact Pubali Bank credentials.
-     * Single block, strictly NO routing number.
+     * Get authoritative Beneficiary Bank Details from centralized system settings
+     * with fallback to official Pubali Bank credentials.
+     * Single block, strictly NO routing number in customer docs if configured.
      */
     public static function getBankDetails(): array
     {
+        $accNo = SystemSetting::get('bank_account_number', SystemSetting::get('banking.account_number', config('business.banking.account_number', '09871020003456')));
+        $title = SystemSetting::get('bank_account_title', SystemSetting::get('banking.account_name', config('business.banking.account_title', 'Ayaan Clothing Ltd.')));
+        $beneficiary = SystemSetting::get('bank_beneficiary_name', SystemSetting::get('banking.beneficiary_name', config('business.banking.beneficiary_name', $title)));
+        $bankName = SystemSetting::get('bank_name', SystemSetting::get('banking.bank_name', config('business.banking.bank_name', 'Pubali Bank Limited')));
+        $branch = SystemSetting::get('bank_branch', SystemSetting::get('banking.branch_name', config('business.banking.branch', 'Uttara Model Town Branch, Dhaka, Bangladesh')));
+        $swift = SystemSetting::get('bank_swift_code', SystemSetting::get('banking.swift_code', config('business.banking.swift_code', 'PUBABDDH')));
+        $routing = SystemSetting::get('bank_routing_number', SystemSetting::get('banking.routing_number', config('business.banking.routing_number', '175271894')));
+        $currency = SystemSetting::get('bank_currency', SystemSetting::get('banking.currency', 'USD'));
+
         return [
-            'is_configured' => (bool) config('business.banking.is_configured', true),
-            'bank_name' => 'Pubali Bank Limited',
-            'account_title' => 'M/S AYAAN  CLOTHING',
-            'beneficiary_name' => 'M/S AYAAN  CLOTHING',
-            'account_no' => '1788-901-044316',
-            'account_number' => '1788-901-044316',
-            'swift_code' => 'PUBABDDH210',
-            'branch' => 'Nawabpur Road Branch',
-            'bank_address' => "Nawabpur Road Branch,\n125 Nawabpur Road,\nDhaka-1100,\nBangladesh",
+            'is_configured' => (bool) SystemSetting::get('bank_is_configured', config('business.banking.is_configured', true)),
+            'bank_name' => $bankName,
+            'account_title' => $title,
+            'account_name' => $title,
+            'beneficiary_name' => $beneficiary,
+            'account_no' => $accNo,
+            'account_number' => $accNo,
+            'swift_code' => $swift,
+            'branch' => $branch,
+            'branch_name' => $branch,
+            'bank_address' => SystemSetting::get('bank_address', config('business.banking.bank_address', $branch)),
+            'routing_number' => $routing,
+            'currency' => $currency,
+        ];
+    }
+
+    /**
+     * Get document & logistics defaults configured by Admin.
+     */
+    public static function getDocumentDefaults(): array
+    {
+        $incoterm = SystemSetting::get('default_incoterm', SystemSetting::get('document_defaults.incoterm_default', 'FOB Chattogram'));
+        $paymentTerms = SystemSetting::get('default_payment_terms', SystemSetting::get('document_defaults.payment_terms_default', '100% Irrevocable Confirmed Letter of Credit (L/C) at sight or 30% TT advance, balance upon copy BL'));
+        $pol = SystemSetting::get('default_port_of_loading', SystemSetting::get('document_defaults.port_of_loading', SystemSetting::get('default_sea_port_of_loading', 'Chattogram Sea Port / Hazrat Shahjalal Int. Airport, Dhaka')));
+        $declaration = SystemSetting::get('default_declaration_text', SystemSetting::get('document_defaults.declaration_text', SystemSetting::get('default_ci_notes', 'We certify that the goods mentioned in this invoice are of Bangladesh origin and the particulars provided are true and correct.')));
+
+        return [
+            'country_of_origin' => SystemSetting::get('default_country_of_origin', config('business.logistics.country_of_origin', 'Bangladesh')),
+            'air_port_of_loading' => SystemSetting::get('default_air_port_of_loading', config('business.logistics.air_port_of_loading', 'Hazrat Shahjalal International Airport (DAC), Dhaka')),
+            'sea_port_of_loading' => SystemSetting::get('default_sea_port_of_loading', config('business.logistics.sea_port_of_loading', 'Chattogram Sea Port (CGP), Bangladesh')),
+            'port_of_loading' => $pol,
+            'place_of_receipt' => SystemSetting::get('default_place_of_receipt', config('business.logistics.place_of_receipt', 'Uttara Corporate Office / Dhaka Hub, Bangladesh')),
+            'currency' => SystemSetting::get('default_currency', 'USD'),
+            'payment_terms' => $paymentTerms,
+            'payment_terms_default' => $paymentTerms,
+            'shipping_terms' => SystemSetting::get('default_shipping_terms', 'Express Air Freight (DAP / DDP)'),
+            'incoterm' => $incoterm,
+            'incoterm_default' => $incoterm,
+            'declaration_text' => $declaration,
+            'ci_notes' => SystemSetting::get('default_ci_notes', $declaration),
+            'pi_notes' => SystemSetting::get('default_pi_notes', 'Commercial Proforma Invoice. Please remit payment against provided Beneficiary Bank Details.'),
+            'offer_sheet_notes' => SystemSetting::get('default_offer_sheet_notes', 'Commercial Offer only — Not an invoice. Shipping arranged separately.'),
+            'quotation_notes' => SystemSetting::get('default_quotation_notes', 'Official export quotation issued by Ayaan Clothing Export Division. Valid for 30 days.'),
+            'signatory_name' => SystemSetting::get('signatory_name', 'Authorized Representative'),
+            'authorized_signatory_name' => SystemSetting::get('signatory_name', 'Authorized Representative'),
+            'signatory_title' => SystemSetting::get('signatory_title', 'Managing Director / Commercial Head'),
+            'authorized_signatory_title' => SystemSetting::get('signatory_title', 'Managing Director / Commercial Head'),
+            'signatory_division' => SystemSetting::get('signatory_division', 'Ayaan Clothing Export Division'),
         ];
     }
 

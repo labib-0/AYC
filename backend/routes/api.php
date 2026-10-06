@@ -508,6 +508,10 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:settings.edit');
         Route::delete('/settings/logo', [AdminSettingsController::class, 'removeLogo'])
             ->middleware('permission:settings.edit');
+        Route::get('/settings/business', [AdminSettingsController::class, 'getBusinessSettings'])
+            ->middleware('permission:settings.view');
+        Route::put('/settings/business', [AdminSettingsController::class, 'updateBusinessSettings'])
+            ->middleware('permission:settings.edit');
 
         // Admin Legal Pages Management
         Route::get('/legal', [AdminSettingsController::class, 'getLegalPages'])

@@ -75,3 +75,51 @@ export interface UpdateLegalPagePayload {
   content: string;
   is_active: boolean;
 }
+
+export interface BusinessSettingsPayload {
+  company: {
+    name: string;
+    legal_name?: string;
+    tagline?: string;
+    website?: string;
+    logo_url?: string;
+  };
+  contact: {
+    office_address: string;
+    city?: string;
+    country?: string;
+    phone?: string;
+    email: string;
+    whatsapp: string;
+    whatsapp_canonical?: string;
+    whatsapp_url?: string;
+  };
+  legal: {
+    trade_license?: string;
+    tin_number?: string;
+    bin_vat?: string;
+    erc_number?: string;
+    irc_number?: string;
+    bgmea_reg?: string;
+    incorporation_number?: string;
+  };
+  banking: {
+    bank_name: string;
+    branch_name?: string;
+    account_name: string;
+    account_number: string;
+    swift_code?: string;
+    routing_number?: string;
+    currency?: string;
+  };
+  document_defaults: {
+    port_of_loading?: string;
+    country_of_origin?: string;
+    payment_terms_default?: string;
+    incoterm_default?: string;
+    declaration_text?: string;
+    authorized_signatory_name?: string;
+    authorized_signatory_title?: string;
+  };
+}
+

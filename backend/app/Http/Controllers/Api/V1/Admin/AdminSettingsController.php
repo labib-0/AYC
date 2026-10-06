@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LegalPage;
 use App\Models\SystemSetting;
 use App\Services\Audit\ActivityLogger;
+use App\Services\Documents\DocumentHelper;
 use App\Services\Media\SvgSanitizer;
 use App\Services\Settings\WhatsAppNormalizationService;
 use Illuminate\Http\JsonResponse;
@@ -182,6 +183,301 @@ class AdminSettingsController extends Controller
                 'whatsapp_url' => WhatsAppNormalizationService::buildWhatsAppUrl($machineNumber),
             ],
         ]);
+    }
+
+    /**
+     * Retrieve all centralized business, contact, export registration,
+     * banking, and document defaults for the Admin Control Center.
+     */
+    public function getBusinessSettings(): JsonResponse
+    {
+        $exporter = DocumentHelper::getExporterProfile();
+        $banking = DocumentHelper::getBankDetails();
+        $defaults = DocumentHelper::getDocumentDefaults();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'company' => [
+                    'name' => $exporter['name'],
+                    'company_name' => $exporter['company_name'],
+                    'legal_name' => $exporter['legal_name'],
+                    'tagline' => $exporter['tagline'],
+                    'brand_mark' => $exporter['brand_mark'],
+                    'business_type' => $exporter['business_type'],
+                    'website' => $exporter['website'],
+                    'logo_url' => $exporter['logo_url'],
+                    'established_year' => $exporter['est_year'],
+                ],
+                'contact' => [
+                    'office_address' => $exporter['office_address'],
+                    'line1' => $exporter['address_line1'],
+                    'line2' => $exporter['address_line2'],
+                    'area' => $exporter['area'],
+                    'city' => $exporter['city'],
+                    'postal_code' => $exporter['postal_code'],
+                    'country' => $exporter['country'],
+                    'country_code' => $exporter['country_code'],
+                    'formatted_address' => $exporter['address'],
+                    'phone' => $exporter['phone'],
+                    'email' => $exporter['email'],
+                    'whatsapp' => $exporter['whatsapp_display'],
+                    'whatsapp_canonical' => $exporter['whatsapp_number'],
+                    'whatsapp_number' => $exporter['whatsapp_number'],
+                    'whatsapp_url' => $exporter['whatsapp_url'],
+                    'website' => $exporter['web'],
+                ],
+                'legal' => [
+                    'trade_license' => $exporter['trade_license'],
+                    'reg_number' => $exporter['reg_number'],
+                    'tin_number' => $exporter['tin_number'],
+                    'bin_number' => $exporter['bin_number'],
+                    'bin_vat' => $exporter['bin_vat'],
+                    'vat_number' => $exporter['vat_number'],
+                    'erc_number' => $exporter['erc_number'],
+                    'irc_number' => $exporter['irc_number'],
+                    'bgmea_reg' => $exporter['bgmea_reg'],
+                    'incorporation_number' => $exporter['incorporation_number'],
+                ],
+                'banking' => $banking,
+                'document_defaults' => $defaults,
+            ],
+        ]);
+    }
+
+    /**
+     * Update centralized business, contact, export registration,
+     * banking, and document defaults.
+     */
+    public function updateBusinessSettings(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'company' => ['nullable', 'array'],
+            'company.name' => ['nullable', 'string', 'max:255'],
+            'company.legal_name' => ['nullable', 'string', 'max:255'],
+            'company.tagline' => ['nullable', 'string', 'max:255'],
+            'company.brand_mark' => ['nullable', 'string', 'max:50'],
+            'company.business_type' => ['nullable', 'string', 'max:255'],
+            'company.website' => ['nullable', 'string', 'max:255'],
+            'company.logo_url' => ['nullable', 'string', 'max:255'],
+            'company.established_year' => ['nullable', 'integer', 'min:1900', 'max:2100'],
+
+            'contact' => ['nullable', 'array'],
+            'contact.office_address' => ['nullable', 'string', 'max:500'],
+            'contact.line1' => ['nullable', 'string', 'max:255'],
+            'contact.line2' => ['nullable', 'string', 'max:255'],
+            'contact.area' => ['nullable', 'string', 'max:100'],
+            'contact.city' => ['nullable', 'string', 'max:100'],
+            'contact.postal_code' => ['nullable', 'string', 'max:50'],
+            'contact.country' => ['nullable', 'string', 'max:100'],
+            'contact.phone' => ['nullable', 'string', 'max:50'],
+            'contact.email' => ['nullable', 'email', 'max:255'],
+            'contact.whatsapp' => ['nullable', 'string', 'max:50'],
+            'contact.website' => ['nullable', 'string', 'max:255'],
+
+            'legal' => ['nullable', 'array'],
+            'legal.trade_license' => ['nullable', 'string', 'max:100'],
+            'legal.reg_number' => ['nullable', 'string', 'max:100'],
+            'legal.tin_number' => ['nullable', 'string', 'max:100'],
+            'legal.bin_number' => ['nullable', 'string', 'max:100'],
+            'legal.bin_vat' => ['nullable', 'string', 'max:100'],
+            'legal.vat_number' => ['nullable', 'string', 'max:100'],
+            'legal.erc_number' => ['nullable', 'string', 'max:100'],
+            'legal.irc_number' => ['nullable', 'string', 'max:100'],
+            'legal.bgmea_reg' => ['nullable', 'string', 'max:100'],
+            'legal.incorporation_number' => ['nullable', 'string', 'max:100'],
+
+            'banking' => ['nullable', 'array'],
+            'banking.is_configured' => ['nullable', 'boolean'],
+            'banking.bank_name' => ['nullable', 'string', 'max:255'],
+            'banking.account_title' => ['nullable', 'string', 'max:255'],
+            'banking.account_name' => ['nullable', 'string', 'max:255'],
+            'banking.beneficiary_name' => ['nullable', 'string', 'max:255'],
+            'banking.account_number' => ['nullable', 'string', 'max:100'],
+            'banking.account_no' => ['nullable', 'string', 'max:100'],
+            'banking.swift_code' => ['nullable', 'string', 'max:50'],
+            'banking.branch' => ['nullable', 'string', 'max:255'],
+            'banking.branch_name' => ['nullable', 'string', 'max:255'],
+            'banking.bank_address' => ['nullable', 'string', 'max:1000'],
+            'banking.routing_number' => ['nullable', 'string', 'max:50'],
+            'banking.currency' => ['nullable', 'string', 'max:10'],
+
+            'document_defaults' => ['nullable', 'array'],
+            'document_defaults.country_of_origin' => ['nullable', 'string', 'max:100'],
+            'document_defaults.air_port_of_loading' => ['nullable', 'string', 'max:255'],
+            'document_defaults.sea_port_of_loading' => ['nullable', 'string', 'max:255'],
+            'document_defaults.port_of_loading' => ['nullable', 'string', 'max:255'],
+            'document_defaults.place_of_receipt' => ['nullable', 'string', 'max:255'],
+            'document_defaults.currency' => ['nullable', 'string', 'max:10'],
+            'document_defaults.payment_terms' => ['nullable', 'string', 'max:500'],
+            'document_defaults.payment_terms_default' => ['nullable', 'string', 'max:500'],
+            'document_defaults.shipping_terms' => ['nullable', 'string', 'max:255'],
+            'document_defaults.incoterm' => ['nullable', 'string', 'max:50'],
+            'document_defaults.incoterm_default' => ['nullable', 'string', 'max:50'],
+            'document_defaults.declaration_text' => ['nullable', 'string', 'max:1000'],
+            'document_defaults.ci_notes' => ['nullable', 'string', 'max:1000'],
+            'document_defaults.pi_notes' => ['nullable', 'string', 'max:1000'],
+            'document_defaults.offer_sheet_notes' => ['nullable', 'string', 'max:1000'],
+            'document_defaults.quotation_notes' => ['nullable', 'string', 'max:1000'],
+            'document_defaults.signatory_name' => ['nullable', 'string', 'max:255'],
+            'document_defaults.authorized_signatory_name' => ['nullable', 'string', 'max:255'],
+            'document_defaults.signatory_title' => ['nullable', 'string', 'max:255'],
+            'document_defaults.authorized_signatory_title' => ['nullable', 'string', 'max:255'],
+            'document_defaults.signatory_division' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        // 1. Company Information
+        $co = $validated['company'] ?? [];
+        if (!empty($co['name'])) {
+            SystemSetting::set('company_name', trim($co['name']), 'string', 'business');
+        }
+        if (isset($co['legal_name'])) {
+            SystemSetting::set('company_legal_name', trim($co['legal_name']), 'string', 'business');
+        }
+        if (isset($co['tagline'])) {
+            SystemSetting::set('company_tagline', trim($co['tagline']), 'string', 'business');
+        }
+        if (isset($co['brand_mark'])) {
+            SystemSetting::set('company_brand_mark', trim($co['brand_mark']), 'string', 'business');
+        }
+        if (isset($co['business_type'])) {
+            SystemSetting::set('company_business_type', trim($co['business_type']), 'string', 'business');
+        }
+        if (isset($co['website'])) {
+            SystemSetting::set('company_website', trim($co['website']), 'string', 'business');
+        }
+        if (isset($co['logo_url'])) {
+            SystemSetting::set('company_logo_url', trim($co['logo_url']), 'string', 'business');
+        }
+        if (isset($co['established_year'])) {
+            SystemSetting::set('company_established_year', (int) $co['established_year'], 'integer', 'business');
+        }
+
+        // 2. Contact Information
+        $ct = $validated['contact'] ?? [];
+        if (isset($ct['office_address'])) {
+            SystemSetting::set('office_address_formatted', trim($ct['office_address']), 'string', 'contact');
+        }
+        if (isset($ct['line1'])) SystemSetting::set('office_address_line1', trim($ct['line1']), 'string', 'contact');
+        if (isset($ct['line2'])) SystemSetting::set('office_address_line2', trim($ct['line2']), 'string', 'contact');
+        if (isset($ct['area'])) SystemSetting::set('office_area', trim($ct['area']), 'string', 'contact');
+        if (isset($ct['city'])) SystemSetting::set('office_city', trim($ct['city']), 'string', 'contact');
+        if (isset($ct['postal_code'])) SystemSetting::set('office_postal_code', trim($ct['postal_code']), 'string', 'contact');
+        if (isset($ct['country'])) SystemSetting::set('office_country', trim($ct['country']), 'string', 'contact');
+        if (isset($ct['phone'])) SystemSetting::set('business_phone', trim($ct['phone']), 'string', 'contact');
+        if (isset($ct['email'])) SystemSetting::set('business_email', trim($ct['email']), 'string', 'contact');
+        if (isset($ct['website'])) SystemSetting::set('business_website', trim($ct['website']), 'string', 'contact');
+
+        // Formatted address composition if not directly set
+        if (!isset($ct['office_address']) && (isset($ct['line1']) || isset($ct['city']))) {
+            $line1 = $ct['line1'] ?? SystemSetting::get('office_address_line1');
+            $line2 = $ct['line2'] ?? SystemSetting::get('office_address_line2');
+            $area = $ct['area'] ?? SystemSetting::get('office_area');
+            $city = $ct['city'] ?? SystemSetting::get('office_city');
+            $postal = $ct['postal_code'] ?? SystemSetting::get('office_postal_code');
+            $country = $ct['country'] ?? SystemSetting::get('office_country');
+            $formattedAddress = implode(', ', array_filter([$line1, $line2, $area, trim("{$city}-{$postal}", '-'), $country]));
+            SystemSetting::set('office_address_formatted', $formattedAddress, 'string', 'contact');
+        }
+
+        // WhatsApp (if present)
+        if (isset($ct['whatsapp']) && trim($ct['whatsapp']) !== '') {
+            $waDisplay = trim($ct['whatsapp']);
+            if (!WhatsAppNormalizationService::isValidPhoneNumber($waDisplay)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'The WhatsApp number must be a valid phone number (e.g. +880 1620-853502). Arbitrary text, URLs, and scripts are rejected.',
+                    'errors' => [
+                        'contact.whatsapp' => ['Please enter a valid international or local phone number (7 to 15 digits).'],
+                    ],
+                ], 422);
+            }
+            $machineNumber = WhatsAppNormalizationService::deriveMachineNumber($waDisplay);
+            $oldDisplay = SystemSetting::get('whatsapp_display', WhatsAppNormalizationService::CANONICAL_DISPLAY);
+            $oldNumber = SystemSetting::get('whatsapp_number', WhatsAppNormalizationService::CANONICAL_NUMBER);
+
+            SystemSetting::set('whatsapp_display', $waDisplay, 'string', 'contact');
+            SystemSetting::set('whatsapp_number', $machineNumber, 'string', 'contact');
+            SystemSetting::set('whatsapp_business_number', $machineNumber, 'string', 'contact');
+
+            if ($oldDisplay !== $waDisplay || $oldNumber !== $machineNumber) {
+                ActivityLogger::log('settings.whatsapp_updated', null, [
+                    'old_display' => $oldDisplay,
+                    'new_display' => $waDisplay,
+                    'old_number' => $oldNumber,
+                    'new_number' => $machineNumber,
+                ]);
+            }
+        }
+
+        // 3. Legal / Export Registration
+        $lg = $validated['legal'] ?? [];
+        $regNumber = $lg['trade_license'] ?? ($lg['reg_number'] ?? null);
+        if ($regNumber !== null) SystemSetting::set('reg_number', trim($regNumber), 'string', 'legal');
+        if (isset($lg['tin_number'])) SystemSetting::set('tin_number', trim($lg['tin_number']), 'string', 'legal');
+        $bin = $lg['bin_vat'] ?? ($lg['bin_number'] ?? null);
+        if ($bin !== null) SystemSetting::set('bin_number', trim($bin), 'string', 'legal');
+        if (isset($lg['vat_number'])) SystemSetting::set('vat_number', trim($lg['vat_number']), 'string', 'legal');
+        if (isset($lg['erc_number'])) SystemSetting::set('erc_number', trim($lg['erc_number']), 'string', 'legal');
+        if (isset($lg['irc_number'])) SystemSetting::set('irc_number', trim($lg['irc_number']), 'string', 'legal');
+        if (isset($lg['bgmea_reg'])) SystemSetting::set('bgmea_reg', trim($lg['bgmea_reg']), 'string', 'legal');
+        if (isset($lg['incorporation_number'])) SystemSetting::set('incorporation_number', trim($lg['incorporation_number']), 'string', 'legal');
+
+        // 4. Beneficiary Bank Details
+        $bk = $validated['banking'] ?? [];
+        if (isset($bk['is_configured'])) SystemSetting::set('bank_is_configured', (bool) $bk['is_configured'], 'boolean', 'banking');
+        if (isset($bk['bank_name'])) SystemSetting::set('bank_name', trim($bk['bank_name']), 'string', 'banking');
+        $accTitle = $bk['account_name'] ?? ($bk['account_title'] ?? null);
+        if ($accTitle !== null) SystemSetting::set('bank_account_title', trim($accTitle), 'string', 'banking');
+        if (isset($bk['beneficiary_name'])) SystemSetting::set('bank_beneficiary_name', trim($bk['beneficiary_name']), 'string', 'banking');
+        $accNum = $bk['account_number'] ?? ($bk['account_no'] ?? null);
+        if ($accNum !== null) SystemSetting::set('bank_account_number', trim($accNum), 'string', 'banking');
+        if (isset($bk['swift_code'])) SystemSetting::set('bank_swift_code', trim($bk['swift_code']), 'string', 'banking');
+        $branch = $bk['branch_name'] ?? ($bk['branch'] ?? null);
+        if ($branch !== null) SystemSetting::set('bank_branch', trim($branch), 'string', 'banking');
+        if (isset($bk['bank_address'])) SystemSetting::set('bank_address', trim($bk['bank_address']), 'string', 'banking');
+        if (isset($bk['routing_number'])) SystemSetting::set('bank_routing_number', trim($bk['routing_number']), 'string', 'banking');
+        if (isset($bk['currency'])) SystemSetting::set('bank_currency', trim($bk['currency']), 'string', 'banking');
+
+        // 5. Document Defaults
+        $dd = $validated['document_defaults'] ?? [];
+        if (isset($dd['country_of_origin'])) SystemSetting::set('default_country_of_origin', trim($dd['country_of_origin']), 'string', 'document_defaults');
+        if (isset($dd['air_port_of_loading'])) SystemSetting::set('default_air_port_of_loading', trim($dd['air_port_of_loading']), 'string', 'document_defaults');
+        if (isset($dd['sea_port_of_loading'])) SystemSetting::set('default_sea_port_of_loading', trim($dd['sea_port_of_loading']), 'string', 'document_defaults');
+        $pol = $dd['port_of_loading'] ?? null;
+        if ($pol !== null) {
+            SystemSetting::set('default_port_of_loading', trim($pol), 'string', 'document_defaults');
+            SystemSetting::set('default_sea_port_of_loading', trim($pol), 'string', 'document_defaults');
+        }
+        if (isset($dd['place_of_receipt'])) SystemSetting::set('default_place_of_receipt', trim($dd['place_of_receipt']), 'string', 'document_defaults');
+        if (isset($dd['currency'])) SystemSetting::set('default_currency', trim($dd['currency']), 'string', 'document_defaults');
+        $payTerms = $dd['payment_terms_default'] ?? ($dd['payment_terms'] ?? null);
+        if ($payTerms !== null) SystemSetting::set('default_payment_terms', trim($payTerms), 'string', 'document_defaults');
+        if (isset($dd['shipping_terms'])) SystemSetting::set('default_shipping_terms', trim($dd['shipping_terms']), 'string', 'document_defaults');
+        $incoterm = $dd['incoterm_default'] ?? ($dd['incoterm'] ?? null);
+        if ($incoterm !== null) SystemSetting::set('default_incoterm', trim($incoterm), 'string', 'document_defaults');
+        $decText = $dd['declaration_text'] ?? ($dd['ci_notes'] ?? null);
+        if ($decText !== null) {
+            SystemSetting::set('default_declaration_text', trim($decText), 'string', 'document_defaults');
+            SystemSetting::set('default_ci_notes', trim($decText), 'string', 'document_defaults');
+        }
+        if (isset($dd['pi_notes'])) SystemSetting::set('default_pi_notes', trim($dd['pi_notes']), 'string', 'document_defaults');
+        if (isset($dd['offer_sheet_notes'])) SystemSetting::set('default_offer_sheet_notes', trim($dd['offer_sheet_notes']), 'string', 'document_defaults');
+        if (isset($dd['quotation_notes'])) SystemSetting::set('default_quotation_notes', trim($dd['quotation_notes']), 'string', 'document_defaults');
+        $sigName = $dd['authorized_signatory_name'] ?? ($dd['signatory_name'] ?? null);
+        if ($sigName !== null) SystemSetting::set('signatory_name', trim($sigName), 'string', 'document_defaults');
+        $sigTitle = $dd['authorized_signatory_title'] ?? ($dd['signatory_title'] ?? null);
+        if ($sigTitle !== null) SystemSetting::set('signatory_title', trim($sigTitle), 'string', 'document_defaults');
+        if (isset($dd['signatory_division'])) SystemSetting::set('signatory_division', trim($dd['signatory_division']), 'string', 'document_defaults');
+
+        ActivityLogger::log('settings.business_updated', null, [
+            'admin_id' => auth()->id(),
+            'updated_at' => now()->toIso8601String(),
+        ]);
+
+        Cache::forget('site_settings_public');
+
+        return $this->getBusinessSettings();
     }
 
     /**

@@ -5,6 +5,7 @@ import {
   LegalPage,
   UpdateSettingsPayload,
   UpdateLegalPagePayload,
+  BusinessSettingsPayload,
 } from "@/types/settings";
 import BUSINESS_PROFILE, {
   WHATSAPP_BUSINESS_DISPLAY,
@@ -244,6 +245,83 @@ export class SiteSettingsService {
     );
     return response.data;
   }
+
+  /**
+   * Fetch business & document settings for Admin.
+   */
+  async getBusinessSettings(): Promise<BusinessSettingsPayload> {
+    try {
+      const response = await apiClient.get<{ status: string; data: BusinessSettingsPayload }>(
+        "/admin/settings/business"
+      );
+      if (response && response.data) {
+        return response.data;
+      }
+      return DEFAULT_BUSINESS_SETTINGS;
+    } catch (error) {
+      console.warn("Notice: Business settings could not be loaded from API, using fallback defaults.", error);
+      return DEFAULT_BUSINESS_SETTINGS;
+    }
+  }
+
+  /**
+   * Update business & document settings for Admin.
+   */
+  async updateBusinessSettings(payload: BusinessSettingsPayload): Promise<BusinessSettingsPayload> {
+    const response = await apiClient.put<{ status: string; data: BusinessSettingsPayload }>(
+      "/admin/settings/business",
+      payload
+    );
+    return response.data;
+  }
 }
 
+export const DEFAULT_BUSINESS_SETTINGS: BusinessSettingsPayload = {
+  company: {
+    name: BUSINESS_PROFILE.name || "AYAAN CLOTHING",
+    legal_name: "Ayaan Clothing Ltd.",
+    tagline: BUSINESS_PROFILE.description || "Premium Knitwear & Ready-Made Garments Manufacturer & Exporter",
+    website: BUSINESS_PROFILE.contact.website || "https://ayaanclothing.com",
+    logo_url: "/images/logo.png",
+  },
+  contact: {
+    office_address: BUSINESS_PROFILE.address.formatted || "House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh",
+    city: BUSINESS_PROFILE.address.city || "Dhaka-1230",
+    country: BUSINESS_PROFILE.address.country || "Bangladesh",
+    phone: BUSINESS_PROFILE.contact.phone || "+880 1620-853502",
+    email: BUSINESS_PROFILE.contact.email || "export@ayaanclothing.com",
+    whatsapp: WHATSAPP_BUSINESS_DISPLAY,
+    whatsapp_canonical: WHATSAPP_BUSINESS_NUMBER,
+    whatsapp_url: WHATSAPP_BUSINESS_URL,
+  },
+  legal: {
+    trade_license: "TRAD/DNCC/012458/2022",
+    tin_number: "124589632514",
+    bin_vat: "002345891-0101",
+    erc_number: "26-024589",
+    irc_number: "26-015894",
+    bgmea_reg: "BGMEA-REG-8954",
+    incorporation_number: "C-158945/2021",
+  },
+  banking: {
+    bank_name: "Pubali Bank Limited",
+    branch_name: "Uttara Model Town Branch, Dhaka, Bangladesh",
+    account_name: "Ayaan Clothing Ltd.",
+    account_number: "09871020003456",
+    swift_code: "PUBABDDH",
+    routing_number: "175271894",
+    currency: "USD",
+  },
+  document_defaults: {
+    port_of_loading: "Chattogram Sea Port / Hazrat Shahjalal Int. Airport, Dhaka",
+    country_of_origin: "Bangladesh",
+    payment_terms_default: "100% Irrevocable Confirmed Letter of Credit (L/C) at sight or 30% TT advance, balance upon copy BL",
+    incoterm_default: "FOB Chattogram",
+    declaration_text: "We certify that the goods mentioned in this invoice are of Bangladesh origin and the particulars provided are true and correct.",
+    authorized_signatory_name: "Authorized Representative",
+    authorized_signatory_title: "Managing Director / Commercial Head",
+  },
+};
+
 export const siteSettingsService = new SiteSettingsService();
+

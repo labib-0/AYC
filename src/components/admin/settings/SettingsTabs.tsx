@@ -17,7 +17,7 @@ export default function SettingsTabs({
     { id: "branding", label: "Site Branding & Header", icon: Palette },
     { id: "social", label: "Social Links & WhatsApp", icon: Share2 },
     { id: "legal", label: "Legal Pages", icon: FileText },
-    { id: "business", label: "Business Info", icon: Building2 },
+    { id: "business", label: "Business & Documents", icon: Building2 },
     { id: "users", label: "Admin Management", icon: ShieldCheck, badge: adminCount },
     { id: "preferences", label: "System Preferences", icon: Sliders },
   ];
