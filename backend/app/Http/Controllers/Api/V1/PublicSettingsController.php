@@ -92,7 +92,9 @@ class PublicSettingsController extends Controller
                         'url' => $slug,
                         'updated_at' => $page->updated_at?->toIso8601String(),
                     ];
-                });
+                })
+                ->values()
+                ->all();
 
             return [
                 'site_title' => $siteTitle,
