@@ -17,6 +17,7 @@ import {
 } from "@/lib/pdf-generator";
 import { CouponRecord } from "@/services/admin/coupon.service";
 import { validateCoupon } from "@/lib/coupon";
+import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
 import {
   X,
   FileText,
@@ -73,9 +74,10 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         if (typeof window !== "undefined") {
           sessionStorage.setItem("ayaan_open_checkout", "true");
           sessionStorage.setItem("ayaan_login_notice", "Please log in with a customer account to continue to checkout.");
-          const returnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") || currentPath.startsWith("/auth/")
+          const rawReturnUrl = currentPath.startsWith("/login") || currentPath.startsWith("/signup") || currentPath.startsWith("/auth/")
             ? "/cart?openCheckout=true"
             : (currentPath === "/cart" ? "/cart?openCheckout=true" : currentPath);
+          const returnUrl = sanitizeRedirectUrl(rawReturnUrl, "/cart?openCheckout=true", false);
           router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in with a customer account to continue to checkout.")}`);
         }
         return;
@@ -483,6 +485,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   // Apply Promo Code Handler
   const handleApplyCoupon = () => {
+    if (promoLoading) return;
     const trimmed = promoInput.trim();
     if (!trimmed) {
       setPromoError("Please enter a promo code.");

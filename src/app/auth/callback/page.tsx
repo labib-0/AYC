@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 import BrandName from "@/components/common/BrandName";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
 
 function CallbackHandler() {
   const router = useRouter();
@@ -44,20 +45,7 @@ function CallbackHandler() {
     }
 
     // Sanitize redirect target to prevent open redirect attacks and protect customer boundary
-    let target = "/dashboard";
-    if (
-      rawRedirect &&
-      rawRedirect.startsWith("/") &&
-      !rawRedirect.startsWith("//") &&
-      !rawRedirect.startsWith("/\\") &&
-      !rawRedirect.includes("\\") &&
-      !rawRedirect.startsWith("/admin") &&
-      rawRedirect !== "/admin" &&
-      !rawRedirect.startsWith("/ayc") &&
-      rawRedirect !== "/ayc"
-    ) {
-      target = rawRedirect;
-    }
+    let target = sanitizeRedirectUrl(rawRedirect, "/dashboard", false);
 
     const completeAuthentication = async () => {
       try {
@@ -75,14 +63,8 @@ function CallbackHandler() {
             }
             if (authData?.token) {
               tokenToSet = authData.token;
-              if (
-                authData.redirect &&
-                !authData.redirect.startsWith("/admin") &&
-                authData.redirect !== "/admin" &&
-                !authData.redirect.startsWith("/ayc") &&
-                authData.redirect !== "/ayc"
-              ) {
-                target = authData.redirect;
+              if (authData.redirect) {
+                target = sanitizeRedirectUrl(authData.redirect, target, false);
               }
             } else {
               throw new Error(authData?.message || "Invalid authentication exchange response from server.");

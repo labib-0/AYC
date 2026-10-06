@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { Lock, Mail, User, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, Phone } from "lucide-react";
 import BrandName from "@/components/common/BrandName";
+import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const getRedirectUrl = (targetUser?: any) => {
+  const getRedirectUrl = (_targetUser?: any) => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const rawTarget =
@@ -26,13 +27,11 @@ export default function SignUpPage() {
         params.get("redirect") ||
         sessionStorage.getItem("ayaan_intended_destination");
 
-      if (rawTarget && rawTarget.startsWith("/") && !rawTarget.startsWith("//") && !rawTarget.includes(":")) {
+      if (rawTarget) {
         sessionStorage.removeItem("ayaan_intended_destination");
-        return rawTarget;
+        return sanitizeRedirectUrl(rawTarget, "/dashboard", false);
       }
     }
-    const u = targetUser || user;
-    if (u?.role === "admin") return "/ayc/dashboard";
     return "/dashboard";
   };
 

@@ -8,6 +8,7 @@ import { apiClient } from "@/services/api-client";
 import { Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight } from "lucide-react";
 
 import BrandName from "@/components/common/BrandName";
+import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -50,6 +51,11 @@ export default function LoginPage() {
   }, []);
 
   const getRedirectUrl = (targetUser?: any) => {
+    const u = targetUser || user;
+    if (u && u.role !== "customer") {
+      return "/login";
+    }
+
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const rawTarget =
@@ -57,14 +63,11 @@ export default function LoginPage() {
         params.get("redirect") ||
         sessionStorage.getItem("ayaan_intended_destination");
 
-      if (rawTarget && rawTarget.startsWith("/") && !rawTarget.startsWith("//") && !rawTarget.includes(":")) {
+      if (rawTarget) {
         sessionStorage.removeItem("ayaan_intended_destination");
-        return rawTarget;
+        const safe = sanitizeRedirectUrl(rawTarget, "/dashboard", false);
+        return safe;
       }
-    }
-    const u = targetUser || user;
-    if (u && u.role !== "customer") {
-      return "/login";
     }
     return "/dashboard";
   };

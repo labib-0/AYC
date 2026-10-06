@@ -79,19 +79,22 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               setSelectedTier("full_stock");
             }
 
-            try {
-              const brandItems = await getBrandProducts(p, 4);
-              setBrandProducts(brandItems);
-            } catch (err) {
-              console.warn("Failed to load products from brand:", err);
-            }
+            // Immediately mark main content ready before secondary recommendations
+            setLoading(false);
+
+            // Fetch secondary brand products non-blockingly
+            getBrandProducts(p, 4)
+              .then((brandItems) => setBrandProducts(brandItems))
+              .catch((err) => {
+                console.warn("Failed to load products from brand:", err);
+              });
           } else {
             setProduct(null);
+            setLoading(false);
           }
         } catch (err) {
           console.error("Failed to load product by slug/id:", slug, err);
           setProduct(null);
-        } finally {
           setLoading(false);
         }
       } else {
@@ -104,12 +107,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           setSelectedTier("full_stock");
         }
         setLoading(false);
-        try {
-          const brandItems = await getBrandProducts(initialProduct, 4);
-          setBrandProducts(brandItems);
-        } catch (err) {
-          console.warn("Failed to load products from brand:", err);
-        }
+
+        // Fetch secondary brand products non-blockingly
+        getBrandProducts(initialProduct, 4)
+          .then((brandItems) => setBrandProducts(brandItems))
+          .catch((err) => {
+            console.warn("Failed to load products from brand:", err);
+          });
       }
     }
     load();

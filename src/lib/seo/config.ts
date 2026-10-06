@@ -3,8 +3,15 @@
  * B2B Wholesale Apparel Manufacturer & Exporter
  */
 
-export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://ayaan-clothing.vercel.app";
+export const CANONICAL_DOMAIN = "https://ayaanclothing.com";
+
+export const SITE_URL = (() => {
+  const env = process.env.NEXT_PUBLIC_SITE_URL;
+  if (env && !env.includes("localhost") && !env.includes("127.0.0.1") && !env.includes("vercel.app")) {
+    return env.replace(/\/$/, "");
+  }
+  return CANONICAL_DOMAIN;
+})();
 
 export const SITE_CONFIG = {
   name: "AYAAN CLOTHING",
@@ -45,8 +52,6 @@ export const SITE_CONFIG = {
     "Middle East",
   ],
 } as const;
-
-export const CANONICAL_DOMAIN = "https://ayaanclothing.com";
 
 /**
  * Resolves the canonical base origin ensuring localhost or dev environments

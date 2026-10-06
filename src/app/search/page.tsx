@@ -240,8 +240,7 @@ function SearchResultsContent() {
         }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [query, selectedBrands, selectedAudiences, selectedCategories, sort]
+    [query, selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories, sort]
   );
 
   // ── Reset & reload on filter/sort/query change ────────────────────────────

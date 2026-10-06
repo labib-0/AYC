@@ -60,17 +60,28 @@ export default function ProductGallery({
     return valid.length > 0 ? valid : ["/placeholder.jpg"];
   }, [images]);
 
-  // Resolve Video Info (YouTube, Facebook, Vimeo, Direct MP4)
+  // Resolve Video Info (YouTube, Facebook, Vimeo, Direct MP4) with strict allowlisted domain validation
   const videoInfo = useMemo(() => {
+    const isSafeDomain = (urlStr: string, allowedHostSuffixes: string[]): boolean => {
+      try {
+        const parsed = new URL(urlStr);
+        if (parsed.protocol !== "https:") return false;
+        const host = parsed.hostname.toLowerCase();
+        return allowedHostSuffixes.some((s) => host === s || host.endsWith(`.${s}`));
+      } catch {
+        return false;
+      }
+    };
+
     const activeFbEmbed = (facebookEmbedUrl || product?.facebookEmbedUrl || videoEmbedUrl || product?.videoEmbedUrl || "").trim();
-    if (activeFbEmbed && (activeFbEmbed.includes("facebook.com") || activeFbEmbed.includes("plugins/video.php"))) {
+    if (activeFbEmbed && isSafeDomain(activeFbEmbed, ["facebook.com", "fb.watch", "fb.gg"])) {
       return { type: "facebook" as const, embedUrl: activeFbEmbed, directUrl: null };
     }
 
-    if (youtubeEmbedUrl) {
+    if (youtubeEmbedUrl && isSafeDomain(youtubeEmbedUrl, ["youtube.com", "youtube-nocookie.com", "youtu.be"])) {
       return { type: "youtube" as const, embedUrl: youtubeEmbedUrl, directUrl: null };
     }
-    if (youtubeVideoId) {
+    if (youtubeVideoId && /^[a-zA-Z0-9_-]{11}$/.test(youtubeVideoId)) {
       return { type: "youtube" as const, embedUrl: `https://www.youtube-nocookie.com/embed/${youtubeVideoId}`, directUrl: null };
     }
 
@@ -84,14 +95,14 @@ export default function ProductGallery({
     }
 
     // Facebook pattern
-    if (/facebook\.com|fb\.watch|fb\.gg/i.test(url)) {
+    if (/facebook\.com|fb\.watch|fb\.gg/i.test(url) && isSafeDomain(url, ["facebook.com", "fb.watch", "fb.gg"])) {
       const fbEmbedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&t=0`;
       return { type: "facebook" as const, embedUrl: fbEmbedUrl, directUrl: null };
     }
 
     // Vimeo pattern
     const vimeoMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/);
-    if (vimeoMatch) {
+    if (vimeoMatch && isSafeDomain(url, ["vimeo.com"])) {
       return { type: "vimeo" as const, embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}`, directUrl: null };
     }
 
@@ -433,6 +444,8 @@ export default function ProductGallery({
                   src={`${videoInfo.embedUrl}?autoplay=1&rel=0`}
                   title={`${productName} product video`}
                   className="w-full h-full border-0"
+                  loading="lazy"
+                  referrerPolicy="origin-when-cross-origin"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
@@ -441,6 +454,8 @@ export default function ProductGallery({
                   src={videoInfo.embedUrl}
                   title={`${productName} Facebook product video`}
                   className="w-full h-full border-0"
+                  loading="lazy"
+                  referrerPolicy="origin-when-cross-origin"
                   allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
                   allowFullScreen
                 />
@@ -449,6 +464,8 @@ export default function ProductGallery({
                   src={`${videoInfo.embedUrl}?autoplay=1`}
                   title={`${productName} product video`}
                   className="w-full h-full border-0"
+                  loading="lazy"
+                  referrerPolicy="origin-when-cross-origin"
                   allow="autoplay; fullscreen; picture-in-picture"
                   allowFullScreen
                 />
@@ -458,6 +475,7 @@ export default function ProductGallery({
                   controls
                   autoPlay
                   playsInline
+                  preload="metadata"
                   className="w-full h-full object-contain"
                 />
               )}

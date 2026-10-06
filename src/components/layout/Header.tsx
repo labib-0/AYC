@@ -182,9 +182,14 @@ function HeaderContent() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setIsSearchOpen(false);
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur();
+        if (isMobileMenuOpen) {
+          setIsMobileMenuOpen(false);
+        }
+        if (isSearchOpen) {
+          setIsSearchOpen(false);
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
         }
       }
     };
@@ -207,7 +212,7 @@ function HeaderContent() {
       document.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("scroll", handleScrollClose);
     };
-  }, [isSearchOpen]);
+  }, [isSearchOpen, isMobileMenuOpen]);
 
   const handleLogoClick = (e: React.MouseEvent) => {
     setIsSearchOpen(false);
@@ -379,7 +384,7 @@ function HeaderContent() {
             <Link 
               href={user ? "/dashboard/wishlist" : "/login?returnUrl=/dashboard/wishlist&notice=Please%20log%20in%20to%20view%20your%20saved%20items."}
               className="relative flex items-center justify-center h-10 w-10 rounded-full border border-white/20 hover:bg-white/10 transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer" 
-              aria-label="Saved Items"
+              aria-label={`Saved Items (${totalWishlistItems})`}
               title="Saved Items"
             >
               <Heart size={18} strokeWidth={1.5} className={totalWishlistItems > 0 ? "text-rose-400" : ""} />
@@ -394,7 +399,7 @@ function HeaderContent() {
             <button 
               type="button"
               className="relative flex items-center justify-center h-10 w-10 rounded-full border border-white/20 hover:bg-white/10 transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer" 
-              aria-label="Shopping Cart"
+              aria-label={`Shopping Cart (${totalItems} items)`}
               onClick={() => setIsCartOpen(true)}
             >
               <ShoppingCart size={18} strokeWidth={1.5} />
@@ -409,7 +414,7 @@ function HeaderContent() {
             <Link
               href="/rfq"
               className="relative inline-flex items-center justify-center h-10 px-3.5 rounded-full border border-white/20 hover:bg-white/10 text-white/90 hover:text-white transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer gap-2 text-xs font-semibold uppercase tracking-wider"
-              aria-label="Request For Quotation (RFQ)"
+              aria-label={`Request For Quotation (${totalRfqCount} items)`}
               title="Request Wholesale Quotation"
             >
               <FileText size={16} strokeWidth={1.5} className="text-white/80" />
@@ -469,6 +474,8 @@ function HeaderContent() {
                   type="button"
                   className="flex items-center justify-center h-10 w-10 -ml-1 rounded-full hover:bg-white/10 active:bg-white/20 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer"
                   aria-label="Open navigation menu"
+                  aria-expanded={isMobileMenuOpen}
+                  aria-controls="mobile-navigation-drawer"
                   onClick={() => {
                     setIsSearchOpen(false);
                     setIsMobileMenuOpen(true);
@@ -714,6 +721,10 @@ function HeaderContent() {
 
       {/* Mobile Menu Overlay */}
       <div 
+        id="mobile-navigation-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation menu"
         className={`fixed inset-0 bg-[#0b1329] text-white z-[100] transition-transform duration-300 ease-in-out lg:hidden ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
@@ -779,6 +790,7 @@ function HeaderContent() {
             <button
               type="button"
               onClick={toggleCategoryAccordion}
+              aria-expanded={isCategoryOpen}
               className="w-full flex items-center justify-between py-2 text-[13px] font-display font-extrabold uppercase tracking-wider text-white/70 hover:text-white transition-colors cursor-pointer group"
             >
               <span>PRODUCT CATEGORY</span>
