@@ -136,12 +136,17 @@ class Order extends Model
      * - If admin is not Super Admin, filters strictly to coupon_id IN (boundCouponIds).
      * - If admin has no bound coupons and is not Super Admin, returns an empty set.
      */
-    public function scopeForCouponSalesAdmin(Builder $query, User $adminUser, ?int $filterCouponId = null): Builder
-    {
+    public function scopeForCouponSalesAdmin(
+        Builder $query,
+        User $adminUser,
+        ?int $filterCouponId = null,
+        ?int $filterAdminId = null
+    ): Builder {
         $bindingService = app(\App\Services\Coupon\CouponAdminBindingService::class);
         $boundIds = $bindingService->getBoundCouponIds($adminUser);
 
         if (!$adminUser->isSuperAdmin()) {
+            // Normal Admin is strictly restricted to their own bound coupons
             if (empty($boundIds)) {
                 return $query->whereRaw('1 = 0');
             }
@@ -157,7 +162,30 @@ class Order extends Model
             return $query->whereIn('coupon_id', $boundIds);
         }
 
-        // Super Admin / privileged view:
+        // Super Admin / Privileged View:
+        // 1. If filtering by a specific admin's bindings:
+        if ($filterAdminId !== null) {
+            $targetAdmin = User::find($filterAdminId);
+            if (!$targetAdmin || !$targetAdmin->isAdmin()) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            $targetBoundIds = $bindingService->getBoundCouponIds($targetAdmin);
+            if (empty($targetBoundIds)) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            if ($filterCouponId !== null) {
+                if (!in_array($filterCouponId, $targetBoundIds, true)) {
+                    return $query->whereRaw('1 = 0');
+                }
+                return $query->where('coupon_id', $filterCouponId);
+            }
+
+            return $query->whereIn('coupon_id', $targetBoundIds);
+        }
+
+        // 2. Global coupon filter:
         if ($filterCouponId !== null) {
             return $query->where('coupon_id', $filterCouponId);
         }

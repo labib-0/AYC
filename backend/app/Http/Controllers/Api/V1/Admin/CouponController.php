@@ -77,6 +77,8 @@ class CouponController extends ApiController
 
         $coupon = Coupon::create($validated);
 
+        \App\Services\Cache\CouponSalesCacheService::invalidateGlobal();
+
         ActivityLogger::log('coupon.created', $coupon, [
             'code' => $coupon->code,
             'discount_type' => $coupon->discount_type,
@@ -145,6 +147,8 @@ class CouponController extends ApiController
 
         $coupon->update($validated);
 
+        \App\Services\Cache\CouponSalesCacheService::invalidateGlobal();
+
         ActivityLogger::log('coupon.updated', $coupon, [
             'code' => $coupon->code,
             'updated_fields' => array_keys($validated),
@@ -170,6 +174,8 @@ class CouponController extends ApiController
         ], $user);
 
         $coupon->delete();
+
+        \App\Services\Cache\CouponSalesCacheService::invalidateGlobal();
 
         return $this->success(null, 'Coupon deleted successfully');
     }

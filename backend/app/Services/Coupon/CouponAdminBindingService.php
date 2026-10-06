@@ -31,6 +31,7 @@ class CouponAdminBindingService
 
     /**
      * Retrieve all Coupon entities bound to the given administrator.
+     * Queries fresh from database to avoid stale Eloquent relation cache.
      */
     public function getBoundCoupons(User $adminUser): Collection
     {
@@ -38,7 +39,12 @@ class CouponAdminBindingService
             return new Collection();
         }
 
-        return $adminUser->boundCoupons()->get();
+        $couponIds = $this->getBoundCouponIds($adminUser);
+        if (empty($couponIds)) {
+            return new Collection();
+        }
+
+        return Coupon::whereIn('id', $couponIds)->orderBy('code')->get();
     }
 
     /**
@@ -128,7 +134,10 @@ class CouponAdminBindingService
             'created_by'    => $actor?->id,
         ]);
 
-        // 5. Record immutable audit log
+        // 5. Invalidate coupon sales cache immediately
+        \App\Services\Cache\CouponSalesCacheService::invalidateForBinding($adminUserId);
+
+        // 6. Record immutable audit log
         ActivityLogger::log('coupon.bound_to_admin', $binding, [
             'coupon_id'     => $coupon->id,
             'coupon_code'   => $coupon->code,
@@ -147,6 +156,7 @@ class CouponAdminBindingService
     public function unbind(int $bindingId, ?User $actor = null): bool
     {
         $binding = CouponAdminBinding::with(['coupon', 'adminUser'])->findOrFail($bindingId);
+        $adminUserId = (int) $binding->admin_user_id;
 
         // Record audit log before removal
         ActivityLogger::log('coupon.unbound_from_admin', $binding, [
@@ -158,6 +168,9 @@ class CouponAdminBindingService
         ], $actor);
 
         $binding->delete();
+
+        // Invalidate coupon sales cache immediately
+        \App\Services\Cache\CouponSalesCacheService::invalidateForBinding($adminUserId);
 
         return true;
     }

@@ -9,3 +9,7 @@ export type { CouponSalesOrdersTableProps } from "./CouponSalesOrdersTable";
 
 export { default as CouponSalesOrderDetailDrawer } from "./CouponSalesOrderDetailDrawer";
 export type { CouponSalesOrderDetailDrawerProps } from "./CouponSalesOrderDetailDrawer";
+
+export { default as SuperAdminCouponsOverviewTable } from "./SuperAdminCouponsOverviewTable";
+export type { SuperAdminCouponsOverviewTableProps } from "./SuperAdminCouponsOverviewTable";
+

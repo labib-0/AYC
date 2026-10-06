@@ -154,6 +154,8 @@ export class AdminCouponService {
 
   async getCouponSalesSummary(params?: {
     coupon_id?: number;
+    admin_id?: number;
+    order_status?: string;
     date_filter?: string;
     start_date?: string;
     end_date?: string;
@@ -168,6 +170,8 @@ export class AdminCouponService {
 
   async getCouponSalesOrders(params?: {
     coupon_id?: number;
+    admin_id?: number;
+    order_status?: string;
     date_filter?: string;
     start_date?: string;
     end_date?: string;
@@ -183,6 +187,16 @@ export class AdminCouponService {
     return mockStore.getCouponSalesOrders(params);
   }
 
+  async getCouponsOverview(params?: { search?: string }): Promise<CouponPerformanceRecord[]> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.get<any>("/admin/coupon-sales/coupons-overview", { params });
+      const list = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(list)) return list;
+      return [];
+    }
+    return mockStore.getCouponsOverview(params);
+  }
+
   async getCouponSalesOrder(id: number | string): Promise<any> {
     if (!isFrontendOnly()) {
       const res = await apiClient.get<any>(`/admin/coupon-sales/orders/${id}`);
@@ -193,6 +207,8 @@ export class AdminCouponService {
 
   async exportCouponSalesCsv(params?: {
     coupon_id?: number;
+    admin_id?: number;
+    order_status?: string;
     date_filter?: string;
     start_date?: string;
     end_date?: string;
@@ -252,6 +268,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
 }
 
 export interface CouponSalesSummary {
+  is_super_admin?: boolean;
   has_bindings: boolean;
   bound_coupons_count: number;
   bound_coupons: Array<{
@@ -265,6 +282,40 @@ export interface CouponSalesSummary {
   total_sales: number;
   total_discounts: number;
   currency: string;
+  total_coupons?: number;
+  total_active_coupons?: number;
+  total_inactive_coupons?: number;
+  total_used_coupons?: number;
+  total_remaining_usage?: number;
+  eligible_admins?: Array<{
+    id: number;
+    name: string;
+    email: string;
+  }>;
+}
+
+export interface CouponPerformanceRecord {
+  id: number;
+  code: string;
+  status: "active" | "inactive" | "expired";
+  is_active: boolean;
+  discount_type: string;
+  discount_value: number;
+  min_spend: number;
+  max_discount?: number | null;
+  usage_limit?: number | null;
+  usage_count: number;
+  remaining_usage?: number | null;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  orders_count: number;
+  sales_value: number;
+  total_discount: number;
+  bound_admins: Array<{
+    id: number;
+    name: string;
+    email: string;
+  }>;
 }
 
 export interface CouponSalesOrderRecord {

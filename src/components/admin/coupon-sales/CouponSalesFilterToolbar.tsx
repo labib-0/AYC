@@ -10,7 +10,8 @@ import {
   Download, 
   RotateCcw, 
   ArrowUpDown,
-  Filter
+  Users,
+  CheckCircle2
 } from "lucide-react";
 
 export interface BoundCouponItem {
@@ -35,6 +36,12 @@ export interface CouponSalesFilterToolbarProps {
   onSearchChange: (search: string) => void;
   sort: string;
   onSortChange: (sort: string) => void;
+  orderStatus?: string;
+  onOrderStatusChange?: (status: string) => void;
+  isSuperAdmin?: boolean;
+  eligibleAdmins?: Array<{ id: number; name: string; email: string }>;
+  selectedAdminId?: number | null;
+  onSelectAdminId?: (id: number | null) => void;
   onReset: () => void;
   onRefresh: () => void;
   onExportCsv: () => void;
@@ -56,6 +63,12 @@ export default function CouponSalesFilterToolbar({
   onSearchChange,
   sort,
   onSortChange,
+  orderStatus = "all",
+  onOrderStatusChange,
+  isSuperAdmin = false,
+  eligibleAdmins = [],
+  selectedAdminId = null,
+  onSelectAdminId,
   onReset,
   onRefresh,
   onExportCsv,
@@ -79,8 +92,19 @@ export default function CouponSalesFilterToolbar({
     { label: "Lowest Order Value", value: "lowest_value" },
   ];
 
+  const statusOptions = [
+    { label: "All Statuses", value: "all" },
+    { label: "Confirmed", value: "confirmed" },
+    { label: "Processing", value: "processing" },
+    { label: "Shipped", value: "shipped" },
+    { label: "Delivered", value: "delivered" },
+    { label: "Paid", value: "paid" },
+  ];
+
   const isFiltered = Boolean(
     selectedCouponId !== null ||
+    selectedAdminId !== null ||
+    (orderStatus && orderStatus !== "all") ||
     (dateFilter && dateFilter !== "all") ||
     search ||
     startDate ||
@@ -90,11 +114,11 @@ export default function CouponSalesFilterToolbar({
 
   return (
     <div className="space-y-3 p-4 bg-card border border-border/80 rounded-2xl shadow-2xs">
-      {/* Primary Filter Bar: Coupon Selector, Date Range, Search & Actions */}
+      {/* Primary Filter Bar: Coupon Selector, Admin Selector, Status, Date Range, Search & Actions */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        {/* Left Controls: Coupon & Date Selectors */}
+        {/* Left Controls: Selectors */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Section 4: Coupon Filter Dropdown */}
+          {/* Coupon Filter Dropdown */}
           <div className="relative inline-flex items-center">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs font-medium focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
               <Tag size={13} className="text-primary shrink-0" />
@@ -106,10 +130,10 @@ export default function CouponSalesFilterToolbar({
                 }}
                 className="bg-transparent text-foreground text-xs font-semibold focus:outline-hidden cursor-pointer pr-2"
                 id="select-coupon-filter"
-                aria-label="Filter by assigned coupon"
+                aria-label="Filter by coupon"
               >
                 <option value="all" className="bg-card text-foreground">
-                  All Coupons ({boundCoupons.length})
+                  {isSuperAdmin ? `All Coupons (${boundCoupons.length})` : `All Assigned (${boundCoupons.length})`}
                 </option>
                 {boundCoupons.map((c) => {
                   const discountLabel =
@@ -126,7 +150,57 @@ export default function CouponSalesFilterToolbar({
             </div>
           </div>
 
-          {/* Section 5: Date Filter Dropdown */}
+          {/* Super Admin: Filter by Bound Administrator (Section 22) */}
+          {isSuperAdmin && eligibleAdmins.length > 0 && onSelectAdminId && (
+            <div className="relative inline-flex items-center">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs font-medium focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
+                <Users size={13} className="text-primary shrink-0" />
+                <select
+                  value={selectedAdminId !== null ? String(selectedAdminId) : "all"}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onSelectAdminId(val === "all" ? null : Number(val));
+                  }}
+                  className="bg-transparent text-foreground text-xs font-semibold focus:outline-hidden cursor-pointer pr-2"
+                  id="select-admin-filter"
+                  aria-label="Filter by assigned administrator"
+                >
+                  <option value="all" className="bg-card text-foreground">
+                    All Admins ({eligibleAdmins.length})
+                  </option>
+                  {eligibleAdmins.map((a) => (
+                    <option key={a.id} value={String(a.id)} className="bg-card text-foreground">
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Order Status Dropdown */}
+          {onOrderStatusChange && (
+            <div className="relative inline-flex items-center">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs font-medium focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
+                <CheckCircle2 size={13} className="text-muted-foreground shrink-0" />
+                <select
+                  value={orderStatus}
+                  onChange={(e) => onOrderStatusChange(e.target.value)}
+                  className="bg-transparent text-foreground text-xs font-medium focus:outline-hidden cursor-pointer pr-2"
+                  id="select-status-filter"
+                  aria-label="Filter by order status"
+                >
+                  {statusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-card text-foreground">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Date Filter Dropdown */}
           <div className="relative inline-flex items-center">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs font-medium focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
               <Calendar size={13} className="text-muted-foreground shrink-0" />
@@ -146,7 +220,7 @@ export default function CouponSalesFilterToolbar({
             </div>
           </div>
 
-          {/* Section 12: Server-side Sort Dropdown */}
+          {/* Server-side Sort Dropdown */}
           <div className="relative inline-flex items-center">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-secondary/30 text-foreground text-xs font-medium focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
               <ArrowUpDown size={13} className="text-muted-foreground shrink-0" />
@@ -194,14 +268,14 @@ export default function CouponSalesFilterToolbar({
 
         {/* Right Controls: Search, Reset, Export & Refresh */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Section 6: Search Input */}
+          {/* Search Input */}
           <div className="relative flex-1 sm:w-64 min-w-[200px]">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search order #, customer..."
+              placeholder="Search order #, customer, coupon..."
               className="w-full pl-8.5 pr-8 py-1.5 text-xs rounded-xl border border-border bg-secondary/20 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary focus:border-primary"
               id="input-coupon-sales-search"
             />
@@ -217,7 +291,7 @@ export default function CouponSalesFilterToolbar({
             )}
           </div>
 
-          {/* Section 7: Reset Filters Button */}
+          {/* Reset Filters Button */}
           {isFiltered && (
             <button
               type="button"
@@ -231,7 +305,7 @@ export default function CouponSalesFilterToolbar({
             </button>
           )}
 
-          {/* Section 15: Export CSV Button */}
+          {/* Export CSV Button */}
           <button
             type="button"
             onClick={onExportCsv}

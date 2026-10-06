@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Services\Coupon;
+
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Api\ApiController;
@@ -19,6 +21,7 @@ class CouponSalesReportController extends ApiController
     /**
      * GET /api/v1/admin/coupon-sales/summary
      * Retrieve aggregated dashboard metrics (total orders, total sales, total discounts, bound coupons).
+     * Authoritative server-side scoping: Normal Admin restricted to bound scope; Super Admin sees global.
      */
     public function summary(Request $request): JsonResponse
     {
@@ -32,6 +35,8 @@ class CouponSalesReportController extends ApiController
         $startDate = $request->input('start_date') ?? $request->input('date_from');
         $endDate = $request->input('end_date') ?? $request->input('date_to');
         $search = $request->input('search');
+        $orderStatus = $request->input('order_status') ?? $request->input('status');
+        $filterAdminId = $request->filled('admin_id') ? (int) $request->input('admin_id') : null;
 
         $summary = $this->reportService->getSummary(
             adminUser: $user,
@@ -39,7 +44,9 @@ class CouponSalesReportController extends ApiController
             dateFilter: $dateFilter,
             startDate: $startDate,
             endDate: $endDate,
-            search: $search
+            search: $search,
+            orderStatus: $orderStatus,
+            filterAdminId: $filterAdminId
         );
 
         return $this->success($summary, 'Coupon sales summary retrieved successfully');
@@ -47,7 +54,7 @@ class CouponSalesReportController extends ApiController
 
     /**
      * GET /api/v1/admin/coupon-sales/orders
-     * Retrieve paginated qualifying orders strictly scoped to admin's bound coupons.
+     * Retrieve paginated qualifying orders strictly scoped to authorized coupon scope.
      */
     public function orders(Request $request): JsonResponse
     {
@@ -76,8 +83,31 @@ class CouponSalesReportController extends ApiController
     }
 
     /**
+     * GET /api/v1/admin/coupon-sales/coupons-overview
+     * Retrieve overall coupon performance/usage table (Super Admin only).
+     */
+    public function couponsOverview(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAdmin()) {
+            return $this->forbidden('Administrator access required.');
+        }
+
+        if (!$user->isSuperAdmin()) {
+            return $this->forbidden('Forbidden: Super Administrator access required to view global coupon performance.');
+        }
+
+        try {
+            $overview = $this->reportService->getCouponsOverview($user, $request->all());
+            return $this->success($overview, 'Coupons overview retrieved successfully');
+        } catch (AuthorizationException $e) {
+            return $this->forbidden($e->getMessage());
+        }
+    }
+
+    /**
      * GET /api/v1/admin/coupon-sales/orders/{id}
-     * Retrieve single order details strictly scoped to admin's bound coupons.
+     * Retrieve single order details strictly scoped to admin's authorized scope.
      */
     public function show(Request $request, int|string $id): JsonResponse
     {
@@ -96,7 +126,7 @@ class CouponSalesReportController extends ApiController
 
     /**
      * GET /api/v1/admin/coupon-sales/export
-     * Stream CSV export strictly scoped to admin's bound coupons and applied filters.
+     * Stream CSV export strictly scoped to admin's authorized scope.
      */
     public function export(Request $request): StreamedResponse|JsonResponse
     {

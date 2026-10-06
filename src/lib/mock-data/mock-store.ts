@@ -922,6 +922,45 @@ class MockStore {
     };
   }
 
+  getCouponsOverview(params?: { search?: string }): any[] {
+    const coupons = this.getCoupons();
+    const bindings = this.getCouponBindings();
+    const admins = this.getActiveAdmins();
+    const orders = this.getOrders();
+
+    return coupons.map((c) => {
+      const boundAdminIds = bindings.filter((b) => Number(b.coupon_id) === Number(c.id)).map((b) => Number(b.admin_user_id));
+      const boundAdminsList = admins.filter((a) => boundAdminIds.includes(Number(a.id)));
+      const couponOrders = orders.filter((o) => (o as any).coupon_id && Number((o as any).coupon_id) === Number(c.id));
+      const ordersCount = couponOrders.length;
+      const salesValue = couponOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+      const totalDiscount = couponOrders.reduce((sum, o) => sum + Number(o.discount_amount || 0), 0);
+
+      const isExpired = c.expires_at ? new Date(c.expires_at).getTime() < Date.now() : false;
+      const status = !c.is_active ? "inactive" : isExpired ? "expired" : "active";
+
+      return {
+        id: Number(c.id),
+        code: c.code,
+        status,
+        is_active: Boolean(c.is_active),
+        discount_type: c.discount_type,
+        discount_value: Number(c.discount_value),
+        min_spend: Number(c.min_spend || 0),
+        max_discount: c.max_discount ? Number(c.max_discount) : null,
+        usage_limit: c.usage_limit ? Number(c.usage_limit) : null,
+        usage_count: Number(c.usage_count || 0),
+        remaining_usage: c.usage_limit ? Math.max(0, Number(c.usage_limit) - Number(c.usage_count || 0)) : null,
+        starts_at: c.starts_at || null,
+        expires_at: c.expires_at || null,
+        orders_count: ordersCount,
+        sales_value: Math.round(salesValue * 100) / 100,
+        total_discount: Math.round(totalDiscount * 100) / 100,
+        bound_admins: boundAdminsList.map((a) => ({ id: a.id, name: a.name, email: a.email })),
+      };
+    });
+  }
+
   getCouponSalesOrder(id: number | string): any {
     return this.getOrders().find((o) => String(o.id) === String(id) || o.order_number === String(id)) || null;
   }

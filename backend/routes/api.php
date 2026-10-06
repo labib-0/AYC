@@ -473,6 +473,8 @@ Route::prefix('v1')->group(function () {
         // Coupon Sales Reporting (Prompt 2 & 3)
         Route::get('/coupon-sales/summary', [CouponSalesReportController::class, 'summary'])
             ->middleware('permission:analytics.sales.view');
+        Route::get('/coupon-sales/coupons-overview', [CouponSalesReportController::class, 'couponsOverview'])
+            ->middleware('permission:analytics.sales.view');
         Route::get('/coupon-sales/orders', [CouponSalesReportController::class, 'orders'])
             ->middleware('permission:order.view');
         Route::get('/coupon-sales/export', [CouponSalesReportController::class, 'export'])
