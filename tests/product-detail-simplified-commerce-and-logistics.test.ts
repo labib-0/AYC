@@ -13,32 +13,34 @@
 
 import fs from "fs";
 import path from "path";
-import { calculateCartonCbm, calculateTotalCbm } from "../src/lib/services/shipping-package";
+import { calculateCartonCbm } from "../src/lib/services/shipping-package";
 import type { ShippingPackageProfile } from "../src/types";
 
 function test(name: string, fn: () => void | Promise<void>) {
   try {
     fn();
     console.log(`✅ [PASS] ${name}`);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error(`❌ [FAIL] ${name}`);
-    console.error(`       Error: ${err?.message || err}`);
+    console.error(`       Error: ${msg}`);
     process.exitCode = 1;
   }
 }
 
-function expect(val: any) {
+function expect(val: unknown) {
   return {
-    toBe: (expected: any) => {
+    toBe: (expected: unknown) => {
       if (val !== expected) throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(val)}`);
     },
-    toEqual: (expected: any) => {
+    toEqual: (expected: unknown) => {
       if (JSON.stringify(val) !== JSON.stringify(expected)) {
         throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(val)}`);
       }
     },
     toBeCloseTo: (expected: number, delta: number = 0.001) => {
-      if (Math.abs(val - expected) > delta) {
+      const num = typeof val === "number" ? val : Number(val);
+      if (Math.abs(num - expected) > delta) {
         throw new Error(`Expected ${val} to be close to ${expected} (delta: ${delta})`);
       }
     },
@@ -174,7 +176,7 @@ function calculateMockLogistics(qty: number, profiles: ShippingPackageProfile[])
   const piecesPerCarton = Math.max(1, Math.round(basePkgQty / cartonsPerPkg));
   const requiredCartons = Math.ceil(qty / piecesPerCarton);
 
-  const singleCbm = calculateCartonCbm(base.carton_length || 0, base.carton_width || 0, base.carton_height || 0, (base.dimension_unit as any) || "cm");
+  const singleCbm = calculateCartonCbm(base.carton_length || 0, base.carton_width || 0, base.carton_height || 0, (base.dimension_unit as "cm" | "in" | undefined) || "cm");
 
   const grossPerCarton =
     Number(base.gross_weight) > 0 ? Number(base.gross_weight) : Number(base.total_gross_weight || 0) / cartonsPerPkg;
@@ -188,7 +190,6 @@ function calculateMockLogistics(qty: number, profiles: ShippingPackageProfile[])
 }
 
 function resolvePricing(qty: number) {
-  const moq = 50;
   const bulkThreshold = 200;
   const fullStockQty = 750;
   const stdPrice = 10.0;

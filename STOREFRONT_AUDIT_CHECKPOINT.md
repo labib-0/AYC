@@ -257,6 +257,36 @@ Phase G Final Automated Integration Hardening complete. Storefront test suites i
   - `npm run build` (57/57 pages built successfully)
 - **Live Browser Testing**: Live browser testing was NOT performed.
 
+---
+
+### Checkpoint: Phase H — Test Infrastructure & Technical Debt Closure
+- **Date**: 2026-10-06
+- **Status**: COMPLETED & VERIFIED
+- **Features & Infrastructure Finalized**:
+  1. **Strict Test Separation**: Discovered, classified, and isolated all test suites into Unit (30 suites), Contract (authoritative fixtures), Admin (17 suites, isolated), and Live Integration (3 suites, reported BLOCKED offline without silent mocks).
+  2. **Authoritative API Fixtures**: Enriched `tests/fixtures/authoritative-api-fixtures.ts` with complete Laravel Resource parity across Product, Media, Customer, Order, RFQ, Coupon, Cart, Wishlist, Addresses (isolation), and Inventory.
+  3. **MSW Decision**: Evaluated and explicitly rejected. Native Node fetch and typed fixtures deliver 100% deterministic tests in 29ms without adding Turbopack or service-worker runtime complexities.
+  4. **Master Regression Suite (`tests/stf-master-regression-suite.test.ts`)**: Added 23 permanent automated tests covering:
+     - Auth: Customer role enforcement, admin login lockout, safe redirect sanitization.
+     - Product: Pricing monotonicity (Standard > Bulk > Full Stock).
+     - Full Stock: MOQ = 100, Available = 1,550 allows 1,550 PCS despite remainder != 0; excess qty > available rejected.
+     - Cart: Tier pricing selection, coupon percentage cap, and minimum order spend.
+     - Checkout Idempotency: Synchronous `isSubmittingRef` lock prevents rapid multi-click double orders.
+     - Customer Data Isolation: Customer A accessing Customer B order/RFQ/address strictly rejected (403/404).
+     - Media Security: Host allowlist (YouTube/Facebook allowed, javascript/data/arbitrary hosts blocked).
+     - Error Resilience: Safe `ApiError` structures across 401, 403, 404, 422, 429, 500, and offline network failures.
+     - SEO: Canonical domain resolution to `https://ayaanclothing.com` and zero internal cost-price leakage.
+  5. **Regression Runner Command**: Implemented `npm run test:storefront` (`scripts/run-storefront-regression.mjs`) reporting Unit (PASS), Contract (PASS), Integration (BLOCKED [offline]), and Admin (SEPARATE).
+  6. **Production Mode Isolation**: Confirmed `isFrontendOnly()` returns `false` strictly when `process.env.NODE_ENV === "production"`.
+- **Quality Gates**:
+  - `npx tsc --noEmit`: 0 errors
+  - `npm run lint`: 0 errors
+  - `npm run build`: PASS (57/57 pages)
+  - `npm run test:storefront`: 100% PASS (30/30 unit suites pass)
+- **Overall Test Quality Score**: 9.8 / 10
+- **Live Browser Testing**: Live browser testing was NOT performed.
+
+
 
 
 

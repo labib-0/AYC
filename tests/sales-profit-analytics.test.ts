@@ -16,10 +16,11 @@ const localStoragePolyfill = {
   key: (i: number) => Array.from(memoryStore.keys())[i] ?? null,
 };
 
-(globalThis as any).localStorage = localStoragePolyfill;
-(globalThis as any).window = globalThis;
+const g = globalThis as unknown as Record<string, unknown>;
+g.localStorage = localStoragePolyfill;
+g.window = globalThis;
 
-import { adminAnalyticsService, AnalyticsPeriod } from "../src/services/admin/analytics.service";
+import { adminAnalyticsService } from "../src/services/admin/analytics.service";
 import { mockStore } from "../src/lib/mock-data/mock-store";
 import { formatPrice } from "../src/lib/formatters";
 
@@ -131,8 +132,8 @@ console.log("\n▶ Suite 4: Zero Activity Timeline Continuity");
 console.log("\n▶ Suite 5: Valid Order Status Filtering");
 {
   const orders = mockStore.getOrders();
-  const hasCancelled = orders.some((o) => o.status === "cancelled");
-  assert(true, "Cancelled orders are filtered from sales aggregation");
+  const validOrders = orders.filter((o) => o.status !== "cancelled" && o.status !== "refunded");
+  assert(validOrders.length > 0, "Cancelled orders are filtered from sales aggregation");
 
   const analytics = adminAnalyticsService.calculateDemoSalesProfit("daily");
   assert(analytics.summary.total_sales >= 0, "Total sales calculated exclusively from valid orders");

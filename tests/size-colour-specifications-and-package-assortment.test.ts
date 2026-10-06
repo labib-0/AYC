@@ -106,9 +106,6 @@ console.log("\n▶ 3. Package Assortment Visibility vs Product Storefront Visibi
 // 4. DEFAULT MESSAGE AND CUSTOMIZATION FALLBACK
 console.log("\n▶ 4. Default Package Assortment Message Fallback");
 {
-  const defaultMsg =
-    "Each package includes a mixed assortment of all available colours and sizes. All listed colours and sizes will be included in the package. Quantity may vary by colour and size due to original surplus stock availability.";
-
   const mockProductWithDefault = {
     id: 104,
     name: "Classic Hoodie",

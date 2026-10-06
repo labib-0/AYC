@@ -34,26 +34,26 @@ const localStoragePolyfill = {
   get length() { return memoryStore.size; },
   key: (i: number) => Array.from(memoryStore.keys())[i] ?? null,
 };
-(globalThis as any).localStorage = localStoragePolyfill;
-(globalThis as any).window = globalThis;
-(globalThis as any).CustomEvent = class CustomEvent {
+const g = globalThis as unknown as Record<string, unknown>;
+g.localStorage = localStoragePolyfill;
+g.window = globalThis;
+g.CustomEvent = class CustomEvent {
   type: string;
-  detail: any;
-  constructor(type: string, params: any = {}) {
+  detail: unknown;
+  constructor(type: string, params: { detail?: unknown } = {}) {
     this.type = type;
     this.detail = params.detail;
   }
 };
-(globalThis as any).dispatchEvent = () => true;
-(globalThis as any).addEventListener = () => {};
-(globalThis as any).removeEventListener = () => {};
+g.dispatchEvent = () => true;
+g.addEventListener = () => {};
+g.removeEventListener = () => {};
 
 import { DEFAULT_TOP_BANNER, getTopBannerConfig } from "../src/config/banner";
 import {
   getFeaturedProducts,
   getInitialBrandProducts,
 } from "../src/lib/services/products";
-import { productService } from "../src/services/product.service";
 
 let passedCount = 0;
 let failedCount = 0;

@@ -11,7 +11,9 @@
     "build": "next build",
     "build:clean": "rm -rf .next && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node scripts/run-storefront-regression.mjs",
+    "test:storefront": "node scripts/run-storefront-regression.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

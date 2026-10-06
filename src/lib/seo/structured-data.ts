@@ -122,6 +122,7 @@ export function generateProductJsonLd(product: B2BProductInput | Product) {
     : 0;
 
   const isPreOrder = Boolean(
+    prodObj.isPreorder ||
     prodObj.isPreOrder ||
     prodObj.is_preorder ||
     prodObj.allow_preorder ||

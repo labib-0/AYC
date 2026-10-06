@@ -14,37 +14,39 @@
 
 import fs from "fs";
 import path from "path";
-import { calculateCartonCbm, calculateTotalCbm } from "../src/lib/services/shipping-package";
+import { calculateCartonCbm } from "../src/lib/services/shipping-package";
 
 function test(name: string, fn: () => void | Promise<void>) {
   try {
     fn();
     console.log(`✅ [PASS] ${name}`);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error(`❌ [FAIL] ${name}`);
-    console.error(`       Error: ${err?.message || err}`);
+    console.error(`       Error: ${msg}`);
     process.exitCode = 1;
   }
 }
 
-function expect(val: any) {
+function expect(val: unknown) {
   return {
-    toBe: (expected: any) => {
+    toBe: (expected: unknown) => {
       if (val !== expected) throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(val)}`);
     },
-    toEqual: (expected: any) => {
+    toEqual: (expected: unknown) => {
       if (JSON.stringify(val) !== JSON.stringify(expected)) {
         throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(val)}`);
       }
     },
     toBeCloseTo: (expected: number, delta: number = 0.001) => {
-      if (Math.abs(val - expected) > delta) {
+      const num = typeof val === "number" ? val : Number(val);
+      if (Math.abs(num - expected) > delta) {
         throw new Error(`Expected ${val} to be close to ${expected} (delta: ${delta})`);
       }
     },
     toContain: (sub: string) => {
       if (typeof val !== "string" || !val.includes(sub)) {
-        throw new Error(`Expected content to contain "${sub}"`);
+        throw new Error(`Expected content to contain ${JSON.stringify(sub)}`);
       }
     },
     notToContain: (sub: string) => {
@@ -70,15 +72,11 @@ console.log("==================================================\n");
 
 const detailViewPath = path.resolve(__dirname, "../src/app/products/[slug]/ProductDetailView.tsx");
 const pricingOptionPath = path.resolve(__dirname, "../src/components/product/PricingTierOption.tsx");
-const stepperPath = path.resolve(__dirname, "../src/components/product/QuantityStepper.tsx");
-const summaryPath = path.resolve(__dirname, "../src/components/product/CommerceSummary.tsx");
 const logisticsPath = path.resolve(__dirname, "../src/components/product/ProductSelectedLogisticsRow.tsx");
 const resourcePath = path.resolve(__dirname, "../backend/app/Http/Resources/Api/V1/ProductResource.php");
 
 const detailSrc = fs.readFileSync(detailViewPath, "utf-8");
 const pricingOptionSrc = fs.readFileSync(pricingOptionPath, "utf-8");
-const stepperSrc = fs.readFileSync(stepperPath, "utf-8");
-const summarySrc = fs.readFileSync(summaryPath, "utf-8");
 const logisticsSrc = fs.readFileSync(logisticsPath, "utf-8");
 const resourceSrc = fs.readFileSync(resourcePath, "utf-8");
 

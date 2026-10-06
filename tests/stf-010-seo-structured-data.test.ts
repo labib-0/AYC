@@ -1,6 +1,22 @@
 import { generateProductJsonLd, canonicalUrl, getCanonicalBaseUrl } from "../src/lib/seo";
 import { B2BProductInput } from "../src/types/b2b";
 
+interface JsonLdOffer {
+  "@type": string;
+  price?: string;
+  lowPrice?: string;
+  highPrice?: string;
+  offerCount?: number;
+  availability: string;
+}
+
+interface JsonLdProductResult {
+  "@context": string;
+  "@type": string;
+  url: string;
+  offers: JsonLdOffer;
+}
+
 function assert(condition: boolean, msg: string) {
   if (!condition) {
     throw new Error(`Assertion failed: ${msg}`);
@@ -33,7 +49,7 @@ const singlePriceProduct: B2BProductInput = {
   costPrice: 5.00, // INTERNAL - MUST NOT LEAK!
 };
 
-const jsonLdSingle = generateProductJsonLd(singlePriceProduct) as any;
+const jsonLdSingle = generateProductJsonLd(singlePriceProduct) as unknown as JsonLdProductResult;
 assert(jsonLdSingle["@context"] === "https://schema.org", "Must have Schema.org context");
 assert(jsonLdSingle["@type"] === "Product", "Must have Product type");
 assert(jsonLdSingle.url === `${baseUrl}/products/classic-polo`, "Must have canonical URL");
@@ -60,7 +76,7 @@ const multiTierProduct: B2BProductInput = {
   costPrice: 8.00, // INTERNAL
 };
 
-const jsonLdMulti = generateProductJsonLd(multiTierProduct) as any;
+const jsonLdMulti = generateProductJsonLd(multiTierProduct) as unknown as JsonLdProductResult;
 assert(jsonLdMulti.offers["@type"] === "AggregateOffer", "Multi-tier pricing must use AggregateOffer");
 assert(jsonLdMulti.offers.lowPrice === "12.50", "lowPrice must match lowest tier");
 assert(jsonLdMulti.offers.highPrice === "20.00", "highPrice must match highest tier");
@@ -80,10 +96,10 @@ const preOrderProduct: B2BProductInput = {
   status: "published",
   images: ["https://example.com/jacket.jpg"],
   standardPrice: 35.00,
-  isPreOrder: true,
-} as any;
+  isPreorder: true,
+};
 
-const jsonLdPreOrder = generateProductJsonLd(preOrderProduct) as any;
+const jsonLdPreOrder = generateProductJsonLd(preOrderProduct) as unknown as JsonLdProductResult;
 assert(jsonLdPreOrder.offers.availability === "https://schema.org/PreOrder", "Pre-order product must have PreOrder availability");
 
 // 5. Out Of Stock Availability
@@ -101,7 +117,7 @@ const outOfStockProduct: B2BProductInput = {
   standardPrice: 22.00,
 };
 
-const jsonLdOutOfStock = generateProductJsonLd(outOfStockProduct) as any;
+const jsonLdOutOfStock = generateProductJsonLd(outOfStockProduct) as unknown as JsonLdProductResult;
 assert(jsonLdOutOfStock.offers.availability === "https://schema.org/OutOfStock", "Out of stock product must have OutOfStock availability");
 
 console.log("✅ ALL STF-010 SEO STRUCTURED DATA TESTS PASSED (5/5)");

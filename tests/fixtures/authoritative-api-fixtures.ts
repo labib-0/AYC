@@ -380,3 +380,144 @@ export const FIXTURE_RFQS = {
     created_at: "2026-10-04T09:15:00Z"
   }
 };
+
+export const FIXTURE_CART = {
+  customerACart: {
+    id: "cart_1001",
+    user_id: "1001",
+    session_id: "sess_alpha_123",
+    status: "active",
+    total_items: 150,
+    subtotal: 3600.00,
+    currency: "USD",
+    created_at: "2026-10-05T08:00:00Z",
+    updated_at: "2026-10-05T08:30:00Z",
+    items: [
+      {
+        id: "item_9001",
+        cart_id: "cart_1001",
+        product_id: "101",
+        product_variant_id: null,
+        size: "L",
+        color: "Navy",
+        quantity: 150,
+        pricing_mode: "standard",
+        unit_price: 24.00,
+        line_total: 3600.00,
+        product: {
+          id: "101",
+          name: "Men's Luxury Merino Wool Knit Sweater",
+          slug: "mens-luxury-merino-wool-knit-sweater",
+          sku: "AYN-SWT-0101",
+          brand: "Ayaan Prime",
+          price: 24.00,
+          has_valid_price: true,
+          oldPrice: null,
+          images: ["https://images.pexels.com/photos/45982/pexels-photo-45982.jpeg"],
+          color: "Navy",
+          moq: 100,
+          availableStock: 1550,
+          isPreorder: false,
+          is_preorder: false,
+          isSoldOut: false,
+          is_sold_out: false
+        }
+      }
+    ]
+  }
+};
+
+export const FIXTURE_WISHLIST = {
+  customerAWishlist: {
+    id: "wish_1001",
+    user_id: "1001",
+    items_count: 2,
+    created_at: "2026-10-05T09:00:00Z",
+    updated_at: "2026-10-05T09:00:00Z",
+    items: [
+      {
+        id: "wi_1",
+        wishlist_id: "wish_1001",
+        product_id: "101",
+        created_at: "2026-10-05T09:00:00Z",
+        product: {
+          id: "101",
+          name: "Men's Luxury Merino Wool Knit Sweater",
+          slug: "mens-luxury-merino-wool-knit-sweater",
+          sku: "AYN-SWT-0101",
+          price: 24.00,
+          images: ["https://images.pexels.com/photos/45982/pexels-photo-45982.jpeg"],
+          availableStock: 1550,
+          moq: 100
+        }
+      },
+      {
+        id: "wi_2",
+        wishlist_id: "wish_1001",
+        product_id: "103",
+        created_at: "2026-10-05T09:10:00Z",
+        product: {
+          id: "103",
+          name: "Winter Expedition Down Jacket",
+          slug: "winter-expedition-down-jacket",
+          sku: "AYN-JKT-0103",
+          price: 45.00,
+          images: ["https://images.pexels.com/photos/842811/pexels-photo-842811.jpeg"],
+          availableStock: 500,
+          moq: 50
+        }
+      }
+    ]
+  }
+};
+
+export const FIXTURE_ADDRESSES = {
+  customerAAddress: {
+    id: 3001,
+    user_id: 1001,
+    address_name: "Primary Warehouse",
+    recipient_name: "Customer Alpha Receiving",
+    phone: "+1 555-0199",
+    street_address: "100 Logistics Blvd, Suite 4B",
+    city: "Los Angeles",
+    state: "CA",
+    postal_code: "90001",
+    country_code: "US",
+    is_default: true
+  },
+  customerBAddress: {
+    id: 3002,
+    user_id: 1002,
+    address_name: "European Distribution Center",
+    recipient_name: "Customer Beta Inbound",
+    phone: "+44 20 7946 0912",
+    street_address: "45 Storgatan",
+    city: "Stockholm",
+    state: null,
+    postal_code: "111 29",
+    country_code: "SE",
+    is_default: true
+  }
+};
+
+export const FIXTURE_INVENTORY = {
+  merinoSweater: {
+    product_id: 101,
+    total_physical_stock: 1600,
+    reserved_stock: 50,
+    available_stock: 1550,
+    moq: 100,
+    full_stock_threshold: 1550,
+    is_in_stock: true
+  },
+  poloShirtSoldOut: {
+    product_id: 102,
+    total_physical_stock: 0,
+    reserved_stock: 0,
+    available_stock: 0,
+    moq: 100,
+    full_stock_threshold: 0,
+    is_in_stock: false
+  }
+};
+

@@ -2,15 +2,13 @@ import fs from "fs";
 import path from "path";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import BUSINESS_PROFILE, {
+import {
   WHATSAPP_BUSINESS_DISPLAY,
   WHATSAPP_BUSINESS_NUMBER,
   WHATSAPP_BUSINESS_URL,
   normalizeWhatsAppNumber,
-  buildWhatsAppUrl,
 } from "../src/config/business-profile";
 import { DEFAULT_BUSINESS_SETTINGS } from "../src/services/site-settings.service";
-import type { BankProfile } from "../src/types/settings";
 
 console.log("\n==================================================");
 console.log("PHASE 5 TEST SUITE: MULTI-CURRENCY BENEFICIARY BANKING");

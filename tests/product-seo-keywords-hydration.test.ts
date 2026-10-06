@@ -10,14 +10,10 @@ console.log("==================================================");
 
 const srcDir = path.resolve(process.cwd(), "src");
 const productFormFile = path.join(srcDir, "components/admin/products/form/ProductForm.tsx");
-const productSeoSectionFile = path.join(srcDir, "components/admin/products/form/ProductSeoSection.tsx");
 const editPageFile = path.join(srcDir, "app/ayc/products/[id]/edit/page.tsx");
-const productServiceFile = path.join(srcDir, "services/product.service.ts");
 
 const productFormContent = fs.readFileSync(productFormFile, "utf-8");
-const productSeoSectionContent = fs.readFileSync(productSeoSectionFile, "utf-8");
 const editPageContent = fs.readFileSync(editPageFile, "utf-8");
-const productServiceContent = fs.readFileSync(productServiceFile, "utf-8");
 
 // ----------------------------------------------------
 // 1. DATA HYDRATION & NORMALIZATION
@@ -147,7 +143,7 @@ assert.deepStrictEqual(
 console.log("\n▶ 5. Backend Payload: toBackendPayload preserves keywords and aliases in save/update payload");
 
 const productService = new ProductService();
-const toBackendPayloadMethod = (productService as any).toBackendPayload.bind(productService);
+const toBackendPayloadMethod = (productService as unknown as { toBackendPayload: (data: unknown) => Record<string, unknown> }).toBackendPayload.bind(productService);
 
 const updatePayload = toBackendPayloadMethod({
   id: "101",

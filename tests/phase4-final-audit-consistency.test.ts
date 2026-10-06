@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import BUSINESS_PROFILE, {
+import {
   WHATSAPP_BUSINESS_DISPLAY,
   WHATSAPP_BUSINESS_NUMBER,
   WHATSAPP_BUSINESS_URL,
@@ -136,7 +136,7 @@ describe("3. PDF Generation & Buffer Output Verification", () => {
   });
 
   it("Generates valid jsPDF instance for Proforma Invoice with custom exporter", () => {
-    const mockOrder: any = {
+    const mockOrder = {
       order_number: "ORD-2026-991122",
       created_at: "2026-10-06T12:00:00Z",
       placed_at: "2026-10-06T12:00:00Z",
@@ -153,7 +153,7 @@ describe("3. PDF Generation & Buffer Output Verification", () => {
         { product_name: "Polo Shirt", sku: "POLO-01", quantity: 100, unit_price: 15, line_total: 1500 },
       ],
     };
-    const options: any = {
+    const options = {
       exporter: {
         company_name: "Ayaan Verified Exporter Ltd",
         signatory_title: "Head of Trade Finance",
@@ -161,14 +161,14 @@ describe("3. PDF Generation & Buffer Output Verification", () => {
       },
     };
 
-    const doc = generateProformaInvoiceDoc(mockOrder, options);
+    const doc = generateProformaInvoiceDoc(mockOrder as unknown as import("../src/services/order.service").OrderRecord, options);
     assert.ok(doc, "jsPDF instance must be returned");
     const output = doc.output();
     assert.ok(output.startsWith("%PDF-"), "Output must begin with %PDF- header");
   });
 
   it("Generates valid jsPDF instance for Commercial Invoice with custom exporter", () => {
-    const mockOrder: any = {
+    const mockOrder = {
       order_number: "ORD-2026-991122",
       created_at: "2026-10-06T12:00:00Z",
       placed_at: "2026-10-06T12:00:00Z",
@@ -185,7 +185,7 @@ describe("3. PDF Generation & Buffer Output Verification", () => {
         { product_name: "Polo Shirt", sku: "POLO-01", quantity: 100, unit_price: 15, line_total: 1500 },
       ],
     };
-    const commercialDoc: any = {
+    const commercialDoc = {
       docNumber: "INV-2026-991122",
       date: "2026-10-06",
       exporter: {
@@ -199,7 +199,7 @@ describe("3. PDF Generation & Buffer Output Verification", () => {
       },
     };
 
-    const doc = generateCommercialInvoiceDoc(mockOrder, commercialDoc);
+    const doc = generateCommercialInvoiceDoc(mockOrder as unknown as import("../src/services/order.service").OrderRecord, commercialDoc as unknown as import("../src/types/b2b").CommercialDocument);
     assert.ok(doc, "jsPDF instance must be returned");
     const output = doc.output();
     assert.ok(output.startsWith("%PDF-"), "Output must begin with %PDF- header");

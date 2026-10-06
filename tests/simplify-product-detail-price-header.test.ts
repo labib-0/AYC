@@ -5,26 +5,27 @@ function test(name: string, fn: () => void) {
   try {
     fn();
     console.log(`✅ [PASS] ${name}`);
-  } catch (error: any) {
-    console.error(`❌ [FAIL] ${name}\n       Error: ${error.message}`);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`❌ [FAIL] ${name}\n       Error: ${msg}`);
     process.exit(1);
   }
 }
 
-function expect(actual: any) {
+function expect(actual: unknown) {
   return {
-    toBe(expected: any) {
+    toBe(expected: unknown) {
       if (actual !== expected) {
         throw new Error(`Expected ${JSON.stringify(actual)} to be ${JSON.stringify(expected)}`);
       }
     },
     toContain(expected: string) {
-      if (!actual.includes(expected)) {
+      if (typeof actual !== "string" || !actual.includes(expected)) {
         throw new Error(`Expected content to contain ${JSON.stringify(expected)}`);
       }
     },
     notToContain(expected: string) {
-      if (actual.includes(expected)) {
+      if (typeof actual === "string" && actual.includes(expected)) {
         throw new Error(`Expected content NOT to contain ${JSON.stringify(expected)}`);
       }
     },

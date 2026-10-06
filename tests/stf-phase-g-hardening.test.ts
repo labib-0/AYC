@@ -273,6 +273,16 @@ async function runPhaseGHardeningSuite() {
     "canonicalUrl generates clean canonical URL"
   );
 
+  interface JsonLdResult {
+    "@type": string;
+    offers: {
+      "@type": string;
+      price?: string;
+      lowPrice?: string;
+      highPrice?: string;
+    };
+  }
+
   const singleLd = generateProductJsonLd({
     id: "101",
     name: "Men's Luxury Merino Wool Knit Sweater",
@@ -284,7 +294,7 @@ async function runPhaseGHardeningSuite() {
     status: "published",
     stock: 1550,
     images: ["/placeholder.jpg"]
-  } as any) as any;
+  } as unknown as import("../src/types/b2b").B2BProductInput) as unknown as JsonLdResult;
 
   assert(
     singleLd["@type"] === "Product" && singleLd.offers["@type"] === "Offer" && singleLd.offers.price === "24.00",
@@ -305,7 +315,7 @@ async function runPhaseGHardeningSuite() {
     status: "published",
     stock: 1550,
     images: ["/placeholder.jpg"]
-  } as any) as any;
+  } as unknown as import("../src/types/b2b").B2BProductInput) as unknown as JsonLdResult;
 
   assert(
     multiLd.offers["@type"] === "AggregateOffer" && multiLd.offers.lowPrice === "18.50" && multiLd.offers.highPrice === "24.00",
