@@ -129,5 +129,52 @@ Phase G Final Automated Integration Hardening complete. Storefront test suites i
   - `npm run lint` (Passed, 0 errors)
   - `npm run build` (Passed, 57/57 pages built successfully)
 - **Live Browser Testing**: Live browser testing was NOT performed.
-- **Next Phase Recommendation**: Phase 2 — Document Dynamic Consumption & PDF Generation Pipeline.
+## Phase 2: Document Dynamic Consumption & PDF Generation Pipeline (Completed)
+- **Status**: Completed & Verified
+- **Date/Time**: 2026-10-06T21:45:00+06:00
+- **Summary**:
+  - Connected centralized settings to CI (`CommercialInvoiceService`, `CommercialInvoiceDocument`), PI (`ProformaInvoiceService`, `ProformaInvoiceDocument`), Offer Sheet (`OfferSheetService`, `OfferSheetDocument`), Invoice (`InvoiceService`), Quotations (`QuotationDocument`), and client PDF generator (`pdf-generator.ts`).
+  - Beneficiary bank details dynamically formatted with routing number strictly omitted for external customer documents.
+  - WhatsApp unified globally with canonical default `+880 1620-853502`.
+- **Tests Executed**:
+  - `backend/tests/Feature/Documents/DocumentSettingsConnectionTest.php` (13/13 passed)
+  - `tests/phase2-document-whatsapp-connection.test.ts` (44/44 passed)
+
+---
+
+## Phase 3: Final Business/Document Settings + Global WhatsApp + Document QA (Completed)
+- **Status**: Completed & Fully Hardened
+- **Date/Time**: 2026-10-06T22:30:00+06:00
+- **Admin Settings UX**:
+  - Added explicit badges: `PUBLIC WEBSITE & DOCUMENTS`, `PUBLIC WEBSITE`, `DOCUMENT ONLY`, `DOCUMENT ONLY / PRIVATE`.
+  - Added 1-click Reset buttons for WhatsApp (`+880 1620-853502`), Banking (`Pubali Bank Limited`, `1788-901-044316`, `PUBABDDH210`), and Logistics Defaults (`Bangladesh`, `FOB Chattogram`).
+  - Immediate propagation: Local cache invalidation and storage event dispatching synchronized without full page reload.
+- **Global WhatsApp Control**:
+  - Verified repository-wide single source of truth (`+880 1620-853502` / `8801620853502` / `https://wa.me/8801620853502`).
+  - Zero stale hardcoded numbers across all storefront and document components.
+  - End-to-end number change simulation: transition to `+880 1982-183886` and restoration back to canonical default verified.
+  - Contextual product/order messages preserved with URL encoding.
+- **Commercial Documents QA**:
+  - CI, PI, Offer Sheet, Sales Invoice, and Quotation verified.
+  - Calculation and numbering integrity preserved.
+  - Internal cost/purchase prices strictly excluded from all documents.
+  - Single-tier order quantity pricing on Offer Sheet; no duplicate gallery images.
+  - Privacy protections: customer views mask internal operator discount reasons.
+  - Historical order immutability preserved.
+- **Security & Authorization**:
+  - Public storefront API strictly shields private banking, routing numbers, and tax identification numbers.
+  - Admin settings guarded by `role:admin` and `permission:settings.edit`.
+  - Audit logging actively records `settings.business_updated` and `settings.whatsapp_updated`.
+- **Tests Executed**:
+  - `backend/tests/Feature/Documents/Phase3FinalDocumentQaTest.php` (18/18 passed, 114 assertions)
+  - `backend/tests/Feature/Documents/DocumentSettingsConnectionTest.php` (13/13 passed, 85 assertions)
+  - `backend/tests/Feature/Settings/BusinessDocumentSettingsTest.php` (10/10 passed, 89 assertions)
+  - `tests/phase3-final-verification.test.ts` (36/36 passed)
+  - `tests/phase2-document-whatsapp-connection.test.ts` (44/44 passed)
+  - `tests/whatsapp-authoritative-settings.test.ts` (27/27 passed)
+  - `npx tsc --noEmit` (0 errors)
+  - `npm run lint` (0 errors)
+  - `npm run build` (57/57 pages built successfully)
+- **Live Browser Testing**: Live browser testing was NOT performed.
+
 

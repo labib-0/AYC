@@ -241,3 +241,87 @@ Phase 2 establishes end-to-end integration between centralized Admin settings (`
 - Bank credentials and internal tax registrations are strictly excluded from `/settings/public`.
 - No mass-regeneration executed against historical orders; past documents remain untouched while new documents dynamically reflect active settings.
 
+---
+
+## 6. Phase 3 Finalization: Hardening, Consistency, Global WhatsApp & Document QA
+
+### A. Admin Settings Architecture & UX Badging Status
+- **Status**: FULLY IMPLEMENTED & HARDENED.
+- **Dedicated Admin Section**: `/ayc/settings` under the **Business & Document Info** tab.
+- **Categorization & Clear Scope Badging**:
+  1. **Company Master Data**: Badged `PUBLIC WEBSITE & DOCUMENTS`.
+     - Fields: Company Name, Legal/Trading Name, Corporate Tagline, Website, Logo URL.
+  2. **Contact Information**: Badged `PUBLIC WEBSITE & DOCUMENTS`.
+     - Fields: Registered Office Address, City, Country, Export Telephone, Official Export Email.
+     - Sub-card: **Authoritative WhatsApp Business Number** badged `PUBLIC WEBSITE`.
+  3. **Export Regulatory & Statutory Registrations**: Badged `DOCUMENT ONLY`.
+     - Fields: Trade License Number, BIN / VAT Registration, TIN Number, ERC Number, IRC Number, BGMEA Membership Number, Certificate of Incorporation Number.
+  4. **Beneficiary Bank Wire Details**: Badged `DOCUMENT ONLY / PRIVATE`.
+     - Fields: Bank Name, Branch Name & Address, Beneficiary Account Name, Account Number, SWIFT / BIC Code, Routing Number, Settlement Currency.
+     - Clear notice informing administrators that bank data is never exposed via public endpoints.
+  5. **Document Logistics & Legal Defaults**: Badged `DOCUMENT ONLY`.
+     - Fields: Port of Loading (POL), Country of Origin, Default Incoterm, Default Payment Terms Statement, Legal Declaration Text, Authorized Signatory Name & Title.
+- **1-Click Reset to Default Controls**:
+  - **WhatsApp Reset**: Instantly resets to canonical `+880 1620-853502`.
+  - **Banking Reset**: Instantly resets to official Pubali Bank Limited baseline (`1788-901-044316`, `PUBABDDH210`, Nawabpur Road Branch).
+  - **Logistics Defaults Reset**: Instantly resets to standard baseline (`Bangladesh`, `Chattogram Sea Port / Hazrat Shahjalal Int. Airport, Dhaka`, `FOB Chattogram`).
+- **Immediate Propagation**:
+  - Save operation persists to PostgreSQL via `AdminSettingsController::updateBusinessSettings`.
+  - Updates `localStorage.ayaan_site_settings_cache` and triggers cross-tab `window.dispatchEvent(new Event("storage"))` for instantaneous real-time UI synchronization without requiring page reload.
+  - Invalidates backend `site_settings_public` Redis/memory cache.
+
+### B. Global WhatsApp Single Source of Truth Status
+- **Status**: FULLY VERIFIED & ACTIVE.
+- **Authoritative Canonical Default**:
+  - **Display Number**: `+880 1620-853502`
+  - **Machine Number**: `8801620853502`
+  - **Direct Destination URL**: `https://wa.me/8801620853502`
+- **Zero Active Stale Numbers**: Repository-wide audit confirmed 0 hardcoded stale numbers in storefront and document components.
+- **E2E Number Change & Restoration**: Verified automated transition:
+  - Default `+880 1620-853502` -> Updated `+880 1982-183886` (`https://wa.me/8801982183886`) -> Restored `+880 1620-853502`.
+  - Contextual product and order messages are preserved with RFC 3986 safe percent-encoding across number changes.
+
+### C. Commercial Document QA Status
+1. **Commercial Invoice (CI)**:
+   - **Verification**: Verified via `Phase3FinalDocumentQaTest::test_12_ci_qa_preserves_calculations_and_protects_internal_costs`.
+   - **Fields Bound**: Centralized company profile, seller/exporter identity, beneficiary bank wire details (without routing number for buyers), contact telephone/WhatsApp, buyer snapshot, itemized goods, quantities, unit prices, line totals, discounts, shipping, and grand total.
+   - **Protection**: Internal product cost price (`cost_price` / `purchase_price`) is strictly excluded.
+2. **Proforma Invoice (PI)**:
+   - **Verification**: Verified via `Phase3FinalDocumentQaTest::test_13_pi_qa_preserves_calculations_and_bank_wire_terms`.
+   - **Fields Bound**: Exporter profile, buyer snapshot, order reference, itemized products, quantities, prices, discounts, totals, and complete beneficiary bank wire instructions for foreign trade remittances. PI calculation logic preserved.
+3. **Offer Sheet**:
+   - **Verification**: Verified via `Phase3FinalDocumentQaTest::test_14_offer_sheet_qa_single_tier_and_no_duplicate_media`.
+   - **Fields Bound**: Exporter profile, buyer snapshot, single-tier order quantity pricing (`applicable_pricing`), product media without duplicates. Bank details and internal cost prices strictly omitted.
+4. **Sales Invoice**:
+   - **Verification**: Verified via `Phase3FinalDocumentQaTest::test_15_invoice_qa_historical_order_values_authoritative`.
+   - **Fields Bound**: Historical frozen order values are authoritative. For public customer generation, internal operator notes (`manual_discount_reason`) are shielded from view, while admin generation preserves audit context.
+5. **Commercial Quotation / RFQ / Chalan**:
+   - **Verification**: Verified via `Phase3FinalDocumentQaTest::test_16_quotation_qa_centralized_company_data`.
+   - **Fields Bound**: Exporter profile, quotation reference, dynamic customer inquiry data, items, shipping fee, subtotal, and grand total.
+
+### D. Public vs Private Settings Security Boundary
+- **Public Storefront Endpoint (`/api/v1/settings/public`)**:
+  - Exposes ONLY non-sensitive branding and contact fields: `site_title`, `site_logo`, `whatsapp` (`display`, `number`, `url`), `social_links`, `legal_pages`.
+  - Strictly conceals: Bank account numbers, SWIFT codes, branch addresses, routing numbers, TIN, BIN, VAT, ERC, IRC, and BGMEA registration numbers.
+- **Admin Settings Endpoint (`/api/v1/admin/settings/business`)**:
+  - Authenticated via Sanctum and restricted to `role:admin` with `permission:settings.view` (read) and `permission:settings.edit` (write).
+  - Direct manipulation by unauthorized users or customers returns `401 Unauthorized` or `403 Forbidden`.
+
+### E. Historical Document Protection & Immutability
+- Historical orders remain strictly immutable in PostgreSQL.
+- Changing business settings updates newly generated documents and real-time previews, but does NOT perform destructive batch-updates or overwrite historical records.
+- Product catalog price updates do not mutate historical order item pricing.
+
+### F. Cache Consistency & Immediate Invalidation
+- Changing business settings triggers `Cache::forget('site_settings_public')`.
+- Subsequent requests to `/api/v1/settings/public` immediately return fresh values.
+- Storefront components listen to storage events and update in real-time without requiring Next.js rebuilds or server restarts.
+
+### G. Audit Log Verification
+- Changes to business settings trigger `ActivityLogger::log('settings.business_updated')`.
+- Changes to WhatsApp numbers trigger `ActivityLogger::log('settings.whatsapp_updated')` recording old display, new display, old machine number, new machine number, and the initiating admin ID.
+
+### H. Outstanding Limitations
+- Multi-currency banking profiles (different bank accounts per foreign currency) remain a planned future expansion; currently, the system provides one authoritative wire instructions profile with configurable settlement currency (default `USD`).
+
+

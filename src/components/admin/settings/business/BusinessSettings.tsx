@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Info,
   ExternalLink,
+  RotateCcw,
 } from "lucide-react";
 import { siteSettingsService, DEFAULT_BUSINESS_SETTINGS } from "@/services/site-settings.service";
 import { BusinessSettingsPayload } from "@/types/settings";
@@ -76,6 +77,46 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
     }));
   };
 
+  const handleResetWhatsApp = () => {
+    handleChange("contact", "whatsapp", "+880 1620-853502");
+    onNotify("WhatsApp number reset to official default (+880 1620-853502)");
+  };
+
+  const handleResetBanking = () => {
+    setData((prev) => ({
+      ...prev,
+      banking: {
+        ...prev.banking,
+        bank_name: "Pubali Bank Limited",
+        branch_name: "Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh",
+        account_name: "M/S AYAAN  CLOTHING",
+        account_number: "1788-901-044316",
+        swift_code: "PUBABDDH210",
+        routing_number: "175271894",
+        currency: "USD",
+      },
+    }));
+    onNotify("Beneficiary bank credentials reset to official Pubali Bank defaults");
+  };
+
+  const handleResetDefaults = () => {
+    setData((prev) => ({
+      ...prev,
+      document_defaults: {
+        ...prev.document_defaults,
+        country_of_origin: "Bangladesh",
+        port_of_loading: "Chattogram Sea Port / Hazrat Shahjalal Int. Airport, Dhaka",
+        air_port_of_loading: "Hazrat Shahjalal International Airport (DAC), Dhaka",
+        sea_port_of_loading: "Chattogram Sea Port (CGP), Bangladesh",
+        place_of_receipt: "Uttara Corporate Office / Dhaka Hub, Bangladesh",
+        incoterm_default: "FOB Chattogram",
+        payment_terms_default: "100% Irrevocable Confirmed Letter of Credit (L/C) at sight or 30% TT advance, balance upon copy BL",
+        declaration_text: "We certify that the goods mentioned in this invoice are of Bangladesh origin and the particulars provided are true and correct.",
+      },
+    }));
+    onNotify("Logistics & document defaults reset to baseline specifications");
+  };
+
   // Derive normalized WhatsApp digits and link for live preview
   const rawWaDigits = (data.contact?.whatsapp || "").replace(/\D+/g, "");
   const canonicalWaDigits = rawWaDigits.startsWith("880")
@@ -109,6 +150,30 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
         setData(updated);
       }
       setLastSaved(new Date());
+
+      // Propagate immediately to client-side runtime cache and trigger cross-tab storage event
+      if (typeof window !== "undefined") {
+        try {
+          const rawNum = (data.contact?.whatsapp || "").replace(/\D+/g, "");
+          const canonical = rawNum.startsWith("880")
+            ? rawNum
+            : rawNum.startsWith("0")
+            ? `880${rawNum.slice(1)}`
+            : `880${rawNum}`;
+          const currentCache = localStorage.getItem("ayaan_site_settings_cache");
+          const parsed = currentCache ? JSON.parse(currentCache) : {};
+          parsed.whatsapp = {
+            display: data.contact?.whatsapp || "+880 1620-853502",
+            number: canonical || "8801620853502",
+            url: `https://wa.me/${canonical || "8801620853502"}`,
+          };
+          if (data.company?.name) parsed.site_title = data.company.name;
+          localStorage.setItem("ayaan_site_settings_cache", JSON.stringify(parsed));
+          localStorage.setItem("ayaan_site_settings_updated", String(Date.now()));
+          window.dispatchEvent(new Event("storage"));
+        } catch {}
+      }
+
       onNotify("Business & Document information updated successfully.");
     } catch (err: unknown) {
       console.error("Save error:", err);
@@ -191,8 +256,8 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground uppercase tracking-wider font-mono">
-            Master Data
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 uppercase tracking-wider font-mono">
+            PUBLIC WEBSITE &amp; DOCUMENTS
           </span>
         </div>
 
@@ -277,8 +342,8 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-            Authoritative Contact
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 uppercase tracking-wider font-mono">
+            PUBLIC WEBSITE &amp; DOCUMENTS
           </span>
         </div>
 
@@ -359,9 +424,20 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
                   Authoritative WhatsApp Business Number
                 </label>
               </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
-                Global Source of Truth
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+                  PUBLIC WEBSITE
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResetWhatsApp}
+                  className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer border border-border"
+                  title="Reset to official default (+880 1620-853502)"
+                >
+                  <RotateCcw size={10} />
+                  <span>Reset Default</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
@@ -415,8 +491,8 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-            Export Regulatory
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 uppercase tracking-wider font-mono">
+            DOCUMENT ONLY
           </span>
         </div>
 
@@ -514,10 +590,21 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            <ShieldCheck size={12} />
-            <span>Admin Editable &amp; Protected</span>
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase tracking-wider font-mono">
+              <ShieldCheck size={12} />
+              <span>DOCUMENT ONLY / PRIVATE</span>
+            </span>
+            <button
+              type="button"
+              onClick={handleResetBanking}
+              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer border border-border"
+              title="Reset banking credentials to official Pubali Bank defaults"
+            >
+              <RotateCcw size={10} />
+              <span>Reset Bank</span>
+            </button>
+          </div>
         </div>
 
         <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
@@ -632,9 +719,20 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
-            Document Defaults
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 uppercase tracking-wider font-mono">
+              DOCUMENT ONLY
+            </span>
+            <button
+              type="button"
+              onClick={handleResetDefaults}
+              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer border border-border"
+              title="Reset logistics and document defaults"
+            >
+              <RotateCcw size={10} />
+              <span>Reset Defaults</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
