@@ -18,6 +18,7 @@ class CommercialInvoiceService
         $invNumber = "INV-{$year}-{$docSuffix}";
         $plNumber = "PL-{$year}-{$docSuffix}";
         $snapshot = $order->shipping_snapshot ?? [];
+        $docDefaults = DocumentHelper::getDocumentDefaults();
 
         $allGalleryImages = [];
 
@@ -114,8 +115,8 @@ class CommercialInvoiceService
                 'gross_weight' => $grossWeight,
                 'net_weight' => $netWeight,
                 'total_cbm' => $cbm,
-                'country_of_origin' => 'Bangladesh',
-                'port_of_loading' => 'Hazrat Shahjalal International Airport (DAC), Dhaka',
+                'country_of_origin' => $docDefaults['country_of_origin'] ?? 'Bangladesh',
+                'port_of_loading' => $docDefaults['air_port_of_loading'] ?? ($docDefaults['port_of_loading'] ?? 'Hazrat Shahjalal International Airport (DAC), Dhaka'),
                 'destination_port' => ($order->shipping_city ?: 'Destination') . ' Airport / Hub',
             ],
             'subtotal' => (float) $order->subtotal,
@@ -125,12 +126,13 @@ class CommercialInvoiceService
             'coupon_discount' => (float) ($order->coupon_discount_amount ?? 0),
             'manual_discount' => (float) ($order->manual_discount_amount ?? 0),
             'grandTotal' => (float) $order->total_amount,
-            'currency' => $order->currency ?: 'USD',
-            'paymentTerms' => $order->payment_method === 'net_30' ? 'Commercial Credit Net 30' : ($order->payment_method === 'card' ? 'Prepaid Credit Card (Full in Advance)' : 'Bank Wire Transfer (T/T Advance)'),
-            'shippingTerms' => 'Express Air Freight (DAP / DDP)',
-            'incoterm' => 'DAP',
+            'currency' => $order->currency ?: ($docDefaults['currency'] ?? 'USD'),
+            'paymentTerms' => $order->payment_method === 'net_30' ? 'Commercial Credit Net 30' : ($order->payment_method === 'card' ? 'Prepaid Credit Card (Full in Advance)' : ($docDefaults['payment_terms'] ?? 'Bank Wire Transfer (T/T Advance)')),
+            'shippingTerms' => $docDefaults['shipping_terms'] ?? 'Express Air Freight (DAP / DDP)',
+            'incoterm' => $docDefaults['incoterm'] ?? 'DAP',
             'bankDetails' => DocumentHelper::getBankDetails(),
-            'notes' => 'Official Commercial Invoice. All merchandise manufactured in Bangladesh.',
+            'bank_details' => DocumentHelper::getBankDetails(),
+            'notes' => $docDefaults['ci_notes'] ?? ($docDefaults['declaration_text'] ?? 'Official Commercial Invoice. All merchandise manufactured in Bangladesh.'),
         ];
     }
 
@@ -143,6 +145,7 @@ class CommercialInvoiceService
         $docSuffix = substr($quotation->quotation_number, -6);
         $invNumber = "INV-{$year}-{$docSuffix}";
         $plNumber = "PL-{$year}-{$docSuffix}";
+        $docDefaults = DocumentHelper::getDocumentDefaults();
 
         $allGalleryImages = [];
         $items = $quotation->items->map(function ($item, $idx) use ($quotation, &$allGalleryImages) {
@@ -227,13 +230,13 @@ class CommercialInvoiceService
             ],
             'estimated_shipping_data' => [
                 'carrier' => 'Aramex Priority Air Express',
-                'shipping_method' => $quotation->shipping_terms ?: 'FOB Dhaka (Export)',
+                'shipping_method' => $quotation->shipping_terms ?: ($docDefaults['shipping_terms'] ?? 'FOB Dhaka (Export)'),
                 'carton_count' => $cartonCount,
                 'gross_weight' => $grossWeight,
                 'net_weight' => $netWeight,
                 'total_cbm' => $cbm,
-                'country_of_origin' => 'Bangladesh',
-                'port_of_loading' => 'Hazrat Shahjalal International Airport (DAC), Dhaka',
+                'country_of_origin' => $docDefaults['country_of_origin'] ?? 'Bangladesh',
+                'port_of_loading' => $docDefaults['air_port_of_loading'] ?? ($docDefaults['port_of_loading'] ?? 'Hazrat Shahjalal International Airport (DAC), Dhaka'),
                 'destination_port' => ($quotation->destination_city ?: 'Destination') . ' Airport / Hub',
             ],
             'subtotal' => (float) $quotation->subtotal,
@@ -242,12 +245,13 @@ class CommercialInvoiceService
             'tax' => (float) $quotation->tax_amount,
             'discount' => (float) $quotation->discount_total,
             'grandTotal' => (float) $quotation->grand_total,
-            'currency' => $quotation->currency ?: 'USD',
-            'paymentTerms' => $quotation->payment_terms ?: 'Paid in Full (T/T Confirmed)',
-            'shippingTerms' => $quotation->shipping_terms ?: 'FOB Dhaka (Export)',
-            'incoterm' => $quotation->incoterm ?: 'FOB',
+            'currency' => $quotation->currency ?: ($docDefaults['currency'] ?? 'USD'),
+            'paymentTerms' => $quotation->payment_terms ?: ($docDefaults['payment_terms'] ?? 'Paid in Full (T/T Confirmed)'),
+            'shippingTerms' => $quotation->shipping_terms ?: ($docDefaults['shipping_terms'] ?? 'FOB Dhaka (Export)'),
+            'incoterm' => $quotation->incoterm ?: ($docDefaults['incoterm'] ?? 'FOB'),
             'bankDetails' => DocumentHelper::getBankDetails(),
-            'notes' => 'Commercial Invoice. Official customs and clearance document.',
+            'bank_details' => DocumentHelper::getBankDetails(),
+            'notes' => $quotation->admin_notes ?: ($docDefaults['ci_notes'] ?? 'Commercial Invoice. Official customs and clearance document.'),
         ];
     }
 

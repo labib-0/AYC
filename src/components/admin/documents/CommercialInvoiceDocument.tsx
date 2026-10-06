@@ -22,6 +22,7 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
         date={doc.date}
         orderNumber={doc.orderNumber}
         validUntil={doc.validUntil}
+        exporterProfile={doc.exporter}
       />
 
       {/* Shipper, Buyer & Shipment Parameters Grid */}
@@ -31,11 +32,12 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
             Exporter / Shipper
           </span>
           <span className="font-bold text-sm text-foreground block">
-            {BUSINESS_PROFILE.name}
+            {doc.exporter?.company_name || doc.exporter?.name || BUSINESS_PROFILE.name}
           </span>
           <p className="text-muted-foreground text-[11px] leading-relaxed">
-            {BUSINESS_PROFILE.description}<br />
-            {BUSINESS_PROFILE.address.formatted}
+            {doc.exporter?.tagline || doc.exporter?.business_type || BUSINESS_PROFILE.description}<br />
+            {doc.exporter?.address || doc.exporter?.office_address || BUSINESS_PROFILE.address.formatted}<br />
+            Email: {doc.exporter?.email || BUSINESS_PROFILE.contact.email} • WA/Tel: {doc.exporter?.whatsapp_display || doc.exporter?.phone || BUSINESS_PROFILE.contact.phone}
           </p>
         </div>
 

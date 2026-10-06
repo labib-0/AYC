@@ -192,7 +192,7 @@ class AdminSettingsController extends Controller
     public function getBusinessSettings(): JsonResponse
     {
         $exporter = DocumentHelper::getExporterProfile();
-        $banking = DocumentHelper::getBankDetails();
+        $banking = DocumentHelper::getBankDetailsWithRouting(true);
         $defaults = DocumentHelper::getDocumentDefaults();
 
         return response()->json([

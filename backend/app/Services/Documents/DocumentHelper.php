@@ -84,16 +84,24 @@ class DocumentHelper
      */
     public static function getBankDetails(): array
     {
-        $accNo = SystemSetting::get('bank_account_number', SystemSetting::get('banking.account_number', config('business.banking.account_number', '09871020003456')));
-        $title = SystemSetting::get('bank_account_title', SystemSetting::get('banking.account_name', config('business.banking.account_title', 'Ayaan Clothing Ltd.')));
+        return static::getBankDetailsWithRouting(false);
+    }
+
+    /**
+     * Get Beneficiary Bank Details with optional routing number for Admin settings management.
+     */
+    public static function getBankDetailsWithRouting(bool $includeRouting = true): array
+    {
+        $accNo = SystemSetting::get('bank_account_number', SystemSetting::get('banking.account_number', config('business.banking.account_number', '1788-901-044316')));
+        $title = SystemSetting::get('bank_account_title', SystemSetting::get('banking.account_name', config('business.banking.account_title', 'M/S AYAAN  CLOTHING')));
         $beneficiary = SystemSetting::get('bank_beneficiary_name', SystemSetting::get('banking.beneficiary_name', config('business.banking.beneficiary_name', $title)));
         $bankName = SystemSetting::get('bank_name', SystemSetting::get('banking.bank_name', config('business.banking.bank_name', 'Pubali Bank Limited')));
-        $branch = SystemSetting::get('bank_branch', SystemSetting::get('banking.branch_name', config('business.banking.branch', 'Uttara Model Town Branch, Dhaka, Bangladesh')));
-        $swift = SystemSetting::get('bank_swift_code', SystemSetting::get('banking.swift_code', config('business.banking.swift_code', 'PUBABDDH')));
-        $routing = SystemSetting::get('bank_routing_number', SystemSetting::get('banking.routing_number', config('business.banking.routing_number', '175271894')));
+        $branch = SystemSetting::get('bank_branch', SystemSetting::get('banking.branch_name', config('business.banking.branch', 'Nawabpur Road Branch')));
+        $swift = SystemSetting::get('bank_swift_code', SystemSetting::get('banking.swift_code', config('business.banking.swift_code', 'PUBABDDH210')));
+        $bankAddress = SystemSetting::get('bank_address', config('business.banking.bank_address', "Nawabpur Road Branch,\n125 Nawabpur Road,\nDhaka-1100,\nBangladesh"));
         $currency = SystemSetting::get('bank_currency', SystemSetting::get('banking.currency', 'USD'));
 
-        return [
+        $details = [
             'is_configured' => (bool) SystemSetting::get('bank_is_configured', config('business.banking.is_configured', true)),
             'bank_name' => $bankName,
             'account_title' => $title,
@@ -104,10 +112,15 @@ class DocumentHelper
             'swift_code' => $swift,
             'branch' => $branch,
             'branch_name' => $branch,
-            'bank_address' => SystemSetting::get('bank_address', config('business.banking.bank_address', $branch)),
-            'routing_number' => $routing,
+            'bank_address' => $bankAddress,
             'currency' => $currency,
         ];
+
+        if ($includeRouting) {
+            $details['routing_number'] = SystemSetting::get('bank_routing_number', SystemSetting::get('banking.routing_number', config('business.banking.routing_number', '175271894')));
+        }
+
+        return $details;
     }
 
     /**

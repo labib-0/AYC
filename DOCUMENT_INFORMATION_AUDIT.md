@@ -188,8 +188,56 @@ The following matrix documents **every single information field** discovered acr
 
 ## 6. Future Phase Roadmaps
 
-- **Phase 2 (Document PDF & Calculation Polish)**:
-  - Connect client-side PDF generation (`pdf-generator.ts`) to fetch live server document configurations when rendering invoices for download.
-  - Expose per-order document note overrides in the Admin Order detail screen.
+- **Phase 2 (Connect Business Settings to Documents + Global WhatsApp)**:
+  - COMPLETED. See detailed implementation section below.
 - **Phase 3 (Multi-Bank & Multi-Currency Profiles)**:
   - If required in future export expansions, support secondary bank accounts (e.g. specialized LC issuing bank vs TT wire bank) and secondary currency accounts (EUR, GBP).
+
+---
+
+## 5. Phase 2 Implementation: Dynamic Document Resolution & Authoritative WhatsApp
+
+Phase 2 establishes end-to-end integration between centralized Admin settings (`SystemSetting`) and all 5 commercial document generators, both on the Laravel backend and client-side Next.js viewer / PDF export engine.
+
+### A. Connected Document Generators
+1. **Commercial Invoice (CI)**:
+   - Backend: `CommercialInvoiceService.php` (`generateForOrder`, `generateForQuotation`) dynamically injects `$exporter` (`DocumentHelper::getExporterProfile()`), `$bankDetails` (`DocumentHelper::getBankDetails()`), and `$docDefaults` (`DocumentHelper::getDocumentDefaults()`).
+   - Frontend: `CommercialInvoiceDocument.tsx` passes `exporterProfile={doc.exporter}` and `bankDetails={doc.bankDetails || (doc as any).bank_details}`.
+   - Client PDF: `pdf-generator.ts` (`generateCommercialInvoiceDoc`) renders dynamic exporter profile and verified payment / wire bank parameters.
+2. **Proforma Invoice (PI)**:
+   - Backend: `ProformaInvoiceService.php` (`generateForOrder`, `generateForQuotation`) injects dynamic exporter, logistics defaults (`country_of_origin`, `air_port_of_loading`, `shipping_terms`, `incoterm`), notes, and Pubali/configured wire instructions into `bankDetails`.
+   - Frontend: `ProformaInvoiceDocument.tsx` passes `exporterProfile={doc.exporter}` and `bankDetails={doc.bankDetails || (doc as any).bank_details}` to `BeneficiaryBankDetails`.
+   - Client PDF: `pdf-generator.ts` (`generateProformaInvoiceDoc`) dynamically formats exporter title band, registration numbers, and wire instructions.
+3. **Offer Sheet**:
+   - Backend: `OfferSheetService.php` (`generateForOrder`, `generateForQuotation`) dynamically populates `exporter`, `paymentTerms`, `shippingTerms`, `incoterm`, and `notes`. Strictly omits volume pricing tier tables for single-tier clarity and excludes wire details.
+   - Frontend: `OfferSheetDocument.tsx` passes `exporterProfile={doc.exporter}` to `DocumentHeader`.
+   - Client PDF: `pdf-generator.ts` (`generateProductOfferSheetDoc`) renders dynamic exporter profile in top navy header band.
+4. **Sales Invoice / Quotation / Order Access**:
+   - Backend: `InvoiceService.php` and `Order::getCommercialDocument` dynamically bind exporter profile, logistics origins, payment terms, and bank details from `DocumentHelper`.
+   - Frontend: `QuotationDocument.tsx` and `DocumentHeader.tsx` render dynamic exporter details.
+   - Server PDF: `DocumentPdfService.php` dynamically binds company title, formatted address, email, WhatsApp contact line (`Contact / WA: {$expPhone}`), registration numbers, and bank credentials.
+
+### B. Beneficiary Bank Details Wire Format
+- Authoritative fallback to official Pubali Bank Limited credentials:
+  - Bank Name: `Pubali Bank Limited`
+  - Account Title / Beneficiary: `M/S AYAAN  CLOTHING`
+  - Account Number: `1788-901-044316`
+  - SWIFT Code: `PUBABDDH210`
+  - Branch: `Nawabpur Road Branch`
+  - Address: `Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh`
+- Security constraint maintained: `routing_number` is strictly omitted from customer export documents (`DocumentHelper::getBankDetails()` defaults to `$includeRouting = false`) and only accessible to Admin Settings (`getBankDetailsWithRouting(true)`).
+
+### C. PDF Multibyte Text Encoding Hardening
+- In `DocumentPdfService.php`, replaced byte-level `substr()` with `mb_substr(..., 'UTF-8')` to prevent cutting multibyte UTF-8 sequences.
+- Replaced multibyte bullet characters (`•` / `\xE2\x80\xA2`) with standard ASCII character `o` prior to FPDF `iconv('UTF-8', 'ISO-8859-1//TRANSLIT')` conversion, completely eliminating incomplete multibyte character notices.
+
+### D. Single Source of Truth for WhatsApp
+- Authoritative default: `+880 1620-853502` (display), `8801620853502` (canonical digits), `https://wa.me/8801620853502` (URL).
+- TypeScript canonical helpers: `buildWhatsAppUrl(number?, message?)`, `normalizeWhatsAppNumber(number)`, `getProductWhatsAppUrl(product, qty?, number?)` in `@/config/business-profile`.
+- PHP normalization helper: `WhatsAppNormalizationService::buildWhatsAppUrl($number, $message)`.
+- Dynamic propagation: Changing the WhatsApp number in the Admin Control Center invalidates runtime cache and updates the public storefront and newly generated documents immediately without requiring code deployment or Next.js rebuild.
+
+### E. Security & Non-Destructive Integrity
+- Bank credentials and internal tax registrations are strictly excluded from `/settings/public`.
+- No mass-regeneration executed against historical orders; past documents remain untouched while new documents dynamically reflect active settings.
+

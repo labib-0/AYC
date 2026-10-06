@@ -12,7 +12,7 @@
  * - Always URL-encode WhatsApp messages safely
  */
 
-import { BUSINESS_PROFILE, getStorefrontBaseUrl, getWhatsAppUrl } from "@/config/business-profile";
+import { BUSINESS_PROFILE, getStorefrontBaseUrl, getWhatsAppUrl, buildWhatsAppUrl } from "@/config/business-profile";
 
 export interface ProductUrlTarget {
   name?: string;
@@ -85,13 +85,20 @@ export function getProductWhatsAppMessage(
   return lines.join("\n");
 }
 
-/**
- * Generates the full wa.me link with safely URL-encoded product inquiry message.
- */
 export function getProductWhatsAppUrl(
   product: { name: string; sku?: string; slug?: string; id?: string | number },
-  quantity?: number
+  quantityOrNumber?: number | string | null,
+  whatsappNumber?: string | null
 ): string {
+  let quantity: number | undefined;
+  let targetNumber = whatsappNumber;
+
+  if (typeof quantityOrNumber === "number") {
+    quantity = quantityOrNumber;
+  } else if (typeof quantityOrNumber === "string") {
+    targetNumber = quantityOrNumber;
+  }
+
   const message = getProductWhatsAppMessage(product, quantity);
-  return getWhatsAppUrl(message);
+  return buildWhatsAppUrl(targetNumber, message);
 }

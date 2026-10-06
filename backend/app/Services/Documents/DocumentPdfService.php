@@ -51,13 +51,19 @@ class DocumentPdfService
         $boxY = $height - $topY - $boxHeight;
         $colWidth = ($contentWidth - 16) / 3;
 
+        $expName = $exporter['company_name'] ?? ($exporter['name'] ?? 'Ayaan Clothing Ltd.');
+        $expAddress = $exporter['address'] ?? ($exporter['office_address'] ?? 'Uttara, Dhaka-1230, Bangladesh');
+        $expEmail = $exporter['email'] ?? 'export@ayaanclothing.com';
+        $expPhone = $exporter['whatsapp_display'] ?? ($exporter['phone'] ?? '+880 1620-853502');
+        $expReg = $exporter['tin_number'] ?? ($exporter['reg_number'] ?? 'BGMEA Certified Exporter');
+
         // Exporter Box
         $this->rect($margin, $boxY, $colWidth, $boxHeight, '0.97 0.98 0.99 rg', '0.88 0.91 0.94 RG');
         $this->text("EXPORTER / SHIPPER", $margin + 8, $boxY + 58, 'F2', 7.5, '0.1 0.15 0.25');
-        $this->text($companyName, $margin + 8, $boxY + 46, 'F2', 7, '0.2 0.25 0.35');
-        $this->text($exporter['address'] ?? 'Uttara, Dhaka-1230, Bangladesh', $margin + 8, $boxY + 35, 'F1', 6.5, '0.35 0.4 0.5');
-        $this->text("Email: " . ($exporter['email'] ?? 'export@ayaanclothing.com'), $margin + 8, $boxY + 24, 'F1', 6.5, '0.35 0.4 0.5');
-        $this->text("Reg / TIN: " . ($exporter['tin_number'] ?? 'BGMEA Certified Exporter'), $margin + 8, $boxY + 13, 'F1', 6.5, '0.35 0.4 0.5');
+        $this->text(mb_substr($expName, 0, 40, 'UTF-8'), $margin + 8, $boxY + 46, 'F2', 7, '0.2 0.25 0.35');
+        $this->text(mb_substr($expAddress, 0, 45, 'UTF-8'), $margin + 8, $boxY + 35, 'F1', 6.5, '0.35 0.4 0.5');
+        $this->text("Email: " . mb_substr($expEmail, 0, 45, 'UTF-8'), $margin + 8, $boxY + 24, 'F1', 6.5, '0.35 0.4 0.5');
+        $this->text("Contact / WA: " . mb_substr($expPhone, 0, 30, 'UTF-8'), $margin + 8, $boxY + 13, 'F1', 6.5, '0.35 0.4 0.5');
 
         // Buyer Box
         $buyer = $doc['buyer'] ?? [];
@@ -65,11 +71,11 @@ class DocumentPdfService
         $this->rect($buyerX, $boxY, $colWidth, $boxHeight, '0.97 0.98 0.99 rg', '0.88 0.91 0.94 RG');
         $this->text("BUYER / CONSIGNEE", $buyerX + 8, $boxY + 58, 'F2', 7.5, '0.1 0.15 0.25');
         $buyerComp = $buyer['company_name'] ?? ($buyer['company'] ?? ($buyer['name'] ?? 'Valued Customer'));
-        $this->text(substr($buyerComp, 0, 30), $buyerX + 8, $boxY + 46, 'F2', 7, '0.2 0.25 0.35');
+        $this->text(mb_substr($buyerComp, 0, 30, 'UTF-8'), $buyerX + 8, $boxY + 46, 'F2', 7, '0.2 0.25 0.35');
         $buyerName = $buyer['name'] ?? 'Authorized Buyer';
-        $this->text("Attn: " . substr($buyerName, 0, 30), $buyerX + 8, $boxY + 35, 'F1', 6.5, '0.35 0.4 0.5');
+        $this->text("Attn: " . mb_substr($buyerName, 0, 30, 'UTF-8'), $buyerX + 8, $boxY + 35, 'F1', 6.5, '0.35 0.4 0.5');
         $buyerAddress = $buyer['address'] ?? ($buyer['address1'] ?? ($buyer['city'] ?? ''));
-        $this->text(substr($buyerAddress, 0, 35), $buyerX + 8, $boxY + 24, 'F1', 6.5, '0.35 0.4 0.5');
+        $this->text(mb_substr($buyerAddress, 0, 35, 'UTF-8'), $buyerX + 8, $boxY + 24, 'F1', 6.5, '0.35 0.4 0.5');
         $this->text("Contact: " . ($buyer['email'] ?? ($buyer['phone'] ?? 'N/A')), $buyerX + 8, $boxY + 13, 'F1', 6.5, '0.35 0.4 0.5');
 
         // Document Parameters Box
@@ -123,11 +129,11 @@ class DocumentPdfService
             $unitPrice = (float) ($item['unit_price'] ?? ($item['unitPrice'] ?? 0));
             $lineTotal = (float) ($item['line_total'] ?? ($item['total'] ?? ($unitPrice * $qty)));
 
-            $desc = substr($item['product_name'] ?? ($item['description'] ?? 'Garment Item'), 0, 48);
+            $desc = mb_substr($item['product_name'] ?? ($item['description'] ?? 'Garment Item'), 0, 48, 'UTF-8');
             if (!empty($item['size'])) {
                 $desc .= " (Size: {$item['size']})";
             }
-            $sku = substr($item['sku'] ?? 'AYN-SKU', 0, 18);
+            $sku = mb_substr($item['sku'] ?? 'AYN-SKU', 0, 18, 'UTF-8');
 
             $this->text(strval($idx + 1), $cNo, $rowY + 5, 'F1', 6.5, '0.4 0.45 0.5');
             $this->text($desc, $cDesc, $rowY + 5, 'F2', 6.8, '0.1 0.15 0.2');
@@ -211,17 +217,28 @@ class DocumentPdfService
         $pTxn = $payDet['transaction_id'] ?? ($payDet['receipt_reference'] ?? 'N/A');
         $pStatus = strtoupper($doc['payment_status'] ?? 'PENDING');
 
-        $this->text("Method: {$pMethod}", $margin + 8, $payBoxY + $payBoxHeight - 27, 'F1', 6.8, '0.2 0.25 0.35');
+        $this->text("Method: " . mb_substr($pMethod, 0, 40, 'UTF-8'), $margin + 8, $payBoxY + $payBoxHeight - 27, 'F1', 6.8, '0.2 0.25 0.35');
         $this->text("Payment Status: {$pStatus}", $margin + 8, $payBoxY + $payBoxHeight - 39, 'F2', 6.8, $pStatus === 'PAID' ? '0.05 0.6 0.35' : '0.8 0.4 0.05');
-        $this->text("Transaction / Reference: {$pTxn}", $margin + 8, $payBoxY + $payBoxHeight - 51, 'F1', 6.8, '0.3 0.35 0.4');
+
+        $bank = $doc['bank_details'] ?? ($doc['bankDetails'] ?? []);
+        if (!empty($bank['bank_name']) || !empty($bank['account_no']) || !empty($bank['account_number'])) {
+            $bName = $bank['bank_name'] ?? 'Pubali Bank';
+            $bAcc = $bank['account_no'] ?? ($bank['account_number'] ?? '');
+            $bSwift = $bank['swift_code'] ?? '';
+            $bankStr = "Bank: {$bName} • A/C: {$bAcc}" . ($bSwift ? " • SWIFT: {$bSwift}" : "");
+            $this->text(mb_substr($bankStr, 0, 80, 'UTF-8'), $margin + 8, $payBoxY + $payBoxHeight - 51, 'F1', 6.5, '0.2 0.25 0.35');
+        } else {
+            $this->text("Transaction / Reference: {$pTxn}", $margin + 8, $payBoxY + $payBoxHeight - 51, 'F1', 6.8, '0.3 0.35 0.4');
+        }
 
         $inWords = $fin['amount_in_words'] ?? "US Dollars " . number_format($grandTotal, 2) . " Only";
-        $this->text("Say in Words: " . substr($inWords, 0, 65), $margin + 8, $payBoxY + 10, 'F1', 6.5, '0.4 0.45 0.5');
+        $this->text("Say in Words: " . mb_substr($inWords, 0, 65, 'UTF-8'), $margin + 8, $payBoxY + 10, 'F1', 6.5, '0.4 0.45 0.5');
 
         // 5. Footer Signatory & Legal
         $footerY = $margin + 12;
         $this->line($margin, $footerY + 22, $width - $margin, $footerY + 22, '0.85 0.88 0.92 RG', 0.5);
-        $this->text("AYAAN CLOTHING • Export & Commercial Division • House #33, Road #12, Sector #11, Uttara, Dhaka, Bangladesh", $margin, $footerY + 12, 'F1', 6.5, '0.45 0.5 0.55');
+        $footerText = "{$companyName} • Export & Commercial Division • {$expAddress}";
+        $this->text(mb_substr($footerText, 0, 110, 'UTF-8'), $margin, $footerY + 12, 'F1', 6.5, '0.45 0.5 0.55');
         $this->text("This is a computer generated commercial document and is authoritative for accounting and export records.", $margin, $footerY + 3, 'F1', 6, '0.55 0.6 0.65');
         $this->textRight("Page 1 of 1", $width - $margin, $footerY + 12, 'F1', 6.5, '0.45 0.5 0.55');
 
@@ -322,9 +339,17 @@ class DocumentPdfService
 
     private function escapeText(string $text): string
     {
-        // Replace non-ascii characters or control characters with ascii equivalents
-        $text = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text) ?: $text;
-        $text = str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $text);
-        return preg_replace('/[\x00-\x1F\x7F]/', ' ', $text);
+        // Replace unicode bullet • (U+2022) and other common symbols first
+        $text = str_replace(
+            ['•', '·', '–', '—', '“', '”', '‘', '’', '™', '©', '®'],
+            ['o', '-', '-', '-', '"', '"', "'", "'", "TM", "(C)", "(R)"],
+            $text
+        );
+        $converted = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        if ($converted === false || $converted === '') {
+            $converted = mb_convert_encoding($text, 'ASCII', 'UTF-8');
+        }
+        $converted = str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $converted ?: $text);
+        return preg_replace('/[\x00-\x1F\x7F]/', ' ', $converted);
     }
 }

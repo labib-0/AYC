@@ -40,9 +40,11 @@ COMPLETED:
 - STF-015 [LOW]: Missing `selectedDesignTypes` in Search `fetchPage` Dependency Array — RESOLVED
 - STF-016 [LOW]: Header Mobile Drawer Accessibility (Missing Escape Key & ARIA Attributes) — RESOLVED
 - STF-017 [LOW]: Production Domain & `SITE_URL` Normalization — RESOLVED
+- PHASE-2-DOCS: Dynamic Document Resolution for CI, PI, Offer Sheet, Sales Invoice, Quotations connected to centralized Admin SystemSetting — RESOLVED
+- PHASE-2-WHATSAPP: Authoritative WhatsApp Single Source of Truth (+880 1620-853502 / https://wa.me/8801620853502) connected across website, PDP, cart, contact, and commercial documents — RESOLVED
 
 IN PROGRESS:
-- None (All Phase A through F items completely resolved and verified)
+- None (All Phase 1 & Phase 2 items completely resolved and verified)
 
 NOT STARTED:
 - Live backend end-to-end integration test execution (requires live running Laravel server on `127.0.0.1:8000`)

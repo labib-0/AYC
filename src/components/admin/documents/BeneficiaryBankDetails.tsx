@@ -4,12 +4,22 @@ import BUSINESS_PROFILE from "@/config/business-profile";
 export interface BeneficiaryBankDetailsProps {
   bankDetails?: {
     bankName?: string | null;
+    bank_name?: string | null;
     accountTitle?: string | null;
+    account_title?: string | null;
+    account_name?: string | null;
     beneficiaryName?: string | null;
+    beneficiary_name?: string | null;
     accountNo?: string | null;
+    account_no?: string | null;
     accountNumber?: string | null;
+    account_number?: string | null;
     swiftCode?: string | null;
+    swift_code?: string | null;
     bankAddress?: string | null;
+    bank_address?: string | null;
+    branch?: string | null;
+    branch_name?: string | null;
   };
   className?: string;
 }
@@ -19,7 +29,7 @@ export interface BeneficiaryBankDetailsProps {
  * 
  * Strict specifications:
  * - Exact Labels: Bank Name, Account Title, Account No, SWIFT CODE, Bank Address
- * - Exact Values sourced centrally from BUSINESS_PROFILE.banking
+ * - Exact Values sourced centrally from BUSINESS_PROFILE.banking with dynamic override
  * - Single bank details block; no deprecated routing numbers or old branch records.
  */
 export default function BeneficiaryBankDetails({
@@ -27,12 +37,13 @@ export default function BeneficiaryBankDetails({
   className = "",
 }: BeneficiaryBankDetailsProps) {
   const banking = BUSINESS_PROFILE.banking;
+  const bd = bankDetails as any;
 
-  const bankName = bankDetails?.bankName || banking.bankName || "Pubali Bank Limited";
-  const accountTitle = bankDetails?.accountTitle || bankDetails?.beneficiaryName || banking.accountTitle || "M/S AYAAN  CLOTHING";
-  const accountNo = bankDetails?.accountNo || bankDetails?.accountNumber || banking.accountNo || "1788-901-044316";
-  const swiftCode = bankDetails?.swiftCode || banking.swiftCode || "PUBABDDH210";
-  const bankAddress = bankDetails?.bankAddress || banking.bankAddress || "Nawabpur Road Branch,\n125 Nawabpur Road,\nDhaka-1100,\nBangladesh";
+  const bankName = bd?.bank_name || bd?.bankName || banking.bankName || "Pubali Bank Limited";
+  const accountTitle = bd?.account_title || bd?.accountTitle || bd?.beneficiary_name || bd?.beneficiaryName || bd?.account_name || banking.accountTitle || "M/S AYAAN  CLOTHING";
+  const accountNo = bd?.account_no || bd?.accountNo || bd?.account_number || bd?.accountNumber || banking.accountNo || "1788-901-044316";
+  const swiftCode = bd?.swift_code || bd?.swiftCode || banking.swiftCode || "PUBABDDH210";
+  const bankAddress = bd?.bank_address || bd?.bankAddress || bd?.branch || bd?.branch_name || banking.bankAddress || "Nawabpur Road Branch,\n125 Nawabpur Road,\nDhaka-1100,\nBangladesh";
 
   return (
     <div

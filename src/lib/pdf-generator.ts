@@ -184,7 +184,7 @@ export interface OfferSheetProductInput {
  */
 export function generateProductOfferSheetDoc(
   product: OfferSheetProductInput,
-  buyerInfo?: { name?: string; company?: string; email?: string; country?: string },
+  buyerInfo?: { name?: string; company?: string; email?: string; country?: string; exporter?: any },
   selectedQty?: number,
   existingDoc?: jsPDF,
   pageIndex?: number,
@@ -200,6 +200,13 @@ export function generateProductOfferSheetDoc(
     doc.addPage();
   }
 
+  const exp = buyerInfo?.exporter;
+  const expName = exp?.company_name || exp?.name || BUSINESS_PROFILE.name;
+  const expDesc = exp?.tagline || exp?.business_type || BUSINESS_PROFILE.description;
+  const expEst = exp?.est_year || BUSINESS_PROFILE.establishedYear;
+  const expAddress = exp?.address || exp?.office_address || BUSINESS_PROFILE.address.formatted;
+  const expEmail = exp?.email || BUSINESS_PROFILE.contact.email || "export@ayaanclothing.com";
+
   const pageWidth = 210;
   const margin = 14;
   const contentWidth = pageWidth - margin * 2; // 182mm
@@ -213,23 +220,23 @@ export function generateProductOfferSheetDoc(
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
-  doc.text(BUSINESS_PROFILE.name, margin + 4, y + 7.5);
+  doc.text(expName, margin + 4, y + 7.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(203, 213, 225); // slate-300
   doc.text(
-    `${BUSINESS_PROFILE.description} • Est. ${BUSINESS_PROFILE.establishedYear}`,
+    `${expDesc} • Est. ${expEst}`,
     margin + 4,
     y + 12.5
   );
   doc.text(
-    `${BUSINESS_PROFILE.address.formatted}`,
+    `${expAddress}`,
     margin + 4,
     y + 16.5
   );
   doc.text(
-    `Origin: Bangladesh • Export Desk: www.ayaanclothing.com • ${BUSINESS_PROFILE.contact.email || "export@ayaanclothing.com"}`,
+    `Origin: Bangladesh • Export Desk: www.ayaanclothing.com • ${expEmail}`,
     margin + 4,
     y + 20.5
   );
@@ -731,7 +738,7 @@ export function generateProductOfferSheetDoc(
  */
 export async function downloadProductOfferSheetPDF(
   product: OfferSheetProductInput,
-  buyerInfo?: { name?: string; company?: string; email?: string; country?: string },
+  buyerInfo?: { name?: string; company?: string; email?: string; country?: string; exporter?: any },
   selectedQty?: number
 ) {
   // Collect all available image sources for gallery: primary first, followed by secondary images
@@ -914,12 +921,30 @@ export async function downloadCombinedProductOfferSheetsPDF(
  * Zero domestic 5% tax.
  * Multi-product support with automatic multi-page overflow handling.
  */
-export function generateProformaInvoiceDoc(order: OrderRecord): jsPDF {
+export function generateProformaInvoiceDoc(
+  order: OrderRecord,
+  options?: { exporter?: any; bankDetails?: any; bank_details?: any } | CommercialDocument
+): jsPDF {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
     format: "a4",
   });
+
+  const optExp = (options as any)?.exporter;
+  const expName = optExp?.company_name || optExp?.name || BUSINESS_PROFILE.name;
+  const expDesc = optExp?.tagline || optExp?.business_type || BUSINESS_PROFILE.description;
+  const expEst = optExp?.est_year || BUSINESS_PROFILE.establishedYear;
+  const expAddress = optExp?.address || optExp?.office_address || BUSINESS_PROFILE.address.formatted;
+  const expEmail = optExp?.email || BUSINESS_PROFILE.contact.email || "export@ayaanclothing.com";
+  const expPhone = optExp?.whatsapp_display || optExp?.phone || BUSINESS_PROFILE.contact.phone;
+
+  const optBank = (options as any)?.bankDetails || (options as any)?.bank_details;
+  const bankName = optBank?.bank_name || optBank?.bankName || BUSINESS_PROFILE.banking.bankName || "Pubali Bank Limited";
+  const accountTitle = optBank?.account_title || optBank?.accountTitle || optBank?.beneficiary_name || optBank?.account_name || BUSINESS_PROFILE.banking.accountTitle || "M/S AYAAN  CLOTHING";
+  const accountNo = optBank?.account_no || optBank?.accountNo || optBank?.account_number || BUSINESS_PROFILE.banking.accountNo || "1788-901-044316";
+  const swiftCode = optBank?.swift_code || optBank?.swiftCode || BUSINESS_PROFILE.banking.swiftCode || "PUBABDDH210";
+  const bankAddress = optBank?.bank_address || optBank?.bankAddress || optBank?.branch || optBank?.branch_name || BUSINESS_PROFILE.banking.bankAddress || "Nawabpur Road Branch,\n125 Nawabpur Road,\nDhaka-1100,\nBangladesh";
 
   const pageWidth = 210;
   const margin = 14;
@@ -934,18 +959,18 @@ export function generateProformaInvoiceDoc(order: OrderRecord): jsPDF {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
-  doc.text(BUSINESS_PROFILE.name, margin + 4, y + 7.5);
+  doc.text(expName, margin + 4, y + 7.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(203, 213, 225);
   doc.text(
-    `${BUSINESS_PROFILE.description} • Est. ${BUSINESS_PROFILE.establishedYear}`,
+    `${expDesc} • Est. ${expEst}`,
     margin + 4,
     y + 12.5
   );
   doc.text(
-    `${BUSINESS_PROFILE.address.formatted}`,
+    `${expAddress}`,
     margin + 4,
     y + 16.5
   );
@@ -1000,16 +1025,15 @@ export function generateProformaInvoiceDoc(order: OrderRecord): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
-  doc.text(BUSINESS_PROFILE.name, margin + 3, y + 9.5);
+  doc.text(expName, margin + 3, y + 9.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
   doc.setTextColor(71, 85, 105);
-  doc.text("House #33 (2nd floor), Road #12, Sector #11", margin + 3, y + 13.5);
-  doc.text("Uttara, Dhaka-1230, Bangladesh", margin + 3, y + 17.5);
-  doc.text("Country of Origin: Bangladesh", margin + 3, y + 21.5);
-  doc.text(`Contact: export@ayaanclothing.com`, margin + 3, y + 25.5);
-  doc.text("Web: www.ayaanclothing.com", margin + 3, y + 29.5);
+  doc.text(expAddress.slice(0, 45), margin + 3, y + 13.5);
+  doc.text("Country of Origin: Bangladesh", margin + 3, y + 17.5);
+  doc.text(`Contact: ${expEmail} • WA: ${expPhone}`, margin + 3, y + 21.5);
+  doc.text(`Reg: ${optExp?.reg_number || optExp?.tin_number || "BGMEA Certified"}`, margin + 3, y + 25.5);
 
   // Box 2: Consignee / Buyer
   const buyerX = margin + colWidth + 6;
@@ -1254,14 +1278,14 @@ export function generateProformaInvoiceDoc(order: OrderRecord): jsPDF {
   doc.text("Bank Name:", margin + 3, y + 9.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(BUSINESS_PROFILE.banking.bankName || "Pubali Bank Limited", margin + 24, y + 9.5);
+  doc.text(bankName, margin + 24, y + 9.5);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
   doc.text("Account Title:", margin + 85, y + 9.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(BUSINESS_PROFILE.banking.accountTitle || "M/S AYAAN  CLOTHING", margin + 108, y + 9.5);
+  doc.text(accountTitle, margin + 108, y + 9.5);
 
   // Row 2: Account No & SWIFT CODE
   doc.setFont("helvetica", "bold");
@@ -1269,14 +1293,14 @@ export function generateProformaInvoiceDoc(order: OrderRecord): jsPDF {
   doc.text("Account No:", margin + 3, y + 14.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(BUSINESS_PROFILE.banking.accountNo || "1788-901-044316", margin + 24, y + 14.5);
+  doc.text(accountNo, margin + 24, y + 14.5);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
   doc.text("SWIFT CODE:", margin + 85, y + 14.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(BUSINESS_PROFILE.banking.swiftCode || "PUBABDDH210", margin + 108, y + 14.5);
+  doc.text(swiftCode, margin + 108, y + 14.5);
 
   // Row 3: Bank Address
   doc.setFont("helvetica", "bold");
@@ -1284,7 +1308,7 @@ export function generateProformaInvoiceDoc(order: OrderRecord): jsPDF {
   doc.text("Bank Address:", margin + 3, y + 19.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text("Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh", margin + 24, y + 19.5);
+  doc.text(bankAddress.replace(/\n/g, ", "), margin + 24, y + 19.5);
 
   y += bankBlockHeight + 4;
 
@@ -1338,6 +1362,14 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
   const issueDate = formatDate(commercialDoc?.date || order.payment_confirmed_at || order.placed_at || order.created_at);
   const paymentDetails = commercialDoc?.payment_details || order.payment_details;
 
+  const optExp = commercialDoc?.exporter;
+  const expName = optExp?.company_name || optExp?.name || "AYAAN CLOTHING";
+  const expDesc = optExp?.tagline || optExp?.business_type || "Ready-made Garments Manufacturer & Global Exporter • Dhaka, Bangladesh";
+  const expAddress = optExp?.address || optExp?.office_address || "House #33, Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh";
+  const expEmail = optExp?.email || "export@ayaanclothing.com";
+  const expPhone = optExp?.whatsapp_display || optExp?.phone || "+880 1620-853502";
+  const expReg = optExp?.tin_number || optExp?.reg_number || "BGMEA / EPB Certified Exporter";
+
   // 1. Header Banner
   doc.setFillColor(15, 23, 42); // slate-900
   doc.rect(margin, y, contentWidth, 18, "F");
@@ -1345,12 +1377,12 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(255, 255, 255);
-  doc.text("AYAAN CLOTHING", margin + 5, y + 8);
+  doc.text(expName, margin + 5, y + 8);
 
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(203, 213, 225);
-  doc.text("Ready-made Garments Manufacturer & Global Exporter • Dhaka, Bangladesh", margin + 5, y + 13.5);
+  doc.text(expDesc, margin + 5, y + 13.5);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
@@ -1378,11 +1410,11 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
   doc.setFontSize(6.8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(71, 85, 105);
-  doc.text("M/S AYAAN CLOTHING", margin + 3, y + 9);
-  doc.text("House #33, Road #12, Sector #11, Uttara", margin + 3, y + 12.5);
-  doc.text("Dhaka-1230, Bangladesh", margin + 3, y + 16);
-  doc.text("Email: export@ayaanclothing.com", margin + 3, y + 19.5);
-  doc.text("Factory / Reg: BGMEA / EPB Certified Exporter", margin + 3, y + 23);
+  doc.text(expName, margin + 3, y + 9);
+  doc.text(expAddress.slice(0, 45), margin + 3, y + 12.5);
+  doc.text("Country of Origin: Bangladesh", margin + 3, y + 16);
+  doc.text(`Email: ${expEmail} • WA: ${expPhone}`, margin + 3, y + 19.5);
+  doc.text(`Reg: ${expReg}`, margin + 3, y + 23);
 
   // Buyer / Consignee Column
   const buyerX = margin + 65;
@@ -1627,41 +1659,48 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
   doc.setTextColor(15, 23, 42);
   doc.text("SETTLEMENT BANK (BENEFICIARY)", margin + 3, y + 4.5);
 
+  const optBank = commercialDoc?.bankDetails || (commercialDoc as any)?.bank_details;
+  const ciBankName = optBank?.bank_name || optBank?.bankName || BUSINESS_PROFILE.banking.bankName || "Pubali Bank Limited";
+  const ciAccTitle = optBank?.account_title || optBank?.accountTitle || optBank?.beneficiary_name || optBank?.account_name || BUSINESS_PROFILE.banking.accountTitle || "M/S AYAAN CLOTHING";
+  const ciAccNo = optBank?.account_no || optBank?.accountNo || optBank?.account_number || BUSINESS_PROFILE.banking.accountNo || "1788-901-044316";
+  const ciSwift = optBank?.swift_code || optBank?.swiftCode || BUSINESS_PROFILE.banking.swiftCode || "PUBABDDH210";
+  const ciAddress = optBank?.bank_address || optBank?.bankAddress || optBank?.branch || optBank?.branch_name || "Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh";
+
   doc.setFontSize(6.8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
   doc.text("Bank Name:", margin + 3, y + 9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(BUSINESS_PROFILE.banking.bankName || "Pubali Bank Limited", margin + 22, y + 9);
+  doc.text(ciBankName, margin + 22, y + 9);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
   doc.text("Account Title:", margin + 80, y + 9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(BUSINESS_PROFILE.banking.accountTitle || "M/S AYAAN CLOTHING", margin + 102, y + 9);
+  doc.text(ciAccTitle, margin + 102, y + 9);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
   doc.text("Account No:", margin + 3, y + 13.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(BUSINESS_PROFILE.banking.accountNo || "1788-901-044316", margin + 22, y + 13.5);
+  doc.text(ciAccNo, margin + 22, y + 13.5);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
   doc.text("SWIFT CODE:", margin + 80, y + 13.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(BUSINESS_PROFILE.banking.swiftCode || "PUBABDDH210", margin + 102, y + 13.5);
+  doc.text(ciSwift, margin + 102, y + 13.5);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
   doc.text("Bank Address:", margin + 3, y + 18);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text("Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh", margin + 22, y + 18);
+  doc.text(ciAddress.replace(/\n/g, ", "), margin + 22, y + 18);
 
   y += bankBlockHeight + 4;
 
@@ -1710,8 +1749,11 @@ export function downloadCommercialInvoicePDF(order: OrderRecord, commercialDoc?:
 /**
  * Trigger immediate download of Proforma Invoice PDF in browser.
  */
-export function downloadProformaInvoicePDF(order: OrderRecord) {
-  const doc = generateProformaInvoiceDoc(order);
+export function downloadProformaInvoicePDF(
+  order: OrderRecord,
+  options?: { exporter?: any; bankDetails?: any; bank_details?: any } | CommercialDocument
+) {
+  const doc = generateProformaInvoiceDoc(order, options);
   const cleanOrderNum = (order.order_number || "ORDER")
     .replace(/[^a-zA-Z0-9_-]/g, "_");
   const filename = `AYAAN_PI_${cleanOrderNum}.pdf`;
@@ -1748,6 +1790,7 @@ export async function downloadCommercialDocumentPDF(docData: CommercialDocument)
       company: docData.companyName,
       email: docData.buyerEmail,
       country: docData.buyerCountry,
+      exporter: docData.exporter,
     });
     return;
   }
@@ -1846,5 +1889,5 @@ export async function downloadCommercialDocumentPDF(docData: CommercialDocument)
     })),
   };
 
-  downloadProformaInvoicePDF(pseudoOrder);
+  downloadProformaInvoicePDF(pseudoOrder, docData);
 }

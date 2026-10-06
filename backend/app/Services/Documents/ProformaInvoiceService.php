@@ -16,6 +16,7 @@ class ProformaInvoiceService
         $docSuffix = substr($order->order_number, -6);
         $piNumber = "PI-{$year}-{$docSuffix}";
         $snapshot = $order->shipping_snapshot ?? [];
+        $docDefaults = DocumentHelper::getDocumentDefaults();
 
         $items = $order->items->map(function ($item, $idx) use ($order) {
             return [
@@ -92,8 +93,8 @@ class ProformaInvoiceService
                 'gross_weight' => $grossWeight,
                 'net_weight' => $netWeight,
                 'total_cbm' => $cbm,
-                'country_of_origin' => 'Bangladesh',
-                'port_of_loading' => 'Hazrat Shahjalal International Airport (DAC), Dhaka',
+                'country_of_origin' => $docDefaults['country_of_origin'] ?? 'Bangladesh',
+                'port_of_loading' => $docDefaults['air_port_of_loading'] ?? ($docDefaults['port_of_loading'] ?? 'Hazrat Shahjalal International Airport (DAC), Dhaka'),
                 'destination_port' => ($order->shipping_city ?: 'Destination') . ' Airport / Hub',
             ],
             'subtotal' => (float) $order->subtotal,
@@ -103,12 +104,13 @@ class ProformaInvoiceService
             'coupon_discount' => (float) ($order->coupon_discount_amount ?? 0),
             'manual_discount' => (float) ($order->manual_discount_amount ?? 0),
             'grandTotal' => (float) $order->total_amount,
-            'currency' => $order->currency ?: 'USD',
-            'paymentTerms' => $order->payment_method === 'net_30' ? 'Commercial Credit Net 30' : ($order->payment_method === 'card' ? 'Prepaid Credit Card (Full in Advance)' : 'Bank Wire Transfer (T/T Advance)'),
-            'shippingTerms' => 'Express Air Freight (DAP / DDP)',
-            'incoterm' => 'DAP',
+            'currency' => $order->currency ?: ($docDefaults['currency'] ?? 'USD'),
+            'paymentTerms' => $order->payment_method === 'net_30' ? 'Commercial Credit Net 30' : ($order->payment_method === 'card' ? 'Prepaid Credit Card (Full in Advance)' : ($docDefaults['payment_terms'] ?? 'Bank Wire Transfer (T/T Advance)')),
+            'shippingTerms' => $docDefaults['shipping_terms'] ?? 'Express Air Freight (DAP / DDP)',
+            'incoterm' => $docDefaults['incoterm'] ?? 'DAP',
             'bankDetails' => DocumentHelper::getBankDetails(),
-            'notes' => 'Commercial Proforma Invoice. Please remit payment against provided Beneficiary Bank Details.',
+            'bank_details' => DocumentHelper::getBankDetails(),
+            'notes' => $docDefaults['pi_notes'] ?? 'Commercial Proforma Invoice. Please remit payment against provided Beneficiary Bank Details.',
         ];
     }
 
@@ -120,6 +122,7 @@ class ProformaInvoiceService
         $year = date('Y', strtotime($quotation->created_at ?: now()));
         $docSuffix = substr($quotation->quotation_number, -6);
         $piNumber = $quotation->proformaInvoiceId ?: "PI-{$year}-{$docSuffix}";
+        $docDefaults = DocumentHelper::getDocumentDefaults();
 
         $items = $quotation->items->map(function ($item, $idx) {
             return [
@@ -178,13 +181,13 @@ class ProformaInvoiceService
             ],
             'estimated_shipping_data' => [
                 'carrier' => 'Aramex Priority Air Express',
-                'shipping_method' => $quotation->shipping_terms ?: 'FOB Dhaka (Export)',
+                'shipping_method' => $quotation->shipping_terms ?: ($docDefaults['shipping_terms'] ?? 'FOB Dhaka (Export)'),
                 'carton_count' => max(1, (int) ceil($quotation->items->sum('quantity') / 50)),
                 'gross_weight' => round($quotation->items->sum('quantity') * 0.4, 2),
                 'net_weight' => round($quotation->items->sum('quantity') * 0.36, 2),
                 'total_cbm' => round($quotation->items->sum('quantity') * 0.0014, 3),
-                'country_of_origin' => 'Bangladesh',
-                'port_of_loading' => 'Hazrat Shahjalal International Airport (DAC), Dhaka',
+                'country_of_origin' => $docDefaults['country_of_origin'] ?? 'Bangladesh',
+                'port_of_loading' => $docDefaults['air_port_of_loading'] ?? ($docDefaults['port_of_loading'] ?? 'Hazrat Shahjalal International Airport (DAC), Dhaka'),
                 'destination_port' => ($quotation->destination_city ?: 'Destination') . ' Airport / Hub',
             ],
             'subtotal' => (float) $quotation->subtotal,
@@ -192,12 +195,13 @@ class ProformaInvoiceService
             'tax' => (float) $quotation->tax_amount,
             'discount' => (float) $quotation->discount_total,
             'grandTotal' => (float) $quotation->grand_total,
-            'currency' => $quotation->currency ?: 'USD',
-            'paymentTerms' => $quotation->payment_terms ?: '30% T/T Advance, 70% against B/L',
-            'shippingTerms' => $quotation->shipping_terms ?: 'FOB Dhaka (Export)',
-            'incoterm' => $quotation->incoterm ?: 'FOB',
+            'currency' => $quotation->currency ?: ($docDefaults['currency'] ?? 'USD'),
+            'paymentTerms' => $quotation->payment_terms ?: ($docDefaults['payment_terms'] ?? '30% T/T Advance, 70% against B/L'),
+            'shippingTerms' => $quotation->shipping_terms ?: ($docDefaults['shipping_terms'] ?? 'FOB Dhaka (Export)'),
+            'incoterm' => $quotation->incoterm ?: ($docDefaults['incoterm'] ?? 'FOB'),
             'bankDetails' => DocumentHelper::getBankDetails(),
-            'notes' => 'Commercial Proforma Invoice. Please remit payment against provided Beneficiary Bank Details.',
+            'bank_details' => DocumentHelper::getBankDetails(),
+            'notes' => $quotation->admin_notes ?: ($docDefaults['pi_notes'] ?? 'Commercial Proforma Invoice. Please remit payment against provided Beneficiary Bank Details.'),
         ];
     }
 

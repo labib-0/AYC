@@ -282,6 +282,8 @@ class Order extends Model
         $piNumber = "PI-{$year}-{$docSuffix}";
         $ordNumber = "ORD-{$year}-{$docSuffix}";
         $plNumber = "PL-{$year}-{$docSuffix}";
+        $docDefaults = \App\Services\Documents\DocumentHelper::getDocumentDefaults();
+        $bankDetails = \App\Services\Documents\DocumentHelper::getBankDetails();
 
         $isPaid = in_array($this->payment_status, ['paid'])
             || in_array($this->status, ['processing', 'shipped', 'delivered', 'confirmed'])
@@ -405,14 +407,14 @@ class Order extends Model
                 'contact' => "Email: {$this->email} | Phone: " . ($this->shipping_phone ?: 'N/A'),
             ],
             'logistics' => [
-                'country_of_origin' => 'Bangladesh',
-                'place_of_receipt' => $isSea ? 'Chattogram Sea Port / Dhaka Hub, Bangladesh' : 'Uttara Office / Dhaka Hub, Bangladesh',
+                'country_of_origin' => $docDefaults['country_of_origin'] ?? 'Bangladesh',
+                'place_of_receipt' => $isSea ? ($docDefaults['sea_port_of_loading'] ?? 'Chattogram Sea Port / Dhaka Hub, Bangladesh') : ($docDefaults['place_of_receipt'] ?? 'Uttara Office / Dhaka Hub, Bangladesh'),
                 'port_of_loading' => $isSea
-                    ? 'Chattogram Sea Port (CGP), Bangladesh'
-                    : 'Hazrat Shahjalal International Airport (DAC), Dhaka',
+                    ? ($docDefaults['sea_port_of_loading'] ?? 'Chattogram Sea Port (CGP), Bangladesh')
+                    : ($docDefaults['air_port_of_loading'] ?? 'Hazrat Shahjalal International Airport (DAC), Dhaka'),
                 'port_of_discharge' => ($this->shipping_city ?: 'Destination City') . ($isSea ? ' Sea Port' : ' Airport / Port'),
                 'final_destination' => ($this->shipping_city ?: 'Destination') . ', ' . ($this->shipping_country_code ?: 'US'),
-                'terms_of_delivery' => 'DAP (Delivered at Place, Incoterms 2020)',
+                'terms_of_delivery' => ($docDefaults['incoterm'] ?? 'DAP') . ' (Delivered at Place, Incoterms 2020)',
                 'mode_of_shipment' => $isSea
                     ? 'Ocean Freight Vessel (Akij Logistics LCL Container)'
                     : 'Air Cargo Express (Aramex Priority Express)',
@@ -478,10 +480,11 @@ class Order extends Model
                 'bank_transfer' => 'Bank Wire Transfer (T/T Advance)',
                 default => $this->payment_method ? ucwords(str_replace('_', ' ', $this->payment_method)) : 'Bank Wire Transfer (T/T Advance)',
             },
-            'shipping_terms' => $isSea ? 'Ocean Container Freight (DAP / CIF)' : 'Express Air Freight (DAP / DDP)',
-            'incoterm' => 'DAP',
-            'notes' => $this->notes ?: 'Commercial Wholesale Export Order. Ready-made Garments Manufactured in Bangladesh.',
-            'bank_details' => DocumentHelper::getBankDetails(),
+            'shipping_terms' => $isSea ? 'Ocean Container Freight (DAP / CIF)' : ($docDefaults['shipping_terms'] ?? 'Express Air Freight (DAP / DDP)'),
+            'incoterm' => $docDefaults['incoterm'] ?? 'DAP',
+            'notes' => $this->notes ?: ($docDefaults['ci_notes'] ?? 'Commercial Wholesale Export Order. Ready-made Garments Manufactured in Bangladesh.'),
+            'bank_details' => $bankDetails,
+            'bankDetails' => $bankDetails,
             'payment_details' => [
                 'payment_status' => $this->payment_status === 'paid' ? 'PAID' : strtoupper($this->payment_status ?: 'PENDING'),
                 'payment_method' => match ($this->payment_method) {
@@ -494,7 +497,7 @@ class Order extends Model
                 },
                 'transaction_id' => $this->payment_reference ?: ($this->payments()->whereIn('status', ['confirmed', 'succeeded'])->latest()->value('transaction_id') ?? null),
                 'payer_name' => $this->shipping_name ?: ($this->user?->name ?? 'Valued Customer'),
-                'bank_name' => config('business.banking.bank_name', 'Pubali Bank Limited'),
+                'bank_name' => $bankDetails['bank_name'] ?? config('business.banking.bank_name', 'Pubali Bank Limited'),
                 'payment_date' => $this->payment_confirmed_at?->format('Y-m-d') ?? ($this->payment_status === 'paid' ? date('Y-m-d', strtotime($this->updated_at)) : date('Y-m-d', strtotime($this->created_at ?: now()))),
                 'amount_paid' => (float) ($this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)),
                 'payment_amount' => (float) ($this->payment_details['payment_amount'] ?? $this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)),

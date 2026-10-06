@@ -21,6 +21,7 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
         date={doc.date}
         orderNumber={doc.orderNumber}
         validUntil={doc.validUntil}
+        exporterProfile={doc.exporter}
       />
 
       {/* Bill To & Logistics Snapshot */}
@@ -192,7 +193,7 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
 
       {/* Official Beneficiary Bank Details & Signature */}
       <div className="pt-6 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-        <BeneficiaryBankDetails bankDetails={doc.bankDetails} />
+        <BeneficiaryBankDetails bankDetails={doc.bankDetails || (doc as any).bank_details} />
 
         <DocumentSignatory
           title="Authorized Signatory"

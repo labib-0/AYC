@@ -686,6 +686,18 @@ A master 41-assertion automated suite verifies all critical storefront invariant
 
 ---
 
+## Phase 2 Milestone: Document Generation & Authoritative WhatsApp Integration
+- **Status**: COMPLETED
+- **Features Verified**:
+  1. Commercial Invoice, Proforma Invoice, Offer Sheet, Sales Invoice, and Quotation document generators dynamically pull centralized business settings, legal registrations, and logistics defaults via `DocumentHelper`.
+  2. Official Pubali Bank Limited wire instructions integrated as authoritative bank fallback with strict omission of domestic routing numbers from customer export documents.
+  3. Authoritative WhatsApp single source of truth established across storefront and export documents (`+880 1620-853502` / `https://wa.me/8801620853502`).
+  4. Client-side and server-side PDF generator hardening complete with UTF-8 multibyte safety.
+  5. Zero public exposure of private banking credentials or tax registrations via `/settings/public`.
+- **Test Results**: 13/13 PHPUnit backend tests passing, 44/44 Phase 2 TypeScript contract tests passing.
+
+---
+
 ## Final Audit Closure
 The Ayaan Clothing storefront audit is formally CLOSED. All architectural, functional, security, performance, accessibility, SEO, and integration-test hardening criteria have been met with zero critical or high vulnerabilities.
 

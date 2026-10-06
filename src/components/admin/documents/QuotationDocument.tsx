@@ -20,6 +20,7 @@ export default function QuotationDocument({ doc }: QuotationDocumentProps) {
         date={doc.date}
         orderNumber={doc.orderNumber}
         validUntil={doc.validUntil || "30 Days from date of issuance"}
+        exporterProfile={doc.exporter}
       />
 
       {/* Buyer & Terms Grid */}

@@ -16,6 +16,7 @@ class OfferSheetService
         $year = date('Y', strtotime($order->created_at ?: now()));
         $docSuffix = substr($order->order_number, -6);
         $docNumber = "ORD-{$year}-{$docSuffix}";
+        $docDefaults = DocumentHelper::getDocumentDefaults();
 
         $items = [];
         $allGalleryImages = [];
@@ -90,12 +91,13 @@ class OfferSheetService
             'tax' => (float) $order->tax_amount,
             'discount' => (float) $order->discount_amount,
             'grandTotal' => (float) $order->total_amount,
-            'currency' => $order->currency ?: 'USD',
-            'paymentTerms' => $order->payment_method === 'card' ? 'Prepaid Full in Advance' : 'Bank Wire Transfer (T/T Advance)',
-            'shippingTerms' => 'FOB Dhaka (Export)',
-            'incoterm' => 'FOB',
-            'notes' => 'Commercial Offer only — Not an invoice. Shipping arranged separately.',
+            'currency' => $order->currency ?: ($docDefaults['currency'] ?? 'USD'),
+            'paymentTerms' => $order->payment_method === 'card' ? 'Prepaid Full in Advance' : ($docDefaults['payment_terms'] ?? 'Bank Wire Transfer (T/T Advance)'),
+            'shippingTerms' => $docDefaults['shipping_terms'] ?? 'FOB Dhaka (Export)',
+            'incoterm' => $docDefaults['incoterm'] ?? 'FOB',
+            'notes' => $docDefaults['offer_sheet_notes'] ?? 'Commercial Offer only — Not an invoice. Shipping arranged separately.',
             'bankDetails' => DocumentHelper::getBankDetails(),
+            'bank_details' => DocumentHelper::getBankDetails(),
             // Intentionally NO volume pricing tiers table! Only relevant pricing shown.
             'show_all_pricing_tiers' => false,
         ];
@@ -108,6 +110,7 @@ class OfferSheetService
     {
         $year = date('Y', strtotime($quotation->created_at ?: now()));
         $docNumber = $quotation->quotation_number;
+        $docDefaults = DocumentHelper::getDocumentDefaults();
 
         $items = [];
         $allGalleryImages = [];
@@ -167,12 +170,13 @@ class OfferSheetService
             'tax' => (float) $quotation->tax_amount,
             'discount' => (float) $quotation->discount_total,
             'grandTotal' => (float) $quotation->grand_total,
-            'currency' => $quotation->currency ?: 'USD',
-            'paymentTerms' => $quotation->payment_terms ?: '30% T/T Advance, 70% against B/L',
-            'shippingTerms' => $quotation->shipping_terms ?: 'FOB Dhaka (Export)',
-            'incoterm' => $quotation->incoterm ?: 'FOB',
-            'notes' => $quotation->admin_notes ?: 'Commercial Offer only — Not an invoice. Valid for 30 days.',
+            'currency' => $quotation->currency ?: ($docDefaults['currency'] ?? 'USD'),
+            'paymentTerms' => $quotation->payment_terms ?: ($docDefaults['payment_terms'] ?? '30% T/T Advance, 70% against B/L'),
+            'shippingTerms' => $quotation->shipping_terms ?: ($docDefaults['shipping_terms'] ?? 'FOB Dhaka (Export)'),
+            'incoterm' => $quotation->incoterm ?: ($docDefaults['incoterm'] ?? 'FOB'),
+            'notes' => $quotation->admin_notes ?: ($docDefaults['offer_sheet_notes'] ?? 'Commercial Offer only — Not an invoice. Valid for 30 days.'),
             'bankDetails' => DocumentHelper::getBankDetails(),
+            'bank_details' => DocumentHelper::getBankDetails(),
             // Intentionally NO volume pricing tiers table! Only relevant pricing shown.
             'show_all_pricing_tiers' => false,
         ];

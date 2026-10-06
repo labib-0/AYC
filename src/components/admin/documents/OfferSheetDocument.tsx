@@ -19,6 +19,7 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
         date={doc.date}
         orderNumber={doc.orderNumber}
         validUntil={doc.validUntil || "30 Days from date of issuance"}
+        exporterProfile={doc.exporter}
       />
 
       {/* Offer Sheet / Order Sheet Product Visual Gallery */}

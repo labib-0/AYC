@@ -110,7 +110,8 @@ class InvoiceService
                 'balance_due' => ($quotation->payment_status === 'paid') ? 0.0 : $total,
             ],
             'bank_details' => DocumentHelper::getBankDetails(),
-            'notes' => 'Commercial Sales Invoice. Authorized for accounting and export records.',
+            'bankDetails' => DocumentHelper::getBankDetails(),
+            'notes' => $quotation->admin_notes ?: (DocumentHelper::getDocumentDefaults()['ci_notes'] ?? 'Commercial Sales Invoice. Authorized for accounting and export records.'),
         ];
     }
 
