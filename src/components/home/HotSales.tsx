@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { ProductCategoryTile } from "@/components/common/ProductCategoryTile";
 import { getCategoryImageUrl } from "@/lib/category-images";
 import ProductCard from "../product/ProductCard";
@@ -27,12 +27,12 @@ import {
 } from "@/components/common/AudienceIcons";
 import GlobalFilterRail from "@/components/common/GlobalFilterRail";
 import { brandService, BrandModel } from "@/services/brand.service";
-import { categoryService, CategoryModel } from "@/services/category.service";
 import {
   notifyExplorerActive,
   subscribeToExplorerActive,
 } from "@/lib/services/explorer-coordinator";
 import { homepageService } from "@/services/homepage.service";
+import { useExplorerFilterState } from "./useExplorerFilterState";
 
 export interface HotSaleCategory {
   id: string;
@@ -57,20 +57,37 @@ export default function HotSales() {
   const [isVisible, setIsVisible] = useState<boolean>(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  // Unified Filter State for all Hot Sale products
-  const [selectedAudiences, setSelectedAudiences] = useState<string[]>([]);
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [selectedDesignTypes, setSelectedDesignTypes] = useState<string[]>([]);
-
   // Pagination & Display State (Max 21 Initial Products)
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_PRODUCT_LIMIT);
   const [hasLoadedMore, setHasLoadedMore] = useState<boolean>(false);
   const [isContinuousMode, setIsContinuousMode] = useState<boolean>(false);
-  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
 
-  // Metadata for filter options
-  const [availableBrands, setAvailableBrands] = useState<BrandModel[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<CategoryModel[]>([]);
+  const resetDisplayMode = useCallback(() => {
+    setVisibleCount(INITIAL_PRODUCT_LIMIT);
+    setHasLoadedMore(false);
+    setIsContinuousMode(false);
+  }, []);
+
+  // Shared Explorer Filter State & Cached Metadata
+  const {
+    selectedAudiences,
+    setSelectedAudiences,
+    selectedBrands,
+    setSelectedBrands,
+    selectedDesignTypes,
+    setSelectedDesignTypes,
+    isFilterOpen,
+    setIsFilterOpen,
+    availableBrands,
+    availableCategories,
+    clearAllFilters: handleClearFilters,
+    handleBrandsChange,
+    handleDesignTypesChange,
+    handleAudiencesChange,
+    toggleAudience: handleAudienceToggle,
+  } = useExplorerFilterState({
+    onFilterChange: resetDisplayMode,
+  });
 
   const collectionSectionRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -85,26 +102,6 @@ export default function HotSales() {
       }
     }
     load();
-  }, []);
-
-  useEffect(() => {
-    async function loadMetadata() {
-      try {
-        const [brandsData, categoriesData] = await Promise.all([
-          brandService.getBrands(),
-          categoryService.getCategories(),
-        ]);
-        if (brandsData && brandsData.length > 0) {
-          setAvailableBrands(brandsData);
-        }
-        if (categoriesData && categoriesData.length > 0) {
-          setAvailableCategories(categoriesData);
-        }
-      } catch {
-        // Fallbacks preserved gracefully
-      }
-    }
-    loadMetadata();
   }, []);
 
   const [curatedCategories, setCuratedCategories] = useState<HotSaleCategory[]>([]);
@@ -206,51 +203,6 @@ export default function HotSales() {
     }
   };
 
-  // Toggle Audience Filter (Shared across ALL products)
-  const handleAudienceToggle = (audId: string) => {
-    setSelectedAudiences((prev) => {
-      if (prev.includes(audId)) {
-        return prev.filter((a) => a !== audId);
-      } else {
-        return [...prev, audId];
-      }
-    });
-    // CRITICAL GLOBAL RULE: On ANY filter change, reset to manual mode with max 21 products!
-    setVisibleCount(INITIAL_PRODUCT_LIMIT);
-    setHasLoadedMore(false);
-    setIsContinuousMode(false);
-  };
-
-  const handleBrandsChange = (brands: string[]) => {
-    setSelectedBrands(brands);
-    setVisibleCount(INITIAL_PRODUCT_LIMIT);
-    setHasLoadedMore(false);
-    setIsContinuousMode(false);
-  };
-
-  const handleDesignTypesChange = (types: string[]) => {
-    setSelectedDesignTypes(types);
-    setVisibleCount(INITIAL_PRODUCT_LIMIT);
-    setHasLoadedMore(false);
-    setIsContinuousMode(false);
-  };
-
-  const handleAudiencesChange = (audiences: string[]) => {
-    setSelectedAudiences(audiences);
-    setVisibleCount(INITIAL_PRODUCT_LIMIT);
-    setHasLoadedMore(false);
-    setIsContinuousMode(false);
-  };
-
-  // Reset all filters for the current collection
-  const handleClearFilters = () => {
-    setSelectedAudiences([]);
-    setSelectedBrands([]);
-    setSelectedDesignTypes([]);
-    setVisibleCount(INITIAL_PRODUCT_LIMIT);
-    setHasLoadedMore(false);
-    setIsContinuousMode(false);
-  };
 
   // Dynamic Collection Title (Generic without hardcoding)
   const collectionTitle = useMemo(() => {

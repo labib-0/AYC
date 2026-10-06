@@ -25,7 +25,7 @@ export function OrderOverviewStrip({ orders, loading = false }: OrderOverviewStr
       key: "all",
       label: "All Orders",
       count: allCount,
-      href: "/profile/orders?tab=all",
+      href: "/dashboard/orders?tab=all",
       icon: Package,
       textColor: "text-slate-900 dark:text-white",
       iconColor: "text-slate-400 dark:text-slate-500",
@@ -35,7 +35,7 @@ export function OrderOverviewStrip({ orders, loading = false }: OrderOverviewStr
       key: "shipped",
       label: "In Delivery",
       count: inDeliveryCount,
-      href: "/profile/orders?tab=shipped",
+      href: "/dashboard/orders?tab=shipped",
       icon: Truck,
       textColor: "text-amber-600 dark:text-amber-400",
       iconColor: "text-amber-500 dark:text-amber-400",
@@ -45,7 +45,7 @@ export function OrderOverviewStrip({ orders, loading = false }: OrderOverviewStr
       key: "delivered",
       label: "Delivered",
       count: deliveredCount,
-      href: "/profile/orders?tab=delivered",
+      href: "/dashboard/orders?tab=delivered",
       icon: CheckCircle2,
       textColor: "text-emerald-600 dark:text-emerald-400",
       iconColor: "text-emerald-500 dark:text-emerald-400",
@@ -55,7 +55,7 @@ export function OrderOverviewStrip({ orders, loading = false }: OrderOverviewStr
       key: "cancelled",
       label: "Cancelled",
       count: cancelledCount,
-      href: "/profile/orders?tab=cancelled",
+      href: "/dashboard/orders?tab=cancelled",
       icon: XCircle,
       textColor: "text-slate-600 dark:text-slate-400",
       iconColor: "text-slate-400 dark:text-slate-500",
@@ -78,7 +78,7 @@ export function OrderOverviewStrip({ orders, loading = false }: OrderOverviewStr
           </span>
         </div>
         <Link
-          href="/profile/orders"
+          href="/dashboard/orders"
           className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1 transition-colors"
         >
           <span>Orders Workspace</span>

@@ -349,6 +349,9 @@ export default function CartPage() {
                     const isSoldOut = Boolean(
                       item.product.isSoldOut || (item.product as any).is_sold_out
                     );
+                    const isFullStock = Boolean(
+                      (item as any).pricing_mode === "full_stock" || (item as any).pricingMode === "full_stock"
+                    );
                     const estDelivery =
                       item.product.estimatedDeliveryDate ||
                       (item.product as any).estimated_delivery_date;
@@ -385,7 +388,7 @@ export default function CartPage() {
                             {/* Thumbnail */}
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={item.product.images?.[0] || "/placeholder-image.jpg"}
+                              src={item.product.images?.[0] || "/placeholder.jpg"}
                               alt={item.product.name}
                               className={`w-14 h-18 sm:w-16 sm:h-20 aspect-[3/4] object-contain rounded-md bg-secondary/40 border border-border/40 p-0.5 shrink-0 ${
                                 isSoldOut ? "opacity-75 grayscale-[0.35]" : ""
@@ -435,6 +438,17 @@ export default function CartPage() {
                                       </span>
                                     )}
                                   </div>
+                                ) : isFullStock ? (
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-bold tracking-wider uppercase bg-emerald-600 text-white leading-none shrink-0">
+                                      FULL STOCK
+                                    </span>
+                                    {unitPrice > 0 && (
+                                      <span className="text-[10.5px] text-muted-foreground/80 font-medium truncate">
+                                        {formatPrice(unitPrice)}/pc
+                                      </span>
+                                    )}
+                                  </div>
                                 ) : (
                                   <span className="text-xs text-muted-foreground font-medium truncate">
                                     MOQ: {itemMoq} pcs
@@ -476,12 +490,15 @@ export default function CartPage() {
                                 <button
                                   type="button"
                                   className="w-6 sm:w-7 h-full flex items-center justify-center hover:bg-secondary rounded-l-md transition-colors text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                                  onClick={() =>
+                                  onClick={() => {
+                                    const nextQty = item.quantity % itemMoq !== 0
+                                      ? Math.floor((item.quantity - 1) / itemMoq) * itemMoq
+                                      : Math.max(itemMoq, item.quantity - itemMoq);
                                     handleUpdateQuantity(
                                       item,
-                                      Math.max(itemMoq, item.quantity - itemMoq)
-                                    )
-                                  }
+                                      Math.max(itemMoq, nextQty)
+                                    );
+                                  }}
                                   disabled={item.quantity <= itemMoq || isUpdating}
                                   aria-label={`Decrease quantity of ${item.product.name}`}
                                 >
@@ -494,7 +511,8 @@ export default function CartPage() {
                                   type="button"
                                   className="w-6 sm:w-7 h-full flex items-center justify-center hover:bg-secondary rounded-r-md transition-colors text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                                   onClick={() => handleUpdateQuantity(item, item.quantity + itemMoq)}
-                                  disabled={isUpdating}
+                                  disabled={isFullStock || isUpdating}
+                                  title={isFullStock ? "Full stock quantity is already selected" : undefined}
                                   aria-label={`Increase quantity of ${item.product.name}`}
                                 >
                                   <Plus className="w-3 h-3" />

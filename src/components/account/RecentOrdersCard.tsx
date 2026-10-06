@@ -28,7 +28,7 @@ export function RecentOrdersCard({ orders, loading = false }: RecentOrdersCardPr
             </p>
           </div>
           <Link
-            href="/profile/orders"
+            href="/dashboard/orders"
             className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1 transition-colors"
           >
             <span>View All</span>
@@ -76,7 +76,7 @@ export function RecentOrdersCard({ orders, loading = false }: RecentOrdersCardPr
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Link
-                        href={`/profile/orders/${order.id}`}
+                        href={`/dashboard/orders/${order.id}`}
                         className="text-xs sm:text-sm font-bold font-display text-slate-900 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
                       >
                         #{order.order_number}
@@ -115,7 +115,7 @@ export function RecentOrdersCard({ orders, loading = false }: RecentOrdersCardPr
                     </div>
 
                     <Link
-                      href={`/profile/orders/${order.id}`}
+                      href={`/dashboard/orders/${order.id}`}
                       className="px-3 py-1.5 rounded-lg border border-slate-200/80 dark:border-white/10 hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/20 text-slate-700 dark:text-slate-300 hover:text-amber-700 dark:hover:text-amber-400 text-xs font-semibold flex items-center gap-1 transition-all shadow-2xs"
                     >
                       <span>{hasTracking ? "Track" : "Details"}</span>
@@ -132,7 +132,7 @@ export function RecentOrdersCard({ orders, loading = false }: RecentOrdersCardPr
       {orders.length > 4 && (
         <div className="pt-3 mt-2 border-t border-slate-100 dark:border-white/10 text-right">
           <Link
-            href="/profile/orders"
+            href="/dashboard/orders"
             className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1"
           >
             <span>View all {orders.length} orders</span>

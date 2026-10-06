@@ -1,4 +1,4 @@
-import { SITE_CONFIG, absoluteUrl } from "./config";
+import { SITE_CONFIG, absoluteUrl, canonicalUrl } from "./config";
 import { BreadcrumbItem } from "./breadcrumbs";
 import { B2BProductInput } from "@/types/b2b";
 import { Product } from "@/types";
@@ -76,23 +76,65 @@ export function generateBreadcrumbJsonLd(breadcrumbs: BreadcrumbItem[]) {
 
 /**
  * Generates Schema.org Product structured data (Merchant Listing & Product Snippet compliant)
- * Uses actual product data without fabricating reviews, ratings, or GTINs.
+ * Uses authoritative product data without fabricating reviews, ratings, or GTINs.
+ * Correctly computes AggregateOffer when wholesale volume pricing tiers exist.
  */
 export function generateProductJsonLd(product: B2BProductInput | Product) {
-  const url = absoluteUrl(`/products/${product.slug}`);
+  const url = canonicalUrl(`/products/${product.slug}`);
   const images = Array.isArray(product.images) && product.images.length > 0
     ? product.images.map((img) => (img.startsWith("http") ? img : absoluteUrl(img)))
     : [SITE_CONFIG.ogImage];
 
   const prodObj = product as unknown as Record<string, unknown>;
-  const rawPrice = product.wholesalePrice ?? (prodObj.price as number | undefined) ?? 15;
-  const price = typeof rawPrice === "number" ? rawPrice : parseFloat(String(rawPrice)) || 15;
 
-  let inStock = true;
-  if (typeof prodObj.stock === "number") {
-    inStock = (prodObj.stock as number) > 0;
-  } else if (typeof prodObj.availableStock === "number") {
-    inStock = (prodObj.availableStock as number) > 0;
+  // Collect authoritative customer-visible commercial prices (NEVER internal cost/purchase price)
+  const commercialPrices: number[] = [];
+  const addPriceIfValid = (val: unknown) => {
+    if (typeof val === "number" && !isNaN(val) && val > 0) {
+      commercialPrices.push(val);
+    } else if (typeof val === "string") {
+      const parsed = parseFloat(val);
+      if (!isNaN(parsed) && parsed > 0) {
+        commercialPrices.push(parsed);
+      }
+    }
+  };
+
+  addPriceIfValid(product.standardPrice);
+  addPriceIfValid(product.wholesalePrice);
+  addPriceIfValid(prodObj.price);
+  addPriceIfValid(product.bulkPrice);
+  addPriceIfValid(product.fullStockPrice);
+
+  if (Array.isArray(prodObj.pricingTiers)) {
+    for (const tier of prodObj.pricingTiers as Array<{ unit_price?: number }>) {
+      addPriceIfValid(tier?.unit_price);
+    }
+  }
+
+  const uniquePrices = Array.from(new Set(commercialPrices)).sort((a, b) => a - b);
+
+  // Authoritative availability calculation (InStock, OutOfStock, PreOrder)
+  const stockCount = typeof prodObj.availableStock === "number"
+    ? (prodObj.availableStock as number)
+    : typeof prodObj.stock === "number"
+    ? (prodObj.stock as number)
+    : 0;
+
+  const isPreOrder = Boolean(
+    prodObj.isPreOrder ||
+    prodObj.is_preorder ||
+    prodObj.allow_preorder ||
+    product.status === ("preorder" as any)
+  );
+
+  const isOutOfStock = stockCount <= 0 || product.status === ("out_of_stock" as any);
+
+  let availability = "https://schema.org/InStock";
+  if (isPreOrder) {
+    availability = "https://schema.org/PreOrder";
+  } else if (isOutOfStock) {
+    availability = "https://schema.org/OutOfStock";
   }
 
   const description =
@@ -100,35 +142,59 @@ export function generateProductJsonLd(product: B2BProductInput | Product) {
     product.shortDescription ||
     `${product.name} wholesale apparel by ${product.brand || "Ayaan Clothing"}. Direct export from Bangladesh.`;
 
+  // Build Offer or AggregateOffer
+  let offers: Record<string, unknown> | undefined = undefined;
+  if (uniquePrices.length > 1) {
+    offers = {
+      "@type": "AggregateOffer",
+      url,
+      priceCurrency: SITE_CONFIG.currency,
+      lowPrice: uniquePrices[0].toFixed(2),
+      highPrice: uniquePrices[uniquePrices.length - 1].toFixed(2),
+      offerCount: uniquePrices.length,
+      priceValidUntil: "2027-12-31",
+      itemCondition: "https://schema.org/NewCondition",
+      availability,
+      seller: {
+        "@type": "Organization",
+        name: SITE_CONFIG.name,
+        url: SITE_CONFIG.url,
+      },
+    };
+  } else if (uniquePrices.length === 1) {
+    offers = {
+      "@type": "Offer",
+      url,
+      priceCurrency: SITE_CONFIG.currency,
+      price: uniquePrices[0].toFixed(2),
+      priceValidUntil: "2027-12-31",
+      itemCondition: "https://schema.org/NewCondition",
+      availability,
+      seller: {
+        "@type": "Organization",
+        name: SITE_CONFIG.name,
+        url: SITE_CONFIG.url,
+      },
+    };
+  }
+
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
     image: images,
     description: description.slice(0, 5000),
-    url: url,
+    url,
     brand: {
       "@type": "Brand",
       name: product.brand || SITE_CONFIG.name,
     },
     category: product.categoryName || "Apparel",
-    offers: {
-      "@type": "Offer",
-      url: url,
-      priceCurrency: SITE_CONFIG.currency,
-      price: price.toFixed(2),
-      priceValidUntil: "2027-12-31",
-      itemCondition: "https://schema.org/NewCondition",
-      availability: inStock
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
-      seller: {
-        "@type": "Organization",
-        name: SITE_CONFIG.name,
-        url: SITE_CONFIG.url,
-      },
-    },
   };
+
+  if (offers) {
+    schema.offers = offers;
+  }
 
   if (product.sku) {
     schema.sku = product.sku;

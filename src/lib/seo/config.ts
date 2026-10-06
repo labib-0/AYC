@@ -46,6 +46,29 @@ export const SITE_CONFIG = {
   ],
 } as const;
 
+export const CANONICAL_DOMAIN = "https://ayaanclothing.com";
+
+/**
+ * Resolves the canonical base origin ensuring localhost or dev environments
+ * never leak into search engine canonical tags (STF-010).
+ */
+export function getCanonicalBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_CANONICAL_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl.replace(/\/$/, "");
+  }
+  return CANONICAL_DOMAIN;
+}
+
+/**
+ * Resolves a strict canonical URL stripped of query parameters and fragment hashes.
+ */
+export function canonicalUrl(path: string): string {
+  const baseUrl = getCanonicalBaseUrl();
+  const cleanPath = path.split("?")[0].split("#")[0].replace(/^\/?/, "/");
+  return `${baseUrl}${cleanPath}`;
+}
+
 /**
  * Clean absolute URL resolver
  */

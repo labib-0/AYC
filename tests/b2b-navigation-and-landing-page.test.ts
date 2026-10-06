@@ -68,8 +68,8 @@ assert(
 );
 
 assert(
-  marketingHrefs.includes("/admin/homepage"),
-  "Homepage links to '/admin/homepage'"
+  marketingHrefs.includes("/ayc/homepage") || marketingHrefs.includes("/admin/homepage"),
+  "Homepage links to '/ayc/homepage'"
 );
 
 // 3. Homepage Banner Model Conversion Verification

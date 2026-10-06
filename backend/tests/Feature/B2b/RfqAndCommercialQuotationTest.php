@@ -479,4 +479,49 @@ class RfqAndCommercialQuotationTest extends TestCase
         $this->assertArrayNotHasKey('gross_profit', $item);
         $this->assertArrayNotHasKey('margin', $item);
     }
+
+    /**
+     * STF-005: Customer RFQ Retrieval and Isolation
+     */
+    public function test_customer_can_retrieve_rfq_list_via_both_endpoints_with_isolation(): void
+    {
+        // Create an RFQ for this customer
+        $rfq1 = Quote::create([
+            'rfq_number' => 'RFQ-AYN-2026-TEST01',
+            'user_id' => $this->customer->id,
+            'buyer_name' => $this->customer->name,
+            'buyer_email' => $this->customer->email,
+            'company_name' => 'Nordic Sourcing',
+            'destination_country' => 'Norway',
+            'status' => 'SUBMITTED',
+        ]);
+
+        // Create an RFQ for another customer
+        $rfq2 = Quote::create([
+            'rfq_number' => 'RFQ-AYN-2026-TEST02',
+            'user_id' => $this->otherCustomer->id,
+            'buyer_name' => $this->otherCustomer->name,
+            'buyer_email' => $this->otherCustomer->email,
+            'company_name' => 'Other Corp',
+            'destination_country' => 'Sweden',
+            'status' => 'SUBMITTED',
+        ]);
+
+        // Test GET /api/v1/rfq (singular)
+        $resSingular = $this->actingAs($this->customer, 'sanctum')->getJson('/api/v1/rfq');
+        $resSingular->assertStatus(200);
+        $dataSingular = $resSingular->json('data');
+        $this->assertNotEmpty($dataSingular);
+        $numbersSingular = collect($dataSingular)->pluck('rfq_number')->all();
+        $this->assertContains('RFQ-AYN-2026-TEST01', $numbersSingular);
+        $this->assertNotContains('RFQ-AYN-2026-TEST02', $numbersSingular);
+
+        // Test GET /api/v1/rfqs (plural alias)
+        $resPlural = $this->actingAs($this->customer, 'sanctum')->getJson('/api/v1/rfqs');
+        $resPlural->assertStatus(200);
+        $dataPlural = $resPlural->json('data');
+        $numbersPlural = collect($dataPlural)->pluck('rfq_number')->all();
+        $this->assertContains('RFQ-AYN-2026-TEST01', $numbersPlural);
+        $this->assertNotContains('RFQ-AYN-2026-TEST02', $numbersPlural);
+    }
 }

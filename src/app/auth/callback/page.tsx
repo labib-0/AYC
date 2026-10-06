@@ -107,7 +107,8 @@ function CallbackHandler() {
         }
 
         // Register token in API client
-        apiClient.setToken(tokenToSet);
+        const token = tokenToSet;
+        apiClient.setToken(token);
         if (isMounted) setIsSuccess(true);
 
         // Clear any stale login notice or expired session messages

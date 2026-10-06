@@ -380,7 +380,7 @@ export default function MiniCart() {
                     {/* Thumbnail */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={item.product.images?.[0] || "/placeholder-image.jpg"}
+                      src={item.product.images?.[0] || "/placeholder.jpg"}
                       alt={item.product.name}
                       className={`w-13 h-17 sm:w-14 sm:h-18 aspect-[3/4] object-contain rounded-md bg-secondary/40 border border-border/40 p-0.5 shrink-0 ${
                         isSoldOut ? "opacity-75 grayscale-[0.35]" : ""
@@ -478,7 +478,7 @@ export default function MiniCart() {
                               onClick={() => {
                                 const nextQty = item.quantity % itemMoq !== 0
                                   ? Math.floor((item.quantity - 1) / itemMoq) * itemMoq
-                                  : item.quantity - itemMoq;
+                                  : Math.max(itemMoq, item.quantity - itemMoq);
                                 handleUpdateQuantity(
                                   item,
                                   Math.max(itemMoq, nextQty)

@@ -6,7 +6,7 @@ export interface MockUserData extends User {
 }
 
 export const INITIAL_MOCK_USERS: MockUserData[] = [
-  // 1. Production Demo Admin
+  // 1. Production Demo Admin (Demo local)
   {
     id: 54,
     name: "Ayaan Demo Admin",
@@ -20,6 +20,21 @@ export const INITIAL_MOCK_USERS: MockUserData[] = [
     b2b_approval_status: "approved",
     b2b_payment_terms: "net_60",
     created_at: "2026-09-22T00:00:00Z",
+  },
+  // 1b. Production Demo Admin (Canonical)
+  {
+    id: 53,
+    name: "Ayaan Admin",
+    email: "admin@ayaanclothing.com",
+    password: "password123",
+    role: "admin",
+    phone: "+880 1982-183886",
+    company_name: "Ayaan Sourcing Ltd.",
+    tax_id: "BD-ADMIN-01",
+    avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200",
+    b2b_approval_status: "approved",
+    b2b_payment_terms: "net_60",
+    created_at: "2026-09-20T00:00:00Z",
   },
   // 2. Production Demo Customer (Strictly Customer Role with full B2B Wholesale capabilities)
   {

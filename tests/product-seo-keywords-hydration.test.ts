@@ -11,7 +11,7 @@ console.log("==================================================");
 const srcDir = path.resolve(process.cwd(), "src");
 const productFormFile = path.join(srcDir, "components/admin/products/form/ProductForm.tsx");
 const productSeoSectionFile = path.join(srcDir, "components/admin/products/form/ProductSeoSection.tsx");
-const editPageFile = path.join(srcDir, "app/admin/products/[id]/edit/page.tsx");
+const editPageFile = path.join(srcDir, "app/ayc/products/[id]/edit/page.tsx");
 const productServiceFile = path.join(srcDir, "services/product.service.ts");
 
 const productFormContent = fs.readFileSync(productFormFile, "utf-8");
@@ -232,7 +232,7 @@ console.log("\n▶ 7. Edit Page: EditProductPage correctly mounts ProductForm wi
 
 assert(
   editPageContent.includes("<ProductForm") &&
-  editPageContent.includes("key={product.id}") &&
+  (editPageContent.includes("key={product.id}") || editPageContent.includes("key={`${product.id}")) &&
   editPageContent.includes("initialData={product}"),
   "EditProductPage passes loaded product as initialData with key={product.id}"
 );

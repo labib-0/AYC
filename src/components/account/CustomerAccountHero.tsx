@@ -39,7 +39,7 @@ export function CustomerAccountHero({ orderCount = 0 }: CustomerAccountHeroProps
         {/* CTAs */}
         <div className="mt-4 sm:mt-5 flex flex-wrap items-center gap-2.5">
           <Link
-            href="/profile/orders"
+            href="/dashboard/orders"
             className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-900 font-bold text-xs uppercase tracking-wider transition-all duration-150 active:scale-95 shadow-sm"
           >
             <span>View All Orders ({orderCount})</span>

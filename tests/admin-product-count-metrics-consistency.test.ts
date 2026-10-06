@@ -40,7 +40,7 @@ const routesApiPhp = fs.readFileSync(
   "utf8"
 );
 const adminProductsPageTsx = fs.readFileSync(
-  path.join(rootDir, "src/app/admin/products/page.tsx"),
+  path.join(rootDir, "src/app/ayc/products/page.tsx"),
   "utf8"
 );
 const productServiceTs = fs.readFileSync(
@@ -52,7 +52,7 @@ const dashboardServiceTs = fs.readFileSync(
   "utf8"
 );
 const dashboardPageTsx = fs.readFileSync(
-  path.join(rootDir, "src/app/admin/page.tsx"),
+  path.join(rootDir, "src/app/ayc/dashboard/page.tsx"),
   "utf8"
 );
 

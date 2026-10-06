@@ -14,11 +14,11 @@ import {
 } from "lucide-react";
 
 const mobileNav = [
-  { label: "Overview", href: "/profile", icon: LayoutDashboard, exact: true },
-  { label: "Orders", href: "/profile/orders", icon: Package, exact: false },
-  { label: "Saved Items", href: "/profile/wishlist", icon: Heart, exact: false },
-  { label: "Addresses", href: "/profile/addresses", icon: MapPin, exact: false },
-  { label: "Documents", href: "/profile/documents", icon: FileText, exact: false },
+  { label: "Overview", href: "/dashboard", icon: LayoutDashboard, exact: true },
+  { label: "Orders", href: "/dashboard/orders", icon: Package, exact: false },
+  { label: "Saved Items", href: "/dashboard/wishlist", icon: Heart, exact: false },
+  { label: "Addresses", href: "/dashboard/addresses", icon: MapPin, exact: false },
+  { label: "Documents", href: "/dashboard/documents", icon: FileText, exact: false },
 ];
 
 export function CustomerAccountMobileNav() {

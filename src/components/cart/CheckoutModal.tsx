@@ -153,6 +153,14 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // ─── SUBMISSION LOCK (synchronous ref to prevent double-click race) ─────────
+  // React state updates are asynchronous and batched, so `loading` alone cannot
+  // guard against rapid consecutive clicks that enter handlePlaceOrder before
+  // setLoading(true) flushes. This ref is set synchronously at the very top of
+  // handlePlaceOrder and cleared in the finally block, ensuring only one
+  // submission pipeline can execute at a time.
+  const isSubmittingRef = useRef(false);
+
   // ─── NORMALIZED SHIPPING DESTINATION ──────────────────────────────────────
   // Build a single canonical object that represents the shipping destination
   // from current state. This is the SINGLE SOURCE OF TRUTH used by both the
@@ -509,6 +517,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   // Handle Place Order
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ── Synchronous submission lock ──────────────────────────────────────────
+    // Must be checked BEFORE any async work. React state (loading) is batched
+    // and cannot prevent concurrent entry into this handler on rapid clicks.
+    if (isSubmittingRef.current || loading) return;
+    isSubmittingRef.current = true;
+
     setIsSubmitAttempted(true);
     setError("");
 
@@ -526,11 +541,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           ? `Please complete the required field: ${fieldList}.`
           : `Please complete the following required shipping destination fields: ${fieldList}.`
       );
+      isSubmittingRef.current = false;
       return;
     }
 
     if (items.length === 0) {
       setError("Your cart is empty.");
+      isSubmittingRef.current = false;
       return;
     }
 
@@ -547,18 +564,21 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         setError(`Promo code error: ${valResult.error}`);
         setAppliedCoupon(null);
         setPromoError(valResult.error);
+        isSubmittingRef.current = false;
         return;
       }
     }
 
     if (shippingMode === "aramex" && !aramexEnabled) {
       setError("Aramex Priority Air Express is currently unavailable. Please select Discuss Directly to proceed.");
+      isSubmittingRef.current = false;
       return;
     }
 
     const liveViolations = await revalidateCart();
     if (liveViolations.length > 0) {
       setError(liveViolations[0].message || "Some items exceed available stock. Please reduce the quantity.");
+      isSubmittingRef.current = false;
       return;
     }
 
@@ -717,6 +737,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       }
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -920,7 +941,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                   onClick={() => {
                     onClose();
                     if (user) {
-                      router.push(`/profile/orders/${confirmedOrder.id}`);
+                      router.push(`/dashboard/orders/${confirmedOrder.id}`);
                     } else {
                       router.push(`/search`);
                     }

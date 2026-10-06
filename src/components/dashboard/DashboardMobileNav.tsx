@@ -15,6 +15,7 @@ import {
   LogOut,
   ShieldCheck,
   Settings,
+  Heart,
 } from "lucide-react";
 
 interface NavItem {
@@ -27,6 +28,7 @@ interface NavItem {
 const MOBILE_NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { label: "Orders", href: "/dashboard/orders", icon: Package, exact: false },
+  { label: "Saved Items", href: "/dashboard/wishlist", icon: Heart, exact: false },
   { label: "RFQ", href: "/dashboard/rfq", icon: FileText, exact: false },
   { label: "Quick Reorder", href: "/dashboard/reorder", icon: RefreshCw, exact: false },
   { label: "Documents", href: "/dashboard/documents", icon: FolderOpen, exact: false },

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SITE_CONFIG, absoluteUrl } from "./config";
+import { SITE_CONFIG, absoluteUrl, canonicalUrl } from "./config";
 import { generateProductImageAlt } from "./images";
 import { B2BProductInput } from "@/types/b2b";
 import { Product } from "@/types";
@@ -90,7 +90,7 @@ export function generateProductMetadata(
 
   const title = deriveProductTitle(product);
   const description = deriveProductDescription(product);
-  const canonical = absoluteUrl(`/products/${product.slug || slug}`);
+  const canonical = canonicalUrl(`/products/${product.slug || slug}`);
   const primaryImage =
     Array.isArray(product.images) && product.images.length > 0
       ? product.images[0].startsWith("http")

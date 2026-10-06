@@ -14,9 +14,12 @@ const FRONTEND_ONLY_STORAGE_KEY = "ayaan_frontend_only_mode";
  */
 export function isFrontendOnly(): boolean {
   if (typeof window !== "undefined") {
-    const override = localStorage.getItem(FRONTEND_ONLY_STORAGE_KEY);
-    if (override !== null) {
-      return override === "true";
+    // In production, disable localStorage overrides for security
+    if (process.env.NODE_ENV !== "production") {
+      const override = localStorage.getItem(FRONTEND_ONLY_STORAGE_KEY);
+      if (override !== null) {
+        return override === "true";
+      }
     }
   }
 
@@ -24,6 +27,11 @@ export function isFrontendOnly(): boolean {
   const envVal = process.env.NEXT_PUBLIC_FRONTEND_ONLY;
   if (envVal !== undefined) {
     return envVal === "true" || envVal === "1";
+  }
+
+  // In production, default strictly to real backend mode (false) to prevent mock authentication leakage
+  if (process.env.NODE_ENV === "production") {
+    return false;
   }
 
   return true;

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, Save, Globe, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Check, Eye, EyeOff } from "lucide-react";
 import { B2BProductInput, B2BProductVariant, SupplierModel } from "@/types/b2b";
 import { ShippingPackageProfile, PackageAllocation } from "@/types";
-import { getBrands } from "@/lib/services/brands";
+import { brandService } from "@/services/brand.service";
 import { categoryService } from "@/services/category.service";
 import { generateProductSku, createProduct, updateProduct } from "@/lib/services/products";
 import { productDraftService } from "@/lib/services/product-draft.service";
@@ -910,8 +910,8 @@ export default function ProductForm({
   useEffect(() => {
     async function loadRefs() {
       try {
-        const bList = await getBrands({ all: true, isAdmin: true });
-        setBrands(bList.map((b) => ({ id: b.id, name: b.name, logo_url: b.logo_url || b.logo })));
+        const bList = await brandService.getBrands({ all: true, isAdmin: true });
+        setBrands(bList.map((b) => ({ id: String(b.id), name: b.name, logo_url: b.logo_url || b.logo })));
       } catch {
         // Fallback
       }

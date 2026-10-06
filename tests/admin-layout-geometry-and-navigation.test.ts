@@ -14,8 +14,8 @@ const rootDir = path.resolve(__dirname, "..");
 // =========================================================================
 console.log("\n▶ 1. Shared Admin Application Shell Layout Inspection");
 
-const layoutPath = path.join(rootDir, "src/app/admin/layout.tsx");
-assert(fs.existsSync(layoutPath), "src/app/admin/layout.tsx exists");
+const layoutPath = path.join(rootDir, "src/app/ayc/layout.tsx");
+assert(fs.existsSync(layoutPath), "src/app/ayc/layout.tsx exists");
 const layoutContent = fs.readFileSync(layoutPath, "utf8");
 
 // 1.1 Verify removal of max-w-[1600px] and mx-auto
@@ -240,26 +240,26 @@ console.log("✓ Active sidebar state mapping verified across all route patterns
 console.log("\n▶ 5. Admin Pages Container Full-Width Consistency");
 
 const pagesToCheck = [
-  { file: "src/app/admin/products/[id]/edit/page.tsx", name: "Edit Product" },
-  { file: "src/app/admin/products/new/page.tsx", name: "Add Product" },
-  { file: "src/app/admin/products/page.tsx", name: "Products Catalog" },
-  { file: "src/app/admin/page.tsx", name: "Dashboard" },
-  { file: "src/app/admin/orders/page.tsx", name: "Orders List" },
-  { file: "src/app/admin/orders/[id]/page.tsx", name: "Order Details" },
-  { file: "src/app/admin/customers/page.tsx", name: "Customers List" },
-  { file: "src/app/admin/customers/[id]/page.tsx", name: "Customer Details" },
-  { file: "src/app/admin/rfq/page.tsx", name: "RFQ List" },
-  { file: "src/app/admin/rfq/[id]/page.tsx", name: "RFQ Details" },
-  { file: "src/app/admin/settings/page.tsx", name: "Settings" },
-  { file: "src/app/admin/homepage/page.tsx", name: "Homepage" },
-  { file: "src/app/admin/roles/page.tsx", name: "Roles" },
-  { file: "src/app/admin/permissions/page.tsx", name: "Permissions" },
-  { file: "src/app/admin/administrators/page.tsx", name: "Administrators" },
-  { file: "src/app/admin/inventory/page.tsx", name: "Inventory" },
-  { file: "src/app/admin/categories/page.tsx", name: "Categories" },
-  { file: "src/app/admin/brands/page.tsx", name: "Brands" },
-  { file: "src/app/admin/coupons/page.tsx", name: "Coupons" },
-  { file: "src/app/admin/documents/page.tsx", name: "Documents" },
+  { file: "src/app/ayc/products/[id]/edit/page.tsx", name: "Edit Product" },
+  { file: "src/app/ayc/products/new/page.tsx", name: "Add Product" },
+  { file: "src/app/ayc/products/page.tsx", name: "Products Catalog" },
+  { file: "src/app/ayc/dashboard/page.tsx", name: "Dashboard" },
+  { file: "src/app/ayc/orders/page.tsx", name: "Orders List" },
+  { file: "src/app/ayc/orders/[id]/page.tsx", name: "Order Details" },
+  { file: "src/app/ayc/customers/page.tsx", name: "Customers List" },
+  { file: "src/app/ayc/customers/[id]/page.tsx", name: "Customer Details" },
+  { file: "src/app/ayc/rfq/page.tsx", name: "RFQ List" },
+  { file: "src/app/ayc/rfq/[id]/page.tsx", name: "RFQ Details" },
+  { file: "src/app/ayc/settings/page.tsx", name: "Settings" },
+  { file: "src/app/ayc/homepage/page.tsx", name: "Homepage" },
+  { file: "src/app/ayc/roles/page.tsx", name: "Roles" },
+  { file: "src/app/ayc/permissions/page.tsx", name: "Permissions" },
+  { file: "src/app/ayc/administrators/page.tsx", name: "Administrators" },
+  { file: "src/app/ayc/inventory/page.tsx", name: "Inventory" },
+  { file: "src/app/ayc/categories/page.tsx", name: "Categories" },
+  { file: "src/app/ayc/brands/page.tsx", name: "Brands" },
+  { file: "src/app/ayc/coupons/page.tsx", name: "Coupons" },
+  { file: "src/app/ayc/documents/page.tsx", name: "Documents" },
 ];
 
 for (const { file, name } of pagesToCheck) {

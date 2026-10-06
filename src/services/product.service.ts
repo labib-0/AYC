@@ -7,6 +7,7 @@ import { getLowestValidCustomerUnitPrice } from "@/lib/product-pricing";
 import { apiClient } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { productDraftService } from "@/lib/services/product-draft.service";
+import { normalizeImageUrl, isValidImageUrl } from "@/lib/media";
 
 export interface ProductQueryParams {
   page?: number;
@@ -92,12 +93,12 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     : [p.image_url || p.image || "/placeholder.jpg"];
 
   const images = rawImages.map((img: any) => {
-    if (typeof img === "string") return img;
-    return img?.image_url || img?.url || "";
-  }).filter((url: string) => Boolean(url && url.trim()));
+    const raw = typeof img === "string" ? img : img?.image_url || img?.url || "";
+    return normalizeImageUrl(raw, "/placeholder.jpg");
+  }).filter((url: string) => isValidImageUrl(url));
 
   if (images.length === 0) {
-    images.push(p.image_url || p.image || "/placeholder.jpg");
+    images.push("/placeholder.jpg");
   }
 
   let audienceVal: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" = "UNISEX";

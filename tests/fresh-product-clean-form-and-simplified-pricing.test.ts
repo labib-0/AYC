@@ -29,7 +29,7 @@ const shippingFile = path.join(srcDir, "components/admin/products/form/ProductSh
 const pricingFile = path.join(srcDir, "components/admin/products/form/ProductPricingSection.tsx");
 const inventoryFile = path.join(srcDir, "components/admin/products/form/ProductInventorySection.tsx");
 const breakdownFile = path.join(srcDir, "components/admin/products/form/ProductPackageBreakdownSection.tsx");
-const newPageFile = path.join(srcDir, "app/admin/products/new/page.tsx");
+const newPageFile = path.join(srcDir, "app/ayc/products/new/page.tsx");
 
 const formContent = fs.readFileSync(formFile, "utf-8");
 const basicInfoContent = fs.readFileSync(basicInfoFile, "utf-8");

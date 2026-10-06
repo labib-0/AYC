@@ -54,8 +54,8 @@ function runVerification() {
     "Customer LoginPage reads error query parameters from OAuth returns"
   );
 
-  // 2. Admin LoginPage Inspection (CRITICAL REQUIREMENT)
-  const adminLoginPath = path.resolve(__dirname, "../src/app/admin/login/page.tsx");
+  // 2. Admin LoginPage Inspection (CRITICAL REQUIREMENT - Admin migrated to /ayc)
+  const adminLoginPath = path.resolve(__dirname, "../src/app/ayc/page.tsx");
   const adminLoginContent = fs.readFileSync(adminLoginPath, "utf-8");
 
   assert(

@@ -252,6 +252,14 @@ Route::prefix('v1')->group(function () {
         });
     });
 
+    // Plural alias /rfqs for customer RFQ index and detail retrieval (STF-005)
+    Route::prefix('rfqs')->middleware('auth:sanctum')->group(function () {
+        Route::get('/', [RfqController::class, 'index']);
+        Route::get('/{id}', [RfqController::class, 'show']);
+        Route::get('/{id}/messages', [RfqController::class, 'getMessages']);
+        Route::post('/{id}/messages', [RfqController::class, 'addMessage'])->middleware('throttle:rfq-message');
+    });
+
     // Customer Quotations & Documents
     Route::prefix('quotations')->middleware('auth:sanctum')->group(function () {
         Route::get('/', [QuotationController::class, 'index']);

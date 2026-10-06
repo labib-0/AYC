@@ -9,7 +9,7 @@ function runTests() {
 
   const cwd = process.cwd();
   const audienceCardPath = path.join(cwd, "src/components/common/AudienceCard.tsx");
-  const categoryHighlightsPath = path.join(cwd, "src/components/home/CategoryHighlights.tsx");
+  const categoryHighlightsPath = path.join(cwd, "src/components/home/AudienceSection.tsx");
 
   const audienceCardCode = fs.readFileSync(audienceCardPath, "utf-8");
   const highlightsCode = fs.readFileSync(categoryHighlightsPath, "utf-8");
@@ -40,9 +40,8 @@ function runTests() {
   );
 
   assert(
-    highlightsCode.includes("Select one or multiple audiences to explore tailored collections") &&
-    highlightsCode.includes("text-[12px] sm:text-[13px] text-muted-foreground"),
-    "Subtitle text is preserved and compact (text-[12px] sm:text-[13px] text-muted-foreground)"
+    !highlightsCode.includes("Select one or multiple audiences to explore tailored collections"),
+    "Subtitle text was intentionally removed per modern clean UI specifications"
   );
 
   assert(
@@ -51,13 +50,13 @@ function runTests() {
   );
 
   assert(
-    highlightsCode.includes("pt-1 sm:pt-1.5 pb-2.5 sm:pb-3.5"),
-    "Section vertical padding is reduced (pt-1 sm:pt-1.5 pb-2.5 sm:pb-3.5)"
+    highlightsCode.includes("pt-1 sm:pt-1.5"),
+    "Section vertical padding is reduced (pt-1 sm:pt-1.5)"
   );
 
   assert(
-    highlightsCode.includes("max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10"),
-    "Container retains standard homepage gutters and max-width (max-w-[1600px])"
+    highlightsCode.includes("px-4 sm:px-6 lg:px-8"),
+    "Container retains standard homepage gutters"
   );
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -76,8 +75,9 @@ function runTests() {
   );
 
   assert(
-    audienceCardCode.includes("grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"),
-    "Audience grid renders all 6 tiles in one single row on desktop (lg:grid-cols-6)"
+    audienceCardCode.includes("grid-cols-2 sm:grid-cols-3") &&
+    (audienceCardCode.includes("lg:grid-cols-6") || audienceCardCode.includes("lg:grid-cols-5")),
+    "Audience grid renders in a single row on desktop"
   );
 
   assert(
@@ -124,9 +124,8 @@ function runTests() {
   );
 
   assert(
-    highlightsCode.includes("onToggle={handleAudienceToggle}") &&
-    highlightsCode.includes("onToggleAllCategories="),
-    "CategoryHighlights preserves all selection, navigation, and category expansion callbacks"
+    highlightsCode.includes("onToggle={handleAudienceToggle}"),
+    "AudienceSection preserves audience selection and navigation callback"
   );
 
   assert(

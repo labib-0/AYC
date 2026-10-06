@@ -12,7 +12,7 @@ import {
   duplicateProduct,
   togglePublishStatus,
 } from "@/lib/services/products";
-import { getBrands } from "@/lib/services/brands";
+import { brandService } from "@/services/brand.service";
 import { categoryService } from "@/services/category.service";
 import { productDraftService } from "@/lib/services/product-draft.service";
 import { toggleProductStorefrontVisibility } from "@/services/product.service";
@@ -138,8 +138,8 @@ function AdminProductsContent() {
   useEffect(() => {
     async function loadReferenceData() {
       try {
-        const brands = await getBrands({ all: true, isAdmin: true });
-        setBrandsList(brands.map((b) => ({ id: b.id, name: b.name })));
+        const brands = await brandService.getBrands({ all: true, isAdmin: true });
+        setBrandsList(brands.map((b) => ({ id: String(b.id), name: b.name })));
       } catch {
         // Use empty list
       }

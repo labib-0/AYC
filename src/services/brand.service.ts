@@ -27,18 +27,46 @@ export interface BrandQueryParams {
 }
 
 export class BrandService {
+  private cachedBrands: { data: BrandModel[]; timestamp: number } | null = null;
+  private inFlightPromise: Promise<BrandModel[]> | null = null;
+  private cachedLandingBrands: { data: BrandModel[]; timestamp: number } | null = null;
+  private inFlightLandingPromise: Promise<BrandModel[]> | null = null;
+
+  invalidateCache(): void {
+    this.cachedBrands = null;
+    this.inFlightPromise = null;
+    this.cachedLandingBrands = null;
+    this.inFlightLandingPromise = null;
+  }
+
   /**
-   * Fetch brands
+   * Fetch brands with in-flight request deduplication
    */
   async getBrands(options?: BrandQueryParams): Promise<BrandModel[]> {
-    if (!isFrontendOnly()) {
-      const res = await apiClient.get<any>("/brands", { params: options as any });
-      const items = Array.isArray(res) ? res : res?.data;
-      if (Array.isArray(items)) {
-        return items;
-      }
-      return [];
+    const isDefaultQuery = !options?.search && !options?.isAdmin && (options?.all || options === undefined);
+    if (isDefaultQuery && this.cachedBrands && Date.now() - this.cachedBrands.timestamp < 30000) {
+      return this.cachedBrands.data;
     }
+    if (isDefaultQuery && this.inFlightPromise) {
+      return this.inFlightPromise;
+    }
+
+    const fetchPromise = (async () => {
+      if (!isFrontendOnly()) {
+        try {
+          const res = await apiClient.get<any>("/brands", { params: options as any });
+          const items = Array.isArray(res) ? res : res?.data;
+          if (Array.isArray(items)) {
+            if (isDefaultQuery) {
+              this.cachedBrands = { data: items, timestamp: Date.now() };
+            }
+            return items;
+          }
+        } catch {
+          // Fall through
+        }
+        return [];
+      }
 
     let list = mockStore.getBrands();
 
@@ -85,22 +113,58 @@ export class BrandService {
       const q = options.search.toLowerCase();
       list = list.filter((b) => b.name.toLowerCase().includes(q) || b.slug.toLowerCase().includes(q));
     }
+    if (isDefaultQuery) {
+      this.cachedBrands = { data: list, timestamp: Date.now() };
+    }
     return list;
+  })();
+
+  if (isDefaultQuery) {
+    this.inFlightPromise = fetchPromise;
+    fetchPromise.finally(() => {
+      this.inFlightPromise = null;
+    });
+  }
+
+  return fetchPromise;
   }
 
   /**
-   * Fetch landing page brands
+   * Fetch landing page brands with deduplication
    */
   async getLandingBrands(): Promise<BrandModel[]> {
-    if (!isFrontendOnly()) {
-      const res = await apiClient.get<any>("/brands/landing");
-      const items = Array.isArray(res) ? res : res?.data;
-      if (Array.isArray(items)) {
-        return items;
-      }
-      return [];
+    if (this.cachedLandingBrands && Date.now() - this.cachedLandingBrands.timestamp < 30000) {
+      return this.cachedLandingBrands.data;
     }
-    return mockStore.getBrands().filter((b) => b.is_featured_on_landing && b.is_active !== false);
+    if (this.inFlightLandingPromise) {
+      return this.inFlightLandingPromise;
+    }
+
+    const fetchPromise = (async () => {
+      if (!isFrontendOnly()) {
+        try {
+          const res = await apiClient.get<any>("/brands/landing");
+          const items = Array.isArray(res) ? res : res?.data;
+          if (Array.isArray(items)) {
+            this.cachedLandingBrands = { data: items, timestamp: Date.now() };
+            return items;
+          }
+        } catch {
+          // Fall through
+        }
+        return [];
+      }
+      const list = mockStore.getBrands().filter((b) => b.is_featured_on_landing && b.is_active !== false);
+      this.cachedLandingBrands = { data: list, timestamp: Date.now() };
+      return list;
+    })();
+
+    this.inFlightLandingPromise = fetchPromise;
+    fetchPromise.finally(() => {
+      this.inFlightLandingPromise = null;
+    });
+
+    return fetchPromise;
   }
 
   /**

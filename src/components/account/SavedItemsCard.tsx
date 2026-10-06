@@ -33,7 +33,7 @@ export function SavedItemsCard() {
             )}
           </div>
           <Link
-            href="/profile/wishlist"
+            href="/dashboard/wishlist"
             className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
           >
             View All
@@ -149,7 +149,7 @@ export function SavedItemsCard() {
       {wishlistItems.length > 3 && (
         <div className="pt-3 mt-2 border-t border-slate-100 dark:border-white/10 text-right">
           <Link
-            href="/profile/wishlist"
+            href="/dashboard/wishlist"
             className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1"
           >
             <span>+{wishlistItems.length - 3} more saved items</span>

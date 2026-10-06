@@ -377,7 +377,7 @@ function HeaderContent() {
 
             {/* Wishlist — accessible to customers and directs guests to login */}
             <Link 
-              href={user ? "/profile/wishlist" : "/login?returnUrl=/profile/wishlist&notice=Please%20log%20in%20to%20view%20your%20saved%20items."}
+              href={user ? "/dashboard/wishlist" : "/login?returnUrl=/dashboard/wishlist&notice=Please%20log%20in%20to%20view%20your%20saved%20items."}
               className="relative flex items-center justify-center h-10 w-10 rounded-full border border-white/20 hover:bg-white/10 transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer" 
               aria-label="Saved Items"
               title="Saved Items"
@@ -593,7 +593,7 @@ function HeaderContent() {
             {/* ZONE 3: ACTIONS AREA (Wishlist + Cart + Scrolled-State Hamburger — shrink-0) */}
             <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 z-20">
               <Link
-                href={user ? "/profile/wishlist" : "/login?returnUrl=/profile/wishlist&notice=Please%20log%20in%20to%20view%20your%20saved%20items."}
+                href={user ? "/dashboard/wishlist" : "/login?returnUrl=/dashboard/wishlist&notice=Please%20log%20in%20to%20view%20your%20saved%20items."}
                 onClick={() => setIsSearchOpen(false)}
                 className="relative flex items-center justify-center h-9 w-9 text-white/85 hover:text-white press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 aria-label="Saved Items"

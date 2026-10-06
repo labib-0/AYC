@@ -18,6 +18,12 @@ export interface RegisterData {
   role?: "customer" | "admin";
 }
 
+// Explicit known mock admin emails for test / mock environments only. Substring matching is forbidden.
+const EXPLICIT_MOCK_ADMIN_EMAILS = new Set([
+  "admin@ayaan-demo.local",
+  "admin@ayaanclothing.com",
+]);
+
 export class AuthService {
   /**
    * Log in user
@@ -51,8 +57,9 @@ export class AuthService {
       };
     }
 
-    // If logging in with an email not yet in the store, automatically create customer profile
-    const role: User["role"] = email.includes("admin") ? "admin" : "customer";
+    // In mock mode, if logging in with an email not yet in the store, automatically create profile.
+    // Explicit mock admin check replaces unsafe substring matching (STF-008 remediation).
+    const role: User["role"] = EXPLICIT_MOCK_ADMIN_EMAILS.has(email) ? "admin" : "customer";
     const newUser = mockStore.saveUser({
       name: email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
       email,
@@ -86,13 +93,14 @@ export class AuthService {
       return authData;
     }
 
+    // Storefront public registration is strictly customer only
     const newUser = mockStore.saveUser({
       name: data.name,
       email: data.email,
       password: data.password,
       phone: data.phone,
       company_name: data.company_name,
-      role: data.role || "customer",
+      role: "customer",
     });
 
     const token = `auth_token_${newUser.role || "customer"}_${newUser.id}`;

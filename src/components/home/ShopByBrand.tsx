@@ -16,6 +16,7 @@ import {
   notifyExplorerActive,
   subscribeToExplorerActive,
 } from "@/lib/services/explorer-coordinator";
+import { useExplorerFilterState } from "./useExplorerFilterState";
 
 export interface Brand {
   id: string;
@@ -34,20 +35,25 @@ export default function ShopByBrand() {
   const [dbBrands, setDbBrands] = useState<Brand[]>([]);
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_BRAND_TILES_DISPLAY_COUNT);
 
-  // Metadata for filter options
-  const [availableBrands, setAvailableBrands] = useState<BrandModel[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<CategoryModel[]>([]);
-
-  // Filter Selection State
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [selectedDesignTypes, setSelectedDesignTypes] = useState<string[]>([]);
-  const [selectedAudiences, setSelectedAudiences] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  // Shared Explorer Filter State & Cached Metadata
+  const {
+    selectedBrands,
+    setSelectedBrands,
+    selectedDesignTypes,
+    setSelectedDesignTypes,
+    selectedAudiences,
+    setSelectedAudiences,
+    selectedCategories,
+    setSelectedCategories,
+    isFilterOpen,
+    setIsFilterOpen,
+    availableBrands,
+    availableCategories,
+  } = useExplorerFilterState();
 
   // Modes & Filter Rail
   const [hasLoadedMore, setHasLoadedMore] = useState<boolean>(false);
   const [isContinuousMode, setIsContinuousMode] = useState<boolean>(false);
-  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
 
   // Products & Pagination State
   const [products, setProducts] = useState<Product[]>([]);
@@ -75,14 +81,10 @@ export default function ShopByBrand() {
     }
   }, []);
 
-  // Load brands and categories metadata - strictly from Laravel Backend
+  // Load landing brands - strictly from Laravel Backend
   const loadMetadata = useCallback(async () => {
     try {
-      const [landingBrandsData, allCatalogBrands, categoriesData] = await Promise.all([
-        brandService.getLandingBrands(),
-        brandService.getBrands({ is_active: true, all: true }),
-        categoryService.getCategories({ is_active: true, all: true }),
-      ]);
+      const landingBrandsData = await brandService.getLandingBrands();
 
       if (landingBrandsData && landingBrandsData.length > 0) {
         const formatted: Brand[] = landingBrandsData.map((b: BrandModel) => ({
@@ -97,15 +99,8 @@ export default function ShopByBrand() {
       } else {
         setDbBrands([]);
       }
-
-      if (allCatalogBrands) {
-        setAvailableBrands(allCatalogBrands);
-      }
-      if (categoriesData) {
-        setAvailableCategories(categoriesData);
-      }
     } catch (err) {
-      console.error("Failed to load storefront brands and metadata:", err);
+      console.error("Failed to load storefront landing brands:", err);
       setDbBrands([]);
     }
   }, []);

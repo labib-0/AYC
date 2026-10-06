@@ -28,76 +28,113 @@ export interface CategoryQueryParams {
 }
 
 export class CategoryService {
+  private cachedCategories: { data: CategoryModel[]; timestamp: number } | null = null;
+  private inFlightPromise: Promise<CategoryModel[]> | null = null;
+
+  invalidateCache(): void {
+    this.cachedCategories = null;
+    this.inFlightPromise = null;
+  }
+
   /**
-   * Fetch categories
+   * Fetch categories with in-flight promise deduplication
    */
   async getCategories(options?: CategoryQueryParams): Promise<CategoryModel[]> {
-    if (!isFrontendOnly()) {
-      const res = await apiClient.get<any>("/categories", { params: options as any });
-      const items = Array.isArray(res) ? res : res?.data;
-      if (Array.isArray(items)) {
-        return items.map((c) => {
-          const resolvedImg = getCategoryImageUrl(c.slug || c.name, c.image_url || c.image);
-          return {
-            ...c,
-            image: resolvedImg,
-            image_url: resolvedImg,
-          };
-        });
-      }
-      return [];
+    const isDefaultQuery = !options?.search && !options?.isAdmin && (options?.all || options === undefined);
+    if (isDefaultQuery && this.cachedCategories && Date.now() - this.cachedCategories.timestamp < 30000) {
+      return this.cachedCategories.data;
+    }
+    if (isDefaultQuery && this.inFlightPromise) {
+      return this.inFlightPromise;
     }
 
-    let list = mockStore.getCategories();
+    const fetchPromise = (async () => {
+      if (!isFrontendOnly()) {
+        try {
+          const res = await apiClient.get<any>("/categories", { params: options as any });
+          const items = Array.isArray(res) ? res : res?.data;
+          if (Array.isArray(items)) {
+            const mapped = items.map((c) => {
+              const resolvedImg = getCategoryImageUrl(c.slug || c.name, c.image_url || c.image);
+              return {
+                ...c,
+                image: resolvedImg,
+                image_url: resolvedImg,
+              };
+            });
+            if (isDefaultQuery) {
+              this.cachedCategories = { data: mapped, timestamp: Date.now() };
+            }
+            return mapped;
+          }
+        } catch {
+          // Fall through to mock store
+        }
+        return [];
+      }
 
-    // Dynamically calculate accurate product count from live product dataset
-    const products = mockStore.getProducts();
-    const countMap = new Map<string, number>();
-    for (const p of products) {
-      if (p.categoryId) {
-        const idKey = String(p.categoryId).toLowerCase().trim();
-        countMap.set(idKey, (countMap.get(idKey) || 0) + 1);
+      let list = mockStore.getCategories();
+      const products = mockStore.getProducts();
+      const countMap = new Map<string, number>();
+      for (const p of products) {
+        if (p.categoryId) {
+          const idKey = String(p.categoryId).toLowerCase().trim();
+          countMap.set(idKey, (countMap.get(idKey) || 0) + 1);
+        }
+        if (p.categoryName) {
+          const nameKey = p.categoryName.toLowerCase().trim();
+          countMap.set(nameKey, (countMap.get(nameKey) || 0) + 1);
+        }
       }
-      if (p.categoryName) {
-        const nameKey = p.categoryName.toLowerCase().trim();
-        countMap.set(nameKey, (countMap.get(nameKey) || 0) + 1);
+
+      list = list.map((c) => {
+        const idKey = String(c.id).toLowerCase().trim();
+        const nameKey = (c.name || "").toLowerCase().trim();
+        const slugKey = (c.slug || "").toLowerCase().trim();
+        const strippedId = idKey.replace(/^c_/, "");
+
+        let count = countMap.get(idKey) || 0;
+        if (count === 0 && nameKey) {
+          count = countMap.get(nameKey) || 0;
+        }
+        if (count === 0 && slugKey) {
+          count = countMap.get(slugKey) || 0;
+        }
+        if (count === 0 && strippedId) {
+          count = countMap.get(strippedId) || 0;
+        }
+
+        const resolvedImg = getCategoryImageUrl(c.slug || c.name, (c as any).image_url || c.image);
+        return {
+          ...c,
+          image: resolvedImg,
+          image_url: resolvedImg,
+          products_count: count,
+        };
+      });
+
+      if (!options?.isAdmin && !options?.all) {
+        list = list.filter((c) => c.is_active !== false);
       }
+      if (options?.search) {
+        const q = options.search.toLowerCase();
+        list = list.filter((c) => c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q));
+      }
+
+      if (isDefaultQuery) {
+        this.cachedCategories = { data: list, timestamp: Date.now() };
+      }
+      return list;
+    })();
+
+    if (isDefaultQuery) {
+      this.inFlightPromise = fetchPromise;
+      fetchPromise.finally(() => {
+        this.inFlightPromise = null;
+      });
     }
 
-    list = list.map((c) => {
-      const idKey = String(c.id).toLowerCase().trim();
-      const nameKey = (c.name || "").toLowerCase().trim();
-      const slugKey = (c.slug || "").toLowerCase().trim();
-      const strippedId = idKey.replace(/^c_/, "");
-
-      let count = countMap.get(idKey) || 0;
-      if (count === 0 && nameKey) {
-        count = countMap.get(nameKey) || 0;
-      }
-      if (count === 0 && slugKey) {
-        count = countMap.get(slugKey) || 0;
-      }
-      if (count === 0 && strippedId) {
-        count = countMap.get(strippedId) || 0;
-      }
-
-      const resolvedImg = getCategoryImageUrl(c.slug || c.name, (c as any).image_url || c.image);
-      return {
-        ...c,
-        image: resolvedImg,
-        image_url: resolvedImg,
-        products_count: count,
-      };
-    });
-
-    if (!options?.isAdmin && !options?.all) {
-      list = list.filter((c) => c.is_active !== false);
-    }
-    if (options?.search) {
-      const q = options.search.toLowerCase();
-      list = list.filter((c) => c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q));
-    }
-    return list;
+    return fetchPromise;
   }
 
   /**
