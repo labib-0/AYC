@@ -49,11 +49,15 @@ class SiteSettingsAndLegalPagesTest extends TestCase
      */
     public function test_whatsapp_normalization_logic(): void
     {
-        // Bangladesh standard formatted numbers
+        // Bangladesh standard formatted numbers (+880 1620-853502 canonical)
+        $this->assertEquals('8801620853502', WhatsAppNormalizationService::deriveMachineNumber('+880 1620-853502'));
+        $this->assertEquals('8801620853502', WhatsAppNormalizationService::deriveMachineNumber('01620-853502'));
+        $this->assertEquals('8801620853502', WhatsAppNormalizationService::deriveMachineNumber('8801620853502'));
+        $this->assertEquals('8801620853502', WhatsAppNormalizationService::deriveMachineNumber('1620853502'));
+
+        // Admin changed number (+880 1982-183886)
         $this->assertEquals('8801982183886', WhatsAppNormalizationService::deriveMachineNumber('+880 1982-183886'));
         $this->assertEquals('8801982183886', WhatsAppNormalizationService::deriveMachineNumber('01982-183886'));
-        $this->assertEquals('8801982183886', WhatsAppNormalizationService::deriveMachineNumber('8801982183886'));
-        $this->assertEquals('8801982183886', WhatsAppNormalizationService::deriveMachineNumber('1982183886'));
 
         // International numbers
         $this->assertEquals('15552345678', WhatsAppNormalizationService::deriveMachineNumber('+1 (555) 234-5678'));
@@ -63,11 +67,21 @@ class SiteSettingsAndLegalPagesTest extends TestCase
         $this->assertEquals('', WhatsAppNormalizationService::deriveMachineNumber(''));
         $this->assertEquals('', WhatsAppNormalizationService::deriveMachineNumber(null));
 
+        // Phone validation (Section 5 & 6)
+        $this->assertTrue(WhatsAppNormalizationService::isValidPhoneNumber('+880 1620-853502'));
+        $this->assertTrue(WhatsAppNormalizationService::isValidPhoneNumber('01620-853502'));
+        $this->assertTrue(WhatsAppNormalizationService::isValidPhoneNumber('+880 1982-183886'));
+        $this->assertTrue(WhatsAppNormalizationService::isValidPhoneNumber('+1 (555) 234-5678'));
+        $this->assertFalse(WhatsAppNormalizationService::isValidPhoneNumber('javascript:alert(1)'));
+        $this->assertFalse(WhatsAppNormalizationService::isValidPhoneNumber('https://wa.me/8801620853502'));
+        $this->assertFalse(WhatsAppNormalizationService::isValidPhoneNumber('invalid text'));
+        $this->assertFalse(WhatsAppNormalizationService::isValidPhoneNumber('123')); // < 7 digits
+
         // URL building
-        $this->assertEquals('https://wa.me/8801982183886', WhatsAppNormalizationService::buildWhatsAppUrl('8801982183886'));
+        $this->assertEquals('https://wa.me/8801620853502', WhatsAppNormalizationService::buildWhatsAppUrl('8801620853502'));
         $this->assertEquals(
-            'https://wa.me/8801982183886?text=Hello%20Ayaan',
-            WhatsAppNormalizationService::buildWhatsAppUrl('8801982183886', 'Hello Ayaan')
+            'https://wa.me/8801620853502?text=Hello%20Ayaan',
+            WhatsAppNormalizationService::buildWhatsAppUrl('8801620853502', 'Hello Ayaan')
         );
     }
 
@@ -77,17 +91,17 @@ class SiteSettingsAndLegalPagesTest extends TestCase
     public function test_public_settings_endpoint_returns_safe_data(): void
     {
         SystemSetting::set('site_title', 'AYAAN CLOTHING LUXURY', 'string', 'branding');
-        SystemSetting::set('whatsapp_display', '+880 1982-183886', 'string', 'contact');
-        SystemSetting::set('whatsapp_number', '8801982183886', 'string', 'contact');
+        SystemSetting::set('whatsapp_display', '+880 1620-853502', 'string', 'contact');
+        SystemSetting::set('whatsapp_number', '8801620853502', 'string', 'contact');
 
         $response = $this->getJson('/api/v1/settings/public');
 
         $response->assertStatus(200)
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.site_title', 'AYAAN CLOTHING LUXURY')
-            ->assertJsonPath('data.whatsapp.display', '+880 1982-183886')
-            ->assertJsonPath('data.whatsapp.number', '8801982183886')
-            ->assertJsonPath('data.whatsapp.url', 'https://wa.me/8801982183886');
+            ->assertJsonPath('data.whatsapp.display', '+880 1620-853502')
+            ->assertJsonPath('data.whatsapp.number', '8801620853502')
+            ->assertJsonPath('data.whatsapp.url', 'https://wa.me/8801620853502');
 
         // Verify secrets are NOT exposed
         $data = $response->json('data');

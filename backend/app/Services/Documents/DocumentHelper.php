@@ -3,6 +3,8 @@
 namespace App\Services\Documents;
 
 use App\Models\Product;
+use App\Models\SystemSetting;
+use App\Services\Settings\WhatsAppNormalizationService;
 
 class DocumentHelper
 {
@@ -11,6 +13,10 @@ class DocumentHelper
      */
     public static function getExporterProfile(): array
     {
+        $waDisplay = SystemSetting::get('whatsapp_display', config('business.contact.whatsapp_display', '+880 1620-853502'));
+        $waNumber = SystemSetting::get('whatsapp_number', config('business.contact.whatsapp_number', '8801620853502'));
+        $waUrl = WhatsAppNormalizationService::buildWhatsAppUrl($waNumber);
+
         return [
             'company_name' => config('business.name', 'AYAAN CLOTHING'),
             'brand' => config('business.name', 'AYAAN CLOTHING'),
@@ -23,10 +29,10 @@ class DocumentHelper
             'country_code' => config('business.address.country_code', 'BD'),
             'phone' => config('business.contact.phone'),
             'email' => config('business.contact.email'),
-            'whatsapp' => config('business.contact.whatsapp', '+880 1982-183886'),
-            'whatsapp_display' => config('business.contact.whatsapp_display', '+880 1982-183886'),
-            'whatsapp_number' => config('business.contact.whatsapp_number', '8801982183886'),
-            'whatsapp_url' => config('business.contact.whatsapp_url', 'https://wa.me/8801982183886'),
+            'whatsapp' => $waDisplay,
+            'whatsapp_display' => $waDisplay,
+            'whatsapp_number' => $waNumber,
+            'whatsapp_url' => $waUrl,
             'web' => config('business.contact.website', 'www.ayaanclothing.com'),
             'reg_number' => config('business.legal.registration_number'),
             'tin_number' => config('business.legal.tin_number'),

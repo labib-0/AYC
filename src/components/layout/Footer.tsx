@@ -306,7 +306,7 @@ export default function Footer() {
                     rel="noopener noreferrer"
                     className="hover:text-white transition-colors underline-offset-4 hover:underline"
                   >
-                    WhatsApp: {settings.whatsapp?.display || "+880 1982-183886"}
+                    WhatsApp: {settings.whatsapp?.display || "+880 1620-853502"}
                   </a>
                 </div>
               </div>

@@ -65,16 +65,14 @@ export interface BusinessProfile {
   };
 }
 
-export const CANONICAL_WHATSAPP_NUMBER = "8801982183886";
-export const CANONICAL_WHATSAPP_DISPLAY = "+880 1982-183886";
-export const CANONICAL_WHATSAPP_URL = "https://wa.me/8801982183886";
+export const CANONICAL_WHATSAPP_NUMBER = "8801620853502";
+export const CANONICAL_WHATSAPP_DISPLAY = "+880 1620-853502";
+export const CANONICAL_WHATSAPP_URL = "https://wa.me/8801620853502";
 
 export const STALE_WHATSAPP_NUMBERS = [
   "8801826304930",
-  "8801620853502",
   "8801711000000",
   "1826304930",
-  "1620853502",
 ];
 
 const rawEnvNumber = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "").replace(/\D+/g, "");
@@ -89,16 +87,57 @@ export const WHATSAPP_BUSINESS_DISPLAY =
     ? rawEnvDisplay
     : CANONICAL_WHATSAPP_DISPLAY;
 
+export const WHATSAPP_DISPLAY_NUMBER = WHATSAPP_BUSINESS_DISPLAY;
 export const WHATSAPP_BUSINESS_URL = CANONICAL_WHATSAPP_URL;
 
 /**
- * Helper to generate a standardized wa.me URL for the official business contact
- * with optional safely URL-encoded prefilled text.
+ * Normalizes any phone number input into canonical machine digits (E.164 without leading +).
+ * E.g.:
+ * "+880 1620-853502" -> "8801620853502"
+ * "01620-853502"     -> "8801620853502"
+ * "1620853502"       -> "8801620853502"
+ * "+1 (555) 234-5678" -> "15552345678"
  */
-export function getWhatsAppUrl(prefilledText?: string): string {
-  let targetNumber = WHATSAPP_BUSINESS_NUMBER;
+export function normalizeWhatsAppNumber(number?: string | null, defaultCountryCode = "880"): string {
+  if (!number) return CANONICAL_WHATSAPP_NUMBER;
+  const raw = String(number).trim();
 
-  if (typeof window !== "undefined") {
+  // Reject schemes, protocols, HTML tags, or alphabetic characters
+  if (/[a-zA-Z<>]/.test(raw) || raw.includes(":") || raw.includes("//")) {
+    return CANONICAL_WHATSAPP_NUMBER;
+  }
+
+  const digits = raw.replace(/\D+/g, "");
+  if (!digits || digits.length < 7 || digits.length > 15) {
+    return CANONICAL_WHATSAPP_NUMBER;
+  }
+
+  if (STALE_WHATSAPP_NUMBERS.includes(digits)) {
+    return CANONICAL_WHATSAPP_NUMBER;
+  }
+
+  // Case 1: Local Bangladesh mobile format starting with '0' (11 digits: 01XXXXXXXXX)
+  if (digits.startsWith("0") && digits.length === 11) {
+    return defaultCountryCode + digits.slice(1);
+  }
+
+  // Case 2: 10 digits starting with 1 (Bangladesh mobile without leading 0)
+  if (digits.length === 10 && digits.startsWith("1") && defaultCountryCode === "880") {
+    return defaultCountryCode + digits;
+  }
+
+  return digits;
+}
+
+/**
+ * Centralized, authoritative helper to generate a standardized wa.me URL
+ * with sanitized destination digits and safely URL-encoded optional pre-filled message.
+ */
+export function buildWhatsAppUrl(number?: string | null, message?: string | null): string {
+  let targetNumber = number;
+
+  // If no explicit number is provided, resolve from client-side runtime cache if available
+  if (!targetNumber && typeof window !== "undefined") {
     try {
       const cached = localStorage.getItem("ayaan_site_settings_cache");
       if (cached) {
@@ -106,23 +145,28 @@ export function getWhatsAppUrl(prefilledText?: string): string {
         const cachedNum = parsed?.whatsapp?.number ? String(parsed.whatsapp.number).replace(/\D+/g, "") : "";
         if (cachedNum && !STALE_WHATSAPP_NUMBERS.includes(cachedNum)) {
           targetNumber = cachedNum;
-        } else if (cachedNum && STALE_WHATSAPP_NUMBERS.includes(cachedNum)) {
-          localStorage.removeItem("ayaan_site_settings_cache");
-          targetNumber = CANONICAL_WHATSAPP_NUMBER;
         }
       }
     } catch {}
   }
 
-  const cleanNumber = targetNumber.replace(/[^0-9]/g, "");
-  const finalNumber = STALE_WHATSAPP_NUMBERS.includes(cleanNumber) || !cleanNumber
-    ? CANONICAL_WHATSAPP_NUMBER
-    : cleanNumber;
+  const cleanNumber = normalizeWhatsAppNumber(targetNumber || WHATSAPP_BUSINESS_NUMBER);
+  const base = `https://wa.me/${cleanNumber}`;
 
-  if (!prefilledText) {
-    return `https://wa.me/${finalNumber}`;
+  if (!message || !message.trim()) {
+    return base;
   }
-  return `https://wa.me/${finalNumber}?text=${encodeURIComponent(prefilledText)}`;
+
+  return `${base}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Helper to generate a standardized wa.me URL for the official business contact
+ * with optional safely URL-encoded prefilled text.
+ * Delegates directly to centralized buildWhatsAppUrl.
+ */
+export function getWhatsAppUrl(prefilledText?: string): string {
+  return buildWhatsAppUrl(undefined, prefilledText);
 }
 
 /**

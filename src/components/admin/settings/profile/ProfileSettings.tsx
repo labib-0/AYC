@@ -175,7 +175,7 @@ export default function ProfileSettings({ onNotify }: ProfileSettingsProps) {
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+880 1982-183886"
+                placeholder="+880 1620-853502"
                 className="w-full pl-9 pr-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
               />
               <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />

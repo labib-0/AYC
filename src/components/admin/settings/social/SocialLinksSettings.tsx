@@ -41,7 +41,7 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
   const [error, setError] = useState<string | null>(null);
 
   // WhatsApp Display Number
-  const [whatsappDisplay, setWhatsappDisplay] = useState("+880 1982-183886");
+  const [whatsappDisplay, setWhatsappDisplay] = useState("+880 1620-853502");
   const [siteTitle, setSiteTitle] = useState("AYAAN CLOTHING");
   const [footerDesc, setFooterDesc] = useState("");
 
@@ -59,8 +59,8 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
     const raw = (display || "").trim();
     const digits = raw.replace(/\D+/g, "");
     if (!digits) return "";
-    if (["8801826304930", "8801620853502", "8801711000000", "1826304930", "1620853502"].includes(digits)) {
-      return "8801982183886";
+    if (["8801826304930", "8801711000000", "1826304930"].includes(digits)) {
+      return "8801620853502";
     }
     if (digits.startsWith("0") && digits.length === 11) {
       return "880" + digits.slice(1);
@@ -80,8 +80,8 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
         const data = await siteSettingsService.getAdminSettings();
         if (data) {
           const rawNum = (data.whatsapp_number || "").replace(/\D+/g, "");
-          const isStale = ["8801826304930", "8801620853502", "8801711000000", "1826304930", "1620853502"].includes(rawNum);
-          setWhatsappDisplay(isStale ? "+880 1982-183886" : (data.whatsapp_display || "+880 1982-183886"));
+          const isStale = ["8801826304930", "8801711000000", "1826304930"].includes(rawNum);
+          setWhatsappDisplay(isStale ? "+880 1620-853502" : (data.whatsapp_display || "+880 1620-853502"));
           setSiteTitle(data.site_title || "AYAAN CLOTHING");
           setFooterDesc(data.footer_description || "");
           setLinks(data.social_links || []);
@@ -239,7 +239,7 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
               type="text"
               value={whatsappDisplay}
               onChange={(e) => setWhatsappDisplay(e.target.value)}
-              placeholder="e.g. +880 1982-183886"
+              placeholder="e.g. +880 1620-853502"
               className="w-full px-3.5 py-2.5 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono"
             />
             <p className="text-[11px] text-muted-foreground">

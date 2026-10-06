@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\LegalPage;
 use App\Models\SystemSetting;
+use App\Services\Audit\ActivityLogger;
 use App\Services\Media\SvgSanitizer;
 use App\Services\Settings\WhatsAppNormalizationService;
 use Illuminate\Http\JsonResponse;
@@ -24,7 +25,7 @@ class AdminSettingsController extends Controller
         $siteTitle = SystemSetting::get('site_title', config('app.name', 'AYAAN CLOTHING'));
         $siteLogo = SystemSetting::get('site_logo', null);
         $whatsappDisplay = SystemSetting::get('whatsapp_display', env('NEXT_PUBLIC_WHATSAPP_DISPLAY', WhatsAppNormalizationService::CANONICAL_DISPLAY));
-        $whatsappNumber = SystemSetting::get('whatsapp_number');
+        $whatsappNumber = SystemSetting::get('whatsapp_number', SystemSetting::get('whatsapp_business_number'));
         if (empty($whatsappNumber)) {
             $whatsappNumber = WhatsAppNormalizationService::deriveMachineNumber($whatsappDisplay);
         }
@@ -37,6 +38,7 @@ class AdminSettingsController extends Controller
             $whatsappNumber = WhatsAppNormalizationService::CANONICAL_NUMBER;
             SystemSetting::set('whatsapp_display', $whatsappDisplay, 'string', 'contact');
             SystemSetting::set('whatsapp_number', $whatsappNumber, 'string', 'contact');
+            SystemSetting::set('whatsapp_business_number', $whatsappNumber, 'string', 'contact');
         }
 
         $whatsappUrl = WhatsAppNormalizationService::buildWhatsAppUrl($whatsappNumber);
@@ -106,13 +108,42 @@ class AdminSettingsController extends Controller
             'footer_description' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        // Normalize WhatsApp Display and automatically derive machine/URL number
         $display = trim($validated['whatsapp_display']);
+
+        // Strict Phone Validation (Section 5 & 6)
+        if (!WhatsAppNormalizationService::isValidPhoneNumber($display)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'The WhatsApp number must be a valid phone number (e.g. +880 1620-853502). Arbitrary text, URLs, and scripts are rejected.',
+                'errors' => [
+                    'whatsapp_display' => ['Please enter a valid international or local phone number (7 to 15 digits).'],
+                ],
+            ], 422);
+        }
+
+        // Normalize WhatsApp Display and automatically derive machine/URL number
         $machineNumber = WhatsAppNormalizationService::deriveMachineNumber($display);
+        $oldDisplay = SystemSetting::get('whatsapp_display', WhatsAppNormalizationService::CANONICAL_DISPLAY);
+        $oldNumber = SystemSetting::get('whatsapp_number', WhatsAppNormalizationService::CANONICAL_NUMBER);
 
         SystemSetting::set('site_title', trim($validated['site_title']), 'string', 'branding');
         SystemSetting::set('whatsapp_display', $display, 'string', 'contact');
         SystemSetting::set('whatsapp_number', $machineNumber, 'string', 'contact');
+        SystemSetting::set('whatsapp_business_number', $machineNumber, 'string', 'contact');
+
+        // Audit Logging (Section 18)
+        if ($oldDisplay !== $display || $oldNumber !== $machineNumber) {
+            ActivityLogger::log(
+                'settings.whatsapp_updated',
+                null,
+                [
+                    'old_display' => $oldDisplay,
+                    'new_display' => $display,
+                    'old_number' => $oldNumber,
+                    'new_number' => $machineNumber,
+                ]
+            );
+        }
 
         if (isset($validated['footer_description'])) {
             SystemSetting::set('footer_description', trim($validated['footer_description']), 'string', 'branding');

@@ -100,13 +100,12 @@ async function runTestSuite() {
   );
 
   assert(
-    adminSettingsControllerContent.includes("$extension !== 'png'"),
-    "Backend strictly rejects file extensions other than PNG"
+    adminSettingsControllerContent.includes("!in_array($extension, ['png', 'svg'], true)"),
+    "Backend strictly rejects file extensions other than PNG/SVG"
   );
   assert(
-    adminSettingsControllerContent.includes("mimes:png") &&
-      adminSettingsControllerContent.includes("mimetypes:image/png"),
-    "Backend validates MIME type image/png"
+    adminSettingsControllerContent.includes("mimes:png,svg"),
+    "Backend validates MIME type image/png or image/svg+xml"
   );
   assert(
     adminSettingsControllerContent.includes("IMAGETYPE_PNG"),
@@ -118,8 +117,8 @@ async function runTestSuite() {
     "Frontend enforces PNG validation before upload"
   );
   assert(
-    storefrontBrandingSettingsContent.includes("JPG, JPEG, WebP, SVG, and GIF are strictly rejected"),
-    "Frontend informs user that JPG, JPEG, WebP, SVG, and GIF are strictly rejected"
+    storefrontBrandingSettingsContent.includes("JPG, JPEG, WebP, and GIF are strictly rejected"),
+    "Frontend informs user that JPG, JPEG, WebP, and GIF are strictly rejected"
   );
 
   // 5, 6 & 7. WHATSAPP SETTINGS & DETERMINISTIC NORMALIZATION
@@ -150,12 +149,16 @@ async function runTestSuite() {
   }
 
   assert(
-    testDerivation("+880 1982-183886", "8801982183886"),
-    "Derived machine number from '+880 1982-183886' -> '8801982183886'"
+    testDerivation("+880 1620-853502", "8801620853502"),
+    "Derived machine number from '+880 1620-853502' -> '8801620853502'"
   );
   assert(
-    testDerivation("01982-183886", "8801982183886"),
-    "Derived machine number from local '01982-183886' -> '8801982183886'"
+    testDerivation("01620-853502", "8801620853502"),
+    "Derived machine number from local '01620-853502' -> '8801620853502'"
+  );
+  assert(
+    testDerivation("+880 1982-183886", "8801982183886"),
+    "Derived machine number from '+880 1982-183886' -> '8801982183886'"
   );
   assert(
     testDerivation("+1 (555) 234-5678", "15552345678"),
@@ -165,7 +168,7 @@ async function runTestSuite() {
   // Verify getWhatsAppUrl in business-profile
   const defaultUrl = getWhatsAppUrl("Test Inquiry");
   assert(
-    defaultUrl.includes("wa.me/8801982183886"),
+    defaultUrl.includes("wa.me/8801620853502"),
     `Existing getWhatsAppUrl uses valid machine format: ${defaultUrl}`
   );
 

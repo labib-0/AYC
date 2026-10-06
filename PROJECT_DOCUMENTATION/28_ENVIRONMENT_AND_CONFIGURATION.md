@@ -15,8 +15,8 @@ This document indexes all environment variables across the Next.js presentation 
 | `NEXT_PUBLIC_ADMIN_APP_URL` | Dedicated admin origin | `proxy.ts`, `site-urls.ts` | Yes | Yes | No | `https://admin.ayaanclothing.com` |
 | `NEXT_PUBLIC_API_URL` | Base URL for REST API endpoints | `api-client.ts` | Yes | Yes | No | `https://api.ayaanclothing.com/api/v1` |
 | `NEXT_PUBLIC_FRONTEND_ONLY` | Toggle for standalone demo mode | `frontend-mode.ts` | Yes | Yes (`false`) | No | `false` |
-| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Official WhatsApp contact digits | Floating Contact, Footer| No | Yes | No | `8801982183886` |
-| `NEXT_PUBLIC_WHATSAPP_DISPLAY` | Official WhatsApp contact display format | Floating Contact, Footer| No | Yes | No | `+880 1982-183886` |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Official WhatsApp contact digits | Floating Contact, Footer| No | Yes | No | `8801620853502` |
+| `NEXT_PUBLIC_WHATSAPP_DISPLAY` | Official WhatsApp contact display format | Floating Contact, Footer| No | Yes | No | `+880 1620-853502` |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Client-side Stripe checkout key | Payment component | No | Optional | No | `pk_live_********************` |
 
 ---

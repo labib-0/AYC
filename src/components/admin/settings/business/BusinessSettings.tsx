@@ -40,8 +40,8 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
     setPhone(data.contact.phone || "");
     setEmail(data.contact.email || "export@ayaanclothing.com");
     const rawWa = (data.contact?.whatsappNumber || "").replace(/\D+/g, "");
-    const isStale = ["8801826304930", "8801620853502", "8801711000000", "1826304930", "1620853502"].includes(rawWa);
-    setWhatsapp(isStale || !rawWa ? "8801982183886" : (data.contact.whatsappNumber || "8801982183886"));
+    const isStale = ["8801826304930", "8801711000000", "1826304930"].includes(rawWa);
+    setWhatsapp(isStale || !rawWa ? "8801620853502" : (data.contact.whatsappNumber || "8801620853502"));
     setWebsite(data.contact.website || "www.ayaanclothing.com");
   }, []);
 
@@ -253,7 +253,7 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
                 type="text"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
-                placeholder="8801982183886"
+                placeholder="8801620853502"
                 className="w-full pl-9 pr-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono"
               />
               <MessageSquare size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />

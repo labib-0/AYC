@@ -22,7 +22,7 @@ class PublicSettingsController extends Controller
             $siteLogo = SystemSetting::get('site_logo', null);
 
             $whatsappDisplay = SystemSetting::get('whatsapp_display', env('NEXT_PUBLIC_WHATSAPP_DISPLAY', WhatsAppNormalizationService::CANONICAL_DISPLAY));
-            $whatsappNumber = SystemSetting::get('whatsapp_number');
+            $whatsappNumber = SystemSetting::get('whatsapp_number', SystemSetting::get('whatsapp_business_number'));
             if (empty($whatsappNumber)) {
                 $whatsappNumber = WhatsAppNormalizationService::deriveMachineNumber($whatsappDisplay);
             }
@@ -35,6 +35,7 @@ class PublicSettingsController extends Controller
                 $whatsappNumber = WhatsAppNormalizationService::CANONICAL_NUMBER;
                 SystemSetting::set('whatsapp_display', $whatsappDisplay, 'string', 'contact');
                 SystemSetting::set('whatsapp_number', $whatsappNumber, 'string', 'contact');
+                SystemSetting::set('whatsapp_business_number', $whatsappNumber, 'string', 'contact');
             }
 
             $whatsappUrl = WhatsAppNormalizationService::buildWhatsAppUrl($whatsappNumber);

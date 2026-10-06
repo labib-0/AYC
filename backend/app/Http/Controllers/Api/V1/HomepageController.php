@@ -14,6 +14,7 @@ use App\Models\HomepageTickerItem;
 use App\Models\Product;
 use App\Models\SystemSetting;
 use App\Services\Cache\CatalogCacheService;
+use App\Services\Settings\WhatsAppNormalizationService;
 use Illuminate\Http\JsonResponse;
 
 class HomepageController extends ApiController
@@ -264,6 +265,11 @@ class HomepageController extends ApiController
             ->orderBy('id', 'asc')
             ->get(['id', 'text', 'sort_order', 'is_active']);
 
+        // 6. Authoritative business WhatsApp contact
+        $whatsappDisplay = SystemSetting::get('whatsapp_display', env('NEXT_PUBLIC_WHATSAPP_DISPLAY', WhatsAppNormalizationService::CANONICAL_DISPLAY));
+        $whatsappNumber = SystemSetting::get('whatsapp_number', SystemSetting::get('whatsapp_business_number', WhatsAppNormalizationService::CANONICAL_NUMBER));
+        $whatsappUrl = WhatsAppNormalizationService::buildWhatsAppUrl($whatsappNumber);
+
         return $this->success([
             'banner' => $banner,
             'ticker_items' => $tickerItems,
@@ -271,6 +277,11 @@ class HomepageController extends ApiController
             'hot_sale_categories' => $hotSaleCategories,
             'featured_products' => $featuredProducts,
             'hot_sale_visible' => SystemSetting::isHotSaleVisible(),
+            'whatsapp' => [
+                'display' => $whatsappDisplay,
+                'number' => $whatsappNumber,
+                'url' => $whatsappUrl,
+            ],
         ], 'Homepage configuration retrieved successfully');
     }
 }

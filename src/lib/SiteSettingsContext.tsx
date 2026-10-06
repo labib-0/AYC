@@ -7,6 +7,7 @@ import BUSINESS_PROFILE, {
   WHATSAPP_BUSINESS_DISPLAY,
   WHATSAPP_BUSINESS_NUMBER,
   WHATSAPP_BUSINESS_URL,
+  buildWhatsAppUrl,
 } from "@/config/business-profile";
 
 const INITIAL_SETTINGS: PublicSiteSettings = {
@@ -76,10 +77,8 @@ const SiteSettingsContext = createContext<SiteSettingsContextValue>({
 
 const STALE_WHATSAPP_NUMBERS = [
   "8801826304930",
-  "8801620853502",
   "8801711000000",
   "1826304930",
-  "1620853502",
 ];
 
 export function SiteSettingsProvider({ children }: { children: React.ReactNode }) {
@@ -110,7 +109,7 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     try {
       const data = await siteSettingsService.getPublicSettings();
       if (data) {
-        // Sanitize data if backend ever returned stale number
+        // Sanitize data if backend ever returned known legacy dummy numbers
         const num = data.whatsapp?.number ? String(data.whatsapp.number).replace(/\D+/g, "") : "";
         if (num && STALE_WHATSAPP_NUMBERS.includes(num)) {
           data.whatsapp.number = WHATSAPP_BUSINESS_NUMBER;
@@ -144,15 +143,7 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
 
   const getWhatsAppUrl = useCallback(
     (prefilledText?: string): string => {
-      const num = settings.whatsapp?.number || WHATSAPP_BUSINESS_NUMBER;
-      const clean = num.replace(/\D+/g, "");
-      const finalNumber = STALE_WHATSAPP_NUMBERS.includes(clean) || !clean
-        ? WHATSAPP_BUSINESS_NUMBER
-        : clean;
-      if (!prefilledText) {
-        return `https://wa.me/${finalNumber}`;
-      }
-      return `https://wa.me/${finalNumber}?text=${encodeURIComponent(prefilledText)}`;
+      return buildWhatsAppUrl(settings.whatsapp?.number, prefilledText);
     },
     [settings.whatsapp?.number]
   );

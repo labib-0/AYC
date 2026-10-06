@@ -20,7 +20,7 @@ export default function StorefrontBrandingSettings({ onNotify }: StorefrontBrand
   const [siteTitle, setSiteTitle] = useState("AYAAN CLOTHING");
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
   const [footerDescription, setFooterDescription] = useState("");
-  const [whatsappDisplay, setWhatsappDisplay] = useState("+880 1982-183886");
+  const [whatsappDisplay, setWhatsappDisplay] = useState("+880 1620-853502");
   const [socialLinks, setSocialLinks] = useState<any[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,10 +32,10 @@ export default function StorefrontBrandingSettings({ onNotify }: StorefrontBrand
         const data = await siteSettingsService.getAdminSettings();
         if (data) {
           const rawNum = (data.whatsapp_number || "").replace(/\D+/g, "");
-          const isStale = ["8801826304930", "8801620853502", "8801711000000", "1826304930", "1620853502"].includes(rawNum);
+          const isStale = ["8801826304930", "8801711000000", "1826304930"].includes(rawNum);
           setSiteTitle(data.site_title || "AYAAN CLOTHING");
           setSiteLogo(data.site_logo || null);
-          setWhatsappDisplay(isStale ? "+880 1982-183886" : (data.whatsapp_display || "+880 1982-183886"));
+          setWhatsappDisplay(isStale ? "+880 1620-853502" : (data.whatsapp_display || "+880 1620-853502"));
           setFooterDescription(data.footer_description || "");
           setSocialLinks(data.social_links || []);
         }
