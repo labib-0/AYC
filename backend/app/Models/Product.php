@@ -464,17 +464,34 @@ class Product extends Model
             }
         }
 
-        return $this->getCompletePackageStock() > 0;
+        $allocations = $this->relationLoaded('packageAllocations') ? $this->packageAllocations : ($this->exists ? $this->packageAllocations()->get() : collect());
+        if ($allocations->filter(fn($a) => (int) $a->quantity > 0)->isEmpty()) {
+            return $availableStock > 0;
+        }
+
+        return $this->getCompletePackageStock() > 0 || $availableStock > 0;
     }
 
     /**
      * Calculate authoritative eligible Full Stock quantity:
-     * Number of units in complete packages supported by inventory.
-     * The Full Stock option is always visible and purchasable in complete package units.
+     * Number of units in complete packages supported by inventory,
+     * or total available inventory for products without package allocations.
+     * The Full Stock option is always visible and purchasable in complete units.
      */
     public function getEligibleFullStockQuantity(): int
     {
-        return $this->getCompletePackageStock();
+        $moq = max(1, (int) $this->moq);
+        $availableStock = $this->getTotalAvailableStock();
+        if ($availableStock < $moq) {
+            return 0;
+        }
+
+        $allocations = $this->relationLoaded('packageAllocations') ? $this->packageAllocations : ($this->exists ? $this->packageAllocations()->get() : collect());
+        if ($allocations->filter(fn($a) => (int) $a->quantity > 0)->isNotEmpty()) {
+            return $this->getCompletePackageStock();
+        }
+
+        return $availableStock;
     }
 
     /**
@@ -709,12 +726,12 @@ class Product extends Model
 
         // 1. Full-Stock Mode
         if ($pricingMode === 'full_stock') {
-            if ($completeStock > 0 && $quantity === $completeStock) {
+            if ($availableStock > 0 && ($quantity === $availableStock || ($completeStock > 0 && $quantity === $completeStock))) {
                 return $this->getResolvedFullStockPrice($availableStock);
             }
-            // If pricingMode is full_stock but quantity does NOT match complete package stock,
+            // If pricingMode is full_stock but quantity does NOT match complete package stock / available stock,
             // fall through to normal bulk/tier/standard pricing.
-        } elseif ($pricingMode === null && $completeStock > 0 && $quantity === $completeStock) {
+        } elseif ($pricingMode === null && (($availableStock > 0 && $quantity === $availableStock) || ($completeStock > 0 && $quantity === $completeStock))) {
             if ($hasBulkTier) {
                 if ($availableStock > (int) $this->bulk_threshold) {
                     return $this->getResolvedFullStockPrice($availableStock);
@@ -963,7 +980,7 @@ class Product extends Model
     }
 
     /**
-     * Determine video provider: youtube, vimeo, direct, or null
+     * Determine video provider: youtube, facebook, vimeo, direct, or null
      */
     public function getVideoProvider(): ?string
     {
@@ -975,11 +992,107 @@ class Product extends Model
             return 'youtube';
         }
 
+        if ($this->isFacebookVideo()) {
+            return 'facebook';
+        }
+
         if ($this->getVimeoVideoId() !== null) {
             return 'vimeo';
         }
 
         return 'direct';
+    }
+
+    /**
+     * Check if the video URL belongs to a legitimate Facebook video
+     */
+    public function isFacebookVideo(): bool
+    {
+        return $this->getFacebookVideoUrl() !== null;
+    }
+
+    /**
+     * Extract and normalize legitimate Facebook video URL safely
+     */
+    public function getFacebookVideoUrl(): ?string
+    {
+        if (empty($this->video_url)) {
+            return null;
+        }
+
+        $url = trim($this->video_url);
+
+        // Security check: reject javascript:, data:, or malformed protocols
+        if (!preg_match('#^https?://#i', $url)) {
+            return null;
+        }
+
+        $parsed = parse_url($url);
+        if (!$parsed || empty($parsed['host'])) {
+            return null;
+        }
+
+        $host = strtolower($parsed['host']);
+        $allowedHosts = [
+            'facebook.com',
+            'www.facebook.com',
+            'm.facebook.com',
+            'web.facebook.com',
+            'fb.watch',
+            'www.fb.watch',
+            'fb.gg',
+            'www.fb.gg',
+        ];
+
+        $isAllowed = false;
+        foreach ($allowedHosts as $allowed) {
+            if ($host === $allowed || str_ends_with($host, '.' . $allowed)) {
+                $isAllowed = true;
+                break;
+            }
+        }
+
+        if (!$isAllowed) {
+            return null;
+        }
+
+        $path = $parsed['path'] ?? '';
+        $query = $parsed['query'] ?? '';
+
+        // Validate fb.watch URL
+        if ($host === 'fb.watch' || str_ends_with($host, '.fb.watch')) {
+            if (strlen(trim($path, '/')) > 0) {
+                return $url;
+            }
+            return null;
+        }
+
+        // Validate facebook.com patterns
+        // E.g.: /watch, /videos, /reel, /share/v, video.php, or /username/videos/..., /username/posts/...
+        if (
+            preg_match('#/(videos?|reel|watch|share/v)/#i', $path) ||
+            preg_match('#^/(?:[A-Za-z0-9_.-]+)/(?:videos|posts)/#i', $path) ||
+            str_contains($path, 'video.php') ||
+            (str_contains($path, 'watch') && str_contains($query, 'v=')) ||
+            str_contains($query, 'v=')
+        ) {
+            return $url;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get safe embed URL for Facebook video
+     */
+    public function getFacebookEmbedUrl(): ?string
+    {
+        $canonical = $this->getFacebookVideoUrl();
+        if (!$canonical) {
+            return null;
+        }
+
+        return 'https://www.facebook.com/plugins/video.php?href=' . urlencode($canonical) . '&show_text=false&t=0';
     }
 
     /**
@@ -1048,6 +1161,10 @@ class Product extends Model
 
         if ($provider === 'youtube') {
             return $this->getYoutubeEmbedUrl();
+        }
+
+        if ($provider === 'facebook') {
+            return $this->getFacebookEmbedUrl();
         }
 
         if ($provider === 'vimeo') {

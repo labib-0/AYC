@@ -330,13 +330,17 @@ export class CartService {
 
     if (quantity > 0 && targetItem && !isFrontendOnly()) {
       try {
-        await apiClient.put("/cart/items", {
+        const payload: any = {
           item_id: /^\d+$/.test(String(targetItem.id)) ? targetItem.id : undefined,
           product_id: targetItem.product_id,
           product_variant_id: targetItem.product_variant_id,
           size: targetItem.size,
           quantity: quantity,
-        });
+        };
+        if (targetItem.pricing_mode) {
+          payload.pricing_mode = targetItem.pricing_mode;
+        }
+        await apiClient.put("/cart/items", payload);
       } catch (err: any) {
         const errorData = err?.data?.data || err?.data;
         if (err?.data?.error_code === "INSUFFICIENT_STOCK" || errorData?.available_quantity !== undefined) {
@@ -388,7 +392,15 @@ export class CartService {
       const idx = items.findIndex((item) => item.id === itemId || String(item.product.id) === itemId);
       if (idx > -1) {
         const product = items[idx].product;
-        const newUnitPrice = this.calculateTierUnitPrice(product, quantity);
+        const currentPricingMode = items[idx].pricing_mode;
+        const availableStock = product.availableStock ?? 0;
+        const newPricingMode = currentPricingMode === "full_stock" && quantity === availableStock
+          ? "full_stock"
+          : (product.bulkPricingEnabled && product.bulkThreshold && quantity >= product.bulkThreshold)
+          ? "bulk"
+          : "standard";
+        items[idx].pricing_mode = newPricingMode;
+        const newUnitPrice = this.calculateTierUnitPrice(product, quantity, newPricingMode);
         items[idx].quantity = quantity;
         items[idx].unit_price = newUnitPrice;
         items[idx].line_total = newUnitPrice * quantity;
@@ -418,6 +430,7 @@ export class CartService {
           variant_id: it.product_variant_id,
           size: it.size,
           quantity: it.quantity,
+          pricing_mode: it.pricing_mode,
         }));
 
         const res = await apiClient.post<any>("/cart/revalidate", { items: payload });

@@ -88,9 +88,10 @@ class Prompt6PricingTiersAndFullStockTest extends TestCase
     /**
      * CASE 1:
      * MOQ = 80, Inventory = 490, Bulk threshold = 100, Full Stock Price = 18
-     * Verify the calculated eligible Full Stock quantity is 480 (largest MOQ multiple <= 490).
+     * Full Stock quantity MUST be the exact currently available inventory (490),
+     * NOT rounded down to an MOQ multiple.
      */
-    public function test_case_1_full_stock_calculates_largest_valid_moq_multiple_below_inventory(): void
+    public function test_case_1_full_stock_uses_exact_available_inventory(): void
     {
         $product = $this->createProductWithScenario(
             moq: 80,
@@ -103,9 +104,9 @@ class Prompt6PricingTiersAndFullStockTest extends TestCase
 
         $this->assertEquals(490, $product->getTotalAvailableStock());
         $this->assertTrue($product->isFullStockEligible());
-        $this->assertEquals(480, $product->getEligibleFullStockQuantity());
+        $this->assertEquals(490, $product->getEligibleFullStockQuantity());
         $this->assertEquals(18.00, $product->getResolvedFullStockPrice());
-        $this->assertEquals(8640.00, $product->getEligibleFullStockTotal());
+        $this->assertEquals(8820.00, $product->getEligibleFullStockTotal());
     }
 
     /**
@@ -193,9 +194,10 @@ class Prompt6PricingTiersAndFullStockTest extends TestCase
     /**
      * CASE 5:
      * MOQ = 80, Inventory = 170
-     * Verify the orderable quantity cannot violate the MOQ multiple rule: largest valid multiple is 160.
+     * Verify Full Stock quantity MUST be exact currently available inventory (170),
+     * NOT requiring quantity % MOQ === 0.
      */
-    public function test_case_5_full_stock_rounds_down_non_multiple_inventory_to_valid_moq_multiple(): void
+    public function test_case_5_full_stock_allows_exact_non_multiple_inventory(): void
     {
         $product = $this->createProductWithScenario(
             moq: 80,
@@ -208,15 +210,15 @@ class Prompt6PricingTiersAndFullStockTest extends TestCase
 
         $this->assertEquals(170, $product->getTotalAvailableStock());
         $this->assertTrue($product->isFullStockEligible());
-        $this->assertEquals(160, $product->getEligibleFullStockQuantity());
+        $this->assertEquals(170, $product->getEligibleFullStockQuantity());
         $this->assertEquals(18.00, $product->getResolvedFullStockPrice());
-        $this->assertEquals(2880.00, $product->getEligibleFullStockTotal());
+        $this->assertEquals(3060.00, $product->getEligibleFullStockTotal());
     }
 
     /**
      * CASE 6:
-     * Full Stock Price = 18, Eligible quantity = 480
-     * Verify 480 × 18 = 8640 calculated server-side without relying on frontend calculations.
+     * Full Stock Price = 18, Eligible quantity = 490
+     * Verify 490 × 18 = 8820 calculated server-side without relying on frontend calculations.
      */
     public function test_case_6_server_side_authoritative_total_calculation(): void
     {
@@ -229,23 +231,24 @@ class Prompt6PricingTiersAndFullStockTest extends TestCase
             wholesalePrice: 28.00
         );
 
-        $unitPrice = $product->getUnitPriceForQuantity(480, 'full_stock');
+        $unitPrice = $product->getUnitPriceForQuantity(490, 'full_stock');
         $this->assertEquals(18.00, $unitPrice);
 
         $total = $product->getEligibleFullStockTotal();
-        $this->assertEquals(8640.00, $total);
-        $this->assertEquals(8640.00, round(480 * $unitPrice, 2));
+        $this->assertEquals(8820.00, $total);
+        $this->assertEquals(8820.00, round(490 * $unitPrice, 2));
 
-        // In Cart: adding 480 calculates line total and subtotal authoritative
+        // In Cart: adding 490 calculates line total and subtotal authoritative
         $res = $this->actingAs($this->buyer, 'sanctum')->postJson('/api/v1/cart', [
             'product_id' => $product->id,
-            'quantity' => 480,
+            'quantity' => 490,
+            'pricing_mode' => 'full_stock',
         ]);
 
         $res->assertStatus(200);
         $this->assertEquals(18.00, (float) $res->json('data.items.0.unit_price'));
-        $this->assertEquals(8640.00, (float) $res->json('data.items.0.line_total'));
-        $this->assertEquals(8640.00, (float) $res->json('data.subtotal'));
+        $this->assertEquals(8820.00, (float) $res->json('data.items.0.line_total'));
+        $this->assertEquals(8820.00, (float) $res->json('data.subtotal'));
     }
 
     /**

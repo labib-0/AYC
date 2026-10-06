@@ -54,6 +54,12 @@ export interface B2BProductInput {
   video_url?: string;
   youtubeVideoId?: string;
   youtubeEmbedUrl?: string;
+  facebookVideoUrl?: string;
+  facebook_video_url?: string;
+  facebookEmbedUrl?: string;
+  facebook_embed_url?: string;
+  videoEmbedUrl?: string;
+  video_embed_url?: string;
   videoProvider?: string | null;
   vimeoVideoId?: string | null;
   images: string[];

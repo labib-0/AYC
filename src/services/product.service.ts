@@ -261,12 +261,25 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
   const rawVideoUrl = (p.videoUrl || p.video_url || "").trim();
   let youtubeVideoId: string | undefined = p.youtubeVideoId || p.youtube_video_id || undefined;
   let youtubeEmbedUrl: string | undefined = p.youtubeEmbedUrl || p.youtube_embed_url || undefined;
+  let facebookVideoUrl: string | undefined = p.facebookVideoUrl || p.facebook_video_url || undefined;
+  let facebookEmbedUrl: string | undefined = p.facebookEmbedUrl || p.facebook_embed_url || undefined;
+  let videoEmbedUrl: string | undefined = p.videoEmbedUrl || p.video_embed_url || undefined;
+  let videoProvider: string | null = p.videoProvider || p.video_provider || null;
 
   if (rawVideoUrl) {
     const ytMatch = rawVideoUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
     if (ytMatch && ytMatch[1]) {
       youtubeVideoId = ytMatch[1];
       youtubeEmbedUrl = `https://www.youtube-nocookie.com/embed/${youtubeVideoId}`;
+      videoProvider = "youtube";
+      videoEmbedUrl = youtubeEmbedUrl;
+    } else if (
+      /facebook\.com|fb\.watch|fb\.gg/i.test(rawVideoUrl)
+    ) {
+      facebookVideoUrl = rawVideoUrl;
+      facebookEmbedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(rawVideoUrl)}&show_text=false&t=0`;
+      videoProvider = "facebook";
+      videoEmbedUrl = facebookEmbedUrl;
     }
   }
 
@@ -388,7 +401,13 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     video_url: rawVideoUrl || undefined,
     youtubeVideoId: youtubeVideoId,
     youtubeEmbedUrl: youtubeEmbedUrl,
-    videoProvider: p.videoProvider || p.video_provider || null,
+    facebookVideoUrl: facebookVideoUrl,
+    facebook_video_url: facebookVideoUrl,
+    facebookEmbedUrl: facebookEmbedUrl,
+    facebook_embed_url: facebookEmbedUrl,
+    videoEmbedUrl: videoEmbedUrl || p.videoEmbedUrl || p.video_embed_url || undefined,
+    video_embed_url: videoEmbedUrl || p.videoEmbedUrl || p.video_embed_url || undefined,
+    videoProvider: videoProvider || p.videoProvider || p.video_provider || null,
     vimeoVideoId: p.vimeoVideoId || p.vimeo_video_id || null,
     images: images,
     costPrice: costPrice,

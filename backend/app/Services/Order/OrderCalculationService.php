@@ -79,12 +79,19 @@ class OrderCalculationService
                 : (int) ($product->stock ?? $product->getTotalAvailableStock());
 
             // 1. Server-Side MOQ and Increment Enforcement
-            if ($product->moq > 1) {
-                if ($quantity < $product->moq) {
-                    throw new InvalidArgumentException("Minimum order quantity (MOQ) for '{$product->name}' is {$product->moq} pcs.");
+            $isFullStock = ($pricingMode === 'full_stock');
+            if ($isFullStock) {
+                if ($quantity > $totalStock) {
+                    throw new InvalidArgumentException("Requested quantity ({$quantity} pcs) exceeds available stock ({$totalStock} pcs) for '{$product->name}'.");
                 }
-                if ($quantity % $product->moq !== 0) {
-                    throw new InvalidArgumentException("Quantity for '{$product->name}' must be an exact multiple of the MOQ ({$product->moq} pcs).");
+            } else {
+                if ($product->moq > 1) {
+                    if ($quantity < $product->moq) {
+                        throw new InvalidArgumentException("Minimum order quantity (MOQ) for '{$product->name}' is {$product->moq} pcs.");
+                    }
+                    if ($quantity % $product->moq !== 0) {
+                        throw new InvalidArgumentException("Quantity for '{$product->name}' must be an exact multiple of the MOQ ({$product->moq} pcs).");
+                    }
                 }
             }
 

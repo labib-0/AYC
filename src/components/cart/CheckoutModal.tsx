@@ -670,6 +670,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           variantTitle: item.size && item.size !== "Assorted" ? `Size: ${item.size}` : "Assorted Package",
           unitPrice: item.unitPrice || item.product.price,
           quantity: item.quantity,
+          pricingMode: item.pricing_mode || (item as any).pricingMode,
+          pricing_mode: item.pricing_mode || (item as any).pricingMode,
           packageBreakdown: item.packageBreakdown,
         })),
       });

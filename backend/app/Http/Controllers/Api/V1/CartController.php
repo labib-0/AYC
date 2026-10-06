@@ -148,16 +148,25 @@ class CartController extends ApiController
         $packageBreakdown = null;
         $variant = null;
 
-        if (!$hasAllocations && !$product->is_preorder) {
+        if (!$hasAllocations) {
             if ($variantId) {
                 $variant = ProductVariant::where('product_id', $productId)->where('id', (int) $variantId)->first();
             }
             if (!$variant && !empty($size) && $size !== 'Assorted') {
                 $variant = ProductVariant::where('product_id', $productId)->where('size', $size)->first();
             }
+            if (!$variant && $product->variants->count() === 1) {
+                $variant = $product->variants->first();
+            }
+        }
 
-            $availableStock = $variant ? (int) $variant->stock : ($product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock());
-            if ($newQuantity > $availableStock) {
+        $isFullStock = ($pricingMode === 'full_stock');
+        $availableStock = $hasAllocations
+            ? (int) ($product->getCompletePackageStock() > 0 ? $product->getCompletePackageStock() : $product->getTotalAvailableStock())
+            : ($variant ? (int) $variant->stock : ($product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock()));
+
+        if ($isFullStock) {
+            if (!$product->is_preorder && $newQuantity > $availableStock) {
                 $sizeLabel = $variant ? " size {$variant->size}" : (!empty($size) && $size !== 'Assorted' ? " size {$size}" : "");
                 return response()->json([
                     'success' => false,
@@ -178,43 +187,82 @@ class CartController extends ApiController
                     ]
                 ], 422);
             }
-        }
-
-        // Server-Side Authoritative MOQ and Increment Enforcement
-        if ($effectiveMoq > 1) {
-            if ($newQuantity < $effectiveMoq) {
+            if (!$product->is_preorder && $newQuantity !== $availableStock) {
                 return response()->json([
                     'success' => false,
-                    'error_code' => 'BELOW_MOQ',
-                    'message' => "Minimum order quantity (MOQ) for '{$product->name}' is {$effectiveMoq} units.",
+                    'error_code' => 'INVALID_FULL_STOCK_QUANTITY',
+                    'message' => "Full Stock purchase requires purchasing the exact available stock ({$availableStock} units).",
                     'errors' => [
-                        'quantity' => ["Minimum order quantity (MOQ) for '{$product->name}' is {$effectiveMoq} units."]
+                        'quantity' => ["Full Stock purchase requires purchasing the exact available stock ({$availableStock} units)."]
                     ],
                     'data' => [
-                        'code' => 'BELOW_MOQ',
+                        'code' => 'INVALID_FULL_STOCK_QUANTITY',
                         'product_id' => $product->id,
                         'product_name' => $product->name,
-                        'moq' => $effectiveMoq,
+                        'available_quantity' => $availableStock,
                         'requested_quantity' => $newQuantity,
                     ]
                 ], 422);
             }
-            if ($newQuantity % $effectiveMoq !== 0) {
+        } else {
+            if (!$hasAllocations && !$product->is_preorder && $newQuantity > $availableStock) {
+                $sizeLabel = $variant ? " size {$variant->size}" : (!empty($size) && $size !== 'Assorted' ? " size {$size}" : "");
                 return response()->json([
                     'success' => false,
-                    'error_code' => 'INVALID_MOQ_MULTIPLE',
-                    'message' => "Order quantity for '{$product->name}' must be a multiple of {$effectiveMoq} units.",
+                    'error_code' => 'INSUFFICIENT_STOCK',
+                    'message' => "Insufficient stock for '{$product->name}'{$sizeLabel} (Requested: {$newQuantity}, Available: {$availableStock}).",
                     'errors' => [
-                        'quantity' => ["Order quantity must be an exact multiple of the MOQ ({$effectiveMoq} units)."]
+                        'stock' => ["Insufficient stock for '{$product->name}'{$sizeLabel} (Requested: {$newQuantity}, Available: {$availableStock})."]
                     ],
                     'data' => [
-                        'code' => 'INVALID_MOQ_MULTIPLE',
                         'product_id' => $product->id,
                         'product_name' => $product->name,
-                        'moq' => $effectiveMoq,
+                        'variant_id' => $variant?->id,
+                        'size' => $variant?->size ?? ($size ?: 'Assorted'),
+                        'color' => $variant?->color ?? $product->color_name,
+                        'sku' => $variant?->sku ?? $product->sku,
                         'requested_quantity' => $newQuantity,
+                        'available_quantity' => $availableStock,
                     ]
                 ], 422);
+            }
+
+            // Server-Side Authoritative MOQ and Increment Enforcement (for Standard / Bulk)
+            if ($effectiveMoq > 1) {
+                if ($newQuantity < $effectiveMoq) {
+                    return response()->json([
+                        'success' => false,
+                        'error_code' => 'BELOW_MOQ',
+                        'message' => "Minimum order quantity (MOQ) for '{$product->name}' is {$effectiveMoq} units.",
+                        'errors' => [
+                            'quantity' => ["Minimum order quantity (MOQ) for '{$product->name}' is {$effectiveMoq} units."]
+                        ],
+                        'data' => [
+                            'code' => 'BELOW_MOQ',
+                            'product_id' => $product->id,
+                            'product_name' => $product->name,
+                            'moq' => $effectiveMoq,
+                            'requested_quantity' => $newQuantity,
+                        ]
+                    ], 422);
+                }
+                if ($newQuantity % $effectiveMoq !== 0) {
+                    return response()->json([
+                        'success' => false,
+                        'error_code' => 'INVALID_MOQ_MULTIPLE',
+                        'message' => "Order quantity for '{$product->name}' must be a multiple of {$effectiveMoq} units.",
+                        'errors' => [
+                            'quantity' => ["Order quantity must be an exact multiple of the MOQ ({$effectiveMoq} units)."]
+                        ],
+                        'data' => [
+                            'code' => 'INVALID_MOQ_MULTIPLE',
+                            'product_id' => $product->id,
+                            'product_name' => $product->name,
+                            'moq' => $effectiveMoq,
+                            'requested_quantity' => $newQuantity,
+                        ]
+                    ], 422);
+                }
             }
         }
 
@@ -341,46 +389,98 @@ class CartController extends ApiController
                 }
 
                 $hasAllocations = $product->packageAllocations->isNotEmpty();
+                $variant = null;
+                if (!$hasAllocations) {
+                    $variant = $cartItem->variant;
+                    if (!$variant && $cartItem->product_variant_id) {
+                        $variant = ProductVariant::find($cartItem->product_variant_id);
+                    }
+                    if (!$variant && !empty($cartItem->size) && $cartItem->size !== 'Assorted') {
+                        $variant = ProductVariant::where('product_id', $product->id)->where('size', $cartItem->size)->first();
+                    }
+                }
 
-                if ($effectiveMoq > 1) {
-                    if ($quantity < $effectiveMoq) {
+                $availableStock = $hasAllocations
+                    ? (int) ($product->getCompletePackageStock() > 0 ? $product->getCompletePackageStock() : $product->getTotalAvailableStock())
+                    : ($variant ? (int) $variant->stock : ($product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock()));
+
+                $isFullStock = ($pricingMode === 'full_stock' || (!$request->has('pricing_mode') && !$request->has('pricingMode') && $cartItem->pricing_mode === 'full_stock' && $quantity === $availableStock));
+
+                if ($isFullStock) {
+                    if (!$product->is_preorder && $quantity > $availableStock) {
                         return response()->json([
                             'success' => false,
-                            'error_code' => 'BELOW_MOQ',
-                            'message' => "Minimum order quantity (MOQ) for '{$product->name}' is {$effectiveMoq} units.",
+                            'error_code' => 'INSUFFICIENT_STOCK',
+                            'message' => "Insufficient stock for '{$product->name}' (Requested: {$quantity}, Available: {$availableStock}).",
                             'errors' => [
-                                'quantity' => ["Minimum order quantity (MOQ) for '{$product->name}' is {$effectiveMoq} units."]
+                                'stock' => ["Insufficient stock for '{$product->name}' (Requested: {$quantity}, Available: {$availableStock})."]
                             ],
                             'data' => [
-                                'code' => 'BELOW_MOQ',
                                 'product_id' => $product->id,
                                 'product_name' => $product->name,
-                                'moq' => $effectiveMoq,
+                                'requested_quantity' => $quantity,
+                                'available_quantity' => $availableStock,
+                            ]
+                        ], 422);
+                    }
+                    if (!$product->is_preorder && $quantity !== $availableStock) {
+                        return response()->json([
+                            'success' => false,
+                            'error_code' => 'INVALID_FULL_STOCK_QUANTITY',
+                            'message' => "Full Stock purchase requires purchasing the exact available stock ({$availableStock} units).",
+                            'errors' => [
+                                'quantity' => ["Full Stock purchase requires purchasing the exact available stock ({$availableStock} units)."]
+                            ],
+                            'data' => [
+                                'code' => 'INVALID_FULL_STOCK_QUANTITY',
+                                'product_id' => $product->id,
+                                'product_name' => $product->name,
+                                'available_quantity' => $availableStock,
                                 'requested_quantity' => $quantity,
                             ]
                         ], 422);
                     }
-                    if ($quantity % $effectiveMoq !== 0) {
-                        return response()->json([
-                            'success' => false,
-                            'error_code' => 'INVALID_MOQ_MULTIPLE',
-                            'message' => "Order quantity for '{$product->name}' must be a multiple of {$effectiveMoq} units.",
-                            'errors' => [
-                                'quantity' => ["Order quantity must be an exact multiple of the MOQ ({$effectiveMoq} units)."]
-                            ],
-                            'data' => [
-                                'code' => 'INVALID_MOQ_MULTIPLE',
-                                'product_id' => $product->id,
-                                'product_name' => $product->name,
-                                'moq' => $effectiveMoq,
-                                'requested_quantity' => $quantity,
-                            ]
-                        ], 422);
+                } else {
+                    if ($effectiveMoq > 1) {
+                        if ($quantity < $effectiveMoq) {
+                            return response()->json([
+                                'success' => false,
+                                'error_code' => 'BELOW_MOQ',
+                                'message' => "Minimum order quantity (MOQ) for '{$product->name}' is {$effectiveMoq} units.",
+                                'errors' => [
+                                    'quantity' => ["Minimum order quantity (MOQ) for '{$product->name}' is {$effectiveMoq} units."]
+                                ],
+                                'data' => [
+                                    'code' => 'BELOW_MOQ',
+                                    'product_id' => $product->id,
+                                    'product_name' => $product->name,
+                                    'moq' => $effectiveMoq,
+                                    'requested_quantity' => $quantity,
+                                ]
+                            ], 422);
+                        }
+                        if ($quantity % $effectiveMoq !== 0) {
+                            return response()->json([
+                                'success' => false,
+                                'error_code' => 'INVALID_MOQ_MULTIPLE',
+                                'message' => "Order quantity for '{$product->name}' must be a multiple of {$effectiveMoq} units.",
+                                'errors' => [
+                                    'quantity' => ["Order quantity must be an exact multiple of the MOQ ({$effectiveMoq} units)."]
+                                ],
+                                'data' => [
+                                    'code' => 'INVALID_MOQ_MULTIPLE',
+                                    'product_id' => $product->id,
+                                    'product_name' => $product->name,
+                                    'moq' => $effectiveMoq,
+                                    'requested_quantity' => $quantity,
+                                ]
+                            ], 422);
+                        }
                     }
                 }
 
                 if ($hasAllocations) {
-                    $packageBreakdown = $product->getPackageBreakdownForQuantity($quantity);
+                    $packageBreakdown = $product->getPackageBreakdownForQuantity($quantity, $isFullStock);
                     if (!$product->is_preorder) {
                         foreach ($packageBreakdown as $bd) {
                             $needed = (int) ($bd['quantity'] ?? 0);
@@ -428,6 +528,8 @@ class CartController extends ApiController
                     ];
                     if ($request->has('pricing_mode') || $request->has('pricingMode')) {
                         $updatePayload['pricing_mode'] = $pricingMode;
+                    } elseif ($cartItem->pricing_mode === 'full_stock' && $quantity < $availableStock) {
+                        $updatePayload['pricing_mode'] = ($product->bulk_pricing_enabled && $product->bulk_threshold && $quantity >= $product->bulk_threshold) ? 'bulk' : 'standard';
                     }
                     $cartItem->update($updatePayload);
                 } else {
@@ -459,6 +561,8 @@ class CartController extends ApiController
                     $updatePayload = ['quantity' => $quantity];
                     if ($request->has('pricing_mode') || $request->has('pricingMode')) {
                         $updatePayload['pricing_mode'] = $pricingMode;
+                    } elseif ($cartItem->pricing_mode === 'full_stock' && $quantity < $availableStock) {
+                        $updatePayload['pricing_mode'] = ($product->bulk_pricing_enabled && $product->bulk_threshold && $quantity >= $product->bulk_threshold) ? 'bulk' : 'standard';
                     }
                     $cartItem->update($updatePayload);
                 }
@@ -619,6 +723,7 @@ class CartController extends ApiController
                     'variant_id' => $item['variant_id'] ?? $item['variantId'] ?? $item['product_variant_id'] ?? null,
                     'size' => trim((string) ($item['size'] ?? '')),
                     'quantity' => (int) ($item['quantity'] ?? 1),
+                    'pricing_mode' => $item['pricing_mode'] ?? $item['pricingMode'] ?? null,
                 ];
             }
         } else {
@@ -631,6 +736,7 @@ class CartController extends ApiController
                     'variant_id' => $cartItem->product_variant_id,
                     'size' => $cartItem->size,
                     'quantity' => (int) $cartItem->quantity,
+                    'pricing_mode' => $cartItem->pricing_mode,
                 ];
             }
         }
@@ -703,12 +809,24 @@ class CartController extends ApiController
 
             $availableStock = $variant ? (int) $variant->stock : ($product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock());
             $effectiveMoq = max(1, (int) $product->moq);
-            $isBelowMoq = $effectiveMoq > 1 && $requestedQty < $effectiveMoq;
-            $isInvalidMultiple = $effectiveMoq > 1 && ($requestedQty % $effectiveMoq !== 0);
-            $isOutOfStock = !$product->is_preorder && ($requestedQty > $availableStock);
-            $isValid = !$isOutOfStock && !$isBelowMoq && !$isInvalidMultiple && ($product->is_preorder || $availableStock > 0);
+            $pricingMode = $it['pricing_mode'] ?? null;
+            $isFullStock = ($pricingMode === 'full_stock');
 
-            if ($isOutOfStock) {
+            if ($isFullStock) {
+                $isOutOfStock = !$product->is_preorder && ($requestedQty > $availableStock);
+                $isStaleFullStock = !$product->is_preorder && ($requestedQty !== $availableStock);
+                $isBelowMoq = false;
+                $isInvalidMultiple = false;
+                $isValid = !$isOutOfStock && !$isStaleFullStock && ($product->is_preorder || $availableStock > 0);
+            } else {
+                $isBelowMoq = $effectiveMoq > 1 && $requestedQty < $effectiveMoq;
+                $isInvalidMultiple = $effectiveMoq > 1 && ($requestedQty % $effectiveMoq !== 0);
+                $isOutOfStock = !$product->is_preorder && ($requestedQty > $availableStock);
+                $isStaleFullStock = false;
+                $isValid = !$isOutOfStock && !$isBelowMoq && !$isInvalidMultiple && ($product->is_preorder || $availableStock > 0);
+            }
+
+            if ($isOutOfStock || $isStaleFullStock) {
                 $sizeLabel = $variant ? " size {$variant->size}" : (!empty($size) && $size !== 'Assorted' ? " size {$size}" : "");
                 $violations[] = [
                     'item_id' => $it['id'],
@@ -721,8 +839,11 @@ class CartController extends ApiController
                     'requested_quantity' => $requestedQty,
                     'available_quantity' => $availableStock,
                     'moq' => $effectiveMoq,
-                    'error_code' => 'INSUFFICIENT_STOCK',
-                    'message' => "Only {$availableStock} units are currently available for '{$product->name}'{$sizeLabel}. Please reduce the quantity.",
+                    'pricing_mode' => $pricingMode,
+                    'error_code' => $isOutOfStock ? 'INSUFFICIENT_STOCK' : 'STALE_INVENTORY',
+                    'message' => $isOutOfStock
+                        ? "Only {$availableStock} units are currently available for '{$product->name}'{$sizeLabel}. Please reduce the quantity."
+                        : "Available inventory for '{$product->name}' has changed to {$availableStock} units. Please recalculate your Full Stock purchase.",
                 ];
             } elseif ($isBelowMoq || $isInvalidMultiple) {
                 $violations[] = [
@@ -736,6 +857,7 @@ class CartController extends ApiController
                     'requested_quantity' => $requestedQty,
                     'available_quantity' => $availableStock,
                     'moq' => $effectiveMoq,
+                    'pricing_mode' => $pricingMode,
                     'error_code' => $isBelowMoq ? 'BELOW_MOQ' : 'INVALID_MOQ_MULTIPLE',
                     'message' => $isBelowMoq
                         ? "Order quantity for '{$product->name}' ({$requestedQty} pcs) is below the minimum order quantity of {$effectiveMoq} pcs."

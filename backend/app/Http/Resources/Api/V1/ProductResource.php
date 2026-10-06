@@ -140,6 +140,8 @@ class ProductResource extends JsonResource
                 : $this->getTotalAvailableStock() > 0,
             'youtubeVideoId' => $this->getYoutubeVideoId(),
             'youtubeEmbedUrl' => $this->getYoutubeEmbedUrl(),
+            'facebookVideoUrl' => $this->getFacebookVideoUrl(),
+            'facebookEmbedUrl' => $this->getFacebookEmbedUrl(),
             'vimeoVideoId' => $this->getVimeoVideoId(),
 
             'status' => $this->status ?: 'published',

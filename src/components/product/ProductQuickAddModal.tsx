@@ -336,9 +336,13 @@ export default function ProductQuickAddModal() {
                   images={product.images && product.images.length > 0 ? product.images : ["/placeholder.jpg"]}
                   productName={product.name}
                   productSlug={product.slug}
+                  product={product}
                   videoUrl={product.videoUrl || (product as any).video_url}
                   youtubeVideoId={(product as any).youtubeVideoId}
                   youtubeEmbedUrl={(product as any).youtubeEmbedUrl}
+                  facebookVideoUrl={(product as any).facebookVideoUrl || (product as any).facebook_video_url}
+                  facebookEmbedUrl={(product as any).facebookEmbedUrl || (product as any).facebook_embed_url}
+                  videoEmbedUrl={(product as any).videoEmbedUrl || (product as any).video_embed_url}
                   variant="modal"
                   overlayContent={
                     <>

@@ -52,7 +52,7 @@ export default function ProductImagesSection({
     return (images || []).filter((u) => isValidImageUrl(u));
   }, [images]);
 
-  // Helper to detect YouTube video info (YouTube ONLY)
+  // Helper to detect Video info (YouTube or Facebook)
   const videoDetails = useMemo(() => {
     if (!videoUrl || !videoUrl.trim()) return null;
     const url = videoUrl.trim();
@@ -64,6 +64,15 @@ export default function ProductImagesSection({
         id: ytMatch[1],
         embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}`,
         thumbnail: `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg`,
+      };
+    }
+
+    if (/facebook\.com|fb\.watch|fb\.gg/i.test(url)) {
+      return {
+        provider: "Facebook",
+        id: url,
+        embedUrl: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&t=0`,
+        thumbnail: null,
       };
     }
 
@@ -147,10 +156,12 @@ export default function ProductImagesSection({
     const trimmed = youtubeInput.trim();
     if (!trimmed) return;
 
-    // Validate YouTube URL
+    // Validate YouTube or Facebook URL
     const ytMatch = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
-    if (!ytMatch) {
-      setUploadError("Please enter a valid YouTube video URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...).");
+    const isFb = /^(?:https?:\/\/)?(?:www\.|m\.|web\.)?(?:facebook\.com\/(?:[A-Za-z0-9_.-]+\/(?:videos|posts)|videos?|reel|watch|share\/v)|fb\.watch\/|fb\.gg\/)/i.test(trimmed);
+
+    if (!ytMatch && !isFb) {
+      setUploadError("Please enter a valid YouTube link (e.g. youtube.com/watch?v=...) or Facebook video link (e.g. facebook.com/.../videos/... or fb.watch/...).");
       return;
     }
 
@@ -256,11 +267,11 @@ export default function ProductImagesSection({
         </div>
       </div>
 
-      {/* YouTube Video Link Input */}
+      {/* Product Video Link Input (YouTube or Facebook) */}
       <div className="space-y-1.5 pt-1">
         <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
           <Video size={13} className="text-rose-600" />
-          YouTube Video Link <span className="text-[10px] lowercase text-muted-foreground/70">(optional)</span>
+          Product Video Link (YouTube or Facebook) <span className="text-[10px] lowercase text-muted-foreground/70">(optional)</span>
         </label>
         <div className="flex items-center gap-2">
           <div className="flex-1 relative flex items-center">
@@ -274,7 +285,7 @@ export default function ProductImagesSection({
                   handleSaveYoutubeVideo();
                 }
               }}
-              placeholder="Paste YouTube URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...)"
+              placeholder="Paste YouTube or Facebook video URL (e.g. YouTube watch/shorts or Facebook video/reel)"
               className="w-full h-9 px-3 rounded-xl border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors"
             />
           </div>
@@ -290,7 +301,7 @@ export default function ProductImagesSection({
         </div>
 
         <p className="text-[10px] text-muted-foreground">
-          Supported: YouTube watch links, shorts, and youtu.be shares. Product video appears at the end of the media gallery.
+          Supported: YouTube watch links, shorts, youtu.be shares, and Facebook video/reel links. Product video appears at the end of the media gallery.
         </p>
       </div>
 

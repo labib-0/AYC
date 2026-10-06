@@ -14,6 +14,9 @@ export interface ProductGalleryProps {
   videoUrl?: string | null;
   youtubeVideoId?: string | null;
   youtubeEmbedUrl?: string | null;
+  facebookVideoUrl?: string | null;
+  facebookEmbedUrl?: string | null;
+  videoEmbedUrl?: string | null;
   variant?: "detail" | "modal";
   /** Currently selected image index (controlled from parent) */
   selectedIndex?: number;
@@ -37,6 +40,9 @@ export default function ProductGallery({
   videoUrl,
   youtubeVideoId,
   youtubeEmbedUrl,
+  facebookVideoUrl,
+  facebookEmbedUrl,
+  videoEmbedUrl,
   variant = "detail",
   selectedIndex: controlledIndex,
   onImageChange,
@@ -54,9 +60,12 @@ export default function ProductGallery({
     return valid.length > 0 ? valid : ["/placeholder.jpg"];
   }, [images]);
 
-  // Resolve Video Info (YouTube, Vimeo, Direct MP4)
+  // Resolve Video Info (YouTube, Facebook, Vimeo, Direct MP4)
   const videoInfo = useMemo(() => {
-    if (!videoUrl && !youtubeVideoId && !youtubeEmbedUrl) return null;
+    const activeFbEmbed = (facebookEmbedUrl || product?.facebookEmbedUrl || videoEmbedUrl || product?.videoEmbedUrl || "").trim();
+    if (activeFbEmbed && (activeFbEmbed.includes("facebook.com") || activeFbEmbed.includes("plugins/video.php"))) {
+      return { type: "facebook" as const, embedUrl: activeFbEmbed, directUrl: null };
+    }
 
     if (youtubeEmbedUrl) {
       return { type: "youtube" as const, embedUrl: youtubeEmbedUrl, directUrl: null };
@@ -65,13 +74,19 @@ export default function ProductGallery({
       return { type: "youtube" as const, embedUrl: `https://www.youtube-nocookie.com/embed/${youtubeVideoId}`, directUrl: null };
     }
 
-    const url = (videoUrl || "").trim();
+    const url = (videoUrl || product?.videoUrl || product?.video_url || "").trim();
     if (!url) return null;
 
     // YouTube pattern
     const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
     if (ytMatch) {
       return { type: "youtube" as const, embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}`, directUrl: null };
+    }
+
+    // Facebook pattern
+    if (/facebook\.com|fb\.watch|fb\.gg/i.test(url)) {
+      const fbEmbedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&t=0`;
+      return { type: "facebook" as const, embedUrl: fbEmbedUrl, directUrl: null };
     }
 
     // Vimeo pattern
@@ -86,7 +101,7 @@ export default function ProductGallery({
     }
 
     return null;
-  }, [youtubeEmbedUrl, youtubeVideoId, videoUrl]);
+  }, [youtubeEmbedUrl, youtubeVideoId, videoUrl, facebookEmbedUrl, videoEmbedUrl, product]);
 
   // Reset to first image when images or product changes
   useEffect(() => {
@@ -419,6 +434,14 @@ export default function ProductGallery({
                   title={`${productName} product video`}
                   className="w-full h-full border-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : videoInfo.type === "facebook" ? (
+                <iframe
+                  src={videoInfo.embedUrl}
+                  title={`${productName} Facebook product video`}
+                  className="w-full h-full border-0"
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
                   allowFullScreen
                 />
               ) : videoInfo.type === "vimeo" ? (

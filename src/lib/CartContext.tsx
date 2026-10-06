@@ -12,6 +12,7 @@ export interface CartItem {
   color?: string;
   quantity: number;
   pricingMode?: string;
+  pricing_mode?: string;
   unitPrice?: number;
   lineTotal?: number;
   packageBreakdown?: import("@/types").PackageBreakdown[];

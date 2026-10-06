@@ -934,12 +934,15 @@ class ProductController extends ApiController
             $productData['new_until'] = null;
         }
 
-        // Validate Video URL if provided (YouTube ONLY)
+        // Validate Video URL if provided (YouTube or Facebook)
         if (!empty($validated['video_url'])) {
             $vUrl = trim($validated['video_url']);
             $isYt = preg_match('#^(?:https?://)?(?:www\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})#i', $vUrl);
-            if (!$isYt) {
-                return $this->error("Video URL must be a valid YouTube link (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...).", 422);
+            $dummyProduct = new Product(['video_url' => $vUrl]);
+            $isFb = $dummyProduct->isFacebookVideo();
+            if (!$isYt && !$isFb) {
+                $err = "Video URL must be a valid YouTube link (e.g. https://www.youtube.com/watch?v=...) or Facebook video link (e.g. https://www.facebook.com/.../videos/... or https://fb.watch/...).";
+                return $this->error($err, 422, ['video_url' => [$err]]);
             }
             $productData['video_url'] = $vUrl;
         } else {
@@ -1722,13 +1725,16 @@ class ProductController extends ApiController
             $productData['is_sold_out'] = (bool) $validated['is_sold_out'];
         }
 
-        // Validate Video URL if provided (YouTube ONLY)
+        // Validate Video URL if provided (YouTube or Facebook)
         if (array_key_exists('video_url', $validated)) {
             if (!empty($validated['video_url'])) {
                 $vUrl = trim($validated['video_url']);
                 $isYt = preg_match('#^(?:https?://)?(?:www\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})#i', $vUrl);
-                if (!$isYt) {
-                    return $this->error("Video URL must be a valid YouTube link (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...).", 422);
+                $dummyProduct = new Product(['video_url' => $vUrl]);
+                $isFb = $dummyProduct->isFacebookVideo();
+                if (!$isYt && !$isFb) {
+                    $err = "Video URL must be a valid YouTube link (e.g. https://www.youtube.com/watch?v=...) or Facebook video link (e.g. https://www.facebook.com/.../videos/... or https://fb.watch/...).";
+                    return $this->error($err, 422, ['video_url' => [$err]]);
                 }
                 $productData['video_url'] = $vUrl;
             } else {

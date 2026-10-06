@@ -97,6 +97,9 @@ export interface Product {
   videoUrl?: string;
   youtubeVideoId?: string;
   youtubeEmbedUrl?: string;
+  facebookVideoUrl?: string;
+  facebookEmbedUrl?: string;
+  videoEmbedUrl?: string;
   videoProvider?: string | null;
   vimeoVideoId?: string | null;
   seoTitle?: string;

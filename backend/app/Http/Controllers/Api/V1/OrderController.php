@@ -117,6 +117,7 @@ class OrderController extends ApiController
                         'variant_id' => $cartItem->product_variant_id,
                         'size' => $cartItem->size,
                         'quantity' => (int) $cartItem->quantity,
+                        'pricing_mode' => $cartItem->pricing_mode,
                         'package_breakdown' => $cartItem->package_breakdown,
                     ];
                 }
@@ -194,6 +195,7 @@ class OrderController extends ApiController
                     'variant_id' => $cartItem->product_variant_id,
                     'size' => $cartItem->size,
                     'quantity' => (int) $cartItem->quantity,
+                    'pricing_mode' => $cartItem->pricing_mode,
                     'package_breakdown' => $cartItem->package_breakdown,
                 ];
             }
@@ -331,8 +333,32 @@ class OrderController extends ApiController
                     $totalStock = $product->variants->isNotEmpty() ? (int) $product->variants->sum('stock') : (int) $product->getTotalAvailableStock();
 
                     // Server-Side Authoritative MOQ and Increment Enforcement
+                    $isFullStock = ($pricingMode === 'full_stock');
                     $effectiveMoq = max(1, (int) $product->moq);
-                    if ($effectiveMoq > 1) {
+                    if ($isFullStock) {
+                        if ($quantity > $totalStock) {
+                            throw new InsufficientStockException(
+                                "Requested Full Stock quantity ({$quantity} pcs) exceeds current available stock ({$totalStock} pcs) for '{$product->name}'.",
+                                [
+                                    'product_id' => $product->id,
+                                    'product_name' => $product->name,
+                                    'requested_quantity' => $quantity,
+                                    'available_quantity' => $totalStock,
+                                ]
+                            );
+                        }
+                        if ($quantity !== $totalStock && (!$product->packageAllocations()->exists() || $quantity !== $product->getCompletePackageStock())) {
+                            throw new InsufficientStockException(
+                                "Available inventory has changed ({$totalStock} pcs). Please recalculate Full Stock for '{$product->name}'.",
+                                [
+                                    'product_id' => $product->id,
+                                    'product_name' => $product->name,
+                                    'requested_quantity' => $quantity,
+                                    'available_quantity' => $totalStock,
+                                ]
+                            );
+                        }
+                    } elseif ($effectiveMoq > 1) {
                         if ($quantity < $effectiveMoq) {
                             throw new InvalidMoqMultipleException(
                                 "Minimum order quantity (MOQ) for '{$product->name}' is {$effectiveMoq} pcs.",
@@ -684,9 +710,12 @@ class OrderController extends ApiController
                         }
                     } else {
                         $p = $line['product'];
-                        $deduct = min((int) $p->stock, $line['quantity']);
+                        $deduct = min((int) ($p->stock ?? $totalStock), $line['quantity']);
                         if ($deduct > 0) {
                             $p->decrement('stock', $deduct);
+                            if ($p->variants->count() === 1) {
+                                $p->variants->first()->decrement('stock', $deduct);
+                            }
                         }
                         $inv = Inventory::where('product_id', $p->id)->lockForUpdate()->first();
                         if ($inv && $deduct > 0) {

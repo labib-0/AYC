@@ -343,6 +343,9 @@ export default function MiniCart() {
               const isSoldOut = Boolean(
                 item.product.isSoldOut || (item.product as any).is_sold_out
               );
+              const isFullStock = Boolean(
+                (item as any).pricing_mode === "full_stock" || (item as any).pricingMode === "full_stock"
+              );
               const estDelivery =
                 item.product.estimatedDeliveryDate ||
                 (item.product as any).estimated_delivery_date;
@@ -419,7 +422,7 @@ export default function MiniCart() {
 
                       {/* Bottom Line: Status/MOQ on Left, Stepper + Delete on Right */}
                       <div className="flex items-center justify-between gap-2 pt-0.5">
-                        {/* Status / MOQ / Unit Price */}
+                        {/* Status / MOQ / Unit Price / Full Stock */}
                         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                           {isSoldOut ? (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold tracking-wider uppercase bg-slate-800 text-white leading-none">
@@ -442,6 +445,17 @@ export default function MiniCart() {
                                 </span>
                               )}
                             </div>
+                          ) : isFullStock ? (
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-sans font-bold tracking-wider uppercase bg-emerald-600 text-white leading-none shrink-0">
+                                FULL STOCK
+                              </span>
+                              {unitPrice > 0 && (
+                                <span className="text-[10.5px] text-muted-foreground/80 font-medium truncate">
+                                  {formatPrice(unitPrice)}/pc
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-[10.5px] text-muted-foreground font-medium truncate">
                               MOQ: {itemMoq} pcs
@@ -461,12 +475,15 @@ export default function MiniCart() {
                             <button
                               type="button"
                               className="w-5.5 sm:w-6 h-full flex items-center justify-center hover:bg-secondary rounded-l-md transition-colors text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                              onClick={() =>
+                              onClick={() => {
+                                const nextQty = item.quantity % itemMoq !== 0
+                                  ? Math.floor((item.quantity - 1) / itemMoq) * itemMoq
+                                  : item.quantity - itemMoq;
                                 handleUpdateQuantity(
                                   item,
-                                  Math.max(itemMoq, item.quantity - itemMoq)
-                                )
-                              }
+                                  Math.max(itemMoq, nextQty)
+                                );
+                              }}
                               disabled={item.quantity <= itemMoq || isUpdating}
                               aria-label={`Decrease quantity of ${item.product.name}`}
                             >
@@ -481,7 +498,8 @@ export default function MiniCart() {
                               onClick={() =>
                                 handleUpdateQuantity(item, item.quantity + itemMoq)
                               }
-                              disabled={isUpdating}
+                              disabled={isFullStock || isUpdating}
+                              title={isFullStock ? "Full stock quantity is already selected" : undefined}
                               aria-label={`Increase quantity of ${item.product.name}`}
                             >
                               <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />

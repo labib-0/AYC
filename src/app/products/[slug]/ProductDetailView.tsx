@@ -648,6 +648,9 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
               videoUrl={product.videoUrl}
               youtubeVideoId={product.youtubeVideoId}
               youtubeEmbedUrl={youtubeEmbedUrl || product.youtubeEmbedUrl}
+              facebookVideoUrl={product.facebookVideoUrl || (product as any).facebook_video_url}
+              facebookEmbedUrl={product.facebookEmbedUrl || (product as any).facebook_embed_url}
+              videoEmbedUrl={product.videoEmbedUrl || (product as any).video_embed_url}
               variant="detail"
               overlayContent={
                 <>

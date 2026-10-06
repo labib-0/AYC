@@ -497,6 +497,7 @@ class Order extends Model
                 'bank_name' => config('business.banking.bank_name', 'Pubali Bank Limited'),
                 'payment_date' => $this->payment_confirmed_at?->format('Y-m-d') ?? ($this->payment_status === 'paid' ? date('Y-m-d', strtotime($this->updated_at)) : date('Y-m-d', strtotime($this->created_at ?: now()))),
                 'amount_paid' => (float) ($this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)),
+                'payment_amount' => (float) ($this->payment_details['payment_amount'] ?? $this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)),
                 'balance_due' => (float) max(0, round($this->total_amount - ($this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)), 2)),
                 'receipt_reference' => $this->payment_reference ?: ($this->payments()->latest()->value('receipt_original_name') ?? null),
             ],
