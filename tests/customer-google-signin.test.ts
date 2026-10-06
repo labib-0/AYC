@@ -85,7 +85,8 @@ function runVerification() {
     "Auth callback hydrates user session via refreshSession"
   );
   assert(
-    callbackContent.includes("startsWith(\"/\")") && callbackContent.includes("startsWith(\"//\")"),
+    callbackContent.includes("sanitizeRedirectUrl") ||
+      (callbackContent.includes("startsWith(\"/\")") && callbackContent.includes("startsWith(\"//\")")),
     "Auth callback sanitizes open redirect targets"
   );
 

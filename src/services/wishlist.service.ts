@@ -103,7 +103,7 @@ export class WishlistService {
           this.saveLocal(items);
           return items;
         }
-      } catch (err) {
+      } catch (_err) {
         // Fall back to local
       }
     }

@@ -1268,12 +1268,8 @@ export class ProductService {
           const pCatName = (p.categoryName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
           const pCatId = (p.categoryId || "").toLowerCase().replace(/[^a-z0-9]/g, "");
           const match = categories.some((c) => 
-            pCatName === c ||
-            pCatId === c ||
-            pCatName.includes(c) ||
-            c.includes(pCatName) ||
-            pCatId.includes(c) ||
-            c.includes(pCatId)
+            (pCatName && (pCatName === c || pCatName.includes(c) || c.includes(pCatName))) ||
+            (pCatId && (pCatId === c || pCatId.includes(c) || c.includes(pCatId)))
           );
           if (!match) return false;
         }

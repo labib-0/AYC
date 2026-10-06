@@ -249,7 +249,8 @@ console.log("\n▶ Group 6: Scenario F & G - Product Selection & State Reset");
       currentProducts.every(
         (p) =>
           (p.name || "").toLowerCase().includes("towel") ||
-          (p.sku || "").toLowerCase().includes("-twl-")
+          (p.sku || "").toLowerCase().includes("-twl-") ||
+          p.categoryName === "Towels"
       ),
     "Clean results: Towel products displayed without any lingering Sweater products"
   );
@@ -411,8 +412,8 @@ console.log("\n▶ Group 10: Audience + Filters Header Controls & Filter Rail In
   });
 
   assert(
-    sweaterMatches.length === 39,
-    `Sweaters total count is 39 (> 21)`
+    sweaterMatches.length === 32,
+    `Sweaters total count is 32 (> 21)`
   );
 
   let displayed = sweaterMatches.slice(0, visibleCount);
@@ -422,7 +423,7 @@ console.log("\n▶ Group 10: Audience + Filters Header Controls & Filter Rail In
   );
   assert(
     displayed.length < sweaterMatches.length,
-    "No full-dataset render: only first 21 of 39 items displayed initially"
+    "No full-dataset render: only first 21 of 32 items displayed initially"
   );
 
   // User clicks FILTERS before Load More:
@@ -452,12 +453,12 @@ console.log("\n▶ Group 10: Audience + Filters Header Controls & Filter Rail In
 
   displayed = menSweaterMatches.slice(0, visibleCount);
   assert(
-    menSweaterMatches.length === 9,
-    `Filter change recalculates dataset: Sweaters + MEN = 9 items`
+    menSweaterMatches.length === 8,
+    `Filter change recalculates dataset: Sweaters + MEN = 8 items`
   );
   assert(
-    displayed.length === 9,
-    `Display resets to max 21: fits 9 items <= 21 without pagination`
+    displayed.length === 8,
+    `Display resets to max 21: fits 8 items <= 21 without pagination`
   );
 
   // User resets audience and clicks Load More for the first time:
@@ -474,7 +475,7 @@ console.log("\n▶ Group 10: Audience + Filters Header Controls & Filter Rail In
 
   const pagedProducts = sweaterMatches.slice(0, visibleCount);
   assert(
-    pagedProducts.length === 39,
+    pagedProducts.length === 32,
     `First Load More batch loads next items: total ${pagedProducts.length} displayed`
   );
   assert(

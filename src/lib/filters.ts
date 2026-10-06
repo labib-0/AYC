@@ -15,8 +15,25 @@ export const AUDIENCE_CATEGORIES: AudienceCategory[] = [
   { id: "UNISEX", name: "UNISEX", slug: "unisex", categoryId: "c_unisex" },
 ];
 
-export const PRODUCT_CATEGORIES = ["ALL"] as const;
-export type ProductCategory = string;
+export const PRODUCT_CATEGORIES = [
+  "ALL",
+  "Sweaters",
+  "T-Shirts",
+  "Hoodies",
+  "Trousers",
+  "Pants",
+  "Shorts",
+  "Shirts",
+  "Beachwear",
+  "Socks",
+  "Blouse",
+  "Tank Top",
+  "Tops",
+  "Sports",
+  "Towels",
+  "Jackets",
+] as const;
+export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number] | string;
 
 /**
  * Extracts all detailed product categories matching a given product from backend entities.
@@ -36,6 +53,30 @@ export function getProductCategories(product: Product): string[] {
         cats.push(name);
       }
     }
+  }
+
+  const name = (product.name || "").toLowerCase();
+  const sku = (product.sku || "").toLowerCase();
+  if (name.includes("sweater") || name.includes("cardigan") || name.includes("knit") || name.includes("pullover") || sku.includes("-swt-")) {
+    if (!cats.includes("Sweaters")) cats.push("Sweaters");
+  }
+  if (name.includes("t-shirt") || name.includes("tee") || sku.includes("-tsh-")) {
+    if (!cats.includes("T-Shirts")) cats.push("T-Shirts");
+  }
+  if (name.includes("hoodie") || name.includes("sweatshirt") || sku.includes("-hd-")) {
+    if (!cats.includes("Hoodies")) cats.push("Hoodies");
+  }
+  if (name.includes("jacket") || name.includes("coat") || sku.includes("-jkt-")) {
+    if (!cats.includes("Jackets")) cats.push("Jackets");
+  }
+  if (name.includes("short") || sku.includes("-sho-")) {
+    if (!cats.includes("Shorts")) cats.push("Shorts");
+  }
+  if (name.includes("pants") || name.includes("jeans") || sku.includes("-jns-") || sku.includes("-trs-")) {
+    if (!cats.includes("Pants")) cats.push("Pants");
+  }
+  if (name.includes("towel") || sku.includes("-twl-")) {
+    if (!cats.includes("Towels")) cats.push("Towels");
   }
 
   return cats;

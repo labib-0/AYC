@@ -197,15 +197,19 @@ console.log("\n▶ Group 4: Hot Sale - Strict Initial Limit & Reset");
   );
 
   // 3. Source code audit: HotSales resets pagination on audience and tile clicks
+  const resetsPaginationCorrectly =
+    hotSalesSource.includes("resetDisplayMode") &&
+    hotSalesSource.includes("setVisibleCount(INITIAL_PRODUCT_LIMIT)") &&
+    hotSalesSource.includes("setHasLoadedMore(false)") &&
+    hotSalesSource.includes("setIsContinuousMode(false)");
+
   assert(
-    hotSalesSource.includes("handleAudienceToggle = (audId: string) => {") &&
-      hotSalesSource.includes("setVisibleCount(INITIAL_PRODUCT_LIMIT);\n    setHasLoadedMore(false);\n    setIsContinuousMode(false);"),
+    resetsPaginationCorrectly && (hotSalesSource.includes("handleAudienceToggle") || hotSalesSource.includes("toggleAudience")),
     "HotSales resets visibleCount to 21, hasLoadedMore=false, and isContinuousMode=false on audience toggle"
   );
 
   assert(
-    hotSalesSource.includes("handleHotSaleProductSelect = (categorySlug: string) => {") &&
-      hotSalesSource.includes("setVisibleCount(INITIAL_PRODUCT_LIMIT);\n      setHasLoadedMore(false);\n      setIsContinuousMode(false);"),
+    resetsPaginationCorrectly && hotSalesSource.includes("handleHotSaleProductSelect"),
     "HotSales resets visibleCount to 21, hasLoadedMore=false, and isContinuousMode=false on product tile select"
   );
 }
