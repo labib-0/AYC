@@ -13,7 +13,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node scripts/run-storefront-regression.mjs",
-    "test:storefront": "node scripts/run-storefront-regression.mjs"
+    "test:storefront": "node scripts/run-storefront-regression.mjs",
+    "release:gate": "node scripts/run-release-gate.mjs",
+    "release:check": "node scripts/run-release-gate.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

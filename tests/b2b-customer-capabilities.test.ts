@@ -57,7 +57,37 @@ async function runB2bCustomerCapabilitiesTests() {
     }
   }
 
-  const API_BASE = "http://127.0.0.1:8000/api/v1";
+  const API_BASE = process.env.API_BASE_URL || "http://127.0.0.1:8000/api/v1";
+
+  // Pre-flight health check with explicit diagnostics
+  try {
+    const healthRes = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(3000) });
+    const healthJson = await healthRes.json();
+    if (!healthRes.ok || healthJson.data?.status !== "ok") {
+      console.warn(`[DIAGNOSTIC: BACKEND UNAVAILABLE] API health check returned HTTP ${healthRes.status}`);
+      console.log("\n==================================================");
+      console.log("STATUS: BLOCKED (Live backend unavailable)");
+      console.log("==================================================");
+      return;
+    }
+    if (healthJson.data?.database !== "ok") {
+      console.error(`[DIAGNOSTIC: DATABASE UNAVAILABLE] PostgreSQL status: ${healthJson.data?.database}`);
+      process.exit(1);
+    }
+    if (healthJson.data?.redis !== "ok") {
+      console.error(`[DIAGNOSTIC: REDIS UNAVAILABLE] Redis cache status: ${healthJson.data?.redis}`);
+      process.exit(1);
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[DIAGNOSTIC: BACKEND UNAVAILABLE] Cannot connect to API at ${API_BASE}: ${msg}`);
+    console.warn("ℹ [BLOCKED] Live integration suite requires running Laravel backend with PostgreSQL & Redis.");
+    console.warn("ℹ Live integration tests are deliberately BLOCKED and NEVER converted to fake mocks.");
+    console.log("\n==================================================");
+    console.log("STATUS: BLOCKED (Live backend unavailable)");
+    console.log("==================================================");
+    return;
+  }
 
   // ───────────────────────────────────────────────────────────────────────────
   // PART 1: AUTHENTICATION ROLES (Items 1-3)
