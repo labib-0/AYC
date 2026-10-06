@@ -93,8 +93,8 @@ export default function QuotationDocument({ doc }: QuotationDocumentProps) {
                 </td>
                 <td className="py-3.5 px-3 font-mono text-muted-foreground">{item.sku}</td>
                 <td className="py-3.5 px-3 text-right font-bold">{item.quantity.toLocaleString()} pcs</td>
-                <td className="py-3.5 px-3 text-right font-bold">${item.unitPrice.toFixed(2)}</td>
-                <td className="py-3.5 px-3 text-right font-bold">${item.total.toFixed(2)}</td>
+                <td className="py-3.5 px-3 text-right font-bold">${Number(item.unitPrice ?? (item as any).unit_price ?? 0).toFixed(2)}</td>
+                <td className="py-3.5 px-3 text-right font-bold">${Number(item.total ?? (item as any).line_total ?? (item as any).amount ?? 0).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>

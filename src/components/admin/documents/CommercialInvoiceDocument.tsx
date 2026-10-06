@@ -102,10 +102,10 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
                   {item.quantity.toLocaleString()} pcs
                 </td>
                 <td className="py-2.5 px-3 text-right font-bold border-r border-border">
-                  ${item.unitPrice.toFixed(2)}
+                  ${Number(item.unitPrice ?? (item as any).unit_price ?? 0).toFixed(2)}
                 </td>
                 <td className="py-2.5 px-3 text-right font-bold">
-                  ${item.total.toFixed(2)}
+                  ${Number(item.total ?? (item as any).line_total ?? (item as any).amount ?? 0).toFixed(2)}
                 </td>
               </tr>
             ))}

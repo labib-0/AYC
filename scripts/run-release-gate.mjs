@@ -161,7 +161,7 @@ async function main() {
   logHeader("STOREFRONT RELEASE GATE SUMMARY");
   console.log(`  1. TypeScript:             ${gateResults.typeScript}`);
   console.log(`  2. Production ESLint:      ${gateResults.eslint}`);
-  console.log(`  3. Storefront Unit (30/30): ${gateResults.storefrontUnit}`);
+  console.log(`  3. Storefront Unit:        ${gateResults.storefrontUnit}`);
   console.log(`  4. Storefront Contract:    ${gateResults.storefrontContract}`);
   console.log(`  5. Security Checks:        ${gateResults.securityChecks}`);
   console.log(`  6. Live Integration:       ${gateResults.liveIntegration}`);

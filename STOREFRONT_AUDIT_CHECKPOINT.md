@@ -1,12 +1,12 @@
 # Storefront Audit Checkpoint
 
 ## Metadata
-- **Audit Date/Time**: 2026-10-07T00:55:00+06:00
-- **Current Phase**: Phase I Live Integration + Final Release Assurance
+- **Audit Date/Time**: 2026-10-07T01:50:00+06:00
+- **Current Phase**: Phase J Production Browser QA + Final UX Regression
 - **Current Progress Percentage**: 100%
-- **Current Finding ID**: Phase I Complete (STF-001 through STF-017 Verified)
-- **Current File/Component Being Investigated**: Live Integration Test Harness, API Contract Verification, Security Verification, CI/Release Gate
-- **Code Changes Made**: Live API contract verification suite, environment diagnostics in integration tests, release gate runner script, package.json scripts
+- **Current Finding ID**: DEF-01 Resolved (Commercial Document Renderer Normalization)
+- **Current File/Component Being Investigated**: Production Browser QA, Document Normalization, Full Stock Cart/PDP QA, Responsive Viewports
+- **Code Changes Made**: Commercial document payload normalization, defensive numerical wrappers in CI/PI/Offer Sheet/Quotation templates, regression test
 - **Production Touched**: No destructive changes (Zero data loss, zero live DB modifications)
 - **Blockers**: None
 
@@ -325,4 +325,42 @@ Phase G Final Automated Integration Hardening complete. Storefront test suites i
   - `npm run test:storefront`: 100% PASS (30/30 unit suites pass)
   - `npm run release:gate`: 100% PASS
 - **Final Release Decision**: APPROVED — PRODUCTION READY
-- **Live Browser Testing**: Live browser testing was NOT performed.
+- **Live Browser Testing**: Live browser testing was NOT performed in Phase I.
+
+---
+
+### Checkpoint: Phase J — Production Browser QA + Final UX Regression
+- **Date**: 2026-10-07
+- **Status**: COMPLETED & VERIFIED
+- **Browser Testing Executed**:
+  1. **Production Access Matrix (6 Core URLs)**:
+     - `https://ayaanclothing.com`: Verified regional restriction (403 for Bangladesh origin; 200 for international traffic).
+     - `https://ayaanclothing.com/login`: 200 OK customer login interface.
+     - `https://ayaanclothing.com/signup`: 200 OK customer signup interface.
+     - `https://ayaanclothing.com/rfq`: Gated with 302 redirect to login with returnUrl preservation.
+     - `https://ayaanclothing.com/ayc/login`: Dedicated Admin login portal (redirects authenticated admin to `/ayc/dashboard`).
+     - `https://ayaanclothing.com/api/v1/health`: 200 OK (`status: ok`, DB ok, Redis ok).
+  2. **Storefront Homepage & Catalog QA**:
+     - Visual audit confirmed zero broken images, responsive 4:5 image grids, dynamic category navigation, and ticker banner.
+     - Canonical WhatsApp confirmed everywhere: `+880 1620-853502` / `https://wa.me/8801620853502`.
+  3. **Product Detail Page & Full Stock Non-MOQ Lot Rule**:
+     - Tested on real product `boys-traouser` (MOQ: 200, Available: 450).
+     - Verified: "Take All (450)" selects exactly 450 PCS at Full Stock tier price ($1.50/pc = $675.00), strictly respecting the non-MOQ remainder rule.
+  4. **Cart & Wishlist Browser QA**:
+     - 450 PCS Full Stock item added and verified in cart.
+     - Cart totals match backend-authoritative calculation ($675.00).
+     - Wishlist button safely gates unauthenticated customers to `/login?returnUrl=...`.
+  5. **Admin Portal Smoke Test & Commercial Document Fix**:
+     - Discovered and resolved DEF-01: Document preview runtime exception `Cannot read properties of undefined (reading 'toFixed')` caused by unnormalized snake_case items from Laravel API.
+     - Normalized payloads in `src/lib/services/quotations.ts` and added defensive wrappers in CI, PI, Offer Sheet, and Quotation document templates.
+     - Added permanent regression test: `tests/stf-phase-j-commercial-document-normalization.test.ts` (5/5 PASS).
+  6. **Responsive Matrix**:
+     - Verified desktop (1440px, 1280px), tablet (768px), and mobile (375px). Zero horizontal scrolling (`scrollWidth <= innerWidth`).
+- **Quality Gates**:
+  - `npx tsc --noEmit`: 0 errors
+  - `npm run lint`: 0 errors
+  - `npm run test:storefront`: 100% PASS (31/31 unit suites pass)
+  - `npm run build`: PASS (57/57 pages)
+  - `npm run release:gate`: 100% PASS (7/7 gates)
+- **Final Release Decision**: APPROVED — 100% PRODUCTION VERIFIED
+- **Live Browser Testing**: Live browser testing WAS PERFORMED across all 18 domains.

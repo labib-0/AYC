@@ -48,7 +48,8 @@ const STOREFRONT_UNIT_SUITES = [
   "compact-inventory-ui.test.ts",
   "brand-logo-scale-and-density.test.ts",
   "whatsapp-authoritative-settings.test.ts",
-  "strict-landing-page-pagination.test.ts"
+  "strict-landing-page-pagination.test.ts",
+  "stf-phase-j-commercial-document-normalization.test.ts"
 ];
 
 // 2. Storefront Contract Suites (Mocked / Typed Fixtures)
@@ -203,7 +204,7 @@ async function main() {
   console.log("==========================================================");
   console.log("  STOREFRONT REGRESSION GATE REPORT                       ");
   console.log("==========================================================");
-  console.log(`  Storefront Unit (30/30): ${unitStatus}`);
+  console.log(`  Storefront Unit (${totalUnitPassed}/${STOREFRONT_UNIT_SUITES.length}): ${unitStatus}`);
   console.log(`  Storefront Contract:    ${contractStatus}`);
   console.log(`  Storefront Integration: ${integrationStatus}`);
   console.log(`  Admin tests:            SEPARATE (Isolated)`);

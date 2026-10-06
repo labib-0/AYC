@@ -255,6 +255,153 @@ export async function buyerRespondToQuotation(
   return current;
 }
 
+function normalizeCommercialDocumentPayload(
+  raw: any,
+  docType: CommercialDocType,
+  cleanId: string
+): CommercialDocument {
+  const docNum = raw.docNumber || raw.doc_number || raw.document_number || `${docType}-${cleanId}`;
+  const rawItems = Array.isArray(raw.items) ? raw.items : [];
+  const normalizedItems = rawItems.map((item: any, idx: number) => {
+    const unitPrice = Number(item.unitPrice ?? item.unit_price ?? item.price ?? 0);
+    const quantity = Number(item.quantity ?? 1);
+    const total = Number(item.total ?? item.line_total ?? item.amount ?? (unitPrice * quantity));
+    return {
+      id: item.id ? String(item.id) : `item_${idx}`,
+      item_no: item.item_no || idx + 1,
+      description: item.description || item.product_name || item.name || "Commercial Merchandise",
+      sku: item.sku || "AYN-SKU",
+      hs_code: item.hs_code || "6105.10.00",
+      marks_and_numbers: item.marks_and_numbers,
+      product_image_url: item.product_image_url,
+      product_images: item.product_images || (item.product_image_url ? [item.product_image_url] : []),
+      quantity,
+      unitPrice,
+      total,
+      size: item.size,
+      color: item.color,
+      package_breakdown: item.package_breakdown,
+      details: item.details,
+    };
+  });
+
+  const subtotal = Number(
+    raw.subtotal ??
+    raw.goods_value ??
+    raw.financials?.subtotal ??
+    raw.summary?.subtotal ??
+    raw.summary?.goods_value ??
+    raw.summary?.fob_amount ??
+    normalizedItems.reduce((acc: number, it: { total: number }) => acc + it.total, 0)
+  );
+
+  const goods_value = Number(
+    raw.goods_value ??
+    raw.subtotal ??
+    raw.financials?.goods_value ??
+    raw.summary?.goods_value ??
+    raw.summary?.fob_amount ??
+    subtotal
+  );
+
+  const grandTotal = Number(
+    raw.grandTotal ??
+    raw.grand_total ??
+    raw.total_payable ??
+    raw.financials?.grand_total ??
+    raw.summary?.grand_total ??
+    raw.summary?.total_cif_amount ??
+    subtotal
+  );
+
+  const total_payable = Number(
+    raw.total_payable ??
+    raw.grandTotal ??
+    raw.grand_total ??
+    raw.financials?.total_payable ??
+    raw.summary?.total_payable ??
+    raw.summary?.total_cif_amount ??
+    grandTotal
+  );
+
+  const discount = Number(raw.discount ?? raw.financials?.discount_amount ?? 0);
+  const shipping = Number(raw.shipping ?? raw.freight_charge ?? raw.financials?.shipping_charge ?? raw.summary?.freight ?? 0);
+  const tax = Number(raw.tax ?? 0);
+  const other_charges = Number(raw.other_charges ?? raw.financials?.other_charges ?? 0);
+
+  const buyerAddress = raw.buyerAddress || raw.buyer?.address || [
+    raw.buyer?.address1,
+    raw.buyer?.address2,
+    raw.buyer?.city,
+    raw.buyer?.region,
+    raw.buyer?.postal_code,
+  ].filter(Boolean).join(", ");
+
+  const bankSource = raw.bankDetails || raw.bank_details;
+
+  return {
+    id: raw.id || `doc_${docType}_${raw.order_id || cleanId}`,
+    docNumber: docNum,
+    docType: (raw.docType || raw.doc_type || raw.document_type || docType) as CommercialDocType,
+    title: raw.title || `${docType.replace(/_/g, " ")}`,
+    date: raw.date || raw.created_at || new Date().toISOString(),
+    quotationNumber: raw.quotationNumber || raw.quotation_number,
+    rfqNumber: raw.rfqNumber || raw.rfq_number,
+    orderNumber: raw.orderNumber || raw.order_number,
+    order_id: String(raw.order_id || cleanId),
+    related_invoice_number: raw.related_invoice_number,
+    pi_number: raw.pi_number,
+    order_sheet_number: raw.order_sheet_number,
+    packing_list_number: raw.packing_list_number,
+    is_payment_verified: Boolean(raw.is_payment_verified),
+    is_gated: Boolean(raw.is_gated),
+    payment_status: raw.payment_status,
+    payment_details: raw.payment_details,
+    companyName: raw.companyName || raw.company_name || raw.buyer?.company || raw.buyer?.company_name || raw.buyer?.name || "Consignee",
+    buyerName: raw.buyerName || raw.buyer_name || raw.buyer?.name || "Valued Buyer",
+    buyerEmail: raw.buyerEmail || raw.buyer_email || raw.buyer?.email || "",
+    buyerPhone: raw.buyerPhone || raw.buyer_phone || raw.buyer?.phone,
+    buyerAddress: buyerAddress || undefined,
+    buyerCountry: raw.buyerCountry || raw.buyer_country || raw.buyer?.country_code || raw.buyer?.country || "US",
+    shipping_snapshot: raw.shipping_snapshot,
+    items: normalizedItems,
+    product_gallery: raw.product_gallery || normalizedItems[0]?.product_images || (normalizedItems[0]?.product_image_url ? [normalizedItems[0].product_image_url] : []),
+    packing_cartons: raw.packing_cartons,
+    totals_summary: raw.totals_summary,
+    subtotal,
+    goods_value,
+    discount,
+    shipping,
+    tax,
+    other_charges,
+    grandTotal,
+    total_payable,
+    currency: raw.currency || raw.financials?.currency || "USD",
+    amount_in_words: raw.amount_in_words,
+    paymentTerms: raw.paymentTerms || raw.payment_terms,
+    shippingTerms: raw.shippingTerms || raw.shipping_terms,
+    incoterm: raw.incoterm,
+    validUntil: raw.validUntil || raw.valid_until || raw.validity,
+    notes: raw.notes || raw.shipping_note,
+    bankDetails: bankSource ? {
+      isConfigured: Boolean(bankSource.is_configured ?? bankSource.isConfigured ?? BUSINESS_PROFILE.banking.isConfigured),
+      beneficiaryName: bankSource.beneficiary_name || bankSource.beneficiaryName || bankSource.account_title || BUSINESS_PROFILE.banking.accountTitle,
+      accountTitle: bankSource.account_title || bankSource.accountTitle || BUSINESS_PROFILE.banking.accountTitle,
+      bankName: bankSource.bank_name || bankSource.bankName || BUSINESS_PROFILE.banking.bankName,
+      accountNumber: bankSource.account_no || bankSource.account_number || bankSource.accountNumber || BUSINESS_PROFILE.banking.accountNo,
+      accountNo: bankSource.account_no || bankSource.account_number || bankSource.accountNumber || BUSINESS_PROFILE.banking.accountNo,
+      swiftCode: bankSource.swift_code || bankSource.swiftCode || BUSINESS_PROFILE.banking.swiftCode,
+      bankAddress: bankSource.bank_address || bankSource.bankAddress || BUSINESS_PROFILE.banking.bankAddress,
+      currency: bankSource.currency || "USD",
+      branch: bankSource.branch || bankSource.branch_name,
+      notes: bankSource.notes,
+    } : undefined,
+    exporter: raw.exporter,
+    notify_party: raw.notify_party,
+    logistics: raw.logistics,
+  };
+}
+
 /**
  * Generate standardized Commercial Document layout (Quotation, PI, Order Sheet, Invoice, Packing List, Chalan)
  * Supports both official Quotes and Orders.
@@ -277,7 +424,7 @@ export async function getCommercialDocument(
       const res = await apiClient.get<any>(primaryEndpoint);
       const data = res?.data || res;
       if (data && (data.docNumber || data.doc_number)) {
-        return data;
+        return normalizeCommercialDocumentPayload(data, docType, cleanId);
       }
     } catch {
       if (!isExplicitQuotation) {
@@ -285,7 +432,7 @@ export async function getCommercialDocument(
           const fallbackRes = await apiClient.get<any>(`/quotations/${cleanId}/documents/${docType}`);
           const fallbackData = fallbackRes?.data || fallbackRes;
           if (fallbackData && (fallbackData.docNumber || fallbackData.doc_number)) {
-            return fallbackData;
+            return normalizeCommercialDocumentPayload(fallbackData, docType, cleanId);
           }
         } catch {
           // Ignore
