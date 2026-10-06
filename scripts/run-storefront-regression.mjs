@@ -49,7 +49,8 @@ const STOREFRONT_UNIT_SUITES = [
   "brand-logo-scale-and-density.test.ts",
   "whatsapp-authoritative-settings.test.ts",
   "strict-landing-page-pagination.test.ts",
-  "stf-phase-j-commercial-document-normalization.test.ts"
+  "stf-phase-j-commercial-document-normalization.test.ts",
+  "stf-phase-k-operational-hardening-and-observability.test.ts"
 ];
 
 // 2. Storefront Contract Suites (Mocked / Typed Fixtures)

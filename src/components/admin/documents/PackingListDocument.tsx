@@ -113,13 +113,13 @@ export default function PackingListDocument({ doc }: PackingListDocumentProps) {
                     {ctn.dimensions}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono border-r border-border">
-                    {ctn.gross_weight.toFixed(2)}
+                    {Number(ctn.gross_weight || 0).toFixed(2)}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono border-r border-border">
-                    {ctn.net_weight.toFixed(2)}
+                    {Number(ctn.net_weight || 0).toFixed(2)}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono">
-                    {ctn.cbm.toFixed(4)}
+                    {Number(ctn.cbm || 0).toFixed(4)}
                   </td>
                 </tr>
               ))
@@ -139,13 +139,13 @@ export default function PackingListDocument({ doc }: PackingListDocumentProps) {
                     60x40x30 cm
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono border-r border-border">
-                    {(snapshot?.gross_weight || 20).toFixed(2)}
+                    {Number(snapshot?.gross_weight || 20).toFixed(2)}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono border-r border-border">
-                    {(snapshot?.net_weight || 18).toFixed(2)}
+                    {Number(snapshot?.net_weight || 18).toFixed(2)}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono">
-                    {(snapshot?.cbm || 0.072).toFixed(4)}
+                    {Number(snapshot?.cbm || 0.072).toFixed(4)}
                   </td>
                 </tr>
               ))
@@ -161,13 +161,13 @@ export default function PackingListDocument({ doc }: PackingListDocumentProps) {
               </td>
               <td className="py-3 px-3 text-muted-foreground">—</td>
               <td className="py-3 px-3 text-right font-mono">
-                {(doc.totals_summary?.total_gross_weight ?? snapshot?.gross_weight ?? 20.0).toFixed(2)} KG
+                {Number(doc.totals_summary?.total_gross_weight ?? snapshot?.gross_weight ?? 20.0).toFixed(2)} KG
               </td>
               <td className="py-3 px-3 text-right font-mono">
-                {(doc.totals_summary?.total_net_weight ?? snapshot?.net_weight ?? 18.0).toFixed(2)} KG
+                {Number(doc.totals_summary?.total_net_weight ?? snapshot?.net_weight ?? 18.0).toFixed(2)} KG
               </td>
               <td className="py-3 px-3 text-right font-mono">
-                {(doc.totals_summary?.total_cbm ?? snapshot?.cbm ?? 0.072).toFixed(4)} m³
+                {Number(doc.totals_summary?.total_cbm ?? snapshot?.cbm ?? 0.072).toFixed(4)} m³
               </td>
             </tr>
           </tfoot>

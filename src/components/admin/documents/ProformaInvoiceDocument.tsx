@@ -149,7 +149,7 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
         <div className="w-full sm:w-80 space-y-2 shrink-0 bg-secondary/20 p-4 rounded-2xl border border-border/60 text-xs">
           <div className="flex justify-between text-muted-foreground">
             <span>Goods Value (Subtotal):</span>
-            <span className="font-bold text-foreground">${(doc.goods_value ?? doc.subtotal).toFixed(2)}</span>
+            <span className="font-bold text-foreground">${Number(doc.goods_value ?? doc.subtotal ?? 0).toFixed(2)}</span>
           </div>
 
           <div className="flex justify-between text-muted-foreground">
@@ -160,8 +160,8 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
               )}
             </span>
             <span className="font-bold text-foreground">
-              {doc.shipping && doc.shipping > 0 ? (
-                `$${doc.shipping.toFixed(2)}`
+              {Number(doc.shipping || 0) > 0 ? (
+                `$${Number(doc.shipping).toFixed(2)}`
               ) : (
                 <span className="text-amber-600 dark:text-amber-400 font-semibold">To be confirmed</span>
               )}

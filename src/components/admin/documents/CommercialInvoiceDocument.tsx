@@ -136,7 +136,7 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
         <div className="w-full sm:w-80 space-y-2 shrink-0 bg-secondary/20 p-4 rounded-2xl border border-border/70 text-xs">
           <div className="flex justify-between text-muted-foreground">
             <span>Goods Value (Subtotal):</span>
-            <span className="font-bold text-foreground">${(doc.goods_value ?? doc.subtotal).toFixed(2)}</span>
+            <span className="font-bold text-foreground">${Number(doc.goods_value ?? doc.subtotal ?? 0).toFixed(2)}</span>
           </div>
 
           {Number(doc.discount || (doc as any).coupon_discount || (doc as any).manual_discount || 0) > 0 && (
@@ -149,7 +149,7 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
           <div className="flex justify-between text-muted-foreground">
             <span>Shipping &amp; Freight:</span>
             <span className="font-bold text-foreground">
-              {doc.shipping === 0 ? "FREE" : `$${doc.shipping.toFixed(2)}`}
+              {Number(doc.shipping || 0) === 0 ? "FREE" : `$${Number(doc.shipping).toFixed(2)}`}
             </span>
           </div>
 
@@ -169,7 +169,7 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
 
           <div className="flex justify-between text-base font-black text-foreground pt-2.5 border-t-2 border-foreground">
             <span>TOTAL PAYABLE:</span>
-            <span>${(doc.total_payable ?? doc.grandTotal).toFixed(2)} {doc.currency}</span>
+            <span>${Number(doc.total_payable ?? doc.grandTotal ?? 0).toFixed(2)} {doc.currency || "USD"}</span>
           </div>
 
           {Number((doc as any).paid_amount ?? (doc.payment_details as any)?.amount_paid ?? 0) > 0 && (

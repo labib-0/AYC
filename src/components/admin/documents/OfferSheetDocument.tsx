@@ -144,12 +144,12 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
         <div className="w-full sm:w-80 space-y-2 shrink-0 bg-secondary/20 p-4 rounded-2xl border border-border/60 text-xs">
           <div className="flex justify-between text-muted-foreground">
             <span>Goods Value (Subtotal):</span>
-            <span className="font-bold text-foreground">${(doc.goods_value ?? doc.subtotal).toFixed(2)}</span>
+            <span className="font-bold text-foreground">${Number(doc.goods_value ?? doc.subtotal ?? 0).toFixed(2)}</span>
           </div>
 
           <div className="flex justify-between text-base font-bold text-foreground pt-2.5 border-t-2 border-foreground">
             <span>OFFER VALUE (USD):</span>
-            <span>${(doc.goods_value ?? doc.subtotal).toFixed(2)} {doc.currency}</span>
+            <span>${Number(doc.goods_value ?? doc.subtotal ?? 0).toFixed(2)} {doc.currency || "USD"}</span>
           </div>
         </div>
       </div>
