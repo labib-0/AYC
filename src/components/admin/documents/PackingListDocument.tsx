@@ -21,6 +21,7 @@ export default function PackingListDocument({ doc }: PackingListDocumentProps) {
         date={doc.date}
         orderNumber={doc.orderNumber}
         relatedInvoiceNumber={doc.related_invoice_number || doc.docNumber.replace("PL", "INV")}
+        exporterProfile={doc.exporter}
       />
 
       {/* Shipper, Consignee, Notify & Routing Grid */}
@@ -30,11 +31,11 @@ export default function PackingListDocument({ doc }: PackingListDocumentProps) {
             1. Exporter / Shipper
           </span>
           <span className="font-bold text-sm text-foreground block">
-            {BUSINESS_PROFILE.name}
+            {doc.exporter?.name || BUSINESS_PROFILE.name}
           </span>
           <p className="text-muted-foreground text-[11px] leading-relaxed">
-            {BUSINESS_PROFILE.description}<br />
-            {BUSINESS_PROFILE.address.formatted}
+            {doc.exporter?.description || BUSINESS_PROFILE.description}<br />
+            {(typeof doc.exporter?.address === "object" ? (doc.exporter?.address as any)?.formatted : doc.exporter?.address) || doc.exporter?.office_address || BUSINESS_PROFILE.address.formatted}
           </p>
         </div>
 
@@ -176,9 +177,9 @@ export default function PackingListDocument({ doc }: PackingListDocumentProps) {
       {/* Declaration & Signatures */}
       <DocumentSignatory
         notesTitle="Declaration of Export Packing"
-        notes="We hereby certify that the goods packed above have been inspected and verified against the official export purchase order. Cartons are sealed in standard export quality 5-ply cartons suitable for international freight transport."
-        title="Warehouse Quality & Dispatch Supervisor"
-        division="Ayaan Clothing Logistics Hub"
+        notes={doc.document_defaults?.default_declaration_text || "We hereby certify that the goods packed above have been inspected and verified against the official export purchase order. Cartons are sealed in standard export quality 5-ply cartons suitable for international freight transport."}
+        title={doc.document_defaults?.signatory_title || doc.exporter?.signatory_title || "Warehouse Quality & Dispatch Supervisor"}
+        division={doc.document_defaults?.signatory_division || doc.exporter?.signatory_division || "Ayaan Clothing Logistics Hub"}
       />
     </div>
   );

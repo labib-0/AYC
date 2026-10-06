@@ -133,6 +133,24 @@ class CommercialInvoiceService
             'bankDetails' => DocumentHelper::getBankDetails(),
             'bank_details' => DocumentHelper::getBankDetails(),
             'notes' => $docDefaults['ci_notes'] ?? ($docDefaults['declaration_text'] ?? 'Official Commercial Invoice. All merchandise manufactured in Bangladesh.'),
+            'payment' => [
+                'payment_status' => $order->payment_status,
+                'payment_method' => $order->payment_method,
+                'currency' => $order->currency ?: ($docDefaults['currency'] ?? 'USD'),
+                'total_amount' => (float) $order->total_amount,
+                'paid_amount' => (float) ($order->paid_amount ?? ($order->payment_status === 'paid' ? $order->total_amount : 0)),
+                'balance_due' => (float) max(0, round($order->total_amount - ($order->paid_amount ?? ($order->payment_status === 'paid' ? $order->total_amount : 0)), 2)),
+            ],
+            'payment_details' => $order->payment_details ?? [
+                'payment_status' => $order->payment_status,
+                'payment_method' => $order->payment_method,
+                'currency' => $order->currency ?: ($docDefaults['currency'] ?? 'USD'),
+                'payment_amount' => (float) $order->total_amount,
+            ],
+            'document_defaults' => $docDefaults,
+            'signatory_name' => $docDefaults['signatory_name'] ?? 'Authorized Representative',
+            'signatory_title' => $docDefaults['signatory_title'] ?? 'Managing Director / Commercial Head',
+            'signatory_division' => $docDefaults['signatory_division'] ?? 'Ayaan Clothing Export Division',
         ];
     }
 
@@ -252,6 +270,10 @@ class CommercialInvoiceService
             'bankDetails' => DocumentHelper::getBankDetails(),
             'bank_details' => DocumentHelper::getBankDetails(),
             'notes' => $quotation->admin_notes ?: ($docDefaults['ci_notes'] ?? 'Commercial Invoice. Official customs and clearance document.'),
+            'document_defaults' => $docDefaults,
+            'signatory_name' => $docDefaults['signatory_name'] ?? 'Authorized Representative',
+            'signatory_title' => $docDefaults['signatory_title'] ?? 'Managing Director / Commercial Head',
+            'signatory_division' => $docDefaults['signatory_division'] ?? 'Ayaan Clothing Export Division',
         ];
     }
 

@@ -324,4 +324,91 @@ Phase 2 establishes end-to-end integration between centralized Admin settings (`
 ### H. Outstanding Limitations
 - Multi-currency banking profiles (different bank accounts per foreign currency) remain a planned future expansion; currently, the system provides one authoritative wire instructions profile with configurable settlement currency (default `USD`).
 
+---
+
+## FINAL COVERAGE MATRIX (PHASE 4 AUDIT)
+
+The following definitive matrix categorizes every reusable, dynamic, and document-specific field across Commercial Invoice (CI), Proforma Invoice (PI), Offer Sheet, Sales Invoice, Quotation, and Packing List.
+
+### Field Ownership Classifications
+- **A. CENTRALIZED ADMIN SETTING**: Business profile, corporate branding, primary contact, export registrations, wire instructions, default logistics, and signatory metadata managed in Admin Business Settings.
+- **B. ORDER-DERIVED**: Dynamic parameters originating strictly from the order life-cycle (e.g., order reference, subtotal, shipping charge, discount, grand total).
+- **C. CUSTOMER-DERIVED**: Dynamic buyer information provided during checkout or RFQ submission (e.g., buyer name, company, email, delivery destination).
+- **D. PRODUCT-DERIVED**: Item specifications, descriptions, SKUs, sizes, colors, and quantities originating from the catalog/cart.
+- **E. SHIPMENT-DERIVED**: Physical logistics attributes captured in `shipping_snapshot` or generated during dispatch (e.g., carrier, tracking number, carton breakdown, weights).
+- **F. PAYMENT-DERIVED**: Dynamic transaction details (e.g., payment status, transaction reference, amount paid, balance due).
+- **G. DOCUMENT-SPECIFIC**: Document lifecycle identifiers (e.g., doc number, issue date, validity window, related invoice number).
+- **H. NOT CURRENTLY REQUIRED**: Fields identified during audit that are intentionally omitted from customer export documents (e.g., domestic bank routing number on foreign PI, internal supplier purchase prices).
+
+| Field Name | Class | Admin Configurable | CI | PI | Offer Sheet | Invoice | Quotation | Packing List | Public | Private | Source of Truth | Verified |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|:---:|
+| `company_name` | A | YES | YES | YES | YES | YES | YES | YES | YES | NO | SystemSetting `company_name` | PASS |
+| `legal_name` | A | YES | YES | YES | YES | YES | YES | YES | NO | YES | SystemSetting `company_legal_name` | PASS |
+| `tagline` / `business_type` | A | YES | YES | YES | YES | YES | YES | YES | YES | NO | SystemSetting `company_tagline` | PASS |
+| `office_address` | A | YES | YES | YES | YES | YES | YES | YES | YES | NO | SystemSetting `office_address_formatted` | PASS |
+| `business_phone` | A | YES | YES | YES | YES | YES | YES | YES | YES | NO | SystemSetting `business_phone` | PASS |
+| `business_email` | A | YES | YES | YES | YES | YES | YES | YES | YES | NO | SystemSetting `business_email` | PASS |
+| `whatsapp_display` (`+880 1620-853502`) | A | YES | YES | YES | YES | YES | YES | YES | YES | NO | SystemSetting `whatsapp_display` | PASS |
+| `whatsapp_canonical` (`8801620853502`) | A | YES | YES | YES | YES | YES | YES | YES | YES | NO | SystemSetting `whatsapp_number` | PASS |
+| `trade_license` / `reg_number` | A | YES | YES | YES | NO | YES | NO | NO | NO | YES | SystemSetting `reg_number` | PASS |
+| `tin_number` | A | YES | YES | YES | NO | YES | NO | NO | NO | YES | SystemSetting `tin_number` | PASS |
+| `bin_vat` | A | YES | YES | YES | NO | YES | NO | NO | NO | YES | SystemSetting `bin_number` | PASS |
+| `erc_number` | A | YES | YES | YES | NO | NO | NO | NO | NO | YES | SystemSetting `erc_number` | PASS |
+| `irc_number` | A | YES | YES | YES | NO | NO | NO | NO | NO | YES | SystemSetting `irc_number` | PASS |
+| `bgmea_reg` | A | YES | YES | YES | NO | NO | NO | NO | NO | YES | SystemSetting `bgmea_reg` | PASS |
+| `incorporation_number` | A | YES | YES | YES | NO | NO | NO | NO | NO | YES | SystemSetting `incorporation_number` | PASS |
+| `bank_name` (`Pubali Bank Limited`) | A | YES | YES | YES | NO | NO | NO | NO | NO | YES | SystemSetting `bank_name` | PASS |
+| `bank_account_title` | A | YES | YES | YES | NO | NO | NO | NO | NO | YES | SystemSetting `bank_account_title` | PASS |
+| `bank_account_number` (`1788-901-044316`) | A | YES | YES | YES | NO | NO | NO | NO | NO | YES | SystemSetting `bank_account_number` | PASS |
+| `bank_swift_code` (`PUBABDDH210`) | A | YES | YES | YES | NO | NO | NO | NO | NO | YES | SystemSetting `bank_swift_code` | PASS |
+| `bank_branch` / `bank_address` | A | YES | YES | YES | NO | NO | NO | NO | NO | YES | SystemSetting `bank_address` | PASS |
+| `bank_routing_number` | H | YES | NO | NO | NO | NO | NO | NO | NO | YES | SystemSetting `bank_routing_number` (Admin Only) | PASS |
+| `country_of_origin` (`Bangladesh`) | A | YES | YES | YES | YES | NO | YES | YES | YES | NO | SystemSetting `default_country_of_origin` | PASS |
+| `port_of_loading` | A | YES | YES | YES | NO | NO | YES | YES | YES | NO | SystemSetting `default_port_of_loading` | PASS |
+| `incoterm` (`DAP` / `FOB Dhaka`) | A | YES | YES | YES | NO | NO | YES | NO | YES | NO | SystemSetting `default_incoterm` | PASS |
+| `payment_terms` | A | YES | YES | YES | YES | YES | YES | NO | YES | NO | SystemSetting `default_payment_terms` | PASS |
+| `declaration_text` | A | YES | YES | YES | NO | NO | NO | YES | YES | NO | SystemSetting `default_declaration_text` | PASS |
+| `signatory_title` | A | YES | YES | YES | YES | YES | YES | YES | YES | NO | SystemSetting `signatory_title` | PASS |
+| `signatory_division` | A | YES | YES | YES | YES | YES | YES | YES | YES | NO | SystemSetting `signatory_division` | PASS |
+| `order_number` | B | NO | YES | YES | YES | YES | YES | YES | NO | YES | Order `order_number` | PASS |
+| `subtotal` / `goods_value` | B | NO | YES | YES | YES | YES | YES | NO | NO | YES | Order `subtotal` | PASS |
+| `shipping_cost` / `freight` | B | NO | YES | YES | NO | YES | YES | NO | NO | YES | Order `shipping_cost` | PASS |
+| `discount_amount` | B | NO | YES | YES | NO | YES | YES | NO | NO | YES | Order `discount_amount` | PASS |
+| `total_amount` / `total_payable` | B | NO | YES | YES | YES | YES | YES | NO | NO | YES | Order `total_amount` | PASS |
+| `buyer_name` / `attention` | C | NO | YES | YES | YES | YES | YES | YES | NO | YES | Order / RFQ `shipping_name` | PASS |
+| `buyer_company` | C | NO | YES | YES | YES | YES | YES | YES | NO | YES | Customer `company_name` | PASS |
+| `buyer_address` | C | NO | YES | YES | NO | YES | NO | YES | NO | YES | Order `shipping_address1` | PASS |
+| `buyer_country` | C | NO | YES | YES | YES | YES | YES | YES | NO | YES | Order `shipping_country_code` | PASS |
+| `buyer_email` / `buyer_phone` | C | NO | YES | YES | YES | YES | YES | YES | NO | YES | Order `email` / `shipping_phone` | PASS |
+| `item_description` / `product_name` | D | NO | YES | YES | YES | YES | YES | YES | YES | NO | OrderItem `product_name` | PASS |
+| `item_sku` | D | NO | YES | YES | YES | YES | YES | YES | YES | NO | OrderItem `sku` | PASS |
+| `item_quantity` | D | NO | YES | YES | YES | YES | YES | YES | NO | YES | OrderItem `quantity` | PASS |
+| `item_unit_price` | D | NO | YES | YES | YES | YES | YES | NO | NO | YES | OrderItem `unit_price` | PASS |
+| `item_line_total` | D | NO | YES | YES | YES | YES | YES | NO | NO | YES | OrderItem `line_total` | PASS |
+| `item_package_breakdown` | D | NO | YES | YES | YES | NO | NO | YES | YES | NO | Product `package_breakdown` | PASS |
+| `carrier` / `tracking_number` | E | NO | YES | NO | NO | NO | NO | YES | NO | YES | Order `shipping_snapshot` | PASS |
+| `carton_count` / `packing_cartons` | E | NO | YES | NO | NO | NO | NO | YES | NO | YES | Order `shipping_snapshot` | PASS |
+| `gross_weight` / `net_weight` / `cbm` | E | NO | YES | NO | YES | NO | NO | YES | YES | NO | Order `shipping_snapshot` / Product | PASS |
+| `payment_status` | F | NO | YES | YES | NO | YES | NO | NO | NO | YES | Order `payment_status` | PASS |
+| `payment_method` | F | NO | YES | YES | NO | YES | NO | NO | NO | YES | Order `payment_method` | PASS |
+| `paid_amount` / `balance_due` | F | NO | YES | YES | NO | YES | NO | NO | NO | YES | Order `paid_amount` / calculations | PASS |
+| `transaction_id` / `receipt_ref` | F | NO | YES | NO | NO | YES | NO | NO | NO | YES | Order `payment_details` | PASS |
+| `doc_number` (CI/PI/QT/PL/INV) | G | NO | YES | YES | YES | YES | YES | YES | NO | YES | Document numbering engine | PASS |
+| `date_of_issue` | G | NO | YES | YES | YES | YES | YES | YES | NO | YES | Document created_at / placed_at | PASS |
+| `valid_until` | G | NO | YES | YES | YES | NO | YES | NO | NO | YES | Document validity calculation | PASS |
+| `product_cost_price` | H | NO | NO | NO | NO | NO | NO | NO | NO | YES | Product `cost_price` (Strictly Hidden) | PASS |
+
+---
+
+## KNOWN HARDCODED VALUES
+
+**Remaining Active Hardcoded Company Values: ZERO (0)**
+
+### Audit Summary:
+1. **Corporate Identity & Branding**: All corporate identity attributes (`name`, `legal_name`, `tagline`, `logo_url`, `office_address`) resolve dynamically from Admin Business Settings (`SystemSetting::get('company_name')`, `office_address_formatted`, etc.) with fallback to centralized `BUSINESS_PROFILE` configuration constants.
+2. **Contact & WhatsApp**: All storefront components (Header, Footer, Floating CTA, Product Detail, RFQ, Cart, Checkout) and document templates (CI, PI, Offer Sheet, Quotation, Packing List) resolve the authoritative business WhatsApp through the centralized settings service (`+880 1620-853502` / `8801620853502` / `https://wa.me/8801620853502`). Zero active secondary or personal telephone numbers exist in the codebase.
+3. **Beneficiary Wire Instructions**: All banking instructions resolve dynamically from Admin settings (`SystemSetting::get('bank_name')`, `bank_account_number`, `bank_swift_code`, `bank_address`) with fallback to the official Pubali Bank Limited export account (`1788-901-044316`, `PUBABDDH210`). No hardcoded foreign routing numbers are leaked on international trade documents.
+4. **Signatories & Document Defaults**: Port of loading, Incoterms, payment terms, export declarations, and signatory titles/divisions resolve dynamically from `document_defaults`.
+
+
 

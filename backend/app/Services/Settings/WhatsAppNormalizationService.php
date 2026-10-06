@@ -116,4 +116,40 @@ class WhatsAppNormalizationService
 
         return "https://wa.me/{$clean}?text=" . rawurlencode($prefilledText);
     }
+
+    /**
+     * Get active canonical (digits-only) WhatsApp number.
+     */
+    public function getCanonicalWhatsApp(?string $display = null): string
+    {
+        if ($display !== null) {
+            return self::deriveMachineNumber($display);
+        }
+        $stored = \App\Models\SystemSetting::get('whatsapp_number');
+        if (!empty($stored) && !in_array($stored, self::STALE_NUMBERS, true)) {
+            return $stored;
+        }
+        $display = \App\Models\SystemSetting::get('whatsapp_display', self::CANONICAL_DISPLAY);
+        return self::deriveMachineNumber($display);
+    }
+
+    /**
+     * Get active formatted display WhatsApp number.
+     */
+    public function getFormattedWhatsApp(?string $display = null): string
+    {
+        if ($display !== null) {
+            return $display;
+        }
+        return \App\Models\SystemSetting::get('whatsapp_display', self::CANONICAL_DISPLAY);
+    }
+
+    /**
+     * Get active wa.me URL with optional prefilled message.
+     */
+    public function getWhatsAppUrl(?string $displayOrMachine = null, ?string $prefilledText = null): string
+    {
+        $canonical = $this->getCanonicalWhatsApp($displayOrMachine);
+        return self::buildWhatsAppUrl($canonical, $prefilledText);
+    }
 }

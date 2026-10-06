@@ -98,12 +98,19 @@ class PublicSettingsController extends Controller
 
             return [
                 'site_title' => $siteTitle,
+                'company_name' => SystemSetting::get('company_name', $siteTitle),
+                'public_email' => SystemSetting::get('business_email', 'export@ayaanclothing.com'),
+                'public_phone' => SystemSetting::get('business_phone', '+880 1620-853502'),
+                'public_address' => SystemSetting::get('office_address_formatted', 'House #33, Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh'),
                 'site_logo' => $siteLogo,
                 'whatsapp' => [
                     'display' => $whatsappDisplay,
                     'number' => $whatsappNumber,
                     'url' => $whatsappUrl,
                 ],
+                'whatsapp_display' => $whatsappDisplay,
+                'whatsapp_canonical' => $whatsappNumber,
+                'whatsapp_url' => $whatsappUrl,
                 'social_links' => $socialLinks,
                 'legal_pages' => $legalPages,
             ];

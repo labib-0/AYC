@@ -196,8 +196,8 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
         <BeneficiaryBankDetails bankDetails={doc.bankDetails || (doc as any).bank_details} />
 
         <DocumentSignatory
-          title="Authorized Signatory"
-          division="Ayaan Clothing Export Division"
+          title={doc.document_defaults?.signatory_title || doc.exporter?.signatory_title || "Authorized Signatory"}
+          division={doc.document_defaults?.signatory_division || doc.exporter?.signatory_division || "Ayaan Clothing Export Division"}
         />
       </div>
     </div>

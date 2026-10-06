@@ -48,7 +48,7 @@ export default function QuotationDocument({ doc }: QuotationDocumentProps) {
             <div><strong className="text-foreground">Terms:</strong> {doc.incoterm || "FOB Dhaka"}</div>
             <div><strong className="text-foreground">Payment:</strong> {doc.paymentTerms || "T/T Advance"}</div>
             <div><strong className="text-foreground">Validity:</strong> {doc.validUntil || "30 Days"}</div>
-            <div><strong className="text-foreground">Port of Loading:</strong> Hazrat Shahjalal DAC</div>
+            <div><strong className="text-foreground">Port of Loading:</strong> {doc.port_of_loading || doc.document_defaults?.default_port_of_loading || "Hazrat Shahjalal DAC"}</div>
             {doc.rfqNumber && (
               <div className="col-span-2 text-primary font-mono font-bold">
                 RFQ Reference: #{doc.rfqNumber}
@@ -130,8 +130,8 @@ export default function QuotationDocument({ doc }: QuotationDocumentProps) {
       {/* Signatory */}
       <div className="pt-6 border-t border-border">
         <DocumentSignatory
-          title="Authorized Merchandiser / Commercial Head"
-          division="Ayaan Clothing Export Merchandising Division"
+          title={doc.document_defaults?.signatory_title || doc.exporter?.signatory_title || "Authorized Merchandiser / Commercial Head"}
+          division={doc.document_defaults?.signatory_division || doc.exporter?.signatory_division || "Ayaan Clothing Export Merchandising Division"}
         />
       </div>
     </div>

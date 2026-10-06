@@ -304,17 +304,27 @@ class AdminSettingsController extends Controller
 
             'document_defaults' => ['nullable', 'array'],
             'document_defaults.country_of_origin' => ['nullable', 'string', 'max:100'],
+            'document_defaults.default_country_of_origin' => ['nullable', 'string', 'max:100'],
             'document_defaults.air_port_of_loading' => ['nullable', 'string', 'max:255'],
+            'document_defaults.default_air_port_of_loading' => ['nullable', 'string', 'max:255'],
             'document_defaults.sea_port_of_loading' => ['nullable', 'string', 'max:255'],
+            'document_defaults.default_sea_port_of_loading' => ['nullable', 'string', 'max:255'],
             'document_defaults.port_of_loading' => ['nullable', 'string', 'max:255'],
+            'document_defaults.default_port_of_loading' => ['nullable', 'string', 'max:255'],
             'document_defaults.place_of_receipt' => ['nullable', 'string', 'max:255'],
+            'document_defaults.default_place_of_receipt' => ['nullable', 'string', 'max:255'],
             'document_defaults.currency' => ['nullable', 'string', 'max:10'],
+            'document_defaults.default_currency' => ['nullable', 'string', 'max:10'],
             'document_defaults.payment_terms' => ['nullable', 'string', 'max:500'],
+            'document_defaults.default_payment_terms' => ['nullable', 'string', 'max:500'],
             'document_defaults.payment_terms_default' => ['nullable', 'string', 'max:500'],
             'document_defaults.shipping_terms' => ['nullable', 'string', 'max:255'],
+            'document_defaults.default_shipping_terms' => ['nullable', 'string', 'max:255'],
             'document_defaults.incoterm' => ['nullable', 'string', 'max:50'],
+            'document_defaults.default_incoterm' => ['nullable', 'string', 'max:50'],
             'document_defaults.incoterm_default' => ['nullable', 'string', 'max:50'],
             'document_defaults.declaration_text' => ['nullable', 'string', 'max:1000'],
+            'document_defaults.default_declaration_text' => ['nullable', 'string', 'max:1000'],
             'document_defaults.ci_notes' => ['nullable', 'string', 'max:1000'],
             'document_defaults.pi_notes' => ['nullable', 'string', 'max:1000'],
             'document_defaults.offer_sheet_notes' => ['nullable', 'string', 'max:1000'],
@@ -441,22 +451,23 @@ class AdminSettingsController extends Controller
 
         // 5. Document Defaults
         $dd = $validated['document_defaults'] ?? [];
-        if (isset($dd['country_of_origin'])) SystemSetting::set('default_country_of_origin', trim($dd['country_of_origin']), 'string', 'document_defaults');
+        $coo = $dd['default_country_of_origin'] ?? ($dd['country_of_origin'] ?? null);
+        if ($coo !== null) SystemSetting::set('default_country_of_origin', trim($coo), 'string', 'document_defaults');
         if (isset($dd['air_port_of_loading'])) SystemSetting::set('default_air_port_of_loading', trim($dd['air_port_of_loading']), 'string', 'document_defaults');
         if (isset($dd['sea_port_of_loading'])) SystemSetting::set('default_sea_port_of_loading', trim($dd['sea_port_of_loading']), 'string', 'document_defaults');
-        $pol = $dd['port_of_loading'] ?? null;
+        $pol = $dd['default_port_of_loading'] ?? ($dd['port_of_loading'] ?? null);
         if ($pol !== null) {
             SystemSetting::set('default_port_of_loading', trim($pol), 'string', 'document_defaults');
             SystemSetting::set('default_sea_port_of_loading', trim($pol), 'string', 'document_defaults');
         }
         if (isset($dd['place_of_receipt'])) SystemSetting::set('default_place_of_receipt', trim($dd['place_of_receipt']), 'string', 'document_defaults');
         if (isset($dd['currency'])) SystemSetting::set('default_currency', trim($dd['currency']), 'string', 'document_defaults');
-        $payTerms = $dd['payment_terms_default'] ?? ($dd['payment_terms'] ?? null);
+        $payTerms = $dd['default_payment_terms'] ?? ($dd['payment_terms_default'] ?? ($dd['payment_terms'] ?? null));
         if ($payTerms !== null) SystemSetting::set('default_payment_terms', trim($payTerms), 'string', 'document_defaults');
         if (isset($dd['shipping_terms'])) SystemSetting::set('default_shipping_terms', trim($dd['shipping_terms']), 'string', 'document_defaults');
-        $incoterm = $dd['incoterm_default'] ?? ($dd['incoterm'] ?? null);
+        $incoterm = $dd['default_incoterm'] ?? ($dd['incoterm_default'] ?? ($dd['incoterm'] ?? null));
         if ($incoterm !== null) SystemSetting::set('default_incoterm', trim($incoterm), 'string', 'document_defaults');
-        $decText = $dd['declaration_text'] ?? ($dd['ci_notes'] ?? null);
+        $decText = $dd['default_declaration_text'] ?? ($dd['declaration_text'] ?? ($dd['ci_notes'] ?? null));
         if ($decText !== null) {
             SystemSetting::set('default_declaration_text', trim($decText), 'string', 'document_defaults');
             SystemSetting::set('default_ci_notes', trim($decText), 'string', 'document_defaults');

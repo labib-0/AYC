@@ -504,6 +504,10 @@ class Order extends Model
                 'balance_due' => (float) max(0, round($this->total_amount - ($this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)), 2)),
                 'receipt_reference' => $this->payment_reference ?: ($this->payments()->latest()->value('receipt_original_name') ?? null),
             ],
+            'document_defaults' => $docDefaults,
+            'signatory_name' => $docDefaults['signatory_name'] ?? 'Authorized Representative',
+            'signatory_title' => $docDefaults['signatory_title'] ?? 'Managing Director / Commercial Head',
+            'signatory_division' => $docDefaults['signatory_division'] ?? 'Ayaan Clothing Export Division',
         ];
     }
 

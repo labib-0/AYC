@@ -111,6 +111,10 @@ class ProformaInvoiceService
             'bankDetails' => DocumentHelper::getBankDetails(),
             'bank_details' => DocumentHelper::getBankDetails(),
             'notes' => $docDefaults['pi_notes'] ?? 'Commercial Proforma Invoice. Please remit payment against provided Beneficiary Bank Details.',
+            'document_defaults' => $docDefaults,
+            'signatory_name' => $docDefaults['signatory_name'] ?? 'Authorized Representative',
+            'signatory_title' => $docDefaults['signatory_title'] ?? 'Managing Director / Commercial Head',
+            'signatory_division' => $docDefaults['signatory_division'] ?? 'Ayaan Clothing Export Division',
         ];
     }
 
@@ -202,6 +206,10 @@ class ProformaInvoiceService
             'bankDetails' => DocumentHelper::getBankDetails(),
             'bank_details' => DocumentHelper::getBankDetails(),
             'notes' => $quotation->admin_notes ?: ($docDefaults['pi_notes'] ?? 'Commercial Proforma Invoice. Please remit payment against provided Beneficiary Bank Details.'),
+            'document_defaults' => $docDefaults,
+            'signatory_name' => $docDefaults['signatory_name'] ?? 'Authorized Representative',
+            'signatory_title' => $docDefaults['signatory_title'] ?? 'Managing Director / Commercial Head',
+            'signatory_division' => $docDefaults['signatory_division'] ?? 'Ayaan Clothing Export Division',
         ];
     }
 

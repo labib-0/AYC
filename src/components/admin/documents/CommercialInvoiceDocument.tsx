@@ -60,14 +60,14 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
             Shipment & Delivery Terms
           </span>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] text-muted-foreground pt-1">
-            <div><strong>Country of Origin:</strong><br />Bangladesh</div>
-            <div><strong>Port of Loading:</strong><br />{doc.logistics?.port_of_loading || "Hazrat Shahjalal Int'l Airport (DAC)"}</div>
+            <div><strong>Country of Origin:</strong><br />{doc.logistics?.country_of_origin || (doc as any).country_of_origin || doc.document_defaults?.country_of_origin || doc.document_defaults?.default_country_of_origin || "Bangladesh"}</div>
+            <div><strong>Port of Loading:</strong><br />{doc.logistics?.port_of_loading || (doc as any).port_of_loading || doc.document_defaults?.port_of_loading || doc.document_defaults?.default_port_of_loading || "Hazrat Shahjalal Int'l Airport (DAC)"}</div>
             <div><strong>Final Destination:</strong><br />{doc.buyerCountry}</div>
-            <div><strong>Incoterm / Terms:</strong><br />{doc.incoterm || "DAP (Delivered at Place)"}</div>
+            <div><strong>Incoterm / Terms:</strong><br />{doc.incoterm || doc.document_defaults?.incoterm || doc.document_defaults?.default_incoterm || "DAP (Delivered at Place)"}</div>
             <div><strong>Mode of Transport:</strong><br />{doc.logistics?.mode_of_shipment || "Air Cargo Express"}</div>
             <div><strong>Carrier:</strong><br />{snapshot?.carrier || "Aramex"}</div>
             <div><strong>AWB / Tracking:</strong><br /><span className="font-mono font-bold text-primary">{snapshot?.tracking_number || "Pending Dispatch"}</span></div>
-            <div><strong>Payment Terms:</strong><br />{doc.paymentTerms || "100% T/T Advance"}</div>
+            <div><strong>Payment Terms:</strong><br />{doc.paymentTerms || doc.document_defaults?.payment_terms || doc.document_defaults?.default_payment_terms || "100% T/T Advance"}</div>
           </div>
         </div>
       </div>
@@ -215,7 +215,7 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
           </div>
           <div>
             <span className="text-muted-foreground block text-[10px] uppercase font-bold">Bank Name</span>
-            <span className="font-bold text-foreground">{doc.payment_details?.bank_name || doc.bankDetails?.bankName || "Pubali Bank Limited"}</span>
+            <span className="font-bold text-foreground">{doc.payment_details?.bank_name || doc.bankDetails?.bankName || (doc.bankDetails as any)?.bank_name || "Pubali Bank Limited"}</span>
           </div>
           <div>
             <span className="text-muted-foreground block text-[10px] uppercase font-bold">Payment Date</span>
@@ -243,8 +243,8 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
         <BeneficiaryBankDetails bankDetails={doc.bankDetails} />
 
         <DocumentSignatory
-          title="Authorized Signatory & Official Stamp"
-          division="Ayaan Clothing Export Division"
+          title={doc.document_defaults?.signatory_title || doc.exporter?.signatory_title || "Authorized Signatory & Official Stamp"}
+          division={doc.document_defaults?.signatory_division || doc.exporter?.signatory_division || "Ayaan Clothing Export Division"}
         />
       </div>
     </div>

@@ -711,10 +711,11 @@ export function generateProductOfferSheetDoc(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("Authorized Export Representative", sigX, y + 14);
+  doc.text(exp?.signatory_title || "Authorized Export Representative", sigX, y + 14);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
+  doc.text(exp?.signatory_division || "Ayaan Clothing Commercial Division", sigX, y + 17.5);
   // Dynamic Footer on all pages
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
@@ -1320,12 +1321,12 @@ export function generateProformaInvoiceDoc(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("Authorized Signatory & Export Seal", sigX, y + 12);
+  doc.text(optExp?.signatory_title || "Authorized Signatory & Export Seal", sigX, y + 12);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
-  doc.text("Ayaan Clothing Ltd • Dhaka, Bangladesh", sigX, y + 15.5);
+  doc.text(optExp?.signatory_division || "Ayaan Clothing Ltd • Dhaka, Bangladesh", sigX, y + 15.5);
 
   // Footer on each page
   const pageCount = (doc as any).internal.getNumberOfPages();
@@ -1712,12 +1713,12 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("Authorized Signatory & Export Seal", sigX, y + 11);
+  doc.text(optExp?.signatory_title || "Authorized Signatory & Export Seal", sigX, y + 11);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
-  doc.text("Ayaan Clothing Ltd • Dhaka, Bangladesh", sigX, y + 14.5);
+  doc.text(optExp?.signatory_division || "Ayaan Clothing Ltd • Dhaka, Bangladesh", sigX, y + 14.5);
 
   // Footer on each page
   const pageCount = (doc as any).internal.getNumberOfPages();

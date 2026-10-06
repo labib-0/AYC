@@ -100,6 +100,10 @@ class OfferSheetService
             'bank_details' => DocumentHelper::getBankDetails(),
             // Intentionally NO volume pricing tiers table! Only relevant pricing shown.
             'show_all_pricing_tiers' => false,
+            'document_defaults' => $docDefaults,
+            'signatory_name' => $docDefaults['signatory_name'] ?? 'Authorized Representative',
+            'signatory_title' => $docDefaults['signatory_title'] ?? 'Managing Director / Commercial Head',
+            'signatory_division' => $docDefaults['signatory_division'] ?? 'Ayaan Clothing Export Division',
         ];
     }
 
@@ -179,6 +183,10 @@ class OfferSheetService
             'bank_details' => DocumentHelper::getBankDetails(),
             // Intentionally NO volume pricing tiers table! Only relevant pricing shown.
             'show_all_pricing_tiers' => false,
+            'document_defaults' => $docDefaults,
+            'signatory_name' => $docDefaults['signatory_name'] ?? 'Authorized Representative',
+            'signatory_title' => $docDefaults['signatory_title'] ?? 'Managing Director / Commercial Head',
+            'signatory_division' => $docDefaults['signatory_division'] ?? 'Ayaan Clothing Export Division',
         ];
     }
 

@@ -499,8 +499,20 @@ export interface CommercialDocument {
   paymentTerms?: string;
   shippingTerms?: string;
   incoterm?: string;
+  port_of_loading?: string;
   validUntil?: string;
   notes?: string;
+  document_defaults?: {
+    default_country_of_origin?: string;
+    default_port_of_loading?: string;
+    default_incoterm?: string;
+    default_payment_terms?: string;
+    default_declaration_text?: string;
+    signatory_name?: string;
+    signatory_title?: string;
+    signatory_division?: string;
+    [key: string]: any;
+  };
   bankDetails?: {
     isConfigured?: boolean;
     beneficiaryName?: string;

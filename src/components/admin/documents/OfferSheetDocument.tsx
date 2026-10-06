@@ -157,8 +157,8 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
       {/* Signatory */}
       <div className="pt-6 border-t border-border">
         <DocumentSignatory
-          title="Authorized Signatory"
-          division="Ayaan Clothing Export Division"
+          title={doc.document_defaults?.signatory_title || doc.exporter?.signatory_title || "Authorized Signatory"}
+          division={doc.document_defaults?.signatory_division || doc.exporter?.signatory_division || "Ayaan Clothing Export Division"}
         />
       </div>
     </div>

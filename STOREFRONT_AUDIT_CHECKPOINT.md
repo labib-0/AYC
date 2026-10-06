@@ -177,4 +177,42 @@ Phase G Final Automated Integration Hardening complete. Storefront test suites i
   - `npm run build` (57/57 pages built successfully)
 - **Live Browser Testing**: Live browser testing was NOT performed.
 
+---
+
+## Phase 4: Final Document Information Coverage + Template Consistency Audit (Completed)
+- **Status**: Completed & Fully Audited
+- **Date/Time**: 2026-10-06T23:00:00+06:00
+- **Final Field Coverage Matrix**:
+  - Definitive matrix documented in `DOCUMENT_INFORMATION_AUDIT.md`.
+  - Every reusable field classified into authoritative categories: A (Centralized Admin Setting), B (Order-Derived), C (Customer-Derived), D (Product-Derived), E (Shipment-Derived), F (Payment-Derived), G (Document-Specific), H (Not Currently Required / Hidden).
+- **Template Consistency & Dynamic Binding**:
+  - Sourced all company branding, contact, export registration, logistics defaults, and signatory parameters from centralized settings.
+  - Sourced dynamic signatories (`signatory_title`, `signatory_division`) and export packing declarations across CI, PI, Offer Sheet, Sales Invoice, Quotation, and Packing List.
+  - Aligned frontend templates (`CommercialInvoiceDocument.tsx`, `ProformaInvoiceDocument.tsx`, `OfferSheetDocument.tsx`, `QuotationDocument.tsx`, `PackingListDocument.tsx`, `pdf-generator.ts`) to consume centralized defaults.
+  - Eliminated hardcoded fallback port of loading in `QuotationDocument.tsx`.
+- **Known Hardcoded Values Repository-Wide Audit**:
+  - Active Hardcoded Company Information: **ZERO (0)**.
+  - Authoritative WhatsApp single source of truth (`+880 1620-853502` / `8801620853502` / `https://wa.me/8801620853502`) verified everywhere with contextual message preservation.
+  - Zero active personal/secondary phone numbers in storefront or documents.
+- **Data Protection Boundaries**:
+  - Customer data protection: Buyer name, company, email, phone, and destination address are strictly preserved from order/customer snapshots and never overwritten by company settings.
+  - Product data protection: SKU, quantity, unit price, line totals, and package assortment reflect authoritative order data; internal purchase/cost prices strictly hidden.
+  - Payment data protection: Transaction ID, paid amount, balance due, and payment status derive from actual payment records.
+  - Security & RBAC: Customer and unauthenticated users cannot modify business settings (HTTP 401/403). Public storefront API strictly shields private banking, routing numbers, and tax identification numbers.
+- **Empty Settings Handling**:
+  - Verified documents render cleanly with graceful fallback to system defaults without crashing or outputting `undefined`, `null`, `false`, or `[object Object]`.
+- **Tests Executed**:
+  - `backend/tests/Feature/Documents/Phase4DocumentCoverageAuditTest.php` (11/11 passed, 92 assertions)
+  - `backend/tests/Feature/Documents/Phase3FinalDocumentQaTest.php` (18/18 passed, 114 assertions)
+  - `backend/tests/Feature/Documents/DocumentSettingsConnectionTest.php` (13/13 passed, 85 assertions)
+  - `backend/tests/Feature/Settings/BusinessDocumentSettingsTest.php` (10/10 passed, 89 assertions)
+  - `tests/phase4-final-audit-consistency.test.ts` (12/12 passed)
+  - `tests/phase3-final-verification.test.ts` (36/36 passed)
+  - `tests/phase2-document-whatsapp-connection.test.ts` (44/44 passed)
+  - `npx tsc --noEmit` (0 errors)
+  - `npm run lint` (0 errors)
+  - `npm run build` (57/57 pages built successfully)
+- **Live Browser Testing**: Live browser testing was NOT performed.
+
+
 

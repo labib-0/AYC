@@ -237,7 +237,8 @@ class DocumentPdfService
         // 5. Footer Signatory & Legal
         $footerY = $margin + 12;
         $this->line($margin, $footerY + 22, $width - $margin, $footerY + 22, '0.85 0.88 0.92 RG', 0.5);
-        $footerText = "{$companyName} • Export & Commercial Division • {$expAddress}";
+        $sigDivision = $doc['document_defaults']['signatory_division'] ?? ($doc['signatory_division'] ?? 'Export & Commercial Division');
+        $footerText = "{$companyName} • {$sigDivision} • {$expAddress}";
         $this->text(mb_substr($footerText, 0, 110, 'UTF-8'), $margin, $footerY + 12, 'F1', 6.5, '0.45 0.5 0.55');
         $this->text("This is a computer generated commercial document and is authoritative for accounting and export records.", $margin, $footerY + 3, 'F1', 6, '0.55 0.6 0.65');
         $this->textRight("Page 1 of 1", $width - $margin, $footerY + 12, 'F1', 6.5, '0.45 0.5 0.55');
