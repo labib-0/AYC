@@ -167,42 +167,50 @@ class DocumentPdfService
 
         $this->rect($summaryX, $summaryY, $summaryWidth, $summaryHeight, '0.97 0.98 0.99 rg', '0.85 0.88 0.92 RG');
 
+        $currency = strtoupper($fin['currency'] ?? ($doc['currency'] ?? 'USD'));
+        $currPrefix = match ($currency) {
+            'EUR' => 'EUR ',
+            'GBP' => 'GBP ',
+            'BDT' => 'BDT ',
+            default => '$',
+        };
+
         $lineY = $summaryY + $summaryHeight - 14;
         $this->text("Subtotal:", $summaryX + 10, $lineY, 'F1', 7, '0.3 0.35 0.4');
-        $this->textRight("$" . number_format($subtotal, 2), $summaryX + $summaryWidth - 10, $lineY, 'F2', 7, '0.1 0.15 0.2');
+        $this->textRight($currPrefix . number_format($subtotal, 2), $summaryX + $summaryWidth - 10, $lineY, 'F2', 7, '0.1 0.15 0.2');
 
         if ($couponDiscount > 0) {
             $lineY -= 11;
             $couponLabel = !empty($fin['coupon_code']) ? "Coupon ({$fin['coupon_code']}):" : "Coupon Discount:";
             $this->text($couponLabel, $summaryX + 10, $lineY, 'F1', 7, '0.1 0.5 0.2');
-            $this->textRight("-$" . number_format($couponDiscount, 2), $summaryX + $summaryWidth - 10, $lineY, 'F2', 7, '0.1 0.5 0.2');
+            $this->textRight("-" . $currPrefix . number_format($couponDiscount, 2), $summaryX + $summaryWidth - 10, $lineY, 'F2', 7, '0.1 0.5 0.2');
         }
 
         if ($manualDiscount > 0) {
             $lineY -= 11;
             $this->text("Admin Discount:", $summaryX + 10, $lineY, 'F1', 7, '0.1 0.5 0.2');
-            $this->textRight("-$" . number_format($manualDiscount, 2), $summaryX + $summaryWidth - 10, $lineY, 'F2', 7, '0.1 0.5 0.2');
+            $this->textRight("-" . $currPrefix . number_format($manualDiscount, 2), $summaryX + $summaryWidth - 10, $lineY, 'F2', 7, '0.1 0.5 0.2');
         }
 
         if ($shipping > 0) {
             $lineY -= 11;
             $this->text("Shipping / Freight:", $summaryX + 10, $lineY, 'F1', 7, '0.3 0.35 0.4');
-            $this->textRight("$" . number_format($shipping, 2), $summaryX + $summaryWidth - 10, $lineY, 'F1', 7, '0.1 0.15 0.2');
+            $this->textRight($currPrefix . number_format($shipping, 2), $summaryX + $summaryWidth - 10, $lineY, 'F1', 7, '0.1 0.15 0.2');
         }
 
         $lineY -= 12;
         $this->line($summaryX + 8, $lineY + 8, $summaryX + $summaryWidth - 8, $lineY + 8, '0.7 0.75 0.8 RG', 0.8);
         $this->text("TOTAL PAYABLE:", $summaryX + 10, $lineY, 'F2', 8.5, '0.05 0.1 0.2');
-        $this->textRight("$" . number_format($grandTotal, 2) . " USD", $summaryX + $summaryWidth - 10, $lineY, 'F2', 8.5, '0.05 0.6 0.35');
+        $this->textRight($currPrefix . number_format($grandTotal, 2) . " {$currency}", $summaryX + $summaryWidth - 10, $lineY, 'F2', 8.5, '0.05 0.6 0.35');
 
         // Payment status & balance
         $lineY -= 12;
         $this->text("Amount Paid:", $summaryX + 10, $lineY, 'F1', 7, '0.3 0.35 0.4');
-        $this->textRight("$" . number_format($paidAmount, 2), $summaryX + $summaryWidth - 10, $lineY, 'F1', 7, '0.1 0.15 0.2');
+        $this->textRight($currPrefix . number_format($paidAmount, 2), $summaryX + $summaryWidth - 10, $lineY, 'F1', 7, '0.1 0.15 0.2');
 
         $lineY -= 10;
         $this->text("Balance Due:", $summaryX + 10, $lineY, 'F2', 7.5, $balanceDue > 0 ? '0.8 0.2 0.1' : '0.1 0.5 0.2');
-        $this->textRight("$" . number_format($balanceDue, 2), $summaryX + $summaryWidth - 10, $lineY, 'F2', 7.5, $balanceDue > 0 ? '0.8 0.2 0.1' : '0.1 0.5 0.2');
+        $this->textRight($currPrefix . number_format($balanceDue, 2), $summaryX + $summaryWidth - 10, $lineY, 'F2', 7.5, $balanceDue > 0 ? '0.8 0.2 0.1' : '0.1 0.5 0.2');
 
         // Left Box: Payment Details & In Words
         $payBoxWidth = $contentWidth - $summaryWidth - 12;
@@ -225,8 +233,9 @@ class DocumentPdfService
             $bName = $bank['bank_name'] ?? 'Pubali Bank';
             $bAcc = $bank['account_no'] ?? ($bank['account_number'] ?? '');
             $bSwift = $bank['swift_code'] ?? '';
-            $bankStr = "Bank: {$bName} • A/C: {$bAcc}" . ($bSwift ? " • SWIFT: {$bSwift}" : "");
-            $this->text(mb_substr($bankStr, 0, 80, 'UTF-8'), $margin + 8, $payBoxY + $payBoxHeight - 51, 'F1', 6.5, '0.2 0.25 0.35');
+            $bCurr = !empty($bank['currency']) ? " ({$bank['currency']})" : "";
+            $bankStr = "Bank: {$bName}{$bCurr} • A/C: {$bAcc}" . ($bSwift ? " • SWIFT: {$bSwift}" : "");
+            $this->text(mb_substr($bankStr, 0, 105, 'UTF-8'), $margin + 8, $payBoxY + $payBoxHeight - 51, 'F1', 6.5, '0.2 0.25 0.35');
         } else {
             $this->text("Transaction / Reference: {$pTxn}", $margin + 8, $payBoxY + $payBoxHeight - 51, 'F1', 6.8, '0.3 0.35 0.4');
         }

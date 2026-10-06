@@ -20,6 +20,8 @@ export interface BeneficiaryBankDetailsProps {
     bank_address?: string | null;
     branch?: string | null;
     branch_name?: string | null;
+    currency?: string | null;
+    notes?: string | null;
   };
   className?: string;
 }
@@ -44,16 +46,22 @@ export default function BeneficiaryBankDetails({
   const accountNo = bd?.account_no || bd?.accountNo || bd?.account_number || bd?.accountNumber || banking.accountNo || "1788-901-044316";
   const swiftCode = bd?.swift_code || bd?.swiftCode || banking.swiftCode || "PUBABDDH210";
   const bankAddress = bd?.bank_address || bd?.bankAddress || bd?.branch || bd?.branch_name || banking.bankAddress || "Nawabpur Road Branch,\n125 Nawabpur Road,\nDhaka-1100,\nBangladesh";
+  const currency = (bd?.currency || "USD").toUpperCase();
 
   return (
     <div
       className={`p-4 rounded-xl bg-secondary/30 border border-border/70 space-y-2 text-xs print:bg-slate-50/60 print:border-slate-300 print:text-black ${className}`}
       id="beneficiary-bank-details"
     >
-      <div className="border-b border-border/60 pb-1.5 mb-2">
+      <div className="border-b border-border/60 pb-1.5 mb-2 flex items-center justify-between">
         <span className="text-[11px] font-bold uppercase tracking-wider text-primary font-mono block">
           BENEFICIARY BANK DETAILS
         </span>
+        {currency && (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary font-mono border border-primary/20">
+            {currency} SETTLEMENT
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 leading-relaxed">

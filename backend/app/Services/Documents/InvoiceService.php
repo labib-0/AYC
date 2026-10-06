@@ -101,7 +101,7 @@ class InvoiceService
                 'grand_total' => $total,
                 'paid_amount' => ($quotation->payment_status === 'paid') ? $total : 0.0,
                 'balance_due' => ($quotation->payment_status === 'paid') ? 0.0 : $total,
-                'amount_in_words' => DocumentHelper::numberToWords($total),
+                'amount_in_words' => DocumentHelper::numberToWords($total, $quotation->currency ?: 'USD'),
             ],
             'payment_details' => [
                 'payment_status' => strtoupper($quotation->payment_status ?? 'PENDING'),
@@ -109,8 +109,8 @@ class InvoiceService
                 'amount_paid' => ($quotation->payment_status === 'paid') ? $total : 0.0,
                 'balance_due' => ($quotation->payment_status === 'paid') ? 0.0 : $total,
             ],
-            'bank_details' => DocumentHelper::getBankDetails(),
-            'bankDetails' => DocumentHelper::getBankDetails(),
+            'bank_details' => DocumentHelper::getBankDetails($quotation->currency ?: 'USD'),
+            'bankDetails' => DocumentHelper::getBankDetails($quotation->currency ?: 'USD'),
             'notes' => $quotation->admin_notes ?: (DocumentHelper::getDocumentDefaults()['ci_notes'] ?? 'Commercial Sales Invoice. Authorized for accounting and export records.'),
         ];
     }

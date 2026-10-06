@@ -283,7 +283,8 @@ class Order extends Model
         $ordNumber = "ORD-{$year}-{$docSuffix}";
         $plNumber = "PL-{$year}-{$docSuffix}";
         $docDefaults = \App\Services\Documents\DocumentHelper::getDocumentDefaults();
-        $bankDetails = \App\Services\Documents\DocumentHelper::getBankDetails();
+        $currency = $this->currency ?: 'USD';
+        $bankDetails = \App\Services\Documents\DocumentHelper::getBankDetails($currency);
 
         $isPaid = in_array($this->payment_status, ['paid'])
             || in_array($this->status, ['processing', 'shipped', 'delivered', 'confirmed'])
@@ -459,7 +460,7 @@ class Order extends Model
                 'balance_due' => (float) max(0, round($this->total_amount - ($this->paid_amount ?? ($this->payment_status === 'paid' ? $this->total_amount : 0)), 2)),
                 'total_payable' => (float) $this->total_amount,
                 'grand_total' => (float) $this->total_amount,
-                'amount_in_words' => self::numberToWords((float) $this->total_amount),
+                'amount_in_words' => self::numberToWords((float) $this->total_amount, $currency),
             ],
             'items' => $items,
             'product_gallery' => $allGalleryImages,
@@ -483,8 +484,8 @@ class Order extends Model
             'shipping_terms' => $isSea ? 'Ocean Container Freight (DAP / CIF)' : ($docDefaults['shipping_terms'] ?? 'Express Air Freight (DAP / DDP)'),
             'incoterm' => $docDefaults['incoterm'] ?? 'DAP',
             'notes' => $this->notes ?: ($docDefaults['ci_notes'] ?? 'Commercial Wholesale Export Order. Ready-made Garments Manufactured in Bangladesh.'),
-            'bank_details' => $bankDetails,
-            'bankDetails' => $bankDetails,
+            'bank_details' => $normalizedType === 'PACKING_LIST' ? null : $bankDetails,
+            'bankDetails' => $normalizedType === 'PACKING_LIST' ? null : $bankDetails,
             'payment_details' => [
                 'payment_status' => $this->payment_status === 'paid' ? 'PAID' : strtoupper($this->payment_status ?: 'PENDING'),
                 'payment_method' => match ($this->payment_method) {
@@ -512,21 +513,11 @@ class Order extends Model
     }
 
     /**
-     * Convert currency amount to official written words in USD
+     * Convert currency amount to official written words with currency support
      */
-    public static function numberToWords(float $amount): string
+    public static function numberToWords(float $amount, ?string $currency = 'USD'): string
     {
-        $dollars = (int) floor($amount);
-        $cents = (int) round(($amount - $dollars) * 100);
-
-        $words = self::convertIntegerToWords($dollars);
-        $result = "US Dollars " . trim($words);
-        if ($cents > 0) {
-            $result .= " and " . sprintf('%02d', $cents) . "/100";
-        } else {
-            $result .= " and 00/100";
-        }
-        return $result . " Only";
+        return \App\Services\Documents\DocumentHelper::numberToWords($amount, $currency);
     }
 
     private static function convertIntegerToWords(int $number): string

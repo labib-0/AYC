@@ -77,20 +77,13 @@ class DocumentHelper
         ];
     }
 
-    /**
-     * Get authoritative Beneficiary Bank Details from centralized system settings
-     * with fallback to official Pubali Bank credentials.
-     * Single block, strictly NO routing number in customer docs if configured.
-     */
-    public static function getBankDetails(): array
-    {
-        return static::getBankDetailsWithRouting(false);
-    }
+    public const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'BDT'];
+    public const DEFAULT_CURRENCY = 'USD';
 
     /**
-     * Get Beneficiary Bank Details with optional routing number for Admin settings management.
+     * Get baseline default bank profile from system settings or configuration.
      */
-    public static function getBankDetailsWithRouting(bool $includeRouting = true): array
+    public static function getDefaultBankProfile(bool $includeRouting = true): array
     {
         $accNo = SystemSetting::get('bank_account_number', SystemSetting::get('banking.account_number', config('business.banking.account_number', '1788-901-044316')));
         $title = SystemSetting::get('bank_account_title', SystemSetting::get('banking.account_name', config('business.banking.account_title', 'M/S AYAAN  CLOTHING')));
@@ -99,28 +92,170 @@ class DocumentHelper
         $branch = SystemSetting::get('bank_branch', SystemSetting::get('banking.branch_name', config('business.banking.branch', 'Nawabpur Road Branch')));
         $swift = SystemSetting::get('bank_swift_code', SystemSetting::get('banking.swift_code', config('business.banking.swift_code', 'PUBABDDH210')));
         $bankAddress = SystemSetting::get('bank_address', config('business.banking.bank_address', "Nawabpur Road Branch,\n125 Nawabpur Road,\nDhaka-1100,\nBangladesh"));
-        $currency = SystemSetting::get('bank_currency', SystemSetting::get('banking.currency', 'USD'));
+        $currency = strtoupper(SystemSetting::get('bank_currency', SystemSetting::get('banking.currency', 'USD')));
 
-        $details = [
-            'is_configured' => (bool) SystemSetting::get('bank_is_configured', config('business.banking.is_configured', true)),
+        $profile = [
+            'id' => 'profile_default',
+            'name' => 'Pubali Bank Limited (' . $currency . ' Account)',
             'bank_name' => $bankName,
             'account_title' => $title,
             'account_name' => $title,
             'beneficiary_name' => $beneficiary,
-            'account_no' => $accNo,
             'account_number' => $accNo,
+            'account_no' => $accNo,
             'swift_code' => $swift,
             'branch' => $branch,
             'branch_name' => $branch,
             'bank_address' => $bankAddress,
             'currency' => $currency,
+            'notes' => 'Primary beneficiary wire instructions for foreign trade settlement.',
+            'is_active' => true,
+            'is_default' => true,
         ];
 
         if ($includeRouting) {
-            $details['routing_number'] = SystemSetting::get('bank_routing_number', SystemSetting::get('banking.routing_number', config('business.banking.routing_number', '175271894')));
+            $profile['routing_number'] = SystemSetting::get('bank_routing_number', SystemSetting::get('banking.routing_number', config('business.banking.routing_number', '175271894')));
+        }
+
+        return $profile;
+    }
+
+    /**
+     * Get all structured beneficiary bank profiles.
+     * Falls back to synthesizing from single legacy bank settings if no profiles array is saved.
+     */
+    public static function getBankProfiles(bool $includeRouting = true): array
+    {
+        $stored = SystemSetting::get('bank_profiles', null);
+
+        if (is_array($stored) && !empty($stored)) {
+            $profiles = [];
+            foreach ($stored as $idx => $p) {
+                if (!is_array($p)) continue;
+                $curr = strtoupper($p['currency'] ?? 'USD');
+                $item = [
+                    'id' => (string) ($p['id'] ?? ('bank_prof_' . ($idx + 1))),
+                    'name' => (string) ($p['name'] ?? ($p['bank_name'] ?? "Bank Profile {$curr}")),
+                    'bank_name' => (string) ($p['bank_name'] ?? 'Pubali Bank Limited'),
+                    'account_title' => (string) ($p['account_title'] ?? ($p['account_name'] ?? 'M/S AYAAN  CLOTHING')),
+                    'account_name' => (string) ($p['account_title'] ?? ($p['account_name'] ?? 'M/S AYAAN  CLOTHING')),
+                    'beneficiary_name' => (string) ($p['beneficiary_name'] ?? ($p['account_title'] ?? ($p['account_name'] ?? 'M/S AYAAN  CLOTHING'))),
+                    'account_number' => (string) ($p['account_number'] ?? ($p['account_no'] ?? '')),
+                    'account_no' => (string) ($p['account_number'] ?? ($p['account_no'] ?? '')),
+                    'swift_code' => (string) ($p['swift_code'] ?? ''),
+                    'branch' => (string) ($p['branch'] ?? ($p['branch_name'] ?? '')),
+                    'branch_name' => (string) ($p['branch'] ?? ($p['branch_name'] ?? '')),
+                    'bank_address' => (string) ($p['bank_address'] ?? ''),
+                    'currency' => $curr,
+                    'notes' => isset($p['notes']) ? (string) $p['notes'] : null,
+                    'is_active' => isset($p['is_active']) ? (bool) $p['is_active'] : true,
+                    'is_default' => isset($p['is_default']) ? (bool) $p['is_default'] : ($idx === 0),
+                ];
+                if ($includeRouting) {
+                    $item['routing_number'] = isset($p['routing_number']) ? (string) $p['routing_number'] : null;
+                }
+                $profiles[] = $item;
+            }
+
+            if (!empty($profiles)) {
+                return $profiles;
+            }
+        }
+
+        return [static::getDefaultBankProfile($includeRouting)];
+    }
+
+    /**
+     * Resolve authoritative Beneficiary Bank Details matching the document/order currency.
+     * Fallback hierarchy:
+     * 1. Exact active profile matching the requested currency.
+     * 2. Active profile designated as default (is_default = true).
+     * 3. First active bank profile.
+     * 4. System default bank profile.
+     */
+    public static function getBankDetailsForCurrency(?string $currency = null, bool $includeRouting = false): array
+    {
+        $target = $currency ? strtoupper(trim($currency)) : null;
+        $profiles = static::getBankProfiles(true);
+
+        $activeProfiles = array_values(array_filter($profiles, function ($p) {
+            return !empty($p['is_active']);
+        }));
+
+        $selected = null;
+
+        // 1. Exact active currency match
+        if ($target) {
+            foreach ($activeProfiles as $prof) {
+                if (strtoupper($prof['currency'] ?? '') === $target) {
+                    $selected = $prof;
+                    break;
+                }
+            }
+        }
+
+        // 2. Fallback to active designated default
+        if (!$selected) {
+            foreach ($activeProfiles as $prof) {
+                if (!empty($prof['is_default'])) {
+                    $selected = $prof;
+                    break;
+                }
+            }
+        }
+
+        // 3. Fallback to first active profile
+        if (!$selected && !empty($activeProfiles)) {
+            $selected = $activeProfiles[0];
+        }
+
+        // 4. Ultimate fallback to baseline default
+        if (!$selected) {
+            $selected = static::getDefaultBankProfile(true);
+        }
+
+        $details = [
+            'is_configured' => (bool) SystemSetting::get('bank_is_configured', config('business.banking.is_configured', true)),
+            'profile_id' => $selected['id'] ?? 'default',
+            'profile_name' => $selected['name'] ?? 'Primary Beneficiary Bank',
+            'bank_name' => $selected['bank_name'] ?? 'Pubali Bank Limited',
+            'account_title' => $selected['account_title'] ?? 'M/S AYAAN  CLOTHING',
+            'account_name' => $selected['account_title'] ?? 'M/S AYAAN  CLOTHING',
+            'beneficiary_name' => $selected['beneficiary_name'] ?? ($selected['account_title'] ?? 'M/S AYAAN  CLOTHING'),
+            'account_no' => $selected['account_number'] ?? '',
+            'account_number' => $selected['account_number'] ?? '',
+            'swift_code' => $selected['swift_code'] ?? '',
+            'branch' => $selected['branch'] ?? '',
+            'branch_name' => $selected['branch'] ?? '',
+            'bank_address' => $selected['bank_address'] ?? '',
+            'currency' => strtoupper($selected['currency'] ?? 'USD'),
+            'notes' => $selected['notes'] ?? null,
+            'is_default' => (bool) ($selected['is_default'] ?? false),
+            'is_active' => (bool) ($selected['is_active'] ?? true),
+        ];
+
+        if ($includeRouting) {
+            $details['routing_number'] = $selected['routing_number'] ?? SystemSetting::get('bank_routing_number', config('business.banking.routing_number', '175271894'));
         }
 
         return $details;
+    }
+
+    /**
+     * Get authoritative Beneficiary Bank Details with backward-compatible signature.
+     * Accepts optional currency string.
+     */
+    public static function getBankDetails(?string $currency = null): array
+    {
+        return static::getBankDetailsForCurrency($currency, false);
+    }
+
+    /**
+     * Get Beneficiary Bank Details with optional routing number and currency support.
+     */
+    public static function getBankDetailsWithRouting(bool $includeRouting = true, ?string $currency = null): array
+    {
+        return static::getBankDetailsForCurrency($currency, $includeRouting);
     }
 
     /**
@@ -249,15 +384,23 @@ class DocumentHelper
     }
 
     /**
-     * Official conversion of amount to written words in USD
+     * Official conversion of amount to written words with multi-currency support
      */
-    public static function numberToWords(float $amount): string
+    public static function numberToWords(float $amount, ?string $currency = 'USD'): string
     {
         $dollars = (int) floor($amount);
         $cents = (int) round(($amount - $dollars) * 100);
 
+        $curr = strtoupper($currency ?: 'USD');
+        $currencyTitle = match ($curr) {
+            'EUR' => 'Euros',
+            'GBP' => 'Pounds Sterling',
+            'BDT' => 'Bangladeshi Taka',
+            default => 'US Dollars',
+        };
+
         $words = self::convertIntegerToWords($dollars);
-        $result = "US Dollars " . trim($words);
+        $result = $currencyTitle . " " . trim($words);
 
         if ($cents > 0) {
             $result .= sprintf(" and %02d/100", $cents);

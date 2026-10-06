@@ -20,9 +20,14 @@ import {
   Info,
   ExternalLink,
   RotateCcw,
+  Plus,
+  Trash2,
+  Edit2,
+  Check,
+  X,
 } from "lucide-react";
 import { siteSettingsService, DEFAULT_BUSINESS_SETTINGS } from "@/services/site-settings.service";
-import { BusinessSettingsPayload } from "@/types/settings";
+import { BusinessSettingsPayload, BankProfile } from "@/types/settings";
 
 export interface BusinessSettingsProps {
   onNotify: (message: string) => void;
@@ -34,6 +39,11 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // Bank profile editor state
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [profileForm, setProfileForm] = useState<Partial<BankProfile> | null>(null);
+  const [isCreatingProfile, setIsCreatingProfile] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -82,18 +92,208 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
     onNotify("WhatsApp number reset to official default (+880 1620-853502)");
   };
 
-  const handleResetBanking = () => {
+  // Resolve current active bank profiles
+  const currentProfiles: BankProfile[] = (data.bank_profiles && data.bank_profiles.length > 0)
+    ? data.bank_profiles
+    : [
+        {
+          id: "profile_usd_default",
+          name: `${data.banking?.bank_name || "Pubali Bank Limited"} (${(data.banking?.currency || "USD").toUpperCase()} Account)`,
+          currency: (data.banking?.currency || "USD").toUpperCase(),
+          bank_name: data.banking?.bank_name || "Pubali Bank Limited",
+          account_title: data.banking?.account_name || "M/S AYAAN  CLOTHING",
+          account_name: data.banking?.account_name || "M/S AYAAN  CLOTHING",
+          account_number: data.banking?.account_number || "1788-901-044316",
+          swift_code: data.banking?.swift_code || "PUBABDDH210",
+          branch: data.banking?.branch_name || "Nawabpur Road Branch",
+          branch_name: data.banking?.branch_name || "Nawabpur Road Branch",
+          bank_address: data.banking?.branch_name || "Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh",
+          routing_number: data.banking?.routing_number || "175271894",
+          notes: "Primary beneficiary wire instructions for foreign trade settlement.",
+          is_active: true,
+          is_default: true,
+        },
+      ];
+
+  const updateProfiles = (newProfiles: BankProfile[]) => {
+    const defaultProf = newProfiles.find((p) => p.is_default && p.is_active) || newProfiles[0];
+
     setData((prev) => ({
       ...prev,
+      bank_profiles: newProfiles,
+      banking: defaultProf
+        ? {
+            bank_name: defaultProf.bank_name,
+            branch_name: defaultProf.bank_address || defaultProf.branch || "",
+            account_name: defaultProf.account_title,
+            account_number: defaultProf.account_number,
+            swift_code: defaultProf.swift_code || "",
+            routing_number: defaultProf.routing_number || "",
+            currency: defaultProf.currency,
+          }
+        : prev.banking,
+    }));
+  };
+
+  const handleSetDefaultProfile = (profileId: string) => {
+    const updated = currentProfiles.map((p) => ({
+      ...p,
+      is_default: p.id === profileId,
+      is_active: p.id === profileId ? true : p.is_active,
+    }));
+    updateProfiles(updated);
+    onNotify("Default beneficiary bank profile updated.");
+  };
+
+  const handleToggleActiveProfile = (profileId: string) => {
+    const target = currentProfiles.find((p) => p.id === profileId);
+    if (!target) return;
+    if (target.is_default && target.is_active) {
+      setError("Cannot deactivate the default bank profile. Designate another active profile as default first.");
+      return;
+    }
+    const updated = currentProfiles.map((p) =>
+      p.id === profileId ? { ...p, is_active: !p.is_active } : p
+    );
+    updateProfiles(updated);
+  };
+
+  const handleDeleteProfile = (profileId: string) => {
+    const target = currentProfiles.find((p) => p.id === profileId);
+    if (!target) return;
+    if (target.is_default) {
+      setError("Cannot delete the default bank profile. Designate another profile as default first.");
+      return;
+    }
+    if (currentProfiles.length <= 1) {
+      setError("At least one beneficiary bank profile must remain configured.");
+      return;
+    }
+    const updated = currentProfiles.filter((p) => p.id !== profileId);
+    updateProfiles(updated);
+    onNotify("Bank profile removed.");
+  };
+
+  const handleStartEditProfile = (profile: BankProfile) => {
+    setIsCreatingProfile(false);
+    setEditingProfileId(profile.id);
+    setProfileForm({ ...profile });
+  };
+
+  const handleStartAddProfile = () => {
+    setIsCreatingProfile(true);
+    setEditingProfileId(null);
+    setProfileForm({
+      id: `prof_${Date.now()}`,
+      name: "",
+      currency: "EUR",
+      bank_name: "",
+      account_title: data.company?.name || "M/S AYAAN  CLOTHING",
+      account_number: "",
+      swift_code: "",
+      branch: "",
+      bank_address: "",
+      routing_number: "",
+      notes: "",
+      is_active: true,
+      is_default: false,
+    });
+  };
+
+  const handleCancelProfileForm = () => {
+    setIsCreatingProfile(false);
+    setEditingProfileId(null);
+    setProfileForm(null);
+  };
+
+  const handleSaveProfileForm = () => {
+    if (!profileForm) return;
+    if (!profileForm.bank_name?.trim() || !profileForm.account_number?.trim() || !profileForm.currency) {
+      setError("Bank Name, Account Number, and Settlement Currency are required.");
+      return;
+    }
+
+    const cur = (profileForm.currency || "USD").toUpperCase();
+    const isDefault = Boolean(profileForm.is_default);
+
+    if (profileForm.is_active) {
+      const duplicate = currentProfiles.find(
+        (p) => p.id !== profileForm.id && p.currency.toUpperCase() === cur && p.is_active
+      );
+      if (duplicate) {
+        setError(`An active profile already exists for currency ${cur} (${duplicate.name}). Please deactivate existing duplicate first.`);
+        return;
+      }
+    }
+
+    const fullProfile: BankProfile = {
+      id: profileForm.id || `prof_${Date.now()}`,
+      name: profileForm.name?.trim() || `${profileForm.bank_name} (${cur} Account)`,
+      currency: cur,
+      bank_name: profileForm.bank_name.trim(),
+      account_title: profileForm.account_title?.trim() || "M/S AYAAN  CLOTHING",
+      account_name: profileForm.account_title?.trim() || "M/S AYAAN  CLOTHING",
+      account_number: profileForm.account_number.trim(),
+      swift_code: profileForm.swift_code?.trim() || "",
+      branch: profileForm.branch?.trim() || "",
+      branch_name: profileForm.branch?.trim() || "",
+      bank_address: profileForm.bank_address?.trim() || "",
+      routing_number: profileForm.routing_number?.trim() || "",
+      notes: profileForm.notes?.trim() || "",
+      is_active: profileForm.is_active !== false,
+      is_default: isDefault,
+    };
+
+    let updatedList: BankProfile[];
+    if (isCreatingProfile) {
+      if (isDefault) {
+        updatedList = currentProfiles.map((p) => ({ ...p, is_default: false })).concat([fullProfile]);
+      } else {
+        updatedList = [...currentProfiles, fullProfile];
+      }
+    } else {
+      updatedList = currentProfiles.map((p) => {
+        if (p.id === fullProfile.id) {
+          return fullProfile;
+        }
+        return isDefault ? { ...p, is_default: false } : p;
+      });
+    }
+
+    updateProfiles(updatedList);
+    handleCancelProfileForm();
+    onNotify(isCreatingProfile ? "New bank profile added." : "Bank profile updated.");
+  };
+
+  const handleResetBanking = () => {
+    const defaultProf: BankProfile = {
+      id: "profile_usd_default",
+      name: "Pubali Bank Limited (USD Account)",
+      currency: "USD",
+      bank_name: "Pubali Bank Limited",
+      account_title: "M/S AYAAN  CLOTHING",
+      account_name: "M/S AYAAN  CLOTHING",
+      account_number: "1788-901-044316",
+      swift_code: "PUBABDDH210",
+      branch: "Nawabpur Road Branch",
+      branch_name: "Nawabpur Road Branch",
+      bank_address: "Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh",
+      routing_number: "175271894",
+      notes: "Primary beneficiary wire instructions for foreign trade settlement.",
+      is_active: true,
+      is_default: true,
+    };
+    setData((prev) => ({
+      ...prev,
+      bank_profiles: [defaultProf],
       banking: {
-        ...prev.banking,
-        bank_name: "Pubali Bank Limited",
-        branch_name: "Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh",
-        account_name: "M/S AYAAN  CLOTHING",
-        account_number: "1788-901-044316",
-        swift_code: "PUBABDDH210",
-        routing_number: "175271894",
-        currency: "USD",
+        bank_name: defaultProf.bank_name,
+        branch_name: defaultProf.bank_address || "",
+        account_name: defaultProf.account_title,
+        account_number: defaultProf.account_number,
+        swift_code: defaultProf.swift_code || "",
+        routing_number: defaultProf.routing_number || "",
+        currency: defaultProf.currency,
       },
     }));
     onNotify("Beneficiary bank credentials reset to official Pubali Bank defaults");
@@ -138,14 +338,20 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
       setError("Official Export Email is required.");
       return;
     }
-    if (!data.banking?.bank_name?.trim() || !data.banking?.account_number?.trim()) {
-      setError("Beneficiary Bank Name and Account Number are required.");
+
+    // Validate bank profiles
+    if (!currentProfiles.some((p) => p.is_default && p.is_active)) {
+      setError("At least one active beneficiary bank profile must be designated as the default settlement account.");
       return;
     }
 
     setSaving(true);
     try {
-      const updated = await siteSettingsService.updateBusinessSettings(data);
+      const payloadToSave: BusinessSettingsPayload = {
+        ...data,
+        bank_profiles: currentProfiles,
+      };
+      const updated = await siteSettingsService.updateBusinessSettings(payloadToSave);
       if (updated) {
         setData(updated);
       }
@@ -576,9 +782,9 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
         </div>
       </div>
 
-      {/* SECTION 4: BENEFICIARY BANK DETAILS (FULLY EDITABLE & ADMIN CONTROLLED) */}
+      {/* SECTION 4: BENEFICIARY BANK DETAILS & MULTI-CURRENCY PROFILES */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-5">
-        <div className="border-b border-border/60 pb-3 flex items-center justify-between">
+        <div className="border-b border-border/60 pb-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Landmark size={16} />
@@ -586,7 +792,7 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
             <div>
               <h3 className="text-sm font-bold text-foreground">Beneficiary Bank Wire Instructions</h3>
               <p className="text-xs text-muted-foreground">
-                Embedded directly into Proforma Invoices (PI) and Commercial Invoices (CI) for foreign trade wire transfers.
+                Multi-currency export settlement accounts dynamically matched to Commercial Invoices (CI), Proforma Invoices (PI), and Quotations.
               </p>
             </div>
           </div>
@@ -597,8 +803,16 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
             </span>
             <button
               type="button"
+              onClick={handleStartAddProfile}
+              className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer shadow-xs"
+            >
+              <Plus size={13} />
+              <span>Add Currency Profile</span>
+            </button>
+            <button
+              type="button"
               onClick={handleResetBanking}
-              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer border border-border"
+              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer border border-border"
               title="Reset banking credentials to official Pubali Bank defaults"
             >
               <RotateCcw size={10} />
@@ -610,97 +824,353 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
         <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
           <Info size={15} className="shrink-0 mt-0.5" />
           <p>
-            <strong>Security Boundary Notice:</strong> These bank credentials are only transmitted on authenticated
-            Admin interfaces and embedded inside official generated documents. They are <u>never</u> exposed via the
-            public storefront API.
+            <strong>Multi-Currency Routing Notice:</strong> When documents are generated, the system automatically binds wire instructions to the document&apos;s settlement currency (e.g. USD, EUR, GBP, BDT). Unmatched currencies gracefully fall back to the designated primary default profile. Private account credentials are never exposed via the public storefront API.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Bank Name <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={data.banking?.bank_name || ""}
-              onChange={(e) => handleChange("banking", "bank_name", e.target.value)}
-              placeholder="Pubali Bank Limited"
-              className="w-full px-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-semibold"
-            />
+        {/* INLINE PROFILE FORM (ADDING OR EDITING) */}
+        {profileForm && (
+          <div className="p-5 rounded-xl bg-secondary/30 border border-primary/30 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs uppercase tracking-wider text-primary">
+                  {isCreatingProfile ? "New Bank Settlement Profile" : `Edit Profile: ${profileForm.name || "Bank Account"}`}
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">
+                  {profileForm.currency || "USD"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelProfileForm}
+                className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Cancel"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">
+                  Profile Label / Name <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={profileForm.name || ""}
+                  onChange={(e) => setProfileForm((prev) => prev ? { ...prev, name: e.target.value } : null)}
+                  placeholder="e.g. Pubali Bank - USD Export Settlement"
+                  className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">
+                  Settlement Currency <span className="text-destructive">*</span>
+                </label>
+                <select
+                  value={profileForm.currency || "USD"}
+                  onChange={(e) => setProfileForm((prev) => prev ? { ...prev, currency: e.target.value.toUpperCase() } : null)}
+                  className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono uppercase font-bold"
+                >
+                  <option value="USD">USD - US Dollar</option>
+                  <option value="EUR">EUR - Euro</option>
+                  <option value="GBP">GBP - British Pound</option>
+                  <option value="BDT">BDT - Bangladeshi Taka</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">
+                  Bank Name <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={profileForm.bank_name || ""}
+                  onChange={(e) => setProfileForm((prev) => prev ? { ...prev, bank_name: e.target.value } : null)}
+                  placeholder="e.g. Standard Chartered Bank"
+                  className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">
+                  Beneficiary Account Title <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={profileForm.account_title || ""}
+                  onChange={(e) => setProfileForm((prev) => prev ? { ...prev, account_title: e.target.value } : null)}
+                  placeholder="M/S AYAAN  CLOTHING"
+                  className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">
+                  Account Number <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={profileForm.account_number || ""}
+                  onChange={(e) => setProfileForm((prev) => prev ? { ...prev, account_number: e.target.value } : null)}
+                  placeholder="e.g. 1788-901-044316"
+                  className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">SWIFT / BIC Code</label>
+                <input
+                  type="text"
+                  value={profileForm.swift_code || ""}
+                  onChange={(e) => setProfileForm((prev) => prev ? { ...prev, swift_code: e.target.value } : null)}
+                  placeholder="PUBABDDH210"
+                  className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono uppercase"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Branch</label>
+                <input
+                  type="text"
+                  value={profileForm.branch || ""}
+                  onChange={(e) => setProfileForm((prev) => prev ? { ...prev, branch: e.target.value } : null)}
+                  placeholder="Nawabpur Road Branch"
+                  className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Routing / Clearing No.</label>
+                <input
+                  type="text"
+                  value={profileForm.routing_number || ""}
+                  onChange={(e) => setProfileForm((prev) => prev ? { ...prev, routing_number: e.target.value } : null)}
+                  placeholder="175271894"
+                  className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                />
+              </div>
+
+              <div className="space-y-1 sm:col-span-2 md:col-span-1">
+                <label className="text-xs font-semibold text-foreground">Bank Address</label>
+                <input
+                  type="text"
+                  value={profileForm.bank_address || ""}
+                  onChange={(e) => setProfileForm((prev) => prev ? { ...prev, bank_address: e.target.value } : null)}
+                  placeholder="125 Nawabpur Road, Dhaka-1100, Bangladesh"
+                  className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="space-y-1 sm:col-span-2 md:col-span-3">
+                <label className="text-xs font-semibold text-foreground">Wire Instructions / Notes</label>
+                <input
+                  type="text"
+                  value={profileForm.notes || ""}
+                  onChange={(e) => setProfileForm((prev) => prev ? { ...prev, notes: e.target.value } : null)}
+                  placeholder="e.g. Please specify invoice number in wire transfer description field."
+                  className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="sm:col-span-2 md:col-span-3 flex flex-wrap items-center gap-6 pt-1">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={profileForm.is_active !== false}
+                    onChange={(e) => setProfileForm((prev) => prev ? { ...prev, is_active: e.target.checked } : null)}
+                    className="rounded border-border text-primary focus:ring-primary"
+                  />
+                  <span>Active Profile</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(profileForm.is_default)}
+                    onChange={(e) => setProfileForm((prev) => prev ? { ...prev, is_default: e.target.checked } : null)}
+                    className="rounded border-border text-primary focus:ring-primary"
+                  />
+                  <span>Designate as Default Fallback Profile</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+              <button
+                type="button"
+                onClick={handleCancelProfileForm}
+                className="px-3 py-1.5 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-foreground text-xs font-medium transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProfileForm}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
+              >
+                <Check size={13} />
+                <span>Apply Profile Changes</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* PROFILES LIST */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground px-1">
+            <span>Configured Beneficiary Bank Profiles ({currentProfiles.length})</span>
+            <span className="text-[11px] font-normal text-muted-foreground/80">
+              Matched automatically by document currency
+            </span>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">Branch &amp; Address</label>
-            <input
-              type="text"
-              value={data.banking?.branch_name || ""}
-              onChange={(e) => handleChange("banking", "branch_name", e.target.value)}
-              placeholder="Uttara Model Town Branch, Dhaka, Bangladesh"
-              className="w-full px-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
-            />
-          </div>
+          <div className="grid grid-cols-1 gap-3">
+            {currentProfiles.map((prof) => {
+              const cur = prof.currency.toUpperCase();
+              const badgeColors =
+                cur === "USD"
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                  : cur === "EUR"
+                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                  : cur === "GBP"
+                  ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Beneficiary Account Name <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={data.banking?.account_name || ""}
-              onChange={(e) => handleChange("banking", "account_name", e.target.value)}
-              placeholder="Ayaan Clothing Ltd."
-              className="w-full px-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
-            />
-          </div>
+              return (
+                <div
+                  key={prof.id}
+                  className={`p-4 rounded-xl border transition-all ${
+                    prof.is_default
+                      ? "bg-primary/5 border-primary/40 shadow-xs"
+                      : prof.is_active
+                      ? "bg-card border-border/80"
+                      : "bg-muted/30 border-dashed border-border/50 opacity-60"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-border/50">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded-md border ${badgeColors}`}>
+                        {cur}
+                      </span>
+                      <span className="font-semibold text-sm text-foreground">{prof.name}</span>
+                      {prof.is_default && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-mono border border-emerald-500/30">
+                          <Check size={10} />
+                          <span>DEFAULT FALLBACK</span>
+                        </span>
+                      )}
+                      {!prof.is_active && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground font-mono">
+                          INACTIVE
+                        </span>
+                      )}
+                    </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Account Number <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={data.banking?.account_number || ""}
-              onChange={(e) => handleChange("banking", "account_number", e.target.value)}
-              placeholder="09871020003456"
-              className="w-full px-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono font-bold"
-            />
-          </div>
+                    <div className="flex items-center gap-2">
+                      {!prof.is_default && prof.is_active && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetDefaultProfile(prof.id)}
+                          className="text-[11px] font-medium px-2 py-0.5 rounded border border-border bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer"
+                        >
+                          Make Default
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditProfile(prof)}
+                        className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        title="Edit profile"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActiveProfile(prof.id)}
+                        className={`text-[11px] font-medium px-2 py-0.5 rounded border cursor-pointer transition-colors ${
+                          prof.is_active
+                            ? "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
+                            : "border-primary/40 text-primary bg-primary/10 hover:bg-primary/20"
+                        }`}
+                        title={prof.is_active ? "Deactivate profile" : "Activate profile"}
+                      >
+                        {prof.is_active ? "Deactivate" : "Activate"}
+                      </button>
+                      {!prof.is_default && currentProfiles.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteProfile(prof.id)}
+                          className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                          title="Delete profile"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">SWIFT / BIC Code</label>
-            <input
-              type="text"
-              value={data.banking?.swift_code || ""}
-              onChange={(e) => handleChange("banking", "swift_code", e.target.value)}
-              placeholder="PUBABDDH"
-              className="w-full px-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono uppercase"
-            />
-          </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 pt-2.5 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+                        Bank Name
+                      </span>
+                      <span className="font-medium text-foreground">{prof.bank_name}</span>
+                    </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">Routing Number</label>
-            <input
-              type="text"
-              value={data.banking?.routing_number || ""}
-              onChange={(e) => handleChange("banking", "routing_number", e.target.value)}
-              placeholder="175271894"
-              className="w-full px-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono"
-            />
-          </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+                        Account Title
+                      </span>
+                      <span className="font-medium text-foreground">{prof.account_title}</span>
+                    </div>
 
-          <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-xs font-semibold text-foreground">Settlement Currency</label>
-            <input
-              type="text"
-              value={data.banking?.currency || "USD"}
-              onChange={(e) => handleChange("banking", "currency", e.target.value)}
-              placeholder="USD"
-              className="w-full px-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono uppercase"
-            />
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+                        Account Number
+                      </span>
+                      <span className="font-mono font-bold text-foreground">{prof.account_number}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+                        SWIFT / BIC
+                      </span>
+                      <span className="font-mono font-semibold text-foreground">
+                        {prof.swift_code || "N/A"}
+                      </span>
+                    </div>
+
+                    {(prof.branch || prof.bank_address) && (
+                      <div className="sm:col-span-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+                          Branch &amp; Address
+                        </span>
+                        <span className="text-muted-foreground">
+                          {[prof.branch, prof.bank_address].filter(Boolean).join(" • ")}
+                        </span>
+                      </div>
+                    )}
+
+                    {prof.routing_number && (
+                      <div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+                          Routing Number
+                        </span>
+                        <span className="font-mono text-muted-foreground">{prof.routing_number}</span>
+                      </div>
+                    )}
+
+                    {prof.notes && (
+                      <div className="sm:col-span-2 md:col-span-4 pt-1 border-t border-border/40 text-[11px] text-muted-foreground italic">
+                        Note: {prof.notes}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

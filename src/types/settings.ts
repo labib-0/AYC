@@ -76,6 +76,25 @@ export interface UpdateLegalPagePayload {
   is_active: boolean;
 }
 
+export interface BankProfile {
+  id: string;
+  name: string;
+  currency: string;
+  bank_name: string;
+  account_title: string;
+  account_name?: string;
+  account_number: string;
+  account_no?: string;
+  swift_code?: string;
+  branch?: string;
+  branch_name?: string;
+  bank_address?: string;
+  routing_number?: string;
+  notes?: string;
+  is_active: boolean;
+  is_default: boolean;
+}
+
 export interface BusinessSettingsPayload {
   company: {
     name: string;
@@ -111,7 +130,10 @@ export interface BusinessSettingsPayload {
     swift_code?: string;
     routing_number?: string;
     currency?: string;
+    profiles?: BankProfile[];
   };
+  bank_profiles?: BankProfile[];
+  supported_currencies?: string[];
   document_defaults: {
     port_of_loading?: string;
     country_of_origin?: string;

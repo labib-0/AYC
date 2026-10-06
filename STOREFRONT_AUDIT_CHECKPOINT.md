@@ -214,5 +214,49 @@ Phase G Final Automated Integration Hardening complete. Storefront test suites i
   - `npm run build` (57/57 pages built successfully)
 - **Live Browser Testing**: Live browser testing was NOT performed.
 
+---
+
+## Phase 5: Multi-Currency Beneficiary Banking + Document Currency Intelligence (Completed)
+- **Status**: Completed & Verified
+- **Date/Time**: 2026-10-06T23:55:00+06:00
+- **Multi-Currency Banking Architecture**:
+  - Leverages existing `SystemSetting` JSON array under `bank_profiles` key (zero DB migrations required).
+  - Supported Currencies: `USD`, `EUR`, `GBP`, `BDT` (defined centrally via `DocumentHelper::SUPPORTED_CURRENCIES`).
+  - Active currency profile matching with fallback cascade:
+    1. Exact active profile matching document currency (`is_active = true`, matching currency).
+    2. Active designated default profile fallback (`is_default = true`, `is_active = true`).
+    3. First active profile fallback.
+    4. Authoritative baseline system default (Pubali Bank Limited USD).
+  - Two-way synchronization between `bank_profiles` array and single legacy banking keys (`bank_name`, `bank_account_number`, etc.) for complete backward compatibility.
+  - Number-to-words localization: `DocumentHelper::numberToWords` outputs `"US Dollars"`, `"Euros"`, `"Pounds Sterling"`, or `"Bangladeshi Taka"`.
+- **Document Boundary Invariants**:
+  - Commercial Invoice (CI), Proforma Invoice (PI), and Sales Invoice dynamically display currency-matched wire instructions and settlement badges.
+  - Offer Sheet and Packing List **STRICTLY OMIT** beneficiary banking details.
+- **Financial Invariants**:
+  - Zero exchange-rate conversions: Order amounts, item quantities, unit prices, subtotal, discounts, freight, and grand totals are authoritative and unchanged.
+  - Multi-currency banking only provides settlement account wire instructions for the document's native currency.
+- **Historical Document Immutability**:
+  - Historical order snapshots remain immutable and untouched.
+- **Admin UX & Security**:
+  - Full Multi-Currency Bank Profile manager in Admin Business Settings (`/ayc/settings?tab=business`).
+  - Currency pill badges (`USD`, `EUR`, `GBP`, `BDT`), default badges, active switches, inline profile editor.
+  - Safe operations: Cannot delete default profile or only remaining profile; duplicate active currencies blocked.
+  - Storefront privacy: `/api/v1/settings/public` strictly shields account numbers, SWIFT codes, and routing numbers.
+  - RBAC: Customers and guests cannot access or edit banking settings (HTTP 401/403).
+- **Authoritative WhatsApp Preservation**:
+  - Authoritative WhatsApp single source of truth (`+880 1620-853502` / `8801620853502` / `https://wa.me/8801620853502`) strictly preserved without regression.
+- **Tests Executed**:
+  - `backend/tests/Feature/Documents/Phase5MultiCurrencyBankingTest.php` (14/14 passed, 92 assertions)
+  - `backend/tests/Feature/Documents/Phase4DocumentCoverageAuditTest.php` (11/11 passed, 92 assertions)
+  - `backend/tests/Feature/Documents/DocumentSettingsConnectionTest.php` (13/13 passed)
+  - `backend/tests/Feature/Documents/Phase3FinalDocumentQaTest.php` (18/18 passed)
+  - `tests/phase5-multi-currency-banking.test.ts` (8/8 passed)
+  - `tests/phase4-final-audit-consistency.test.ts` (12/12 passed)
+  - `npx tsc --noEmit` (0 errors)
+  - `npm run lint` (0 errors)
+  - `npm run build` (57/57 pages built successfully)
+- **Live Browser Testing**: Live browser testing was NOT performed.
+
+
 
 

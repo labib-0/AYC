@@ -410,5 +410,81 @@ The following definitive matrix categorizes every reusable, dynamic, and documen
 3. **Beneficiary Wire Instructions**: All banking instructions resolve dynamically from Admin settings (`SystemSetting::get('bank_name')`, `bank_account_number`, `bank_swift_code`, `bank_address`) with fallback to the official Pubali Bank Limited export account (`1788-901-044316`, `PUBABDDH210`). No hardcoded foreign routing numbers are leaked on international trade documents.
 4. **Signatories & Document Defaults**: Port of loading, Incoterms, payment terms, export declarations, and signatory titles/divisions resolve dynamically from `document_defaults`.
 
+---
+
+## Phase 5 — Multi-Currency Banking
+
+### 1. Architectural Overview & Data Model
+Phase 5 introduces structured, multi-currency beneficiary banking profiles into the centralized Admin Business & Document Information Control Center without database schema modifications.
+
+- **Storage**: Beneficiary profiles are persisted as a JSON array under the `bank_profiles` key in the `system_settings` table (`SystemSetting::get('bank_profiles')`).
+- **Profile Schema**:
+  ```json
+  {
+    "id": "prof_1728250000_usd",
+    "name": "Pubali Bank Limited (USD Account)",
+    "currency": "USD",
+    "bank_name": "Pubali Bank Limited",
+    "account_title": "M/S AYAAN  CLOTHING",
+    "account_number": "1788-901-044316",
+    "swift_code": "PUBABDDH210",
+    "branch": "Nawabpur Road Branch",
+    "bank_address": "Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh",
+    "routing_number": "175271894",
+    "notes": "Primary export settlement account for international USD wire transfers.",
+    "is_active": true,
+    "is_default": true
+  }
+  ```
+- **Supported Currencies**: `USD`, `EUR`, `GBP`, `BDT` (defined centrally via `DocumentHelper::SUPPORTED_CURRENCIES`).
+- **Two-Way Legacy Sync**: For seamless backward compatibility with existing document generators, external integrations, and legacy endpoints:
+  - Updates to `bank_profiles` automatically sync the designated default profile to single legacy keys (`bank_name`, `bank_account_number`, `bank_swift_code`, `bank_branch`, `bank_address`, `bank_routing_number`, `bank_currency`).
+  - Updates submitted via single legacy keys automatically sync into the designated default profile within `bank_profiles`.
+
+### 2. Document Currency Resolution Engine
+When commercial documents (CI, PI, Sales Invoice) or quotations are generated, the beneficiary bank details are resolved dynamically:
+1. **Currency Context Identification**: The document engine determines the authoritative document currency (from `order.currency`, `quotation.currency`, or explicitly passed `$currency` parameter; defaults to `USD`).
+2. **Resolution Cascade (`DocumentHelper::getBankDetailsForCurrency`)**:
+   - **Step 1 — Exact Active Currency Match**: Locates an active profile (`is_active = true`) whose `currency` matches the document currency (case-insensitive).
+   - **Step 2 — Designated Default Fallback**: If no active profile matches the currency (e.g. unconfigured currency, or matched profile is inactive), selects the active designated default profile (`is_default = true` and `is_active = true`).
+   - **Step 3 — First Active Fallback**: If no active default profile exists, selects the first active profile in the list.
+   - **Step 4 — Baseline System Fallback**: If `bank_profiles` is empty or unconfigured, falls back to the authoritative system baseline default (Pubali Bank Limited USD wire instructions).
+3. **Number-to-Words Currency Localization**: `DocumentHelper::numberToWords` formats amounts with currency-specific wording:
+   - `USD`: `"US Dollars {Amount} Only"`
+   - `EUR`: `"Euros {Amount} Only"`
+   - `GBP`: `"Pounds Sterling {Amount} Only"`
+   - `BDT`: `"Bangladeshi Taka {Amount} Only"`
+
+### 3. Document Boundaries & Exclusion Invariants
+- **Commercial Invoice (CI)**: Includes currency-matched beneficiary bank details and settlement badge.
+- **Proforma Invoice (PI)**: Includes currency-matched beneficiary bank details and settlement badge.
+- **Sales Invoice**: Includes currency-matched beneficiary bank details.
+- **Quotation / Chalan**: Commercial quotation displays currency terms; delivery chalan omits banking.
+- **Offer Sheet**: **STRICTLY OMITS** all beneficiary bank details.
+- **Packing List**: **STRICTLY OMITS** all beneficiary bank details (`bank_details => null`).
+
+### 4. Zero Exchange Rate Conversion Guarantee
+- All order line item prices, unit prices, subtotal, discounts, shipping fees, and grand totals are authoritative and unchanged.
+- Multi-currency banking only routes beneficiary wire instructions for the document's native settlement currency; it **NEVER** mutates amounts or applies FX conversions.
+
+### 5. Historical Document Immutability
+- Orders that already have stored financial or document snapshots retain their immutable snapshots.
+- New documents or on-the-fly regenerations use the live currency resolution cascade without altering persisted order accounting records.
+
+### 6. Security, RBAC & Public API Separation
+- **Storefront Privacy**: The public settings endpoint (`GET /api/v1/settings/public`) strictly **NEVER** exposes `bank_profiles`, account numbers, SWIFT codes, or routing numbers.
+- **Admin RBAC**: Viewing and modifying `bank_profiles` is restricted to authenticated administrators with `manage_settings` permission (`GET/PUT /api/v1/admin/settings/business`). Unauthenticated requests receive `401 Unauthorized`; customer accounts receive `403 Forbidden`.
+- **Admin Validation Rules**:
+  - Restricts currency to supported list (`USD`, `EUR`, `GBP`, `BDT`).
+  - Rejects duplicate active profiles for the same currency.
+  - Requires at least one active profile designated as default (`is_default = true`).
+  - Prevents deleting the default profile or the only remaining profile.
+
+### 7. Authoritative WhatsApp Invariant
+- The canonical business WhatsApp contact (`+880 1620-853502` / `8801620853502` / `https://wa.me/8801620853502`) remains strictly preserved across all storefront components, document headers, footers, and APIs.
+
+### 8. Remaining Limitations
+- Settlement currency routing currently matches 1-to-1 between document currency and configured bank account; automated foreign exchange rate hedging or dynamic multi-currency conversions remain out of scope.
+
 
 

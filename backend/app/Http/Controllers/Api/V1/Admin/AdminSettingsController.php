@@ -193,6 +193,7 @@ class AdminSettingsController extends Controller
     {
         $exporter = DocumentHelper::getExporterProfile();
         $banking = DocumentHelper::getBankDetailsWithRouting(true);
+        $bankProfiles = DocumentHelper::getBankProfiles(true);
         $defaults = DocumentHelper::getDocumentDefaults();
 
         return response()->json([
@@ -240,6 +241,8 @@ class AdminSettingsController extends Controller
                     'incorporation_number' => $exporter['incorporation_number'],
                 ],
                 'banking' => $banking,
+                'bank_profiles' => $bankProfiles,
+                'supported_currencies' => DocumentHelper::SUPPORTED_CURRENCIES,
                 'document_defaults' => $defaults,
             ],
         ]);
@@ -301,6 +304,26 @@ class AdminSettingsController extends Controller
             'banking.bank_address' => ['nullable', 'string', 'max:1000'],
             'banking.routing_number' => ['nullable', 'string', 'max:50'],
             'banking.currency' => ['nullable', 'string', 'max:10'],
+            'banking.profiles' => ['nullable', 'array'],
+
+            'bank_profiles' => ['nullable', 'array'],
+            'bank_profiles.*.id' => ['nullable', 'string', 'max:100'],
+            'bank_profiles.*.name' => ['nullable', 'string', 'max:255'],
+            'bank_profiles.*.bank_name' => ['nullable', 'string', 'max:255'],
+            'bank_profiles.*.account_title' => ['nullable', 'string', 'max:255'],
+            'bank_profiles.*.account_name' => ['nullable', 'string', 'max:255'],
+            'bank_profiles.*.beneficiary_name' => ['nullable', 'string', 'max:255'],
+            'bank_profiles.*.account_number' => ['nullable', 'string', 'max:100'],
+            'bank_profiles.*.account_no' => ['nullable', 'string', 'max:100'],
+            'bank_profiles.*.swift_code' => ['nullable', 'string', 'max:50'],
+            'bank_profiles.*.branch' => ['nullable', 'string', 'max:255'],
+            'bank_profiles.*.branch_name' => ['nullable', 'string', 'max:255'],
+            'bank_profiles.*.bank_address' => ['nullable', 'string', 'max:1000'],
+            'bank_profiles.*.routing_number' => ['nullable', 'string', 'max:50'],
+            'bank_profiles.*.currency' => ['nullable', 'string', 'max:10'],
+            'bank_profiles.*.notes' => ['nullable', 'string', 'max:1000'],
+            'bank_profiles.*.is_active' => ['nullable', 'boolean'],
+            'bank_profiles.*.is_default' => ['nullable', 'boolean'],
 
             'document_defaults' => ['nullable', 'array'],
             'document_defaults.country_of_origin' => ['nullable', 'string', 'max:100'],
@@ -433,21 +456,203 @@ class AdminSettingsController extends Controller
         if (isset($lg['bgmea_reg'])) SystemSetting::set('bgmea_reg', trim($lg['bgmea_reg']), 'string', 'legal');
         if (isset($lg['incorporation_number'])) SystemSetting::set('incorporation_number', trim($lg['incorporation_number']), 'string', 'legal');
 
-        // 4. Beneficiary Bank Details
+        // 4. Beneficiary Bank Details & Multi-Currency Profiles
         $bk = $validated['banking'] ?? [];
-        if (isset($bk['is_configured'])) SystemSetting::set('bank_is_configured', (bool) $bk['is_configured'], 'boolean', 'banking');
-        if (isset($bk['bank_name'])) SystemSetting::set('bank_name', trim($bk['bank_name']), 'string', 'banking');
-        $accTitle = $bk['account_name'] ?? ($bk['account_title'] ?? null);
-        if ($accTitle !== null) SystemSetting::set('bank_account_title', trim($accTitle), 'string', 'banking');
-        if (isset($bk['beneficiary_name'])) SystemSetting::set('bank_beneficiary_name', trim($bk['beneficiary_name']), 'string', 'banking');
-        $accNum = $bk['account_number'] ?? ($bk['account_no'] ?? null);
-        if ($accNum !== null) SystemSetting::set('bank_account_number', trim($accNum), 'string', 'banking');
-        if (isset($bk['swift_code'])) SystemSetting::set('bank_swift_code', trim($bk['swift_code']), 'string', 'banking');
-        $branch = $bk['branch_name'] ?? ($bk['branch'] ?? null);
-        if ($branch !== null) SystemSetting::set('bank_branch', trim($branch), 'string', 'banking');
-        if (isset($bk['bank_address'])) SystemSetting::set('bank_address', trim($bk['bank_address']), 'string', 'banking');
-        if (isset($bk['routing_number'])) SystemSetting::set('bank_routing_number', trim($bk['routing_number']), 'string', 'banking');
-        if (isset($bk['currency'])) SystemSetting::set('bank_currency', trim($bk['currency']), 'string', 'banking');
+        $rawProfiles = $validated['bank_profiles'] ?? ($bk['profiles'] ?? null);
+
+        if ($rawProfiles !== null) {
+            if (empty($rawProfiles)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'At least one beneficiary bank profile must be configured.',
+                    'errors' => [
+                        'bank_profiles' => ['At least one beneficiary bank profile is required.'],
+                    ],
+                ], 422);
+            }
+
+            $processedProfiles = [];
+            $activeCurrencies = [];
+            $hasDefaultActive = false;
+
+            foreach ($rawProfiles as $index => $prof) {
+                if (!is_array($prof)) continue;
+
+                $bankName = trim($prof['bank_name'] ?? '');
+                $accNum = trim($prof['account_number'] ?? ($prof['account_no'] ?? ''));
+                $accTitle = trim($prof['account_title'] ?? ($prof['account_name'] ?? ($prof['beneficiary_name'] ?? '')));
+                $rawCurrency = strtoupper(trim($prof['currency'] ?? 'USD'));
+
+                if (empty($bankName) || empty($accNum)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Each bank profile must have a valid Bank Name and Account Number.',
+                        'errors' => [
+                            "bank_profiles.{$index}" => ['Bank Name and Account Number are required.'],
+                        ],
+                    ], 422);
+                }
+
+                if (!in_array($rawCurrency, DocumentHelper::SUPPORTED_CURRENCIES, true)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "Currency '{$rawCurrency}' is not supported. Supported currencies are: " . implode(', ', DocumentHelper::SUPPORTED_CURRENCIES),
+                        'errors' => [
+                            "bank_profiles.{$index}.currency" => ['Unsupported currency code.'],
+                        ],
+                    ], 422);
+                }
+
+                $isActive = isset($prof['is_active']) ? (bool) $prof['is_active'] : true;
+                $isDefault = isset($prof['is_default']) ? (bool) $prof['is_default'] : false;
+
+                if ($isActive) {
+                    if (in_array($rawCurrency, $activeCurrencies, true)) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => "Only one active bank profile is permitted for currency {$rawCurrency}. Please deactivate duplicates.",
+                            'errors' => [
+                                "bank_profiles.{$index}.currency" => ["Duplicate active profile for currency {$rawCurrency}."],
+                            ],
+                        ], 422);
+                    }
+                    $activeCurrencies[] = $rawCurrency;
+
+                    if ($isDefault) {
+                        $hasDefaultActive = true;
+                    }
+                }
+
+                $id = !empty($prof['id']) ? trim($prof['id']) : ('prof_' . strtolower($rawCurrency) . '_' . Str::random(6));
+                $name = !empty($prof['name']) ? trim($prof['name']) : "{$bankName} ({$rawCurrency} Account)";
+
+                $processedProfiles[] = [
+                    'id' => $id,
+                    'name' => $name,
+                    'bank_name' => $bankName,
+                    'account_title' => $accTitle ?: 'M/S AYAAN  CLOTHING',
+                    'account_name' => $accTitle ?: 'M/S AYAAN  CLOTHING',
+                    'beneficiary_name' => $accTitle ?: 'M/S AYAAN  CLOTHING',
+                    'account_number' => $accNum,
+                    'account_no' => $accNum,
+                    'swift_code' => trim($prof['swift_code'] ?? ''),
+                    'branch' => trim($prof['branch'] ?? ($prof['branch_name'] ?? '')),
+                    'branch_name' => trim($prof['branch'] ?? ($prof['branch_name'] ?? '')),
+                    'bank_address' => trim($prof['bank_address'] ?? ''),
+                    'routing_number' => isset($prof['routing_number']) ? trim($prof['routing_number']) : null,
+                    'currency' => $rawCurrency,
+                    'notes' => isset($prof['notes']) ? trim($prof['notes']) : null,
+                    'is_active' => $isActive,
+                    'is_default' => $isDefault,
+                ];
+            }
+
+            // Ensure exactly one active profile is marked as default
+            if (!$hasDefaultActive) {
+                // If there are active profiles, designate the first active one as default
+                $foundActive = false;
+                foreach ($processedProfiles as &$p) {
+                    if ($p['is_active']) {
+                        $p['is_default'] = true;
+                        $foundActive = true;
+                        break;
+                    }
+                }
+                unset($p);
+
+                if (!$foundActive) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'At least one beneficiary bank profile must be active and designated as the default settlement account.',
+                        'errors' => [
+                            'bank_profiles' => ['At least one bank profile must be active.'],
+                        ],
+                    ], 422);
+                }
+            } else {
+                // Ensure only ONE profile has is_default = true
+                $defaultSeen = false;
+                foreach ($processedProfiles as &$p) {
+                    if ($p['is_default']) {
+                        if ($defaultSeen) {
+                            $p['is_default'] = false;
+                        } else {
+                            $defaultSeen = true;
+                        }
+                    }
+                }
+                unset($p);
+            }
+
+            // Find designated default profile and sync to single keys
+            $defaultProfile = null;
+            foreach ($processedProfiles as $p) {
+                if ($p['is_default'] && $p['is_active']) {
+                    $defaultProfile = $p;
+                    break;
+                }
+            }
+            if (!$defaultProfile && !empty($processedProfiles)) {
+                $defaultProfile = $processedProfiles[0];
+            }
+
+            SystemSetting::set('bank_profiles', $processedProfiles, 'json', 'banking');
+
+            if ($defaultProfile) {
+                SystemSetting::set('bank_is_configured', true, 'boolean', 'banking');
+                SystemSetting::set('bank_name', $defaultProfile['bank_name'], 'string', 'banking');
+                SystemSetting::set('bank_account_title', $defaultProfile['account_title'], 'string', 'banking');
+                SystemSetting::set('bank_account_number', $defaultProfile['account_number'], 'string', 'banking');
+                SystemSetting::set('bank_swift_code', $defaultProfile['swift_code'], 'string', 'banking');
+                SystemSetting::set('bank_branch', $defaultProfile['branch'], 'string', 'banking');
+                SystemSetting::set('bank_address', $defaultProfile['bank_address'], 'string', 'banking');
+                if (isset($defaultProfile['routing_number'])) {
+                    SystemSetting::set('bank_routing_number', $defaultProfile['routing_number'], 'string', 'banking');
+                }
+                SystemSetting::set('bank_currency', $defaultProfile['currency'], 'string', 'banking');
+            }
+        } else {
+            // Legacy single bank update
+            if (isset($bk['is_configured'])) SystemSetting::set('bank_is_configured', (bool) $bk['is_configured'], 'boolean', 'banking');
+            if (isset($bk['bank_name'])) SystemSetting::set('bank_name', trim($bk['bank_name']), 'string', 'banking');
+            $accTitle = $bk['account_name'] ?? ($bk['account_title'] ?? null);
+            if ($accTitle !== null) SystemSetting::set('bank_account_title', trim($accTitle), 'string', 'banking');
+            if (isset($bk['beneficiary_name'])) SystemSetting::set('bank_beneficiary_name', trim($bk['beneficiary_name']), 'string', 'banking');
+            $accNum = $bk['account_number'] ?? ($bk['account_no'] ?? null);
+            if ($accNum !== null) SystemSetting::set('bank_account_number', trim($accNum), 'string', 'banking');
+            if (isset($bk['swift_code'])) SystemSetting::set('bank_swift_code', trim($bk['swift_code']), 'string', 'banking');
+            $branch = $bk['branch_name'] ?? ($bk['branch'] ?? null);
+            if ($branch !== null) SystemSetting::set('bank_branch', trim($branch), 'string', 'banking');
+            if (isset($bk['bank_address'])) SystemSetting::set('bank_address', trim($bk['bank_address']), 'string', 'banking');
+            if (isset($bk['routing_number'])) SystemSetting::set('bank_routing_number', trim($bk['routing_number']), 'string', 'banking');
+            if (isset($bk['currency'])) SystemSetting::set('bank_currency', trim($bk['currency']), 'string', 'banking');
+
+            // Sync into default profile in bank_profiles if profiles exist
+            $existingProfiles = SystemSetting::get('bank_profiles', null);
+            if (is_array($existingProfiles) && !empty($existingProfiles)) {
+                foreach ($existingProfiles as &$prof) {
+                    if (!empty($prof['is_default'])) {
+                        if (isset($bk['bank_name'])) $prof['bank_name'] = trim($bk['bank_name']);
+                        if ($accTitle !== null) {
+                            $prof['account_title'] = trim($accTitle);
+                            $prof['account_name'] = trim($accTitle);
+                        }
+                        if ($accNum !== null) {
+                            $prof['account_number'] = trim($accNum);
+                            $prof['account_no'] = trim($accNum);
+                        }
+                        if (isset($bk['swift_code'])) $prof['swift_code'] = trim($bk['swift_code']);
+                        if ($branch !== null) $prof['branch'] = trim($branch);
+                        if (isset($bk['bank_address'])) $prof['bank_address'] = trim($bk['bank_address']);
+                        if (isset($bk['routing_number'])) $prof['routing_number'] = trim($bk['routing_number']);
+                        if (isset($bk['currency'])) $prof['currency'] = strtoupper(trim($bk['currency']));
+                        break;
+                    }
+                }
+                unset($prof);
+                SystemSetting::set('bank_profiles', $existingProfiles, 'json', 'banking');
+            }
+        }
 
         // 5. Document Defaults
         $dd = $validated['document_defaults'] ?? [];
