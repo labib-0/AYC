@@ -114,24 +114,31 @@ class ProductController extends ApiController
             $query->where('product_id', $likeOp, '%' . trim($request->input('product_id')) . '%');
         }
 
-        // Category filter (slug, id, or comma-separated list)
+        // Category filter (slug, id, or comma-separated list - case-insensitive)
         if ($request->filled('category') && $request->input('category') !== 'all') {
-            $categories = array_filter(array_map('trim', explode(',', $request->input('category'))));
+            $categories = array_values(array_unique(array_filter(array_map('trim', explode(',', (string) $request->input('category'))))));
             if (!empty($categories)) {
-                $query->whereHas('categories', function ($q) use ($categories) {
+                $lowerCats = array_map('mb_strtolower', $categories);
+                $query->whereHas('categories', function ($q) use ($categories, $lowerCats) {
                     $q->whereIn('slug', $categories)
+                      ->orWhereIn('name', $categories)
+                      ->orWhereIn(\DB::raw('LOWER(slug)'), $lowerCats)
+                      ->orWhereIn(\DB::raw('LOWER(name)'), $lowerCats)
                       ->orWhereIn('id', array_filter($categories, 'is_numeric'));
                 });
             }
         }
 
-        // Brand filter (slug, id, or comma-separated list)
+        // Brand filter (slug, id, or comma-separated list - case-insensitive)
         if ($request->filled('brand') && $request->input('brand') !== 'all') {
-            $brands = array_filter(array_map('trim', explode(',', $request->input('brand'))));
+            $brands = array_values(array_unique(array_filter(array_map('trim', explode(',', (string) $request->input('brand'))))));
             if (!empty($brands)) {
-                $query->whereHas('brand', function ($q) use ($brands) {
+                $lowerBrands = array_map('mb_strtolower', $brands);
+                $query->whereHas('brand', function ($q) use ($brands, $lowerBrands) {
                     $q->whereIn('slug', $brands)
                       ->orWhereIn('name', $brands)
+                      ->orWhereIn(\DB::raw('LOWER(slug)'), $lowerBrands)
+                      ->orWhereIn(\DB::raw('LOWER(name)'), $lowerBrands)
                       ->orWhereIn('id', array_filter($brands, 'is_numeric'));
                 });
             }
@@ -417,16 +424,22 @@ class ProductController extends ApiController
                 $applyStorefrontFilters = function ($q) use ($brands, $categories, $audiences, $designTypes) {
                     $q->storefrontVisible()->whereNull('deleted_at');
                     if (!empty($brands)) {
-                        $q->whereHas('brand', function ($b) use ($brands) {
+                        $lowerBrands = array_map('mb_strtolower', $brands);
+                        $q->whereHas('brand', function ($b) use ($brands, $lowerBrands) {
                             $b->whereIn('slug', $brands)
                               ->orWhereIn('name', $brands)
+                              ->orWhereIn(\DB::raw('LOWER(slug)'), $lowerBrands)
+                              ->orWhereIn(\DB::raw('LOWER(name)'), $lowerBrands)
                               ->orWhereIn('id', array_filter($brands, 'is_numeric'));
                         });
                     }
                     if (!empty($categories)) {
-                        $q->whereHas('categories', function ($c) use ($categories) {
+                        $lowerCats = array_map('mb_strtolower', $categories);
+                        $q->whereHas('categories', function ($c) use ($categories, $lowerCats) {
                             $c->whereIn('slug', $categories)
                               ->orWhereIn('name', $categories)
+                              ->orWhereIn(\DB::raw('LOWER(slug)'), $lowerCats)
+                              ->orWhereIn(\DB::raw('LOWER(name)'), $lowerCats)
                               ->orWhereIn('id', array_filter($categories, 'is_numeric'));
                         });
                     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { usePointerDragReorder, DragOverTarget } from "./usePointerDragReorder";
 
 export interface PaginationInfo {
@@ -460,12 +460,23 @@ export function useAdminOrderedList<T, C = any>({
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
   const [viewFilter, setViewFilter] = useState<"all" | "pinned">("all");
 
+  const fetchCatalogRef = useRef(fetchCatalog);
+  const getItemIdRef = useRef(getItemId);
+
+  useEffect(() => {
+    fetchCatalogRef.current = fetchCatalog;
+    getItemIdRef.current = getItemId;
+  }, [fetchCatalog, getItemId]);
+
+  // Stable key for excluded IDs so items reference changes alone don't trigger refetch
+  const excludeIdsKey = useMemo(() => items.map((item) => getItemId(item)).join(","), [items, getItemId]);
+
   const refreshCatalog = useCallback(async () => {
-    if (!fetchCatalog) return;
+    if (!fetchCatalogRef.current) return;
     try {
       setIsLoadingCatalog(true);
-      const excludeIds = items.map((item) => getItemId(item));
-      const res = await fetchCatalog({
+      const excludeIds = items.map((item) => getItemIdRef.current(item));
+      const res = await fetchCatalogRef.current({
         search: searchQuery,
         page: currentPage,
         pageSize,
@@ -480,13 +491,13 @@ export function useAdminOrderedList<T, C = any>({
     } finally {
       setIsLoadingCatalog(false);
     }
-  }, [fetchCatalog, items, getItemId, searchQuery, currentPage, pageSize]);
+  }, [excludeIdsKey, searchQuery, currentPage, pageSize]);
 
   useEffect(() => {
-    if (fetchCatalog) {
+    if (fetchCatalogRef.current) {
       refreshCatalog();
     }
-  }, [fetchCatalog, refreshCatalog]);
+  }, [refreshCatalog]);
 
   const handleSearchChange = useCallback((query: string) => {
     setSearchQuery(query);

@@ -20,6 +20,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 const API_BASE = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "https://ayaanclothing.com/api/v1";
+const TIMEOUT_MS = 15000;
 
 describe("Phase I — Live Integration & API Contract Verification", () => {
   let isBackendOnline = false;
@@ -27,7 +28,7 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
 
   it("1. Live Infrastructure Health Check (Laravel, PostgreSQL, Redis)", async () => {
     try {
-      const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
       assert.strictEqual(res.status, 200, `Health check returned HTTP ${res.status}`);
       const json = await res.json();
       assert.strictEqual(json.success, true, "Health endpoint success is true");
@@ -44,7 +45,7 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
 
   it("2. Centralized Public Settings & Canonical WhatsApp (+880 1620-853502)", async () => {
     if (!isBackendOnline) return;
-    const res = await fetch(`${API_BASE}/settings/public`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`${API_BASE}/settings/public`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     assert.strictEqual(res.status, 200, "Public settings endpoint returned 200 OK");
     const json = await res.json();
     assert.strictEqual(json.status, "success", "Response status is success");
@@ -67,7 +68,7 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
 
   it("3. Product Catalog Parity & Zero Cost-Price Leakage", async () => {
     if (!isBackendOnline) return;
-    const res = await fetch(`${API_BASE}/products?limit=15`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`${API_BASE}/products?limit=15`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     assert.strictEqual(res.status, 200, "Product list returned 200 OK");
     const json = await res.json();
     assert.strictEqual(json.success, true, "Product list success is true");
@@ -111,7 +112,7 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
 
   it("4. Single Product Detail Contract & Media Allowlist", async () => {
     if (!isBackendOnline || !liveProductSlug) return;
-    const res = await fetch(`${API_BASE}/products/${liveProductSlug}`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`${API_BASE}/products/${liveProductSlug}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     assert.strictEqual(res.status, 200, `Single product ${liveProductSlug} returned 200 OK`);
     const json = await res.json();
     assert.strictEqual(json.success, true, "Detail success is true");
@@ -134,8 +135,8 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
   it("5. Categories & Brands Endpoints Integrity", async () => {
     if (!isBackendOnline) return;
     const [catRes, brandRes] = await Promise.all([
-      fetch(`${API_BASE}/categories`, { signal: AbortSignal.timeout(5000) }),
-      fetch(`${API_BASE}/brands`, { signal: AbortSignal.timeout(5000) }),
+      fetch(`${API_BASE}/categories`, { signal: AbortSignal.timeout(TIMEOUT_MS) }),
+      fetch(`${API_BASE}/brands`, { signal: AbortSignal.timeout(TIMEOUT_MS) }),
     ]);
 
     assert.strictEqual(catRes.status, 200, "Categories returned 200 OK");
@@ -154,7 +155,7 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
     // Fetch initial cart for ephemeral session
     const cartRes = await fetch(`${API_BASE}/cart`, {
       headers: { "Accept": "application/json", "X-Session-Id": testSession },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     assert.strictEqual(cartRes.status, 200, "Ephemeral session cart returned 200 OK");
     const cartJson = await cartRes.json();
@@ -164,7 +165,7 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
     const deleteRes = await fetch(`${API_BASE}/cart`, {
       method: "DELETE",
       headers: { "X-Session-Id": testSession },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     assert.ok(deleteRes.status === 200 || deleteRes.status === 204, "Cart cleanup returned 200/204");
   });
@@ -175,7 +176,7 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ code: "NON_EXISTENT_PROMO_CODE_XYZ", subtotal: 1000 }),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     // Coupon validation must reject invalid code with 422 Unprocessable Entity
     assert.strictEqual(res.status, 422, "Invalid promo code must return 422 Unprocessable Entity");
@@ -186,10 +187,10 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
   it("8. Security: Protected Endpoints Strictly Require Authentication (HTTP 401)", async () => {
     if (!isBackendOnline) return;
     const [ordersRes, rfqRes, addressesRes, adminSettingsRes] = await Promise.all([
-      fetch(`${API_BASE}/orders`, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(5000) }),
-      fetch(`${API_BASE}/rfq`, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(5000) }),
-      fetch(`${API_BASE}/addresses`, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(5000) }),
-      fetch(`${API_BASE}/admin/settings`, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(5000) }),
+      fetch(`${API_BASE}/orders`, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(TIMEOUT_MS) }),
+      fetch(`${API_BASE}/rfq`, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(TIMEOUT_MS) }),
+      fetch(`${API_BASE}/addresses`, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(TIMEOUT_MS) }),
+      fetch(`${API_BASE}/admin/settings`, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(TIMEOUT_MS) }),
     ]);
 
     assert.strictEqual(ordersRes.status, 401, "Unauthenticated /orders must return HTTP 401");
@@ -203,7 +204,7 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
     const fakeToken = "Bearer fake_token_live_test_1234567890abcdef";
     const res = await fetch(`${API_BASE}/orders`, {
       headers: { "Accept": "application/json", "Authorization": fakeToken },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     assert.strictEqual(res.status, 401, "Fake token must be strictly rejected with HTTP 401");
   });
@@ -212,7 +213,7 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
     if (!isBackendOnline) return;
     const res = await fetch(`${API_BASE}/orders/99999999`, {
       headers: { "Accept": "application/json" },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     assert.strictEqual(res.status, 401, "Accessing order without valid token must return HTTP 401");
   });

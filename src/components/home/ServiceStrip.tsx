@@ -59,10 +59,10 @@ export default function ServiceStrip() {
     return null;
   }
 
-  // To ensure seamless CSS marquee looping (-50% translation) without empty gaps on ultra-wide screens,
-  // ensure the base list has at least 6-8 entries before duplicating into two identical tracks.
+  // Maintain clean base set without unnecessary repeated content inside the track.
+  // Seamless continuous marquee loop is handled by Set 1 + Set 2 (0% -> -50% translateX).
   const displayItems = [...activeItems];
-  while (displayItems.length < 6 && displayItems.length > 0) {
+  if (displayItems.length === 1) {
     displayItems.push(...activeItems);
   }
 

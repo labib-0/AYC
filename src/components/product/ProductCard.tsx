@@ -174,11 +174,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             <p className="text-[13px] font-body text-muted-foreground font-medium">
               MOQ {effectiveMoq} pcs
             </p>
-            {isSoldOut ? (
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Sold Out
-              </span>
-            ) : isPreorder ? (
+            {isSoldOut ? null : isPreorder ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                 Pre-Order
               </span>

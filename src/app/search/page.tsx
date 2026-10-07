@@ -551,6 +551,8 @@ function SearchResultsContent() {
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
                 {query.trim()
                   ? `SEARCH RESULTS — ${total.toLocaleString()} PRODUCT${total !== 1 ? "S" : ""}`
+                  : selectedBrands.length === 1
+                  ? `${selectedBrands[0].toUpperCase()} COLLECTION — ${total.toLocaleString()} PRODUCT${total !== 1 ? "S" : ""}`
                   : `ALL PRODUCTS — ${total.toLocaleString()} PRODUCT${total !== 1 ? "S" : ""}`}
               </h1>
               <Sparkles size={18} className="text-primary hidden sm:inline-block" />
@@ -697,23 +699,43 @@ function SearchResultsContent() {
                     <>No products match your selected filter criteria. Try clearing one or more filters.</>
                   )}
                 </p>
-                <div className="flex items-center gap-3">
-                  {hasActiveFilters && (
+                <div className="flex items-center justify-center gap-3">
+                  {hasActiveFilters && query.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleClearFilters();
+                        handleClearSearch();
+                      }}
+                      className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-xs"
+                    >
+                      Clear All Criteria
+                    </button>
+                  ) : hasActiveFilters ? (
                     <button
                       type="button"
                       onClick={handleClearFilters}
-                      className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95"
+                      className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-xs"
                     >
                       Clear Filters
                     </button>
+                  ) : query.trim() ? (
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-xs"
+                    >
+                      Clear Search
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleClearFilters}
+                      className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-xs"
+                    >
+                      Reset All
+                    </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={handleClearSearch}
-                    className="px-6 py-2.5 border border-foreground text-foreground text-xs font-bold uppercase tracking-wider rounded-full hover:bg-secondary transition-colors cursor-pointer active:scale-95"
-                  >
-                    Clear Search
-                  </button>
                 </div>
               </div>
             )}

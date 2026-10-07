@@ -188,8 +188,16 @@ export async function getFeaturedProducts(
       // Apply client-side filters if any are active, preserving server ordering
       if (hasSpecificFilters) {
         if (options.brands && options.brands.length > 0) {
-          const brandSet = new Set(options.brands.map((b) => b.toLowerCase()));
-          list = list.filter((p) => p.brand && brandSet.has(p.brand.toLowerCase()));
+          const brandSet = new Set(options.brands.map((b) => b.toLowerCase().trim()));
+          list = list.filter((p) => {
+            const rawBrand = typeof p.brand === "string" ? p.brand : (p.brand as any)?.name || (p as any)?.brandName || "";
+            const pBrand = rawBrand.toLowerCase().trim();
+            const pBrandClean = pBrand.replace(/['’.\s-]/g, "");
+            return Array.from(brandSet).some((b) => {
+              const bClean = b.replace(/^br_/, "").replace(/['’.\s-]/g, "");
+              return pBrand === b || pBrandClean === bClean || pBrand.includes(b) || b.includes(pBrand);
+            });
+          });
         }
         if (options.designTypes && options.designTypes.length > 0) {
           const dtSet = new Set(options.designTypes.map((d) => d.toLowerCase()));

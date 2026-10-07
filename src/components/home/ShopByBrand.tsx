@@ -7,6 +7,7 @@ import { getBrandLogoUrl } from "@/lib/brand-logos";
 import { ChevronDown, SlidersHorizontal, RotateCcw, X, Loader2 } from "lucide-react";
 import BrandLogoTile from "@/components/common/BrandLogoTile";
 import ProductCard from "../product/ProductCard";
+import { ProductCardSkeleton } from "../product/ProductCardSkeleton";
 import GlobalFilterRail from "@/components/common/GlobalFilterRail";
 import { Product } from "@/types";
 import {
@@ -70,6 +71,7 @@ export default function ShopByBrand() {
   const isContinuousModeRef = useRef<boolean>(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const expansionRef = useRef<HTMLDivElement>(null);
+  const collectionBrandRef = useRef<string | null>(null);
 
   useEffect(() => {
     isContinuousModeRef.current = isContinuousMode;
@@ -134,12 +136,21 @@ export default function ShopByBrand() {
     audiences: string[],
     categories: string[]
   ) => {
-    setSelectedBrands(brands);
+    // Brand collection + filter intersection:
+    // If brand array passed is empty but a base collection brand exists, keep base collection brand
+    const effectiveBrands =
+      brands.length > 0
+        ? brands
+        : collectionBrandRef.current
+        ? [collectionBrandRef.current]
+        : [];
+
+    setSelectedBrands(effectiveBrands);
     setSelectedDesignTypes(designTypes);
     setSelectedAudiences(audiences);
     setSelectedCategories(categories);
 
-    if (brands.length === 0) {
+    if (effectiveBrands.length === 0) {
       setProducts([]);
       setTotalCount(0);
       setHasMore(false);
@@ -169,7 +180,7 @@ export default function ShopByBrand() {
         tab: "all",
         offset: 0,
         limit,
-        brands,
+        brands: effectiveBrands,
         designTypes,
         audiences,
         categories,
@@ -192,18 +203,25 @@ export default function ShopByBrand() {
 
   // Brand tile click handler: Multi-selection with inline expansion, NO REDIRECTION
   const handleBrandClick = (brandName: string) => {
-    const isAlreadySelected = selectedBrands.includes(brandName);
+    const brandLower = brandName.toLowerCase();
+    const isAlreadySelected = selectedBrands.some(
+      (b) => b.toLowerCase() === brandLower
+    );
     const nextBrands = isAlreadySelected
-      ? selectedBrands.filter((b) => b !== brandName)
+      ? selectedBrands.filter((b) => b.toLowerCase() !== brandLower)
       : [...selectedBrands, brandName];
 
-    setSelectedBrands(nextBrands);
-
     if (nextBrands.length === 0) {
+      collectionBrandRef.current = null;
       handleClearAll();
       return;
     }
 
+    if (!collectionBrandRef.current) {
+      collectionBrandRef.current = brandName;
+    }
+
+    setSelectedBrands(nextBrands);
     notifyExplorerActive("shop-by-brand", "open");
     handleFilterUpdate(nextBrands, selectedDesignTypes, selectedAudiences, selectedCategories);
 
@@ -356,6 +374,7 @@ export default function ShopByBrand() {
 
   // Clear / Reset all filters and collapse inline area
   const handleClearAll = () => {
+    collectionBrandRef.current = null;
     setSelectedBrands([]);
     setSelectedDesignTypes([]);
     setSelectedAudiences([]);
@@ -383,8 +402,10 @@ export default function ShopByBrand() {
     val: string
   ) => {
     if (type === "brand") {
-      const next = selectedBrands.filter((b) => b !== val);
+      const valLower = val.toLowerCase();
+      const next = selectedBrands.filter((b) => b.toLowerCase() !== valLower);
       if (next.length === 0) {
+        collectionBrandRef.current = null;
         handleClearAll();
       } else {
         handleFilterUpdate(next, selectedDesignTypes, selectedAudiences, selectedCategories);
@@ -444,7 +465,9 @@ export default function ShopByBrand() {
           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-[repeat(20,minmax(0,1fr))] 2xl:grid-cols-[repeat(20,minmax(0,1fr))] min-[1800px]:grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5 sm:gap-1">
             {visibleBrands.map((brand) => {
               const logoUrl = brand.logo_url || brand.logo || getBrandLogoUrl(brand.name);
-              const isSelected = selectedBrands.includes(brand.name);
+              const isSelected = selectedBrands.some(
+                (b) => b.toLowerCase() === brand.name.toLowerCase() || (brand.slug && b.toLowerCase() === brand.slug.toLowerCase())
+              );
 
               return (
                 <BrandLogoTile
@@ -502,9 +525,13 @@ export default function ShopByBrand() {
                       ? `${selectedBrands[0]} COLLECTION`
                       : `SELECTED BRANDS (${selectedBrands.length})`}
                   </h3>
-                  <span className="text-xs sm:text-[13px] font-medium text-muted-foreground font-sans whitespace-nowrap">
-                    Showing <span className="font-bold text-foreground">{products.length}</span> of {totalCount} items
-                  </span>
+                  {isLoadingInitial ? (
+                    <span className="inline-block w-24 h-3.5 bg-secondary animate-pulse rounded-full align-middle" />
+                  ) : (
+                    <span className="text-xs sm:text-[13px] font-medium text-muted-foreground font-sans whitespace-nowrap">
+                      Showing <span className="font-bold text-foreground">{products.length}</span> of {totalCount} items
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -670,11 +697,16 @@ export default function ShopByBrand() {
               {/* Product Grid Area */}
               <div className="product-column flex-1 min-w-0 w-full">
                 {isLoadingInitial ? (
-                  <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                    <Loader2 className="w-6 h-6 animate-spin text-foreground" />
-                    <span className="text-[13px] font-semibold uppercase tracking-wider font-sans">
-                      Updating brand products...
-                    </span>
+                  <div
+                    className={`grid gap-3 sm:gap-3.5 xl:gap-4 transition-all duration-200 ${
+                      isFilterOpen
+                        ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5"
+                        : "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-6"
+                    }`}
+                  >
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <ProductCardSkeleton key={i} />
+                    ))}
                   </div>
                 ) : products.length > 0 ? (
                   <div

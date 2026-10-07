@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { X, RotateCcw, Search } from "lucide-react";
 import { BrandModel } from "@/services/brand.service";
 import { CategoryModel } from "@/services/category.service";
@@ -67,7 +67,11 @@ export function BrandFilterGrid({
     >
       <div className="grid grid-cols-3 gap-2">
         {brands.map((brand) => {
-          const isSelected = selectedBrands.includes(brand.name);
+          const brandNameLower = brand.name.toLowerCase();
+          const brandSlugLower = (brand.slug || "").toLowerCase();
+          const isSelected = selectedBrands.some(
+            (b) => b.toLowerCase() === brandNameLower || (brandSlugLower && b.toLowerCase() === brandSlugLower)
+          );
           const rawLogo = brand.logo_url || brand.logo;
           const resolvedLogo = getBrandLogoUrl(brand.name, rawLogo) || rawLogo;
 
@@ -101,6 +105,17 @@ export function ProductCategoryFilterScroll({
   selectedCategories: string[];
   onToggleCategory: (name: string) => void;
 }) {
+  // Deduplicate categories by normalized name/slug
+  const uniqueCategories = useMemo(() => {
+    const seen = new Set<string>();
+    return categories.filter((cat) => {
+      const norm = (cat.name || "").trim().toLowerCase();
+      if (!norm || seen.has(norm)) return false;
+      seen.add(norm);
+      return true;
+    });
+  }, [categories]);
+
   return (
     <div
       role="region"
@@ -108,8 +123,10 @@ export function ProductCategoryFilterScroll({
       tabIndex={0}
       className="max-h-[188px] sm:max-h-[192px] overflow-y-auto pr-1 subtle-scrollbar flex flex-wrap gap-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20 rounded-md"
     >
-      {categories.map((cat) => {
-        const isSelected = selectedCategories.includes(cat.name);
+      {uniqueCategories.map((cat: CategoryModel) => {
+        const isSelected = selectedCategories.some(
+          (c) => c.toLowerCase() === cat.name.toLowerCase()
+        );
         return (
           <button
             key={cat.id || cat.name}
@@ -154,8 +171,10 @@ export default function GlobalFilterRail({
     selectedCategories.length;
 
   const toggleBrand = (brandName: string) => {
-    if (selectedBrands.includes(brandName)) {
-      onBrandsChange(selectedBrands.filter((b) => b !== brandName));
+    const brandLower = brandName.toLowerCase();
+    const exists = selectedBrands.some((b) => b.toLowerCase() === brandLower);
+    if (exists) {
+      onBrandsChange(selectedBrands.filter((b) => b.toLowerCase() !== brandLower));
     } else {
       onBrandsChange([...selectedBrands, brandName]);
     }

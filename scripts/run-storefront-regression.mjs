@@ -52,7 +52,8 @@ const STOREFRONT_UNIT_SUITES = [
   "stf-phase-j-commercial-document-normalization.test.ts",
   "stf-phase-k-operational-hardening-and-observability.test.ts",
   "storefront-wide-address-modal.test.ts",
-  "customer-document-center-redesign.test.ts"
+  "customer-document-center-redesign.test.ts",
+  "storefront-ux-refinement.test.ts"
 ];
 
 // 2. Storefront Contract Suites (Mocked / Typed Fixtures)

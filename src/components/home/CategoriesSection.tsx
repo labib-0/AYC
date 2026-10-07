@@ -56,15 +56,23 @@ export default function CategoriesSection() {
     };
   }, []);
 
-  // Filter out any audience items to keep pure product categories
+  // Filter out any audience items and deduplicate pure product categories
   const productCategories = useMemo(() => {
-    return categories.filter(
-      (c) =>
-        !AUDIENCE_IDS.has(String(c.id).toLowerCase()) &&
-        !AUDIENCE_IDS.has(String(c.slug || "").toLowerCase()) &&
-        !AUDIENCE_NAMES.has((c.name || "").toUpperCase()) &&
-        c.is_active !== false
-    );
+    const seen = new Set<string>();
+    return categories
+      .filter(
+        (c) =>
+          !AUDIENCE_IDS.has(String(c.id).toLowerCase()) &&
+          !AUDIENCE_IDS.has(String(c.slug || "").toLowerCase()) &&
+          !AUDIENCE_NAMES.has((c.name || "").toUpperCase()) &&
+          c.is_active !== false
+      )
+      .filter((c) => {
+        const norm = (c.name || "").trim().toLowerCase();
+        if (!norm || seen.has(norm)) return false;
+        seen.add(norm);
+        return true;
+      });
   }, [categories]);
 
   return (

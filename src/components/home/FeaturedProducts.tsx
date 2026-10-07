@@ -561,45 +561,11 @@ export default function FeaturedProducts() {
       <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         {/* ── Header & Main Controls Bar ── */}
         <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          {/* Top Heading: Title & Optional Filter Buttons */}
+          {/* Top Heading */}
           <div>
             <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none">
               FEATURED PRODUCTS
             </h2>
-
-            {/* Optional Mode Filter Buttons directly under FEATURED PRODUCTS */}
-            <div
-              className="mt-2.5 sm:mt-3 flex items-center gap-2 sm:gap-2.5"
-              role="group"
-              aria-label="Featured product filters"
-            >
-              <button
-                type="button"
-                id="featured-filter-best-deals"
-                onClick={() => handleModeToggle("best_deals")}
-                aria-pressed={featuredMode === "best_deals"}
-                className={`inline-flex items-center justify-center px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-[11px] sm:text-[12px] font-sans font-bold uppercase tracking-wider leading-none transition-all duration-150 cursor-pointer min-h-[32px] sm:min-h-[36px] active:scale-[0.98] border ${
-                  featuredMode === "best_deals"
-                    ? "bg-foreground text-background border-foreground shadow-xs"
-                    : "bg-card/90 dark:bg-card/60 hover:bg-secondary/70 dark:hover:bg-secondary/60 text-foreground/80 hover:text-foreground border-slate-900/20 dark:border-white/20"
-                }`}
-              >
-                <span>BEST DEALS</span>
-              </button>
-              <button
-                type="button"
-                id="featured-filter-new-arrivals"
-                onClick={() => handleModeToggle("new_arrivals")}
-                aria-pressed={featuredMode === "new_arrivals"}
-                className={`inline-flex items-center justify-center px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-[11px] sm:text-[12px] font-sans font-bold uppercase tracking-wider leading-none transition-all duration-150 cursor-pointer min-h-[32px] sm:min-h-[36px] active:scale-[0.98] border ${
-                  featuredMode === "new_arrivals"
-                    ? "bg-foreground text-background border-foreground shadow-xs"
-                    : "bg-card/90 dark:bg-card/60 hover:bg-secondary/70 dark:hover:bg-secondary/60 text-foreground/80 hover:text-foreground border-slate-900/20 dark:border-white/20"
-                }`}
-              >
-                <span>NEW ARRIVALS</span>
-              </button>
-            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 self-start sm:self-auto">

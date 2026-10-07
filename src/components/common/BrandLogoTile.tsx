@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Tag } from "lucide-react";
 
 export interface BrandLogoTileProps {
   id?: string | number;
@@ -62,9 +61,9 @@ export default function BrandLogoTile({
           onError={() => setImgError(true)}
         />
       ) : (
-        <div className="flex items-center justify-center text-muted-foreground/40">
-          <Tag size={13} strokeWidth={1.5} />
-        </div>
+        <span className="text-[10px] sm:text-[11px] font-display font-bold uppercase tracking-wider text-muted-foreground/80 text-center line-clamp-1 px-1 select-none">
+          {name}
+        </span>
       )}
     </div>
   );
