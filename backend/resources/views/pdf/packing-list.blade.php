@@ -35,7 +35,7 @@
                         <td>
                             <div class="font-bold">{{ $ctn['description'] ?? 'Export Garments' }}</div>
                             @if(!empty($ctn['items_summary']))
-                                <div class="text-muted" style="font-size: 6.5pt;">{{ $ctn['items_summary'] }}</div>
+                                <div class="text-muted" style="font-size: 6.5pt;">{{ is_array($ctn['items_summary']) ? implode(', ', $ctn['items_summary']) : $ctn['items_summary'] }}</div>
                             @endif
                         </td>
                         <td class="text-right font-mono">{{ number_format($ctn['quantity_pcs'] ?? 0) }} pcs</td>
