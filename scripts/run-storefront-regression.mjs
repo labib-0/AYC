@@ -50,7 +50,8 @@ const STOREFRONT_UNIT_SUITES = [
   "whatsapp-authoritative-settings.test.ts",
   "strict-landing-page-pagination.test.ts",
   "stf-phase-j-commercial-document-normalization.test.ts",
-  "stf-phase-k-operational-hardening-and-observability.test.ts"
+  "stf-phase-k-operational-hardening-and-observability.test.ts",
+  "storefront-wide-address-modal.test.ts"
 ];
 
 // 2. Storefront Contract Suites (Mocked / Typed Fixtures)

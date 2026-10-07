@@ -41,21 +41,21 @@ export default function DashboardAddressModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="dashboard-address-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in"
       onClick={() => {
         if (!isSubmitting) onClose();
       }}
     >
       <div
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-xl rounded-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full sm:w-[90vw] md:w-[88vw] lg:w-[85vw] max-w-[1200px] rounded-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/10">
+        <div className="flex items-center justify-between px-6 sm:px-8 py-4 sm:py-5 border-b border-slate-100 dark:border-white/10">
           <div>
             <h3
               id="dashboard-address-modal-title"
-              className="text-base font-bold font-display text-slate-900 dark:text-white"
+              className="text-base sm:text-lg font-bold font-display text-slate-900 dark:text-white"
             >
               {editTarget ? "Edit Shipping Address" : "Add New Shipping Address"}
             </h3>
@@ -75,7 +75,7 @@ export default function DashboardAddressModal({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="p-6 overflow-y-auto">
+        <div className="p-6 sm:p-8 overflow-y-auto">
           <AddressForm
             initialData={
               editTarget

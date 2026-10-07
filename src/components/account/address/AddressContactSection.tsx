@@ -35,7 +35,7 @@ export default function AddressContactSection({
         </h4>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
         {/* Contact Person */}
         <div className="space-y-1">
           <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">

@@ -1497,22 +1497,22 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             className="fixed inset-0 bg-ink/40 backdrop-blur-xs z-[238] animate-in fade-in"
             onClick={handleCloseAddressSheet}
           />
-          <div className="fixed inset-0 z-[240] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="fixed inset-0 z-[240] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6">
             <div
-              className="bg-card border border-border/80 w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+              className="bg-card border border-border/80 w-full sm:w-[90vw] md:w-[88vw] lg:w-[85vw] max-w-[1200px] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Sheet header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div className="flex items-center justify-between px-5 sm:px-6 md:px-8 py-4 sm:py-5 border-b border-border">
                 <div className="flex items-center gap-2.5">
                   <div className={`p-2 rounded-xl ${addressFormMode === "edit" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-primary/10 text-primary"}`}>
                     {addressFormMode === "edit" ? <Pencil size={16} /> : <Plus size={16} />}
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-foreground">
+                    <h3 className="text-sm sm:text-base font-bold text-foreground">
                       {addressFormMode === "edit" ? "Edit Address" : "Add New Address"}
                     </h3>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] sm:text-xs text-muted-foreground">
                       {addressFormMode === "edit"
                         ? `Editing: ${addressFormTarget?.label || addressFormTarget?.name || "Address"}`
                         : "New consignee shipping address"}
@@ -1530,7 +1530,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               </div>
 
               {/* Sheet body — scrollable */}
-              <div className="p-5 max-h-[80vh] overflow-y-auto">
+              <div className="p-5 sm:p-6 md:p-8 max-h-[80vh] overflow-y-auto">
                 {addressFormError && (
                   <div className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-medium flex items-start gap-2 animate-in fade-in">
                     <AlertCircle size={14} className="shrink-0 mt-0.5" />
