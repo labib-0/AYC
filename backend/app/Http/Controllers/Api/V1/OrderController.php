@@ -14,6 +14,7 @@ use App\Models\OrderStatusEvent;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Quotation;
 use App\Exceptions\InsufficientStockException;
 use App\Exceptions\InvalidMoqMultipleException;
 use App\Services\Order\OrderCalculationService;
@@ -1174,5 +1175,300 @@ class OrderController extends ApiController
                 'notice' => 'Carrier live update currently unavailable; showing last recorded milestone.',
             ], 'Recorded tracking status retrieved');
         }
+    }
+
+    /**
+     * GET /api/v1/orders/documents
+     * Customer Document Center: Order-wise Document Grouping + Smart Search
+     */
+    public function documentCenter(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return $this->unauthorized('Unauthenticated.');
+        }
+
+        $isAdmin = $user->isAdmin();
+        $targetUserId = $user->id;
+
+        if ($isAdmin && $request->has('user_id')) {
+            $targetUserId = (int) $request->query('user_id');
+        }
+
+        // Authenticated customer can STRICTLY only query their own orders
+        $ordersQuery = Order::with(['items', 'payments', 'user']);
+        if (!$isAdmin || ($isAdmin && $request->has('user_id'))) {
+            $ordersQuery->where('user_id', $targetUserId);
+        }
+
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') {
+            $isPgsql = config('database.default') === 'pgsql';
+            $likeOp = $isPgsql ? 'ILIKE' : 'LIKE';
+
+            // Clean prefixes like PI-2026-1007 -> 1007, CI-2026-CZPIV -> CZPIV
+            $strippedSearch = trim(preg_replace('/^(PI|CI|INV|ORD|PL|QT)[-_ ]+/i', '', $search));
+            $cleanSuffix = preg_replace('/^(202[4-9])[-_ ]+/i', '', $strippedSearch);
+
+            $ordersQuery->where(function ($q) use ($search, $strippedSearch, $cleanSuffix, $likeOp) {
+                $q->where('order_number', $likeOp, "%{$search}%")
+                  ->orWhere('shipping_name', $likeOp, "%{$search}%")
+                  ->orWhere('email', $likeOp, "%{$search}%");
+
+                if ($strippedSearch !== '' && $strippedSearch !== $search) {
+                    $q->orWhere('order_number', $likeOp, "%{$strippedSearch}%");
+                }
+                if ($cleanSuffix !== '' && $cleanSuffix !== $search && $cleanSuffix !== $strippedSearch) {
+                    $q->orWhere('order_number', $likeOp, "%{$cleanSuffix}%");
+                }
+
+                $q->orWhereHas('user', function ($uq) use ($search, $likeOp) {
+                    $uq->where('name', $likeOp, "%{$search}%")
+                       ->orWhere('company_name', $likeOp, "%{$search}%");
+                });
+            });
+        }
+
+        $docFilter = strtoupper(trim((string) $request->query('filter', 'ALL')));
+        if ($docFilter === 'PACKING') {
+            $ordersQuery->where(function ($pq) {
+                $pq->whereIn('payment_status', ['paid'])
+                   ->orWhereIn('status', ['processing', 'shipped', 'delivered', 'confirmed'])
+                   ->orWhereIn('payment_method', ['net_30', 'net_60', 'terms']);
+            });
+        }
+
+        $perPage = max(1, min(50, (int) $request->query('per_page', 10)));
+        $paginated = $ordersQuery->orderBy('created_at', 'desc')->paginate($perPage);
+
+        $orderGroups = [];
+
+        foreach ($paginated->items() as $order) {
+            if (preg_match('/(\d{4})(\d{4})/', $order->order_number, $m)) {
+                $year = $m[1];
+                $orderNumClean = $m[2];
+            } else {
+                $orderNumClean = preg_replace('/\D/', '', $order->order_number);
+                $orderNumClean = substr($orderNumClean, -4) ?: (string) $order->id;
+                $year = date('Y', strtotime($order->created_at ?: now()));
+            }
+
+            $isPaid = in_array($order->payment_status, ['paid'])
+                || in_array($order->status, ['processing', 'shipped', 'delivered', 'confirmed'])
+                || in_array($order->payment_method, ['net_30', 'net_60', 'terms']);
+
+            $allDocs = [];
+
+            // 1. Proforma Invoice (PI) - always available
+            $allDocs[] = [
+                'id' => "doc_PI_{$order->id}",
+                'doc_type' => 'PROFORMA_INVOICE',
+                'type_name' => 'Proforma Invoice',
+                'badge_code' => 'PI',
+                'reference' => "PI-{$year}-{$orderNumClean}",
+                'date' => $order->created_at ? $order->created_at->format('Y-m-d') : date('Y-m-d'),
+                'date_formatted' => $order->created_at ? $order->created_at->format('d M Y') : date('d M Y'),
+                'amount' => (float) $order->total_amount,
+                'currency' => $order->currency ?: 'USD',
+                'source_id' => (string) $order->id,
+                'is_gated' => false,
+            ];
+
+            // 2. Commercial Invoice (CI) - available upon payment / order confirmation
+            if ($isPaid) {
+                $allDocs[] = [
+                    'id' => "doc_CI_{$order->id}",
+                    'doc_type' => 'COMMERCIAL_INVOICE',
+                    'type_name' => 'Commercial Invoice',
+                    'badge_code' => 'CI',
+                    'reference' => "CI-{$year}-{$orderNumClean}",
+                    'date' => $order->created_at ? $order->created_at->format('Y-m-d') : date('Y-m-d'),
+                    'date_formatted' => $order->created_at ? $order->created_at->format('d M Y') : date('d M Y'),
+                    'amount' => (float) $order->total_amount,
+                    'currency' => $order->currency ?: 'USD',
+                    'source_id' => (string) $order->id,
+                    'is_gated' => false,
+                ];
+            }
+
+            // 3. Invoice / Order Invoice (INV) - always available
+            $allDocs[] = [
+                'id' => "doc_INV_{$order->id}",
+                'doc_type' => 'INVOICE',
+                'type_name' => 'Invoice',
+                'badge_code' => 'INV',
+                'reference' => "INV-{$year}-{$orderNumClean}",
+                'date' => $order->created_at ? $order->created_at->format('Y-m-d') : date('Y-m-d'),
+                'date_formatted' => $order->created_at ? $order->created_at->format('d M Y') : date('d M Y'),
+                'amount' => (float) $order->total_amount,
+                'currency' => $order->currency ?: 'USD',
+                'source_id' => (string) $order->id,
+                'is_gated' => false,
+            ];
+
+            // 4. Order Sheet (OS) - always available
+            $allDocs[] = [
+                'id' => "doc_OS_{$order->id}",
+                'doc_type' => 'ORDER_SHEET',
+                'type_name' => 'Order Sheet',
+                'badge_code' => 'OS',
+                'reference' => "ORD-{$year}-{$orderNumClean}",
+                'date' => $order->created_at ? $order->created_at->format('Y-m-d') : date('Y-m-d'),
+                'date_formatted' => $order->created_at ? $order->created_at->format('d M Y') : date('d M Y'),
+                'amount' => (float) ($order->subtotal ?: $order->total_amount),
+                'currency' => $order->currency ?: 'USD',
+                'source_id' => (string) $order->id,
+                'is_gated' => false,
+            ];
+
+            // 5. Packing List (PL) - available upon payment / order confirmation
+            if ($isPaid) {
+                $allDocs[] = [
+                    'id' => "doc_PL_{$order->id}",
+                    'doc_type' => 'PACKING_LIST',
+                    'type_name' => 'Packing List',
+                    'badge_code' => 'PL',
+                    'reference' => "PL-{$year}-{$orderNumClean}",
+                    'date' => $order->created_at ? $order->created_at->format('Y-m-d') : date('Y-m-d'),
+                    'date_formatted' => $order->created_at ? $order->created_at->format('d M Y') : date('d M Y'),
+                    'amount' => null,
+                    'currency' => $order->currency ?: 'USD',
+                    'source_id' => (string) $order->id,
+                    'is_gated' => false,
+                ];
+            }
+
+            // Apply document filter inside the order group (preserves whole order entity)
+            $visibleDocs = $allDocs;
+            if ($docFilter !== 'ALL') {
+                $visibleDocs = array_values(array_filter($allDocs, function ($d) use ($docFilter) {
+                    return match ($docFilter) {
+                        'INVOICES' => in_array($d['doc_type'], ['PROFORMA_INVOICE', 'COMMERCIAL_INVOICE', 'INVOICE']),
+                        'QUOTATIONS' => in_array($d['doc_type'], ['QUOTATION', 'ORDER_SHEET']),
+                        'PACKING' => $d['doc_type'] === 'PACKING_LIST',
+                        default => true,
+                    };
+                }));
+            }
+
+            if (!empty($visibleDocs)) {
+                $customerName = $order->shipping_name ?: ($order->user?->name ?: 'Customer');
+                $companyName = $order->user?->company_name ?: ($order->shipping_snapshot['company_name'] ?? $customerName);
+
+                $orderGroups[] = [
+                    'order' => [
+                        'id' => (string) $order->id,
+                        'order_number' => $order->order_number,
+                        'customer_name' => $customerName,
+                        'company_name' => $companyName,
+                        'order_date' => $order->created_at ? $order->created_at->format('Y-m-d') : date('Y-m-d'),
+                        'order_date_formatted' => $order->created_at ? $order->created_at->format('d M Y') : date('d M Y'),
+                        'total' => (float) $order->total_amount,
+                        'currency' => $order->currency ?: 'USD',
+                        'status' => $order->status ?: 'pending',
+                        'payment_status' => $order->payment_status ?: 'pending',
+                        'total_documents' => count($allDocs),
+                        'visible_documents' => count($visibleDocs),
+                        'is_quote' => false,
+                    ],
+                    'documents' => $visibleDocs,
+                ];
+            }
+        }
+
+        // Include customer standalone/unconverted quotations if page 1 and filter includes quotes
+        if ($paginated->currentPage() === 1 && in_array($docFilter, ['ALL', 'QUOTATIONS'])) {
+            try {
+                $quotesQuery = Quotation::whereNull('converted_order_id');
+                if (!$isAdmin || ($isAdmin && $request->has('user_id'))) {
+                    $quotesQuery->where(function ($qq) use ($targetUserId, $user) {
+                        $qq->where('user_id', $targetUserId);
+                        if (!empty($user->email)) {
+                            $qq->orWhere('buyer_email', $user->email);
+                        }
+                    });
+                }
+
+                if ($search !== '') {
+                    $isPgsql = config('database.default') === 'pgsql';
+                    $likeOp = $isPgsql ? 'ILIKE' : 'LIKE';
+                    $quotesQuery->where(function ($qq) use ($search, $likeOp) {
+                        $qq->where('quotation_number', $likeOp, "%{$search}%")
+                           ->orWhere('buyer_name', $likeOp, "%{$search}%")
+                           ->orWhere('company_name', $likeOp, "%{$search}%")
+                           ->orWhere('buyer_email', $likeOp, "%{$search}%");
+                    });
+                }
+
+                $quotes = $quotesQuery->orderBy('created_at', 'desc')->limit(10)->get();
+
+                foreach ($quotes as $quote) {
+                    $quoteDocs = [
+                        [
+                            'id' => "doc_QT_{$quote->id}",
+                            'doc_type' => 'QUOTATION',
+                            'type_name' => 'Commercial Quotation',
+                            'badge_code' => 'QT',
+                            'reference' => $quote->quotation_number,
+                            'date' => $quote->created_at ? $quote->created_at->format('Y-m-d') : date('Y-m-d'),
+                            'date_formatted' => $quote->created_at ? $quote->created_at->format('d M Y') : date('d M Y'),
+                            'amount' => (float) $quote->grand_total,
+                            'currency' => $quote->currency ?: 'USD',
+                            'source_id' => (string) $quote->id,
+                            'is_gated' => false,
+                        ],
+                    ];
+
+                    if ($quote->status === 'ACCEPTED' || !empty($quote->proforma_invoice_id)) {
+                        $quoteDocs[] = [
+                            'id' => "doc_PI_Q_{$quote->id}",
+                            'doc_type' => 'PROFORMA_INVOICE',
+                            'type_name' => 'Proforma Invoice',
+                            'badge_code' => 'PI',
+                            'reference' => $quote->proforma_invoice_id ?: "PI-2026-" . substr($quote->quotation_number, -4),
+                            'date' => $quote->created_at ? $quote->created_at->format('Y-m-d') : date('Y-m-d'),
+                            'date_formatted' => $quote->created_at ? $quote->created_at->format('d M Y') : date('d M Y'),
+                            'amount' => (float) $quote->grand_total,
+                            'currency' => $quote->currency ?: 'USD',
+                            'source_id' => (string) $quote->id,
+                            'is_gated' => false,
+                        ];
+                    }
+
+                    $orderGroups[] = [
+                        'order' => [
+                            'id' => (string) $quote->id,
+                            'order_number' => $quote->quotation_number,
+                            'customer_name' => $quote->buyer_name ?: ($quote->company_name ?: 'Valued Buyer'),
+                            'company_name' => $quote->company_name ?: ($quote->buyer_name ?: 'Buyer'),
+                            'order_date' => $quote->created_at ? $quote->created_at->format('Y-m-d') : date('Y-m-d'),
+                            'order_date_formatted' => $quote->created_at ? $quote->created_at->format('d M Y') : date('d M Y'),
+                            'total' => (float) $quote->grand_total,
+                            'currency' => $quote->currency ?: 'USD',
+                            'status' => strtolower($quote->status ?: 'ready'),
+                            'payment_status' => 'pending',
+                            'total_documents' => count($quoteDocs),
+                            'visible_documents' => count($quoteDocs),
+                            'is_quote' => true,
+                        ],
+                        'documents' => $quoteDocs,
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // Quotations table optional fallback
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $orderGroups,
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total_orders' => $paginated->total(),
+            ],
+            'message' => 'Customer document groups retrieved successfully',
+        ]);
     }
 }

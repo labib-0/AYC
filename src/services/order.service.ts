@@ -3,6 +3,7 @@ import { generateMockDocument } from "@/lib/mock-data/mock-documents";
 import { getWhatsAppUrl } from "@/config/business-profile";
 import { apiClient } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
+import { OrderDocumentItem, OrderDocumentGroup } from "@/types/b2b";
 
 export interface OrderItemRecord {
   id?: string;
@@ -389,6 +390,193 @@ export class OrderService {
     const activeUser = mockStore.getActiveUser();
     const isAdmin = activeUser?.role === "admin";
     return generateMockDocument(order, docType, isAdmin);
+  }
+
+  /**
+   * Fetch customer document groups (Order-wise Document Center)
+   */
+  async getCustomerDocumentGroups(params?: {
+    search?: string;
+    filter?: string;
+    page?: number;
+    per_page?: number;
+    userId?: string | number;
+  }): Promise<{ data: OrderDocumentGroup[]; meta?: any }> {
+    if (!isFrontendOnly()) {
+      try {
+        const queryParams = new URLSearchParams();
+        if (params?.search) queryParams.set("search", params.search);
+        if (params?.filter) queryParams.set("filter", params.filter);
+        if (params?.page) queryParams.set("page", String(params.page));
+        if (params?.per_page) queryParams.set("per_page", String(params.per_page));
+
+        const queryString = queryParams.toString();
+        const url = `/orders/documents${queryString ? `?${queryString}` : ""}`;
+        const res = await apiClient.get<any>(url);
+
+        if (res && res.data && Array.isArray(res.data)) {
+          return { data: res.data, meta: res.meta };
+        }
+      } catch (err) {
+        console.warn("Failed to fetch order documents from API, falling back to local assembly:", err);
+      }
+    }
+
+    // Offline / Mock Store Assembly
+    const orders = await this.getUserOrders(params?.userId);
+    let groups: OrderDocumentGroup[] = [];
+
+    for (const order of orders) {
+      let year = "2026";
+      let orderNumClean = "";
+      const dateMatch = String(order.order_number).match(/(\d{4})(\d{4})/);
+      if (dateMatch) {
+        year = dateMatch[1];
+        orderNumClean = dateMatch[2];
+      } else {
+        orderNumClean = String(order.order_number).replace(/\D/g, "").slice(-4) || String(order.id);
+        year = order.placed_at ? order.placed_at.slice(0, 4) : "2026";
+      }
+      const isPaid = order.payment_status === "paid" || order.payment_status === "completed" || order.status === "processing" || order.status === "confirmed";
+
+      const allDocs: OrderDocumentItem[] = [];
+
+      // 1. Proforma Invoice (PI)
+      allDocs.push({
+        id: `doc_PI_${order.id}`,
+        doc_type: "PROFORMA_INVOICE",
+        type_name: "Proforma Invoice",
+        badge_code: "PI",
+        reference: `PI-${year}-${orderNumClean}`,
+        date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        amount: order.total_amount,
+        currency: order.currency || "USD",
+        source_id: order.id,
+        is_gated: false,
+      });
+
+      // 2. Commercial Invoice (CI) - paid only
+      if (isPaid) {
+        allDocs.push({
+          id: `doc_CI_${order.id}`,
+          doc_type: "COMMERCIAL_INVOICE",
+          type_name: "Commercial Invoice",
+          badge_code: "CI",
+          reference: `CI-${year}-${orderNumClean}`,
+          date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+          amount: order.total_amount,
+          currency: order.currency || "USD",
+          source_id: order.id,
+          is_gated: false,
+        });
+      }
+
+      // 3. Invoice / Order Invoice (INV)
+      allDocs.push({
+        id: `doc_INV_${order.id}`,
+        doc_type: "INVOICE",
+        type_name: "Invoice",
+        badge_code: "INV",
+        reference: `INV-${year}-${orderNumClean}`,
+        date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        amount: order.total_amount,
+        currency: order.currency || "USD",
+        source_id: order.id,
+        is_gated: false,
+      });
+
+      // 4. Order Sheet (OS)
+      allDocs.push({
+        id: `doc_OS_${order.id}`,
+        doc_type: "ORDER_SHEET",
+        type_name: "Order Sheet",
+        badge_code: "OS",
+        reference: `ORD-${year}-${orderNumClean}`,
+        date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        amount: order.subtotal || order.total_amount,
+        currency: order.currency || "USD",
+        source_id: order.id,
+        is_gated: false,
+      });
+
+      // 5. Packing List (PL) - paid only
+      if (isPaid) {
+        allDocs.push({
+          id: `doc_PL_${order.id}`,
+          doc_type: "PACKING_LIST",
+          type_name: "Packing List",
+          badge_code: "PL",
+          reference: `PL-${year}-${orderNumClean}`,
+          date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+          amount: null,
+          currency: order.currency || "USD",
+          source_id: order.id,
+          is_gated: false,
+        });
+      }
+
+      // Filter inside group
+      let visibleDocs = allDocs;
+      const docFilter = (params?.filter || "ALL").toUpperCase();
+      if (docFilter !== "ALL") {
+        visibleDocs = allDocs.filter((d) => {
+          if (docFilter === "INVOICES") return ["PROFORMA_INVOICE", "COMMERCIAL_INVOICE", "INVOICE"].includes(d.doc_type);
+          if (docFilter === "QUOTATIONS") return ["QUOTATION", "ORDER_SHEET"].includes(d.doc_type as any);
+          if (docFilter === "PACKING") return d.doc_type === "PACKING_LIST";
+          return true;
+        });
+      }
+
+      if (visibleDocs.length > 0) {
+        groups.push({
+          order: {
+            id: order.id,
+            order_number: order.order_number,
+            customer_name: order.shipping_name || (order as any).customer_name || "Valued Buyer",
+            company_name: (order as any).company_name || order.shipping_name || "Valued Buyer",
+            order_date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+            total: order.total_amount,
+            currency: order.currency || "USD",
+            status: order.status || "processing",
+            payment_status: order.payment_status || "pending",
+            total_documents: allDocs.length,
+            visible_documents: visibleDocs.length,
+            is_quote: false,
+          },
+          documents: visibleDocs,
+        });
+      }
+    }
+
+    // Search filter
+    if (params?.search && params.search.trim()) {
+      const q = params.search.toLowerCase().trim();
+      const strippedQ = q.replace(/^(pi|ci|inv|ord|pl|qt)[-_ ]+/i, "").replace(/^(202[4-9])[-_ ]+/i, "");
+
+      groups = groups.filter((g) => {
+        const matchesOrder = g.order.order_number.toLowerCase().includes(q) || (Boolean(strippedQ) && g.order.order_number.toLowerCase().includes(strippedQ));
+        const matchesCustomer = g.order.customer_name.toLowerCase().includes(q);
+        const matchesCompany = (g.order.company_name || "").toLowerCase().includes(q);
+        const matchesDoc = g.documents.some((d) => d.reference.toLowerCase().includes(q) || (Boolean(strippedQ) && d.reference.toLowerCase().includes(strippedQ)));
+        return matchesOrder || matchesCustomer || matchesCompany || matchesDoc;
+      });
+    }
+
+    const perPage = params?.per_page || 10;
+    const page = params?.page || 1;
+    const total = groups.length;
+    const start = (page - 1) * perPage;
+    const paginated = groups.slice(start, start + perPage);
+
+    return {
+      data: paginated,
+      meta: {
+        current_page: page,
+        last_page: Math.ceil(total / perPage) || 1,
+        per_page: perPage,
+        total_orders: total,
+      },
+    };
   }
 
   /**

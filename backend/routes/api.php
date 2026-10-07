@@ -197,6 +197,9 @@ Route::prefix('v1')->group(function () {
     Route::prefix('orders')->group(function () {
         Route::get('/{id}/tracking', [OrderController::class, 'tracking']);
 
+        // Order-wise Document Center (accessible by authenticated customer or admin)
+        Route::get('/documents', [OrderController::class, 'documentCenter'])->middleware('auth:sanctum');
+
         // Strictly customer mutations & customer personal order listing
         Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
             Route::post('/', [OrderController::class, 'store'])->middleware('throttle:checkout-order');
@@ -212,6 +215,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}/documents/{docType}/pdf', [OrderController::class, 'downloadDocumentPdf']);
         });
     });
+
+    // Customer Document Center alias
+    Route::get('/customer/documents', [OrderController::class, 'documentCenter'])->middleware('auth:sanctum');
 
     // Shipping & Real-time Rate Quotes & Settings
     Route::prefix('shipping')->group(function () {

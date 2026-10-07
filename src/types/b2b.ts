@@ -539,3 +539,37 @@ export interface CommercialDocument {
   };
   bank_details?: any;
 }
+
+export interface OrderDocumentItem {
+  id: string;
+  doc_type: CommercialDocType;
+  type_name: string;
+  badge_code: "PI" | "CI" | "INV" | "OS" | "PL" | "QT";
+  reference: string;
+  date: string;
+  date_formatted?: string;
+  amount?: number | null;
+  currency: string;
+  source_id: string;
+  is_gated?: boolean;
+}
+
+export interface OrderDocumentGroup {
+  order: {
+    id: string;
+    order_number: string;
+    customer_name: string;
+    company_name?: string;
+    order_date: string;
+    order_date_formatted?: string;
+    total: number;
+    currency: string;
+    status: string;
+    payment_status?: string;
+    total_documents: number;
+    visible_documents?: number;
+    is_quote?: boolean;
+  };
+  documents: OrderDocumentItem[];
+}
+
