@@ -67,7 +67,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
     }`}>
       {/* Top Image Container (Flush with upper card boundaries) — Canonical 3:4 */}
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-secondary/40 dark:bg-white/5 shrink-0">
-        <Link href={`/products/${product.slug}`} className="block w-full h-full">
+        <Link href={`/products/${product.slug}`} className="block w-full h-full" tabIndex={0} aria-label={product.name}>
           <ProductImageFrame
             src={coverImage}
             alt={imageAlt}
@@ -82,21 +82,6 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
         {/* Global Normalized Promotional Badges (Top Left) */}
         <ProductPromotionBadges product={product} variant="card" />
 
-        {/* Wishlist Button — available for all products including sold-out / zero inventory */}
-        <button
-          type="button"
-          onClick={handleWishlistToggle}
-          className={`absolute bottom-2.5 right-2.5 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-md cursor-pointer ${
-            isWishlisted
-              ? "bg-rose-500 text-white shadow-md scale-105 opacity-100"
-              : "bg-background/85 text-foreground/80 hover:bg-background hover:text-foreground hover:scale-105 opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
-          }`}
-          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          title={isWishlisted ? "Saved to Wishlist" : "Add to Wishlist"}
-        >
-          <Heart size={13} className={isWishlisted ? "fill-current text-white" : ""} />
-        </button>
-
         {/* Actual Brand Logo Overlay (Top Right) */}
         <ProductBrandLogoOverlay
           brandName={typeof product.brand === "string" ? product.brand : (product.brand as any)?.name || "Ayaan"}
@@ -105,8 +90,8 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           size="card"
         />
 
-        {/* Subtle Compact Design Type Indicator (Lower image metadata area) */}
-        <div className="absolute bottom-2.5 left-2.5 z-10 pointer-events-none group-hover:opacity-0 transition-opacity duration-200">
+        {/* Subtle Compact Design Type Indicator (Lower Left image metadata area) */}
+        <div className="absolute bottom-2.5 left-2.5 z-10 pointer-events-none group-hover:opacity-0 group-focus-within:opacity-0 transition-opacity duration-200">
           <ProductBadge
             variant="neutral"
             aria-label={`Design Type: ${
@@ -119,18 +104,46 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           </ProductBadge>
         </div>
 
-        {/* Quick Add Button */}
-        <div className="absolute bottom-0 left-0 w-full p-2.5 sm:p-3 translate-y-5 opacity-0 transition-all duration-400 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] z-10 group-hover:translate-y-0 group-hover:opacity-100">
+        {/* Wishlist Button — independent hit target, bottom-right corner, available for all inventory states */}
+        <button
+          type="button"
+          onClick={handleWishlistToggle}
+          className={`absolute bottom-2.5 right-2.5 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-md cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+            isWishlisted
+              ? "bg-rose-500 text-white shadow-md border border-rose-600 scale-100 opacity-100"
+              : "bg-background/90 dark:bg-slate-900/90 text-foreground/75 hover:text-foreground border border-border/70 hover:border-border hover:bg-background shadow-xs opacity-90 sm:opacity-0 sm:group-hover:opacity-100 group-focus-within:opacity-100 hover:!opacity-100 hover:scale-105"
+          }`}
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          title={isWishlisted ? "Saved to Wishlist" : "Add to Wishlist"}
+        >
+          <Heart size={14} className={isWishlisted ? "fill-current text-white" : ""} />
+        </button>
+
+        {/* Quick Add Button — constrained width leaves separate hit-target for Wishlist */}
+        <div className="absolute bottom-2.5 left-2.5 right-[46px] sm:right-[50px] z-20 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 transition-all duration-300 ease-out pointer-events-none">
           <button
+            type="button"
             disabled={isSoldOut || isOutOfStock}
-            className={`w-full p-2 text-[13px] font-sans font-semibold uppercase tracking-wider transition-all duration-300 backdrop-blur-md rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none shadow-sm ${
+            aria-disabled={isSoldOut || isOutOfStock ? "true" : undefined}
+            aria-label={
+              isSoldOut
+                ? "Sold out - unavailable for purchase"
+                : isOutOfStock
+                ? "Out of stock - unavailable for purchase"
+                : !hasValidPrice
+                ? "Inquire or request quote"
+                : isPreorder
+                ? "Pre-order product"
+                : "Add product to cart"
+            }
+            className={`w-full py-1.5 px-3 text-[12px] sm:text-[12.5px] font-sans font-semibold uppercase tracking-wider transition-all duration-200 backdrop-blur-md rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none shadow-sm pointer-events-auto ${
               isSoldOut || isOutOfStock
-                ? "bg-secondary text-muted-foreground cursor-not-allowed border border-border"
-                : "bg-background/95 text-foreground border border-transparent hover:bg-foreground hover:text-background cursor-pointer"
+                ? "bg-secondary/80 text-muted-foreground/70 border border-border/40 cursor-not-allowed shadow-none"
+                : "bg-background/95 text-foreground border border-border/60 hover:bg-foreground hover:text-background hover:border-foreground cursor-pointer shadow-sm active:scale-[0.98]"
             }`}
             onClick={handleQuickAdd}
           >
-            {isSoldOut ? "Sold Out" : isOutOfStock ? "Out of Stock" : !hasValidPrice ? "Inquire / Quote" : "Quick Add"}
+            {isSoldOut ? "Sold Out" : isOutOfStock ? "Out of Stock" : !hasValidPrice ? "Inquire / Quote" : isPreorder ? "Pre-Order" : "Quick Add"}
           </button>
         </div>
       </div>
@@ -170,21 +183,21 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             </p>
           )}
 
-          <div className="flex items-center justify-between gap-1 mt-0.5">
+          <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
             <p className="text-[13px] font-body text-muted-foreground font-medium">
               MOQ {effectiveMoq} pcs
             </p>
             {isSoldOut ? null : isPreorder ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                Pre-Order
+                · Pre-Order
               </span>
             ) : isOutOfStock ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
-                Out of Stock
+                · Out of Stock
               </span>
             ) : availableMoqs <= 2 ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                Only {availableMoqs} left
+                · Only {availableMoqs} left
               </span>
             ) : null}
           </div>
