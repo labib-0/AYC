@@ -590,30 +590,26 @@ export function generateProductOfferSheetDoc(
     }
   }
 
-  // Build the SINGLE applicable tier row using the same field derivation as before
+  // Build the SINGLE applicable tier row
   const matchedTier = tiers[matchedTierIdx];
   const rangeLabel = matchedTier.maxQuantity
     ? `${matchedTier.minQuantity} – ${matchedTier.maxQuantity} pcs`
-    : `${matchedTier.minQuantity}+ pcs (Bulk Volume)`;
+    : `${matchedTier.minQuantity}+ pcs`;
   const unitPriceFmt = fmtUSD(matchedTier.price);
   const estTotalMin = fmtUSD(matchedTier.price * matchedTier.minQuantity);
-  const savings = matchedTierIdx === 0
-    ? "Standard Tier"
-    : `${Math.round(((basePrice - matchedTier.price) / basePrice) * 100)}% Discount`;
 
   const singleTierRow = [
     `Tier ${matchedTierIdx + 1}`,
     rangeLabel,
     `${unitPriceFmt} / pc`,
     estTotalMin,
-    savings,
     "FOB Dhaka",
   ];
 
   applyAutoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [["Tier", "Order Quantity Range", "Unit Price (USD)", "Min Order Value", "Volume Benefit", "Incoterm"]],
+    head: [["Tier", "Order Quantity Range", "Unit Price (USD)", "Min Order Value", "Incoterm"]],
     body: [singleTierRow],
     theme: "striped",
     headStyles: {
@@ -629,12 +625,11 @@ export function generateProductOfferSheetDoc(
       textColor: [30, 41, 59],
     },
     columnStyles: {
-      0: { cellWidth: 16, fontStyle: "bold" },
-      1: { cellWidth: 42 },
-      2: { cellWidth: 32, fontStyle: "bold", textColor: [15, 23, 42] },
-      3: { cellWidth: 32 },
-      4: { cellWidth: 30, textColor: [22, 101, 52] },
-      5: { cellWidth: 30 },
+      0: { cellWidth: 20, fontStyle: "bold" },
+      1: { cellWidth: 52 },
+      2: { cellWidth: 38, fontStyle: "bold", textColor: [15, 23, 42] },
+      3: { cellWidth: 36 },
+      4: { cellWidth: 36 },
     },
   });
 
