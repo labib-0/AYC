@@ -9,13 +9,13 @@ export type { UserProfile };
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error?: any; user?: any }>;
+  signIn: (email: string, password: string) => Promise<{ error?: any; user?: any; errors?: Record<string, string[]>; status?: number }>;
   signUp: (
     email: string,
     password: string,
     fullName: string,
     options?: { phone?: string; company_name?: string; role?: "customer" | "admin" }
-  ) => Promise<{ error?: any; user?: any }>;
+  ) => Promise<{ error?: any; user?: any; errors?: Record<string, string[]>; status?: number }>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<{ error?: any; user?: any }>;
   refreshSession: () => Promise<void>;
@@ -96,7 +96,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return { user: null };
     } catch (err: any) {
-      return { error: err?.message || err };
+      const firstValidationMsg = err?.errors
+        ? (Object.values(err.errors).flat()[0] as string | undefined)
+        : null;
+      return {
+        error: firstValidationMsg || err?.message || "Sign in failed. Please check your credentials.",
+        errors: err?.errors,
+        status: err?.status,
+      };
     }
   };
 
@@ -122,7 +129,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return { user: null };
     } catch (err: any) {
-      return { error: err?.message || err };
+      const firstValidationMsg = err?.errors
+        ? (Object.values(err.errors).flat()[0] as string | undefined)
+        : null;
+      return {
+        error: firstValidationMsg || err?.message || "Registration failed. Please try again.",
+        errors: err?.errors,
+        status: err?.status,
+      };
     }
   };
 

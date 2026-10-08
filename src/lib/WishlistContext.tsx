@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Product } from "@/types";
-import { wishlistService, WishlistItemData } from "@/services/wishlist.service";
+import { wishlistService, WishlistItemData, BulkAddToCartResult } from "@/services/wishlist.service";
 import { useAuth } from "./AuthContext";
+import { useCart } from "./CartContext";
 import { useRouter } from "next/navigation";
 
 interface WishlistContextType {
@@ -16,12 +17,17 @@ interface WishlistContextType {
   totalWishlistItems: number;
   loading: boolean;
   refreshWishlist: () => Promise<void>;
+  addSelectedToCart: (
+    itemIds: (string | number)[],
+    itemsList?: Array<{ wishlist_item_id?: string | number; product_id?: string | number; quantity?: number }>
+  ) => Promise<BulkAddToCartResult>;
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { refreshCart } = useCart();
   const router = useRouter();
   const [items, setItems] = useState<WishlistItemData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -155,6 +161,25 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addSelectedToCart = useCallback(
+    async (
+      itemIds: (string | number)[],
+      itemsList?: Array<{ wishlist_item_id?: string | number; product_id?: string | number; quantity?: number }>
+    ): Promise<BulkAddToCartResult> => {
+      if (!isCustomer) {
+        redirectToLogin();
+        throw new Error("Please sign in with a customer account to add items to cart.");
+      }
+
+      const result = await wishlistService.addSelectedToCart(itemIds, itemsList);
+      if (result.data?.added_count > 0) {
+        await refreshCart();
+      }
+      return result;
+    },
+    [isCustomer, redirectToLogin, refreshCart]
+  );
+
   return (
     <WishlistContext.Provider
       value={{
@@ -167,6 +192,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         totalWishlistItems: isCustomer ? items.length : 0,
         loading,
         refreshWishlist,
+        addSelectedToCart,
       }}
     >
       {children}

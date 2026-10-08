@@ -88,13 +88,33 @@ class ApiClient {
       return this.getAdminBaseUrl();
     }
     if (typeof window !== "undefined" && window.location) {
-      if (window.location.hostname === "localhost" && this.baseUrl.includes("127.0.0.1")) {
-        return this.baseUrl.replace("127.0.0.1", "localhost");
+      const hostname = window.location.hostname;
+      // Local development environments
+      if (hostname === "localhost" || hostname === "127.0.0.1") {
+        if (this.baseUrl && !this.baseUrl.includes("ayaanclothing.com") && (this.baseUrl.includes("localhost") || this.baseUrl.includes("127.0.0.1"))) {
+          if (hostname === "localhost" && this.baseUrl.includes("127.0.0.1")) {
+            return this.baseUrl.replace("127.0.0.1", "localhost");
+          }
+          if (hostname === "127.0.0.1" && this.baseUrl.includes("localhost")) {
+            return this.baseUrl.replace("localhost", "127.0.0.1");
+          }
+          return this.baseUrl;
+        }
+        return `http://${hostname}:8000/api/v1`;
       }
-      if (window.location.hostname === "127.0.0.1" && this.baseUrl.includes("localhost")) {
-        return this.baseUrl.replace("localhost", "127.0.0.1");
+
+      // Production / Staging / Any remote domain (e.g. ayaanclothing.com):
+      // The browser must NEVER call 127.0.0.1:8000!
+      // If baseUrl is a valid remote URL that doesn't target localhost/127.0.0.1, use it:
+      if (this.baseUrl && !this.baseUrl.includes("localhost") && !this.baseUrl.includes("127.0.0.1")) {
+        return this.baseUrl;
       }
-    } else if (process.env.INTERNAL_API_URL) {
+      // Authoritative fallback: connect to current origin /api/v1 (reverse-proxied by Nginx)
+      return `${window.location.origin}/api/v1`;
+    }
+
+    // Server-side (SSR / Next.js server runtime)
+    if (process.env.INTERNAL_API_URL) {
       let internal = process.env.INTERNAL_API_URL;
       if (internal.endsWith("/")) internal = internal.slice(0, -1);
       if (!internal.includes("/api/v1") && !internal.includes("/api")) {
@@ -102,6 +122,11 @@ class ApiClient {
       }
       return internal;
     }
+
+    if (process.env.NODE_ENV === "production" && (this.baseUrl.includes("localhost") || this.baseUrl.includes("127.0.0.1"))) {
+      return "https://ayaanclothing.com/api/v1";
+    }
+
     return this.baseUrl;
   }
 
@@ -281,17 +306,54 @@ class ApiClient {
         }
 
         // 2. Standard validation error handling (422)
-        if (response.status === 422 && responseData?.errors) {
-          const validation = responseData as ApiValidationError;
+        if (response.status === 422) {
+          const validation = responseData as ApiValidationError | undefined;
+          let validationMsg = validation?.message;
+          if (validation?.errors) {
+            const firstErr = Object.values(validation.errors).flat()[0];
+            if (firstErr) {
+              validationMsg = firstErr;
+            }
+          }
           throw new ApiError(
-            response.status,
-            validation.message || "The given data was invalid.",
-            validation.errors,
+            422,
+            validationMsg || "The given data was invalid.",
+            validation?.errors,
             responseData
           );
         }
 
-        // 3. HARD RULE: Normal errors (403, 404, 429, 500, 502, 503, 504) MUST NOT clear session!
+        // 3. Rate limiting (429)
+        if (response.status === 429) {
+          throw new ApiError(
+            429,
+            responseData?.message || "Too many requests. Please wait a moment and try again.",
+            undefined,
+            responseData
+          );
+        }
+
+        // 4. Access forbidden (403)
+        if (response.status === 403) {
+          throw new ApiError(
+            403,
+            responseData?.message || "Access denied. You do not have permission to perform this action.",
+            undefined,
+            responseData
+          );
+        }
+
+        // 5. Server errors (500-599)
+        if (response.status >= 500 && response.status <= 599) {
+          throw new ApiError(
+            response.status,
+            responseData?.message || "Our server encountered an issue. Please try again shortly.",
+            undefined,
+            responseData
+          );
+        }
+
+        // 6. Generic HTTP failure
         const errorMessage =
           responseData?.message ||
           responseData?.error ||

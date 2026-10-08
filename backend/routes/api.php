@@ -237,6 +237,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [WishlistController::class, 'store']);
         Route::post('/items', [WishlistController::class, 'store']);
         Route::post('/toggle', [WishlistController::class, 'toggle']);
+        Route::post('/add-selected-to-cart', [WishlistController::class, 'addSelectedToCart']);
         Route::delete('/{productId}', [WishlistController::class, 'destroy']);
         Route::delete('/items/{productId}', [WishlistController::class, 'destroy']);
     });

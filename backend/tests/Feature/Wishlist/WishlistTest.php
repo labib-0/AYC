@@ -393,4 +393,206 @@ class WishlistTest extends TestCase
         $this->assertEquals(2, $getRes->json('data.items_count'));
         $this->assertCount(2, $getRes->json('data.items'));
     }
+
+    public function test_customer_can_bulk_add_multiple_eligible_wishlist_items_to_cart(): void
+    {
+        $user = $this->createCustomer();
+
+        $prod1 = $this->createVisibleProduct(['name' => 'Product 1', 'stock' => 100, 'moq' => 10]);
+        $prod2 = $this->createVisibleProduct(['name' => 'Product 2', 'stock' => 80, 'moq' => 5]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist', ['product_id' => $prod1->id]);
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist', ['product_id' => $prod2->id]);
+
+        $wishlist = Wishlist::where('user_id', $user->id)->first();
+        $itemIds = $wishlist->items->pluck('id')->all();
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist/add-selected-to-cart', [
+            'wishlist_item_ids' => $itemIds,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'added_count' => 2,
+                    'unavailable_count' => 0,
+                ],
+            ]);
+
+        // Items must remain in wishlist
+        $this->assertEquals(2, $wishlist->fresh()->items()->count());
+
+        // Check active cart items and quantities (MOQ respected: 10 + 5 = 15)
+        $cart = \App\Models\Cart::where('user_id', $user->id)->first();
+        $this->assertNotNull($cart);
+        $this->assertEquals(2, $cart->items()->count());
+        $this->assertEquals(15, (int) $cart->items()->sum('quantity'));
+    }
+
+    public function test_bulk_add_supports_partial_success_and_skips_unavailable_products(): void
+    {
+        $user = $this->createCustomer();
+
+        $prodAvailable1 = $this->createVisibleProduct(['name' => 'Item A (Available)', 'stock' => 50, 'moq' => 10]);
+        $prodAvailable2 = $this->createVisibleProduct(['name' => 'Item B (Available)', 'stock' => 50, 'moq' => 5]);
+        $prodSoldOut = $this->createVisibleProduct(['name' => 'Item C (Sold Out)', 'stock' => 50, 'is_sold_out' => true]);
+        $prodOutOfStock = $this->createVisibleProduct(['name' => 'Item D (Out of Stock)', 'stock' => 0, 'is_sold_out' => false]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist', ['product_id' => $prodAvailable1->id]);
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist', ['product_id' => $prodAvailable2->id]);
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist', ['product_id' => $prodSoldOut->id]);
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist', ['product_id' => $prodOutOfStock->id]);
+
+        $wishlist = Wishlist::where('user_id', $user->id)->first();
+        $itemIds = $wishlist->items->pluck('id')->all();
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist/add-selected-to-cart', [
+            'wishlist_item_ids' => $itemIds,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'added_count' => 2,
+                    'unavailable_count' => 2,
+                ],
+            ]);
+
+        $this->assertStringContainsString('2 products added to cart', $response->json('message'));
+        $this->assertStringContainsString('2 products are currently unavailable', $response->json('message'));
+
+        // All 4 products must still be in wishlist
+        $this->assertEquals(4, $wishlist->fresh()->items()->count());
+
+        // Cart should contain only the 2 available products
+        $cart = \App\Models\Cart::where('user_id', $user->id)->first();
+        $this->assertEquals(2, $cart->items()->count());
+    }
+
+    public function test_backend_authoritative_revalidation_when_stock_depletes(): void
+    {
+        $user = $this->createCustomer();
+
+        $product = $this->createVisibleProduct(['stock' => 20, 'moq' => 10]);
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist', ['product_id' => $product->id]);
+
+        $wishlist = Wishlist::where('user_id', $user->id)->first();
+        $itemId = $wishlist->items->first()->id;
+
+        // Stock depleted by another customer or admin
+        $product->update(['stock' => 0]);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist/add-selected-to-cart', [
+            'wishlist_item_ids' => [$itemId],
+        ]);
+
+        // Operation should report unavailable and not add to cart
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'data' => [
+                    'added_count' => 0,
+                    'unavailable_count' => 1,
+                ],
+            ]);
+
+        $cart = \App\Models\Cart::where('user_id', $user->id)->first();
+        $this->assertTrue(!$cart || $cart->items()->count() === 0);
+    }
+
+    public function test_inventory_restoration_allows_bulk_add_to_cart(): void
+    {
+        $user = $this->createCustomer();
+
+        $product = $this->createVisibleProduct(['stock' => 0, 'moq' => 10]);
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist', ['product_id' => $product->id]);
+
+        $wishlist = Wishlist::where('user_id', $user->id)->first();
+        $itemId = $wishlist->items->first()->id;
+
+        // Inventory is replenished
+        $product->update(['stock' => 100]);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist/add-selected-to-cart', [
+            'wishlist_item_ids' => [$itemId],
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'added_count' => 1,
+                    'unavailable_count' => 0,
+                ],
+            ]);
+
+        $cart = \App\Models\Cart::where('user_id', $user->id)->first();
+        $this->assertEquals(1, $cart->items()->count());
+        $this->assertEquals(10, (int) $cart->items()->first()->quantity);
+    }
+
+    public function test_customer_isolation_customer_a_cannot_add_customer_b_wishlist_items(): void
+    {
+        $customerA = $this->createCustomer(['email' => 'customerA@example.com']);
+        $customerB = $this->createCustomer(['email' => 'customerB@example.com']);
+
+        $product = $this->createVisibleProduct(['stock' => 50, 'moq' => 10]);
+
+        // Customer B wishlists the product
+        $this->actingAs($customerB, 'sanctum')->postJson('/api/v1/wishlist', ['product_id' => $product->id]);
+        $wishlistB = Wishlist::where('user_id', $customerB->id)->first();
+        $itemBId = $wishlistB->items->first()->id;
+
+        // Customer A attempts to add Customer B's wishlist item ID
+        $response = $this->actingAs($customerA, 'sanctum')->postJson('/api/v1/wishlist/add-selected-to-cart', [
+            'wishlist_item_ids' => [$itemBId],
+        ]);
+
+        // Must fail to add to Customer A's cart and report in failed items
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'data' => [
+                    'added_count' => 0,
+                    'failed' => [
+                        [
+                            'id' => $itemBId,
+                        ],
+                    ],
+                ],
+            ]);
+
+        // Customer A's cart remains empty
+        $cartA = \App\Models\Cart::where('user_id', $customerA->id)->first();
+        $this->assertTrue(!$cartA || $cartA->items()->count() === 0);
+    }
+
+    public function test_adding_existing_cart_item_from_wishlist_increments_quantity(): void
+    {
+        $user = $this->createCustomer();
+        $product = $this->createVisibleProduct(['stock' => 100, 'moq' => 10]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist', ['product_id' => $product->id]);
+        $wishlist = Wishlist::where('user_id', $user->id)->first();
+        $itemId = $wishlist->items->first()->id;
+
+        // First add: adds 10 MOQ units
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist/add-selected-to-cart', [
+            'wishlist_item_ids' => [$itemId],
+        ])->assertStatus(200);
+
+        // Second add: should increment to 20 without duplicating rows
+        $res = $this->actingAs($user, 'sanctum')->postJson('/api/v1/wishlist/add-selected-to-cart', [
+            'wishlist_item_ids' => [$itemId],
+        ]);
+
+        $res->assertStatus(200)->assertJson(['success' => true]);
+
+        $cart = \App\Models\Cart::where('user_id', $user->id)->first();
+        $this->assertEquals(1, $cart->items()->count());
+        $this->assertEquals(20, (int) $cart->items()->first()->quantity);
+    }
 }
+

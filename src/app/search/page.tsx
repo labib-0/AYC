@@ -70,7 +70,7 @@ function SearchResultsContent() {
   const router      = useRouter();
 
   // ── URL params ──────────────────────────────────────────────────────────
-  const query               = searchParams.get("query") || "";
+  const query               = searchParams.get("query") || searchParams.get("q") || "";
   const initialBrandParam   = searchParams.get("brand") || "";
   const initialDesignTypeParam = searchParams.get("designType") || searchParams.get("design_type") || "";
   const initialAudienceParam= searchParams.get("audience") || "";
@@ -549,7 +549,13 @@ function SearchResultsContent() {
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
-                {query.trim()
+                {error && products.length === 0
+                  ? query.trim()
+                    ? `SEARCH RESULTS`
+                    : selectedBrands.length === 1
+                    ? `${selectedBrands[0].toUpperCase()} COLLECTION`
+                    : `ALL PRODUCTS`
+                  : query.trim()
                   ? `SEARCH RESULTS — ${total.toLocaleString()} PRODUCT${total !== 1 ? "S" : ""}`
                   : selectedBrands.length === 1
                   ? `${selectedBrands[0].toUpperCase()} COLLECTION — ${total.toLocaleString()} PRODUCT${total !== 1 ? "S" : ""}`
@@ -683,8 +689,29 @@ function SearchResultsContent() {
                 {/* Loading more — skeleton cards inline with grid */}
                 {loadingMore && <ProductSkeletonRow count={isFilterOpen ? 5 : 6} />}
               </div>
+            ) : error ? (
+              /* Dedicated API ERROR state: Never render 0 products or No Products Found */
+              <div className="w-full py-16 px-4 text-center bg-card rounded-2xl border border-destructive/30 flex flex-col items-center justify-center my-6 shadow-sm animate-in fade-in">
+                <div className="w-14 h-14 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-3.5">
+                  <AlertCircle size={26} />
+                </div>
+                <h3 className="text-lg font-bold font-display uppercase mb-1 text-foreground">
+                  Couldn&apos;t Load Products
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mb-6 leading-relaxed">
+                  We encountered an issue connecting to the catalog. Please check your connection and try again.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-sm"
+                >
+                  <RotateCcw size={14} />
+                  <span>Retry</span>
+                </button>
+              </div>
             ) : (
-              /* Empty state */
+              /* Empty state (SUCCESS + 0 results) */
               <div className="w-full py-16 px-4 text-center bg-card rounded-2xl border border-dashed border-border/80 flex flex-col items-center justify-center my-6 shadow-sm">
                 <div className="w-14 h-14 rounded-full bg-secondary/80 flex items-center justify-center text-muted-foreground mb-3.5">
                   <Search size={24} />
@@ -740,8 +767,8 @@ function SearchResultsContent() {
               </div>
             )}
 
-            {/* Error / retry state */}
-            {error && !loadingMore && (
+            {/* Error / retry state for subsequent pages */}
+            {error && products.length > 0 && !loadingMore && (
               <div className="flex flex-col items-center gap-3 py-8 text-center animate-in fade-in">
                 <div className="flex items-center gap-2 text-sm text-destructive font-semibold">
                   <AlertCircle size={16} />

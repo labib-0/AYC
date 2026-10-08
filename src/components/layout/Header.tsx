@@ -312,12 +312,15 @@ function HeaderContent() {
               )}
               <input 
                 type="text"
+                name="q"
+                id="header-desktop-search"
+                autoComplete="off"
                 className={`bg-transparent border-none outline-none w-full text-[13px] focus:ring-0 ${
                   isSearchOpen 
                     ? "text-slate-900 placeholder:text-slate-400 font-medium pr-2" 
                     : "text-white placeholder:text-white/50"
                 }`}
-                placeholder={isSearchOpen ? "Search apparel, brand, or collection..." : "Search products..."}
+                placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchOpen(true)}
@@ -572,12 +575,15 @@ function HeaderContent() {
 
                   <input
                     type="text"
+                    name="q"
+                    id="header-mobile-expanded-search"
+                    autoComplete="off"
                     className={`bg-transparent border-none outline-none w-full min-w-0 focus:ring-0 transition-colors text-xs ${
                       isSearchOpen
                         ? "text-slate-900 placeholder:text-slate-400 font-medium pr-1"
                         : "text-white placeholder:text-white/40"
                     }`}
-                    placeholder={isSearchOpen ? "Search apparel, brand..." : "Search products..."}
+                    placeholder="Search products..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setIsSearchOpen(true)}
@@ -677,12 +683,15 @@ function HeaderContent() {
 
               <input
                 type="text"
+                name="q"
+                id="header-mobile-compact-search"
+                autoComplete="off"
                 className={`bg-transparent border-none outline-none w-full focus:ring-0 transition-colors text-[0.8125rem] ${
                   isSearchOpen
                     ? "text-slate-900 placeholder:text-slate-400 font-medium pr-1"
                     : "text-white placeholder:text-white/50"
                 }`}
-                placeholder={isSearchOpen ? "Search apparel, brand..." : "Search products..."}
+                placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchOpen(true)}
