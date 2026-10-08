@@ -228,7 +228,7 @@ export default function Footer() {
                   <>
                     <li><Link href="/search?brand=Nike" className="hover:text-white transition-colors">Nike</Link></li>
                     <li><Link href="/search?brand=Adidas" className="hover:text-white transition-colors">Adidas</Link></li>
-                    <li><Link href="search?brand=Levi%27s" className="hover:text-white transition-colors">Levi&apos;s</Link></li>
+                    <li><Link href="/search?brand=Levi%27s" className="hover:text-white transition-colors">Levi&apos;s</Link></li>
                     <li><Link href="/search?brand=Puma" className="hover:text-white transition-colors">Puma</Link></li>
                     <li><Link href="/search?brand=Champion" className="hover:text-white transition-colors">Champion</Link></li>
                     <li><Link href="/search?brand=Zara" className="hover:text-white transition-colors">Zara</Link></li>

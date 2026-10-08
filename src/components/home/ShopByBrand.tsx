@@ -493,14 +493,14 @@ export default function ShopByBrand() {
             <button
               type="button"
               onClick={() => setVisibleCount(allBrands.length)}
-              className="inline-flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors group cursor-pointer focus-visible:outline-none"
-              aria-label="Load more brands"
+              className="inline-flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors group cursor-pointer rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label="View more brands"
             >
               <div className="w-6.5 h-6.5 rounded-full border border-border/80 group-hover:border-foreground/50 bg-card group-hover:bg-secondary/70 flex items-center justify-center transition-all shadow-2xs group-hover:shadow-xs">
                 <ChevronDown size={13} className="transition-transform duration-200 group-hover:translate-y-0.5 text-foreground/70 group-hover:text-foreground" />
               </div>
               <span className="text-[9.5px] font-bold uppercase tracking-widest font-sans">
-                LOAD MORE
+                View More Brands
               </span>
             </button>
           </div>
@@ -708,6 +708,23 @@ export default function ShopByBrand() {
                       <ProductCardSkeleton key={i} />
                     ))}
                   </div>
+                ) : error && products.length === 0 ? (
+                  <div className="text-center py-10 px-4 border border-destructive/30 rounded-2xl bg-card">
+                    <p className="text-[13px] font-bold uppercase tracking-wider text-destructive mb-1 font-sans">
+                      Couldn&apos;t load products.
+                    </p>
+                    <p className="text-[13px] text-muted-foreground mb-4 font-sans">
+                      Please try again.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleFilterUpdate(selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories)}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
+                    >
+                      <RotateCcw size={14} />
+                      <span>Retry</span>
+                    </button>
+                  </div>
                 ) : products.length > 0 ? (
                   <div
                     className={`grid gap-3 sm:gap-3.5 xl:gap-4 transition-all duration-200 ${
@@ -721,19 +738,19 @@ export default function ShopByBrand() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-16 px-4 border border-dashed border-border/80 rounded-2xl">
+                  <div className="text-center py-10 px-4 border border-dashed border-border/80 rounded-2xl">
                     <p className="text-[13px] font-bold uppercase tracking-wider text-foreground mb-1 font-sans">
-                      NO PRODUCTS FOUND
+                      No products found
                     </p>
                     <p className="text-[13px] text-muted-foreground mb-4 font-sans">
-                      Try selecting different brands or clearing your filters.
+                      No products match your selected filters.
                     </p>
                     <button
                       type="button"
                       onClick={handleClearAll}
                       className="px-5 py-2.5 rounded-full text-[13px] font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
                     >
-                      Clear All Filters
+                      Clear Filters
                     </button>
                   </div>
                 )}
@@ -741,7 +758,7 @@ export default function ShopByBrand() {
                 {/* State 1: Manual Load More Mode (!isContinuousMode) */}
                 {!isContinuousMode && (
                   <div className="w-full pt-8 sm:pt-10 flex flex-col items-center justify-center">
-                    {error ? (
+                    {error && products.length > 0 ? (
                       <div className="flex flex-col items-center gap-3 py-2">
                         <span className="text-[13px] font-semibold text-destructive font-sans">
                           {error}

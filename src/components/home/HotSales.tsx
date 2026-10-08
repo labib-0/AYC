@@ -321,7 +321,7 @@ export default function HotSales() {
         {/* Section Heading */}
         <div className="mb-3.5 sm:mb-5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-2">
           <div>
-            <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight">HOT SALE</h2>
+            <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none">HOT SALE</h2>
             <p className="section-subtitle mt-1 sm:mt-1.5">
               Limited-run deals on seasonal knitwear and luxury textiles
             </p>

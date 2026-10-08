@@ -71,7 +71,9 @@ function SearchResultsContent() {
 
   // ── URL params ──────────────────────────────────────────────────────────
   const query               = searchParams.get("query") || searchParams.get("q") || "";
-  const initialBrandParam   = searchParams.get("brand") || "";
+  const brandParam          = searchParams.get("brand") || "";
+  const collectionParam     = searchParams.get("collection") || "";
+  const initialBrandParam   = [brandParam, collectionParam].filter(Boolean).join(",");
   const initialDesignTypeParam = searchParams.get("designType") || searchParams.get("design_type") || "";
   const initialAudienceParam= searchParams.get("audience") || "";
   const initialCategoryParam= searchParams.get("category") || "";
@@ -80,9 +82,19 @@ function SearchResultsContent() {
   const initialFilterOpen   = searchParams.get("filterOpen") === "true";
 
   // ── Filter state (4 Distinct Dimensions: Brand, Design Type, Audience, Category) ──
-  const [selectedBrands, setSelectedBrands] = useState<string[]>(() =>
-    initialBrandParam ? initialBrandParam.split(",").map((s) => s.trim()).filter(Boolean) : []
-  );
+  const [selectedBrands, setSelectedBrands] = useState<string[]>(() => {
+    if (!initialBrandParam) return [];
+    const seen = new Set<string>();
+    const brands: string[] = [];
+    initialBrandParam.split(",").map((s) => s.trim()).filter(Boolean).forEach((b) => {
+      const lower = b.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        brands.push(b);
+      }
+    });
+    return brands;
+  });
   const [selectedDesignTypes, setSelectedDesignTypes] = useState<string[]>(() => {
     if (!initialDesignTypeParam) return [];
     return initialDesignTypeParam

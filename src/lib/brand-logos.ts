@@ -51,6 +51,7 @@ export const BRAND_LOGO_MAP: Record<string, string> = {
   "jack & jones": "/brands/jack-and-jones.svg",
   "jack-and-jones": "/brands/jack-and-jones.svg",
   "jack and jones": "/brands/jack-and-jones.svg",
+  "jack-jones": "/brands/jack-and-jones.svg",
   "walmart": "/brands/walmart.png",
   "decathlon": "/brands/decathlon.png",
   "u.s. polo assn.": "/brands/us-polo-assn.png",
@@ -92,16 +93,17 @@ export const BRAND_LOGO_MAP: Record<string, string> = {
 
 /**
  * Resolves the authentic brand logo asset path for a given brand name and explicit logo.
- * Follows Rule 92: The admin-uploaded logo is authoritative.
+ * Follows Rule 92: The admin-uploaded logo is authoritative, with fallback to verified SVG/PNG assets.
  */
 export function getBrandLogoUrl(brandName?: string, explicitLogo?: string): string | null {
+  const norm = explicitLogo?.trim();
   if (
-    explicitLogo &&
-    explicitLogo.trim() !== "" &&
-    !explicitLogo.includes("placeholder") &&
-    !explicitLogo.includes("/brands/generic.png")
+    norm &&
+    !norm.includes("placeholder") &&
+    !norm.includes("/brands/generic.png") &&
+    !norm.includes("mAv2AJEVxxyQRDk9mI0Z6pdK.webp")
   ) {
-    return explicitLogo.trim();
+    return norm;
   }
   if (!brandName) return null;
   const key = brandName.toLowerCase().trim();

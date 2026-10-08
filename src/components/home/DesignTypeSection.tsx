@@ -18,7 +18,7 @@ export default function DesignTypeSection() {
         {/* DESIGN TYPE Section Heading */}
         <div className="mb-2 sm:mb-2.5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-1">
           <div>
-            <h2 className="text-xl sm:text-2xl font-display font-bold uppercase tracking-tight text-foreground leading-tight">
+            <h2 className="text-xl sm:text-2xl font-display font-bold uppercase tracking-tight text-foreground leading-none">
               DESIGN TYPE
             </h2>
           </div>

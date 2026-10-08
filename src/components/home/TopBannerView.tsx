@@ -133,8 +133,10 @@ export default function TopBannerView({
               </span>
 
               {/* Main Headline: Confident, professional B2B introduction */}
-              <h1 className="text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl xl:text-[1.375rem] font-display font-extrabold uppercase tracking-tight text-foreground leading-[1.2]">
-                {banner.title || "YOUR WHOLESALE APPAREL SOURCING PARTNER"}
+              <h1 className="text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl xl:text-[1.375rem] font-display font-extrabold tracking-tight text-foreground leading-[1.2]">
+                {banner.title === "YOUR WHOLESALE APPAREL SOURCING PARTNER"
+                  ? "Your Wholesale Apparel Sourcing Partner"
+                  : banner.title || "Your Wholesale Apparel Sourcing Partner"}
               </h1>
 
               {/* Supporting Text: Quality apparel for retailers, boutiques & bulk buyers */}
@@ -147,7 +149,7 @@ export default function TopBannerView({
               {/* Action Prompt */}
               {banner.buttonText && (
                 <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-mono font-bold text-primary hover:underline mt-1">
-                  <span>{banner.buttonText}</span>
+                  <span>{banner.buttonText.replace(/^EXPLORE CATALOG/i, "Explore Catalog")}</span>
                 </span>
               )}
             </div>

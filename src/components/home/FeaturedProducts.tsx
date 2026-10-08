@@ -556,7 +556,7 @@ export default function FeaturedProducts() {
     <section
       id="featured"
       ref={sectionRef}
-      className="pt-1.5 sm:pt-2 pb-8 sm:pb-12 bg-background scroll-mt-20"
+      className="pt-5 sm:pt-7 pb-10 sm:pb-14 bg-background scroll-mt-20 border-t border-border/40"
     >
       <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         {/* ── Header & Main Controls Bar ── */}
@@ -613,18 +613,6 @@ export default function FeaturedProducts() {
                 )}
               </button>
 
-              {/* Clear All Filters Button */}
-              {totalActiveFilters > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAllFilters}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-sans font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-border/60 transition-colors cursor-pointer"
-                  aria-label="Clear all active filters"
-                >
-                  <X size={12} />
-                  <span>Clear</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -709,7 +697,7 @@ export default function FeaturedProducts() {
               onClick={handleClearAllFilters}
               className="text-[13px] font-semibold text-primary hover:underline cursor-pointer ml-1"
             >
-              Clear All
+              Clear Filters
             </button>
           </div>
         )}
@@ -764,12 +752,12 @@ export default function FeaturedProducts() {
                 ))}
               </div>
             ) : error && products.length === 0 ? (
-              <div className="text-center py-16 px-4 border border-dashed border-border/80 rounded-2xl">
+              <div className="text-center py-10 px-4 border border-destructive/30 rounded-2xl bg-card">
                 <p className="text-[13px] font-bold uppercase tracking-wider text-destructive mb-1 font-sans">
-                  Unable to load featured products
+                  Couldn&apos;t load products.
                 </p>
                 <p className="text-[13px] text-muted-foreground mb-4 font-sans">
-                  {error}
+                  Please try again.
                 </p>
                 <button
                   type="button"
@@ -797,7 +785,7 @@ export default function FeaturedProducts() {
                         setIsLoadingInitial(false);
                       });
                   }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold uppercase tracking-wider bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
                 >
                   <RotateCcw size={14} />
                   <span>Retry</span>
@@ -832,19 +820,19 @@ export default function FeaturedProducts() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-16 px-4 border border-dashed border-border/80 rounded-2xl">
+              <div className="text-center py-10 px-4 border border-dashed border-border/80 rounded-2xl">
                 <p className="text-[13px] font-bold uppercase tracking-wider text-foreground mb-1 font-sans">
                   {totalActiveFilters > 0
-                    ? "NO MATCHING PRODUCTS FOUND"
+                    ? "No products found"
                     : featuredMode === "best_deals"
-                    ? "NO BEST DEALS FOUND"
+                    ? "No best deals found"
                     : featuredMode === "new_arrivals"
-                    ? "NO NEW ARRIVALS FOUND"
-                    : "NO FEATURED PRODUCTS YET"}
+                    ? "No new arrivals found"
+                    : "No featured products yet"}
                 </p>
                 <p className="text-[13px] text-muted-foreground mb-4 font-sans">
                   {totalActiveFilters > 0
-                    ? "Try changing or clearing your active filters."
+                    ? "No products match your selected filters."
                     : featuredMode === "best_deals"
                     ? "No products with the hot deal tag are currently available."
                     : featuredMode === "new_arrivals"
@@ -857,7 +845,7 @@ export default function FeaturedProducts() {
                     onClick={handleClearAllFilters}
                     className="px-5 py-2.5 rounded-full text-[13px] font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
                   >
-                    Clear All Filters
+                    Clear Filters
                   </button>
                 )}
               </div>
@@ -866,7 +854,7 @@ export default function FeaturedProducts() {
             {/* ── State 1: Manual Load More Mode (!isContinuousMode) (Sections 2, 9, 13, 21, 22, 23) ── */}
             {!isContinuousMode && (
               <div className="w-full pt-8 sm:pt-10 flex flex-col items-center justify-center">
-                {error ? (
+                {error && products.length > 0 ? (
                   <div className="flex flex-col items-center gap-3 py-2">
                     <span className="text-[13px] font-semibold text-destructive font-sans">
                       {error}

@@ -129,9 +129,17 @@ class ProductController extends ApiController
             }
         }
 
-        // Brand filter (slug, id, or comma-separated list - case-insensitive)
+        // Brand / Collection filter (slug, id, or comma-separated list - case-insensitive)
+        $brandInputs = [];
         if ($request->filled('brand') && $request->input('brand') !== 'all') {
-            $brands = array_values(array_unique(array_filter(array_map('trim', explode(',', (string) $request->input('brand'))))));
+            $brandInputs[] = (string) $request->input('brand');
+        }
+        if ($request->filled('collection') && $request->input('collection') !== 'all') {
+            $brandInputs[] = (string) $request->input('collection');
+        }
+        if (!empty($brandInputs)) {
+            $rawBrandString = implode(',', $brandInputs);
+            $brands = array_values(array_unique(array_filter(array_map('trim', explode(',', $rawBrandString)))));
             if (!empty($brands)) {
                 $lowerBrands = array_map('mb_strtolower', $brands);
                 $query->whereHas('brand', function ($q) use ($brands, $lowerBrands) {
@@ -397,7 +405,11 @@ class ProductController extends ApiController
             return array_filter(array_map('trim', explode(',', (string) $input)));
         };
 
-        $brands = $parseFilter($request->input('brand') ?? $request->input('brands'));
+        $rawBrandInputs = array_filter([
+            (string) ($request->input('brand') ?? $request->input('brands') ?? ''),
+            (string) ($request->input('collection') ?? ''),
+        ]);
+        $brands = !empty($rawBrandInputs) ? $parseFilter(implode(',', $rawBrandInputs)) : [];
         $categories = $parseFilter($request->input('category') ?? $request->input('categories'));
         $audiences = array_map('strtoupper', $parseFilter($request->input('audience') ?? $request->input('audiences')));
         $rawDesignTypes = $parseFilter($request->input('design_type') ?? $request->input('designType') ?? $request->input('designTypes'));

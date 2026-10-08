@@ -20,9 +20,9 @@ export const DEFAULT_TOP_BANNER: TopBannerConfig = {
   imageUrl: "/images/homepage-banner.jpg",
   altText: "AYAAN CLOTHING — Your Wholesale Apparel Sourcing Partner",
   eyebrow: "AYAAN CLOTHING",
-  title: "YOUR WHOLESALE APPAREL SOURCING PARTNER",
+  title: "Your Wholesale Apparel Sourcing Partner",
   subtitle: "Quality apparel for retailers, boutiques and bulk buyers, with dependable sourcing and export-ready support.",
-  buttonText: "EXPLORE CATALOG →",
+  buttonText: "Explore Catalog →",
   target: "#featured",
   active: true,
 };

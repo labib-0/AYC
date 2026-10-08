@@ -15,10 +15,44 @@ export interface BrandLogoTileProps {
   className?: string;
 }
 
+const COMPACT_SQUARE_BRANDS = new Set([
+  "next",
+  "primark",
+  "ovs",
+  "diesel",
+  "m&s",
+  "m-s",
+  "marks & spencer",
+  "lee",
+  "guess",
+  "carhartt",
+  "kappa",
+  "champion",
+  "champions",
+  "columbia",
+  "8 seconds",
+  "8-seconds",
+  "esmara",
+  "sfera",
+  "carry",
+  "tex",
+  "dip",
+  "sada",
+  "kiabi",
+  "mix",
+  "skora",
+  "eddie bauer",
+  "eddie-bauer",
+  "monunent",
+  "5.11",
+  "5-11",
+  "dkny",
+]);
+
 /**
  * BrandLogoTile — Canonical storefront Brand Tile Component
  * Shared across Shop By Brand (homepage) and GlobalFilterRail (catalog filter).
- * Standardized aspect ratio [1.35/1], object-contain logo rendering, and optional filter selection state.
+ * Standardized aspect ratio [1.6/1], object-contain logo rendering, optical scaling for compact logos, and optional filter selection state.
  * Supports crawlable Link element when href is provided.
  */
 export default function BrandLogoTile({
@@ -41,7 +75,11 @@ export default function BrandLogoTile({
       !imgError
   );
 
-  const tileClasses = `group relative flex items-center justify-center aspect-[1.6/1] w-full p-0.5 rounded transition-all duration-200 cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground ${
+  const cleanBrandName = name.toLowerCase().trim();
+  const slugBrandName = cleanBrandName.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const isCompactLogo = COMPACT_SQUARE_BRANDS.has(cleanBrandName) || COMPACT_SQUARE_BRANDS.has(slugBrandName);
+
+  const tileClasses = `group relative flex items-center justify-center aspect-[1.6/1] w-full p-0.5 rounded transition-all duration-200 cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
     isSelected
       ? "ring-1 ring-foreground/40 ring-inset hover:-translate-y-[1px]"
       : "hover:-translate-y-[1px]"
@@ -55,13 +93,13 @@ export default function BrandLogoTile({
           src={logoUrl || undefined}
           alt={`${name} official brand logo`}
           className={`w-auto h-auto max-h-[76%] max-w-[84%] object-contain transition-transform duration-200 group-hover:scale-105 ${
-            isSelected ? "scale-102" : ""
-          }`}
+            isCompactLogo ? "scale-[1.12]" : ""
+          } ${isSelected ? "scale-102" : ""}`}
           loading="lazy"
           onError={() => setImgError(true)}
         />
       ) : (
-        <span className="text-[10px] sm:text-[11px] font-display font-bold uppercase tracking-wider text-muted-foreground/80 text-center line-clamp-1 px-1 select-none">
+        <span className="text-[10px] sm:text-[11px] font-display font-bold uppercase tracking-wider text-muted-foreground/90 text-center line-clamp-1 px-1 select-none">
           {name}
         </span>
       )}
