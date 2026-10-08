@@ -3,7 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import { OrderRecord } from "@/services/order.service";
-import { Package, Truck, CheckCircle2, XCircle, ArrowUpRight } from "lucide-react";
+import { Package, Truck, CheckCircle2, Clock, CreditCard, ArrowUpRight } from "lucide-react";
+import { getCanonicalCustomerStatus } from "@/lib/order-status";
 
 interface OrderOverviewStripProps {
   orders: OrderRecord[];
@@ -12,54 +13,69 @@ interface OrderOverviewStripProps {
 
 export function OrderOverviewStrip({ orders, loading = false }: OrderOverviewStripProps) {
   const allCount = orders.length;
-  const inDeliveryCount = orders.filter(
-    (o) => o.status !== "cancelled" && o.fulfillment_status !== "delivered"
+  const pendingCount = orders.filter(
+    (o) => getCanonicalCustomerStatus(o) === "PAYMENT_PENDING" || getCanonicalCustomerStatus(o) === "ORDER_PLACED"
   ).length;
-  const deliveredCount = orders.filter(
-    (o) => o.fulfillment_status === "delivered" || o.status === "fulfilled"
+  const approvalCount = orders.filter(
+    (o) => getCanonicalCustomerStatus(o) === "WAITING_FOR_APPROVAL"
   ).length;
-  const cancelledCount = orders.filter((o) => o.status === "cancelled").length;
+  const confirmedCount = orders.filter(
+    (o) => getCanonicalCustomerStatus(o) === "ORDER_CONFIRMED"
+  ).length;
+  const shipmentCount = orders.filter(
+    (o) => getCanonicalCustomerStatus(o) === "ON_SHIPMENT"
+  ).length;
 
   const statItems = [
     {
       key: "all",
       label: "All Orders",
       count: allCount,
-      href: "/dashboard/orders?tab=all",
+      href: "/dashboard/orders",
       icon: Package,
       textColor: "text-slate-900 dark:text-white",
       iconColor: "text-slate-400 dark:text-slate-500",
       badgeColor: "bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300",
     },
     {
-      key: "shipped",
-      label: "In Delivery",
-      count: inDeliveryCount,
-      href: "/dashboard/orders?tab=shipped",
-      icon: Truck,
+      key: "PAYMENT_PENDING",
+      label: "Payment Pending",
+      count: pendingCount,
+      href: "/dashboard/orders",
+      icon: CreditCard,
       textColor: "text-amber-600 dark:text-amber-400",
       iconColor: "text-amber-500 dark:text-amber-400",
       badgeColor: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400",
     },
     {
-      key: "delivered",
-      label: "Delivered",
-      count: deliveredCount,
-      href: "/dashboard/orders?tab=delivered",
+      key: "WAITING_FOR_APPROVAL",
+      label: "Waiting for Approval",
+      count: approvalCount,
+      href: "/dashboard/orders",
+      icon: Clock,
+      textColor: "text-sky-600 dark:text-sky-400",
+      iconColor: "text-sky-500 dark:text-sky-400",
+      badgeColor: "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400",
+    },
+    {
+      key: "ORDER_CONFIRMED",
+      label: "Order Confirmed",
+      count: confirmedCount,
+      href: "/dashboard/orders",
       icon: CheckCircle2,
       textColor: "text-emerald-600 dark:text-emerald-400",
       iconColor: "text-emerald-500 dark:text-emerald-400",
       badgeColor: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400",
     },
     {
-      key: "cancelled",
-      label: "Cancelled",
-      count: cancelledCount,
-      href: "/dashboard/orders?tab=cancelled",
-      icon: XCircle,
-      textColor: "text-slate-600 dark:text-slate-400",
-      iconColor: "text-slate-400 dark:text-slate-500",
-      badgeColor: "bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400",
+      key: "ON_SHIPMENT",
+      label: "On Shipment",
+      count: shipmentCount,
+      href: "/dashboard/orders",
+      icon: Truck,
+      textColor: "text-purple-600 dark:text-purple-400",
+      iconColor: "text-purple-500 dark:text-purple-400",
+      badgeColor: "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400",
     },
   ];
 

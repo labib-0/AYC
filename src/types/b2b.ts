@@ -565,6 +565,7 @@ export interface OrderDocumentGroup {
     total: number;
     currency: string;
     status: string;
+    customer_status?: string;
     payment_status?: string;
     total_documents: number;
     visible_documents?: number;

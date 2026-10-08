@@ -38,6 +38,7 @@ import CommercialInvoiceDocument from "@/components/admin/documents/CommercialIn
 import OfferSheetDocument from "@/components/admin/documents/OfferSheetDocument";
 import PackingListDocument from "@/components/admin/documents/PackingListDocument";
 import QuotationDocument from "@/components/admin/documents/QuotationDocument";
+import { getOrderStatusPresentation } from "@/lib/order-status";
 
 // ─── Document Preview Modal ───────────────────────────────────────────────────
 
@@ -258,40 +259,17 @@ function getDocTypeBadge(type: CommercialDocType, badgeCode?: string) {
   }
 }
 
-function getOrderStatusBadge(status: string) {
-  const norm = (status || "pending").toLowerCase();
-  switch (norm) {
-    case "paid":
-    case "completed":
-    case "delivered":
-      return (
-        <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 rounded-full">
-          {status}
-        </span>
-      );
-    case "processing":
-    case "confirmed":
-    case "shipped":
-      return (
-        <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800/60 px-2 py-0.5 rounded-full">
-          {status}
-        </span>
-      );
-    case "cancelled":
-    case "rejected":
-      return (
-        <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/60 px-2 py-0.5 rounded-full">
-          {status}
-        </span>
-      );
-    case "pending":
-    default:
-      return (
-        <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 px-2 py-0.5 rounded-full">
-          {status}
-        </span>
-      );
-  }
+function getOrderStatusBadge(order: any) {
+  const statusPres = getOrderStatusPresentation(order);
+  const StatusIcon = statusPres.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${statusPres.badgeClass}`}
+    >
+      <StatusIcon size={11} className={statusPres.iconClass} />
+      <span>{statusPres.label}</span>
+    </span>
+  );
 }
 
 // ─── Main Document Center Page ────────────────────────────────────────────────
@@ -675,7 +653,7 @@ export default function DocumentCenterPage() {
                         {order.is_quote ? `QUOTE #${order.order_number}` : `ORDER #${order.order_number}`}
                       </span>
 
-                      {getOrderStatusBadge(order.status)}
+                      {getOrderStatusBadge(order)}
 
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
                         <FolderOpen size={11} />

@@ -60,7 +60,8 @@ const STOREFRONT_UNIT_SUITES = [
   "storefront-discovery-and-filters-refinement.test.ts",
   "storefront-pdp-and-pricing-refinement.test.ts",
   "storefront-product-card-and-wishlist-refinement.test.ts",
-  "canonical-customer-order-lifecycle.test.ts"
+  "canonical-customer-order-lifecycle.test.ts",
+  "order-flow-final-regression.test.ts"
 ];
 
 // 2. Storefront Contract Suites (Mocked / Typed Fixtures)

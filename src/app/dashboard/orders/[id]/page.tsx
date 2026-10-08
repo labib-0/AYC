@@ -3,7 +3,7 @@
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
-import { getOrderById, cancelOrder, OrderRecord, OrderItemRecord } from "@/lib/services/orders";
+import { getOrderById, OrderRecord, OrderItemRecord } from "@/lib/services/orders";
 import { uploadPaymentProof, PaymentSubmissionDetails } from "@/lib/services/storage";
 import {
   getOrderStatusPresentation,
@@ -65,11 +65,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
 
-  // Cancellation modal
-  const [cancelModalOpen, setCancelModalOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState("Order placed by mistake");
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [cancelError, setCancelError] = useState<string | null>(null);
+
 
   // Payment proof upload & structured submission
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
@@ -228,25 +224,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
     }
   };
 
-  const handleCancelOrder = async () => {
-    if (!order || !user) return;
-    setIsCancelling(true);
-    setCancelError(null);
-    try {
-      const success = await cancelOrder(order.id, user.id, cancelReason);
-      if (success) {
-        setCancelModalOpen(false);
-        await fetchOrder();
-      } else {
-        setCancelError("Unable to cancel this order. Please contact customer support.");
-      }
-    } catch (err) {
-      console.error("Cancel order error:", err);
-      setCancelError("An unexpected error occurred. Please contact customer support.");
-    } finally {
-      setIsCancelling(false);
-    }
-  };
+
 
   const handleDownloadOfferSheet = (item?: OrderItemRecord) => {
     if (!order) return;
@@ -343,12 +321,6 @@ export default function CustomerOrderDetailPage({ params }: Props) {
   const paymentPres = getPaymentPresentation(order.payment_status);
   const StatusIcon = statusPres.icon;
   const activeStep = getCanonicalStepIndex(canonicalStatus);
-  const isCancelled = order.status === "cancelled";
-  const canCancel =
-    (order.status === "pending" || order.status === "processing") &&
-    order.payment_status !== "paid" &&
-    order.fulfillment_status !== "shipped" &&
-    order.fulfillment_status !== "delivered";
 
   return (
     <div className="space-y-6 pb-12">
@@ -393,7 +365,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <a
               href={getWhatsAppUrl(
-                `Hello, I am inquiring about wholesale order ${order.order_number} (${order.status}).`
+                `Hello, I am inquiring about wholesale order ${order.order_number} (${statusPres.label}).`
               )}
               target="_blank"
               rel="noopener noreferrer"
@@ -410,16 +382,6 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               <RotateCcw size={13} />
               <span>Reorder Items</span>
             </Link>
-
-            {canCancel && (
-              <button
-                type="button"
-                onClick={() => setCancelModalOpen(true)}
-                className="px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer border border-red-200 dark:border-red-800/40"
-              >
-                Cancel Order
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -444,17 +406,6 @@ export default function CustomerOrderDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {isCancelled ? (
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40">
-            <XCircle size={22} className="text-red-500 shrink-0" />
-            <div>
-              <p className="text-sm font-bold text-red-700 dark:text-red-400">Order Cancelled</p>
-              <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
-                This commercial order was cancelled. No manufacturing or freight charges apply.
-              </p>
-            </div>
-          </div>
-        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {CANONICAL_TIMELINE_STAGES.map((step) => {
               const isCompleted = activeStep > step.stepNumber;
@@ -499,7 +450,6 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               );
             })}
           </div>
-        )}
       </div>
 
       {/* ─── 3. ORDER PRODUCTS (Historical Values Only) ────────────────────────── */}
@@ -1322,71 +1272,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* ─── CANCEL ORDER MODAL ─────────────────────────────────────────────── */}
-      {cancelModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
-        >
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-xl border border-slate-200 dark:border-white/10">
-            <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/50 text-red-500 flex items-center justify-center mx-auto mb-3">
-              <XCircle size={24} />
-            </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white text-center">
-              Request Order Cancellation
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-1">
-              Order: <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{order.order_number}</span>
-            </p>
 
-            <div className="mt-4">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Reason for cancellation:
-              </label>
-              <select
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-              >
-                <option value="Order placed by mistake">Order placed by mistake</option>
-                <option value="Changed order specifications or quantities">
-                  Changed order specifications or quantities
-                </option>
-                <option value="Switching shipping destination / freight forwarder">
-                  Switching shipping destination / freight forwarder
-                </option>
-                <option value="Other commercial reason">Other commercial reason</option>
-              </select>
-            </div>
-
-            {cancelError && (
-              <div className="mt-3 p-3 rounded-xl bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 text-xs flex items-center gap-2">
-                <AlertCircle size={14} className="shrink-0" />
-                <span>{cancelError}</span>
-              </div>
-            )}
-
-            <div className="flex gap-2.5 mt-6">
-              <button
-                type="button"
-                onClick={() => setCancelModalOpen(false)}
-                className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300"
-              >
-                Keep Order
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelOrder}
-                disabled={isCancelling}
-                className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs cursor-pointer"
-              >
-                {isCancelling ? "Cancelling..." : "Confirm Cancellation"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
