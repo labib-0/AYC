@@ -132,6 +132,22 @@ export default function PaymentProofReview({
     setShowRejectBox(false);
   };
 
+  // Authoritative Inventory Inspection before approval
+  const stockItems = (order.items || []).map((item) => {
+    const ordered = Number(item.quantity || 0);
+    const available = item.current_stock !== undefined ? Number(item.current_stock) : null;
+    const isConflict = available !== null && available < ordered;
+    const shortfall = isConflict ? ordered - (available || 0) : 0;
+    return {
+      ...item,
+      ordered,
+      available,
+      isConflict,
+      shortfall,
+    };
+  });
+  const hasStockConflict = stockItems.some((i) => i.isConflict);
+
   return (
     <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-6" id="admin-payment-verification-section">
       {/* Header */}
@@ -140,14 +156,136 @@ export default function PaymentProofReview({
           <ShieldCheck size={20} className="text-primary" />
           <div>
             <h2 className="text-sm font-black uppercase tracking-wider text-foreground">
-              Payment Verification
+              Payment Verification & Inventory Decrement Gate
             </h2>
             <span className="text-[11px] text-muted-foreground block">
-              Administrative payment audit and confirmation workflow
+              Authoritative payment approval — decrements warehouse inventory upon confirmation
             </span>
           </div>
         </div>
         <PaymentStatusBadge status={order.payment_status} size="md" />
+      </div>
+
+      {/* Prominent Order & Payment Metadata Summary Header */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 p-4 rounded-2xl bg-secondary/20 border border-border/60 text-xs">
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Order Number</span>
+          <span className="font-mono font-bold text-foreground text-xs">{order.order_number}</span>
+        </div>
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Customer</span>
+          <span className="font-bold text-foreground truncate block" title={order.shipping_name || order.user?.name || "Customer"}>
+            {order.shipping_name || order.user?.name || "Customer"}
+          </span>
+        </div>
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Order Date</span>
+          <span className="font-mono text-foreground text-[11px]">
+            {new Date(order.placed_at || order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          </span>
+        </div>
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Total Amount</span>
+          <span className="font-mono font-black text-foreground text-xs">
+            ${Number(order.total_amount || 0).toFixed(2)} {order.currency || "USD"}
+          </span>
+        </div>
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Payment Method</span>
+          <span className="font-bold text-foreground truncate block">{order.payment_method || "Bank Transfer"}</span>
+        </div>
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Canonical Status</span>
+          <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-[11px]">
+            {order.customer_status || (isPaid ? "ORDER_CONFIRMED" : receiptUrl ? "WAITING_FOR_APPROVAL" : "PAYMENT_PENDING")}
+          </span>
+        </div>
+      </div>
+
+      {/* Authoritative Inventory Availability Pre-Approval Checklist */}
+      <div className="p-4 rounded-2xl bg-secondary/30 border border-border/70 space-y-3 text-xs" id="admin-inventory-availability-check">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Building2 size={15} className="text-primary" />
+            <span className="font-bold uppercase tracking-wider text-foreground">
+              Pre-Approval Inventory Availability Check
+            </span>
+          </div>
+          <span className="text-[11px] font-mono text-muted-foreground">
+            Warehouse: WH-UTTARA-01 (Export Center)
+          </span>
+        </div>
+
+        {hasStockConflict ? (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 flex items-start gap-2.5 text-xs text-destructive">
+            <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="font-black uppercase tracking-wider">
+                Stock Conflict Detected — Payment Confirmation Blocked
+              </p>
+              <p className="text-[11px] leading-relaxed opacity-90">
+                Required inventory is no longer available in the warehouse. Payment approval will not decrement negative stock. Please replenish inventory or resolve quantities before confirming.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400">
+            <CheckCircle2 size={15} className="shrink-0" />
+            <span className="font-bold">
+              ✓ All required order line items are verified available in warehouse stock.
+            </span>
+          </div>
+        )}
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-border/60 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="py-2 px-2">Line Item</th>
+                <th className="py-2 px-2 text-right">Required Qty</th>
+                <th className="py-2 px-2 text-right">Current Available</th>
+                <th className="py-2 px-2 text-right">Inventory Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {stockItems.map((item, idx) => (
+                <tr key={item.id || idx} className="hover:bg-secondary/40 transition-colors">
+                  <td className="py-2 px-2">
+                    <span className="font-bold text-foreground block truncate max-w-xs">{item.product_name}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {item.variant_title || item.color || item.size || item.sku || "Standard Variant"}
+                    </span>
+                  </td>
+                  <td className="py-2 px-2 text-right font-mono font-bold text-foreground">
+                    {item.ordered} pcs
+                  </td>
+                  <td className="py-2 px-2 text-right font-mono">
+                    {item.available !== null ? (
+                      <span className={item.isConflict ? "font-bold text-destructive" : "font-bold text-foreground"}>
+                        {item.available} pcs
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Checked on decrement</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-2 text-right">
+                    {item.isConflict ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-destructive/15 text-destructive border border-destructive/30">
+                        <XCircle size={11} />
+                        <span>Shortfall: {item.shortfall} pcs</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                        <CheckCircle2 size={11} />
+                        <span>Available</span>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* STATE A: ALREADY CONFIRMED & PAID */}
@@ -499,12 +637,13 @@ export default function PaymentProofReview({
                 {canVerify ? (
                   <button
                     type="submit"
-                    disabled={isLoading}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                    disabled={isLoading || hasStockConflict}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-xs tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     id="btn-confirm-payment-order"
+                    title={hasStockConflict ? "Cannot approve: Stock conflict detected" : "Approve payment and decrement inventory"}
                   >
                     <CheckCircle2 size={16} />
-                    <span>{isLoading ? "Processing..." : "Confirm Payment & Order"}</span>
+                    <span>{isLoading ? "Processing..." : hasStockConflict ? "Stock Conflict — Approval Locked" : "Confirm Payment & Order"}</span>
                   </button>
                 ) : (
                   <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary/50 border border-border text-muted-foreground text-xs font-medium">

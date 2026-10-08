@@ -880,6 +880,10 @@ class OrderController extends ApiController
             return $this->forbidden();
         }
 
+        if (strtolower((string) $order->payment_status) === 'paid' || $order->payment_confirmed_at !== null) {
+            return $this->error('Order payment has already been approved and confirmed. Resubmission is not permitted.', 422);
+        }
+
         $request->validate([
             'receipt' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240'],
             'transaction_id' => ['nullable', 'string', 'max:100'],

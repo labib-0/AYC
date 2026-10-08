@@ -9,6 +9,8 @@ export interface OrderToolbarProps {
   dateFrom?: string;
   dateTo?: string;
   onDateChange: (preset: DateFilterPreset, dateFrom?: string, dateTo?: string) => void;
+  customerStatus?: string;
+  onCustomerStatusChange?: (val: string) => void;
   status: string;
   onStatusChange: (val: string) => void;
   paymentStatus: string;
@@ -26,6 +28,8 @@ export default function OrderToolbar({
   dateFrom,
   dateTo,
   onDateChange,
+  customerStatus = "all",
+  onCustomerStatusChange,
   status,
   onStatusChange,
   paymentStatus,
@@ -81,6 +85,24 @@ export default function OrderToolbar({
           dateTo={dateTo}
           onChange={onDateChange}
         />
+
+        {/* Canonical Customer Lifecycle Filter */}
+        {onCustomerStatusChange && (
+          <select
+            value={customerStatus}
+            onChange={(e) => onCustomerStatusChange(e.target.value)}
+            className="px-3 py-2 text-xs rounded-xl border border-primary/30 bg-primary/5 text-foreground font-bold focus:ring-1 focus:ring-primary outline-none cursor-pointer"
+            id="select-canonical-customer-status"
+            aria-label="Filter by Canonical Customer Status"
+          >
+            <option value="all">All Canonical Lifecycles</option>
+            <option value="ORDER_PLACED">Order Placed</option>
+            <option value="PAYMENT_PENDING">Payment Pending</option>
+            <option value="WAITING_FOR_APPROVAL">Waiting for Approval</option>
+            <option value="ORDER_CONFIRMED">Order Confirmed</option>
+            <option value="ON_SHIPMENT">On Shipment</option>
+          </select>
+        )}
 
         {/* Order Status */}
         <select

@@ -561,9 +561,10 @@ class CouponSalesReportTest extends TestCase
             'status'               => 'completed',
             'payment_status'       => 'paid',
         ]);
+        $yesterdayDhaka = \Carbon\Carbon::now(\App\Services\Coupon\CouponSalesReportService::TIMEZONE)->subDay()->setTime(12, 0, 0);
         Order::where('id', $yesterdayOrder->id)->update([
-            'created_at' => now()->subDay()->startOfDay()->addHours(12),
-            'updated_at' => now()->subDay()->startOfDay()->addHours(12),
+            'created_at' => $yesterdayDhaka,
+            'updated_at' => $yesterdayDhaka,
         ]);
 
         $resYesterday = $this->actingAs($this->salesAdminA, 'sanctum')

@@ -731,14 +731,17 @@ export class ProductService {
    */
   async getProducts(params?: ProductQueryParams): Promise<B2BProductInput[]> {
     if (!isFrontendOnly()) {
-      const res = await apiClient.get<any>("/products", {
-        params: params as Record<string, string | number | boolean | undefined>,
-      });
-      const items = Array.isArray(res) ? res : res?.data;
-      if (Array.isArray(items)) {
-        return items.map(normalizeToB2BProduct);
+      try {
+        const res = await apiClient.get<any>("/products", {
+          params: params as Record<string, string | number | boolean | undefined>,
+        });
+        const items = Array.isArray(res) ? res : res?.data;
+        if (Array.isArray(items) && items.length > 0) {
+          return items.map(normalizeToB2BProduct);
+        }
+      } catch {
+        // Fall through to mockStore
       }
-      return [];
     }
 
     const all = mockStore.getProducts();

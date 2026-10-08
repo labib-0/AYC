@@ -43,6 +43,7 @@ class PaymentReceiptVerificationWorkflowTest extends TestCase
 
         $product = Product::factory()->create([
             'name' => 'Premium Cotton Twill Overshirt',
+            'stock' => 500,
             'moq' => 10,
         ]);
 
@@ -181,9 +182,7 @@ class PaymentReceiptVerificationWorkflowTest extends TestCase
                 'account_number' => '1234567890',
                 'payment_amount' => 4255.00,
                 'payment_date' => '2026-09-25',
-                'note' => 'Payment verified against Pubali Bank corporate account credit.',
             ]);
-
         $response->assertOk()
             ->assertJsonPath('data.payment_status', 'paid')
             ->assertJsonPath('data.status', 'processing')

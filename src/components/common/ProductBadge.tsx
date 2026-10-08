@@ -39,7 +39,7 @@ export const BRAND_LOGO_CONTAINER_SURFACE_CLASS =
 
 export interface ProductBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: "neutral" | "hot" | "featured" | "preorder" | "soldout";
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export function ProductBadge({

@@ -151,7 +151,7 @@ export async function getFeaturedProducts(
     const items = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
     const meta = payload?.meta || {};
 
-    if (items.length > 0 || (meta.total !== undefined && meta.total >= 0)) {
+    if (items.length > 0) {
       const products = items.map(toStorefrontProduct);
       const total = typeof meta.total === "number" ? meta.total : products.length;
       const hasMore = meta.has_more !== undefined ? Boolean(meta.has_more) : offset + products.length < total;
@@ -220,11 +220,13 @@ export async function getFeaturedProducts(
         }
       }
 
-      const total = list.length;
-      const sliced = list.slice(offset, offset + limit);
-      const hasMore = offset + sliced.length < total;
+      if (!hasSpecificFilters || list.length > 0) {
+        const total = list.length;
+        const sliced = list.slice(offset, offset + limit);
+        const hasMore = offset + sliced.length < total;
 
-      return { products: sliced, total, hasMore };
+        return { products: sliced, total, hasMore };
+      }
     }
   } catch {
     // Fall through to direct database query

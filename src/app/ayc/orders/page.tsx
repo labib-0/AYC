@@ -36,6 +36,7 @@ export default function AdminOrdersPage() {
   // Filter & Pagination State
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [customerStatus, setCustomerStatus] = useState("all");
   const [status, setStatus] = useState("all");
   const [paymentStatus, setPaymentStatus] = useState("all");
   const [fulfillmentStatus, setFulfillmentStatus] = useState("all");
@@ -111,6 +112,7 @@ export default function AdminOrdersPage() {
           page,
           per_page: PER_PAGE,
           search: search.trim() || undefined,
+          customer_status: customerStatus !== "all" ? customerStatus : undefined,
           status: status !== "all" ? status : undefined,
           payment_status: paymentStatus !== "all" ? paymentStatus : undefined,
           fulfillment_status: fulfillmentStatus !== "all" ? fulfillmentStatus : undefined,
@@ -132,7 +134,7 @@ export default function AdminOrdersPage() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [page, search, status, paymentStatus, fulfillmentStatus, datePreset, dateFrom, dateTo]);
+  }, [page, search, customerStatus, status, paymentStatus, fulfillmentStatus, datePreset, dateFrom, dateTo]);
 
   useEffect(() => {
     loadData();
@@ -146,6 +148,11 @@ export default function AdminOrdersPage() {
 
   const handleSearchChange = (val: string) => {
     setSearch(val);
+    setPage(1);
+  };
+
+  const handleCustomerStatusChange = (val: string) => {
+    setCustomerStatus(val);
     setPage(1);
   };
 
@@ -173,6 +180,7 @@ export default function AdminOrdersPage() {
 
   const handleResetFilters = () => {
     setSearch("");
+    setCustomerStatus("all");
     setStatus("all");
     setPaymentStatus("all");
     setFulfillmentStatus("all");
@@ -206,6 +214,7 @@ export default function AdminOrdersPage() {
 
   const hasFilters =
     search.trim() !== "" ||
+    customerStatus !== "all" ||
     status !== "all" ||
     paymentStatus !== "all" ||
     fulfillmentStatus !== "all" ||
@@ -237,6 +246,8 @@ export default function AdminOrdersPage() {
           dateFrom={dateFrom}
           dateTo={dateTo}
           onDateChange={handleDateChange}
+          customerStatus={customerStatus}
+          onCustomerStatusChange={handleCustomerStatusChange}
           status={status}
           onStatusChange={handleStatusChange}
           paymentStatus={paymentStatus}

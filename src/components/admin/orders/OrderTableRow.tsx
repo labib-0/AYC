@@ -119,8 +119,13 @@ export default function OrderTableRow({
         <FulfillmentStatusBadge status={order.fulfillment_status} size="sm" />
       </td>
 
-      {/* 8. Order Status */}
+      {/* 8. Order Status & Canonical Lifecycle */}
       <td className="py-3 px-4">
+        {order.customer_status && (
+          <span className="block text-[9px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase tracking-tight pb-0.5">
+            {order.customer_status}
+          </span>
+        )}
         <OrderStatusBadge status={order.status} size="sm" />
       </td>
 
@@ -138,10 +143,12 @@ export default function OrderTableRow({
               <button
                 type="button"
                 onClick={() => onReviewPaymentProof(order)}
-                className="p-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 text-[11px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
                 title="Review Payment Proof"
+                id={`btn-review-proof-${order.id}`}
               >
-                <FileCheck size={14} />
+                <FileCheck size={12} />
+                <span>Verify</span>
               </button>
             )}
 

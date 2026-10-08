@@ -518,7 +518,7 @@ class AdminApiTest extends TestCase
         $order = Order::create([
             'order_number' => 'ORD-TRANS-1',
             'status' => 'pending',
-            'payment_status' => 'pending',
+            'payment_status' => 'paid',
             'fulfillment_status' => 'unfulfilled',
             'currency' => 'USD',
             'subtotal' => 100.00,

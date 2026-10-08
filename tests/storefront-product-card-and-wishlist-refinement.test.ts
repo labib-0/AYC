@@ -213,9 +213,9 @@ test("SSR Render: ProductBrandLogoOverlay renders without distortion", () => {
 });
 
 test("SSR Render: ProductBadge supports neutral, preorder, and soldout variants", () => {
-  const neutral = ReactDOMServer.renderToStaticMarkup(React.createElement(ProductBadge, { variant: "neutral", children: "ORIGINAL" }));
+  const neutral = ReactDOMServer.renderToStaticMarkup(React.createElement(ProductBadge, { variant: "neutral" }, "ORIGINAL"));
   assert(neutral.includes("ORIGINAL"), "Renders neutral badge");
-  const soldout = ReactDOMServer.renderToStaticMarkup(React.createElement(ProductBadge, { variant: "soldout", children: "SOLD OUT" }));
+  const soldout = ReactDOMServer.renderToStaticMarkup(React.createElement(ProductBadge, { variant: "soldout" }, "SOLD OUT"));
   assert(soldout.includes("SOLD OUT"), "Renders soldout badge");
 });
 

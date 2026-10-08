@@ -52,6 +52,19 @@ class OrderItemResource extends JsonResource
             $data['buying_price_at_sale'] = $this->buying_price_at_sale !== null ? (float) $this->buying_price_at_sale : null;
             $data['buying_price_at_sale_cents'] = $this->buying_price_at_sale !== null ? (int) round((float) $this->buying_price_at_sale * 100) : null;
             $data['gross_profit'] = $this->buying_price_at_sale !== null ? round(($unitPrice - (float) $this->buying_price_at_sale) * (int) $this->quantity, 2) : null;
+
+            // Authoritative inventory visibility for Admin approval gate
+            $availableStock = 0;
+            if ($this->product_variant_id) {
+                $variant = $this->variant ?? \App\Models\ProductVariant::find($this->product_variant_id);
+                $availableStock = (int) ($variant?->stock ?? 0);
+            } elseif ($this->product_id) {
+                $prod = $this->product ?? \App\Models\Product::find($this->product_id);
+                $availableStock = (int) ($prod?->stock ?? 0);
+            }
+            $data['current_stock'] = $availableStock;
+            $data['stock_available'] = $availableStock >= (int) $this->quantity;
+            $data['stock_shortfall'] = max(0, (int) $this->quantity - $availableStock);
         }
 
         return $data;

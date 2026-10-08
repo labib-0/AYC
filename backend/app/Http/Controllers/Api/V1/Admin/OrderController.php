@@ -65,6 +65,53 @@ class OrderController extends ApiController
             $query->where('payment_method', $request->input('payment_method'));
         }
 
+        // Filter by canonical customer lifecycle status
+        if ($request->filled('customer_status') && $request->input('customer_status') !== 'all') {
+            $cStatus = strtoupper($request->input('customer_status'));
+            match ($cStatus) {
+                'ON_SHIPMENT' => $query->where(function ($q) {
+                    $q->whereIn('fulfillment_status', ['shipped', 'delivered', 'fulfilled', 'partially_shipped'])
+                      ->orWhereIn('status', ['shipped', 'delivered', 'completed', 'partially_shipped', 'on_shipment'])
+                      ->orWhere(function ($q2) {
+                          $q2->whereNotNull('tracking_number')->where('tracking_number', '!=', '')
+                             ->whereNotNull('carrier_status')->where('carrier_status', '!=', '');
+                      });
+                }),
+                'ORDER_CONFIRMED' => $query->where(function ($q) {
+                    $q->where(function ($q2) {
+                        $q2->where('payment_status', 'paid')
+                           ->orWhereNotNull('payment_confirmed_at')
+                           ->orWhereIn('status', ['confirmed', 'in_production', 'ready_to_ship', 'order_confirmed']);
+                    })->whereNotIn('fulfillment_status', ['shipped', 'delivered', 'fulfilled', 'partially_shipped'])
+                      ->whereNotIn('status', ['shipped', 'delivered', 'completed', 'partially_shipped', 'on_shipment']);
+                }),
+                'WAITING_FOR_APPROVAL' => $query->where(function ($q) {
+                    $q->where(function ($q2) {
+                        $q2->where('payment_status', 'payment_submitted')
+                           ->orWhere(function ($q3) {
+                               $q3->whereNotNull('payment_proof_url')
+                                  ->where('payment_proof_url', '!=', '')
+                                  ->whereNotIn('payment_status', ['paid', 'failed']);
+                           })
+                           ->orWhereHas('payments', function ($qp) {
+                               $qp->where('status', 'submitted');
+                           });
+                    })->whereNotIn('payment_status', ['paid'])
+                      ->whereNull('payment_confirmed_at');
+                }),
+                'ORDER_PLACED' => $query->whereIn('status', ['order_placed', 'placed']),
+                'PAYMENT_PENDING' => $query->where(function ($q) {
+                    $q->whereNotIn('status', ['order_placed', 'placed'])
+                      ->whereNotIn('payment_status', ['paid', 'payment_submitted'])
+                      ->whereNull('payment_confirmed_at')
+                      ->where(function ($q2) {
+                          $q2->whereNull('payment_proof_url')->orWhere('payment_proof_url', '');
+                      });
+                }),
+                default => null,
+            };
+        }
+
         // Date range filtering & validation (supports preset: today, yesterday, last_7_days, last_30_days, this_month, last_month, custom, and date_from / date_to)
         $dateFrom = $request->input('date_from', $request->input('start_date'));
         $dateTo = $request->input('date_to', $request->input('end_date'));
@@ -243,6 +290,12 @@ class OrderController extends ApiController
             return $this->forbidden("Forbidden: you do not have the 'order.mark_delivered' permission.");
         }
 
+        // Section 2: Payment Approval Confirmation Gate
+        // Cannot confirm or advance to processing/shipped if payment is not approved (unless commercial credit terms)
+        if (in_array($newStatus, ['processing', 'confirmed', 'shipped'], true) && strtolower((string) $order->payment_status) !== 'paid' && !in_array(strtolower((string) $order->payment_method), ['net_30', 'net_60', 'terms'], true)) {
+            return $this->error("Cannot transition order to '{$newStatus}' before payment approval. Payment must be approved first.", 422);
+        }
+
         if (isset($validTransitions[$oldStatus]) && !in_array($newStatus, $validTransitions[$oldStatus])) {
             return $this->error("Invalid status transition from '{$oldStatus}' to '{$newStatus}'.", 422);
         }
@@ -259,13 +312,33 @@ class OrderController extends ApiController
                             ProductVariant::where('id', $item->product_variant_id)->increment('stock', $item->quantity);
                             $inv = \App\Models\Inventory::where('product_variant_id', $item->product_variant_id)->first();
                             if ($inv) {
+                                $prev = (int) $inv->quantity;
                                 $inv->increment('quantity', $item->quantity);
+                                $newQ = (int) $inv->fresh()->quantity;
+                                \App\Models\AdminInventoryAdjustment::create([
+                                    'inventory_id' => $inv->id,
+                                    'admin_user_id' => $admin->id,
+                                    'previous_quantity' => $prev,
+                                    'adjustment_amount' => (int) $item->quantity,
+                                    'resulting_quantity' => $newQ,
+                                    'reason' => "Order #{$order->order_number} cancelled, stock restored",
+                                ]);
                             }
                         } elseif ($item->product_id) {
                             \App\Models\Product::where('id', $item->product_id)->increment('stock', $item->quantity);
                             $inv = \App\Models\Inventory::where('product_id', $item->product_id)->first();
                             if ($inv) {
+                                $prev = (int) $inv->quantity;
                                 $inv->increment('quantity', $item->quantity);
+                                $newQ = (int) $inv->fresh()->quantity;
+                                \App\Models\AdminInventoryAdjustment::create([
+                                    'inventory_id' => $inv->id,
+                                    'admin_user_id' => $admin->id,
+                                    'previous_quantity' => $prev,
+                                    'adjustment_amount' => (int) $item->quantity,
+                                    'resulting_quantity' => $newQ,
+                                    'reason' => "Order #{$order->order_number} cancelled, stock restored",
+                                ]);
                             }
                         }
                     }
@@ -308,7 +381,7 @@ class OrderController extends ApiController
         })->firstOrFail();
 
         $validated = $request->validate([
-            'fulfillment_status' => ['required', 'string', 'in:unfulfilled,partial,fulfilled'],
+            'fulfillment_status' => ['required', 'string', 'in:unfulfilled,partial,fulfilled,shipped'],
             'tracking_number' => ['nullable', 'string', 'max:100'],
             'carrier' => ['nullable', 'string', 'max:100'],
             'note' => ['nullable', 'string', 'max:500'],
@@ -316,9 +389,17 @@ class OrderController extends ApiController
 
         $admin = $request->user();
 
-        $order->update([
+        $updateData = [
             'fulfillment_status' => $validated['fulfillment_status'],
-        ]);
+        ];
+        if (!empty($validated['tracking_number'])) {
+            $updateData['tracking_number'] = $validated['tracking_number'];
+        }
+        if (!empty($validated['carrier'])) {
+            $updateData['carrier'] = $validated['carrier'];
+        }
+
+        $order->update($updateData);
 
         $msg = "Fulfillment status updated to {$validated['fulfillment_status']}.";
         if (!empty($validated['tracking_number'])) {
@@ -374,38 +455,60 @@ class OrderController extends ApiController
         }
 
         $note = $validated['note'] ?? ($isApprove ? 'Payment verified and approved by accounts team.' : 'Payment proof rejected.');
+        $alreadyProcessed = false;
 
         try {
-            DB::transaction(function () use ($order, $action, $isApprove, $admin, $note, $request) {
-                $latestPayment = $order->payments()->where('status', 'submitted')->latest()->first()
-                    ?? $order->payments()->latest()->first();
-
-                $paymentMethod = $request->input('payment_method')
-                    ?: ($latestPayment?->payment_method ?: ($order->payment_method ?: 'Bank Transfer'));
-
-                $transactionId = $request->input('transaction_id')
-                    ?: ($latestPayment?->transaction_id ?: ('TXN_' . strtoupper(\Illuminate\Support\Str::random(10))));
-
-                $payerName = $request->input('payer_name')
-                    ?: ($latestPayment?->payer_name ?: ($order->shipping_name ?: ($order->user?->name ?: 'Customer')));
-
-                $bankName = $request->input('bank_name')
-                    ?: ($latestPayment?->bank_name ?: config('business.banking.bank_name', 'Pubali Bank Limited'));
-
-                $accountNumber = $request->input('account_number')
-                    ?: ($latestPayment?->account_number ?: config('business.banking.account_number'));
-
-                $paymentAmount = $request->filled('payment_amount')
-                    ? (float) $request->input('payment_amount')
-                    : (float) ($latestPayment?->amount ?: $order->total_amount);
-
-                $paymentDate = $request->input('payment_date')
-                    ?: ($latestPayment?->payment_date?->format('Y-m-d') ?: now()->toDateString());
+            DB::transaction(function () use ($id, $action, $isApprove, $admin, $note, $request, &$order, &$alreadyProcessed) {
+                // Pessimistic lock on the order row to prevent concurrent race conditions
+                $order = Order::with('payments')->where(function ($q) use ($id) {
+                    if (is_numeric($id)) {
+                        $q->where('id', (int) $id);
+                    } else {
+                        $q->where('order_number', $id);
+                    }
+                })->lockForUpdate()->firstOrFail();
 
                 if ($isApprove) {
+                    // Check if order was already cancelled or refunded
+                    if (in_array(strtolower((string) $order->status), ['cancelled', 'refunded'], true)) {
+                        throw new \RuntimeException("Order #{$order->order_number} is {$order->status} and cannot be approved.");
+                    }
+
+                    // Idempotency: if already paid and inventory decremented, safe no-op
+                    $details = is_array($order->payment_details) ? $order->payment_details : (json_decode($order->payment_details, true) ?: []);
+                    if (strtolower((string) $order->payment_status) === 'paid' && !empty($details['inventory_decremented'])) {
+                        $alreadyProcessed = true;
+                        return;
+                    }
+
                     // Authoritative atomic inventory decrement upon Admin payment approval.
-                    // If stock is insufficient, throws RuntimeException to cleanly abort transaction.
-                    $order->decrementInventory();
+                    // If stock is insufficient, throws RuntimeException with exact conflict to cleanly abort transaction.
+                    $order->decrementInventory($admin->id, "Payment approved for order #{$order->order_number}");
+
+                    $latestPayment = $order->payments()->where('status', 'submitted')->latest()->first()
+                        ?? $order->payments()->latest()->first();
+
+                    $paymentMethod = $request->input('payment_method')
+                        ?: ($latestPayment?->payment_method ?: ($order->payment_method ?: 'Bank Transfer'));
+
+                    $transactionId = $request->input('transaction_id')
+                        ?: ($latestPayment?->transaction_id ?: ('TXN_' . strtoupper(\Illuminate\Support\Str::random(10))));
+
+                    $payerName = $request->input('payer_name')
+                        ?: ($latestPayment?->payer_name ?: ($order->shipping_name ?: ($order->user?->name ?: 'Customer')));
+
+                    $bankName = $request->input('bank_name')
+                        ?: ($latestPayment?->bank_name ?: config('business.banking.bank_name', 'Pubali Bank Limited'));
+
+                    $accountNumber = $request->input('account_number')
+                        ?: ($latestPayment?->account_number ?: config('business.banking.account_number'));
+
+                    $paymentAmount = $request->filled('payment_amount')
+                        ? (float) $request->input('payment_amount')
+                        : (float) ($latestPayment?->amount ?: $order->total_amount);
+
+                    $paymentDate = $request->input('payment_date')
+                        ?: ($latestPayment?->payment_date?->format('Y-m-d') ?: now()->toDateString());
 
                     $confirmedSnapshot = array_merge(is_array($order->payment_details) ? $order->payment_details : [], [
                         'payment_status' => 'PAID',
@@ -485,6 +588,13 @@ class OrderController extends ApiController
                         'note' => $note,
                     ], $admin);
                 } else {
+                    if (strtolower((string) $order->payment_status) === 'paid') {
+                        throw new \RuntimeException("Cannot reject payment: Order #{$order->order_number} is already marked as PAID.");
+                    }
+
+                    $latestPayment = $order->payments()->where('status', 'submitted')->latest()->first()
+                        ?? $order->payments()->latest()->first();
+
                     $order->update([
                         'payment_status' => 'failed',
                     ]);
@@ -509,7 +619,15 @@ class OrderController extends ApiController
                 }
             });
         } catch (\RuntimeException $e) {
-            return $this->error($e->getMessage(), 422);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error_code' => 'INSUFFICIENT_INVENTORY',
+            ], 422);
+        }
+
+        if ($alreadyProcessed) {
+            return $this->success(new OrderResource($order->fresh(['items', 'payments', 'statusEvents'])), 'Payment has already been approved and confirmed.');
         }
 
         return $this->success(new OrderResource($order->fresh(['items', 'payments', 'statusEvents'])), "Payment proof {$action}d successfully");

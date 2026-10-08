@@ -26,6 +26,9 @@ export interface OrderItemRecord {
   quantity: number;
   line_total: number;
   line_total_cents: number;
+  current_stock?: number | null;
+  stock_available?: boolean | null;
+  stock_shortfall?: number | null;
 }
 
 export interface OrderStatusEvent {

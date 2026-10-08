@@ -814,7 +814,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto font-sans">
               <div className="p-4 rounded-2xl bg-secondary/30 border border-border space-y-2 text-xs">
                 <p className="text-foreground leading-relaxed">
-                  Thank you! Your order has been placed successfully. <strong>Status: Payment Pending.</strong> Please review your Proforma Invoice and submit your payment proof to proceed to verification.
+                  Your order has been placed. Please complete payment and submit your payment proof for approval.
                 </p>
 
                 {/* Consignee Snapshot Recap */}

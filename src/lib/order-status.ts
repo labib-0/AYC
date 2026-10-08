@@ -268,15 +268,18 @@ export function getPaymentPresentation(paymentStatus: string): PaymentPresentati
 }
 
 /** Format order date for display */
-export function formatOrderDate(dateStr: string): string {
+export function formatOrderDate(dateStr?: string | null): string {
+  if (!dateStr) return "N/A";
   try {
-    return new Date(dateStr).toLocaleDateString("en-US", {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "N/A";
+    return d.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
   } catch {
-    return dateStr;
+    return "N/A";
   }
 }
 

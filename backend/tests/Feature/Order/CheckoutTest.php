@@ -260,7 +260,11 @@ class CheckoutTest extends TestCase
         Storage::fake('public');
 
         $user = User::factory()->create();
-        $order = Order::factory()->create(['user_id' => $user->id, 'payment_method' => 'transfer']);
+        $order = Order::factory()->create([
+            'user_id' => $user->id,
+            'payment_method' => 'transfer',
+            'payment_status' => 'pending',
+        ]);
 
         $file = UploadedFile::fake()->create('bank_receipt.pdf', 500, 'application/pdf');
 

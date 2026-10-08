@@ -20,6 +20,10 @@ class Order extends Model
     public const CUSTOMER_STATUS_ORDER_CONFIRMED = 'ORDER_CONFIRMED';
     public const CUSTOMER_STATUS_ON_SHIPMENT = 'ON_SHIPMENT';
 
+    protected $appends = [
+        'customer_status',
+    ];
+
     protected $fillable = [
         'order_number',
         'user_id',
@@ -642,9 +646,12 @@ class Order extends Model
      * Decrements physical stock ONLY upon Admin payment approval.
      * Idempotent: repeated calls will safely no-op without double-decrementing.
      *
+     * @param int|null $adminUserId The ID of the administrator approving payment
+     * @param string|null $reason Audit reason for inventory adjustment
+     * @return bool True if inventory was decremented, false if already decremented (idempotent)
      * @throws \RuntimeException If inventory cannot be safely deducted due to insufficient stock.
      */
-    public function decrementInventory(): bool
+    public function decrementInventory(?int $adminUserId = null, ?string $reason = null): bool
     {
         $details = is_array($this->payment_details) ? $this->payment_details : (json_decode($this->payment_details, true) ?: []);
         if (!empty($details['inventory_decremented'])) {
@@ -653,7 +660,7 @@ class Order extends Model
 
         $this->loadMissing(['items']);
 
-        // First pass: verify sufficient stock availability for all items
+        // First pass: verify sufficient stock availability for all items with pessimistic locking
         foreach ($this->items as $item) {
             $qty = (int) $item->quantity;
             if ($qty <= 0) {
@@ -694,7 +701,15 @@ class Order extends Model
                     if ($v && (int) $v->stock < $qty) {
                         throw new \RuntimeException("Insufficient stock for product '{$item->product_name}'. Available: {$v->stock}, required: {$qty}");
                     }
+                } elseif ($variants->count() > 1) {
+                    $inv = Inventory::where('product_id', $item->product_id)->lockForUpdate()->first();
+                    if ($inv && (int) $inv->quantity < $qty) {
+                        throw new \RuntimeException("Insufficient stock for product '{$item->product_name}'. Available: {$inv->quantity}, required: {$qty}");
+                    }
                 } else {
+                    if ($product && $product->stock !== null && (int) $product->stock < $qty) {
+                        throw new \RuntimeException("Insufficient stock for product '{$item->product_name}'. Available: {$product->stock}, required: {$qty}");
+                    }
                     $inv = Inventory::where('product_id', $item->product_id)->lockForUpdate()->first();
                     if ($inv && (int) $inv->quantity < $qty) {
                         throw new \RuntimeException("Insufficient stock for product '{$item->product_name}'. Available: {$inv->quantity}, required: {$qty}");
@@ -703,7 +718,23 @@ class Order extends Model
             }
         }
 
-        // Second pass: atomically decrement physical inventory
+        $canonicalWarehouse = Warehouse::firstOrCreate(
+            ['code' => 'WH-UTTARA-01'],
+            [
+                'name' => 'Uttara Warehouse',
+                'address' => 'House #33 (2nd floor), Road #12, Sector #11, Uttara',
+                'city' => 'Dhaka',
+                'country_code' => 'BD',
+                'is_active' => true,
+            ]
+        );
+
+        $auditReason = $reason ?: "Order #{$this->order_number} payment approved";
+
+        $effectiveAdminId = $adminUserId
+            ?: (auth()->id() ?? User::where('role', 'admin')->value('id') ?? User::where('is_super_admin', true)->value('id') ?? ($this->user_id ?? User::first()?->id));
+
+        // Second pass: atomically decrement physical inventory and record audit trail
         foreach ($this->items as $item) {
             $qty = (int) $item->quantity;
             if ($qty <= 0) {
@@ -729,9 +760,31 @@ class Order extends Model
                         $variant = ProductVariant::where('id', $vId)->lockForUpdate()->first();
                         if ($variant) {
                             $variant->decrement('stock', $subQty);
+
                             $inv = Inventory::where('product_variant_id', $variant->id)->lockForUpdate()->first();
+                            if (!$inv && $canonicalWarehouse) {
+                                $inv = Inventory::firstOrCreate(
+                                    ['product_variant_id' => $variant->id, 'warehouse_id' => $canonicalWarehouse->id],
+                                    ['quantity' => (int) $variant->fresh()->stock + $subQty]
+                                );
+                            }
+
                             if ($inv) {
-                                $inv->decrement('quantity', min((int) $inv->quantity, $subQty));
+                                $prevQty = (int) $inv->quantity;
+                                $actualDeduct = min($prevQty, $subQty);
+                                $inv->decrement('quantity', $actualDeduct);
+                                $newQty = (int) $inv->fresh()->quantity;
+
+                                if ($effectiveAdminId) {
+                                    AdminInventoryAdjustment::create([
+                                        'inventory_id' => $inv->id,
+                                        'admin_user_id' => $effectiveAdminId,
+                                        'previous_quantity' => $prevQty,
+                                        'adjustment_amount' => -$actualDeduct,
+                                        'resulting_quantity' => $newQty,
+                                        'reason' => $auditReason,
+                                    ]);
+                                }
                             }
                         }
                     }
@@ -740,9 +793,31 @@ class Order extends Model
                 $variant = ProductVariant::where('id', $item->product_variant_id)->lockForUpdate()->first();
                 if ($variant) {
                     $variant->decrement('stock', $qty);
+
                     $inv = Inventory::where('product_variant_id', $variant->id)->lockForUpdate()->first();
+                    if (!$inv && $canonicalWarehouse) {
+                        $inv = Inventory::firstOrCreate(
+                            ['product_variant_id' => $variant->id, 'warehouse_id' => $canonicalWarehouse->id],
+                            ['quantity' => (int) $variant->fresh()->stock + $qty]
+                        );
+                    }
+
                     if ($inv) {
-                        $inv->decrement('quantity', min((int) $inv->quantity, $qty));
+                        $prevQty = (int) $inv->quantity;
+                        $actualDeduct = min($prevQty, $qty);
+                        $inv->decrement('quantity', $actualDeduct);
+                        $newQty = (int) $inv->fresh()->quantity;
+
+                        if ($effectiveAdminId) {
+                            AdminInventoryAdjustment::create([
+                                'inventory_id' => $inv->id,
+                                'admin_user_id' => $effectiveAdminId,
+                                'previous_quantity' => $prevQty,
+                                'adjustment_amount' => -$actualDeduct,
+                                'resulting_quantity' => $newQty,
+                                'reason' => $auditReason,
+                            ]);
+                        }
                     }
                 }
             } elseif ($item->product_id) {
@@ -750,18 +825,63 @@ class Order extends Model
                 if ($variants->count() === 1) {
                     $v = $variants->first();
                     $v->decrement('stock', $qty);
+
                     $inv = Inventory::where('product_variant_id', $v->id)->lockForUpdate()->first();
-                    if ($inv) {
-                        $inv->decrement('quantity', min((int) $inv->quantity, $qty));
+                    if (!$inv && $canonicalWarehouse) {
+                        $inv = Inventory::firstOrCreate(
+                            ['product_variant_id' => $v->id, 'warehouse_id' => $canonicalWarehouse->id],
+                            ['quantity' => (int) $v->fresh()->stock + $qty]
+                        );
                     }
+
+                    if ($inv) {
+                        $prevQty = (int) $inv->quantity;
+                        $actualDeduct = min($prevQty, $qty);
+                        $inv->decrement('quantity', $actualDeduct);
+                        $newQty = (int) $inv->fresh()->quantity;
+
+                        if ($effectiveAdminId) {
+                            AdminInventoryAdjustment::create([
+                                'inventory_id' => $inv->id,
+                                'admin_user_id' => $effectiveAdminId,
+                                'previous_quantity' => $prevQty,
+                                'adjustment_amount' => -$actualDeduct,
+                                'resulting_quantity' => $newQty,
+                                'reason' => $auditReason,
+                            ]);
+                        }
+                    }
+
                     if ($product && $product->stock !== null) {
                         $product->decrement('stock', min((int) $product->stock, $qty));
                     }
                 } else {
                     $inv = Inventory::where('product_id', $item->product_id)->lockForUpdate()->first();
-                    if ($inv) {
-                        $inv->decrement('quantity', min((int) $inv->quantity, $qty));
+                    if (!$inv && $canonicalWarehouse) {
+                        $inv = Inventory::firstOrCreate(
+                            ['product_id' => $item->product_id, 'warehouse_id' => $canonicalWarehouse->id],
+                            ['quantity' => (int) ($product?->stock ?? 0) + $qty]
+                        );
                     }
+
+                    if ($inv) {
+                        $prevQty = (int) $inv->quantity;
+                        $actualDeduct = min($prevQty, $qty);
+                        $inv->decrement('quantity', $actualDeduct);
+                        $newQty = (int) $inv->fresh()->quantity;
+
+                        if ($effectiveAdminId) {
+                            AdminInventoryAdjustment::create([
+                                'inventory_id' => $inv->id,
+                                'admin_user_id' => $effectiveAdminId,
+                                'previous_quantity' => $prevQty,
+                                'adjustment_amount' => -$actualDeduct,
+                                'resulting_quantity' => $newQty,
+                                'reason' => $auditReason,
+                            ]);
+                        }
+                    }
+
                     if ($product && $product->stock !== null) {
                         $product->decrement('stock', min((int) $product->stock, $qty));
                     }

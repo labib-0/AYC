@@ -8,6 +8,7 @@ export interface AdminOrderQueryParams {
   per_page?: number;
   search?: string;
   status?: string;
+  customer_status?: string;
   payment_status?: string;
   fulfillment_status?: string;
   payment_method?: string;

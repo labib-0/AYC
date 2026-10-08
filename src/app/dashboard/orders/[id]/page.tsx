@@ -129,6 +129,28 @@ export default function CustomerOrderDetailPage({ params }: Props) {
 
   useEffect(() => {
     fetchOrder();
+
+    // Live refresh when tab gains focus or becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchOrder();
+      }
+    };
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityChange);
+
+    // Live update interval every 15s to automatically catch Admin payment approval
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchOrder();
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleVisibilityChange);
+      clearInterval(interval);
+    };
   }, [orderId, user]);
 
   const handleCopyTracking = async (num: string) => {
@@ -774,7 +796,9 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Payment Date</span>
                 <span className="font-bold text-slate-900 dark:text-white">
-                  {order.payment_details?.payment_date || formatOrderDate(order.payment_confirmed_at || "")}
+                  {order.payment_details?.payment_date
+                    ? formatOrderDate(order.payment_details.payment_date)
+                    : formatOrderDate(order.payment_confirmed_at || order.placed_at || order.created_at)}
                 </span>
               </div>
               <div className="sm:col-span-2 md:col-span-3 pt-2 border-t border-slate-200/60 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -818,14 +842,14 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                 <span>Waiting for Approval</span>
               </div>
               <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
-                Payment submitted. We are waiting for payment approval.
+                Payment proof submitted successfully. We are now waiting for payment approval.
               </p>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
               <div className="space-y-1">
                 <p className="text-slate-500 font-medium">Submitted Receipt &amp; Details:</p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Check size={14} className="text-sky-500" />
                   <span className="font-bold text-slate-900 dark:text-white">
                     {order.payment_details?.transaction_id ? `Txn: ${order.payment_details.transaction_id}` : "Receipt on File"}
@@ -835,6 +859,9 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                       (${Number(order.payment_details.payment_amount).toFixed(2)})
                     </span>
                   )}
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Submitted: {order.payment_details?.payment_date || formatOrderDate(order.updated_at)}
+                  </span>
                 </div>
               </div>
 
@@ -864,14 +891,19 @@ export default function CustomerOrderDetailPage({ params }: Props) {
           /* 6.3 PAYMENT PENDING STATE */
           <div className="space-y-4">
             {order.payment_status === "failed" && (
-              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 text-xs space-y-1">
+              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 text-xs space-y-1.5">
                 <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold uppercase text-xs">
                   <AlertCircle size={16} />
-                  <span>Payment Proof Required</span>
+                  <span>Payment Proof Verification Unsuccessful</span>
                 </div>
                 <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
-                  Previous payment proof was not approved. Please verify your transaction details and re-upload proof of payment below.
+                  Previous payment proof was not approved. Please review your wire transaction details and submit a corrected payment proof below.
                 </p>
+                {order.payment_details?.notes && (
+                  <p className="text-red-700 dark:text-red-400 text-[11px] font-semibold pt-0.5">
+                    Accounts note: &quot;{order.payment_details.notes}&quot;
+                  </p>
+                )}
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
@@ -881,13 +913,13 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                 {order.payment_method || "Commercial Bank Wire / Swift"}
               </p>
 
-              <div className="mt-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 space-y-1">
+              <div className="mt-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 space-y-1.5">
                 <p className="font-bold text-amber-800 dark:text-amber-400 text-xs">
-                  Payment Pending
+                  Your order has been placed. Please complete payment and submit your payment proof for approval.
                 </p>
                 <p className="text-[0.6875rem] text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
-                  Please wire funds using the order reference{" "}
-                  <span className="font-mono font-bold">{order.order_number}</span> to our verified export bank account (Pubali Bank Limited).
+                  Please wire funds using order reference{" "}
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">{order.order_number}</span> to our verified export account at Pubali Bank Limited.
                 </p>
               </div>
             </div>
