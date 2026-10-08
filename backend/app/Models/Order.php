@@ -642,6 +642,47 @@ class Order extends Model
     }
 
     /**
+     * Dispatch an authoritative, non-duplicating customer notification for lifecycle transitions.
+     */
+    public function notifyCustomerOfLifecycleTransition(string $stage, ?string $customMessage = null): void
+    {
+        $user = $this->user ?: ($this->user_id ? User::find($this->user_id) : null);
+        if (!$user) {
+            return;
+        }
+
+        $canonicalMessages = [
+            self::CUSTOMER_STATUS_ORDER_PLACED => "Your order has been placed.",
+            self::CUSTOMER_STATUS_PAYMENT_PENDING => "Please complete payment and submit your payment proof.",
+            self::CUSTOMER_STATUS_WAITING_FOR_APPROVAL => "Your payment proof has been submitted and is waiting for approval.",
+            self::CUSTOMER_STATUS_ORDER_CONFIRMED => "Your payment has been approved and your order is confirmed.",
+            self::CUSTOMER_STATUS_ON_SHIPMENT => "Your order has been shipped.",
+        ];
+
+        $message = $customMessage ?: ($canonicalMessages[$stage] ?? "Your order status has been updated.");
+
+        // Idempotency check: Guarantee that duplicate transitions/clicks do not produce duplicate notifications
+        $existing = $user->notifications()
+            ->where('type', \App\Notifications\OrderLifecycleNotification::class)
+            ->where('data', 'like', '%"order_id":"' . $this->id . '"%')
+            ->get();
+
+        $alreadySent = $existing->contains(function ($item) use ($stage, $message) {
+            $data = $item->data;
+            if (!is_array($data)) {
+                return false;
+            }
+            return (string) ($data['order_id'] ?? '') === (string) $this->id
+                && ($data['stage'] ?? '') === $stage
+                && ($data['message'] ?? '') === $message;
+        });
+
+        if (!$alreadySent) {
+            $user->notify(new \App\Notifications\OrderLifecycleNotification($this, $stage, $message));
+        }
+    }
+
+    /**
      * Authoritative atomic inventory decrement.
      * Decrements physical stock ONLY upon Admin payment approval.
      * Idempotent: repeated calls will safely no-op without double-decrementing.

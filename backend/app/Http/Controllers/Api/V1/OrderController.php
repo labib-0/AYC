@@ -749,6 +749,12 @@ class OrderController extends ApiController
 
             $order->load(['items', 'statusEvents', 'payments']);
 
+            // Requirement 8: Dispatch canonical lifecycle notifications
+            $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_ORDER_PLACED);
+            if ($order->payment_status !== 'paid' && !in_array($order->payment_method, ['net_30', 'net_60', 'terms'])) {
+                $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_PAYMENT_PENDING);
+            }
+
             return $this->success(new OrderResource($order), 'Order placed successfully', 201);
         } catch (InsufficientStockException $e) {
             return response()->json([
@@ -968,6 +974,9 @@ class OrderController extends ApiController
             'event_type' => 'payment_proof_uploaded',
             'message' => $eventMessage,
         ]);
+
+        // Requirement 8: Dispatch WAITING_FOR_APPROVAL lifecycle notification
+        $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_WAITING_FOR_APPROVAL);
 
         $order->load(['items', 'statusEvents', 'payments']);
 

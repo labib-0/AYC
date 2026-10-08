@@ -296,6 +296,11 @@ class OrderController extends ApiController
             return $this->error("Cannot transition order to '{$newStatus}' before payment approval. Payment must be approved first.", 422);
         }
 
+        // Section 2: Cannot skip confirmation directly to shipped/delivered from unconfirmed placement
+        if (in_array($newStatus, ['shipped', 'delivered'], true) && in_array(strtolower((string) $oldStatus), ['pending', 'placed', 'order_placed'], true)) {
+            return $this->error("Cannot transition directly from '{$oldStatus}' to '{$newStatus}'. Order must be confirmed first.", 422);
+        }
+
         if (isset($validTransitions[$oldStatus]) && !in_array($newStatus, $validTransitions[$oldStatus])) {
             return $this->error("Invalid status transition from '{$oldStatus}' to '{$newStatus}'.", 422);
         }
@@ -363,6 +368,13 @@ class OrderController extends ApiController
             ], $admin);
         });
 
+        // Dispatch canonical lifecycle notification
+        if (in_array($newStatus, ['shipped', 'delivered'], true)) {
+            $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_ON_SHIPMENT);
+        } elseif ($newStatus === 'confirmed') {
+            $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_ORDER_CONFIRMED);
+        }
+
         return $this->success(new OrderResource($order->fresh(['items', 'payments', 'statusEvents'])), 'Order status updated successfully');
     }
 
@@ -386,6 +398,16 @@ class OrderController extends ApiController
             'carrier' => ['nullable', 'string', 'max:100'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
+
+        // Section 2 & 3: Cannot fulfill or ship order before payment approval or before confirmation
+        if (in_array($validated['fulfillment_status'], ['shipped', 'fulfilled'], true)) {
+            if (strtolower((string) $order->payment_status) !== 'paid' && !in_array(strtolower((string) $order->payment_method), ['net_30', 'net_60', 'terms'], true)) {
+                return $this->error("Cannot fulfill or ship order before payment approval. Payment must be approved first.", 422);
+            }
+            if ($order->customer_status !== Order::CUSTOMER_STATUS_ORDER_CONFIRMED && $order->customer_status !== Order::CUSTOMER_STATUS_ON_SHIPMENT) {
+                return $this->error("Cannot fulfill or ship order before it is confirmed.", 422);
+            }
+        }
 
         $admin = $request->user();
 
@@ -412,6 +434,11 @@ class OrderController extends ApiController
             'event_type' => 'fulfillment_updated',
             'message' => $msg,
         ]);
+
+        // Dispatch canonical lifecycle notification
+        if (in_array($validated['fulfillment_status'], ['shipped', 'fulfilled'], true)) {
+            $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_ON_SHIPMENT);
+        }
 
         return $this->success(new OrderResource($order->fresh(['items', 'payments', 'statusEvents'])), 'Fulfillment updated successfully');
     }
@@ -630,6 +657,13 @@ class OrderController extends ApiController
             return $this->success(new OrderResource($order->fresh(['items', 'payments', 'statusEvents'])), 'Payment has already been approved and confirmed.');
         }
 
+        // Requirement 8: Dispatch canonical lifecycle notification
+        if ($isApprove) {
+            $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_ORDER_CONFIRMED);
+        } else {
+            $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_PAYMENT_PENDING, "Payment review notice: {$note}. Please resubmit your payment proof.");
+        }
+
         return $this->success(new OrderResource($order->fresh(['items', 'payments', 'statusEvents'])), "Payment proof {$action}d successfully");
     }
 
@@ -663,6 +697,10 @@ class OrderController extends ApiController
 
         try {
             $result = $aramexService->createShipment($order);
+
+            // Requirement 8: Dispatch ON_SHIPMENT lifecycle notification
+            $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_ON_SHIPMENT);
+
             return $this->success([
                 'order' => new OrderResource($order->fresh(['items', 'payments', 'statusEvents'])),
                 'tracking_number' => $result['tracking_number'],

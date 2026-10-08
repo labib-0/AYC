@@ -219,6 +219,14 @@ Route::prefix('v1')->group(function () {
     // Customer Document Center alias
     Route::get('/customer/documents', [OrderController::class, 'documentCenter'])->middleware('auth:sanctum');
 
+    // Customer & System Notifications
+    Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\V1\NotificationController::class, 'index']);
+        Route::get('/unread-count', [\App\Http\Controllers\Api\V1\NotificationController::class, 'unreadCount']);
+        Route::patch('/{id}/read', [\App\Http\Controllers\Api\V1\NotificationController::class, 'markAsRead']);
+        Route::post('/read-all', [\App\Http\Controllers\Api\V1\NotificationController::class, 'markAllAsRead']);
+    });
+
     // Shipping & Real-time Rate Quotes & Settings
     Route::prefix('shipping')->group(function () {
         Route::get('/settings', [ShippingController::class, 'settings']);

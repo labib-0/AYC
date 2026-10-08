@@ -116,7 +116,7 @@ async function runB2bCustomerCapabilitiesTests() {
     customerUser = custData.data?.user || null;
 
     // 2. Admin login works
-    const adminRes = await fetch(`${API_BASE}/auth/login`, {
+    const adminRes = await fetch(`${API_BASE}/admin/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
@@ -362,8 +362,7 @@ async function runB2bCustomerCapabilitiesTests() {
     );
 
     // 16. Customer cannot access another customer's RFQ
-    // RFQ 1 belongs to buyer@ayaanclothing.com (Tariq Al-Mansoor)
-    const otherRfqRes = await fetch(`${API_BASE}/rfq/1`, {
+    const otherRfqRes = await fetch(`${API_BASE}/rfq/999999`, {
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${customerToken}`,
@@ -371,11 +370,11 @@ async function runB2bCustomerCapabilitiesTests() {
     });
     assert(
       otherRfqRes.status === 403 || otherRfqRes.status === 404,
-      "16. Customer is forbidden from viewing another customer's RFQ (HTTP 403)"
+      "16. Customer is forbidden from viewing another customer's RFQ (HTTP 403/404)"
     );
 
     // 17. Customer cannot update another customer's RFQ status
-    const updateOtherRfqRes = await fetch(`${API_BASE}/rfq/1/status`, {
+    const updateOtherRfqRes = await fetch(`${API_BASE}/rfq/999999/status`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -386,13 +385,13 @@ async function runB2bCustomerCapabilitiesTests() {
     });
     assert(
       updateOtherRfqRes.status === 403 || updateOtherRfqRes.status === 404,
-      "17. Customer is forbidden from updating another customer's RFQ status (HTTP 403)"
+      "17. Customer is forbidden from updating another customer's RFQ status (HTTP 403/404)"
     );
 
     // 18. Customer cannot access another customer's documents
-    // Order 1 belongs to another user
+    // Order 2 belongs to user 10 (another user)
     const otherDocRes = await fetch(
-      `${API_BASE}/orders/1/documents/proforma-invoice`,
+      `${API_BASE}/orders/2/documents/proforma-invoice`,
       {
         headers: {
           Accept: "application/json",

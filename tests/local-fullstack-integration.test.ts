@@ -106,7 +106,7 @@ async function runLocalFullstackIntegrationTests() {
   // Path 2: Admin Login
   let adminToken = "";
   try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await fetch(`${API_BASE}/admin/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({

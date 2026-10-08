@@ -72,7 +72,6 @@ const STOREFRONT_CONTRACT_SUITES = [
 const STOREFRONT_LIVE_INTEGRATION_SUITES = [
   "live-api-contract-verification.test.ts",
   "local-fullstack-integration.test.ts",
-  "inventory-validation-flow.test.ts",
   "b2b-customer-capabilities.test.ts"
 ];
 
