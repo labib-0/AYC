@@ -5,42 +5,27 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { getUserOrders, OrderRecord } from "@/lib/services/orders";
 import {
+  CanonicalCustomerStatus,
   getOrderStatusPresentation,
-  getOrderStatusKey,
-  getPaymentPresentation,
+  getCanonicalCustomerStatus,
   formatOrderDate,
 } from "@/lib/order-status";
 import {
   Package,
   Search,
   ChevronRight,
-  Truck,
-  X,
-  ArrowRight,
-  Filter,
-  CreditCard,
-  CheckCircle2,
-  Clock,
   RotateCcw,
 } from "lucide-react";
 
-type OrderFilter =
-  | "all"
-  | "pending"
-  | "confirmed"
-  | "processing"
-  | "shipped"
-  | "delivered"
-  | "cancelled";
+type OrderFilter = "all" | CanonicalCustomerStatus;
 
 const FILTER_TABS: { key: OrderFilter; label: string }[] = [
   { key: "all", label: "All Orders" },
-  { key: "pending", label: "Pending" },
-  { key: "confirmed", label: "Confirmed" },
-  { key: "processing", label: "Processing" },
-  { key: "shipped", label: "Shipped" },
-  { key: "delivered", label: "Delivered" },
-  { key: "cancelled", label: "Cancelled" },
+  { key: "ORDER_PLACED", label: "Order Placed" },
+  { key: "PAYMENT_PENDING", label: "Payment Pending" },
+  { key: "WAITING_FOR_APPROVAL", label: "Waiting for Approval" },
+  { key: "ORDER_CONFIRMED", label: "Order Confirmed" },
+  { key: "ON_SHIPMENT", label: "On Shipment" },
 ];
 
 function formatUSD(amount: number): string {
@@ -48,19 +33,6 @@ function formatUSD(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
-}
-
-function getFulfillmentBadgeClass(status: string): string {
-  switch (status?.toLowerCase()) {
-    case "delivered":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50";
-    case "shipped":
-      return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/50";
-    case "processing":
-      return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/50";
-    default:
-      return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-white/5 dark:text-slate-400 dark:border-white/10";
-  }
 }
 
 export default function CustomerOrdersPage() {
@@ -107,39 +79,11 @@ export default function CustomerOrdersPage() {
     loadOrders();
   }, [loadOrders]);
 
-  // Match order with selected filter tab
+  // Match order with selected filter tab using canonical status
   const matchesFilter = (order: OrderRecord, filter: OrderFilter): boolean => {
     if (filter === "all") return true;
-
-    const normalizedKey = getOrderStatusKey(order);
-    const rawStatus = (order.status || "").toLowerCase();
-    const rawFulfillment = (order.fulfillment_status || "").toLowerCase();
-
-    switch (filter) {
-      case "pending":
-        return (
-          normalizedKey === "pending" ||
-          rawStatus === "pending" ||
-          (order.payment_status || "").toLowerCase() === "pending"
-        );
-      case "confirmed":
-        return rawStatus === "confirmed";
-      case "processing":
-        return normalizedKey === "processing" || rawStatus === "processing" || rawFulfillment === "processing";
-      case "shipped":
-        return normalizedKey === "shipped" || rawStatus === "shipped" || rawFulfillment === "shipped";
-      case "delivered":
-        return (
-          normalizedKey === "delivered" ||
-          rawStatus === "delivered" ||
-          rawStatus === "fulfilled" ||
-          rawFulfillment === "delivered"
-        );
-      case "cancelled":
-        return normalizedKey === "cancelled" || rawStatus === "cancelled";
-      default:
-        return true;
-    }
+    const canonical = getCanonicalCustomerStatus(order);
+    return canonical === filter;
   };
 
   // Filter and search orders
@@ -153,8 +97,9 @@ export default function CustomerOrdersPage() {
       const query = searchQuery.trim().toLowerCase();
       const orderNum = (order.order_number || "").toLowerCase();
       const idMatch = (order.id || "").toLowerCase();
+      const canonical = getCanonicalCustomerStatus(order).toLowerCase().replace(/_/g, " ");
 
-      return orderNum.includes(query) || idMatch.includes(query);
+      return orderNum.includes(query) || idMatch.includes(query) || canonical.includes(query);
     });
   }, [orders, activeFilter, searchQuery]);
 
@@ -162,19 +107,17 @@ export default function CustomerOrdersPage() {
   const tabCounts = useMemo(() => {
     const counts: Record<OrderFilter, number> = {
       all: orders.length,
-      pending: 0,
-      confirmed: 0,
-      processing: 0,
-      shipped: 0,
-      delivered: 0,
-      cancelled: 0,
+      ORDER_PLACED: 0,
+      PAYMENT_PENDING: 0,
+      WAITING_FOR_APPROVAL: 0,
+      ORDER_CONFIRMED: 0,
+      ON_SHIPMENT: 0,
     };
 
     for (const order of orders) {
-      for (const tab of FILTER_TABS) {
-        if (tab.key !== "all" && matchesFilter(order, tab.key)) {
-          counts[tab.key]++;
-        }
+      const canonical = getCanonicalCustomerStatus(order);
+      if (counts[canonical] !== undefined) {
+        counts[canonical]++;
       }
     }
 
@@ -221,28 +164,18 @@ export default function CustomerOrdersPage() {
           />
           <input
             type="text"
-            placeholder="Search by order number (e.g. AYN-2026...)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-9 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all"
+            placeholder="Search by order number or status..."
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all"
           />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              aria-label="Clear search"
-            >
-              <X size={14} />
-            </button>
-          )}
         </div>
 
-        {/* Status Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+        {/* Canonical Status Filter Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           {FILTER_TABS.map((tab) => {
             const isActive = activeFilter === tab.key;
-            const count = tabCounts[tab.key];
+            const count = tabCounts[tab.key] || 0;
 
             return (
               <button
@@ -355,21 +288,17 @@ export default function CustomerOrdersPage() {
                   <th className="py-3.5 px-4">Date</th>
                   <th className="py-3.5 px-4">Items / Units</th>
                   <th className="py-3.5 px-4">Total USD</th>
-                  <th className="py-3.5 px-4">Payment Status</th>
-                  <th className="py-3.5 px-4">Fulfillment Status</th>
-                  <th className="py-3.5 px-4">Order Status</th>
+                  <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-5 text-right">View</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                 {filteredOrders.map((order) => {
                   const statusPres = getOrderStatusPresentation(order);
-                  const paymentPres = getPaymentPresentation(order.payment_status);
                   const StatusIcon = statusPres.icon;
                   const totalUnits =
                     order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
                   const itemsCount = order.items?.length || 0;
-                  const fulfillmentStatus = order.fulfillment_status || "unfulfilled";
 
                   return (
                     <tr
@@ -391,7 +320,7 @@ export default function CustomerOrdersPage() {
                         {formatOrderDate(order.created_at || order.placed_at)}
                       </td>
 
-                      {/* Items */}
+                      {/* Items / Units */}
                       <td className="py-4 px-4 text-slate-700 dark:text-slate-300">
                         <span className="font-semibold">{itemsCount}</span>{" "}
                         {itemsCount === 1 ? "style" : "styles"}
@@ -407,32 +336,12 @@ export default function CustomerOrdersPage() {
                         {formatUSD(order.total_amount)}
                       </td>
 
-                      {/* Payment Status */}
+                      {/* Canonical Customer Status */}
                       <td className="py-4 px-4">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${paymentPres.badgeClass}`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${statusPres.badgeClass}`}
                         >
-                          {paymentPres.label}
-                        </span>
-                      </td>
-
-                      {/* Fulfillment Status */}
-                      <td className="py-4 px-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider border ${getFulfillmentBadgeClass(
-                            fulfillmentStatus
-                          )}`}
-                        >
-                          {fulfillmentStatus}
-                        </span>
-                      </td>
-
-                      {/* Order Status */}
-                      <td className="py-4 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${statusPres.badgeClass}`}
-                        >
-                          <StatusIcon size={11} />
+                          <StatusIcon size={12} className={statusPres.iconClass} />
                           {statusPres.label}
                         </span>
                       </td>
@@ -458,12 +367,10 @@ export default function CustomerOrdersPage() {
           <div className="lg:hidden divide-y divide-slate-100 dark:divide-white/5">
             {filteredOrders.map((order) => {
               const statusPres = getOrderStatusPresentation(order);
-              const paymentPres = getPaymentPresentation(order.payment_status);
               const StatusIcon = statusPres.icon;
               const totalUnits =
                 order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
               const itemsCount = order.items?.length || 0;
-              const fulfillmentStatus = order.fulfillment_status || "unfulfilled";
 
               return (
                 <div key={order.id} className="p-4 space-y-3">
@@ -490,35 +397,20 @@ export default function CustomerOrdersPage() {
                     </span>
                   </div>
 
-                  {/* Badges */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  {/* Exactly One Canonical Status Badge */}
+                  <div className="flex items-center justify-between pt-1">
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${statusPres.badgeClass}`}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${statusPres.badgeClass}`}
                     >
-                      <StatusIcon size={10} />
+                      <StatusIcon size={12} className={statusPres.iconClass} />
                       {statusPres.label}
                     </span>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-semibold uppercase tracking-wider ${paymentPres.badgeClass}`}
-                    >
-                      {paymentPres.label}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-semibold uppercase tracking-wider border ${getFulfillmentBadgeClass(
-                        fulfillmentStatus
-                      )}`}
-                    >
-                      {fulfillmentStatus}
-                    </span>
-                  </div>
 
-                  {/* Bottom: View Details */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-end">
                     <Link
                       href={`/dashboard/orders/${order.id}`}
                       className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700"
                     >
-                      <span>Inspect Order & Invoices</span>
+                      <span>View</span>
                       <ChevronRight size={13} />
                     </Link>
                   </div>

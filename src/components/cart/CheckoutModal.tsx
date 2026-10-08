@@ -783,15 +783,20 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             className="bg-card border border-border/80 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-emerald-500/5">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-amber-500/5">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <div className="p-2.5 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
                   <CheckCircle2 size={22} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold font-display text-foreground">
-                    Order Confirmed!
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold font-display text-foreground">
+                      Order Placed
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50">
+                      Payment Pending
+                    </span>
+                  </div>
                   <p className="text-xs text-muted-foreground font-mono font-bold">
                     Ref: #{confirmedOrder.order_number}
                   </p>
@@ -809,7 +814,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto font-sans">
               <div className="p-4 rounded-2xl bg-secondary/30 border border-border space-y-2 text-xs">
                 <p className="text-foreground leading-relaxed">
-                  Thank you! Your commercial export order has been recorded. <strong>No immediate online payment was required.</strong> Our export desk is reviewing your shipping specifications and will issue payment settlement details per your Proforma Invoice.
+                  Thank you! Your order has been placed successfully. <strong>Status: Payment Pending.</strong> Please review your Proforma Invoice and submit your payment proof to proceed to verification.
                 </p>
 
                 {/* Consignee Snapshot Recap */}
@@ -949,9 +954,9 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       router.push(`/search`);
                     }
                   }}
-                  className="py-3 px-4 rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-foreground font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  className="py-3 px-4 rounded-xl border border-amber-500/40 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
                 >
-                  <span>{user ? "View in Dashboard" : "Continue Browsing"}</span>
+                  <span>{user ? "View Order & Submit Payment" : "Continue Browsing"}</span>
                   <ArrowRight size={14} />
                 </button>
               </div>

@@ -616,7 +616,7 @@ class WholesalePricingAndOrderManagementTest extends TestCase
             'shipping_address1' => '742 Evergreen Terrace',
             'shipping_city' => 'Springfield',
             'shipping_postal_code' => '97477',
-            'payment_method' => 'bank_transfer', // will be status: pending
+            'payment_method' => 'card', // paid order so inventory is decremented and can be restored upon cancellation
         ]);
         $orderRes->assertStatus(201);
         $orderId = $orderRes->json('data.id');

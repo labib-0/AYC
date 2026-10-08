@@ -7,7 +7,9 @@ import { getOrderById, cancelOrder, OrderRecord, OrderItemRecord } from "@/lib/s
 import { uploadPaymentProof, PaymentSubmissionDetails } from "@/lib/services/storage";
 import {
   getOrderStatusPresentation,
-  getOrderStatusKey,
+  getCanonicalCustomerStatus,
+  CANONICAL_TIMELINE_STAGES,
+  getCanonicalStepIndex,
   getPaymentPresentation,
   formatOrderDate,
 } from "@/lib/order-status";
@@ -51,21 +53,7 @@ function formatUSD(amount: number): string {
   })}`;
 }
 
-const PROGRESS_STEPS = [
-  { key: "placed", label: "Order Placed", desc: "Order confirmed & queued" },
-  { key: "processing", label: "Processing", desc: "Packaging & export preparation" },
-  { key: "shipped", label: "Shipped", desc: "Handed to carrier / transit" },
-  { key: "delivered", label: "Delivered", desc: "Cleared customs & delivered" },
-];
 
-function getProgressStep(order: OrderRecord): number {
-  const key = getOrderStatusKey(order);
-  if (key === "cancelled") return -1;
-  if (key === "delivered") return 4;
-  if (key === "shipped") return 3;
-  if (key === "processing") return 2;
-  return 1;
-}
 
 export default function CustomerOrderDetailPage({ params }: Props) {
   const resolvedParams = use(params);
@@ -328,10 +316,11 @@ export default function CustomerOrderDetailPage({ params }: Props) {
   }
 
   // Presentation status
+  const canonicalStatus = getCanonicalCustomerStatus(order);
   const statusPres = getOrderStatusPresentation(order);
   const paymentPres = getPaymentPresentation(order.payment_status);
   const StatusIcon = statusPres.icon;
-  const activeStep = getProgressStep(order);
+  const activeStep = getCanonicalStepIndex(canonicalStatus);
   const isCancelled = order.status === "cancelled";
   const canCancel =
     (order.status === "pending" || order.status === "processing") &&
@@ -413,24 +402,22 @@ export default function CustomerOrderDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* ─── 2. STATUS STEPPER & BADGES ────────────────────────────────────────── */}
+      {/* ─── 2. CANONICAL LIFECYCLE TIMELINE ────────────────────────────────────────── */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xs">
         <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-white/5">
           <div className="flex items-center gap-2">
             <CircleDot size={16} className="text-amber-600 dark:text-amber-400" />
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Fulfillment Status & Timeline
+              Canonical Order Lifecycle
             </h2>
           </div>
 
           <div className="flex items-center gap-2">
             <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase tracking-wider ${paymentPres.badgeClass}`}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase tracking-wider ${statusPres.badgeClass}`}
             >
-              Payment: {paymentPres.label}
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[0.6875rem] font-bold uppercase tracking-wider bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300">
-              Fulfillment: {order.fulfillment_status || "unfulfilled"}
+              <StatusIcon size={12} className={statusPres.iconClass} />
+              {statusPres.label}
             </span>
           </div>
         </div>
@@ -446,38 +433,39 @@ export default function CustomerOrderDetailPage({ params }: Props) {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {PROGRESS_STEPS.map((step, idx) => {
-              const stepNum = idx + 1;
-              const isCompleted = activeStep >= stepNum;
-              const isCurrent = activeStep === stepNum;
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {CANONICAL_TIMELINE_STAGES.map((step) => {
+              const isCompleted = activeStep > step.stepNumber;
+              const isCurrent = activeStep === step.stepNumber;
 
               return (
                 <div
                   key={step.key}
                   className={`p-3.5 rounded-xl border transition-all ${
                     isCurrent
-                      ? "bg-amber-50/70 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/60"
+                      ? "bg-amber-50/70 dark:bg-amber-950/20 border-amber-400 dark:border-amber-600 ring-2 ring-amber-500/20 shadow-xs"
                       : isCompleted
-                      ? "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-white/10"
-                      : "bg-transparent border-dashed border-slate-200 dark:border-white/5 opacity-60"
+                      ? "bg-emerald-50/40 dark:bg-emerald-950/15 border-emerald-200 dark:border-emerald-800/50"
+                      : "bg-slate-50/50 dark:bg-slate-800/20 border-dashed border-slate-200 dark:border-white/10 opacity-60"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[0.625rem] font-mono font-bold text-slate-400">
-                      STEP 0{stepNum}
+                    <span className="text-[0.625rem] font-mono font-bold text-slate-400 dark:text-slate-500">
+                      STAGE 0{step.stepNumber}
                     </span>
                     {isCompleted ? (
-                      <Check size={14} className="text-amber-600 dark:text-amber-400" strokeWidth={3} />
+                      <Check size={14} className="text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
+                    ) : isCurrent ? (
+                      <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                     ) : null}
                   </div>
                   <p
                     className={`text-xs font-bold ${
                       isCurrent
-                        ? "text-amber-700 dark:text-amber-400"
+                        ? "text-amber-800 dark:text-amber-300"
                         : isCompleted
-                        ? "text-slate-900 dark:text-white"
-                        : "text-slate-400"
+                        ? "text-emerald-800 dark:text-emerald-300"
+                        : "text-slate-400 dark:text-slate-500"
                     }`}
                   >
                     {step.label}
@@ -821,16 +809,16 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               </div>
             </div>
           </div>
-        ) : order.payment_status === "payment_submitted" ? (
-          /* 6.2 PAYMENT SUBMITTED STATE */
+        ) : canonicalStatus === "WAITING_FOR_APPROVAL" || order.payment_status === "payment_submitted" ? (
+          /* 6.2 WAITING FOR APPROVAL STATE */
           <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/40 text-xs space-y-1">
-              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-bold uppercase text-xs">
+            <div className="p-4 rounded-xl bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800/40 text-xs space-y-1">
+              <div className="flex items-center gap-2 text-sky-700 dark:text-sky-400 font-bold uppercase text-xs">
                 <Clock size={16} />
-                <span>Payment Submitted — Awaiting Admin Verification</span>
+                <span>Waiting for Approval</span>
               </div>
               <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
-                We have received your payment proof and details. Our accounts team will review and verify the credit with our bank. Once approved, your order status will be marked as PAID and your official Commercial Invoice will unlock.
+                Payment submitted. We are waiting for payment approval.
               </p>
             </div>
 
@@ -838,7 +826,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               <div className="space-y-1">
                 <p className="text-slate-500 font-medium">Submitted Receipt &amp; Details:</p>
                 <div className="flex items-center gap-2">
-                  <Check size={14} className="text-blue-500" />
+                  <Check size={14} className="text-sky-500" />
                   <span className="font-bold text-slate-900 dark:text-white">
                     {order.payment_details?.transaction_id ? `Txn: ${order.payment_details.transaction_id}` : "Receipt on File"}
                   </span>
@@ -873,8 +861,20 @@ export default function CustomerOrderDetailPage({ params }: Props) {
             </div>
           </div>
         ) : (
-          /* 6.3 PENDING STATE */
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+          /* 6.3 PAYMENT PENDING STATE */
+          <div className="space-y-4">
+            {order.payment_status === "failed" && (
+              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 text-xs space-y-1">
+                <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold uppercase text-xs">
+                  <AlertCircle size={16} />
+                  <span>Payment Proof Required</span>
+                </div>
+                <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
+                  Previous payment proof was not approved. Please verify your transaction details and re-upload proof of payment below.
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
             <div>
               <p className="text-slate-500">Payment Instrument:</p>
               <p className="font-bold text-slate-900 dark:text-white mt-0.5 text-sm uppercase">
@@ -883,7 +883,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
 
               <div className="mt-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 space-y-1">
                 <p className="font-bold text-amber-800 dark:text-amber-400 text-xs">
-                  Awaiting Bank Wire Transfer
+                  Payment Pending
                 </p>
                 <p className="text-[0.6875rem] text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
                   Please wire funds using the order reference{" "}
@@ -930,6 +930,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               ) : null}
             </div>
           </div>
+        </div>
         )}
 
         {/* 6.4 STRUCTURED PAYMENT SUBMISSION FORM (Active when form toggled or needed) */}

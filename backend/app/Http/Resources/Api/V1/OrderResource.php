@@ -42,6 +42,7 @@ class OrderResource extends JsonResource
             'order_number' => $this->order_number,
             'user_id' => $this->user_id ? (string) $this->user_id : null,
             'status' => $this->status ?: 'pending',
+            'customer_status' => $this->customer_status,
             'payment_status' => $this->payment_status ?: 'pending',
             'fulfillment_status' => $this->fulfillment_status ?: 'unfulfilled',
             'currency' => $this->currency ?: 'USD',

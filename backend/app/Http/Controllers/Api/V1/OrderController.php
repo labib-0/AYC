@@ -696,33 +696,12 @@ class OrderController extends ApiController
                         'line_total' => $line['line_total'],
                         'package_breakdown' => $line['package_breakdown'],
                     ]);
+                }
 
-                    // Decrement variant stock AND warehouse inventory atomically
-                    if (!empty($line['locked_variants'])) {
-                        foreach ($line['locked_variants'] as $lv) {
-                            $deduct = min((int) $lv['variant']->stock, $lv['deduct_qty']);
-                            if ($deduct > 0) {
-                                $lv['variant']->decrement('stock', $deduct);
-                            }
-                            $inv = Inventory::where('product_variant_id', $lv['variant']->id)->lockForUpdate()->first();
-                            if ($inv && $deduct > 0) {
-                                $inv->decrement('quantity', min($inv->quantity, $deduct));
-                            }
-                        }
-                    } else {
-                        $p = $line['product'];
-                        $deduct = min((int) ($p->stock ?? $totalStock), $line['quantity']);
-                        if ($deduct > 0) {
-                            $p->decrement('stock', $deduct);
-                            if ($p->variants->count() === 1) {
-                                $p->variants->first()->decrement('stock', $deduct);
-                            }
-                        }
-                        $inv = Inventory::where('product_id', $p->id)->lockForUpdate()->first();
-                        if ($inv && $deduct > 0) {
-                            $inv->decrement('quantity', min($inv->quantity, $deduct));
-                        }
-                    }
+                // Inventory is strictly decremented ONLY when payment is approved.
+                // If payment is already approved at placement (e.g. instant card capture or approved trade terms), decrement immediately.
+                if ($isPaid || $isTerms) {
+                    $createdOrder->decrementInventory();
                 }
 
                 // Create Payment Record

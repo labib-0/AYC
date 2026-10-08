@@ -59,6 +59,7 @@ export interface OrderRecord {
     email?: string;
   } | null;
   status: "pending" | "processing" | "confirmed" | "fulfilled" | "cancelled" | "shipped" | "delivered" | string;
+  customer_status?: "ORDER_PLACED" | "PAYMENT_PENDING" | "WAITING_FOR_APPROVAL" | "ORDER_CONFIRMED" | "ON_SHIPMENT" | string;
   payment_status: "pending" | "paid" | "failed" | "refunded" | string;
   fulfillment_status: "unfulfilled" | "processing" | "shipped" | "delivered" | "returned" | string;
   currency: string;
@@ -695,6 +696,7 @@ export class OrderService {
       order_number: raw.order_number || `AYN-${raw.id || "000"}`,
       user_id: raw.user_id,
       status: raw.status || "pending",
+      customer_status: raw.customer_status,
       payment_status: raw.payment_status || "pending",
       fulfillment_status: raw.fulfillment_status || "unfulfilled",
       currency: raw.currency || "USD",

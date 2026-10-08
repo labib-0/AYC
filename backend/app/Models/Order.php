@@ -14,6 +14,12 @@ class Order extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const CUSTOMER_STATUS_ORDER_PLACED = 'ORDER_PLACED';
+    public const CUSTOMER_STATUS_PAYMENT_PENDING = 'PAYMENT_PENDING';
+    public const CUSTOMER_STATUS_WAITING_FOR_APPROVAL = 'WAITING_FOR_APPROVAL';
+    public const CUSTOMER_STATUS_ORDER_CONFIRMED = 'ORDER_CONFIRMED';
+    public const CUSTOMER_STATUS_ON_SHIPMENT = 'ON_SHIPMENT';
+
     protected $fillable = [
         'order_number',
         'user_id',
@@ -585,6 +591,190 @@ class Order extends Model
         $year = date('Y', strtotime($this->created_at ?: now()));
         $docSuffix = substr($this->order_number, -6);
         return "PI-{$year}-{$docSuffix}";
+    }
+
+    /**
+     * Authoritative customer-facing canonical order lifecycle status.
+     * Maps all internal / historical statuses to the 5 canonical customer states:
+     * ORDER_PLACED -> PAYMENT_PENDING -> WAITING_FOR_APPROVAL -> ORDER_CONFIRMED -> ON_SHIPMENT
+     */
+    public function getCustomerStatusAttribute(): string
+    {
+        // 5. ON SHIPMENT: actual shipment/fulfillment transition
+        $isShipment = in_array(strtolower((string) $this->fulfillment_status), ['shipped', 'delivered', 'fulfilled', 'partially_shipped'], true)
+            || in_array(strtolower((string) $this->status), ['shipped', 'delivered', 'completed', 'partially_shipped', 'on_shipment'], true)
+            || (!empty($this->tracking_number) && !empty($this->carrier_status));
+
+        if ($isShipment) {
+            return self::CUSTOMER_STATUS_ON_SHIPMENT;
+        }
+
+        // 4. ORDER CONFIRMED: payment approved or confirmed by admin
+        $isConfirmed = strtolower((string) $this->payment_status) === 'paid'
+            || $this->payment_confirmed_at !== null
+            || in_array(strtolower((string) $this->status), ['confirmed', 'in_production', 'ready_to_ship', 'order_confirmed'], true)
+            || (strtolower((string) $this->status) === 'processing' && (strtolower((string) $this->payment_status) === 'paid' || in_array(strtolower((string) $this->payment_method), ['net_30', 'net_60', 'terms'], true)));
+
+        if ($isConfirmed) {
+            return self::CUSTOMER_STATUS_ORDER_CONFIRMED;
+        }
+
+        // 3. WAITING FOR APPROVAL: payment proof uploaded, awaiting admin review
+        $isWaitingApproval = strtolower((string) $this->payment_status) === 'payment_submitted'
+            || (!empty($this->payment_proof_url) && !in_array(strtolower((string) $this->payment_status), ['paid', 'failed'], true))
+            || ($this->relationLoaded('payments') && $this->payments->contains('status', 'submitted'));
+
+        if ($isWaitingApproval) {
+            return self::CUSTOMER_STATUS_WAITING_FOR_APPROVAL;
+        }
+
+        // 1. ORDER PLACED: initial order creation state
+        if (in_array(strtolower((string) $this->status), ['order_placed', 'placed'], true)) {
+            return self::CUSTOMER_STATUS_ORDER_PLACED;
+        }
+
+        // 2. PAYMENT PENDING: default for newly placed orders awaiting payment submission or re-submission
+        return self::CUSTOMER_STATUS_PAYMENT_PENDING;
+    }
+
+    /**
+     * Authoritative atomic inventory decrement.
+     * Decrements physical stock ONLY upon Admin payment approval.
+     * Idempotent: repeated calls will safely no-op without double-decrementing.
+     *
+     * @throws \RuntimeException If inventory cannot be safely deducted due to insufficient stock.
+     */
+    public function decrementInventory(): bool
+    {
+        $details = is_array($this->payment_details) ? $this->payment_details : (json_decode($this->payment_details, true) ?: []);
+        if (!empty($details['inventory_decremented'])) {
+            return false;
+        }
+
+        $this->loadMissing(['items']);
+
+        // First pass: verify sufficient stock availability for all items
+        foreach ($this->items as $item) {
+            $qty = (int) $item->quantity;
+            if ($qty <= 0) {
+                continue;
+            }
+
+            $product = $item->product_id ? Product::find($item->product_id) : null;
+            if ($product?->is_preorder) {
+                continue;
+            }
+
+            $packageBreakdown = $item->package_breakdown;
+            if (is_string($packageBreakdown)) {
+                $packageBreakdown = json_decode($packageBreakdown, true);
+            }
+
+            if (!empty($packageBreakdown) && is_array($packageBreakdown)) {
+                foreach ($packageBreakdown as $entry) {
+                    $subQty = (int) ($entry['quantity'] ?? $entry['qty'] ?? 0);
+                    if ($subQty <= 0) continue;
+                    $vId = $entry['product_variant_id'] ?? $entry['variant_id'] ?? null;
+                    if ($vId) {
+                        $variant = ProductVariant::where('id', $vId)->lockForUpdate()->first();
+                        if ($variant && (int) $variant->stock < $subQty) {
+                            throw new \RuntimeException("Insufficient stock for variant '{$variant->sku}'. Available: {$variant->stock}, required: {$subQty}");
+                        }
+                    }
+                }
+            } elseif ($item->product_variant_id) {
+                $variant = ProductVariant::where('id', $item->product_variant_id)->lockForUpdate()->first();
+                if ($variant && (int) $variant->stock < $qty) {
+                    throw new \RuntimeException("Insufficient stock for variant '{$variant->sku}'. Available: {$variant->stock}, required: {$qty}");
+                }
+            } elseif ($item->product_id) {
+                $variants = ProductVariant::where('product_id', $item->product_id)->lockForUpdate()->get();
+                if ($variants->count() === 1) {
+                    $v = $variants->first();
+                    if ($v && (int) $v->stock < $qty) {
+                        throw new \RuntimeException("Insufficient stock for product '{$item->product_name}'. Available: {$v->stock}, required: {$qty}");
+                    }
+                } else {
+                    $inv = Inventory::where('product_id', $item->product_id)->lockForUpdate()->first();
+                    if ($inv && (int) $inv->quantity < $qty) {
+                        throw new \RuntimeException("Insufficient stock for product '{$item->product_name}'. Available: {$inv->quantity}, required: {$qty}");
+                    }
+                }
+            }
+        }
+
+        // Second pass: atomically decrement physical inventory
+        foreach ($this->items as $item) {
+            $qty = (int) $item->quantity;
+            if ($qty <= 0) {
+                continue;
+            }
+
+            $product = $item->product_id ? Product::find($item->product_id) : null;
+            if ($product?->is_preorder) {
+                continue;
+            }
+
+            $packageBreakdown = $item->package_breakdown;
+            if (is_string($packageBreakdown)) {
+                $packageBreakdown = json_decode($packageBreakdown, true);
+            }
+
+            if (!empty($packageBreakdown) && is_array($packageBreakdown)) {
+                foreach ($packageBreakdown as $entry) {
+                    $subQty = (int) ($entry['quantity'] ?? $entry['qty'] ?? 0);
+                    if ($subQty <= 0) continue;
+                    $vId = $entry['product_variant_id'] ?? $entry['variant_id'] ?? null;
+                    if ($vId) {
+                        $variant = ProductVariant::where('id', $vId)->lockForUpdate()->first();
+                        if ($variant) {
+                            $variant->decrement('stock', $subQty);
+                            $inv = Inventory::where('product_variant_id', $variant->id)->lockForUpdate()->first();
+                            if ($inv) {
+                                $inv->decrement('quantity', min((int) $inv->quantity, $subQty));
+                            }
+                        }
+                    }
+                }
+            } elseif ($item->product_variant_id) {
+                $variant = ProductVariant::where('id', $item->product_variant_id)->lockForUpdate()->first();
+                if ($variant) {
+                    $variant->decrement('stock', $qty);
+                    $inv = Inventory::where('product_variant_id', $variant->id)->lockForUpdate()->first();
+                    if ($inv) {
+                        $inv->decrement('quantity', min((int) $inv->quantity, $qty));
+                    }
+                }
+            } elseif ($item->product_id) {
+                $variants = ProductVariant::where('product_id', $item->product_id)->lockForUpdate()->get();
+                if ($variants->count() === 1) {
+                    $v = $variants->first();
+                    $v->decrement('stock', $qty);
+                    $inv = Inventory::where('product_variant_id', $v->id)->lockForUpdate()->first();
+                    if ($inv) {
+                        $inv->decrement('quantity', min((int) $inv->quantity, $qty));
+                    }
+                    if ($product && $product->stock !== null) {
+                        $product->decrement('stock', min((int) $product->stock, $qty));
+                    }
+                } else {
+                    $inv = Inventory::where('product_id', $item->product_id)->lockForUpdate()->first();
+                    if ($inv) {
+                        $inv->decrement('quantity', min((int) $inv->quantity, $qty));
+                    }
+                    if ($product && $product->stock !== null) {
+                        $product->decrement('stock', min((int) $product->stock, $qty));
+                    }
+                }
+            }
+        }
+
+        $details['inventory_decremented'] = true;
+        $details['inventory_decremented_at'] = now()->toIso8601String();
+        $this->payment_details = $details;
+        $this->save();
+
+        return true;
     }
 }
 

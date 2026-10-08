@@ -84,6 +84,7 @@ export function RecentOrdersCard({ orders, loading = false }: RecentOrdersCardPr
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${statusPres.badgeClass}`}
                       >
+                        <statusPres.icon size={10} className={statusPres.iconClass} />
                         {statusPres.label}
                       </span>
                     </div>

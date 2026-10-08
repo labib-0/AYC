@@ -558,7 +558,7 @@ class FacebookVideoAndFullStockNonMoqCartTest extends TestCase
             'shipping_postal_code' => '1212',
             'shipping_country_code' => 'BD',
             'shipping_method' => 'air_express',
-            'payment_method' => 'bank_transfer',
+            'payment_method' => 'card',
         ]);
 
         $orderRes->assertStatus(201);

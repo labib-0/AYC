@@ -88,7 +88,6 @@ export function DashboardRecentOrders({ orders, loading = false }: RecentOrdersP
                   <th className="py-3 px-4">Date</th>
                   <th className="py-3 px-4">Items / Units</th>
                   <th className="py-3 px-4">Total USD</th>
-                  <th className="py-3 px-4">Payment</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-5 text-right">Action</th>
                 </tr>
@@ -96,7 +95,6 @@ export function DashboardRecentOrders({ orders, loading = false }: RecentOrdersP
               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                 {recentOrders.map((order) => {
                   const statusPres = getOrderStatusPresentation(order);
-                  const paymentPres = getPaymentPresentation(order.payment_status);
                   const StatusIcon = statusPres.icon;
                   const totalUnits =
                     order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
@@ -132,16 +130,9 @@ export function DashboardRecentOrders({ orders, loading = false }: RecentOrdersP
                       </td>
                       <td className="py-3.5 px-4">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${paymentPres.badgeClass}`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${statusPres.badgeClass}`}
                         >
-                          {paymentPres.label}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${statusPres.badgeClass}`}
-                        >
-                          <StatusIcon size={11} />
+                          <StatusIcon size={11} className={statusPres.iconClass} />
                           {statusPres.label}
                         </span>
                       </td>
@@ -165,7 +156,6 @@ export function DashboardRecentOrders({ orders, loading = false }: RecentOrdersP
           <div className="md:hidden divide-y divide-slate-100 dark:divide-white/5">
             {recentOrders.map((order) => {
               const statusPres = getOrderStatusPresentation(order);
-              const paymentPres = getPaymentPresentation(order.payment_status);
               const StatusIcon = statusPres.icon;
               const totalUnits =
                 order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
@@ -195,19 +185,12 @@ export function DashboardRecentOrders({ orders, loading = false }: RecentOrdersP
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/5">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${statusPres.badgeClass}`}
-                      >
-                        <StatusIcon size={10} />
-                        {statusPres.label}
-                      </span>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[0.625rem] font-semibold uppercase tracking-wider ${paymentPres.badgeClass}`}
-                      >
-                        {paymentPres.label}
-                      </span>
-                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider ${statusPres.badgeClass}`}
+                    >
+                      <StatusIcon size={10} className={statusPres.iconClass} />
+                      {statusPres.label}
+                    </span>
 
                     <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-600 dark:text-amber-400">
                       <span>Details</span>

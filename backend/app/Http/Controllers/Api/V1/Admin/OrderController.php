@@ -250,22 +250,28 @@ class OrderController extends ApiController
         DB::transaction(function () use ($order, $oldStatus, $newStatus, $admin, $note) {
             $order->update(['status' => $newStatus]);
 
-            // If moving to cancelled from an active status, restore stock
+            // If moving to cancelled from an active status, restore stock ONLY if it was previously decremented
             if ($newStatus === 'cancelled' && $oldStatus !== 'cancelled') {
-                foreach ($order->items as $item) {
-                    if ($item->product_variant_id) {
-                        ProductVariant::where('id', $item->product_variant_id)->increment('stock', $item->quantity);
-                        $inv = \App\Models\Inventory::where('product_variant_id', $item->product_variant_id)->first();
-                        if ($inv) {
-                            $inv->increment('quantity', $item->quantity);
-                        }
-                    } elseif ($item->product_id) {
-                        \App\Models\Product::where('id', $item->product_id)->increment('stock', $item->quantity);
-                        $inv = \App\Models\Inventory::where('product_id', $item->product_id)->first();
-                        if ($inv) {
-                            $inv->increment('quantity', $item->quantity);
+                $details = is_array($order->payment_details) ? $order->payment_details : (json_decode($order->payment_details, true) ?: []);
+                if (!empty($details['inventory_decremented'])) {
+                    foreach ($order->items as $item) {
+                        if ($item->product_variant_id) {
+                            ProductVariant::where('id', $item->product_variant_id)->increment('stock', $item->quantity);
+                            $inv = \App\Models\Inventory::where('product_variant_id', $item->product_variant_id)->first();
+                            if ($inv) {
+                                $inv->increment('quantity', $item->quantity);
+                            }
+                        } elseif ($item->product_id) {
+                            \App\Models\Product::where('id', $item->product_id)->increment('stock', $item->quantity);
+                            $inv = \App\Models\Inventory::where('product_id', $item->product_id)->first();
+                            if ($inv) {
+                                $inv->increment('quantity', $item->quantity);
+                            }
                         }
                     }
+                    $details['inventory_decremented'] = false;
+                    $order->payment_details = $details;
+                    $order->save();
                 }
             }
 
@@ -369,132 +375,142 @@ class OrderController extends ApiController
 
         $note = $validated['note'] ?? ($isApprove ? 'Payment verified and approved by accounts team.' : 'Payment proof rejected.');
 
-        DB::transaction(function () use ($order, $action, $isApprove, $admin, $note, $request) {
-            $latestPayment = $order->payments()->where('status', 'submitted')->latest()->first()
-                ?? $order->payments()->latest()->first();
+        try {
+            DB::transaction(function () use ($order, $action, $isApprove, $admin, $note, $request) {
+                $latestPayment = $order->payments()->where('status', 'submitted')->latest()->first()
+                    ?? $order->payments()->latest()->first();
 
-            $paymentMethod = $request->input('payment_method')
-                ?: ($latestPayment?->payment_method ?: ($order->payment_method ?: 'Bank Transfer'));
+                $paymentMethod = $request->input('payment_method')
+                    ?: ($latestPayment?->payment_method ?: ($order->payment_method ?: 'Bank Transfer'));
 
-            $transactionId = $request->input('transaction_id')
-                ?: ($latestPayment?->transaction_id ?: ('TXN_' . strtoupper(\Illuminate\Support\Str::random(10))));
+                $transactionId = $request->input('transaction_id')
+                    ?: ($latestPayment?->transaction_id ?: ('TXN_' . strtoupper(\Illuminate\Support\Str::random(10))));
 
-            $payerName = $request->input('payer_name')
-                ?: ($latestPayment?->payer_name ?: ($order->shipping_name ?: ($order->user?->name ?: 'Customer')));
+                $payerName = $request->input('payer_name')
+                    ?: ($latestPayment?->payer_name ?: ($order->shipping_name ?: ($order->user?->name ?: 'Customer')));
 
-            $bankName = $request->input('bank_name')
-                ?: ($latestPayment?->bank_name ?: config('business.banking.bank_name', 'Pubali Bank Limited'));
+                $bankName = $request->input('bank_name')
+                    ?: ($latestPayment?->bank_name ?: config('business.banking.bank_name', 'Pubali Bank Limited'));
 
-            $accountNumber = $request->input('account_number')
-                ?: ($latestPayment?->account_number ?: config('business.banking.account_number'));
+                $accountNumber = $request->input('account_number')
+                    ?: ($latestPayment?->account_number ?: config('business.banking.account_number'));
 
-            $paymentAmount = $request->filled('payment_amount')
-                ? (float) $request->input('payment_amount')
-                : (float) ($latestPayment?->amount ?: $order->total_amount);
+                $paymentAmount = $request->filled('payment_amount')
+                    ? (float) $request->input('payment_amount')
+                    : (float) ($latestPayment?->amount ?: $order->total_amount);
 
-            $paymentDate = $request->input('payment_date')
-                ?: ($latestPayment?->payment_date?->format('Y-m-d') ?: now()->toDateString());
+                $paymentDate = $request->input('payment_date')
+                    ?: ($latestPayment?->payment_date?->format('Y-m-d') ?: now()->toDateString());
 
-            if ($isApprove) {
-                $confirmedSnapshot = [
-                    'payment_status' => 'PAID',
-                    'payment_method' => $paymentMethod,
-                    'transaction_id' => $transactionId,
-                    'payer_name' => $payerName,
-                    'bank_name' => $bankName,
-                    'account_number' => $accountNumber,
-                    'payment_amount' => $paymentAmount,
-                    'currency' => $order->currency ?? 'USD',
-                    'payment_date' => $paymentDate,
-                    'notes' => $note,
-                    'receipt_url' => $latestPayment?->receipt_url ?? $order->payment_proof_url,
-                    'receipt_original_name' => $latestPayment?->receipt_original_name,
-                    'confirmed_at' => now()->toIso8601String(),
-                    'confirmed_by_id' => $admin->id,
-                    'confirmed_by_name' => $admin->name,
-                ];
+                if ($isApprove) {
+                    // Authoritative atomic inventory decrement upon Admin payment approval.
+                    // If stock is insufficient, throws RuntimeException to cleanly abort transaction.
+                    $order->decrementInventory();
 
-                $order->update([
-                    'payment_status' => 'paid',
-                    'status' => $order->status === 'pending' ? 'processing' : $order->status,
-                    'payment_method' => $paymentMethod,
-                    'payment_details' => $confirmedSnapshot,
-                    'payment_confirmed_at' => now(),
-                    'payment_confirmed_by' => $admin->id,
-                ]);
-
-                if ($latestPayment) {
-                    $latestPayment->update([
-                        'status' => 'succeeded',
+                    $confirmedSnapshot = array_merge(is_array($order->payment_details) ? $order->payment_details : [], [
+                        'payment_status' => 'PAID',
                         'payment_method' => $paymentMethod,
                         'transaction_id' => $transactionId,
                         'payer_name' => $payerName,
                         'bank_name' => $bankName,
                         'account_number' => $accountNumber,
-                        'amount' => $paymentAmount,
-                        'payment_date' => $paymentDate,
-                        'admin_notes' => $note,
-                        'confirmed_at' => now(),
-                        'confirmed_by' => $admin->id,
-                    ]);
-                } else {
-                    Payment::create([
-                        'order_id' => $order->id,
-                        'customer_id' => $order->user_id,
-                        'transaction_id' => $transactionId,
-                        'provider' => $paymentMethod,
-                        'payment_method' => $paymentMethod,
-                        'amount' => $paymentAmount,
+                        'payment_amount' => $paymentAmount,
                         'currency' => $order->currency ?? 'USD',
-                        'status' => 'succeeded',
-                        'payer_name' => $payerName,
-                        'bank_name' => $bankName,
-                        'account_number' => $accountNumber,
                         'payment_date' => $paymentDate,
-                        'admin_notes' => $note,
-                        'confirmed_at' => now(),
-                        'confirmed_by' => $admin->id,
+                        'notes' => $note,
+                        'receipt_url' => $latestPayment?->receipt_url ?? $order->payment_proof_url,
+                        'receipt_original_name' => $latestPayment?->receipt_original_name,
+                        'confirmed_at' => now()->toIso8601String(),
+                        'confirmed_by_id' => $admin->id,
+                        'confirmed_by_name' => $admin->name,
+                        'inventory_decremented' => true,
+                        'inventory_decremented_at' => now()->toIso8601String(),
                     ]);
-                }
 
-                OrderStatusEvent::create([
-                    'order_id' => $order->id,
-                    'user_id' => $admin->id,
-                    'event_type' => 'payment_proof_approved',
-                    'message' => "Payment verified: {$transactionId} (\${$paymentAmount} USD) confirmed by {$admin->name}. {$note}",
-                ]);
-
-                ActivityLogger::log('order.payment_verified', $order, [
-                    'transaction_id' => $transactionId,
-                    'amount' => $paymentAmount,
-                    'payer' => $payerName,
-                    'bank' => $bankName,
-                    'note' => $note,
-                ], $admin);
-            } else {
-                $order->update([
-                    'payment_status' => 'failed',
-                ]);
-
-                if ($latestPayment) {
-                    $latestPayment->update([
-                        'status' => 'failed',
-                        'admin_notes' => $note,
+                    $order->update([
+                        'payment_status' => 'paid',
+                        'status' => in_array($order->status, ['pending', 'order_placed'], true) ? 'processing' : $order->status,
+                        'payment_method' => $paymentMethod,
+                        'payment_details' => $confirmedSnapshot,
+                        'payment_confirmed_at' => now(),
+                        'payment_confirmed_by' => $admin->id,
                     ]);
+
+                    if ($latestPayment) {
+                        $latestPayment->update([
+                            'status' => 'succeeded',
+                            'payment_method' => $paymentMethod,
+                            'transaction_id' => $transactionId,
+                            'payer_name' => $payerName,
+                            'bank_name' => $bankName,
+                            'account_number' => $accountNumber,
+                            'amount' => $paymentAmount,
+                            'payment_date' => $paymentDate,
+                            'admin_notes' => $note,
+                            'confirmed_at' => now(),
+                            'confirmed_by' => $admin->id,
+                        ]);
+                    } else {
+                        Payment::create([
+                            'order_id' => $order->id,
+                            'customer_id' => $order->user_id,
+                            'transaction_id' => $transactionId,
+                            'provider' => $paymentMethod,
+                            'payment_method' => $paymentMethod,
+                            'amount' => $paymentAmount,
+                            'currency' => $order->currency ?? 'USD',
+                            'status' => 'succeeded',
+                            'payer_name' => $payerName,
+                            'bank_name' => $bankName,
+                            'account_number' => $accountNumber,
+                            'payment_date' => $paymentDate,
+                            'admin_notes' => $note,
+                            'confirmed_at' => now(),
+                            'confirmed_by' => $admin->id,
+                        ]);
+                    }
+
+                    OrderStatusEvent::create([
+                        'order_id' => $order->id,
+                        'user_id' => $admin->id,
+                        'event_type' => 'payment_proof_approved',
+                        'message' => "Payment verified: {$transactionId} (\${$paymentAmount} USD) confirmed by {$admin->name}. {$note}",
+                    ]);
+
+                    ActivityLogger::log('order.payment_verified', $order, [
+                        'transaction_id' => $transactionId,
+                        'amount' => $paymentAmount,
+                        'payer' => $payerName,
+                        'bank' => $bankName,
+                        'note' => $note,
+                    ], $admin);
+                } else {
+                    $order->update([
+                        'payment_status' => 'failed',
+                    ]);
+
+                    if ($latestPayment) {
+                        $latestPayment->update([
+                            'status' => 'failed',
+                            'admin_notes' => $note,
+                        ]);
+                    }
+
+                    OrderStatusEvent::create([
+                        'order_id' => $order->id,
+                        'user_id' => $admin->id,
+                        'event_type' => 'payment_proof_rejected',
+                        'message' => "Payment rejected: {$note}",
+                    ]);
+
+                    ActivityLogger::log('order.payment_rejected', $order, [
+                        'reason' => $note,
+                    ], $admin);
                 }
-
-                OrderStatusEvent::create([
-                    'order_id' => $order->id,
-                    'user_id' => $admin->id,
-                    'event_type' => 'payment_proof_rejected',
-                    'message' => "Payment rejected: {$note}",
-                ]);
-
-                ActivityLogger::log('order.payment_rejected', $order, [
-                    'reason' => $note,
-                ], $admin);
-            }
-        });
+            });
+        } catch (\RuntimeException $e) {
+            return $this->error($e->getMessage(), 422);
+        }
 
         return $this->success(new OrderResource($order->fresh(['items', 'payments', 'statusEvents'])), "Payment proof {$action}d successfully");
     }

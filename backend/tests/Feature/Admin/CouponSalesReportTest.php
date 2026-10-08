@@ -562,8 +562,8 @@ class CouponSalesReportTest extends TestCase
             'payment_status'       => 'paid',
         ]);
         Order::where('id', $yesterdayOrder->id)->update([
-            'created_at' => Carbon::now('Asia/Dhaka')->subDay(),
-            'updated_at' => Carbon::now('Asia/Dhaka')->subDay(),
+            'created_at' => now()->subDay()->startOfDay()->addHours(12),
+            'updated_at' => now()->subDay()->startOfDay()->addHours(12),
         ]);
 
         $resYesterday = $this->actingAs($this->salesAdminA, 'sanctum')
