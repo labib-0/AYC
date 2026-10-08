@@ -147,17 +147,23 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
 
   const variants = useMemo<any[]>(() => {
     if (!product?.variants) return [];
-    return Array.isArray(product.variants)
+    const list = Array.isArray(product.variants)
       ? (product.variants as any[])
-      : (typeof product.variants === "object" ? (Object.values(product.variants) as any[]) : []);
+      : (typeof product.variants === "object" && !(product.variants as any).__PHP_Incomplete_Class_Name
+          ? (Object.values(product.variants) as any[])
+          : []);
+    return list.filter((v: any) => v && typeof v === "object" && !v.__PHP_Incomplete_Class_Name);
   }, [product]);
 
   const packageAllocations = useMemo<any[]>(() => {
     const raw = product?.packageAllocations ?? (product as any)?.package_allocations;
     if (!raw) return [];
-    return Array.isArray(raw)
+    const list = Array.isArray(raw)
       ? (raw as any[])
-      : (typeof raw === "object" ? (Object.values(raw) as any[]) : []);
+      : (typeof raw === "object" && !(raw as any).__PHP_Incomplete_Class_Name
+          ? (Object.values(raw) as any[])
+          : []);
+    return list.filter((a: any) => a && typeof a === "object" && !a.__PHP_Incomplete_Class_Name);
   }, [product]);
 
   // 3. Authoritative Complete Package Stock (from allocations & variant inventory)
@@ -413,9 +419,9 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   // Pricing Row Click Handlers
   const handleSelectStandard = () => {
     setSelectedTier("standard");
-    const targetQty = fullStockQuantity > 0 ? Math.min(moq, fullStockQuantity) : moq;
+    const targetQty = (!isPreorder && fullStockQuantity > 0) ? Math.min(moq, fullStockQuantity) : moq;
     setQuantity(targetQty);
-    if (fullStockQuantity > 0 && targetQty === fullStockQuantity) {
+    if (!isPreorder && fullStockQuantity > 0 && targetQty === fullStockQuantity) {
       setSelectedTier("full_stock");
     }
   };
@@ -424,9 +430,9 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     if (!hasBulkTier || bulkThreshold === undefined) return;
     setSelectedTier("bulk");
     const validBulkQty = Math.ceil(bulkThreshold / moq) * moq;
-    const targetQty = fullStockQuantity > 0 ? Math.min(validBulkQty, fullStockQuantity) : validBulkQty;
+    const targetQty = (!isPreorder && fullStockQuantity > 0) ? Math.min(validBulkQty, fullStockQuantity) : validBulkQty;
     setQuantity(targetQty);
-    if (fullStockQuantity > 0 && targetQty === fullStockQuantity) {
+    if (!isPreorder && fullStockQuantity > 0 && targetQty === fullStockQuantity) {
       setSelectedTier("full_stock");
     }
   };
@@ -439,12 +445,14 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   };
 
   const handleIncrement = () => {
-    if (fullStockQuantity <= 0) return;
-    if (quantity >= fullStockQuantity) return;
+    if (!isPreorder && fullStockQuantity <= 0) return;
+    if (!isPreorder && fullStockQuantity > 0 && quantity >= fullStockQuantity) return;
 
-    const nextQty = Math.min(fullStockQuantity, quantity + moq);
+    const nextQty = (!isPreorder && fullStockQuantity > 0)
+      ? Math.min(fullStockQuantity, quantity + moq)
+      : quantity + moq;
     setQuantity(nextQty);
-    if (nextQty === fullStockQuantity) {
+    if (!isPreorder && fullStockQuantity > 0 && nextQty === fullStockQuantity) {
       setSelectedTier("full_stock");
     } else if (hasBulkTier && bulkThreshold !== undefined && nextQty >= bulkThreshold) {
       setSelectedTier("bulk");
@@ -454,11 +462,13 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   };
 
   const handleDecrement = () => {
-    const minQty = Math.min(moq, fullStockQuantity > 0 ? fullStockQuantity : moq);
+    const minQty = (!isPreorder && fullStockQuantity > 0 && fullStockQuantity < moq)
+      ? fullStockQuantity
+      : moq;
     if (quantity <= minQty) return;
 
     let prevQty: number;
-    if (quantity === fullStockQuantity && quantity % moq !== 0) {
+    if (!isPreorder && quantity === fullStockQuantity && quantity % moq !== 0) {
       // Step down from non-multiple full stock to the highest valid MOQ multiple below full stock
       prevQty = Math.max(minQty, Math.floor((quantity - 1) / moq) * moq);
     } else {
@@ -466,7 +476,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     }
 
     setQuantity(prevQty);
-    if (fullStockQuantity > 0 && prevQty === fullStockQuantity) {
+    if (!isPreorder && fullStockQuantity > 0 && prevQty === fullStockQuantity) {
       setSelectedTier("full_stock");
     } else if (hasBulkTier && bulkThreshold !== undefined && prevQty >= bulkThreshold) {
       setSelectedTier("bulk");

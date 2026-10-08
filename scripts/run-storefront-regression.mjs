@@ -57,7 +57,8 @@ const STOREFRONT_UNIT_SUITES = [
   "storefront-wishlist-restoration.test.ts",
   "production-api-failure-and-error-states.test.ts",
   "commercial-offer-sheet-pricing-cleanup.test.ts",
-  "storefront-discovery-and-filters-refinement.test.ts"
+  "storefront-discovery-and-filters-refinement.test.ts",
+  "storefront-pdp-and-pricing-refinement.test.ts"
 ];
 
 // 2. Storefront Contract Suites (Mocked / Typed Fixtures)

@@ -188,7 +188,13 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
   const packageAllocations = Array.isArray(p.packageAllocations) ? p.packageAllocations : Array.isArray(p.package_allocations) ? p.package_allocations : (typeof (p.packageAllocations || p.package_allocations) === 'object' && (p.packageAllocations || p.package_allocations) !== null ? Object.values(p.packageAllocations || p.package_allocations) : []);
   const isPackageAssortment = p.isPackageAssortment ?? p.is_package_assortment ?? true;
   const rawVariants = p.variants || [];
-  const variants = Array.isArray(rawVariants) ? rawVariants : (typeof rawVariants === 'object' && rawVariants !== null ? Object.values(rawVariants) : []);
+  const variants = (
+    Array.isArray(rawVariants)
+      ? rawVariants
+      : (typeof rawVariants === 'object' && rawVariants !== null && !(rawVariants as any).__PHP_Incomplete_Class_Name
+          ? Object.values(rawVariants)
+          : [])
+  ).filter((v: any) => v && typeof v === "object" && !v.__PHP_Incomplete_Class_Name);
   const moqVal = p.moq ? Number(p.moq) : 10;
   const availableStock = variants.length > 0 ? variants.reduce((acc: number, v: any) => acc + Number(v.stock || 0), 0) : stock;
 

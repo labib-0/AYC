@@ -50,7 +50,7 @@ class ProductResource extends JsonResource
             'brand_id' => $this->brand_id ? (string) $this->brand_id : null,
             'brand_logo' => $this->brand ? ($this->brand->logo_url ?: ($this->brand->slug ? "/brands/{$this->brand->slug}.svg" : null)) : null,
             'brandLogo' => $this->brand ? ($this->brand->logo_url ?: ($this->brand->slug ? "/brands/{$this->brand->slug}.svg" : null)) : null,
-            'brand_data' => $this->brand ? new BrandResource($this->brand) : null,
+            'brand_data' => $this->brand ? (new BrandResource($this->brand))->resolve() : null,
             'supplier_id' => $this->when($isAdmin, $this->supplier_id ? (int) $this->supplier_id : null),
             'supplierId' => $this->when($isAdmin, $this->supplier_id ? (int) $this->supplier_id : null),
             'supplier' => $this->when($isAdmin, $this->supplier ? [
@@ -61,7 +61,7 @@ class ProductResource extends JsonResource
             ] : null),
             'categoryId' => $firstCategory ? (string) $firstCategory->id : null,
             'categoryName' => $firstCategory ? $firstCategory->name : null,
-            'categories' => CategoryResource::collection($this->whenLoaded('categories')),
+            'categories' => $this->relationLoaded('categories') ? CategoryResource::collection($this->categories)->resolve() : [],
             'audience' => $this->audience ?: 'UNISEX',
             'design_type' => $this->design_type ?: 'ORIGINAL',
             'designType' => $this->design_type ?: 'ORIGINAL',
@@ -170,8 +170,8 @@ class ProductResource extends JsonResource
             'sizes' => $sizes,
             'colors' => $colors,
             'variants' => $this->relationLoaded('variants')
-                ? ProductVariantResource::collection($this->variants)
-                : ($this->exists && $this->variants()->exists() ? ProductVariantResource::collection($this->variants) : []),
+                ? ProductVariantResource::collection($this->variants)->resolve()
+                : ($this->exists && $this->variants()->exists() ? ProductVariantResource::collection($this->variants)->resolve() : []),
             'pricing_tiers' => $this->whenLoaded('pricingTiers', function () {
                 return $this->pricingTiers->map(fn($t) => [
                     'min_quantity' => $t->min_quantity,
