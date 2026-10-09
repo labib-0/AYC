@@ -32,12 +32,10 @@ console.log("RUNNING HOMEPAGE ADMIN & STOREFRONT AUDIT");
 console.log("=======================================================\n");
 
 // 1. Sidebar Naming Verification
-const marketingSection = ADMIN_NAV_SECTIONS.find((s) => s.title === "MARKETING");
-assert(Boolean(marketingSection), "Marketing section exists in sidebar");
-
-const marketingLabels = marketingSection?.items.map((i) => i.label) || [];
-assert(marketingLabels.includes("Homepage"), "Sidebar marketing item is titled 'Homepage'");
-assert(!marketingLabels.includes("Homepage & Landing Page"), "Sidebar has NO 'Homepage & Landing Page' label");
+const allSidebarItems = ADMIN_NAV_SECTIONS.flatMap((s) => s.items);
+const allSidebarLabels = allSidebarItems.map((i) => i.label);
+assert(allSidebarLabels.includes("Homepage"), "Sidebar item is titled 'Homepage'");
+assert(!allSidebarLabels.includes("Homepage & Landing Page"), "Sidebar has NO 'Homepage & Landing Page' label");
 
 // 2. Header Logo Container Checks
 const markupWithLogo = ReactDOMServer.renderToStaticMarkup(

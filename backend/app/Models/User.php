@@ -105,6 +105,25 @@ class User extends Authenticatable
         return $this->role === self::ROLE_CUSTOMER;
     }
 
+    /**
+     * Check if customer holds a synthetic placeholder email (e.g., from quick in-person POS counter registration).
+     */
+    public function isSyntheticEmail(): bool
+    {
+        return str_ends_with(strtolower($this->email ?? ''), '@ayaan.local');
+    }
+
+    /**
+     * Route notifications for mail. Suppresses all outbound email notifications to synthetic addresses.
+     */
+    public function routeNotificationForMail($notification = null): ?string
+    {
+        if ($this->isSyntheticEmail()) {
+            return null;
+        }
+        return $this->email;
+    }
+
     public function isApprovedB2b(): bool
     {
         return $this->isCustomer() && $this->b2b_approval_status === 'approved';

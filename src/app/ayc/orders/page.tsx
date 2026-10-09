@@ -228,6 +228,48 @@ export default function AdminOrdersPage() {
         {/* 1. Header */}
         <OrderListHeader onRefresh={handleRefresh} isLoading={isRefreshing} />
 
+        {/* 1.1 Dedicated Saved Filters / Order Lifecycle Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {[
+            { id: "all", label: "All Orders", count: metrics?.totalOrders },
+            { id: "pending", label: "Pending Orders", count: metrics?.pending, isAmber: true },
+            { id: "processing", label: "Processing & Confirmed", count: metrics ? metrics.processing + metrics.confirmed : undefined },
+            { id: "shipped", label: "Shipped / On Shipment", count: metrics ? metrics.shipped + metrics.delivered : undefined },
+          ].map((tab) => {
+            const isTabActive = status === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleStatusChange(tab.id)}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
+                  isTabActive
+                    ? tab.isAmber
+                      ? "bg-amber-500 text-amber-950 font-extrabold ring-2 ring-amber-500/30"
+                      : "bg-foreground text-background font-extrabold"
+                    : "bg-card border border-border/70 text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                }`}
+                id={`btn-tab-order-${tab.id}`}
+              >
+                <span>{tab.label}</span>
+                {typeof tab.count === "number" && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      isTabActive
+                        ? tab.isAmber
+                          ? "bg-amber-950/20 text-amber-950 font-extrabold"
+                          : "bg-background/20 text-background font-extrabold"
+                        : "bg-secondary text-muted-foreground"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
         {/* 2. KPI Metrics */}
         <OrderKpis
           metrics={metrics}

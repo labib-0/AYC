@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { 
   Key, 
   ShieldCheck, 
@@ -172,6 +173,24 @@ export default function PermissionsPage() {
           <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
           <span>Refresh Catalog</span>
         </button>
+      </div>
+
+      {/* Roles & Permissions Integrated Sub-Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+        <Link
+          href="/ayc/roles"
+          className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          id="tab-subnav-roles"
+        >
+          RBAC Roles
+        </Link>
+        <Link
+          href="/ayc/permissions"
+          className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background shadow-xs"
+          id="tab-subnav-permissions"
+        >
+          Permissions Matrix ({permissions.length})
+        </Link>
       </div>
 
       {/* Stats Cards */}

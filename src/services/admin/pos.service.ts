@@ -10,6 +10,7 @@ export interface PosCustomer {
   avatar_url?: string;
   orders_count: number;
   created_at?: string;
+  is_walkin?: boolean;
 }
 
 export interface PosVariant {
@@ -103,6 +104,8 @@ export interface PosCalculationPreview {
   other_charges: number;
   total_amount: number;
   paid_amount: number;
+  tendered_amount?: number;
+  change_return?: number;
   balance_due: number;
   payment_status: "paid" | "partially_paid" | "pending";
   total_quantity: number;
@@ -118,7 +121,8 @@ export interface PosSaleItemPayload {
 }
 
 export interface PosSalePayload {
-  customer_id: number;
+  customer_id?: number | null;
+  is_walkin?: boolean;
   items: PosSaleItemPayload[];
   warehouse_id?: number | null;
   coupon_code?: string | null;
@@ -127,6 +131,7 @@ export interface PosSalePayload {
   shipping_method?: string | null;
   payment_method?: string | null;
   paid_amount?: number | null;
+  tendered_amount?: number | null;
   payment_reference?: string | null;
   notes?: string | null;
   idempotency_key?: string | null;
@@ -147,16 +152,39 @@ export class AdminPosService {
   }
 
   /**
+   * Retrieve canonical walk-in customer record.
+   */
+  async getWalkinCustomer(): Promise<PosCustomer> {
+    const res = await apiClient.get<any>("/admin/pos/customers/walkin");
+    return (res?.data || res) as PosCustomer;
+  }
+
+  /**
+   * Fast customer registration from POS screen.
+   */
+  async quickCreateCustomer(payload: {
+    name: string;
+    phone?: string;
+    email?: string;
+    company_name?: string;
+  }): Promise<PosCustomer> {
+    const res = await apiClient.post<any>("/admin/pos/customers", payload);
+    return (res?.data || res) as PosCustomer;
+  }
+
+  /**
    * Search product catalog for POS sale items.
    */
   async searchProducts(
     query: string = "",
     warehouseId?: number | null,
-    limit: number = 25
+    limit: number = 25,
+    categoryId?: number | null
   ): Promise<PosProduct[]> {
     const params = new URLSearchParams();
     if (query) params.append("search", query);
     if (warehouseId) params.append("warehouse_id", String(warehouseId));
+    if (categoryId) params.append("category_id", String(categoryId));
     params.append("limit", String(limit));
 
     const res = await apiClient.get<any>(`/admin/pos/products?${params.toString()}`);
@@ -177,13 +205,15 @@ export class AdminPosService {
    * Live preview calculation using authoritative OrderCalculationService.
    */
   async calculatePreview(payload: {
-    customer_id: number;
+    customer_id?: number | null;
+    is_walkin?: boolean;
     items: PosSaleItemPayload[];
     coupon_code?: string | null;
     manual_discount?: PosManualDiscount | null;
     shipping_cost?: number | null;
     shipping_method?: string | null;
     paid_amount?: number | null;
+    tendered_amount?: number | null;
     payment_method?: string | null;
     payment_reference?: string | null;
   }): Promise<PosCalculationPreview> {

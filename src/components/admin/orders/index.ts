@@ -11,17 +11,27 @@ export { default as OrderTableRow } from "./OrderTableRow";
 export { default as OrderTable } from "./OrderTable";
 export { default as OrderPagination } from "./OrderPagination";
 
+// Redesigned Order Details Components (Phase 2 UX)
 export { default as OrderDetailHeader } from "./OrderDetailHeader";
+export { default as OrderSummaryMetrics } from "./OrderSummaryMetrics";
 export { default as OrderItemsTable } from "./OrderItemsTable";
 export { default as OrderFinancialSummary } from "./OrderFinancialSummary";
+export { default as OrderPaymentInventoryCard } from "./OrderPaymentInventoryCard";
+export type { PaymentVerificationDetails } from "./OrderPaymentInventoryCard";
+export { default as OrderCustomerDeliveryCard } from "./OrderCustomerDeliveryCard";
+export { default as CarrierFulfillmentCard } from "./CarrierFulfillmentCard";
+export { default as OrderCancelModal } from "./OrderCancelModal";
+export { default as OrderStatusHistory } from "./OrderStatusHistory";
+
+// Fulfillment & Logistics Modals
+export { default as OceanFreightQuoteModal } from "./OceanFreightQuoteModal";
+export { default as FulfillmentUpdateModal } from "./FulfillmentUpdateModal";
+export { default as AramexShipmentDialog } from "./AramexShipmentDialog";
+
+// Backward Compatibility Exports
 export { default as CustomerInfoCard } from "./CustomerInfoCard";
 export { default as ShippingInfoCard } from "./ShippingInfoCard";
 export { default as PaymentInfoCard } from "./PaymentInfoCard";
 export { default as PaymentProofReview } from "./PaymentProofReview";
 export { default as PaymentReviewModal } from "./PaymentReviewModal";
-export { default as CarrierFulfillmentCard } from "./CarrierFulfillmentCard";
-export { default as OceanFreightQuoteModal } from "./OceanFreightQuoteModal";
-export { default as FulfillmentUpdateModal } from "./FulfillmentUpdateModal";
-export { default as AramexShipmentDialog } from "./AramexShipmentDialog";
 export { default as OrderStatusTransitionCard } from "./OrderStatusTransitionCard";
-export { default as OrderStatusHistory } from "./OrderStatusHistory";

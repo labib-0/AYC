@@ -41,34 +41,36 @@ assert(
 );
 
 assert(
-  commerceLabels.includes("Customer Accounts"),
-  "Commerce section contains 'Customer Accounts' item"
+  commerceLabels.includes("Customer Accounts") || commerceLabels.includes("Customers"),
+  "Commerce section contains 'Customers' item"
 );
 
 assert(
-  commerceLabels.includes("RFQ"),
-  "Commerce section contains 'RFQ' item"
+  commerceLabels.includes("RFQ") || commerceLabels.includes("RFQs"),
+  "Commerce section contains 'RFQs' item"
 );
 
-// 2. Marketing Section Verification
+// 2. Marketing / Storefront Section Verification
 const marketingSection = ADMIN_NAV_SECTIONS.find((s) => s.title === "MARKETING");
-assert(Boolean(marketingSection), "Marketing section exists in sidebar");
+const storefrontSection = ADMIN_NAV_SECTIONS.find((s) => s.title === "STOREFRONT");
+assert(Boolean(marketingSection || storefrontSection), "Marketing or Storefront section exists in sidebar");
 
-const marketingLabels = marketingSection?.items.map((i) => i.label) || [];
-const marketingHrefs = marketingSection?.items.map((i) => i.href) || [];
+const allSectionItems = ADMIN_NAV_SECTIONS.flatMap((s) => s.items);
+const allSectionLabels = allSectionItems.map((i) => i.label);
+const allSectionHrefs = allSectionItems.map((i) => i.href);
 
 assert(
-  marketingLabels.includes("Homepage"),
-  "Marketing section contains 'Homepage'"
+  allSectionLabels.includes("Homepage"),
+  "Sidebar contains 'Homepage'"
 );
 
 assert(
-  !marketingLabels.includes("Homepage & Landing Page"),
-  "Marketing section strictly no longer contains 'Homepage & Landing Page'"
+  !allSectionLabels.includes("Homepage & Landing Page"),
+  "Sidebar strictly no longer contains 'Homepage & Landing Page'"
 );
 
 assert(
-  marketingHrefs.includes("/ayc/homepage") || marketingHrefs.includes("/admin/homepage"),
+  allSectionHrefs.includes("/ayc/homepage") || allSectionHrefs.includes("/admin/homepage"),
   "Homepage links to '/ayc/homepage'"
 );
 

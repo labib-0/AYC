@@ -21,6 +21,51 @@ class PosController extends ApiController
     ) {}
 
     /**
+     * GET /api/v1/admin/pos/customers/walkin
+     * Retrieve or initialize canonical walk-in customer record for rapid checkout.
+     */
+    public function walkinCustomer(Request $request): JsonResponse
+    {
+        $customer = $this->posSaleService->getOrCreateWalkinCustomer();
+
+        return $this->success(
+            $this->posSaleService->formatCustomerResponse($customer),
+            'Walk-in customer retrieved successfully'
+        );
+    }
+
+    /**
+     * POST /api/v1/admin/pos/customers
+     * Quick register or match customer directly from the POS interface.
+     */
+    public function quickCreateCustomer(Request $request): JsonResponse
+    {
+        $admin = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'min:2', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'company_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        try {
+            $result = $this->posSaleService->quickCreateCustomer($validated, $admin);
+
+            $status = $result['created'] ? Response::HTTP_CREATED : Response::HTTP_OK;
+            $message = $result['created']
+                ? 'Customer account created and assigned successfully.'
+                : 'Existing customer matched and assigned successfully.';
+
+            return $this->success($result['customer'], $message, $status);
+        } catch (ValidationException $e) {
+            return $this->error($e->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY, $e->errors());
+        } catch (\Throwable $e) {
+            return $this->error('Failed to create customer: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * GET /api/v1/admin/pos/customers
      * Search existing customer accounts for POS sale assignment.
      */
@@ -42,9 +87,10 @@ class PosController extends ApiController
     {
         $query = (string) $request->input('search', '');
         $warehouseId = $request->filled('warehouse_id') ? (int) $request->input('warehouse_id') : null;
+        $categoryId = $request->filled('category_id') ? (int) $request->input('category_id') : null;
         $limit = (int) $request->input('limit', 25);
 
-        $results = $this->posSaleService->searchProducts($query, $warehouseId, $limit);
+        $results = $this->posSaleService->searchProducts($query, $warehouseId, $limit, $categoryId);
 
         return $this->success($results, 'Products retrieved successfully');
     }
@@ -69,7 +115,8 @@ class PosController extends ApiController
         $admin = $request->user();
 
         $validated = $request->validate([
-            'customer_id' => ['required', 'integer', 'exists:users,id'],
+            'customer_id' => ['nullable', 'integer', 'exists:users,id'],
+            'is_walkin' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.variant_id' => ['nullable', 'integer'],
@@ -84,11 +131,19 @@ class PosController extends ApiController
             'shipping_cost' => ['nullable', 'numeric', 'min:0'],
             'shipping_method' => ['nullable', 'string', 'max:100'],
             'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'tendered_amount' => ['nullable', 'numeric', 'min:0'],
             'payment_method' => ['nullable', 'string', 'in:pos_cash,card,bank_transfer,mobile_banking,transfer'],
             'payment_reference' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
+        if (!empty($validated['is_walkin']) && empty($validated['customer_id'])) {
+            $customer = $this->posSaleService->getOrCreateWalkinCustomer();
+        } elseif (!empty($validated['customer_id'])) {
+            $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
+        } else {
+            return $this->error('A valid customer account or walk-in flag is required.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         if (!$customer) {
             return $this->error('The selected customer is invalid or not an active customer account.', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -102,11 +157,12 @@ class PosController extends ApiController
                 manualDiscount: $validated['manual_discount'] ?? null,
                 shippingCost: isset($validated['shipping_cost']) ? (float) $validated['shipping_cost'] : null,
                 shippingMethod: $validated['shipping_method'] ?? null,
-                payment: isset($validated['paid_amount']) ? [
-                    'paid_amount' => (float) $validated['paid_amount'],
+                payment: [
+                    'paid_amount' => isset($validated['paid_amount']) ? (float) $validated['paid_amount'] : null,
+                    'tendered_amount' => isset($validated['tendered_amount']) ? (float) $validated['tendered_amount'] : null,
                     'payment_method' => $validated['payment_method'] ?? 'pos_cash',
                     'payment_reference' => $validated['payment_reference'] ?? null,
-                ] : null
+                ]
             );
 
             return $this->success($preview, 'Calculation preview updated successfully');
@@ -128,7 +184,8 @@ class PosController extends ApiController
         $admin = $request->user();
 
         $validated = $request->validate([
-            'customer_id' => ['required', 'integer', 'exists:users,id'],
+            'customer_id' => ['nullable', 'integer', 'exists:users,id'],
+            'is_walkin' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.variant_id' => ['nullable', 'integer'],
@@ -145,12 +202,20 @@ class PosController extends ApiController
             'shipping_method' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'in:pos_cash,card,bank_transfer,mobile_banking,transfer'],
             'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'tendered_amount' => ['nullable', 'numeric', 'min:0'],
             'payment_reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'idempotency_key' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
+        if (!empty($validated['is_walkin']) && empty($validated['customer_id'])) {
+            $customer = $this->posSaleService->getOrCreateWalkinCustomer();
+        } elseif (!empty($validated['customer_id'])) {
+            $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
+        } else {
+            return $this->error('A valid customer account or walk-in flag is required.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         if (!$customer) {
             return $this->error('The selected customer is invalid or not an active customer account.', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -168,6 +233,7 @@ class PosController extends ApiController
                     'shipping_method' => $validated['shipping_method'] ?? 'POS In-Store Fulfillment',
                     'payment_method' => $validated['payment_method'] ?? 'pos_cash',
                     'paid_amount' => isset($validated['paid_amount']) ? (float) $validated['paid_amount'] : null,
+                    'tendered_amount' => isset($validated['tendered_amount']) ? (float) $validated['tendered_amount'] : null,
                     'payment_reference' => $validated['payment_reference'] ?? null,
                     'notes' => $validated['notes'] ?? null,
                     'idempotency_key' => $validated['idempotency_key'] ?? $request->header('X-Idempotency-Key'),

@@ -3,7 +3,6 @@ import { OrderRecord } from "@/services/order.service";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 import OrderStatusBadge from "./OrderStatusBadge";
 import { 
-  ArrowRight, 
   Lock, 
   CheckCircle2, 
   Clock, 

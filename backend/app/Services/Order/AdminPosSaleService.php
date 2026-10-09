@@ -19,16 +19,143 @@ use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class AdminPosSaleService
 {
+    public const WALKIN_CUSTOMER_EMAIL = 'walkin@ayaanclothing.com';
+
     public function __construct(
         private readonly OrderCalculationService $calculationService,
         private readonly AdminAuthorizationService $authorization
     ) {}
+
+    /**
+     * Retrieve or create the single canonical walk-in customer record for in-store sales.
+     */
+    public function getOrCreateWalkinCustomer(): User
+    {
+        return User::firstOrCreate(
+            ['email' => self::WALKIN_CUSTOMER_EMAIL],
+            [
+                'name' => 'Walk-in Customer',
+                'role' => User::ROLE_CUSTOMER,
+                'phone' => '+880 1700-000000',
+                'company_name' => 'POS Walk-in Counter',
+                'password' => Hash::make(Str::random(32)),
+                'email_verified_at' => now(),
+                'status' => 'active',
+            ]
+        );
+    }
+
+    /**
+     * Fast customer registration from POS screen.
+     * Matches existing customers by email or phone to prevent duplicate accounts.
+     */
+    public function quickCreateCustomer(array $data, User $admin): array
+    {
+        $name = trim($data['name']);
+        $phone = isset($data['phone']) ? trim($data['phone']) : null;
+        $email = isset($data['email']) ? strtolower(trim($data['email'])) : null;
+        $companyName = isset($data['company_name']) ? trim($data['company_name']) : null;
+
+        // 1. Check duplicate/existing customer by email if provided
+        if (!empty($email)) {
+            $existing = User::where('role', User::ROLE_CUSTOMER)
+                ->whereRaw('lower(email) = ?', [$email])
+                ->first();
+            if ($existing) {
+                return [
+                    'customer' => $this->formatCustomerResponse($existing),
+                    'matched' => true,
+                    'created' => false,
+                ];
+            }
+        }
+
+        // 2. Check duplicate/existing customer by phone if provided
+        if (!empty($phone)) {
+            $existingByPhone = User::where('role', User::ROLE_CUSTOMER)
+                ->where('phone', $phone)
+                ->first();
+            if ($existingByPhone) {
+                return [
+                    'customer' => $this->formatCustomerResponse($existingByPhone),
+                    'matched' => true,
+                    'created' => false,
+                ];
+            }
+        }
+
+        // 3. Fallback: if email not provided, generate deterministic synthetic email
+        if (empty($email)) {
+            $cleanPhone = !empty($phone) ? preg_replace('/\D/', '', $phone) : '';
+            if ($cleanPhone !== '') {
+                $syntheticEmail = "customer_{$cleanPhone}@ayaan.local";
+            } else {
+                $syntheticEmail = "customer_" . strtolower(Str::random(8)) . "@ayaan.local";
+            }
+
+            $existingSynthetic = User::where('email', $syntheticEmail)->first();
+            if ($existingSynthetic) {
+                return [
+                    'customer' => $this->formatCustomerResponse($existingSynthetic),
+                    'matched' => true,
+                    'created' => false,
+                ];
+            }
+            $email = $syntheticEmail;
+        }
+
+        // 4. Create new customer account
+        $customer = User::create([
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone ?: null,
+            'company_name' => $companyName ?: null,
+            'role' => User::ROLE_CUSTOMER,
+            'password' => Hash::make(Str::random(32)),
+            'email_verified_at' => null, // Explicitly unverified for quick registration
+            'status' => 'active',
+        ]);
+
+        ActivityLogger::log('pos.customer_quick_created', $customer, [
+            'admin_id' => $admin->id,
+            'admin_name' => $admin->name,
+            'customer_id' => $customer->id,
+            'name' => $customer->name,
+            'email' => $customer->email,
+            'phone' => $customer->phone,
+        ]);
+
+        return [
+            'customer' => $this->formatCustomerResponse($customer),
+            'matched' => false,
+            'created' => true,
+        ];
+    }
+
+    /**
+     * Format customer representation for POS responses.
+     */
+    public function formatCustomerResponse(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'company_name' => $user->company_name,
+            'avatar_url' => $user->avatar_url,
+            'orders_count' => (int) ($user->orders()->count() ?? 0),
+            'created_at' => $user->created_at?->toISOString(),
+            'is_walkin' => $user->email === self::WALKIN_CUSTOMER_EMAIL,
+        ];
+    }
 
     /**
      * Search existing customers for POS sale assignment.
@@ -72,6 +199,7 @@ class AdminPosSaleService
                 'avatar_url' => $user->avatar_url,
                 'orders_count' => (int) $user->orders_count,
                 'created_at' => $user->created_at?->toISOString(),
+                'is_walkin' => $user->email === self::WALKIN_CUSTOMER_EMAIL,
             ];
         })->all();
     }
@@ -80,7 +208,7 @@ class AdminPosSaleService
      * Search products for POS catalog lookup.
      * Returns lightweight, authoritative catalog items with availability and pricing.
      */
-    public function searchProducts(string $query = '', ?int $warehouseId = null, int $limit = 25): array
+    public function searchProducts(string $query = '', ?int $warehouseId = null, int $limit = 25, ?int $categoryId = null): array
     {
         $limit = min(max(1, $limit), 60);
 
@@ -93,6 +221,12 @@ class AdminPosSaleService
                 'pricingTiers',
             ]);
 
+        if ($categoryId !== null) {
+            $q->whereHas('categories', function ($cq) use ($categoryId) {
+                $cq->where('categories.id', $categoryId);
+            });
+        }
+
         $query = trim($query);
         if ($query !== '') {
             $likeOp = DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
@@ -101,7 +235,10 @@ class AdminPosSaleService
                 $q->where(function ($sub) use ($query, $likeOp) {
                     $sub->where('id', (int) $query)
                         ->orWhere('sku', $likeOp, "%{$query}%")
-                        ->orWhere('name', $likeOp, "%{$query}%");
+                        ->orWhere('name', $likeOp, "%{$query}%")
+                        ->orWhereHas('variants', function ($vq) use ($query, $likeOp) {
+                            $vq->where('sku', $likeOp, "%{$query}%");
+                        });
                 });
             } else {
                 $q->where(function ($sub) use ($query, $likeOp) {
@@ -116,6 +253,15 @@ class AdminPosSaleService
                         });
                 });
             }
+
+            // Prioritize exact SKU or ID match
+            $exactEscaped = str_replace("'", "''", $query);
+            $numericId = is_numeric($query) ? (int) $query : 0;
+            $q->orderByRaw("CASE
+                WHEN sku = '{$exactEscaped}' THEN 0
+                WHEN id = {$numericId} THEN 0
+                ELSE 1
+            END");
         }
 
         $products = $q->orderBy('name', 'asc')->limit($limit)->get();
@@ -128,12 +274,23 @@ class AdminPosSaleService
             $isSoldOut = (bool) ($product->is_sold_out || $totalStock <= 0);
 
             // Warehouse stock breakdown
-            $breakdown = $product->getWarehouseStockBreakdown();
+            $rawBreakdown = $product->getWarehouseStockBreakdown();
+            $breakdown = array_map(function ($wh) {
+                $avail = (int) ($wh['available_quantity'] ?? $wh['available'] ?? 0);
+                $onHand = (int) ($wh['on_hand_quantity'] ?? $wh['on_hand'] ?? 0);
+                return array_merge($wh, [
+                    'available' => $avail,
+                    'available_quantity' => $avail,
+                    'on_hand' => $onHand,
+                    'on_hand_quantity' => $onHand,
+                ]);
+            }, $rawBreakdown);
+
             $selectedWarehouseStock = null;
             if ($warehouseId !== null) {
                 foreach ($breakdown as $wh) {
                     if ((int) $wh['warehouse_id'] === $warehouseId) {
-                        $selectedWarehouseStock = (int) $wh['available'];
+                        $selectedWarehouseStock = (int) ($wh['available'] ?? $wh['available_quantity'] ?? 0);
                         break;
                     }
                 }
@@ -255,25 +412,58 @@ class AdminPosSaleService
         }, $calc['lines']);
 
         $totalAmount = (float) $calc['total_amount'];
-        $paidAmount = isset($payment['paid_amount']) ? (float) $payment['paid_amount'] : $totalAmount;
+        $paymentMethod = $payment['payment_method'] ?? 'pos_cash';
 
-        if ($paidAmount < 0) {
-            throw ValidationException::withMessages([
-                'paid_amount' => 'Paid amount cannot be negative.'
-            ]);
-        }
-        if ($paidAmount > $totalAmount) {
-            throw ValidationException::withMessages([
-                'paid_amount' => "Paid amount (\${$paidAmount}) cannot exceed the grand total (\${$totalAmount})."
-            ]);
-        }
+        if ($paymentMethod === 'pos_cash') {
+            if (isset($payment['tendered_amount'])) {
+                $tenderedAmount = (float) $payment['tendered_amount'];
+            } elseif (isset($payment['paid_amount'])) {
+                $tenderedAmount = (float) $payment['paid_amount'];
+            } else {
+                $tenderedAmount = $totalAmount;
+            }
 
-        $balanceDue = max(0.0, round($totalAmount - $paidAmount, 2));
-        $paymentStatus = 'pending';
-        if ($paidAmount >= $totalAmount && $totalAmount > 0) {
-            $paymentStatus = 'paid';
-        } elseif ($paidAmount > 0) {
-            $paymentStatus = 'partially_paid';
+            if ($tenderedAmount < 0) {
+                throw ValidationException::withMessages([
+                    'tendered_amount' => 'Tendered amount cannot be negative.'
+                ]);
+            }
+
+            if ($tenderedAmount >= $totalAmount) {
+                $actualPaid = $totalAmount;
+                $changeReturn = round($tenderedAmount - $totalAmount, 2);
+                $balanceDue = 0.00;
+                $paymentStatus = $totalAmount > 0 ? 'paid' : 'pending';
+            } else {
+                $actualPaid = $tenderedAmount;
+                $changeReturn = 0.00;
+                $balanceDue = round($totalAmount - $tenderedAmount, 2);
+                $paymentStatus = $tenderedAmount > 0 ? 'partially_paid' : 'pending';
+            }
+        } else {
+            // Non-cash payment methods (card, bank_transfer, mobile_banking)
+            $actualPaid = isset($payment['paid_amount']) ? (float) $payment['paid_amount'] : $totalAmount;
+            $tenderedAmount = $actualPaid;
+            $changeReturn = 0.00;
+
+            if ($actualPaid < 0) {
+                throw ValidationException::withMessages([
+                    'paid_amount' => 'Paid amount cannot be negative.'
+                ]);
+            }
+            if ($actualPaid > $totalAmount) {
+                throw ValidationException::withMessages([
+                    'paid_amount' => "Paid amount (\${$actualPaid}) cannot exceed the grand total (\${$totalAmount})."
+                ]);
+            }
+
+            $balanceDue = max(0.0, round($totalAmount - $actualPaid, 2));
+            $paymentStatus = 'pending';
+            if ($actualPaid >= $totalAmount && $totalAmount > 0) {
+                $paymentStatus = 'paid';
+            } elseif ($actualPaid > 0) {
+                $paymentStatus = 'partially_paid';
+            }
         }
 
         return [
@@ -288,7 +478,9 @@ class AdminPosSaleService
             'tax_amount' => (float) $calc['tax_amount'],
             'other_charges' => (float) $calc['other_charges'],
             'total_amount' => $totalAmount,
-            'paid_amount' => round($paidAmount, 2),
+            'paid_amount' => round($actualPaid, 2),
+            'tendered_amount' => round($tenderedAmount, 2),
+            'change_return' => round($changeReturn, 2),
             'balance_due' => $balanceDue,
             'payment_status' => $paymentStatus,
             'total_quantity' => (int) $calc['total_quantity'],
@@ -376,25 +568,56 @@ class AdminPosSaleService
                 );
 
                 $totalAmount = (float) $calc['total_amount'];
-                $paidAmount = isset($options['paid_amount']) ? (float) $options['paid_amount'] : $totalAmount;
 
-                if ($paidAmount < 0) {
-                    throw ValidationException::withMessages([
-                        'paid_amount' => 'Paid amount cannot be negative.'
-                    ]);
-                }
-                if ($paidAmount > $totalAmount) {
-                    throw ValidationException::withMessages([
-                        'paid_amount' => "Paid amount (\${$paidAmount}) cannot exceed the grand total (\${$totalAmount})."
-                    ]);
-                }
+                if ($paymentMethod === 'pos_cash') {
+                    if (isset($options['tendered_amount'])) {
+                        $tenderedAmount = (float) $options['tendered_amount'];
+                    } elseif (isset($options['paid_amount'])) {
+                        $tenderedAmount = (float) $options['paid_amount'];
+                    } else {
+                        $tenderedAmount = $totalAmount;
+                    }
 
-                $balanceDue = max(0.0, round($totalAmount - $paidAmount, 2));
-                $paymentStatus = 'pending';
-                if ($paidAmount >= $totalAmount && $totalAmount > 0) {
+                    if ($tenderedAmount < 0) {
+                        throw ValidationException::withMessages([
+                            'tendered_amount' => 'Tendered amount cannot be negative.'
+                        ]);
+                    }
+
+                    if ($tenderedAmount < $totalAmount) {
+                        throw ValidationException::withMessages([
+                            'tendered_amount' => "Cash tendered (\${$tenderedAmount}) is insufficient for the total amount due (\${$totalAmount})."
+                        ]);
+                    }
+
+                    $actualPaid = $totalAmount;
+                    $changeReturn = round($tenderedAmount - $totalAmount, 2);
+                    $balanceDue = 0.00;
                     $paymentStatus = 'paid';
-                } elseif ($paidAmount > 0) {
-                    $paymentStatus = 'partially_paid';
+                } else {
+                    // Non-cash payment (card, bank_transfer, mobile_banking)
+                    $actualPaid = isset($options['paid_amount']) ? (float) $options['paid_amount'] : $totalAmount;
+                    $tenderedAmount = $actualPaid;
+                    $changeReturn = 0.00;
+
+                    if ($actualPaid < 0) {
+                        throw ValidationException::withMessages([
+                            'paid_amount' => 'Paid amount cannot be negative.'
+                        ]);
+                    }
+                    if ($actualPaid > $totalAmount) {
+                        throw ValidationException::withMessages([
+                            'paid_amount' => "Paid amount (\${$actualPaid}) cannot exceed the grand total (\${$totalAmount})."
+                        ]);
+                    }
+
+                    $balanceDue = max(0.0, round($totalAmount - $actualPaid, 2));
+                    $paymentStatus = 'pending';
+                    if ($actualPaid >= $totalAmount && $totalAmount > 0) {
+                        $paymentStatus = 'paid';
+                    } elseif ($actualPaid > 0) {
+                        $paymentStatus = 'partially_paid';
+                    }
                 }
 
                 // If coupon applied, lock and validate usage limit atomically
@@ -485,7 +708,7 @@ class AdminPosSaleService
                     'manual_discount_value' => isset($calc['manual_discount']['value']) ? (float) $calc['manual_discount']['value'] : null,
                     'manual_discount_reason' => $calc['manual_discount']['reason'] ?? null,
                     'total_amount' => $totalAmount,
-                    'paid_amount' => round($paidAmount, 2),
+                    'paid_amount' => round($actualPaid, 2),
                     'balance_due' => $balanceDue,
                     'email' => $customer->email,
                     'shipping_name' => $customer->name,
@@ -503,12 +726,14 @@ class AdminPosSaleService
                     'payment_details' => [
                         'method' => $paymentMethod,
                         'reference' => $paymentReference ?: null,
-                        'paid_amount' => round($paidAmount, 2),
+                        'tendered_amount' => round($tenderedAmount, 2),
+                        'change_return' => round($changeReturn, 2),
+                        'paid_amount' => round($actualPaid, 2),
                         'balance_due' => $balanceDue,
                         'status' => $paymentStatus,
                     ],
-                    'payment_confirmed_at' => $paidAmount > 0 ? now() : null,
-                    'payment_confirmed_by' => $paidAmount > 0 ? $admin->id : null,
+                    'payment_confirmed_at' => $actualPaid > 0 ? now() : null,
+                    'payment_confirmed_by' => $actualPaid > 0 ? $admin->id : null,
                     'notes' => $notes ? "[POS Note] {$notes}" : 'Point of Sale transaction',
                     'placed_at' => now(),
                 ]);
@@ -652,8 +877,8 @@ class AdminPosSaleService
                     }
                 }
 
-                // 6. Record Payment if paid amount > 0
-                if ($paidAmount > 0) {
+                // 6. Record Payment if actual paid amount > 0
+                if ($actualPaid > 0) {
                     $trxId = !empty($paymentReference) ? $paymentReference : ('pos_' . strtolower(Str::random(16)));
 
                     $payment = Payment::create([
@@ -662,15 +887,22 @@ class AdminPosSaleService
                         'transaction_id' => $trxId,
                         'provider' => $paymentMethod,
                         'payment_method' => $paymentMethod,
-                        'amount' => round($paidAmount, 2),
+                        'amount' => round($actualPaid, 2),
                         'currency' => 'USD',
                         'status' => 'succeeded',
                         'payer_name' => $customer->name,
                         'account_number' => $paymentReference ?: null,
+                        'payload' => [
+                            'tendered_amount' => round($tenderedAmount, 2),
+                            'change_return' => round($changeReturn, 2),
+                            'is_walkin' => $customer->email === self::WALKIN_CUSTOMER_EMAIL,
+                        ],
                         'payment_date' => now(),
                         'confirmed_at' => now(),
                         'confirmed_by' => $admin->id,
-                        'notes' => "POS payment of \${$paidAmount} ({$paymentMethod}) confirmed by {$admin->name}. Reference: " . ($paymentReference ?: 'N/A'),
+                        'notes' => $paymentMethod === 'pos_cash'
+                            ? "POS cash payment of \${$actualPaid} confirmed by {$admin->name}. Tendered: \${$tenderedAmount}, Change: \${$changeReturn}."
+                            : "POS payment of \${$actualPaid} ({$paymentMethod}) confirmed by {$admin->name}. Reference: " . ($paymentReference ?: 'N/A'),
                     ]);
 
                     ActivityLogger::log('pos.payment_recorded', $payment, [
@@ -678,7 +910,9 @@ class AdminPosSaleService
                         'order_number' => $orderNumber,
                         'payment_status' => $paymentStatus,
                         'payment_method' => $paymentMethod,
-                        'paid_amount' => round($paidAmount, 2),
+                        'paid_amount' => round($actualPaid, 2),
+                        'tendered_amount' => round($tenderedAmount, 2),
+                        'change_return' => round($changeReturn, 2),
                         'balance_due' => $balanceDue,
                         'transaction_id' => $trxId,
                     ]);
@@ -707,10 +941,12 @@ class AdminPosSaleService
                     'message' => "Order #{$orderNumber} created via POS by {$admin->name} for customer {$customer->name}.",
                 ]);
 
-                if ($paidAmount > 0) {
+                if ($actualPaid > 0) {
                     $eventMsg = $paymentStatus === 'paid'
-                        ? "POS payment of \${$paidAmount} ({$paymentMethod}) processed in full."
-                        : "POS partial payment of \${$paidAmount} ({$paymentMethod}) processed. Balance due: \${$balanceDue}.";
+                        ? ($paymentMethod === 'pos_cash' && $changeReturn > 0
+                            ? "POS cash payment of \${$actualPaid} processed in full. Tendered: \${$tenderedAmount}, Change returned: \${$changeReturn}."
+                            : "POS payment of \${$actualPaid} ({$paymentMethod}) processed in full.")
+                        : "POS partial payment of \${$actualPaid} ({$paymentMethod}) processed. Balance due: \${$balanceDue}.";
 
                     OrderStatusEvent::create([
                         'order_id' => $order->id,
@@ -728,7 +964,9 @@ class AdminPosSaleService
                     'customer_id' => $customer->id,
                     'customer_name' => $customer->name,
                     'total_amount' => (float) $order->total_amount,
-                    'paid_amount' => round($paidAmount, 2),
+                    'paid_amount' => round($actualPaid, 2),
+                    'tendered_amount' => round($tenderedAmount, 2),
+                    'change_return' => round($changeReturn, 2),
                     'balance_due' => $balanceDue,
                     'payment_status' => $paymentStatus,
                     'items_count' => count($calc['lines']),

@@ -24,8 +24,8 @@ assert(!layoutContent.includes("mx-auto"), "Admin layout must NOT center workspa
 
 // 1.2 Verify desktop sidebar column definition
 assert(
-  layoutContent.includes("hidden md:block w-64 shrink-0"),
-  "Admin layout desktop sidebar wrapper must define dedicated w-64 shrink-0 navigation column"
+  layoutContent.includes("hidden md:block") && layoutContent.includes("w-64"),
+  "Admin layout desktop sidebar wrapper must define dedicated navigation column with w-64 expanded geometry"
 );
 assert(
   layoutContent.includes("sticky top-14 h-[calc(100vh-3.5rem)]"),
@@ -34,7 +34,7 @@ assert(
 
 // 1.3 Verify main content uses remaining width
 assert(
-  layoutContent.includes('<main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">'),
+  layoutContent.includes('flex-1 p-4 sm:p-6 lg:p-8 min-w-0'),
   "Admin layout main content must be flex-1 min-w-0 to use 100% of remaining width without flex blowout"
 );
 
@@ -102,19 +102,20 @@ console.log("\n▶ 4. Admin Navigation Content Preservation & Active States");
 
 const expectedLabels = [
   "Dashboard",
-  "Products Catalog",
-  "Category Taxonomy",
-  "Brands Directory",
-  "Inventory & Stock",
+  "Products",
+  "Categories",
+  "Brands",
+  "Inventory",
   "Orders & Fulfillment",
-  "Customer Accounts",
-  "RFQ",
+  "Customers",
+  "RFQs",
+  "POS",
   "Coupons",
+  "Coupon Sales",
   "Homepage",
   "Commercial Documents",
   "Administrators",
-  "RBAC Roles",
-  "Permissions Matrix",
+  "Roles & Permissions",
   "Settings & Config",
 ];
 
@@ -129,13 +130,18 @@ for (const label of expectedLabels) {
 }
 console.log(`✓ All ${expectedLabels.length} required navigation links are intact.`);
 
-// Check operations shortcuts in AdminSidebar component source
-const sidebarPath = path.join(rootDir, "src/components/admin/layout/AdminSidebar.tsx");
-const sidebarContent = fs.readFileSync(sidebarPath, "utf8");
+// Check operations shortcuts contextual preservation
+const productsPagePath = path.join(rootDir, "src/app/ayc/products/page.tsx");
+const productsPageContent = fs.readFileSync(productsPagePath, "utf8");
+assert(productsPageContent.includes("Add Product"), "Products page must preserve contextual Add Product action");
 
-assert(sidebarContent.includes("Add Product"), "Sidebar must preserve Add Product shortcut");
-assert(sidebarContent.includes("Stock Control"), "Sidebar must preserve Stock Control shortcut");
-assert(sidebarContent.includes("Pending Orders"), "Sidebar must preserve Pending Orders shortcut");
+const inventoryPagePath = path.join(rootDir, "src/app/ayc/inventory/page.tsx");
+const inventoryPageContent = fs.readFileSync(inventoryPagePath, "utf8");
+assert(inventoryPageContent.includes("Stock Control"), "Inventory page must preserve Stock Control tab/action");
+
+const ordersPagePath = path.join(rootDir, "src/app/ayc/orders/page.tsx");
+const ordersPageContent = fs.readFileSync(ordersPagePath, "utf8");
+assert(ordersPageContent.includes("Pending Orders"), "Orders page must preserve Pending Orders tab/filter");
 
 // Test Active Item resolution logic
 function calculateIsActive(

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AdminAuthProvider, useAdminAuth } from "@/lib/AdminAuthContext";
-import { AdminHeader, AdminSidebar, AdminFooter } from "@/components/admin/layout";
+import { AdminHeader, AdminSidebar, AdminFooter, AdminBreadcrumbs } from "@/components/admin/layout";
 import AdminLoginPage from "./page";
 
 function AdminLayoutInner({
@@ -15,6 +15,38 @@ function AdminLayoutInner({
   const router = useRouter();
   const { adminUser, loading, isAdmin, signOutAdmin } = useAdminAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Restore collapsed state preference
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("ayc_sidebar_collapsed");
+      if (saved === "true") {
+        setSidebarCollapsed(true);
+      }
+    }
+  }, []);
+
+  const handleToggleCollapse = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("ayc_sidebar_collapsed", String(next));
+      }
+      return next;
+    });
+  };
+
+  // Close mobile drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen]);
 
   const isLoginPage =
     pathname === "/ayc" ||
@@ -80,26 +112,44 @@ function AdminLayoutInner({
 
       {/* Main Admin Workspace (Sidebar + Content) */}
       <div className="flex-1 flex w-full min-w-0 min-h-[calc(100vh-7rem)]">
-        {/* Desktop Sidebar */}
-        <div className="hidden md:block w-64 shrink-0">
+        {/* Desktop Sidebar (Collapsible: w-64 expanded, w-16 collapsed) */}
+        <div
+          className={`hidden md:block shrink-0 transition-all duration-200 ${
+            sidebarCollapsed ? "w-16" : "w-64"
+          }`}
+        >
           <div className="sticky top-14 h-[calc(100vh-3.5rem)]">
-            <AdminSidebar />
+            <AdminSidebar
+              isCollapsed={sidebarCollapsed}
+              onToggleCollapse={handleToggleCollapse}
+            />
           </div>
         </div>
 
         {/* Mobile Sidebar Drawer */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 md:hidden bg-ink/60 backdrop-blur-xs flex animate-in fade-in">
-            <div className="w-64 bg-card h-full shadow-2xl flex flex-col">
-              <AdminSidebar onNavigate={() => setMobileMenuOpen(false)} />
+            <div className="w-72 max-w-[85vw] bg-card h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-200">
+              <AdminSidebar
+                isMobileDrawer={true}
+                onCloseDrawer={() => setMobileMenuOpen(false)}
+                onNavigate={() => setMobileMenuOpen(false)}
+              />
             </div>
-            <div className="flex-1" onClick={() => setMobileMenuOpen(false)} />
+            <div
+              className="flex-1 cursor-pointer"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Close navigation overlay"
+            />
           </div>
         )}
 
-        {/* Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
-          {children}
+        {/* Content Area with Breadcrumbs */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 space-y-4">
+          <AdminBreadcrumbs />
+          <div className="w-full min-w-0">
+            {children}
+          </div>
         </main>
       </div>
 

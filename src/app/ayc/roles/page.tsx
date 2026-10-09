@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { 
   rbacService, 
   RbacRole, 
@@ -161,6 +162,24 @@ export default function RolesPage() {
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
       />
+
+      {/* Roles & Permissions Integrated Sub-Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+        <Link
+          href="/ayc/roles"
+          className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background shadow-xs"
+          id="tab-subnav-roles"
+        >
+          RBAC Roles ({roles.length})
+        </Link>
+        <Link
+          href="/ayc/permissions"
+          className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          id="tab-subnav-permissions"
+        >
+          Permissions Matrix
+        </Link>
+      </div>
 
       {/* Toolbar */}
       <RolesToolbar

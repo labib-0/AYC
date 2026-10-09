@@ -1,15 +1,16 @@
 import React from "react";
 import { OrderRecord } from "@/services/order.service";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
-import { 
-  Truck, 
-  Ship, 
-  RefreshCw, 
-  ExternalLink, 
-  DollarSign, 
-  Send, 
+import {
+  Truck,
+  Ship,
+  RefreshCw,
+  ExternalLink,
+  DollarSign,
+  Send,
   Edit3,
-  AlertCircle 
+  AlertCircle,
+  Clock,
 } from "lucide-react";
 
 export interface CarrierFulfillmentCardProps {
@@ -44,12 +45,14 @@ export default function CarrierFulfillmentCard({
     order.carrier?.toLowerCase().includes("sea");
 
   const hasAwb = Boolean(order.tracking_number);
+  const isPaid = order.payment_status === "paid" || order.payment_method === "net_30";
+  const isFulfilled = ["shipped", "delivered"].includes(order.fulfillment_status);
+  const isTerminal = ["cancelled", "refunded"].includes(order.status);
+
   const canShip =
-    order.can_create_aramex_shipment ||
-    (!hasAwb &&
-      (order.payment_status === "paid" ||
-        order.payment_method === "net_30" ||
-        order.status === "processing"));
+    !isTerminal &&
+    (order.can_create_aramex_shipment ||
+      (!hasAwb && (isPaid || order.status === "processing" || order.status === "confirmed")));
 
   const carrierDisplayName =
     order.carrier ||
@@ -61,23 +64,68 @@ export default function CarrierFulfillmentCard({
     order.items?.reduce((s, i) => s + (i.quantity || 0), 0) ||
     0;
 
+  // Unfulfilled & Unpaid: Reduced Visual Weight State
+  if (!isPaid && !isFulfilled && !hasAwb && !isTerminal) {
+    return (
+      <div
+        className="bg-card border border-border/70 rounded-3xl p-5 shadow-xs space-y-3"
+        id="admin-carrier-fulfillment-card"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-secondary text-muted-foreground">
+              {isSea ? <Ship size={18} /> : <Truck size={18} />}
+            </div>
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Fulfillment &amp; Dispatch
+              </h2>
+              <span className="text-[11px] text-muted-foreground font-mono">
+                Planned: {carrierDisplayName}
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono uppercase bg-secondary px-2.5 py-1 rounded-full text-muted-foreground border border-border/50">
+            Awaiting Payment
+          </span>
+        </div>
+
+        <div className="p-3 rounded-2xl bg-secondary/20 border border-border/50 text-xs text-muted-foreground flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Clock size={14} className="text-amber-500 shrink-0" />
+            <span className="text-[11px]">
+              Carrier dispatch, package weight calculations, and AWB generation will unlock once payment is approved.
+            </span>
+          </div>
+
+          {canUpdateFulfillment && (
+            <button
+              type="button"
+              onClick={onOpenFulfillmentModal}
+              className="px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-secondary text-[10px] font-bold uppercase tracking-wider text-foreground transition-colors shrink-0 cursor-pointer"
+            >
+              Manual Override
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">
+    <div
+      className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4"
+      id="admin-carrier-fulfillment-card"
+    >
       {/* Card Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
         <div className="flex items-center gap-2.5">
-          {isSea ? (
-            <div className="p-2 rounded-xl bg-primary/10 text-primary">
-              <Ship size={20} />
-            </div>
-          ) : (
-            <div className="p-2 rounded-xl bg-primary/10 text-primary">
-              <Truck size={20} />
-            </div>
-          )}
+          <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+            {isSea ? <Ship size={20} /> : <Truck size={20} />}
+          </div>
           <div>
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-              {isSea ? "Ocean & Maritime Logistics" : "Carrier & Dispatch Logistics"}
+              {isSea ? "Ocean & Maritime Logistics" : "Fulfillment & Dispatch Logistics"}
             </h2>
             <p className="text-xs text-muted-foreground">
               {isSea
@@ -108,7 +156,7 @@ export default function CarrierFulfillmentCard({
                 type="button"
                 onClick={onRefreshTracking}
                 disabled={actionLoading}
-                className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-foreground text-xs font-bold uppercase tracking-wider hover:bg-secondary/80 transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-secondary border border-border text-foreground text-xs font-bold uppercase tracking-wider hover:bg-secondary/80 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                 id="btn-refresh-carrier-tracking"
               >
                 <RefreshCw size={13} className={actionLoading ? "animate-spin" : ""} />
@@ -138,7 +186,7 @@ export default function CarrierFulfillmentCard({
             <button
               type="button"
               onClick={onOpenFulfillmentModal}
-              className="px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
               id="btn-edit-fulfillment"
               title="Edit fulfillment status and carrier manually"
             >
@@ -166,7 +214,7 @@ export default function CarrierFulfillmentCard({
           <span className="text-[10px] font-bold uppercase text-muted-foreground block">
             Shipping Carrier / Forwarder
           </span>
-          <span className="font-bold text-foreground text-sm block truncate">
+          <span className="font-bold text-foreground text-xs sm:text-sm block truncate">
             {carrierDisplayName}
           </span>
         </div>
@@ -175,7 +223,7 @@ export default function CarrierFulfillmentCard({
           <span className="text-[10px] font-bold uppercase text-muted-foreground block">
             {isSea ? "Quote / Booking Reference" : "AWB / Tracking Number"}
           </span>
-          <span className="font-mono font-bold text-primary text-sm block truncate">
+          <span className="font-mono font-bold text-primary text-xs sm:text-sm block truncate">
             {isSea
               ? order.shipping_quote_id || snapshot?.quote_reference_id || "Pending Tariff Quote"
               : order.tracking_number || "Not Issued"}
@@ -186,7 +234,7 @@ export default function CarrierFulfillmentCard({
           <span className="text-[10px] font-bold uppercase text-muted-foreground block">
             {isSea ? "Quoted Freight" : "Carrier Live Status"}
           </span>
-          <span className="font-bold text-foreground block truncate">
+          <span className="font-bold text-foreground text-xs sm:text-sm block truncate">
             {isSea
               ? Number(order.shipping_cost) > 0
                 ? `$${Number(order.shipping_cost).toFixed(2)} USD`
@@ -199,7 +247,7 @@ export default function CarrierFulfillmentCard({
           <span className="text-[10px] font-bold uppercase text-muted-foreground block">
             Packaging / Cartons
           </span>
-          <span className="font-bold text-foreground block">
+          <span className="font-bold text-foreground text-xs block">
             {snapshot?.carton_count || 1} ctn ({totalPieces} pcs)
           </span>
         </div>
@@ -208,7 +256,7 @@ export default function CarrierFulfillmentCard({
           <span className="text-[10px] font-bold uppercase text-muted-foreground block">
             Gross / Net Weight
           </span>
-          <span className="font-bold text-foreground block">
+          <span className="font-bold text-foreground text-xs block">
             {snapshot?.gross_weight ? `${snapshot.gross_weight} kg` : "N/A"}{" "}
             {snapshot?.net_weight ? `(Net: ${snapshot.net_weight} kg)` : ""}
           </span>
@@ -218,7 +266,7 @@ export default function CarrierFulfillmentCard({
           <span className="text-[10px] font-bold uppercase text-muted-foreground block">
             Shipment Volume (CBM)
           </span>
-          <span className="font-bold text-foreground block">
+          <span className="font-bold text-foreground text-xs block">
             {snapshot?.cbm ? `${snapshot.cbm} CBM` : "0.072 CBM"}
           </span>
         </div>

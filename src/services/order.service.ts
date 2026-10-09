@@ -147,6 +147,10 @@ export interface OrderRecord {
     confirmed_at?: string;
     confirmed_by_id?: number | string;
     confirmed_by_name?: string;
+    inventory_decremented?: boolean;
+    inventory_decremented_at?: string;
+    tendered_amount?: number;
+    change_return?: number;
   } | null;
   payment_confirmed_at?: string;
   payments?: any[];

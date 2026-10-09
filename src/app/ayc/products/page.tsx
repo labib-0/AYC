@@ -441,10 +441,11 @@ function AdminProductsContent() {
         <PermissionGate permission="product.create">
           <Link
             href={addProductHref}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-colors shrink-0"
+            id="btn-add-product-contextual"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:bg-foreground/90 transition-all shadow-xs shrink-0 cursor-pointer"
           >
             <Plus size={14} />
-            Add Product
+            <span>Add Product</span>
           </Link>
         </PermissionGate>
       </div>

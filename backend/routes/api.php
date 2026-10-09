@@ -446,8 +446,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/orders/{id}/tracking/refresh', [AdminOrderController::class, 'refreshTracking'])
             ->middleware('permission:tracking.refresh');
 
-        // Point of Sale (POS) Phase 1
+        // Point of Sale (POS) Phase 1 & Phase 2
         Route::prefix('pos')->group(function () {
+            Route::get('/customers/walkin', [AdminPosController::class, 'walkinCustomer'])
+                ->middleware('permission:pos.view');
+            Route::post('/customers', [AdminPosController::class, 'quickCreateCustomer'])
+                ->middleware('permission:pos.create');
             Route::get('/customers', [AdminPosController::class, 'customers'])
                 ->middleware('permission:pos.view');
             Route::get('/products', [AdminPosController::class, 'products'])

@@ -6,21 +6,19 @@ import { adminOrderService } from "@/services/admin";
 import { OrderRecord } from "@/services/order.service";
 import {
   OrderDetailHeader,
+  OrderSummaryMetrics,
   OrderItemsTable,
   OrderFinancialSummary,
-  CustomerInfoCard,
-  ShippingInfoCard,
-  PaymentInfoCard,
-  PaymentProofReview,
-  PaymentReviewModal,
+  OrderPaymentInventoryCard,
+  OrderCustomerDeliveryCard,
   CarrierFulfillmentCard,
   OceanFreightQuoteModal,
   FulfillmentUpdateModal,
   AramexShipmentDialog,
-  OrderStatusTransitionCard,
+  OrderCancelModal,
   OrderStatusHistory,
 } from "@/components/admin/orders";
-import type { PaymentVerificationDetails } from "@/components/admin/orders/PaymentProofReview";
+import type { PaymentVerificationDetails } from "@/components/admin/orders/OrderPaymentInventoryCard";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
@@ -41,12 +39,10 @@ export default function AdminOrderDetailPage({
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Modal States
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [reviewAction, setReviewAction] = useState<"approve" | "reject">("approve");
-
   const [isSeaQuoteModalOpen, setIsSeaQuoteModalOpen] = useState(false);
   const [isFulfillmentModalOpen, setIsFulfillmentModalOpen] = useState(false);
   const [isAramexDialogOpen, setIsAramexDialogOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   const addToast = (type: "success" | "error", message: string) => {
     const toastId = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -57,20 +53,23 @@ export default function AdminOrderDetailPage({
     setToasts((prev) => prev.filter((t) => t.id !== toastId));
   };
 
-  const loadOrder = useCallback(async (isSilentRefresh = false) => {
-    if (!isSilentRefresh) setLoading(true);
-    setError(null);
+  const loadOrder = useCallback(
+    async (isSilentRefresh = false) => {
+      if (!isSilentRefresh) setLoading(true);
+      setError(null);
 
-    try {
-      const data = await adminOrderService.getOrderById(id);
-      setOrder(data);
-    } catch (err: unknown) {
-      setError((err as Error)?.message || "Could not retrieve order details.");
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [id]);
+      try {
+        const data = await adminOrderService.getOrderById(id);
+        setOrder(data);
+      } catch (err: unknown) {
+        setError((err as Error)?.message || "Could not retrieve order details.");
+      } finally {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [id]
+  );
 
   useEffect(() => {
     loadOrder();
@@ -98,7 +97,24 @@ export default function AdminOrderDetailPage({
     }
   };
 
-  // 2. Fulfillment Details Update
+  // 2. Cancellation Handler
+  const handleCancelOrder = async (reason: string) => {
+    if (!order) return;
+    setActionLoading(true);
+
+    try {
+      const updated = await adminOrderService.updateOrderStatus(order.id, "cancelled", reason);
+      setOrder(updated);
+      setIsCancelModalOpen(false);
+      addToast("success", `Order #${order.order_number} has been cancelled.`);
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Unable to cancel order.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // 3. Fulfillment Details Update
   const handleSaveFulfillment = async (data: {
     fulfillment_status: string;
     carrier?: string;
@@ -126,7 +142,7 @@ export default function AdminOrderDetailPage({
     }
   };
 
-  // 3. Aramex Shipment Creation
+  // 4. Aramex Shipment Creation
   const handleConfirmAramexShipment = async () => {
     if (!order) return;
     setActionLoading(true);
@@ -151,7 +167,7 @@ export default function AdminOrderDetailPage({
     }
   };
 
-  // 4. Carrier Tracking Refresh
+  // 5. Carrier Tracking Refresh
   const handleRefreshTracking = async () => {
     if (!order || !order.tracking_number) return;
     setActionLoading(true);
@@ -172,7 +188,7 @@ export default function AdminOrderDetailPage({
     }
   };
 
-  // 5. Payment Verification Workflow (Approve / Reject)
+  // 6. Payment Verification Workflow (Approve / Reject)
   const handleApprovePayment = async (details: PaymentVerificationDetails) => {
     if (!order) return;
     setActionLoading(true);
@@ -185,7 +201,7 @@ export default function AdminOrderDetailPage({
         details
       );
       setOrder(updated);
-      addToast("success", "Payment verified and order confirmed! Order is now marked as PAID.");
+      addToast("success", "Payment verified and order confirmed! Inventory decremented.");
     } catch (err: unknown) {
       addToast("error", (err as Error)?.message || "Payment verification failed.");
     } finally {
@@ -212,32 +228,7 @@ export default function AdminOrderDetailPage({
     }
   };
 
-  const handleOpenReviewModal = (action: "approve" | "reject") => {
-    setReviewAction(action);
-    setIsReviewModalOpen(true);
-  };
-
-  const handleConfirmPaymentProof = async (note: string) => {
-    if (!order) return;
-    setActionLoading(true);
-
-    try {
-      const updated = await adminOrderService.reviewPaymentProof(
-        order.id,
-        reviewAction,
-        note
-      );
-      setOrder(updated);
-      setIsReviewModalOpen(false);
-      addToast("success", `Payment proof ${reviewAction}d successfully.`);
-    } catch (err: unknown) {
-      addToast("error", (err as Error)?.message || "Payment proof review failed.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // 6. Ocean Freight Quote Save
+  // 7. Ocean Freight Quote Save
   const handleSaveSeaQuote = async (data: {
     amount: number;
     quote_reference?: string;
@@ -252,14 +243,19 @@ export default function AdminOrderDetailPage({
       const result = await adminOrderService.updateShippingQuote(order.id, data);
       setOrder(result.order);
       setIsSeaQuoteModalOpen(false);
-      addToast(
-        "success",
-        `Freight quote saved: $${data.amount.toFixed(2)} USD.`
-      );
+      addToast("success", `Freight quote saved: $${data.amount.toFixed(2)} USD.`);
     } catch (err: unknown) {
       addToast("error", (err as Error)?.message || "Failed to update freight quote.");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Scroll to payment verification section
+  const handleScrollToPaymentReview = () => {
+    const el = document.getElementById("admin-payment-inventory-section");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -269,7 +265,7 @@ export default function AdminOrderDetailPage({
       <div className="py-20 text-center space-y-3">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
         <span className="text-xs text-muted-foreground font-medium">
-          Loading order details...
+          Loading order workspace...
         </span>
       </div>
     );
@@ -297,111 +293,103 @@ export default function AdminOrderDetailPage({
 
   return (
     <AdminPageGate permission="order.view" moduleName="Order Details">
-      <div className="space-y-8 w-full max-w-full">
-      {/* 1. Detail Header & Commercial Document Links */}
-      <OrderDetailHeader
-        order={order}
-        backHref="/ayc/orders"
-        onRefresh={handleRefresh}
-        isLoading={isRefreshing}
-      />
+      <div className="space-y-6 w-full max-w-full" id="admin-order-workspace">
+        {/* 1. Order Header: Title, Customer, Placed Date, Status Badges, Prominent Next Action & Documents Dropdown */}
+        <OrderDetailHeader
+          order={order}
+          backHref="/ayc/orders"
+          onRefresh={handleRefresh}
+          isLoading={isRefreshing || actionLoading}
+          onOpenPaymentReview={handleScrollToPaymentReview}
+          onOpenAramexModal={() => setIsAramexDialogOpen(true)}
+          onOpenSeaQuoteModal={() => setIsSeaQuoteModalOpen(true)}
+          onOpenFulfillmentModal={() => setIsFulfillmentModalOpen(true)}
+          onUpdateStatus={handleUpdateStatus}
+          onOpenCancelModal={() => setIsCancelModalOpen(true)}
+          onRefreshTracking={handleRefreshTracking}
+        />
 
-      {/* 2. Main Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* LEFT COLUMN (2 Cols on lg): Items, Carrier Logistics, Payment Proof, Timeline */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Order Items Table */}
-          <OrderItemsTable items={order.items || []} />
+        {/* 2. Compact Order Summary: 4 scannable summary metrics */}
+        <OrderSummaryMetrics order={order} />
 
-          {/* Carrier & Dispatch Logistics */}
-          <CarrierFulfillmentCard
-            order={order}
-            onOpenSeaQuoteModal={() => setIsSeaQuoteModalOpen(true)}
-            onOpenFulfillmentModal={() => setIsFulfillmentModalOpen(true)}
-            onOpenAramexShipmentDialog={() => setIsAramexDialogOpen(true)}
-            onRefreshTracking={handleRefreshTracking}
-            actionLoading={actionLoading}
-          />
+        {/* 3. Main Action-Oriented Two-Column Workspace */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* LEFT / PRIMARY COLUMN (2 cols on lg): Items, Consolidated Payment & Inventory, Fulfillment & Dispatch */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* 3. Order Items Table */}
+            <OrderItemsTable items={order.items || []} />
 
-          {/* Payment Verification Section */}
-          <PaymentProofReview
-            order={order}
-            onApprove={handleApprovePayment}
-            onReject={handleRejectPayment}
-            isLoading={actionLoading}
-          />
+            {/* 4. Payment & Inventory Section (Consolidated & State-Aware) */}
+            <OrderPaymentInventoryCard
+              order={order}
+              onApprove={handleApprovePayment}
+              onReject={handleRejectPayment}
+              isLoading={actionLoading}
+            />
 
-          {/* Chronological Audit Events Timeline */}
-          <OrderStatusHistory events={order.status_events || []} />
+            {/* 6. Fulfillment & Dispatch Logistics */}
+            <CarrierFulfillmentCard
+              order={order}
+              onOpenSeaQuoteModal={() => setIsSeaQuoteModalOpen(true)}
+              onOpenFulfillmentModal={() => setIsFulfillmentModalOpen(true)}
+              onOpenAramexShipmentDialog={() => setIsAramexDialogOpen(true)}
+              onRefreshTracking={handleRefreshTracking}
+              actionLoading={actionLoading}
+            />
+          </div>
+
+          {/* RIGHT / SIDEBAR COLUMN (1 col on lg): Financial Summary, Consolidated Customer & Delivery, Expandable Audit History */}
+          <div className="space-y-6">
+            {/* 7. Payment & Financial Summary */}
+            <OrderFinancialSummary order={order} />
+
+            {/* 5. Customer & Delivery (Consolidated) */}
+            <OrderCustomerDeliveryCard order={order} />
+
+            {/* 9. Activity & Audit History (Expandable) */}
+            <OrderStatusHistory events={order.status_events || []} defaultOpen={false} />
+          </div>
         </div>
 
-        {/* RIGHT COLUMN (1 Col on lg): Status Transition, Financial Summary, Payment, Customer, Shipping */}
-        <div className="space-y-6">
-          {/* Order Status Transition Control */}
-          <OrderStatusTransitionCard
-            order={order}
-            onUpdateStatus={handleUpdateStatus}
-            isLoading={actionLoading}
-          />
+        {/* Interactive Modals */}
+        {/* A. Ocean Freight Quote Modal */}
+        <OceanFreightQuoteModal
+          isOpen={isSeaQuoteModalOpen}
+          order={order}
+          onClose={() => setIsSeaQuoteModalOpen(false)}
+          onSaveQuote={handleSaveSeaQuote}
+          isLoading={actionLoading}
+        />
 
-          {/* Financial Summary */}
-          <OrderFinancialSummary order={order} />
+        {/* B. Manual Fulfillment Update Modal */}
+        <FulfillmentUpdateModal
+          isOpen={isFulfillmentModalOpen}
+          order={order}
+          onClose={() => setIsFulfillmentModalOpen(false)}
+          onSave={handleSaveFulfillment}
+          isLoading={actionLoading}
+        />
 
-          {/* Payment Details Card */}
-          <PaymentInfoCard
-            order={order}
-            onOpenProofModal={
-              order.payment_proof_url ? () => handleOpenReviewModal("approve") : undefined
-            }
-          />
+        {/* C. Aramex Export Shipment Confirmation Dialog */}
+        <AramexShipmentDialog
+          isOpen={isAramexDialogOpen}
+          order={order}
+          onClose={() => setIsAramexDialogOpen(false)}
+          onConfirm={handleConfirmAramexShipment}
+          isLoading={actionLoading}
+        />
 
-          {/* Customer Information Card */}
-          <CustomerInfoCard order={order} />
+        {/* D. Order Cancellation Modal */}
+        <OrderCancelModal
+          isOpen={isCancelModalOpen}
+          order={order}
+          onClose={() => setIsCancelModalOpen(false)}
+          onConfirm={handleCancelOrder}
+          isLoading={actionLoading}
+        />
 
-          {/* Shipping & Destination Details Card */}
-          <ShippingInfoCard order={order} />
-        </div>
-      </div>
-
-      {/* 3. Interactive Application Modals (No Native Dialogs) */}
-      {/* A. Payment Proof Review Modal */}
-      <PaymentReviewModal
-        isOpen={isReviewModalOpen}
-        action={reviewAction}
-        onClose={() => setIsReviewModalOpen(false)}
-        onConfirm={handleConfirmPaymentProof}
-        isLoading={actionLoading}
-      />
-
-      {/* B. Ocean Freight Quote Modal */}
-      <OceanFreightQuoteModal
-        isOpen={isSeaQuoteModalOpen}
-        order={order}
-        onClose={() => setIsSeaQuoteModalOpen(false)}
-        onSaveQuote={handleSaveSeaQuote}
-        isLoading={actionLoading}
-      />
-
-      {/* C. Manual Fulfillment Update Modal */}
-      <FulfillmentUpdateModal
-        isOpen={isFulfillmentModalOpen}
-        order={order}
-        onClose={() => setIsFulfillmentModalOpen(false)}
-        onSave={handleSaveFulfillment}
-        isLoading={actionLoading}
-      />
-
-      {/* D. Aramex Export Shipment Confirmation Dialog */}
-      <AramexShipmentDialog
-        isOpen={isAramexDialogOpen}
-        order={order}
-        onClose={() => setIsAramexDialogOpen(false)}
-        onConfirm={handleConfirmAramexShipment}
-        isLoading={actionLoading}
-      />
-
-      {/* 4. Global Toast Notifications */}
-      <ProductToast toasts={toasts} onDismiss={removeToast} />
+        {/* Global Toast Notifications */}
+        <ProductToast toasts={toasts} onDismiss={removeToast} />
       </div>
     </AdminPageGate>
   );

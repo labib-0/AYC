@@ -141,19 +141,48 @@ export default function OrderFinancialSummary({ order }: OrderFinancialSummaryPr
 
         {/* Payment Tracking: Paid vs Balance Due */}
         <div className="pt-2 border-t border-border/40 space-y-1.5 text-xs">
-          <div className="flex justify-between text-muted-foreground">
-            <span>Paid Amount</span>
-            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-              ${Number((order as any).paid_amount ?? (order.payment_status === "paid" ? totalAmount : 0)).toFixed(2)}
-            </span>
-          </div>
+          {(() => {
+            const isPaid =
+              order.payment_status === "paid" ||
+              order.payment_details?.payment_status === "PAID";
+            const rawPaid =
+              (order as any).paid_amount !== undefined && (order as any).paid_amount !== null
+                ? Number((order as any).paid_amount)
+                : NaN;
+            const paidAmount =
+              !isNaN(rawPaid) && rawPaid > 0 ? rawPaid : isPaid ? totalAmount : 0;
+            const rawBalance =
+              (order as any).balance_due !== undefined && (order as any).balance_due !== null
+                ? Number((order as any).balance_due)
+                : NaN;
+            const balanceDue = isPaid
+              ? 0
+              : !isNaN(rawBalance)
+              ? rawBalance
+              : Math.max(0, totalAmount - paidAmount);
 
-          <div className="flex justify-between text-muted-foreground">
-            <span>Balance Due</span>
-            <span className={`font-mono font-bold ${Number((order as any).balance_due ?? 0) > 0 ? "text-rose-500" : "text-foreground"}`}>
-              ${Number((order as any).balance_due ?? Math.max(0, totalAmount - Number((order as any).paid_amount ?? (order.payment_status === "paid" ? totalAmount : 0)))).toFixed(2)}
-            </span>
-          </div>
+            return (
+              <>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Paid Amount</span>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    ${paidAmount.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Balance Due</span>
+                  <span
+                    className={`font-mono font-bold ${
+                      balanceDue > 0 ? "text-rose-500" : "text-foreground"
+                    }`}
+                  >
+                    ${balanceDue.toFixed(2)}
+                  </span>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
