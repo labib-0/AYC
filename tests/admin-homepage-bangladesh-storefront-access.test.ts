@@ -171,6 +171,24 @@ test("Location config uses MaxMind local driver as default with local GeoLite2-C
   expect(locationConfigSrc).toContain("GeoLite2-Country.mmdb");
 });
 
+// ▶ Suite 5: India Access & IP Normalization Integrity
+console.log("\n▶ Suite 5: India Access & IP Normalization Integrity");
+
+test("Proxy normalizes IP addresses (strips IPv6 bracket notation and port)", () => {
+  expect(proxySrc).toContain("clientIp.startsWith('[') && clientIp.includes(']')");
+  expect(proxySrc).toContain("setTimeout(() => controller.abort(), 2500)");
+});
+
+test("InternalStorefrontAccessController trims and strips bracket notation from internal client IP", () => {
+  expect(internalControllerSrc).toContain("trim($rawClientIp)");
+  expect(internalControllerSrc).toContain("str_starts_with($clientIp, '[')");
+});
+
+test("StorefrontCountryAccessService only blocks confirmed Bangladesh and allows India", () => {
+  expect(accessServiceSrc).toContain("$isBangladesh = ($country === 'BD')");
+  expect(accessServiceSrc).toContain("$blocked = $isBangladesh");
+});
+
 console.log("\n==================================================");
 console.log("ALL BANGLADESH STOREFRONT ACCESS AUDIT TESTS PASSED!");
 console.log("==================================================");

@@ -154,7 +154,17 @@ export async function proxy(request: NextRequest) {
     // If evaluating X-Forwarded-For, extract the rightmost (most recent proxy) IP to prevent spoofing.
     const forwardedHeader = request.headers.get('x-forwarded-for');
     const forwardedLastIp = forwardedHeader ? forwardedHeader.split(',').pop()?.trim() : '';
-    const clientIp = request.headers.get('x-real-ip') || forwardedLastIp || '';
+    let clientIp = (request.headers.get('x-real-ip')?.trim()) || forwardedLastIp || '';
+
+    // Normalize IP format (strip IPv6 brackets or IPv4 port if present)
+    if (clientIp.startsWith('[') && clientIp.includes(']')) {
+      clientIp = clientIp.replace(/^\[|\](:[0-9]+)?$/g, '').trim();
+    } else if (clientIp.includes(':') && clientIp.includes('.')) {
+      const parts = clientIp.split(':');
+      if (parts.length === 2) {
+        clientIp = parts[0].trim();
+      }
+    }
 
     if (!clientIp) {
       // If no client IP can be established, allow access safely (fail open)
@@ -164,7 +174,7 @@ export async function proxy(request: NextRequest) {
     const checkUrl = `${rawApiUrl}/internal/storefront/access-check`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1500);
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
 
     const res = await fetch(checkUrl, {
       method: 'GET',

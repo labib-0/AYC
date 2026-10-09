@@ -23,9 +23,15 @@ class StorefrontCountryAccessTest extends TestCase
     protected StorefrontCountryAccessService $service;
 
     protected const BD_IPV4 = '103.230.104.1';
+    protected const BD_IPV4_ALT = '118.179.0.1';
     protected const BD_IPV6 = '2400:c600:452f:11e1:3cd2:400d:95c5:e35f';
+    protected const IN_IPV4 = '49.36.0.1';
+    protected const IN_IPV4_ALT = '103.168.23.196';
+    protected const IN_IPV6 = '2405:201::1';
+    protected const IN_IPV6_ALT = '2401:4900::1';
     protected const US_IPV4 = '8.8.8.8';
     protected const US_IPV6 = '2001:4860:4860::8888';
+    protected const GB_IPV4 = '81.2.69.142';
 
     protected function setUp(): void
     {
@@ -56,15 +62,29 @@ class StorefrontCountryAccessTest extends TestCase
         $bdPosition->countryCode = 'BD';
         $bdPosition->countryName = 'Bangladesh';
 
+        $inPosition = new Position();
+        $inPosition->countryCode = 'IN';
+        $inPosition->countryName = 'India';
+
         $usPosition = new Position();
         $usPosition->countryCode = 'US';
         $usPosition->countryName = 'United States';
 
+        $gbPosition = new Position();
+        $gbPosition->countryCode = 'GB';
+        $gbPosition->countryName = 'United Kingdom';
+
         Location::fake([
             self::BD_IPV4 => $bdPosition,
+            self::BD_IPV4_ALT => $bdPosition,
             self::BD_IPV6 => $bdPosition,
+            self::IN_IPV4 => $inPosition,
+            self::IN_IPV4_ALT => $inPosition,
+            self::IN_IPV6 => $inPosition,
+            self::IN_IPV6_ALT => $inPosition,
             self::US_IPV4 => $usPosition,
             self::US_IPV6 => $usPosition,
+            self::GB_IPV4 => $gbPosition,
         ]);
     }
 
@@ -573,5 +593,195 @@ class StorefrontCountryAccessTest extends TestCase
         $newSalt = (int) Cache::get(\App\Services\Security\GeoIpDatabaseManager::CACHE_SALT_KEY, 1);
 
         $this->assertGreaterThan($initialSalt, $newSalt);
+    }
+
+    /**
+     * Regression Suite: Requirement 1 — Bangladesh IP + restriction ON -> BLOCKED
+     */
+    public function test_regression_bangladesh_ip_with_restriction_on_is_blocked(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        $decision = $this->service->checkAccess(self::BD_IPV4_ALT);
+        $this->assertTrue($decision['blocked']);
+        $this->assertFalse($decision['allowed']);
+        $this->assertEquals('BD', $decision['country']);
+    }
+
+    /**
+     * Regression Suite: Requirement 2 — India IP + restriction ON -> ALLOWED
+     */
+    public function test_regression_india_ip_with_restriction_on_is_allowed(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        $decision = $this->service->checkAccess(self::IN_IPV4);
+        $this->assertFalse($decision['blocked']);
+        $this->assertTrue($decision['allowed']);
+        $this->assertEquals('IN', $decision['country']);
+
+        // Internal endpoint returns allowed: true
+        $response = $this->withHeaders([
+            'X-Internal-Secret' => config('services.internal.secret'),
+            'X-Internal-Client-IP' => self::IN_IPV4,
+        ])->getJson('/api/v1/internal/storefront/access-check');
+
+        $response->assertStatus(200)->assertJson(['allowed' => true]);
+    }
+
+    /**
+     * Regression Suite: Requirement 3 — United States IP + restriction ON -> ALLOWED
+     */
+    public function test_regression_united_states_ip_with_restriction_on_is_allowed(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        $decision = $this->service->checkAccess(self::US_IPV4);
+        $this->assertFalse($decision['blocked']);
+        $this->assertTrue($decision['allowed']);
+        $this->assertEquals('US', $decision['country']);
+    }
+
+    /**
+     * Regression Suite: Requirement 4 — Another verified non-Bangladesh IP (UK) + restriction ON -> ALLOWED
+     */
+    public function test_regression_other_non_bangladesh_ip_with_restriction_on_is_allowed(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        $decision = $this->service->checkAccess(self::GB_IPV4);
+        $this->assertFalse($decision['blocked']);
+        $this->assertTrue($decision['allowed']);
+        $this->assertEquals('GB', $decision['country']);
+
+        $response = $this->withHeaders([
+            'X-Internal-Secret' => config('services.internal.secret'),
+            'X-Internal-Client-IP' => self::GB_IPV4,
+        ])->getJson('/api/v1/internal/storefront/access-check');
+
+        $response->assertStatus(200)->assertJson(['allowed' => true]);
+    }
+
+    /**
+     * Regression Suite: Requirement 5 — Any country + restriction OFF -> ALLOWED
+     */
+    public function test_regression_any_country_with_restriction_off_is_allowed(): void
+    {
+        $this->service->setBlockEnabled(false);
+
+        // BD is allowed when restriction is OFF
+        $decisionBd = $this->service->checkAccess(self::BD_IPV4);
+        $this->assertTrue($decisionBd['allowed']);
+        $this->assertFalse($decisionBd['blocked']);
+
+        // IN is allowed when restriction is OFF
+        $decisionIn = $this->service->checkAccess(self::IN_IPV4);
+        $this->assertTrue($decisionIn['allowed']);
+        $this->assertFalse($decisionIn['blocked']);
+    }
+
+    /**
+     * Regression Suite: Requirement 6 — India IPv4 lookup is handled correctly
+     */
+    public function test_regression_india_ipv4_lookup_handled_correctly(): void
+    {
+        $country = $this->service->resolveCountry(self::IN_IPV4);
+        $this->assertEquals('IN', $country);
+
+        $altCountry = $this->service->resolveCountry(self::IN_IPV4_ALT);
+        $this->assertEquals('IN', $altCountry);
+    }
+
+    /**
+     * Regression Suite: Requirement 7 — India IPv6 lookup is handled correctly (including bracket notation)
+     */
+    public function test_regression_india_ipv6_lookup_handled_correctly(): void
+    {
+        $country = $this->service->resolveCountry(self::IN_IPV6);
+        $this->assertEquals('IN', $country);
+
+        // IPv6 with brackets
+        $bracketedCountry = $this->service->resolveCountry('[' . self::IN_IPV6 . ']');
+        $this->assertEquals('IN', $bracketedCountry);
+
+        // Access check via internal endpoint with bracketed IPv6
+        $response = $this->withHeaders([
+            'X-Internal-Secret' => config('services.internal.secret'),
+            'X-Internal-Client-IP' => '[' . self::IN_IPV6 . ']',
+        ])->getJson('/api/v1/internal/storefront/access-check');
+
+        $response->assertStatus(200)->assertJson(['allowed' => true]);
+    }
+
+    /**
+     * Regression Suite: Requirement 8 — Unknown IP follows fail-open policy
+     */
+    public function test_regression_unknown_ip_follows_fail_open_policy(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        $unknownIp = '198.51.100.99'; // RFC 5737 TEST-NET
+        $decision = $this->service->checkAccess($unknownIp);
+
+        $this->assertNull($decision['country']);
+        $this->assertFalse($decision['blocked']);
+        $this->assertTrue($decision['allowed']);
+    }
+
+    /**
+     * Regression Suite: Requirement 9 — Corrected country results not masked by stale cache
+     */
+    public function test_regression_corrected_country_results_not_masked_by_stale_cache(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        // Populate cache for IN IP
+        $this->service->resolveCountry(self::IN_IPV4);
+
+        // Bump cache salt (as done during database update or targeted invalidation)
+        app(\App\Services\Security\GeoIpDatabaseManager::class)->invalidateGeoIpCache();
+
+        // Fresh lookup resolves properly
+        $freshCountry = $this->service->resolveCountry(self::IN_IPV4);
+        $this->assertEquals('IN', $freshCountry);
+
+        $decision = $this->service->checkAccess(self::IN_IPV4);
+        $this->assertTrue($decision['allowed']);
+        $this->assertFalse($decision['blocked']);
+    }
+
+    /**
+     * Regression Suite: Real MaxMind binary mmdb file resolution verification
+     */
+    public function test_real_maxmind_database_resolves_india_and_bangladesh_accurately(): void
+    {
+        $manager = app(\App\Services\Security\GeoIpDatabaseManager::class);
+        $dbPath = $manager->getDatabasePath();
+
+        $this->assertFileExists($dbPath);
+
+        $reader = new \MaxMind\Db\Reader($dbPath);
+
+        // Verify India IPv4
+        $recIn = $reader->get(self::IN_IPV4);
+        $this->assertEquals('IN', $recIn['country']['iso_code'] ?? null);
+
+        // Verify India IPv6
+        $recInV6 = $reader->get(self::IN_IPV6);
+        $this->assertEquals('IN', $recInV6['country']['iso_code'] ?? null);
+
+        // Verify Bangladesh IPv4
+        $recBd = $reader->get(self::BD_IPV4);
+        $this->assertEquals('BD', $recBd['country']['iso_code'] ?? null);
+
+        // Verify United States IPv4
+        $recUs = $reader->get(self::US_IPV4);
+        $this->assertEquals('US', $recUs['country']['iso_code'] ?? null);
+
+        // Verify United Kingdom IPv4
+        $recGb = $reader->get(self::GB_IPV4);
+        $this->assertEquals('GB', $recGb['country']['iso_code'] ?? null);
+
+        $reader->close();
     }
 }

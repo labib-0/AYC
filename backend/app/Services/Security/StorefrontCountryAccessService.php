@@ -50,6 +50,9 @@ class StorefrontCountryAccessService
         }
 
         $ip = trim($ip);
+        if (str_starts_with($ip, '[') && str_ends_with($ip, ']')) {
+            $ip = substr($ip, 1, -1);
+        }
 
         // Validate IP format (supports IPv4 and IPv6)
         if (!filter_var($ip, FILTER_VALIDATE_IP)) {

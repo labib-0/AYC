@@ -56,11 +56,15 @@ class InternalStorefrontAccessController extends Controller
         }
 
         // 3. Extract Client IP strictly from trusted internal header
-        $clientIp = $request->header('X-Internal-Client-IP');
+        $rawClientIp = (string) $request->header('X-Internal-Client-IP');
+        $clientIp = trim($rawClientIp);
+        if (str_starts_with($clientIp, '[') && str_ends_with($clientIp, ']')) {
+            $clientIp = substr($clientIp, 1, -1);
+        }
 
         if (empty($clientIp) || !filter_var($clientIp, FILTER_VALIDATE_IP)) {
             Log::warning('Internal storefront access check rejected: missing or invalid X-Internal-Client-IP header', [
-                'header_value' => $clientIp,
+                'header_value' => $rawClientIp,
             ]);
 
             return response()->json([
