@@ -52,44 +52,44 @@ function runTests() {
   const userModelCode = fs.readFileSync(userModelPath, "utf-8");
   const forgotPasswordCode = fs.readFileSync(forgotPasswordPath, "utf-8");
 
-  // ── GROUP 1: Barcode & SKU Scanner Workflow ───────────────────────────────
-  console.log("▶ Group 1: Barcode & SKU Scanner Workflow");
+  // ── GROUP 1: Product Search & Catalog Lookup (Scanner Removed) ─────────────
+  console.log("▶ Group 1: Product Search & Catalog Lookup (Scanner Removed)");
   assert(
     posPageCode.includes('id="pos-product-search-input"'),
     "Search bar provides accessible 'pos-product-search-input' element"
   );
   assert(
-    posPageCode.includes("handleBarcodeOrSkuKeyDown"),
-    "Search input binds to fast keyboard-wedge scanner onKeyDown handler"
+    !posPageCode.includes("handleBarcodeOrSkuKeyDown"),
+    "Scanner-specific onKeyDown handler handleBarcodeOrSkuKeyDown is removed"
   );
   assert(
-    posPageCode.includes('e.key !== "Enter"'),
-    "Scanner handler intercepts Enter keystroke emitted by hardware barcode readers"
+    posPageCode.includes("handleProductSearchKeyDown"),
+    "Search input binds handleProductSearchKeyDown preventing accidental checkout on Enter"
   );
   assert(
-    posPageCode.includes("searchInputRef"),
-    "Maintains ref to search input to keep focus active for consecutive scans"
+    !posPageCode.includes("pos-scanner-feedback-banner"),
+    "Scanner feedback banner (id='pos-scanner-feedback-banner') is removed"
+  );
+  assert(
+    posPageCode.includes("Search products by name, SKU, or category"),
+    "Product search placeholder clearly indicates manual search capabilities"
   );
   assert(
     posPageCode.includes("addOrIncrementProduct"),
-    "Implements addOrIncrementProduct to automatically add or increment quantity"
+    "Preserves addOrIncrementProduct for manual catalog addition"
   );
   assert(
-    posPageCode.includes("pos-scanner-feedback-banner"),
-    "Provides immediate visual scanner feedback banner (id='pos-scanner-feedback-banner')"
-  );
-  assert(
-    posPageCode.includes("setActiveProduct(matchedProduct)") &&
+    posPageCode.includes("setActiveProduct(product)") &&
       posPageCode.includes("has_variants"),
-    "Prompts for explicit size/variant selection when scanned product requires variants"
+    "Preserves size/variant modal selection when selecting products with variants"
   );
   assert(
     posPageCode.includes("is_sold_out") && posPageCode.includes("total_available_stock"),
-    "Protects against out of stock and sold out products during barcode scan"
+    "Protects against out of stock and sold out products during catalog addition"
   );
   assert(
     backendServiceCode.includes("orderByRaw") && backendServiceCode.includes("sku = "),
-    "Backend search prioritizes exact SKU match as top search result"
+    "Backend search prioritizes exact SKU match in product catalog search"
   );
 
   // ── GROUP 2: Dedicated 58 mm & 80 mm Thermal Receipts ─────────────────────

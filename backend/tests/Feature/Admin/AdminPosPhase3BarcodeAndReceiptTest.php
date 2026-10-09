@@ -184,7 +184,7 @@ class AdminPosPhase3BarcodeAndReceiptTest extends TestCase
         $this->assertEquals('L', $variantMatched['size']);
     }
 
-    public function test_quick_created_customer_with_synthetic_email_has_unverified_status(): void
+    public function test_quick_created_customer_without_email_has_nullable_email_and_unverified_status(): void
     {
         Sanctum::actingAs($this->admin);
 
@@ -199,16 +199,13 @@ class AdminPosPhase3BarcodeAndReceiptTest extends TestCase
         $customerId = $res->json('data.id');
         $user = User::findOrFail($customerId);
 
-        // Must end with synthetic domain @ayaan.local
-        $this->assertTrue($user->isSyntheticEmail());
-        $this->assertStringEndsWith('@ayaan.local', $user->email);
-        $this->assertEquals('customer_8801711234567@ayaan.local', $user->email);
+        // Real email must be null - no fabricated email identities!
+        $this->assertNull($user->email);
+        $this->assertNull($user->email_verified_at, 'POS customer email_verified_at must be null.');
+        $this->assertEquals('+880 1711 234567', $user->phone);
 
-        // CRITICAL Task 3 requirement: MUST NOT be falsely marked as verified!
-        $this->assertNull($user->email_verified_at, 'Synthetic email address must never be marked as verified.');
-
-        // Outbound mail routing must be suppressed
-        $this->assertNull($user->routeNotificationForMail(), 'Mail routing must be null for synthetic customers.');
+        // Outbound mail routing must be null
+        $this->assertNull($user->routeNotificationForMail(), 'Mail routing must be null when email is null.');
     }
 
     public function test_forgot_password_rejects_synthetic_email_addresses(): void
@@ -225,9 +222,15 @@ class AdminPosPhase3BarcodeAndReceiptTest extends TestCase
     {
         Sanctum::actingAs($this->admin);
 
+        $customer = User::factory()->create([
+            'name' => 'Reprint Test Customer',
+            'email' => 'reprint.customer@example.com',
+            'role' => User::ROLE_CUSTOMER,
+        ]);
+
         // 1. Create sale
         $payload = [
-            'is_walkin' => true,
+            'customer_id' => $customer->id,
             'items' => [
                 [
                     'product_id' => $this->variantlessProduct->id,

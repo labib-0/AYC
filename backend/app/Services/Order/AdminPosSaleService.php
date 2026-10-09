@@ -55,17 +55,19 @@ class AdminPosSaleService
     /**
      * Fast customer registration from POS screen.
      * Matches existing customers by email or phone to prevent duplicate accounts.
+     * Never generates synthetic or fabricated email addresses.
      */
     public function quickCreateCustomer(array $data, User $admin): array
     {
         $name = trim($data['name']);
         $phone = isset($data['phone']) ? trim($data['phone']) : null;
-        $email = isset($data['email']) ? strtolower(trim($data['email'])) : null;
-        $companyName = isset($data['company_name']) ? trim($data['company_name']) : null;
+        $email = !empty($data['email']) ? strtolower(trim($data['email'])) : null;
+        $companyName = !empty($data['company_name']) ? trim($data['company_name']) : null;
 
         // 1. Check duplicate/existing customer by email if provided
         if (!empty($email)) {
             $existing = User::where('role', User::ROLE_CUSTOMER)
+                ->whereNotNull('email')
                 ->whereRaw('lower(email) = ?', [$email])
                 ->first();
             if ($existing) {
@@ -79,42 +81,42 @@ class AdminPosSaleService
 
         // 2. Check duplicate/existing customer by phone if provided
         if (!empty($phone)) {
-            $existingByPhone = User::where('role', User::ROLE_CUSTOMER)
-                ->where('phone', $phone)
-                ->first();
-            if ($existingByPhone) {
+            $cleanPhone = preg_replace('/\D/', '', $phone);
+            $matchingCustomers = User::where('role', User::ROLE_CUSTOMER)
+                ->whereNotNull('phone')
+                ->where(function ($q) use ($phone, $cleanPhone) {
+                    $q->where('phone', $phone);
+                    if (strlen($cleanPhone) >= 7) {
+                        $suffix = substr($cleanPhone, -7);
+                        $q->orWhere('phone', 'like', "%{$suffix}%");
+                    }
+                })
+                ->get()
+                ->filter(function ($u) use ($phone, $cleanPhone) {
+                    if ($u->phone === $phone) {
+                        return true;
+                    }
+                    $uClean = preg_replace('/\D/', '', (string) $u->phone);
+                    return $uClean !== '' && ($uClean === $cleanPhone || (strlen($cleanPhone) >= 8 && str_ends_with($uClean, substr($cleanPhone, -8))));
+                });
+
+            if ($matchingCustomers->count() === 1) {
                 return [
-                    'customer' => $this->formatCustomerResponse($existingByPhone),
+                    'customer' => $this->formatCustomerResponse($matchingCustomers->first()),
                     'matched' => true,
                     'created' => false,
                 ];
+            } elseif ($matchingCustomers->count() > 1) {
+                throw ValidationException::withMessages([
+                    'phone' => 'Multiple existing customers match this phone number. Please search and select the correct customer record.',
+                ]);
             }
         }
 
-        // 3. Fallback: if email not provided, generate deterministic synthetic email
-        if (empty($email)) {
-            $cleanPhone = !empty($phone) ? preg_replace('/\D/', '', $phone) : '';
-            if ($cleanPhone !== '') {
-                $syntheticEmail = "customer_{$cleanPhone}@ayaan.local";
-            } else {
-                $syntheticEmail = "customer_" . strtolower(Str::random(8)) . "@ayaan.local";
-            }
-
-            $existingSynthetic = User::where('email', $syntheticEmail)->first();
-            if ($existingSynthetic) {
-                return [
-                    'customer' => $this->formatCustomerResponse($existingSynthetic),
-                    'matched' => true,
-                    'created' => false,
-                ];
-            }
-            $email = $syntheticEmail;
-        }
-
-        // 4. Create new customer account
+        // 3. Create new real customer account (No synthetic email!)
         $customer = User::create([
             'name' => $name,
-            'email' => $email,
+            'email' => $email, // Stored as real email or null. Never fabricated.
             'phone' => $phone ?: null,
             'company_name' => $companyName ?: null,
             'role' => User::ROLE_CUSTOMER,
@@ -160,12 +162,17 @@ class AdminPosSaleService
     /**
      * Search existing customers for POS sale assignment.
      * Strictly restricted to customer accounts (role = 'customer').
+     * Excludes generic walk-in account from selection results.
      */
     public function searchCustomers(string $query = '', int $limit = 20): array
     {
         $limit = min(max(1, $limit), 50);
 
         $q = User::where('role', User::ROLE_CUSTOMER)
+            ->where(function ($sub) {
+                $sub->whereNull('email')
+                    ->orWhere('email', '!=', self::WALKIN_CUSTOMER_EMAIL);
+            })
             ->withCount('orders');
 
         $query = trim($query);
@@ -506,6 +513,10 @@ class AdminPosSaleService
 
         if ($customer->role !== User::ROLE_CUSTOMER) {
             throw ValidationException::withMessages(['customer' => 'POS sale buyer must be a valid customer account.']);
+        }
+
+        if ($customer->email === self::WALKIN_CUSTOMER_EMAIL) {
+            throw ValidationException::withMessages(['customer' => 'New POS sales cannot use the generic walk-in customer account. Please select or register an identifiable customer.']);
         }
 
         if (empty($items)) {

@@ -22,15 +22,13 @@ class PosController extends ApiController
 
     /**
      * GET /api/v1/admin/pos/customers/walkin
-     * Retrieve or initialize canonical walk-in customer record for rapid checkout.
+     * Deprecated: Walk-in generic customer is decommissioned for new POS transactions.
      */
     public function walkinCustomer(Request $request): JsonResponse
     {
-        $customer = $this->posSaleService->getOrCreateWalkinCustomer();
-
-        return $this->success(
-            $this->posSaleService->formatCustomerResponse($customer),
-            'Walk-in customer retrieved successfully'
+        return $this->error(
+            'The generic walk-in customer workflow has been decommissioned. Every POS sale must be associated with an individually identifiable customer record.',
+            Response::HTTP_GONE
         );
     }
 
@@ -44,7 +42,7 @@ class PosController extends ApiController
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:50'],
+            'phone' => ['required', 'string', 'min:6', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],
             'company_name' => ['nullable', 'string', 'max:255'],
         ]);
@@ -115,8 +113,7 @@ class PosController extends ApiController
         $admin = $request->user();
 
         $validated = $request->validate([
-            'customer_id' => ['nullable', 'integer', 'exists:users,id'],
-            'is_walkin' => ['nullable', 'boolean'],
+            'customer_id' => ['required', 'integer', 'exists:users,id'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.variant_id' => ['nullable', 'integer'],
@@ -136,16 +133,18 @@ class PosController extends ApiController
             'payment_reference' => ['nullable', 'string', 'max:100'],
         ]);
 
-        if (!empty($validated['is_walkin']) && empty($validated['customer_id'])) {
-            $customer = $this->posSaleService->getOrCreateWalkinCustomer();
-        } elseif (!empty($validated['customer_id'])) {
-            $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
-        } else {
-            return $this->error('A valid customer account or walk-in flag is required.', Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+        $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
 
         if (!$customer) {
-            return $this->error('The selected customer is invalid or not an active customer account.', Response::HTTP_UNPROCESSABLE_ENTITY);
+            throw ValidationException::withMessages([
+                'customer_id' => ['The selected customer is invalid or not an active customer account.']
+            ]);
+        }
+
+        if ($customer->email === AdminPosSaleService::WALKIN_CUSTOMER_EMAIL) {
+            throw ValidationException::withMessages([
+                'customer_id' => ['Generic walk-in customer is not allowed for new POS transactions. Please select or register an individual customer.']
+            ]);
         }
 
         try {
@@ -184,8 +183,7 @@ class PosController extends ApiController
         $admin = $request->user();
 
         $validated = $request->validate([
-            'customer_id' => ['nullable', 'integer', 'exists:users,id'],
-            'is_walkin' => ['nullable', 'boolean'],
+            'customer_id' => ['required', 'integer', 'exists:users,id'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.variant_id' => ['nullable', 'integer'],
@@ -208,16 +206,18 @@ class PosController extends ApiController
             'idempotency_key' => ['nullable', 'string', 'max:100'],
         ]);
 
-        if (!empty($validated['is_walkin']) && empty($validated['customer_id'])) {
-            $customer = $this->posSaleService->getOrCreateWalkinCustomer();
-        } elseif (!empty($validated['customer_id'])) {
-            $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
-        } else {
-            return $this->error('A valid customer account or walk-in flag is required.', Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+        $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
 
         if (!$customer) {
-            return $this->error('The selected customer is invalid or not an active customer account.', Response::HTTP_UNPROCESSABLE_ENTITY);
+            throw ValidationException::withMessages([
+                'customer_id' => ['The selected customer is invalid or not an active customer account.']
+            ]);
+        }
+
+        if ($customer->email === AdminPosSaleService::WALKIN_CUSTOMER_EMAIL) {
+            throw ValidationException::withMessages([
+                'customer_id' => ['Generic walk-in customer is not allowed for new POS transactions. Please select or register an individual customer.']
+            ]);
         }
 
         try {

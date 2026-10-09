@@ -78,7 +78,6 @@ export default function AdminPosPage() {
   const [customerResults, setCustomerResults] = useState<PosCustomer[]>([]);
   const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const [isLoadingWalkin, setIsLoadingWalkin] = useState(false);
 
   // Quick Add Customer Modal State
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
@@ -98,12 +97,6 @@ export default function AdminPosPage() {
   const [warehouses, setWarehouses] = useState<PosWarehouse[]>([]);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
 
-  // Scanner & Barcode state
-  const [scannerFeedback, setScannerFeedback] = useState<{
-    type: "success" | "error" | "warning";
-    message: string;
-  } | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const [showThermalReceiptModal, setShowThermalReceiptModal] = useState(false);
 
@@ -227,16 +220,6 @@ export default function AdminPosPage() {
     return () => clearTimeout(timer);
   }, [productSearch, selectedWarehouseId, selectedCategoryId]);
 
-  // Auto-dismiss scanner feedback message after 4.5 seconds
-  useEffect(() => {
-    if (scannerFeedback) {
-      const timer = setTimeout(() => {
-        setScannerFeedback(null);
-      }, 4500);
-      return () => clearTimeout(timer);
-    }
-  }, [scannerFeedback]);
-
   // Sync activeProduct selection defaults
   useEffect(() => {
     if (activeProduct) {
@@ -277,8 +260,7 @@ export default function AdminPosPage() {
           : undefined;
 
         const preview = await posService.calculatePreview({
-          customer_id: selectedCustomer.id > 0 ? selectedCustomer.id : undefined,
-          is_walkin: selectedCustomer.is_walkin || selectedCustomer.id === 0,
+          customer_id: selectedCustomer.id,
           items: payloadItems,
           shipping_cost: 0,
           shipping_method: "POS In-Store Fulfillment",
@@ -341,29 +323,6 @@ export default function AdminPosPage() {
 
   // ── Customer Handlers ─────────────────────────────────────────────────────
 
-  const handleSelectWalkin = async () => {
-    setIsLoadingWalkin(true);
-    setSubmissionError(null);
-    try {
-      const walkin = await posService.getWalkinCustomer();
-      setSelectedCustomer(walkin);
-      setCustomerSearch("");
-      setShowCustomerDropdown(false);
-    } catch (err) {
-      console.error("Failed to load walk-in customer:", err);
-      // Fallback local representation
-      setSelectedCustomer({
-        id: 0,
-        name: "Walk-in Customer",
-        email: "walkin@ayaanclothing.com",
-        orders_count: 0,
-        is_walkin: true,
-      });
-    } finally {
-      setIsLoadingWalkin(false);
-    }
-  };
-
   const handleSelectCustomer = (cust: PosCustomer) => {
     setSelectedCustomer(cust);
     setCustomerSearch("");
@@ -383,6 +342,10 @@ export default function AdminPosPage() {
       setQuickAddError("Customer name is required.");
       return;
     }
+    if (!quickAddPhone.trim()) {
+      setQuickAddError("Phone number is required.");
+      return;
+    }
 
     setIsQuickAdding(true);
     setQuickAddError(null);
@@ -390,7 +353,7 @@ export default function AdminPosPage() {
     try {
       const createdOrMatched = await posService.quickCreateCustomer({
         name: quickAddName.trim(),
-        phone: quickAddPhone.trim() || undefined,
+        phone: quickAddPhone.trim(),
         email: quickAddEmail.trim() || undefined,
         company_name: quickAddCompany.trim() || undefined,
       });
@@ -419,13 +382,10 @@ export default function AdminPosPage() {
   const addOrIncrementProduct = (
     product: PosProduct,
     variant: PosVariant | null = null,
-    qtyToAdd?: number,
-    fromScanner = false
+    qtyToAdd?: number
   ): boolean => {
     if (product.is_sold_out || product.total_available_stock <= 0) {
-      const msg = `'${product.name}' is currently sold out.`;
-      if (fromScanner) setScannerFeedback({ type: "error", message: msg });
-      else setSubmissionError(msg);
+      setSubmissionError(`'${product.name}' is currently sold out.`);
       return false;
     }
 
@@ -435,15 +395,11 @@ export default function AdminPosPage() {
     // Check MOQ rules
     if (product.moq > 1) {
       if (quantity < product.moq) {
-        const msg = `Minimum order quantity for '${product.name}' is ${product.moq} pcs.`;
-        if (fromScanner) setScannerFeedback({ type: "error", message: msg });
-        else setSubmissionError(msg);
+        setSubmissionError(`Minimum order quantity for '${product.name}' is ${product.moq} pcs.`);
         return false;
       }
       if (quantity % product.moq !== 0) {
-        const msg = `Quantity must be an exact multiple of the MOQ (${product.moq} pcs).`;
-        if (fromScanner) setScannerFeedback({ type: "error", message: msg });
-        else setSubmissionError(msg);
+        setSubmissionError(`Quantity must be an exact multiple of the MOQ (${product.moq} pcs).`);
         return false;
       }
     }
@@ -461,9 +417,7 @@ export default function AdminPosPage() {
       const newQty = existingItem.quantity + quantity;
 
       if (newQty > maxStock) {
-        const msg = `Insufficient stock for '${product.name}'. Max available: ${maxStock} pcs.`;
-        if (fromScanner) setScannerFeedback({ type: "error", message: msg });
-        else setSubmissionError(msg);
+        setSubmissionError(`Insufficient stock for '${product.name}'. Max available: ${maxStock} pcs.`);
         return false;
       }
 
@@ -489,21 +443,11 @@ export default function AdminPosPage() {
         line_total: Math.round(effectivePrice * newQty * 100) / 100,
       };
       setCart(updated);
-
-      const variantTag = variant ? ` (${variant.size || variant.title})` : "";
-      if (fromScanner) {
-        setScannerFeedback({
-          type: "success",
-          message: `✓ Updated '${product.name}${variantTag}' — Quantity is now ${newQty} pcs.`,
-        });
-      }
       return true;
     } else {
       // New line item
       if (quantity > maxStock) {
-        const msg = `Insufficient stock for '${product.name}'. Available: ${maxStock} pcs, Requested: ${quantity} pcs.`;
-        if (fromScanner) setScannerFeedback({ type: "error", message: msg });
-        else setSubmissionError(msg);
+        setSubmissionError(`Insufficient stock for '${product.name}'. Available: ${maxStock} pcs, Requested: ${quantity} pcs.`);
         return false;
       }
 
@@ -533,14 +477,6 @@ export default function AdminPosPage() {
       };
 
       setCart((prev) => [...prev, newLine]);
-
-      const variantTag = variant ? ` (${variant.size || variant.title})` : "";
-      if (fromScanner) {
-        setScannerFeedback({
-          type: "success",
-          message: `✓ Scanned & Added '${product.name}${variantTag}' (Qty: ${quantity} pcs).`,
-        });
-      }
       return true;
     }
   };
@@ -561,7 +497,7 @@ export default function AdminPosPage() {
       }
     }
 
-    const success = addOrIncrementProduct(activeProduct, chosenVariant, addQuantity, false);
+    const success = addOrIncrementProduct(activeProduct, chosenVariant, addQuantity);
     if (success) {
       setActiveProduct(null);
       setSubmissionError(null);
@@ -569,129 +505,9 @@ export default function AdminPosPage() {
     }
   };
 
-  /**
-   * Fast Keyboard-Wedge Barcode/SKU Scanner Workflow
-   * Intercepts 'Enter' keystroke emitted by physical or Bluetooth barcode scanners.
-   */
-  const handleBarcodeOrSkuKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter") return;
-
-    e.preventDefault();
-    const rawCode = productSearch.trim();
-    if (!rawCode) return;
-
-    setIsScanning(true);
-    setScannerFeedback(null);
-
-    try {
-      // 1. Fetch exact or matching products immediately from backend
-      const results = await posService.searchProducts(
-        rawCode,
-        selectedWarehouseId,
-        15,
-        selectedCategoryId ? Number(selectedCategoryId) : null
-      );
-
-      const codeLower = rawCode.toLowerCase();
-
-      // 2. Identify exact matches
-      // A product has an exact match if:
-      // - product.sku matches code exactly
-      // - product.id matches code exactly
-      // - any variant.sku matches code exactly
-      const exactMatches = results.filter((p) => {
-        if (p.sku?.toLowerCase() === codeLower) return true;
-        if (String(p.id) === rawCode) return true;
-        if (p.variants?.some((v) => v.sku?.toLowerCase() === codeLower)) return true;
-        return false;
-      });
-
-      const candidateList = exactMatches.length > 0 ? exactMatches : results;
-
-      if (candidateList.length === 0) {
-        setScannerFeedback({
-          type: "error",
-          message: `Product not found for code "${rawCode}".`,
-        });
-        return;
-      }
-
-      if (exactMatches.length > 1) {
-        setScannerFeedback({
-          type: "warning",
-          message: `Multiple exact matches for "${rawCode}". Please select an item from the catalog.`,
-        });
-        setProductResults(exactMatches);
-        return;
-      }
-
-      // If no exact match was identified and there are multiple candidate results:
-      if (exactMatches.length === 0 && candidateList.length > 1) {
-        setScannerFeedback({
-          type: "warning",
-          message: `Found ${candidateList.length} items matching "${rawCode}". Please select from list.`,
-        });
-        setProductResults(candidateList);
-        return;
-      }
-
-      // We have exactly one product to process
-      const matchedProduct = exactMatches.length === 1 ? exactMatches[0] : candidateList[0];
-
-      // Check if scanned code matched a specific variant's SKU
-      const matchedVariant = matchedProduct.variants?.find(
-        (v) => v.sku?.toLowerCase() === codeLower
-      );
-
-      if (matchedVariant) {
-        // Specific variant was identified
-        if (!matchedVariant.is_active || matchedVariant.stock <= 0) {
-          setScannerFeedback({
-            type: "error",
-            message: `Variant '${matchedVariant.title || matchedVariant.size}' for '${matchedProduct.name}' is out of stock.`,
-          });
-          return;
-        }
-
-        const added = addOrIncrementProduct(matchedProduct, matchedVariant, undefined, true);
-        if (added) {
-          setProductSearch("");
-          setTimeout(() => searchInputRef.current?.focus(), 50);
-        }
-        return;
-      }
-
-      // Product-level SKU or ID was scanned
-      // Check if product requires size/color variant selection
-      if (
-        matchedProduct.has_variants &&
-        !matchedProduct.has_package_allocations &&
-        matchedProduct.variants.length > 0
-      ) {
-        // Do not guess! Open the variant selector flyout
-        setActiveProduct(matchedProduct);
-        setScannerFeedback({
-          type: "warning",
-          message: `Scanned '${matchedProduct.name}'. Please select required size / variant.`,
-        });
-        setProductSearch("");
-        return;
-      }
-
-      // Variantless or package-allocated product (unambiguous, saleable cart item)
-      const added = addOrIncrementProduct(matchedProduct, null, undefined, true);
-      if (added) {
-        setProductSearch("");
-        setTimeout(() => searchInputRef.current?.focus(), 50);
-      }
-    } catch (err) {
-      console.error("Barcode scan error:", err);
-      setScannerFeedback({
-        type: "error",
-        message: `Failed to resolve scanned code "${rawCode}".`,
-      });
-    } finally {
-      setIsScanning(false);
+  const handleProductSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
     }
   };
 
@@ -763,8 +579,7 @@ export default function AdminPosPage() {
       }));
 
       const preview = await posService.calculatePreview({
-        customer_id: selectedCustomer.id > 0 ? selectedCustomer.id : undefined,
-        is_walkin: selectedCustomer.is_walkin || selectedCustomer.id === 0,
+        customer_id: selectedCustomer.id,
         items: payloadItems,
         coupon_code: code,
         manual_discount: appliedManualDiscount
@@ -836,8 +651,7 @@ export default function AdminPosPage() {
       }));
 
       const preview = await posService.calculatePreview({
-        customer_id: selectedCustomer.id > 0 ? selectedCustomer.id : undefined,
-        is_walkin: selectedCustomer.is_walkin || selectedCustomer.id === 0,
+        customer_id: selectedCustomer.id,
         items: payloadItems,
         coupon_code: appliedCouponCode || undefined,
         manual_discount: {
@@ -944,6 +758,10 @@ export default function AdminPosPage() {
       setSubmissionError("Your account lacks permission to create POS orders (pos.create).");
       return;
     }
+    if (!selectedCustomer || !selectedCustomer.id) {
+      setSubmissionError("A valid customer must be selected or registered before completing checkout.");
+      return;
+    }
 
     setIsSubmitting(true);
     setSubmissionError(null);
@@ -958,11 +776,8 @@ export default function AdminPosPage() {
         quantity: item.quantity,
       }));
 
-      const isWalkinCustomer = selectedCustomer.is_walkin || selectedCustomer.id === 0;
-
       const order = await posService.completeSale({
-        customer_id: isWalkinCustomer ? undefined : selectedCustomer.id,
-        is_walkin: isWalkinCustomer,
+        customer_id: selectedCustomer.id,
         items: payloadItems,
         warehouse_id: selectedWarehouseId,
         payment_method: paymentMethod,
@@ -1047,11 +862,11 @@ export default function AdminPosPage() {
                   POS Cashier Terminal
                 </h1>
                 <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
-                  Phase 2 Live
+                  Active
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                In-Store Checkout • Cash Tender & Change • Instant Walk-in Settlement
+                In-Store Checkout • Cash Tender & Change • Customer Record Association
               </p>
             </div>
           </div>
@@ -1106,40 +921,8 @@ export default function AdminPosPage() {
               LEFT COLUMN (~60%): Product Search, Category Pills & Catalog Grid
              ══════════════════════════════════════════════════════════════════════ */}
           <div className="lg:col-span-7 xl:col-span-7 space-y-4">
-            {/* Search Bar & Scanner Input */}
+            {/* Search Bar & Product Catalog Filter */}
             <div className="p-3.5 rounded-2xl bg-card border border-border/80 shadow-sm space-y-3">
-              {/* Scanner Status & Immediate Feedback Banner */}
-              {scannerFeedback && (
-                <div
-                  className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 text-xs font-medium animate-in fade-in slide-in-from-top-1 duration-150 ${
-                    scannerFeedback.type === "success"
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300"
-                      : scannerFeedback.type === "error"
-                      ? "bg-destructive/10 border-destructive/30 text-destructive"
-                      : "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300"
-                  }`}
-                  id="pos-scanner-feedback-banner"
-                >
-                  <div className="flex items-center gap-2">
-                    {scannerFeedback.type === "success" ? (
-                      <CheckCircle2 size={15} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-                    ) : scannerFeedback.type === "error" ? (
-                      <AlertCircle size={15} className="shrink-0 text-destructive" />
-                    ) : (
-                      <AlertCircle size={15} className="shrink-0 text-amber-600 dark:text-amber-400" />
-                    )}
-                    <span>{scannerFeedback.message}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setScannerFeedback(null)}
-                    className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              )}
-
               <div className="relative">
                 <Search
                   size={16}
@@ -1150,8 +933,8 @@ export default function AdminPosPage() {
                   type="text"
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
-                  onKeyDown={handleBarcodeOrSkuKeyDown}
-                  placeholder="Scan barcode / SKU with reader, or search by name…"
+                  onKeyDown={handleProductSearchKeyDown}
+                  placeholder="Search products by name, SKU, or category…"
                   className="w-full pl-10 pr-9 py-2.5 bg-background border border-border/80 rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-sans"
                   id="pos-product-search-input"
                   autoFocus
@@ -1168,7 +951,7 @@ export default function AdminPosPage() {
                     <X size={14} />
                   </button>
                 )}
-                {(isSearchingProducts || isScanning) && (
+                {isSearchingProducts && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   </div>
@@ -1356,7 +1139,7 @@ export default function AdminPosPage() {
                       <div
                         key={product.id}
                         onClick={() => !isSoldOut && setActiveProduct(product)}
-                        className={`p-3 rounded-xl border text-xs transition-all cursor-pointer flex flex-col justify-between ${
+                        className={`pos-product-card p-3 rounded-xl border text-xs transition-all cursor-pointer flex flex-col justify-between ${
                           isSoldOut
                             ? "bg-secondary/20 border-border/40 opacity-60 cursor-not-allowed"
                             : isSelected
@@ -1436,51 +1219,35 @@ export default function AdminPosPage() {
                   <div className="flex items-center gap-1.5">
                     <UserIcon size={15} className="text-primary" />
                     <span className="font-bold text-xs uppercase tracking-wider font-mono text-foreground">
-                      Customer Assignment
+                      {selectedCustomer ? "Customer Details" : "Select Customer"}
                     </span>
                   </div>
-                  {selectedCustomer && (
+                  {selectedCustomer ? (
                     <button
                       type="button"
                       onClick={handleClearCustomer}
                       className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors"
                       id="btn-pos-change-customer"
                     >
-                      <RotateCcw size={11} /> Change
+                      <RotateCcw size={11} /> Change Customer
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickAddError(null);
+                        setShowQuickAddModal(true);
+                      }}
+                      className="text-[11px] font-semibold text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                      id="btn-pos-quick-add-customer"
+                    >
+                      <UserPlus size={12} /> Add New Customer
                     </button>
                   )}
                 </div>
 
                 {!selectedCustomer ? (
                   <div className="space-y-2.5">
-                    {/* Fast Walk-in & Quick Add action bar */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={handleSelectWalkin}
-                        disabled={isLoadingWalkin}
-                        className="py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                        id="btn-pos-walkin-customer"
-                      >
-                        {isLoadingWalkin ? (
-                          <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Sparkles size={13} />
-                        )}
-                        <span>Walk-in Customer</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setShowQuickAddModal(true)}
-                        className="py-2 px-3 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                        id="btn-pos-quick-add-customer"
-                      >
-                        <UserPlus size={13} />
-                        <span>Quick Add</span>
-                      </button>
-                    </div>
-
                     {/* Customer search input */}
                     <div className="relative">
                       <Search
@@ -1491,7 +1258,7 @@ export default function AdminPosPage() {
                         type="text"
                         value={customerSearch}
                         onChange={(e) => setCustomerSearch(e.target.value)}
-                        placeholder="Search customer by name, email, phone…"
+                        placeholder="Search customers by name, phone, email, or company…"
                         className="w-full pl-8 pr-3 py-2 bg-background border border-border/80 rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                         id="pos-customer-search-input"
                       />
@@ -1505,8 +1272,19 @@ export default function AdminPosPage() {
                       {showCustomerDropdown && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-xl z-30 max-h-56 overflow-y-auto divide-y divide-border/40">
                           {customerResults.length === 0 ? (
-                            <div className="p-3 text-center text-xs text-muted-foreground">
-                              No customer accounts matched.
+                            <div className="p-3 text-center text-xs text-muted-foreground space-y-2">
+                              <p>No customer found for &quot;{customerSearch}&quot;.</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setQuickAddName(customerSearch);
+                                  setShowCustomerDropdown(false);
+                                  setShowQuickAddModal(true);
+                                }}
+                                className="text-primary font-semibold text-[11px] hover:underline inline-flex items-center gap-1"
+                              >
+                                <UserPlus size={11} /> Register &quot;{customerSearch}&quot; as New Customer
+                              </button>
                             </div>
                           ) : (
                             customerResults.map((cust) => (
@@ -1515,20 +1293,21 @@ export default function AdminPosPage() {
                                 onClick={() => handleSelectCustomer(cust)}
                                 className="p-2.5 hover:bg-secondary/40 cursor-pointer flex items-center justify-between transition-colors text-xs"
                               >
-                                <div>
-                                  <p className="font-semibold text-foreground flex items-center gap-1.5">
+                                <div className="min-w-0 pr-2">
+                                  <p className="font-semibold text-foreground flex items-center gap-1.5 truncate">
                                     {cust.name}
                                     {cust.company_name && (
-                                      <span className="text-[10px] text-muted-foreground font-normal">
+                                      <span className="text-[10px] text-muted-foreground font-normal truncate">
                                         • {cust.company_name}
                                       </span>
                                     )}
                                   </p>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    {cust.phone || cust.email}
-                                  </p>
+                                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                    {cust.phone && <span>📞 {cust.phone}</span>}
+                                    {cust.email && <span className="truncate">✉️ {cust.email}</span>}
+                                  </div>
                                 </div>
-                                <span className="text-[10px] font-bold text-primary font-mono">
+                                <span className="text-[10px] font-bold text-primary font-mono shrink-0">
                                   Select →
                                 </span>
                               </div>
@@ -1537,31 +1316,59 @@ export default function AdminPosPage() {
                         </div>
                       )}
                     </div>
+
+                    {/* Quick helper note */}
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+                      <span>Customer record required for sale</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickAddError(null);
+                          setShowQuickAddModal(true);
+                        }}
+                        className="font-semibold text-primary hover:underline flex items-center gap-1"
+                      >
+                        <UserPlus size={11} /> Quick register
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   /* Selected Customer Card */
-                  <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                        {selectedCustomer.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-foreground flex items-center gap-1.5 truncate">
-                          {selectedCustomer.name}
-                          {selectedCustomer.is_walkin && (
-                            <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-mono font-bold">
-                              Walk-in
-                            </span>
+                  <div
+                    id="pos-selected-customer-card"
+                    className="p-3 rounded-xl bg-primary/10 border border-primary/25 space-y-1.5 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                          {selectedCustomer.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-foreground truncate" title={selectedCustomer.name}>
+                            {selectedCustomer.name}
+                          </p>
+                          {selectedCustomer.company_name && (
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {selectedCustomer.company_name}
+                            </p>
                           )}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {selectedCustomer.phone || selectedCustomer.email}
-                        </p>
+                        </div>
                       </div>
+                      <span className="text-[10px] font-mono text-muted-foreground shrink-0 bg-background/80 px-2 py-0.5 rounded-full border border-border/40">
+                        {selectedCustomer.orders_count ?? 0} {selectedCustomer.orders_count === 1 ? "order" : "orders"}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-mono text-muted-foreground shrink-0 ml-2">
-                      {selectedCustomer.orders_count} orders
-                    </span>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground pt-1 border-t border-primary/15 font-mono">
+                      {selectedCustomer.phone && (
+                        <span className="text-foreground">📞 {selectedCustomer.phone}</span>
+                      )}
+                      {selectedCustomer.email ? (
+                        <span className="truncate">✉️ {selectedCustomer.email}</span>
+                      ) : (
+                        <span className="text-muted-foreground/70 italic text-[10px]">No email on file</span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2088,7 +1895,7 @@ export default function AdminPosPage() {
               <div className="flex items-center justify-between pb-3 border-b border-border/70">
                 <div className="flex items-center gap-2">
                   <UserPlus size={18} className="text-primary" />
-                  <h3 className="font-bold text-sm text-foreground">Quick Add Customer</h3>
+                  <h3 className="font-bold text-sm text-foreground">Add New Customer</h3>
                 </div>
                 <button
                   onClick={() => setShowQuickAddModal(false)}
@@ -2123,10 +1930,11 @@ export default function AdminPosPage() {
 
                 <div>
                   <label className="font-medium text-foreground block mb-1">
-                    Phone Number (Recommended)
+                    Phone Number <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="text"
+                    required
                     value={quickAddPhone}
                     onChange={(e) => setQuickAddPhone(e.target.value)}
                     placeholder="+880 1700-000000"
@@ -2143,7 +1951,7 @@ export default function AdminPosPage() {
                     type="email"
                     value={quickAddEmail}
                     onChange={(e) => setQuickAddEmail(e.target.value)}
-                    placeholder="customer@example.com"
+                    placeholder="customer@example.com (Leave blank if unknown)"
                     className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     id="quick-add-email-input"
                   />
@@ -2173,7 +1981,7 @@ export default function AdminPosPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isQuickAdding || !quickAddName.trim()}
+                    disabled={isQuickAdding || !quickAddName.trim() || !quickAddPhone.trim()}
                     className="flex-1 py-2.5 px-3 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                     id="btn-save-quick-add-customer"
                   >

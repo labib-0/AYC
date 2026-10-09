@@ -51,30 +51,34 @@ function runTests() {
   const backendServiceCode = fs.readFileSync(backendPosServicePath, "utf-8");
   const apiRoutesCode = fs.readFileSync(backendApiRoutesPath, "utf-8");
 
-  console.log("▶ Group 1: Walk-in Customer Workflow");
+  console.log("▶ Group 1: Individual Customer Assignment Workflow (Walk-in Removed)");
   assert(
-    posPageCode.includes("btn-pos-walkin-customer"),
-    "POS screen has dedicated 'btn-pos-walkin-customer' action button"
+    !posPageCode.includes("btn-pos-walkin-customer"),
+    "Generic 'btn-pos-walkin-customer' button is removed from POS screen"
   );
   assert(
-    posPageCode.includes("handleSelectWalkin"),
-    "POS screen implements handleSelectWalkin action"
+    !posPageCode.includes("handleSelectWalkin"),
+    "handleSelectWalkin action is removed from POS screen"
   );
   assert(
-    posServiceCode.includes("getWalkinCustomer"),
-    "pos.service.ts exposes getWalkinCustomer API method"
+    posPageCode.includes("pos-customer-search-input"),
+    "POS screen provides customer search input (id='pos-customer-search-input')"
   );
   assert(
-    backendServiceCode.includes("getOrCreateWalkinCustomer"),
-    "AdminPosSaleService implements canonical getOrCreateWalkinCustomer"
+    posPageCode.includes("pos-selected-customer-card"),
+    "POS screen provides customer details card (id='pos-selected-customer-card')"
+  );
+  assert(
+    posPageCode.includes("btn-pos-change-customer"),
+    "POS screen provides customer change button (id='btn-pos-change-customer')"
   );
   assert(
     backendServiceCode.includes("walkin@ayaanclothing.com"),
-    "Canonical walk-in account uses authoritative email walkin@ayaanclothing.com"
+    "Canonical walk-in constant is preserved for historical compatibility"
   );
   assert(
-    apiRoutesCode.includes("/customers/walkin"),
-    "backend/routes/api.php registers /admin/pos/customers/walkin route"
+    backendControllerCode.includes("WALKIN_CUSTOMER_EMAIL"),
+    "Backend strictly rejects generic walk-in customer on new POS sales"
   );
 
   console.log("\n▶ Group 2: Quick Customer Registration");

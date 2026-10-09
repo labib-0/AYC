@@ -25,6 +25,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
     private User $admin;
     private User $cashier;
     private User $unauthorizedUser;
+    private User $posCustomer;
     private Product $product;
     private Category $mensCategory;
     private Category $womensCategory;
@@ -75,6 +76,14 @@ class AdminPosWalkinAndTenderTest extends TestCase
             'status' => 'active',
         ]);
 
+        $this->posCustomer = User::factory()->create([
+            'name' => 'Regular In-Store Customer',
+            'email' => 'regular.buyer@ayaan.local',
+            'phone' => '+880 1711-998877',
+            'role' => User::ROLE_CUSTOMER,
+            'status' => 'active',
+        ]);
+
         // 3. Categories, Brand & Products
         $this->mensCategory = Category::create(['name' => "Men's Collection", 'slug' => 'mens-collection']);
         $this->womensCategory = Category::create(['name' => "Women's Collection", 'slug' => 'womens-collection']);
@@ -110,24 +119,53 @@ class AdminPosWalkinAndTenderTest extends TestCase
     }
 
     /**
-     * TEST 01: Successful Walk-in Customer retrieval and sale completion.
+     * TEST 01: Walk-in endpoint is deprecated (410 Gone) and checkout enforces real customer association.
      */
-    public function test_01_successful_walkin_customer_retrieval_and_sale(): void
+    public function test_01_walkin_endpoint_deprecated_and_checkout_enforces_individual_customer(): void
     {
         Sanctum::actingAs($this->cashier);
 
-        // Fetch walk-in customer endpoint
+        // 1. Walk-in endpoint is deprecated and returns 410 Gone
         $walkinRes = $this->getJson('/api/v1/admin/pos/customers/walkin');
-        $walkinRes->assertStatus(200)
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.email', AdminPosSaleService::WALKIN_CUSTOMER_EMAIL)
-            ->assertJsonPath('data.is_walkin', true);
+        $walkinRes->assertStatus(410)
+            ->assertJsonPath('success', false);
 
-        $walkinId = $walkinRes->json('data.id');
+        // 2. Checkout without customer_id is rejected with 422
+        $noCustRes = $this->postJson('/api/v1/admin/pos/orders', [
+            'items' => [
+                ['product_id' => $this->product->id, 'quantity' => 1],
+            ],
+            'payment_method' => 'pos_cash',
+            'paid_amount' => 85.00,
+        ]);
+        $noCustRes->assertStatus(422)
+            ->assertJsonValidationErrors(['customer_id']);
 
-        // Complete sale using walk-in customer ID or is_walkin flag
+        // 3. Checkout with canonical walk-in account is strictly rejected
+        $walkinUser = User::firstOrCreate(
+            ['email' => AdminPosSaleService::WALKIN_CUSTOMER_EMAIL],
+            [
+                'name' => 'Walk-in Customer (Historical)',
+                'password' => bcrypt(uniqid()),
+                'role' => User::ROLE_CUSTOMER,
+                'status' => 'active',
+            ]
+        );
+
+        $walkinAttemptRes = $this->postJson('/api/v1/admin/pos/orders', [
+            'customer_id' => $walkinUser->id,
+            'items' => [
+                ['product_id' => $this->product->id, 'quantity' => 1],
+            ],
+            'payment_method' => 'pos_cash',
+            'paid_amount' => 85.00,
+        ]);
+        $walkinAttemptRes->assertStatus(422)
+            ->assertJsonValidationErrors(['customer_id']);
+
+        // 4. Checkout with valid customer record succeeds
         $saleRes = $this->postJson('/api/v1/admin/pos/orders', [
-            'is_walkin' => true,
+            'customer_id' => $this->posCustomer->id,
             'items' => [
                 ['product_id' => $this->product->id, 'quantity' => 1],
             ],
@@ -144,36 +182,54 @@ class AdminPosWalkinAndTenderTest extends TestCase
         $orderId = (int) $saleRes->json('data.id');
         $order = Order::find($orderId);
         $this->assertNotNull($order);
-        $this->assertEquals($walkinId, $order->user_id);
+        $this->assertEquals($this->posCustomer->id, $order->user_id);
         $this->assertEquals('pos', $order->order_source);
-        $this->assertEquals('Walk-in Customer', $order->shipping_name);
+        $this->assertEquals($this->posCustomer->name, $order->shipping_name);
     }
 
     /**
-     * TEST 02: Quick Add Customer creates a new customer and returns it.
+     * TEST 02: Quick Add Customer creates and persists a new customer record.
      */
     public function test_02_quick_customer_registration_success(): void
     {
         Sanctum::actingAs($this->cashier);
 
-        $res = $this->postJson('/api/v1/admin/pos/customers', [
+        // Case A: Full details (Name, Phone, Email, Company)
+        $resA = $this->postJson('/api/v1/admin/pos/customers', [
             'name' => 'Tariq Rahman',
             'phone' => '+880 1711-223344',
             'email' => 'tariq.rahman@example.com',
             'company_name' => 'Tariq Outfits',
         ]);
 
-        $res->assertStatus(201)
+        $resA->assertStatus(201)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.name', 'Tariq Rahman')
             ->assertJsonPath('data.email', 'tariq.rahman@example.com')
-            ->assertJsonPath('data.phone', '+880 1711-223344');
+            ->assertJsonPath('data.phone', '+880 1711-223344')
+            ->assertJsonPath('data.company_name', 'Tariq Outfits');
 
         $this->assertDatabaseHas('users', [
             'name' => 'Tariq Rahman',
             'email' => 'tariq.rahman@example.com',
             'role' => User::ROLE_CUSTOMER,
         ]);
+
+        // Case B: POS customer without email -> stores NULL, never a synthetic email!
+        $resB = $this->postJson('/api/v1/admin/pos/customers', [
+            'name' => 'In-Store Buyer No Email',
+            'phone' => '+880 1811-990011',
+        ]);
+
+        $resB->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.name', 'In-Store Buyer No Email')
+            ->assertJsonPath('data.phone', '+880 1811-990011');
+
+        $userB = User::find($resB->json('data.id'));
+        $this->assertNotNull($userB);
+        $this->assertNull($userB->email, 'Customer without email must have null email, never a synthetic fake address.');
+        $this->assertNull($userB->email_verified_at);
     }
 
     /**
@@ -195,6 +251,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
         $res = $this->postJson('/api/v1/admin/pos/customers', [
             'name' => 'Existing Buyer Name Modified',
             'email' => 'existing.buyer@example.com',
+            'phone' => '+880 1900-112233',
         ]);
 
         $res->assertStatus(200)
@@ -206,7 +263,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
     }
 
     /**
-     * TEST 04: Existing customer matched by phone without creating duplicate account.
+     * TEST 04: Existing customer matched safely by phone without creating duplicate account.
      */
     public function test_04_quick_customer_matches_existing_by_phone(): void
     {
@@ -231,6 +288,21 @@ class AdminPosWalkinAndTenderTest extends TestCase
             ->assertJsonPath('data.id', $existing->id);
 
         $this->assertEquals($initialCount, User::where('role', User::ROLE_CUSTOMER)->count());
+
+        // Ambiguous match protection: If multiple records match the same phone, reject and require manual selection
+        User::factory()->create([
+            'name' => 'Second Phone Buyer Same Number',
+            'phone' => '+880 1799-887766',
+            'role' => User::ROLE_CUSTOMER,
+        ]);
+
+        $ambiguousRes = $this->postJson('/api/v1/admin/pos/customers', [
+            'name' => 'Ambiguous Matcher',
+            'phone' => '+880 1799-887766',
+        ]);
+
+        $ambiguousRes->assertStatus(422)
+            ->assertJsonValidationErrors(['phone']);
     }
 
     /**
@@ -242,17 +314,26 @@ class AdminPosWalkinAndTenderTest extends TestCase
 
         // Missing name
         $res1 = $this->postJson('/api/v1/admin/pos/customers', [
+            'phone' => '+880 1700-112233',
             'email' => 'invalid@example.com',
         ]);
         $res1->assertStatus(422)
             ->assertJsonValidationErrors(['name']);
 
-        // Invalid email format
+        // Missing phone
         $res2 = $this->postJson('/api/v1/admin/pos/customers', [
             'name' => 'Valid Name',
-            'email' => 'not-an-email',
         ]);
         $res2->assertStatus(422)
+            ->assertJsonValidationErrors(['phone']);
+
+        // Invalid email format
+        $res3 = $this->postJson('/api/v1/admin/pos/customers', [
+            'name' => 'Valid Name',
+            'phone' => '+880 1700-112233',
+            'email' => 'not-an-email',
+        ]);
+        $res3->assertStatus(422)
             ->assertJsonValidationErrors(['email']);
     }
 
@@ -268,6 +349,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
 
         $res2 = $this->postJson('/api/v1/admin/pos/customers', [
             'name' => 'Test',
+            'phone' => '+880 1700-000000',
         ]);
         $res2->assertStatus(403);
     }
@@ -280,7 +362,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
         Sanctum::actingAs($this->cashier);
 
         $res = $this->postJson('/api/v1/admin/pos/orders', [
-            'is_walkin' => true,
+            'customer_id' => $this->posCustomer->id,
             'items' => [
                 ['product_id' => $this->product->id, 'quantity' => 1], // $85.00
             ],
@@ -295,6 +377,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
 
         $orderId = (int) $res->json('data.id');
         $order = Order::find($orderId);
+        $this->assertEquals($this->posCustomer->id, $order->user_id);
         $this->assertEquals(85.00, (float) $order->paid_amount);
         $this->assertEquals(85.00, (float) $order->payment_details['tendered_amount']);
         $this->assertEquals(0.00, (float) $order->payment_details['change_return']);
@@ -302,6 +385,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
         $payment = Payment::where('order_id', $orderId)->first();
         $this->assertNotNull($payment);
         $this->assertEquals(85.00, (float) $payment->amount);
+        $this->assertFalse((bool) $payment->is_walkin);
     }
 
     /**
@@ -313,7 +397,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
 
         // 1. Live preview calculation
         $previewRes = $this->postJson('/api/v1/admin/pos/calculate', [
-            'is_walkin' => true,
+            'customer_id' => $this->posCustomer->id,
             'items' => [
                 ['product_id' => $this->product->id, 'quantity' => 1], // $85.00
             ],
@@ -331,7 +415,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
 
         // 2. Order completion
         $orderRes = $this->postJson('/api/v1/admin/pos/orders', [
-            'is_walkin' => true,
+            'customer_id' => $this->posCustomer->id,
             'items' => [
                 ['product_id' => $this->product->id, 'quantity' => 1], // $85.00
             ],
@@ -347,6 +431,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
 
         $orderId = (int) $orderRes->json('data.id');
         $order = Order::find($orderId);
+        $this->assertEquals($this->posCustomer->id, $order->user_id);
         $this->assertEquals(85.00, (float) $order->total_amount);
         $this->assertEquals(85.00, (float) $order->paid_amount);
         $this->assertEquals(100.00, (float) $order->payment_details['tendered_amount']);
@@ -357,6 +442,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
         $this->assertEquals(85.00, (float) $payment->amount);
         $this->assertEquals(100.00, (float) $payment->payload['tendered_amount']);
         $this->assertEquals(15.00, (float) $payment->payload['change_return']);
+        $this->assertFalse((bool) $payment->is_walkin);
     }
 
     /**
@@ -367,7 +453,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
         Sanctum::actingAs($this->cashier);
 
         $res = $this->postJson('/api/v1/admin/pos/orders', [
-            'is_walkin' => true,
+            'customer_id' => $this->posCustomer->id,
             'items' => [
                 ['product_id' => $this->product->id, 'quantity' => 1], // $85.00
             ],
@@ -388,7 +474,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
 
         // Card overpayment rejected
         $overRes = $this->postJson('/api/v1/admin/pos/orders', [
-            'is_walkin' => true,
+            'customer_id' => $this->posCustomer->id,
             'items' => [
                 ['product_id' => $this->product->id, 'quantity' => 1], // $85.00
             ],
@@ -402,7 +488,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
 
         // Card partial payment accepted
         $partialRes = $this->postJson('/api/v1/admin/pos/orders', [
-            'is_walkin' => true,
+            'customer_id' => $this->posCustomer->id,
             'items' => [
                 ['product_id' => $this->product->id, 'quantity' => 1], // $85.00
             ],
@@ -426,7 +512,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
 
         // Client attempts to claim total is $10 and change is $90
         $res = $this->postJson('/api/v1/admin/pos/orders', [
-            'is_walkin' => true,
+            'customer_id' => $this->posCustomer->id,
             'items' => [
                 ['product_id' => $this->product->id, 'quantity' => 1], // Server catalog price is $85
             ],
@@ -457,7 +543,7 @@ class AdminPosWalkinAndTenderTest extends TestCase
         $initialStock = (int) $this->product->fresh()->stock;
 
         $payload = [
-            'is_walkin' => true,
+            'customer_id' => $this->posCustomer->id,
             'items' => [
                 ['product_id' => $this->product->id, 'quantity' => 2],
             ],
@@ -496,5 +582,42 @@ class AdminPosWalkinAndTenderTest extends TestCase
         $res2 = $this->getJson("/api/v1/admin/pos/products?category_id={$this->womensCategory->id}");
         $res2->assertStatus(200);
         $this->assertCount(0, $res2->json('data'));
+    }
+
+    /**
+     * TEST 14: Historical walk-in orders remain intact and queryable.
+     */
+    public function test_14_historical_walkin_orders_remain_intact(): void
+    {
+        $walkinUser = User::firstOrCreate(
+            ['email' => AdminPosSaleService::WALKIN_CUSTOMER_EMAIL],
+            [
+                'name' => 'Walk-in Customer (Historical)',
+                'password' => bcrypt(uniqid()),
+                'role' => User::ROLE_CUSTOMER,
+                'status' => 'active',
+            ]
+        );
+
+        $historicalOrder = Order::factory()->create([
+            'user_id' => $walkinUser->id,
+            'status' => 'delivered',
+            'payment_status' => 'paid',
+            'order_source' => 'pos',
+            'shipping_name' => 'Walk-in Customer',
+        ]);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $historicalOrder->id,
+            'user_id' => $walkinUser->id,
+            'shipping_name' => 'Walk-in Customer',
+        ]);
+
+        Sanctum::actingAs($this->admin);
+
+        $orderFetch = $this->getJson("/api/v1/admin/orders/{$historicalOrder->id}");
+        $orderFetch->assertStatus(200);
+        $this->assertEquals($historicalOrder->id, $orderFetch->json('data.id'));
+        $this->assertEquals($walkinUser->id, $orderFetch->json('data.user_id'));
     }
 }
