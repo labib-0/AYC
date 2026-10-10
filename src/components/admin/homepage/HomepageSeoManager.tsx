@@ -9,9 +9,7 @@ import {
   Check,
   Trash2,
   Save,
-  Globe,
   ExternalLink,
-  ShieldCheck,
   Info,
   Code2,
 } from "lucide-react";
@@ -367,39 +365,25 @@ export function HomepageSeoManager({
           </div>
         </div>
 
-        {/* Verification & Setup Guidance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-          {/* Card 1: Google Search Console Next Steps */}
-          <div className="p-3.5 rounded-xl border border-sky-500/20 bg-sky-500/5 space-y-2 text-xs">
-            <div className="flex items-center gap-2 font-semibold text-sky-700 dark:text-sky-300">
-              <Info size={15} />
-              <span>Important Verification Notice</span>
-            </div>
-            <p className="text-2xs sm:text-xs text-muted-foreground leading-relaxed">
-              Saving this code adds the verification tag to your homepage HTML. It does <strong>not</strong> automatically complete verification. You must return to Google Search Console and click the <strong>Verify</strong> button.
-            </p>
-            <div className="pt-1">
-              <a
-                href="https://search.google.com/search-console"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-2xs font-semibold text-sky-600 dark:text-sky-400 hover:underline"
-              >
-                <span>Open Google Search Console</span>
-                <ExternalLink size={11} />
-              </a>
-            </div>
+        {/* Verification Guidance Notice */}
+        <div className="p-3.5 rounded-xl border border-sky-500/20 bg-sky-500/5 space-y-2 text-xs">
+          <div className="flex items-center gap-2 font-semibold text-sky-700 dark:text-sky-300">
+            <Info size={15} />
+            <span>Important Verification Notice</span>
           </div>
-
-          {/* Card 2: Domain vs URL-Prefix Verification */}
-          <div className="p-3.5 rounded-xl border border-border/80 bg-secondary/30 space-y-2 text-xs">
-            <div className="flex items-center gap-2 font-semibold text-foreground">
-              <Globe size={15} className="text-amber-500" />
-              <span>Domain vs. URL-Prefix Properties</span>
-            </div>
-            <p className="text-2xs sm:text-xs text-muted-foreground leading-relaxed">
-              This HTML meta tag verifies <strong>URL-prefix</strong> properties (e.g. <code className="text-foreground font-mono">https://ayaanclothing.com</code>). For Domain properties covering all subdomains, Google requires a <strong>DNS TXT record</strong> at your domain registrar.
-            </p>
+          <p className="text-2xs sm:text-xs text-muted-foreground leading-relaxed">
+            Saving this code adds the verification tag to your homepage HTML. It does <strong>not</strong> automatically complete verification. You must return to Google Search Console and click the <strong>Verify</strong> button.
+          </p>
+          <div className="pt-1">
+            <a
+              href="https://search.google.com/search-console"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-2xs font-semibold text-sky-600 dark:text-sky-400 hover:underline"
+            >
+              <span>Open Google Search Console</span>
+              <ExternalLink size={11} />
+            </a>
           </div>
         </div>
 
