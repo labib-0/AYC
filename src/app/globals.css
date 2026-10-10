@@ -167,6 +167,17 @@
       transition-duration: 0.01ms !important;
     }
   }
+
+  /* Global removal of browser-native number-input spinner arrows */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 }
 
 @utility pb-safe {
@@ -282,4 +293,28 @@
   }
 }
 
+/* ==========================================================================
+   Global Numeric Input Spinner Removal (Cross-Browser)
+   Hides browser-native up/down spin buttons across Chromium, Safari, Edge,
+   and Firefox while preserving full numeric input, min/max, step, and validation.
+   ========================================================================== */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
 
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+@utility no-spinner {
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+  }
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
