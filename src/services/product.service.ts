@@ -493,6 +493,10 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     shippingPackageProfiles: shippingPackageProfiles,
     shipping_package_profiles: shippingPackageProfiles,
     isPackageAssortment: isPackageAssortment,
+    createdAt: p.createdAt || p.created_at || undefined,
+    created_at: p.created_at || p.createdAt || undefined,
+    updatedAt: p.updatedAt || p.updated_at || undefined,
+    updated_at: p.updated_at || p.updatedAt || undefined,
   };
 }
 
@@ -644,6 +648,10 @@ export function toStorefrontProduct(p: any): Product {
     is_hidden_from_storefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     status: p.status || "draft",
     isDraft: (p.status || "draft") === "draft",
+    createdAt: p.createdAt || p.created_at || undefined,
+    created_at: p.created_at || p.createdAt || undefined,
+    updatedAt: p.updatedAt || p.updated_at || undefined,
+    updated_at: p.updated_at || p.updatedAt || undefined,
   };
 }
 

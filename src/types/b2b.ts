@@ -156,6 +156,10 @@ export interface B2BProductInput {
   seo_description?: string;
   keywords?: string[];
   seo_keywords?: string[];
+  createdAt?: string | null;
+  created_at?: string | null;
+  updatedAt?: string | null;
+  updated_at?: string | null;
 }
 
 export type RfqStatus = 

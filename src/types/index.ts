@@ -87,6 +87,9 @@ export interface Product {
   is_hidden_from_storefront?: boolean;
   description?: string;
   createdAt?: string;
+  created_at?: string;
+  updatedAt?: string;
+  updated_at?: string;
   addedAt?: string;
   publishedAt?: string;
   pricingTiers?: PricingTier[];

@@ -4,6 +4,7 @@ import sitemap from "../src/app/sitemap";
 import { CANONICAL_DOMAIN, getCanonicalBaseUrl, canonicalUrl, absoluteUrl, SITE_CONFIG } from "../src/lib/seo";
 import { generateProductJsonLd, generateOrganizationJsonLd, generateWebSiteJsonLd } from "../src/lib/seo";
 import { siteSettingsService } from "../src/services/site-settings.service";
+import { productService } from "../src/services/product.service";
 import { B2BProductInput } from "../src/types/b2b";
 import { metadata as adminMetadata } from "../src/app/ayc/layout";
 import { metadata as dashboardMetadata } from "../src/app/dashboard/layout";
@@ -230,8 +231,8 @@ async function runTests() {
     "Robots sitemap must point to canonical sitemap.xml URL"
   );
 
-  // ── TEST 6: SITEMAP.XML COMPLIANCE ─────────────────────────────────────────
-  console.log("6. Testing Sitemap.xml Structure and Canonical URLs...");
+  // ── TEST 6: SITEMAP.XML COMPLIANCE & LASTMOD ACCURACY ─────────────────────
+  console.log("6. Testing Sitemap.xml Structure, Canonical URLs, and Lastmod Accuracy...");
   const sitemapEntries = await sitemap();
   assert(Array.isArray(sitemapEntries) && sitemapEntries.length > 0, "Sitemap must produce an array of entries");
 
@@ -244,6 +245,13 @@ async function runTests() {
   assert(urls.includes(`${baseCanonical}/privacy-policy`), "Sitemap must include '/privacy-policy'");
   assert(urls.includes(`${baseCanonical}/terms-and-conditions`), "Sitemap must include '/terms-and-conditions'");
 
+  // Verify static route lastmod policy: root and search omit lastmod to prevent fabricated freshness
+  const rootEntry = sitemapEntries.find((e) => e.url === baseCanonical);
+  assert(rootEntry?.lastModified === undefined, "Homepage root must omit lastModified rather than fabricating build/request time");
+
+  const searchEntry = sitemapEntries.find((e) => e.url === `${baseCanonical}/search`);
+  assert(searchEntry?.lastModified === undefined, "Search catalog page must omit lastModified rather than fabricating build/request time");
+
   // Verify NO query strings exist in sitemap URLs
   const hasQueryStrings = urls.some((u) => u.includes("?"));
   assert(!hasQueryStrings, "Sitemap must strictly NOT contain parameterized query strings (e.g. ?audience= or ?category=)");
@@ -255,6 +263,157 @@ async function runTests() {
   // Verify NO duplicate URLs exist
   const uniqueUrls = new Set(urls);
   assert(uniqueUrls.size === urls.length, "Sitemap must contain strictly unique URLs without duplicates");
+
+  // Verify all URLs use canonical HTTPS production domain
+  const nonCanonicalUrls = urls.filter((u) => !u.startsWith("https://ayaanclothing.com"));
+  assert(nonCanonicalUrls.length === 0, "All sitemap URLs must use canonical HTTPS origin https://ayaanclothing.com");
+
+  // Protocol limit check (< 50,000 URLs)
+  assert(sitemapEntries.length <= 50000, "Sitemap URL count must remain within sitemap protocol limit of 50,000");
+
+  // Test dynamic product lastmod accuracy and fallbacks with controlled mock data
+  const originalGetProducts = productService.getProducts;
+  try {
+    const mockTestProducts: any[] = [
+      {
+        id: "prod-1",
+        name: "Product With Update Date",
+        slug: "product-with-update-date",
+        status: "published",
+        updated_at: "2026-10-04T09:35:41.000Z",
+        created_at: "2026-09-01T08:00:00.000Z",
+      },
+      {
+        id: "prod-2",
+        name: "Product With Different Update Date",
+        slug: "product-with-different-update-date",
+        status: "published",
+        updated_at: "2026-09-15T14:20:00.000Z",
+        created_at: "2026-09-01T08:00:00.000Z",
+      },
+      {
+        id: "prod-3",
+        name: "Product Created Only",
+        slug: "product-created-only",
+        status: "published",
+        updated_at: null,
+        created_at: "2026-09-20T10:15:00.000Z",
+      },
+      {
+        id: "prod-4",
+        name: "Product Without Dates",
+        slug: "product-without-dates",
+        status: "published",
+        updated_at: null,
+        created_at: null,
+      },
+      {
+        id: "prod-5",
+        name: "Product With Future Date",
+        slug: "product-with-future-date",
+        status: "published",
+        updated_at: "2099-01-01T00:00:00.000Z",
+      },
+      {
+        id: "prod-6",
+        name: "Draft Product",
+        slug: "draft-product",
+        status: "draft",
+        updated_at: "2026-10-04T09:35:41.000Z",
+      },
+      {
+        id: "prod-7",
+        name: "Hidden Product",
+        slug: "hidden-product",
+        status: "published",
+        isHiddenFromStorefront: true,
+        updated_at: "2026-10-04T09:35:41.000Z",
+      },
+    ];
+
+    productService.getProducts = async () => mockTestProducts;
+    siteSettingsService.getPublicSettings = async () => ({
+      site_title: "AYAAN CLOTHING",
+      site_logo: null,
+      whatsapp: { display: "+880 1620-853502", number: "8801620853502", url: "https://wa.me/8801620853502" },
+      social_links: [],
+      legal_pages: [
+        { type: "privacy_policy", title: "Privacy Policy", url: "/privacy-policy", updated_at: "2026-09-30T02:21:01.000Z" },
+        { type: "terms_conditions", title: "Terms & Conditions", url: "/terms-and-conditions", updated_at: "2026-09-30T02:21:01.000Z" },
+      ],
+      google_search_console_verification: null,
+    });
+
+    const controlledEntries = await sitemap();
+
+    // 1. Check updated_at is used when present
+    const entry1 = controlledEntries.find((e) => e.url.includes("product-with-update-date"));
+    assert(Boolean(entry1), "Published product 1 must be present in sitemap");
+    assert(
+      entry1?.lastModified instanceof Date && entry1.lastModified.toISOString() === "2026-10-04T09:35:41.000Z",
+      "Product 1 lastModified must strictly reflect its authoritative updated_at timestamp"
+    );
+
+    // 2. Check distinct updated_at timestamps are not collapsed or homogenized
+    const entry2 = controlledEntries.find((e) => e.url.includes("product-with-different-update-date"));
+    assert(Boolean(entry2), "Published product 2 must be present in sitemap");
+    assert(
+      entry2?.lastModified instanceof Date && entry2.lastModified.toISOString() === "2026-09-15T14:20:00.000Z",
+      "Product 2 lastModified must strictly reflect its distinct updated_at timestamp"
+    );
+    assert(
+      entry1?.lastModified?.toString() !== entry2?.lastModified?.toString(),
+      "Products with different modification times must NOT share identical lastmod timestamps"
+    );
+
+    // 3. Check fallback to created_at when updated_at is null
+    const entry3 = controlledEntries.find((e) => e.url.includes("product-created-only"));
+    assert(Boolean(entry3), "Product with only created_at must be present in sitemap");
+    assert(
+      entry3?.lastModified instanceof Date && entry3.lastModified.toISOString() === "2026-09-20T10:15:00.000Z",
+      "Product without updated_at must fall back to authoritative created_at"
+    );
+
+    // 4. Check omission of lastModified when no dates exist (DO NOT invent current time)
+    const entry4 = controlledEntries.find((e) => e.url.includes("product-without-dates"));
+    assert(Boolean(entry4), "Product without dates must be present in sitemap");
+    assert(
+      entry4?.lastModified === undefined,
+      "Product without dates must omit lastModified rather than inventing current build/request time"
+    );
+
+    // 5. Check future timestamps are rejected and omitted
+    const entry5 = controlledEntries.find((e) => e.url.includes("product-with-future-date"));
+    assert(Boolean(entry5), "Product with future date must be present in sitemap");
+    assert(
+      entry5?.lastModified === undefined,
+      "Product with future timestamp must omit lastModified to prevent misleading search engines"
+    );
+
+    // 6. Check draft and hidden products are strictly excluded
+    const draftFound = controlledEntries.some((e) => e.url.includes("draft-product"));
+    assert(!draftFound, "Draft product must be excluded from sitemap");
+
+    const hiddenFound = controlledEntries.some((e) => e.url.includes("hidden-product"));
+    assert(!hiddenFound, "Storefront-hidden product must be excluded from sitemap");
+
+    // 7. Check legal page timestamps reflect settings
+    const privacyEntry = controlledEntries.find((e) => e.url === `${baseCanonical}/privacy-policy`);
+    assert(
+      privacyEntry?.lastModified instanceof Date && privacyEntry.lastModified.toISOString() === "2026-09-30T02:21:01.000Z",
+      "Privacy Policy lastModified must reflect authoritative legal_pages updated_at"
+    );
+
+    // 8. Canonical agreement check: verify sitemap product URL matches canonicalUrl()
+    const expectedCanonicalUrl = canonicalUrl("/products/product-with-update-date");
+    assert(
+      entry1?.url === expectedCanonicalUrl,
+      "Product sitemap URL must strictly agree with page canonical URL"
+    );
+  } finally {
+    productService.getProducts = originalGetProducts;
+    siteSettingsService.getPublicSettings = originalGetPublicSettings;
+  }
 
   // ── TEST 7: NOINDEX METADATA ON ADMIN & PRIVATE ROUTES ─────────────────────
   console.log("7. Testing Noindex Directives on Admin & Private Shells...");

@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { SITE_CONFIG, absoluteUrl } from "@/lib/seo";
+import { SITE_CONFIG, absoluteUrl, canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Wholesale Apparel Catalog & B2B Sourcing | AYAAN CLOTHING",
   description:
     "Explore our complete B2B wholesale clothing catalog from Bangladesh. Ready-made garments, t-shirts, sweaters, hoodies, trousers, and custom apparel manufacturing.",
   alternates: {
-    canonical: absoluteUrl("/search"),
+    canonical: canonicalUrl("/search"),
   },
   openGraph: {
     title: "Wholesale Apparel Catalog & B2B Sourcing | AYAAN CLOTHING",
     description:
       "Explore our complete B2B wholesale clothing catalog from Bangladesh. Ready-made garments, t-shirts, sweaters, hoodies, trousers, and custom apparel manufacturing.",
-    url: absoluteUrl("/search"),
+    url: canonicalUrl("/search"),
     siteName: SITE_CONFIG.name,
     locale: SITE_CONFIG.locale,
     type: "website",

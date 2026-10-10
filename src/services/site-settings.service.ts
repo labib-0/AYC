@@ -125,10 +125,9 @@ export class SiteSettingsService {
    */
   async getPublicSettings(forceRefresh = false): Promise<PublicSiteSettings> {
     try {
-      const fetchOptions: any =
-        forceRefresh || typeof window === "undefined"
-          ? { cache: "no-store" }
-          : undefined;
+      const fetchOptions: any = forceRefresh
+        ? { cache: "no-store" }
+        : undefined;
       const response = await apiClient.get<{ status: string; data: PublicSiteSettings }>(
         "/settings/public",
         fetchOptions

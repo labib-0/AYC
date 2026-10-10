@@ -240,6 +240,10 @@ export function normalizeProductData(p: any): B2BProductInput {
         reserved_quantity: 0,
       },
     ],
+    createdAt: p.createdAt || p.created_at || undefined,
+    created_at: p.created_at || p.createdAt || undefined,
+    updatedAt: p.updatedAt || p.updated_at || undefined,
+    updated_at: p.updated_at || p.updatedAt || undefined,
   };
 }
 
