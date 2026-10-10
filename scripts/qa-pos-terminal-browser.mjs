@@ -330,47 +330,47 @@ async function runPosBrowserQA() {
       await page.screenshot({ path: completeScreenshot });
       console.log(`  ✓ Captured completion modal screenshot: pos_step3_completion_modal.png`);
 
-      // 15. Scenario 13 & 14: Thermal Receipt Preview (80mm & 58mm)
-      console.log("\n▶ Scenario 13: Opening Thermal Receipt Preview (80 mm)...");
+      // 15. Scenario 13 & 14: Verify Thermal Receipt Removed & Canonical Commercial Documents Exposed
+      console.log("\n▶ Scenario 13: Verifying Thermal Receipt Controls Removed & Commercial Documents Exposed...");
       const thermalBtn = await page.$("#btn-pos-open-thermal-receipt");
-      if (thermalBtn) {
-        await thermalBtn.click();
-        await new Promise((r) => setTimeout(r, 800));
+      console.log(`  ✓ Thermal receipt button absent: ${thermalBtn === null}`);
 
-        const receipt80Details = await page.evaluate(() => {
-          const printable = document.querySelector("#pos-thermal-receipt-printable");
-          return printable ? {
-            branding: printable.innerText.includes("AYAAN CLOTHING"),
-            receiptNo: printable.innerText.includes("RECEIPT #:"),
-            tendered: printable.innerText.includes("CASH TENDERED:"),
-            change: printable.innerText.includes("CHANGE RETURNED:"),
-            snippet: printable.innerText.replace(/\n/g, ' ').slice(0, 180),
-          } : null;
-        });
-        console.log(`  ✓ 80mm receipt preview content:`, receipt80Details);
+      const docHubDetails = await page.evaluate(() => {
+        const hub = document.querySelector("#pos-commercial-documents-hub");
+        const invoiceBtn = document.querySelector("#btn-pos-doc-invoice");
+        const orderSheetBtn = document.querySelector("#btn-pos-doc-ordersheet");
+        const piBtn = document.querySelector("#btn-pos-doc-pi");
+        const ciBtn = document.querySelector("#btn-pos-doc-ci");
+        const packingListBtn = document.querySelector("#btn-pos-doc-packinglist");
+        return {
+          hubExists: hub !== null,
+          invoiceHref: invoiceBtn ? invoiceBtn.getAttribute("href") : null,
+          orderSheetHref: orderSheetBtn ? orderSheetBtn.getAttribute("href") : null,
+          piHref: piBtn ? piBtn.getAttribute("href") : null,
+          ciHref: ciBtn ? ciBtn.getAttribute("href") : null,
+          packingListHref: packingListBtn ? packingListBtn.getAttribute("href") : null,
+        };
+      });
+      console.log(`  ✓ Commercial Documents Hub Details:`, docHubDetails);
 
-        const receipt80Screenshot = path.join(ARTIFACTS_DIR, "pos_step4_thermal_receipt_80mm.png");
-        await page.screenshot({ path: receipt80Screenshot });
-        console.log(`  ✓ Captured 80mm receipt screenshot: pos_step4_thermal_receipt_80mm.png`);
+      const orderMgmtScreenshot = path.join(ARTIFACTS_DIR, "pos_step4_canonical_order_management.png");
+      await page.screenshot({ path: orderMgmtScreenshot });
+      console.log(`  ✓ Captured order management screenshot: pos_step4_canonical_order_management.png`);
 
-        console.log("\n▶ Scenario 14: Toggling to 58 mm paper width...");
-        const width58Btn = await page.$("#thermal-width-58");
-        if (width58Btn) {
-          await width58Btn.click();
-          await new Promise((r) => setTimeout(r, 600));
-
-          const receipt58Screenshot = path.join(ARTIFACTS_DIR, "pos_step5_thermal_receipt_58mm.png");
-          await page.screenshot({ path: receipt58Screenshot });
-          console.log(`  ✓ Captured 58mm receipt screenshot: pos_step5_thermal_receipt_58mm.png`);
-        }
-
-        // Close thermal receipt modal
-        const closeBtn = await page.$("#btn-close-thermal-preview");
-        if (closeBtn) {
-          await closeBtn.click();
-          await new Promise((r) => setTimeout(r, 400));
-        }
-      }
+      console.log("\n▶ Scenario 14: Verifying In-Terminal Order Management Actions & Status Badges...");
+      const orderMgmtDetails = await page.evaluate(() => {
+        const statusBadge = document.querySelector("#pos-order-canonical-status");
+        const payBadge = document.querySelector("#pos-order-payment-status");
+        const itemsSummary = document.querySelector("#pos-order-items-summary");
+        const viewFullOrder = document.querySelector("#btn-pos-view-full-order");
+        return {
+          status: statusBadge ? statusBadge.innerText.trim() : null,
+          payment: payBadge ? payBadge.innerText.trim() : null,
+          hasItemsSummary: itemsSummary !== null,
+          fullOrderHref: viewFullOrder ? viewFullOrder.getAttribute("href") : null,
+        };
+      });
+      console.log(`  ✓ In-Terminal Order Management Details:`, orderMgmtDetails);
 
       // Close completion modal / Start New Sale
       const newSaleBtn = await page.$("#btn-pos-new-sale");
@@ -436,8 +436,8 @@ async function runPosBrowserQA() {
       }
     }
 
-    // 17. Scenario 16: Zero-mutation Reprint from Order Details
-    console.log("\n▶ Scenario 16: Testing zero-mutation reprint from Admin Order Details...");
+    // 17. Scenario 16: Verify Commercial Documents in Admin Order Details
+    console.log("\n▶ Scenario 16: Testing Commercial Documents dropdown in Admin Order Details...");
     const dbOrderId = execSync(`php backend/artisan tinker --execute="\\$o = App\\Models\\Order::where('order_number', '${sale1OrderNumber}')->first(); echo \\$o?->id ?? 0;"`, {
       encoding: "utf-8",
     }).trim();
@@ -453,19 +453,20 @@ async function runPosBrowserQA() {
         await new Promise((r) => setTimeout(r, 400));
 
         const thermalReprintBtn = await page.$("#doc-item-thermal-receipt");
-        if (thermalReprintBtn) {
-          await thermalReprintBtn.click();
-          await new Promise((r) => setTimeout(r, 800));
+        console.log(`  ✓ Thermal receipt item absent in Order Details dropdown: ${thermalReprintBtn === null}`);
 
-          const isReprintModalOpen = await page.evaluate(() => {
-            return document.querySelector("#pos-thermal-receipt-printable") !== null;
-          });
-          console.log(`  ✓ Thermal receipt reprint modal open in order details: ${isReprintModalOpen}`);
+        const standardDocs = await page.evaluate(() => {
+          return {
+            hasInvoice: document.querySelector("#doc-item-invoice") !== null,
+            hasOrderSheet: document.querySelector("#doc-item-order-sheet") !== null,
+            hasPackingList: document.querySelector("#doc-item-packing-list") !== null,
+          };
+        });
+        console.log(`  ✓ Standard commercial documents present in Order Details:`, standardDocs);
 
-          const reprintScreenshot = path.join(ARTIFACTS_DIR, "pos_step7_order_detail_reprint.png");
-          await page.screenshot({ path: reprintScreenshot });
-          console.log(`  ✓ Captured order detail reprint screenshot: pos_step7_order_detail_reprint.png`);
-        }
+        const orderDetailScreenshot = path.join(ARTIFACTS_DIR, "pos_step7_order_detail_documents.png");
+        await page.screenshot({ path: orderDetailScreenshot });
+        console.log(`  ✓ Captured order detail documents screenshot: pos_step7_order_detail_documents.png`);
       }
     }
 

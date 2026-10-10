@@ -38,6 +38,7 @@ import {
   Coins,
   ArrowRight,
   FileText,
+  Truck,
 } from "lucide-react";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 import { ADMIN_PERMISSIONS } from "@/lib/permissions";
@@ -53,7 +54,29 @@ import {
 } from "@/services/admin/pos.service";
 import { categoryService, CategoryModel } from "@/services/category.service";
 import { OrderRecord } from "@/services/order.service";
-import PosThermalReceiptModal, { formatReceiptCurrency } from "@/components/admin/pos/PosThermalReceiptModal";
+import { adminOrderService } from "@/services/admin/order.service";
+import {
+  getOrderStatusPresentation,
+  getPaymentPresentation,
+  getCanonicalCustomerStatus,
+} from "@/lib/order-status";
+
+function formatCurrency(amount: number | string | null | undefined, currency: string = "USD"): string {
+  const num = typeof amount === "string" ? parseFloat(amount) : Number(amount ?? 0);
+  const safeNum = isNaN(num) ? 0 : num;
+  const safeCurrency = (currency || "USD").toUpperCase();
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: safeCurrency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(safeNum);
+  } catch {
+    return `${safeCurrency} ${safeNum.toFixed(2)}`;
+  }
+}
 
 interface CartLineItem {
   id: string; // unique line id
@@ -98,7 +121,12 @@ export default function AdminPosPage() {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
 
   const searchInputRef = React.useRef<HTMLInputElement>(null);
-  const [showThermalReceiptModal, setShowThermalReceiptModal] = useState(false);
+  const [isApprovingPayment, setIsApprovingPayment] = useState(false);
+  const [isUpdatingFulfillment, setIsUpdatingFulfillment] = useState(false);
+  const [orderActionFeedback, setOrderActionFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Active product being configured
   const [activeProduct, setActiveProduct] = useState<PosProduct | null>(null);
@@ -830,8 +858,61 @@ export default function AdminPosPage() {
     setTimeout(() => setCopiedOrderNumber(false), 2000);
   };
 
+  const handleApprovePayment = async () => {
+    if (!createdOrder) return;
+    setIsApprovingPayment(true);
+    setOrderActionFeedback(null);
+    try {
+      const updated = await adminOrderService.reviewPaymentProof(
+        createdOrder.id,
+        "approve",
+        `Payment verified and approved via POS counter by ${adminUser?.name || "Cashier Admin"}`
+      );
+      setCreatedOrder(updated);
+      setOrderActionFeedback({
+        type: "success",
+        message: "Payment approved successfully! Order status confirmed and physical inventory decremented atomically.",
+      });
+    } catch (err: any) {
+      setOrderActionFeedback({
+        type: "error",
+        message: err?.response?.data?.message || err?.message || "Failed to approve payment.",
+      });
+    } finally {
+      setIsApprovingPayment(false);
+    }
+  };
+
+  const handleMarkDispatched = async () => {
+    if (!createdOrder) return;
+    setIsUpdatingFulfillment(true);
+    setOrderActionFeedback(null);
+    try {
+      const updated = await adminOrderService.updateFulfillment(
+        createdOrder.id,
+        "shipped",
+        `POS-COUNTER-${createdOrder.order_number}`,
+        "In-Store Direct Handover",
+        `Direct customer pickup/handover confirmed at POS counter by ${adminUser?.name || "Cashier Admin"}`
+      );
+      setCreatedOrder(updated);
+      setOrderActionFeedback({
+        type: "success",
+        message: "Order fulfillment updated to Dispatched / On Shipment.",
+      });
+    } catch (err: any) {
+      setOrderActionFeedback({
+        type: "error",
+        message: err?.response?.data?.message || err?.message || "Failed to update fulfillment.",
+      });
+    } finally {
+      setIsUpdatingFulfillment(false);
+    }
+  };
+
   const handleResetForNewSale = () => {
     setCreatedOrder(null);
+    setOrderActionFeedback(null);
     setCart([]);
     setSelectedCustomer(null);
     setPreviewTotals(null);
@@ -1998,143 +2079,503 @@ export default function AdminPosPage() {
           </div>
         )}
 
-        {/* ── ORDER COMPLETION SUCCESS MODAL ──────────────────────────────────── */}
-        {createdOrder && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-center">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/20">
-                <CheckCircle2 size={36} />
-              </div>
+        {/* ── POS ORDER MANAGEMENT & CONFIRMATION AREA ─────────────────────── */}
+        {createdOrder && (() => {
+          const statusPresentation = getOrderStatusPresentation(createdOrder);
+          const paymentPresentation = getPaymentPresentation(createdOrder.payment_status || "pending");
+          const StatusIcon = statusPresentation.icon;
+          const isPaid = (createdOrder.payment_status || "").toLowerCase() === "paid";
+          const isShipped = ["shipped", "delivered", "fulfilled"].includes(
+            (createdOrder.fulfillment_status || "").toLowerCase()
+          );
 
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold text-foreground">
-                  POS Sale Completed Successfully!
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Order placed and inventory deducted atomically.
-                </p>
-              </div>
-
-              {/* Order Number Banner */}
-              <div className="p-3 rounded-xl bg-secondary/50 border border-border flex items-center justify-between font-mono text-xs">
-                <div>
-                  <span className="text-[10px] text-muted-foreground block text-left">
-                    Order Number
-                  </span>
-                  <span className="font-bold text-foreground" id="pos-completion-order-number">{createdOrder.order_number}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCopyOrderNumber}
-                  className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                  title="Copy Order Number"
-                >
-                  {copiedOrderNumber ? (
-                    <Check size={14} className="text-emerald-500" />
-                  ) : (
-                    <Copy size={14} />
-                  )}
-                </button>
-              </div>
-
-              {/* Order Quick Details */}
-              <div className="text-xs text-left p-3.5 rounded-xl bg-secondary/20 border border-border/60 space-y-2 font-mono">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Sale Amount:</span>
-                  <span className="font-bold text-foreground">
-                    {formatReceiptCurrency(createdOrder.total_amount, createdOrder.currency)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Amount Paid:</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    {formatReceiptCurrency(createdOrder.paid_amount ?? createdOrder.total_amount, createdOrder.currency)}
-                  </span>
-                </div>
-
-                {/* Show Cash Tender & Change if returned */}
-                {createdOrder.payment_details?.tendered_amount != null && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Cash Tendered:</span>
-                    <span className="font-semibold text-foreground">
-                      {formatReceiptCurrency(createdOrder.payment_details.tendered_amount, createdOrder.currency)}
-                    </span>
+          return (
+            <div
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+              id="pos-order-management-modal"
+            >
+              <div className="bg-card border border-border rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh]">
+                {/* Modal Header */}
+                <div className="p-4 sm:p-5 border-b border-border/70 flex items-center justify-between bg-secondary/30 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                      <CheckCircle2 size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                        <span>POS Order Management</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase font-bold tracking-wider">
+                          Standard AYC Workflow
+                        </span>
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Authoritative order lifecycle, payments, and commercial documents
+                      </p>
+                    </div>
                   </div>
-                )}
+                  <button
+                    type="button"
+                    onClick={handleResetForNewSale}
+                    className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Close & Start New Sale"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
 
-                {createdOrder.payment_details?.change_return != null &&
-                  Number(createdOrder.payment_details.change_return) > 0 && (
-                    <div className="flex justify-between p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold">
-                      <span>Change Returned:</span>
-                      <span>
-                        {formatReceiptCurrency(createdOrder.payment_details.change_return, createdOrder.currency)}
-                      </span>
+                {/* Modal Scrollable Body */}
+                <div className="p-4 sm:p-6 overflow-y-auto space-y-5 text-left text-xs">
+                  {/* Action Feedback Banner */}
+                  {orderActionFeedback && (
+                    <div
+                      id="pos-order-action-feedback"
+                      className={`p-3 rounded-xl border flex items-center justify-between gap-2 ${
+                        orderActionFeedback.type === "success"
+                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                          : "bg-destructive/10 border-destructive/30 text-destructive"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-medium">
+                        {orderActionFeedback.type === "success" ? (
+                          <CheckCircle2 size={16} />
+                        ) : (
+                          <AlertCircle size={16} />
+                        )}
+                        <span>{orderActionFeedback.message}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setOrderActionFeedback(null)}
+                        className="opacity-70 hover:opacity-100"
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
                   )}
 
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Customer:</span>
-                  <span className="font-medium text-foreground truncate max-w-[200px]">
-                    {createdOrder.shipping_name}
-                  </span>
+                  {/* Top Status & Identification Bar */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Order Number & Copy */}
+                    <div className="p-3 rounded-xl bg-secondary/40 border border-border flex items-center justify-between font-mono">
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                          Order Number
+                        </span>
+                        <span
+                          className="font-bold text-foreground text-sm"
+                          id="pos-completion-order-number"
+                        >
+                          {createdOrder.order_number}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyOrderNumber}
+                        id="btn-pos-copy-order-number"
+                        className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        title="Copy Order Number"
+                      >
+                        {copiedOrderNumber ? (
+                          <Check size={16} className="text-emerald-500" />
+                        ) : (
+                          <Copy size={16} />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Customer Profile Card */}
+                    <div
+                      className="p-3 rounded-xl bg-secondary/40 border border-border flex items-center justify-between"
+                      id="pos-order-customer-info"
+                    >
+                      <div className="truncate pr-2">
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                          Customer Profile
+                        </span>
+                        <div className="font-bold text-foreground text-xs truncate">
+                          {createdOrder.shipping_name || createdOrder.user?.name || "Customer"}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {createdOrder.shipping_phone || createdOrder.email || "In-store registered profile"}
+                        </div>
+                      </div>
+                      <UserIcon size={18} className="text-muted-foreground shrink-0" />
+                    </div>
+                  </div>
+
+                  {/* Canonical Statuses & Permitted Actions */}
+                  <div className="p-3.5 rounded-xl bg-card border border-border space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Customer Status:
+                        </span>
+                        <span
+                          id="pos-order-canonical-status"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${statusPresentation.badgeClass}`}
+                        >
+                          <StatusIcon size={13} className={statusPresentation.iconClass} />
+                          <span>{statusPresentation.label}</span>
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Payment Status:
+                        </span>
+                        <span
+                          id="pos-order-payment-status"
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold uppercase ${paymentPresentation.badgeClass}`}
+                        >
+                          {paymentPresentation.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground italic">
+                      {statusPresentation.description}
+                    </p>
+
+                    {/* In-Modal Lifecycle Transition Controls */}
+                    {(!isPaid || (!isShipped && isPaid)) && (
+                      <div className="pt-1 flex flex-wrap gap-2 items-center">
+                        <span className="text-[11px] font-bold text-muted-foreground">
+                          Next Permitted Action:
+                        </span>
+
+                        {!isPaid && (
+                          <button
+                            type="button"
+                            onClick={handleApprovePayment}
+                            disabled={isApprovingPayment}
+                            id="btn-pos-approve-payment"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                          >
+                            <ShieldCheck size={14} />
+                            <span>
+                              {isApprovingPayment ? "Approving..." : "Approve & Confirm Payment"}
+                            </span>
+                          </button>
+                        )}
+
+                        {isPaid && !isShipped && (
+                          <button
+                            type="button"
+                            onClick={handleMarkDispatched}
+                            disabled={isUpdatingFulfillment}
+                            id="btn-pos-fulfill-order"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                          >
+                            <Truck size={14} />
+                            <span>
+                              {isUpdatingFulfillment ? "Updating..." : "Mark as Dispatched / Handed Over"}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Line Items Review Table */}
+                  {createdOrder.items && createdOrder.items.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex justify-between">
+                        <span>Order Items ({createdOrder.items.length})</span>
+                        <span>Qty & Price</span>
+                      </div>
+                      <div
+                        className="max-h-36 overflow-y-auto rounded-xl border border-border divide-y divide-border/60 bg-secondary/10"
+                        id="pos-order-items-summary"
+                      >
+                        {createdOrder.items.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="p-2.5 flex items-center justify-between text-xs hover:bg-secondary/20"
+                          >
+                            <div className="truncate pr-2">
+                              <span className="font-semibold text-foreground block truncate">
+                                {item.product_name}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground font-mono">
+                                SKU: {item.sku || "N/A"}{" "}
+                                {item.size ? `• Size: ${item.size}` : ""}{" "}
+                                {item.color ? `• Color: ${item.color}` : ""}
+                              </span>
+                            </div>
+                            <div className="text-right shrink-0 font-mono">
+                              <span className="font-bold text-foreground">
+                                {item.quantity} × {formatCurrency(item.unit_price, createdOrder.currency)}
+                              </span>
+                              <span className="text-[11px] text-muted-foreground block font-bold">
+                                ={" "}
+                                {formatCurrency(
+                                  item.line_total ||
+                                    Number(item.quantity) * Number(item.unit_price),
+                                  createdOrder.currency
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Authoritative Financial Breakdown */}
+                  <div className="p-3.5 rounded-xl bg-secondary/20 border border-border/80 space-y-1.5 font-mono text-xs">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Subtotal:</span>
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(createdOrder.subtotal, createdOrder.currency)}
+                      </span>
+                    </div>
+
+                    {Number(createdOrder.discount_amount || 0) > 0 && (
+                      <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                        <span>
+                          Discount {createdOrder.coupon_code ? `(${createdOrder.coupon_code})` : ""}:
+                        </span>
+                        <span className="font-semibold">
+                          -{formatCurrency(createdOrder.discount_amount, createdOrder.currency)}
+                        </span>
+                      </div>
+                    )}
+
+                    {Number(createdOrder.tax_amount || 0) > 0 && (
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Tax:</span>
+                        <span className="font-medium text-foreground">
+                          {formatCurrency(createdOrder.tax_amount, createdOrder.currency)}
+                        </span>
+                      </div>
+                    )}
+
+                    {Number(createdOrder.shipping_cost || 0) > 0 && (
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Shipping / Handover:</span>
+                        <span className="font-medium text-foreground">
+                          {formatCurrency(createdOrder.shipping_cost, createdOrder.currency)}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between pt-1 border-t border-border/60 text-sm font-bold">
+                      <span className="text-foreground">Grand Total:</span>
+                      <span className="text-foreground">
+                        {formatCurrency(createdOrder.total_amount, createdOrder.currency)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between pt-1 border-t border-border/40 text-xs">
+                      <span className="text-muted-foreground">Amount Paid:</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(
+                          createdOrder.paid_amount ?? (isPaid ? createdOrder.total_amount : 0),
+                          createdOrder.currency
+                        )}
+                      </span>
+                    </div>
+
+                    {createdOrder.payment_details?.tendered_amount != null && (
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Cash Tendered:</span>
+                        <span className="font-semibold text-foreground">
+                          {formatCurrency(
+                            createdOrder.payment_details.tendered_amount,
+                            createdOrder.currency
+                          )}
+                        </span>
+                      </div>
+                    )}
+
+                    {createdOrder.payment_details?.change_return != null &&
+                      Number(createdOrder.payment_details.change_return) > 0 && (
+                        <div className="flex justify-between p-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold">
+                          <span>Change Returned:</span>
+                          <span>
+                            {formatCurrency(
+                              createdOrder.payment_details.change_return,
+                              createdOrder.currency
+                            )}
+                          </span>
+                        </div>
+                      )}
+
+                    {Number(createdOrder.balance_due || 0) > 0 && (
+                      <div className="flex justify-between p-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold">
+                        <span>Balance Due:</span>
+                        <span>{formatCurrency(createdOrder.balance_due, createdOrder.currency)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Standard Commercial Documents Hub */}
+                  <div className="space-y-2 pt-1" id="pos-commercial-documents-hub">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-foreground block">
+                          Commercial Documents
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Standard documents generated via authoritative AYC document services
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <Link
+                        href={`/ayc/documents/INVOICE/order_${createdOrder.id}`}
+                        target="_blank"
+                        className="p-2.5 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors flex items-center justify-between group btn-pos-print-invoice"
+                        id="btn-pos-doc-invoice"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText
+                            size={16}
+                            className="text-primary group-hover:scale-110 transition-transform"
+                          />
+                          <div>
+                            <span className="font-bold text-foreground block text-xs">
+                              Official Sales Invoice
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              Commercial PDF standard
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono uppercase bg-primary/20 text-primary px-1.5 py-0.5 rounded font-bold">
+                          PDF
+                        </span>
+                      </Link>
+
+                      <Link
+                        href={`/ayc/documents/ORDER_SHEET/order_${createdOrder.id}`}
+                        target="_blank"
+                        className="p-2.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary transition-colors flex items-center justify-between group"
+                        id="btn-pos-doc-ordersheet"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText
+                            size={16}
+                            className="text-primary group-hover:scale-110 transition-transform"
+                          />
+                          <div>
+                            <span className="font-bold text-foreground block text-xs">
+                              Export Order Sheet
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              Factory specifications
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded font-bold">
+                          B2B
+                        </span>
+                      </Link>
+
+                      <Link
+                        href={`/ayc/documents/PROFORMA_INVOICE/order_${createdOrder.id}`}
+                        target="_blank"
+                        className="p-2.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary transition-colors flex items-center justify-between group"
+                        id="btn-pos-doc-pi"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText
+                            size={16}
+                            className="text-primary group-hover:scale-110 transition-transform"
+                          />
+                          <div>
+                            <span className="font-bold text-foreground block text-xs">
+                              Proforma Invoice (PI)
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              Bank & LC documentation
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded font-bold">
+                          PI
+                        </span>
+                      </Link>
+
+                      <Link
+                        href={`/ayc/documents/COMMERCIAL_INVOICE/order_${createdOrder.id}`}
+                        target="_blank"
+                        className="p-2.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary transition-colors flex items-center justify-between group"
+                        id="btn-pos-doc-ci"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Printer
+                            size={16}
+                            className="text-primary group-hover:scale-110 transition-transform"
+                          />
+                          <div>
+                            <span className="font-bold text-foreground block text-xs">
+                              Commercial Invoice (CI)
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              Customs & export declaration
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">
+                          Export
+                        </span>
+                      </Link>
+
+                      <Link
+                        href={`/ayc/documents/PACKING_LIST/order_${createdOrder.id}`}
+                        target="_blank"
+                        className="p-2.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary transition-colors flex items-center justify-between group sm:col-span-2"
+                        id="btn-pos-doc-packinglist"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Package
+                            size={16}
+                            className="text-primary group-hover:scale-110 transition-transform"
+                          />
+                          <div>
+                            <span className="font-bold text-foreground block text-xs">
+                              Export Packing List
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              Carton & weight breakdown
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded font-bold">
+                              Cargo
+                        </span>
+                      </Link>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Payment Method:</span>
-                  <span className="font-medium text-foreground uppercase text-[10px]">
-                    {createdOrder.payment_method}
-                  </span>
+                {/* Modal Footer Controls */}
+                <div className="p-4 sm:p-5 border-t border-border/70 bg-secondary/30 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+                  <Link
+                    href={`/ayc/orders/${createdOrder.id}`}
+                    className="w-full sm:w-auto py-2.5 px-4 rounded-xl border border-border bg-card hover:bg-secondary font-bold text-xs text-foreground transition-colors flex items-center justify-center gap-2"
+                    id="btn-pos-view-full-order"
+                  >
+                    <ExternalLink size={14} />
+                    <span>Open Full Order Details</span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleResetForNewSale}
+                    className="w-full sm:w-auto py-2.5 px-5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                    id="btn-pos-new-sale"
+                  >
+                    <RotateCcw size={14} />
+                    <span>New POS Sale</span>
+                  </button>
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowThermalReceiptModal(true)}
-                  className="py-2.5 px-3 rounded-xl border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                  id="btn-pos-open-thermal-receipt"
-                >
-                  <Printer size={15} /> Thermal Receipt (58/80mm)
-                </button>
-
-                <Link
-                  href={`/ayc/documents/INVOICE/order_${createdOrder.id}`}
-                  target="_blank"
-                  className="py-2.5 px-3 rounded-xl border border-border bg-secondary/40 hover:bg-secondary text-foreground font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
-                  id="btn-pos-print-invoice"
-                >
-                  <FileText size={15} /> Export A4 Invoice
-                </Link>
-
-                <Link
-                  href={`/ayc/orders/${createdOrder.id}`}
-                  className="py-2.5 px-3 rounded-xl border border-border bg-background hover:bg-secondary font-bold text-xs text-foreground transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <ExternalLink size={14} /> View Order Record
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={handleResetForNewSale}
-                  className="py-2.5 px-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                  id="btn-pos-new-sale"
-                >
-                  <RotateCcw size={14} /> New Sale
-                </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Dedicated 58mm / 80mm Thermal Receipt Modal */}
-        <PosThermalReceiptModal
-          isOpen={showThermalReceiptModal}
-          order={createdOrder}
-          cashierName={adminUser?.name}
-          onClose={() => setShowThermalReceiptModal(false)}
-        />
+          );
+        })()}
       </div>
     </AdminPageGate>
   );

@@ -22,7 +22,6 @@ import {
   FileCheck,
 } from "lucide-react";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
-import PosThermalReceiptModal from "@/components/admin/pos/PosThermalReceiptModal";
 
 export interface OrderDetailHeaderProps {
   order: OrderRecord;
@@ -54,7 +53,6 @@ export default function OrderDetailHeader({
   const { can, isSuperAdmin } = useAdminAuth();
   const [docDropdownOpen, setDocDropdownOpen] = useState(false);
   const [actionsDropdownOpen, setActionsDropdownOpen] = useState(false);
-  const [thermalReceiptOpen, setThermalReceiptOpen] = useState(false);
   const docRef = useRef<HTMLDivElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
 
@@ -324,26 +322,6 @@ export default function OrderDetailHeader({
                     </div>
                     <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded">Cargo</span>
                   </Link>
-
-                  {order.order_source === "pos" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDocDropdownOpen(false);
-                        setThermalReceiptOpen(true);
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-secondary transition-colors text-left cursor-pointer border-t border-border/50"
-                      id="doc-item-thermal-receipt"
-                    >
-                      <div className="flex items-center gap-2 font-bold text-foreground">
-                        <Printer size={14} className="text-primary" />
-                        <span>Thermal POS Receipt</span>
-                      </div>
-                      <span className="text-[10px] font-mono uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                        58/80mm
-                      </span>
-                    </button>
-                  )}
                 </div>
               )}
             </div>
@@ -453,13 +431,6 @@ export default function OrderDetailHeader({
           </div>
         </div>
       </div>
-
-      {/* POS Thermal Receipt Reprint Modal */}
-      <PosThermalReceiptModal
-        isOpen={thermalReceiptOpen}
-        order={order}
-        onClose={() => setThermalReceiptOpen(false)}
-      />
     </div>
   );
 }

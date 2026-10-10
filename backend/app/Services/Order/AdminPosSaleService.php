@@ -705,7 +705,7 @@ class AdminPosSaleService
                     'order_source' => 'pos',
                     'coupon_id' => $calc['applied_coupon']?->id,
                     'coupon_code' => $calc['applied_coupon']?->code,
-                    'status' => 'processing',
+                    'status' => $paymentStatus === 'paid' ? 'processing' : 'pending',
                     'payment_status' => $paymentStatus,
                     'fulfillment_status' => 'unfulfilled',
                     'currency' => 'USD',
@@ -743,13 +743,13 @@ class AdminPosSaleService
                         'balance_due' => $balanceDue,
                         'status' => $paymentStatus,
                     ],
-                    'payment_confirmed_at' => $actualPaid > 0 ? now() : null,
-                    'payment_confirmed_by' => $actualPaid > 0 ? $admin->id : null,
+                    'payment_confirmed_at' => $paymentStatus === 'paid' ? now() : null,
+                    'payment_confirmed_by' => $paymentStatus === 'paid' ? $admin->id : null,
                     'notes' => $notes ? "[POS Note] {$notes}" : 'Point of Sale transaction',
                     'placed_at' => now(),
                 ]);
 
-                // 5. Create Order Items & Atomically Deduct Inventory
+                // 5. Create Order Items & Atomically Deduct Inventory via Canonical Workflow
                 foreach ($calc['lines'] as $line) {
                     OrderItem::create([
                         'order_id' => $order->id,
@@ -768,127 +768,14 @@ class AdminPosSaleService
                         'line_total' => $line['line_total'],
                         'package_breakdown' => $line['package_breakdown'],
                     ]);
-
-                    // Deduct inventory
-                    if (!empty($line['locked_variants'])) {
-                        foreach ($line['locked_variants'] as $lv) {
-                            $variant = $lv['variant'];
-                            $deductQty = (int) $lv['deduct_qty'];
-
-                            if ($deductQty > 0) {
-                                // 1. Deduct ProductVariant stock
-                                $variant->decrement('stock', $deductQty);
-
-                                // 2. Deduct Inventory record
-                                $invQuery = Inventory::where('product_variant_id', $variant->id)->lockForUpdate();
-                                if ($warehouseId !== null) {
-                                    $inv = (clone $invQuery)->where('warehouse_id', $warehouseId)->first();
-                                } else {
-                                    $inv = null;
-                                }
-                                if (!$inv) {
-                                    $inv = $invQuery->first();
-                                }
-
-                                if ($inv) {
-                                    $prevQty = (int) $inv->quantity;
-                                    $actualDeduct = min($prevQty, $deductQty);
-                                    $inv->decrement('quantity', $actualDeduct);
-                                    $newQty = $inv->fresh()->quantity;
-
-                                    // Record authoritative inventory adjustment
-                                    AdminInventoryAdjustment::create([
-                                        'inventory_id' => $inv->id,
-                                        'admin_user_id' => $admin->id,
-                                        'previous_quantity' => $prevQty,
-                                        'adjustment_amount' => -$actualDeduct,
-                                        'resulting_quantity' => $newQty,
-                                        'reason' => "POS Order #{$orderNumber}",
-                                    ]);
-                                }
-                            }
-                        }
-
-                        // Deduct product level aggregate stock
-                        $line['product']->decrement('stock', $line['quantity']);
-                    } else {
-                        // Single variant or variantless
-                        $product = $line['product'];
-                        $deductQty = (int) $line['quantity'];
-
-                        if (!empty($line['product_variant_id'])) {
-                            $variant = ProductVariant::find($line['product_variant_id']);
-                            if ($variant && $deductQty > 0) {
-                                $variant->decrement('stock', $deductQty);
-
-                                $invQuery = Inventory::where('product_variant_id', $variant->id)->lockForUpdate();
-                                if ($warehouseId !== null) {
-                                    $inv = (clone $invQuery)->where('warehouse_id', $warehouseId)->first();
-                                } else {
-                                    $inv = null;
-                                }
-                                if (!$inv) {
-                                    $inv = $invQuery->first();
-                                }
-
-                                if ($inv) {
-                                    $prevQty = (int) $inv->quantity;
-                                    $actualDeduct = min($prevQty, $deductQty);
-                                    $inv->decrement('quantity', $actualDeduct);
-                                    $newQty = $inv->fresh()->quantity;
-
-                                    AdminInventoryAdjustment::create([
-                                        'inventory_id' => $inv->id,
-                                        'admin_user_id' => $admin->id,
-                                        'previous_quantity' => $prevQty,
-                                        'adjustment_amount' => -$actualDeduct,
-                                        'resulting_quantity' => $newQty,
-                                        'reason' => "POS Order #{$orderNumber}",
-                                    ]);
-                                }
-                            }
-                            $product->decrement('stock', $deductQty);
-                        } else {
-                            // Variantless
-                            if ($deductQty > 0) {
-                                $product->decrement('stock', $deductQty);
-
-                                $invQuery = Inventory::where('product_id', $product->id)->lockForUpdate();
-                                if ($warehouseId !== null) {
-                                    $inv = (clone $invQuery)->where('warehouse_id', $warehouseId)->first();
-                                } else {
-                                    $inv = null;
-                                }
-                                if (!$inv) {
-                                    $inv = $invQuery->first();
-                                }
-
-                                if ($inv) {
-                                    $prevQty = (int) $inv->quantity;
-                                    $actualDeduct = min($prevQty, $deductQty);
-                                    $inv->decrement('quantity', $actualDeduct);
-                                    $newQty = $inv->fresh()->quantity;
-
-                                    AdminInventoryAdjustment::create([
-                                        'inventory_id' => $inv->id,
-                                        'admin_user_id' => $admin->id,
-                                        'previous_quantity' => $prevQty,
-                                        'adjustment_amount' => -$actualDeduct,
-                                        'resulting_quantity' => $newQty,
-                                        'reason' => "POS Order #{$orderNumber}",
-                                    ]);
-                                }
-                            }
-                        }
-                    }
-
-                    // Update sold out if stock reached zero
-                    if ($line['product']->fresh()->getTotalAvailableStock() <= 0) {
-                        $line['product']->update(['is_sold_out' => true]);
-                    }
                 }
 
-                // 6. Record Payment if actual paid amount > 0
+                // If payment is confirmed at counter, decrement inventory atomically via canonical Order service
+                if ($paymentStatus === 'paid' || $actualPaid > 0) {
+                    $order->decrementInventory($admin->id, "POS Order #{$orderNumber}", $warehouseId);
+                }
+
+                // 6. Record Authoritative Payment record
                 if ($actualPaid > 0) {
                     $trxId = !empty($paymentReference) ? $paymentReference : ('pos_' . strtolower(Str::random(16)));
 
@@ -967,7 +854,13 @@ class AdminPosSaleService
                     ]);
                 }
 
-                // 9. Log system activity audit
+                // 9. Dispatch canonical customer lifecycle notification
+                $targetLifecycleStage = $paymentStatus === 'paid'
+                    ? Order::CUSTOMER_STATUS_ORDER_CONFIRMED
+                    : ($actualPaid > 0 ? Order::CUSTOMER_STATUS_WAITING_FOR_APPROVAL : Order::CUSTOMER_STATUS_PAYMENT_PENDING);
+                $order->notifyCustomerOfLifecycleTransition($targetLifecycleStage);
+
+                // 10. Log system activity audit
                 ActivityLogger::log('pos.order_created', $order, [
                     'order_number' => $orderNumber,
                     'admin_id' => $admin->id,

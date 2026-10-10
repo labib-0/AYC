@@ -196,13 +196,14 @@ function runTests() {
     "POS sales are wrapped in DB transactions with idempotency key deduplication"
   );
 
-  // ── 13. Existing payments, cash change, inventory, and receipts intact ───────
+  // ── 13. Existing payments, cash change, inventory, and canonical documents intact ───────
   console.log("\n▶ 13. Existing commercial flows preserved");
   assert(
     posPageCode.includes("tenderedAmountInput") &&
       posPageCode.includes("cashChange") &&
-      posPageCode.includes("PosThermalReceiptModal"),
-    "Cash tender, dynamic change return, and thermal receipt printing fully preserved"
+      !posPageCode.includes("PosThermalReceiptModal") &&
+      posPageCode.includes("btn-pos-doc-invoice"),
+    "Cash tender, dynamic change return, and canonical document actions fully preserved (thermal removed)"
   );
 
   console.log("\n==================================================================");

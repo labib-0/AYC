@@ -692,7 +692,7 @@ class Order extends Model
      * @return bool True if inventory was decremented, false if already decremented (idempotent)
      * @throws \RuntimeException If inventory cannot be safely deducted due to insufficient stock.
      */
-    public function decrementInventory(?int $adminUserId = null, ?string $reason = null): bool
+    public function decrementInventory(?int $adminUserId = null, ?string $reason = null, ?int $warehouseId = null): bool
     {
         $details = is_array($this->payment_details) ? $this->payment_details : (json_decode($this->payment_details, true) ?: []);
         if (!empty($details['inventory_decremented'])) {
@@ -759,16 +759,17 @@ class Order extends Model
             }
         }
 
-        $canonicalWarehouse = Warehouse::firstOrCreate(
-            ['code' => 'WH-UTTARA-01'],
-            [
-                'name' => 'Uttara Warehouse',
-                'address' => 'House #33 (2nd floor), Road #12, Sector #11, Uttara',
-                'city' => 'Dhaka',
-                'country_code' => 'BD',
-                'is_active' => true,
-            ]
-        );
+        $canonicalWarehouse = ($warehouseId ? Warehouse::find($warehouseId) : null)
+            ?: Warehouse::firstOrCreate(
+                ['code' => 'WH-UTTARA-01'],
+                [
+                    'name' => 'Uttara Warehouse',
+                    'address' => 'House #33 (2nd floor), Road #12, Sector #11, Uttara',
+                    'city' => 'Dhaka',
+                    'country_code' => 'BD',
+                    'is_active' => true,
+                ]
+            );
 
         $auditReason = $reason ?: "Order #{$this->order_number} payment approved";
 
@@ -802,7 +803,11 @@ class Order extends Model
                         if ($variant) {
                             $variant->decrement('stock', $subQty);
 
-                            $inv = Inventory::where('product_variant_id', $variant->id)->lockForUpdate()->first();
+                            $invQuery = Inventory::where('product_variant_id', $variant->id)->lockForUpdate();
+                            $inv = $canonicalWarehouse ? (clone $invQuery)->where('warehouse_id', $canonicalWarehouse->id)->first() : null;
+                            if (!$inv) {
+                                $inv = $invQuery->first();
+                            }
                             if (!$inv && $canonicalWarehouse) {
                                 $inv = Inventory::firstOrCreate(
                                     ['product_variant_id' => $variant->id, 'warehouse_id' => $canonicalWarehouse->id],
@@ -830,12 +835,19 @@ class Order extends Model
                         }
                     }
                 }
+                if ($product && $product->stock !== null) {
+                    $product->decrement('stock', min((int) $product->stock, $qty));
+                }
             } elseif ($item->product_variant_id) {
                 $variant = ProductVariant::where('id', $item->product_variant_id)->lockForUpdate()->first();
                 if ($variant) {
                     $variant->decrement('stock', $qty);
 
-                    $inv = Inventory::where('product_variant_id', $variant->id)->lockForUpdate()->first();
+                    $invQuery = Inventory::where('product_variant_id', $variant->id)->lockForUpdate();
+                    $inv = $canonicalWarehouse ? (clone $invQuery)->where('warehouse_id', $canonicalWarehouse->id)->first() : null;
+                    if (!$inv) {
+                        $inv = $invQuery->first();
+                    }
                     if (!$inv && $canonicalWarehouse) {
                         $inv = Inventory::firstOrCreate(
                             ['product_variant_id' => $variant->id, 'warehouse_id' => $canonicalWarehouse->id],
@@ -861,13 +873,20 @@ class Order extends Model
                         }
                     }
                 }
+                if ($product && $product->stock !== null) {
+                    $product->decrement('stock', min((int) $product->stock, $qty));
+                }
             } elseif ($item->product_id) {
                 $variants = ProductVariant::where('product_id', $item->product_id)->lockForUpdate()->get();
                 if ($variants->count() === 1) {
                     $v = $variants->first();
                     $v->decrement('stock', $qty);
 
-                    $inv = Inventory::where('product_variant_id', $v->id)->lockForUpdate()->first();
+                    $invQuery = Inventory::where('product_variant_id', $v->id)->lockForUpdate();
+                    $inv = $canonicalWarehouse ? (clone $invQuery)->where('warehouse_id', $canonicalWarehouse->id)->first() : null;
+                    if (!$inv) {
+                        $inv = $invQuery->first();
+                    }
                     if (!$inv && $canonicalWarehouse) {
                         $inv = Inventory::firstOrCreate(
                             ['product_variant_id' => $v->id, 'warehouse_id' => $canonicalWarehouse->id],
@@ -897,7 +916,11 @@ class Order extends Model
                         $product->decrement('stock', min((int) $product->stock, $qty));
                     }
                 } else {
-                    $inv = Inventory::where('product_id', $item->product_id)->lockForUpdate()->first();
+                    $invQuery = Inventory::where('product_id', $item->product_id)->lockForUpdate();
+                    $inv = $canonicalWarehouse ? (clone $invQuery)->where('warehouse_id', $canonicalWarehouse->id)->first() : null;
+                    if (!$inv) {
+                        $inv = $invQuery->first();
+                    }
                     if (!$inv && $canonicalWarehouse) {
                         $inv = Inventory::firstOrCreate(
                             ['product_id' => $item->product_id, 'warehouse_id' => $canonicalWarehouse->id],
@@ -928,10 +951,17 @@ class Order extends Model
                     }
                 }
             }
+
+            if ($product && $product->fresh()->getTotalAvailableStock() <= 0) {
+                $product->update(['is_sold_out' => true]);
+            }
         }
 
         $details['inventory_decremented'] = true;
         $details['inventory_decremented_at'] = now()->toIso8601String();
+        if ($canonicalWarehouse) {
+            $details['inventory_warehouse_id'] = $canonicalWarehouse->id;
+        }
         $this->payment_details = $details;
         $this->save();
 
