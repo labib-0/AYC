@@ -723,4 +723,127 @@ class AdminPosStandardOrderIntegrationTest extends TestCase
         $viewAttempt = $this->getJson("/api/v1/orders/{$orderId}");
         $viewAttempt->assertStatus(403);
     }
+
+    /**
+     * Scenario 15: Deferred POS Order with Non-Default Warehouse Attribution
+     * - POS order created with deferred payment (paid_amount = 0) and specific warehouse (WH-CHITTAGONG)
+     * - Verifies warehouse_id is preserved in payment_details
+     * - Stock is not decremented at order placement
+     * - Admin approves payment proof without passing warehouse_id
+     * - Canonical Order::decrementInventory resolves warehouse_id from payment_details
+     * - Deducts exactly from WH-CHITTAGONG, leaving Uttara warehouse untouched
+     */
+    public function test_15_deferred_pos_order_persists_warehouse_and_deducts_correct_inventory_upon_approval(): void
+    {
+        $chittagongWarehouse = Warehouse::create([
+            'name' => 'Chittagong Retail Warehouse',
+            'code' => 'WH-CTG-01',
+            'address' => 'Agrabad C/A',
+            'city' => 'Chittagong',
+            'country_code' => 'BD',
+            'is_active' => true,
+        ]);
+
+        $uttaraInv = Inventory::where('product_variant_id', $this->variantM->id)
+            ->where('warehouse_id', $this->warehouse->id)
+            ->first();
+        $this->assertEquals(100, $uttaraInv->quantity);
+
+        $ctgInv = Inventory::create([
+            'product_id' => $this->standardProduct->id,
+            'product_variant_id' => $this->variantM->id,
+            'warehouse_id' => $chittagongWarehouse->id,
+            'quantity' => 50,
+        ]);
+
+        Sanctum::actingAs($this->cashier);
+
+        // Place deferred POS order selecting Chittagong warehouse
+        $saleRes = $this->postJson('/api/v1/admin/pos/orders', [
+            'customer_id' => $this->posCustomer->id,
+            'warehouse_id' => $chittagongWarehouse->id,
+            'payment_method' => 'bank_transfer',
+            'paid_amount' => 0.00,
+            'tendered_amount' => 0.00,
+            'items' => [
+                ['product_id' => $this->standardProduct->id, 'product_variant_id' => $this->variantM->id, 'quantity' => 5],
+            ],
+        ]);
+
+        $saleRes->assertStatus(201)
+            ->assertJsonPath('data.payment_status', 'pending')
+            ->assertJsonPath('data.status', 'pending');
+
+        $orderId = $saleRes->json('data.id');
+        $order = Order::find($orderId);
+
+        // Verify warehouse_id is saved in payment_details
+        $this->assertEquals($chittagongWarehouse->id, $order->payment_details['warehouse_id']);
+        // Verify no decrement yet
+        $this->assertEquals(50, $ctgInv->fresh()->quantity);
+        $this->assertEquals(100, $uttaraInv->fresh()->quantity);
+
+        // Admin approves payment via review endpoint
+        Sanctum::actingAs($this->admin);
+        $reviewRes = $this->postJson("/api/v1/admin/orders/{$orderId}/payment-proof/review", [
+            'action' => 'approve',
+            'payment_method' => 'Bank Transfer',
+            'transaction_id' => 'TXN-CTG-WIRE-01',
+            'payment_amount' => 200.00,
+            'note' => 'Approved offline wire for Chittagong POS sale',
+        ]);
+        $reviewRes->assertOk();
+
+        // Chittagong inventory decremented by 5
+        $this->assertEquals(45, $ctgInv->fresh()->quantity);
+        // Uttara inventory remains completely untouched at 100
+        $this->assertEquals(100, $uttaraInv->fresh()->quantity);
+
+        // Verify audit log points to Chittagong inventory
+        $adj = AdminInventoryAdjustment::where('inventory_id', $ctgInv->id)->latest()->first();
+        $this->assertNotNull($adj);
+        $this->assertEquals(-5, $adj->adjustment_amount);
+        $this->assertEquals(50, $adj->previous_quantity);
+        $this->assertEquals(45, $adj->resulting_quantity);
+    }
+
+    /**
+     * Scenario 16: Partial Counter Payment Status and Lifecycle Alignment
+     * - Order with partial payment ($20 of $40 total)
+     * - payment_status = partially_paid, customer_status = PAYMENT_PENDING
+     * - Lifecycle notification matches PAYMENT_PENDING
+     * - Stock decremented at counter
+     */
+    public function test_16_partial_counter_payment_lifecycle_and_status_alignment(): void
+    {
+        Sanctum::actingAs($this->cashier);
+        $initialStock = $this->variantM->fresh()->stock;
+
+        $saleRes = $this->postJson('/api/v1/admin/pos/orders', [
+            'customer_id' => $this->posCustomer->id,
+            'payment_method' => 'card',
+            'paid_amount' => 20.00,
+            'items' => [
+                ['product_id' => $this->standardProduct->id, 'product_variant_id' => $this->variantM->id, 'quantity' => 1],
+            ],
+        ]);
+
+        $saleRes->assertStatus(201)
+            ->assertJsonPath('data.payment_status', 'partially_paid')
+            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath('data.customer_status', Order::CUSTOMER_STATUS_PAYMENT_PENDING)
+            ->assertJsonPath('data.paid_amount', 20)
+            ->assertJsonPath('data.balance_due', 20);
+
+        // Inventory decremented at counter since payment was accepted
+        $this->assertEquals($initialStock - 1, $this->variantM->fresh()->stock);
+
+        // Verify lifecycle notification sent was PAYMENT_PENDING
+        $notif = $this->posCustomer->notifications()
+            ->where('type', \App\Notifications\OrderLifecycleNotification::class)
+            ->latest()
+            ->first();
+        $this->assertNotNull($notif);
+        $this->assertEquals(Order::CUSTOMER_STATUS_PAYMENT_PENDING, $notif->data['stage']);
+    }
 }

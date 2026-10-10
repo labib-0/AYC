@@ -759,7 +759,10 @@ class Order extends Model
             }
         }
 
-        $canonicalWarehouse = ($warehouseId ? Warehouse::find($warehouseId) : null)
+        $targetWarehouseId = $warehouseId
+            ?: (!empty($details['warehouse_id']) ? (int) $details['warehouse_id'] : null);
+
+        $canonicalWarehouse = ($targetWarehouseId ? Warehouse::find($targetWarehouseId) : null)
             ?: Warehouse::firstOrCreate(
                 ['code' => 'WH-UTTARA-01'],
                 [

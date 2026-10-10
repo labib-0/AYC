@@ -742,6 +742,7 @@ class AdminPosSaleService
                         'paid_amount' => round($actualPaid, 2),
                         'balance_due' => $balanceDue,
                         'status' => $paymentStatus,
+                        'warehouse_id' => $warehouseId,
                     ],
                     'payment_confirmed_at' => $paymentStatus === 'paid' ? now() : null,
                     'payment_confirmed_by' => $paymentStatus === 'paid' ? $admin->id : null,
@@ -857,7 +858,7 @@ class AdminPosSaleService
                 // 9. Dispatch canonical customer lifecycle notification
                 $targetLifecycleStage = $paymentStatus === 'paid'
                     ? Order::CUSTOMER_STATUS_ORDER_CONFIRMED
-                    : ($actualPaid > 0 ? Order::CUSTOMER_STATUS_WAITING_FOR_APPROVAL : Order::CUSTOMER_STATUS_PAYMENT_PENDING);
+                    : Order::CUSTOMER_STATUS_PAYMENT_PENDING;
                 $order->notifyCustomerOfLifecycleTransition($targetLifecycleStage);
 
                 // 10. Log system activity audit
