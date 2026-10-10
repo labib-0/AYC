@@ -24,4 +24,5 @@ export { default as FeaturedProductManager } from "./FeaturedProductManager";
 export { default as ShopByBrandManager } from "./ShopByBrandManager";
 export { default as BangladeshStorefrontAccessCard } from "./BangladeshStorefrontAccessCard";
 export type { BangladeshStorefrontAccessCardProps } from "./BangladeshStorefrontAccessCard";
+export { HomepageSeoManager } from "./HomepageSeoManager";
 

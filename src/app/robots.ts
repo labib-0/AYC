@@ -1,8 +1,8 @@
 import { MetadataRoute } from "next";
-import { SITE_URL } from "@/lib/seo";
+import { getCanonicalBaseUrl } from "@/lib/seo";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = SITE_URL;
+  const baseUrl = getCanonicalBaseUrl();
 
   return {
     rules: [
@@ -12,7 +12,8 @@ export default function robots(): MetadataRoute.Robots {
           "/",
           "/search",
           "/products/",
-          "/rfq",
+          "/privacy-policy",
+          "/terms-and-conditions",
         ],
         disallow: [
           "/ayc",
@@ -29,8 +30,8 @@ export default function robots(): MetadataRoute.Robots {
           "/checkout",
           "/login",
           "/signup",
+          "/rfq",
           "/api/*",
-          "/_next/*",
         ],
       },
     ],

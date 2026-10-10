@@ -42,6 +42,7 @@ export interface PublicSiteSettings {
   };
   social_links: SocialLink[];
   legal_pages: PublicLegalPageSummary[];
+  google_search_console_verification?: string | null;
 }
 
 export interface LegalPage {
@@ -61,6 +62,7 @@ export interface AdminSiteSettings {
   whatsapp_url: string;
   social_links: SocialLink[];
   footer_description?: string;
+  google_search_console_verification?: string | null;
 }
 
 export interface UpdateSettingsPayload {

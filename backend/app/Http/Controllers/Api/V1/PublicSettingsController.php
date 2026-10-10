@@ -113,6 +113,7 @@ class PublicSettingsController extends Controller
                 'whatsapp_url' => $whatsappUrl,
                 'social_links' => $socialLinks,
                 'legal_pages' => $legalPages,
+                'google_search_console_verification' => SystemSetting::getGoogleSearchConsoleVerification(),
             ];
         });
 

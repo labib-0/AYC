@@ -568,6 +568,8 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:homepage.category.manage');
             Route::post('/settings', [AdminHomepageManagementController::class, 'updateSettings'])
                 ->middleware('permission:homepage.banner.edit');
+            Route::post('/seo', [AdminHomepageManagementController::class, 'updateGoogleSearchConsoleVerification'])
+                ->middleware('permission:homepage.banner.edit');
 
             // Bangladesh Regional Access Control
             Route::get('/bangladesh-storefront-access', [AdminHomepageManagementController::class, 'getBangladeshStorefrontAccess'])

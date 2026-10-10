@@ -83,6 +83,7 @@ export interface StorefrontHomepageData {
   hot_sale_categories: HomepageHotSaleCategoryModel[];
   featured_products: HomepageFeaturedProductModel[];
   hot_sale_visible?: boolean;
+  google_search_console_verification?: string | null;
 }
 
 export interface BangladeshStorefrontAccessState {
@@ -99,6 +100,7 @@ export interface AdminHomepageData {
   all_banners?: HomepageBannerModel[];
   site_logo?: string | null;
   hot_sale_visible?: boolean;
+  google_search_console_verification?: string | null;
   ticker_items: HomepageTickerItem[];
   featured_brands: HomepageFeaturedBrandModel[];
   all_brands?: HomepageBrandRecord[];
@@ -220,6 +222,7 @@ export class HomepageService {
             hot_sale_categories: Array.isArray(data.hot_sale_categories) ? data.hot_sale_categories : [],
             featured_products: Array.isArray(data.featured_products) ? data.featured_products : [],
             hot_sale_visible: data.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true,
+            google_search_console_verification: data.google_search_console_verification || null,
           };
           this.cachedStorefrontData = { data: result, timestamp: Date.now() };
           return result;
@@ -237,6 +240,7 @@ export class HomepageService {
         hot_sale_categories: [],
         featured_products: [],
         hot_sale_visible: true,
+        google_search_console_verification: null,
       };
     })();
 
@@ -254,6 +258,7 @@ export class HomepageService {
       all_banners: Array.isArray(data?.all_banners) ? data.all_banners : [],
       site_logo: data?.site_logo || null,
       hot_sale_visible: data?.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true,
+      google_search_console_verification: data?.google_search_console_verification || null,
       ticker_items: Array.isArray(data?.ticker_items) ? data.ticker_items : [],
       featured_brands: Array.isArray(data?.featured_brands) ? data.featured_brands : [],
       all_brands: Array.isArray(data?.all_brands) ? data.all_brands : [],
@@ -262,6 +267,31 @@ export class HomepageService {
       featured_products: Array.isArray(data?.featured_products) ? data.featured_products : [],
       counts: data?.counts || { total_categories: 0, total_products: 0 },
     };
+  }
+
+  /**
+   * Update Google Search Console verification token.
+   */
+  async updateGoogleSearchConsoleVerification(
+    verificationCode: string | null
+  ): Promise<string | null> {
+    const res = await apiClient.post<any>("/admin/homepage/seo", {
+      google_search_console_verification: verificationCode,
+    });
+    const savedToken = res?.data?.google_search_console_verification ?? null;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("ayaan:homepage-updated", {
+          detail: { type: "seo", verification: savedToken },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent("ayaan:data-updated", {
+          detail: { entity: "homepage" },
+        })
+      );
+    }
+    return savedToken;
   }
 
   /**

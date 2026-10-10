@@ -277,6 +277,7 @@ class HomepageController extends ApiController
             'hot_sale_categories' => $hotSaleCategories,
             'featured_products' => $featuredProducts,
             'hot_sale_visible' => SystemSetting::isHotSaleVisible(),
+            'google_search_console_verification' => SystemSetting::getGoogleSearchConsoleVerification(),
             'whatsapp' => [
                 'display' => $whatsappDisplay,
                 'number' => $whatsappNumber,

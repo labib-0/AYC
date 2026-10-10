@@ -16,8 +16,10 @@ use App\Services\Cache\CatalogCacheService;
 use App\Services\Catalog\HomepageOrderingService;
 use App\Services\Rbac\AdminAuthorizationService;
 use App\Services\Security\StorefrontCountryAccessService;
+use App\Services\Seo\GoogleVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -103,6 +105,7 @@ class HomepageManagementController extends ApiController
             'all_banners' => $allBanners,
             'site_logo' => SystemSetting::get('site_logo'),
             'hot_sale_visible' => SystemSetting::isHotSaleVisible(),
+            'google_search_console_verification' => SystemSetting::getGoogleSearchConsoleVerification(),
             'ticker_items' => $tickerItems,
             'featured_brands' => $featuredBrands,
             'all_brands' => $allBrands,
@@ -514,6 +517,7 @@ class HomepageManagementController extends ApiController
     {
         $validated = $request->validate([
             'hot_sale_visible' => ['nullable', 'boolean'],
+            'google_search_console_verification' => ['nullable', 'string'],
         ]);
 
         if ($request->has('hot_sale_visible')) {
@@ -521,11 +525,58 @@ class HomepageManagementController extends ApiController
             SystemSetting::set('hot_sale_visible', $visible, 'boolean', 'homepage');
         }
 
+        if ($request->has('google_search_console_verification')) {
+            $rawToken = $request->input('google_search_console_verification');
+            $parsed = GoogleVerificationService::parseAndValidate($rawToken);
+            if (!$parsed['valid']) {
+                return $this->error($parsed['error'], 422);
+            }
+            SystemSetting::setGoogleSearchConsoleVerification($parsed['token']);
+            Cache::forget('site_settings_public');
+        }
+
         CatalogCacheService::invalidateAll();
 
         return $this->success([
             'hot_sale_visible' => SystemSetting::isHotSaleVisible(),
+            'google_search_console_verification' => SystemSetting::getGoogleSearchConsoleVerification(),
         ], 'Homepage settings saved successfully.');
+    }
+
+    /**
+     * POST /api/v1/admin/homepage/seo
+     *
+     * Dedicated endpoint to update Google Search Console verification token.
+     */
+    public function updateGoogleSearchConsoleVerification(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $canEdit = $user && (
+            $user->isSuperAdmin() ||
+            $this->authorization->can($user, 'settings.edit') ||
+            $this->authorization->can($user, 'homepage.banner.edit')
+        );
+
+        if (!$canEdit) {
+            return $this->forbidden('Forbidden: you do not have permission to manage homepage SEO verification.');
+        }
+
+        $input = $request->input('google_search_console_verification');
+        $parsed = GoogleVerificationService::parseAndValidate($input);
+
+        if (!$parsed['valid']) {
+            return $this->error($parsed['error'], 422);
+        }
+
+        SystemSetting::setGoogleSearchConsoleVerification($parsed['token']);
+
+        // Invalidate public caches immediately so storefront reflects new tag
+        Cache::forget('site_settings_public');
+        CatalogCacheService::invalidateAll();
+
+        return $this->success([
+            'google_search_console_verification' => $parsed['token'],
+        ], $parsed['token'] ? 'Google Search Console verification code saved successfully.' : 'Google Search Console verification code removed.');
     }
 
     /**

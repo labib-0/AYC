@@ -21,6 +21,7 @@ import {
   HotSaleCategoryManager,
   FeaturedProductManager,
   BangladeshStorefrontAccessCard,
+  HomepageSeoManager,
 } from "@/components/admin/homepage";
 import ProductToast, {
   ToastMessage,
@@ -48,6 +49,7 @@ export default function AdminHomepageManagement() {
   const [featuredProducts, setFeaturedProducts] = useState<HomepageFeaturedProductModel[]>([]);
   const [hotSaleVisible, setHotSaleVisible] = useState<boolean>(true);
   const [savedHotSaleVisible, setSavedHotSaleVisible] = useState<boolean>(true);
+  const [googleVerificationCode, setGoogleVerificationCode] = useState<string | null>(null);
 
   // Banner Form Draft State
   const [formState, setFormState] = useState<BannerFormState>({
@@ -105,6 +107,7 @@ export default function AdminHomepageManagement() {
       const isHotSaleVisible = data.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true;
       setHotSaleVisible(isHotSaleVisible);
       setSavedHotSaleVisible(isHotSaleVisible);
+      setGoogleVerificationCode(data.google_search_console_verification || null);
 
       if (data.banner) {
         setFormState({
@@ -360,6 +363,14 @@ export default function AdminHomepageManagement() {
 
         {/* Storefront Access Control */}
         <BangladeshStorefrontAccessCard
+          showToast={showToast}
+          disabled={saving}
+        />
+
+        {/* SEO & Google Search Console */}
+        <HomepageSeoManager
+          initialVerificationCode={googleVerificationCode}
+          onSaveSuccess={(token) => setGoogleVerificationCode(token)}
           showToast={showToast}
           disabled={saving}
         />

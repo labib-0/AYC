@@ -123,10 +123,15 @@ export class SiteSettingsService {
   /**
    * Fetch customer-safe public storefront settings.
    */
-  async getPublicSettings(): Promise<PublicSiteSettings> {
+  async getPublicSettings(forceRefresh = false): Promise<PublicSiteSettings> {
     try {
+      const fetchOptions: any =
+        forceRefresh || typeof window === "undefined"
+          ? { cache: "no-store" }
+          : undefined;
       const response = await apiClient.get<{ status: string; data: PublicSiteSettings }>(
-        "/settings/public"
+        "/settings/public",
+        fetchOptions
       );
       if (response && response.data) {
         return response.data;

@@ -88,4 +88,21 @@ class SystemSetting extends Model
     {
         return static::set('bangladesh_storefront_block_enabled', $enabled, 'boolean', 'security');
     }
+
+    /**
+     * Get the Google Search Console verification token for public storefront meta tag.
+     */
+    public static function getGoogleSearchConsoleVerification(): ?string
+    {
+        $value = static::get('google_search_console_verification');
+        return !empty($value) ? (string) $value : null;
+    }
+
+    /**
+     * Set or clear the Google Search Console verification token.
+     */
+    public static function setGoogleSearchConsoleVerification(?string $token): static
+    {
+        return static::set('google_search_console_verification', $token, 'string', 'seo');
+    }
 }
