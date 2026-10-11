@@ -26,9 +26,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const cleanToken = googleVerification ? googleVerification.trim() : null;
 
   return {
-    title: "AYAAN CLOTHING — Bangladesh Garments Manufacturer & Exporter",
+    title: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
     description:
-      "Ready-made garments manufacturer and exporter from Bangladesh. B2B wholesale apparel, bulk fashion export, and custom OEM manufacturing for international buyers. Est. 2010.",
+      "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers.",
     alternates: {
       canonical: CANONICAL_DOMAIN,
     },
@@ -37,23 +37,23 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: "en_US",
       url: CANONICAL_DOMAIN,
       siteName: SITE_CONFIG.name,
-      title: "AYAAN CLOTHING — Bangladesh Garments Manufacturer & Exporter",
+      title: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
       description:
-        "Ready-made garments manufacturer and exporter from Bangladesh. B2B wholesale apparel for international buyers.",
+        "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers.",
       images: [
         {
           url: `${CANONICAL_DOMAIN}/og-image.jpg`,
           width: 1200,
           height: 630,
-          alt: "AYAAN CLOTHING — Bangladesh Garments Manufacturer & Exporter",
+          alt: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: "AYAAN CLOTHING — Bangladesh Garments Manufacturer & Exporter",
+      title: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
       description:
-        "Ready-made garments manufacturer and exporter from Bangladesh. B2B wholesale apparel for international buyers.",
+        "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers.",
       images: [`${CANONICAL_DOMAIN}/og-image.jpg`],
     },
     ...(cleanToken ? { verification: { google: cleanToken } } : {}),

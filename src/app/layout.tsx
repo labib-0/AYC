@@ -30,11 +30,11 @@ const siteUrl = SITE_URL;
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "AYAAN CLOTHING — Bangladesh Garments Manufacturer & Exporter",
+    default: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
     template: "%s | AYAAN CLOTHING",
   },
   description:
-    "Ready-made garments manufacturer and exporter from Bangladesh. B2B wholesale apparel, bulk fashion export, and custom OEM manufacturing for international buyers. Est. 2010.",
+    "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers. Est. 2010.",
   authors: [{ name: "AYAAN CLOTHING" }],
   creator: "AYAAN CLOTHING",
   publisher: "AYAAN CLOTHING",
@@ -51,23 +51,23 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: siteUrl,
     siteName: "AYAAN CLOTHING",
-    title: "AYAAN CLOTHING — Bangladesh Garments Manufacturer & Exporter",
+    title: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
     description:
-      "Ready-made garments manufacturer and exporter from Bangladesh. B2B wholesale apparel for international buyers.",
+      "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers.",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "AYAAN CLOTHING — Bangladesh Garments Manufacturer & Exporter",
+        alt: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AYAAN CLOTHING — Bangladesh Garments Manufacturer & Exporter",
+    title: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
     description:
-      "Ready-made garments manufacturer and exporter from Bangladesh. B2B wholesale apparel for international buyers.",
+      "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers.",
     images: ["/og-image.jpg"],
   },
   robots: {

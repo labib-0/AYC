@@ -17,9 +17,9 @@ export const SITE_CONFIG = {
   name: "AYAAN CLOTHING",
   legalName: "AYAAN CLOTHING",
   brandMark: "AYN",
-  tagline: "Ready-made Garments Manufacturer & Exporter",
+  tagline: "Original-Branded Garments Manufacturer & Exporter",
   description:
-    "Ready-made garments manufacturer and exporter from Bangladesh. B2B wholesale apparel, bulk fashion export, and custom OEM manufacturing for international buyers. Est. 2010.",
+    "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers. Est. 2010.",
   url: SITE_URL,
   ogImage: `${SITE_URL}/og-image.jpg`,
   locale: "en_US",

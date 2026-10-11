@@ -256,8 +256,8 @@ export function getCommercialOrderWhatsAppMessage(order: {
 export const BUSINESS_PROFILE: BusinessProfile = {
   name: "AYAAN CLOTHING",
   brandMark: "AYC",
-  description: "Ready-made Garments Manufacturer & Exporter",
-  shortDescription: "Ready-made Garments Manufacturer & Exporter",
+  description: "Original-Branded Garments Manufacturer & Exporter",
+  shortDescription: "Original-Branded Garments Manufacturer & Exporter",
   establishedYear: 2010,
   address: {
     line1: "House #33 (2nd floor)",
