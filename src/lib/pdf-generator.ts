@@ -1761,7 +1761,7 @@ export function downloadProformaInvoicePDF(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function downloadCommercialDocumentPDF(docData: CommercialDocument) {
-  if (docData.docType === "ORDER_SHEET") {
+  if (docData.docType === "OFFER_SHEET" || docData.docType === "ORDER_SHEET") {
     // Generate as Offer Sheet with full product gallery
     const firstItem = docData.items[0];
     const gallery = docData.product_gallery && docData.product_gallery.length > 0

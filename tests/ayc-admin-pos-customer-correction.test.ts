@@ -202,7 +202,7 @@ function runTests() {
     posPageCode.includes("tenderedAmountInput") &&
       posPageCode.includes("cashChange") &&
       !posPageCode.includes("PosThermalReceiptModal") &&
-      posPageCode.includes("btn-pos-doc-invoice"),
+      posPageCode.includes("btn-pos-doc-offersheet"),
     "Cash tender, dynamic change return, and canonical document actions fully preserved (thermal removed)"
   );
 

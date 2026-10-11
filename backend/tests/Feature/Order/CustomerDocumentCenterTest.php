@@ -137,13 +137,14 @@ class CustomerDocumentCenterTest extends TestCase
         $this->assertEquals(3192.00, $firstGroup['order']['total']);
         $this->assertEquals('Just Gamer', $firstGroup['order']['customer_name']);
 
-        // Paid order A1 has 5 documents: PI, CI, INV, OS, PL
+        // Paid order A1 has exactly 3 canonical documents: OFFER_SHEET, PROFORMA_INVOICE, COMMERCIAL_INVOICE
+        $this->assertCount(3, $firstGroup['documents']);
         $docTypes = array_column($firstGroup['documents'], 'doc_type');
+        $this->assertContains('OFFER_SHEET', $docTypes);
         $this->assertContains('PROFORMA_INVOICE', $docTypes);
         $this->assertContains('COMMERCIAL_INVOICE', $docTypes);
-        $this->assertContains('INVOICE', $docTypes);
-        $this->assertContains('ORDER_SHEET', $docTypes);
-        $this->assertContains('PACKING_LIST', $docTypes);
+        $this->assertNotContains('INVOICE', $docTypes);
+        $this->assertNotContains('PACKING_LIST', $docTypes);
 
         // Every document has required fields
         foreach ($firstGroup['documents'] as $doc) {
@@ -166,11 +167,13 @@ class CustomerDocumentCenterTest extends TestCase
         $secondGroup = $data[1];
         $this->assertEquals('AYN-20261005-ABCD', $secondGroup['order']['order_number']);
 
+        // Unpaid order has exactly 2 documents (CI is gated until payment)
+        $this->assertCount(2, $secondGroup['documents']);
         $docTypes = array_column($secondGroup['documents'], 'doc_type');
+        $this->assertContains('OFFER_SHEET', $docTypes);
         $this->assertContains('PROFORMA_INVOICE', $docTypes);
-        $this->assertContains('INVOICE', $docTypes);
-        $this->assertContains('ORDER_SHEET', $docTypes);
         $this->assertNotContains('COMMERCIAL_INVOICE', $docTypes);
+        $this->assertNotContains('INVOICE', $docTypes);
         $this->assertNotContains('PACKING_LIST', $docTypes);
     }
 
@@ -209,12 +212,12 @@ class CustomerDocumentCenterTest extends TestCase
         $data = $response->json('data');
         $this->assertCount(1, $data);
         $this->assertEquals('AYN-20261007-CZPIV', $data[0]['order']['order_number']);
-        $this->assertCount(5, $data[0]['documents']);
+        $this->assertCount(3, $data[0]['documents']);
     }
 
     public function test_search_by_document_reference_returns_complete_order_group(): void
     {
-        // Searching for PI reference returns the entire order group with all 5 documents
+        // Searching for PI reference returns the entire order group with all 3 canonical documents
         $response = $this->actingAs($this->customerA, 'sanctum')
             ->getJson('/api/v1/orders/documents?search=PI-2026-CZPIV');
 
@@ -222,7 +225,7 @@ class CustomerDocumentCenterTest extends TestCase
         $data = $response->json('data');
         $this->assertCount(1, $data);
         $this->assertEquals('AYN-20261007-CZPIV', $data[0]['order']['order_number']);
-        $this->assertCount(5, $data[0]['documents']);
+        $this->assertCount(3, $data[0]['documents']);
     }
 
     public function test_search_by_ci_reference_returns_complete_order_group(): void
@@ -235,7 +238,7 @@ class CustomerDocumentCenterTest extends TestCase
         $data = $response->json('data');
         $this->assertCount(1, $data);
         $this->assertEquals('AYN-20261007-CZPIV', $data[0]['order']['order_number']);
-        $this->assertCount(5, $data[0]['documents']);
+        $this->assertCount(3, $data[0]['documents']);
     }
 
     public function test_search_by_customer_name(): void
@@ -250,7 +253,7 @@ class CustomerDocumentCenterTest extends TestCase
 
     public function test_filtering_preserves_order_grouping(): void
     {
-        // Filter by INVOICES: order remains top-level entity, but only PI, CI, INV are inside
+        // Filter by INVOICES: order remains top-level entity, but only PI and CI are inside
         $response = $this->actingAs($this->customerA, 'sanctum')
             ->getJson('/api/v1/orders/documents?filter=INVOICES');
 
@@ -262,25 +265,27 @@ class CustomerDocumentCenterTest extends TestCase
             $this->assertArrayHasKey('order', $group);
             $this->assertArrayHasKey('documents', $group);
             foreach ($group['documents'] as $doc) {
-                $this->assertContains($doc['doc_type'], ['PROFORMA_INVOICE', 'COMMERCIAL_INVOICE', 'INVOICE']);
-                $this->assertNotEquals('ORDER_SHEET', $doc['doc_type']);
+                $this->assertContains($doc['doc_type'], ['PROFORMA_INVOICE', 'COMMERCIAL_INVOICE']);
+                $this->assertNotEquals('OFFER_SHEET', $doc['doc_type']);
                 $this->assertNotEquals('PACKING_LIST', $doc['doc_type']);
             }
         }
     }
 
-    public function test_packing_filter_excludes_orders_without_packing_list(): void
+    public function test_offer_sheet_filter_returns_only_offer_sheets(): void
     {
-        // Filter by PACKING: only Order A1 (paid) has a packing list
+        // Filter by OFFER_SHEET: only offer sheets are inside each order
         $response = $this->actingAs($this->customerA, 'sanctum')
-            ->getJson('/api/v1/orders/documents?filter=PACKING');
+            ->getJson('/api/v1/orders/documents?filter=OFFER_SHEET');
 
         $response->assertStatus(200);
         $data = $response->json('data');
-        $this->assertCount(1, $data);
-        $this->assertEquals('AYN-20261007-CZPIV', $data[0]['order']['order_number']);
-        $this->assertCount(1, $data[0]['documents']);
-        $this->assertEquals('PACKING_LIST', $data[0]['documents'][0]['doc_type']);
+        $this->assertCount(2, $data);
+        foreach ($data as $group) {
+            foreach ($group['documents'] as $doc) {
+                $this->assertEquals('OFFER_SHEET', $doc['doc_type']);
+            }
+        }
     }
 
     public function test_pagination_is_order_based(): void
@@ -293,7 +298,7 @@ class CustomerDocumentCenterTest extends TestCase
         $data = $response->json('data');
         $this->assertCount(1, $data);
         $this->assertEquals('AYN-20261007-CZPIV', $data[0]['order']['order_number']);
-        $this->assertCount(5, $data[0]['documents'], 'All 5 documents of order 1 are kept together');
+        $this->assertCount(3, $data[0]['documents'], 'All 3 canonical documents of order 1 are kept together');
 
         $meta = $response->json('meta');
         $this->assertEquals(1, $meta['current_page']);

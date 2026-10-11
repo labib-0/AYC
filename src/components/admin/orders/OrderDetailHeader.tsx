@@ -259,29 +259,16 @@ export default function OrderDetailHeader({
                   </div>
 
                   <Link
-                    href={`/ayc/documents/INVOICE/order_${order.id}`}
+                    href={`/ayc/documents/OFFER_SHEET/order_${order.id}`}
                     onClick={() => setDocDropdownOpen(false)}
                     className="flex items-center justify-between px-3 py-2 text-xs hover:bg-secondary transition-colors"
-                    id="doc-item-invoice"
+                    id="doc-item-offer-sheet"
                   >
                     <div className="flex items-center gap-2 font-bold text-foreground">
                       <FileText size={14} className="text-primary" />
-                      <span>Sales Invoice</span>
+                      <span>Offer Sheet</span>
                     </div>
-                    <span className="text-[10px] font-mono uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded">PDF</span>
-                  </Link>
-
-                  <Link
-                    href={`/ayc/documents/ORDER_SHEET/order_${order.id}`}
-                    onClick={() => setDocDropdownOpen(false)}
-                    className="flex items-center justify-between px-3 py-2 text-xs hover:bg-secondary transition-colors"
-                    id="doc-item-order-sheet"
-                  >
-                    <div className="flex items-center gap-2 font-bold text-foreground">
-                      <FileText size={14} className="text-primary" />
-                      <span>Order Sheet</span>
-                    </div>
-                    <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded">B2B</span>
+                    <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded">OFFER</span>
                   </Link>
 
                   <Link
@@ -305,22 +292,9 @@ export default function OrderDetailHeader({
                   >
                     <div className="flex items-center gap-2 font-bold text-foreground">
                       <Printer size={14} className="text-primary" />
-                      <span>Commercial Invoice</span>
+                      <span>Commercial Invoice (CI)</span>
                     </div>
-                    <span className="text-[10px] font-mono uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded">Export</span>
-                  </Link>
-
-                  <Link
-                    href={`/ayc/documents/PACKING_LIST/order_${order.id}`}
-                    onClick={() => setDocDropdownOpen(false)}
-                    className="flex items-center justify-between px-3 py-2 text-xs hover:bg-secondary transition-colors"
-                    id="doc-item-packing-list"
-                  >
-                    <div className="flex items-center gap-2 font-bold text-foreground">
-                      <Package size={14} className="text-primary" />
-                      <span>Packing List</span>
-                    </div>
-                    <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded">Cargo</span>
+                    <span className="text-[10px] font-mono uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded">CI</span>
                   </Link>
                 </div>
               )}

@@ -2422,130 +2422,80 @@ export default function AdminPosPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                       <Link
-                        href={`/ayc/documents/INVOICE/order_${createdOrder.id}`}
+                        href={`/ayc/documents/OFFER_SHEET/order_${createdOrder.id}`}
                         target="_blank"
-                        className="p-2.5 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors flex items-center justify-between group btn-pos-print-invoice"
-                        id="btn-pos-doc-invoice"
+                        className="p-3 rounded-xl border border-border bg-secondary/30 hover:bg-secondary transition-colors flex flex-col justify-between group"
+                        id="btn-pos-doc-offersheet"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-2 mb-2">
                           <FileText
                             size={16}
                             className="text-primary group-hover:scale-110 transition-transform"
                           />
-                          <div>
-                            <span className="font-bold text-foreground block text-xs">
-                              Official Sales Invoice
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              Commercial PDF standard
-                            </span>
-                          </div>
+                          <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded font-bold">
+                            OFFER
+                          </span>
                         </div>
-                        <span className="text-[10px] font-mono uppercase bg-primary/20 text-primary px-1.5 py-0.5 rounded font-bold">
-                          PDF
-                        </span>
-                      </Link>
-
-                      <Link
-                        href={`/ayc/documents/ORDER_SHEET/order_${createdOrder.id}`}
-                        target="_blank"
-                        className="p-2.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary transition-colors flex items-center justify-between group"
-                        id="btn-pos-doc-ordersheet"
-                      >
-                        <div className="flex items-center gap-2">
-                          <FileText
-                            size={16}
-                            className="text-primary group-hover:scale-110 transition-transform"
-                          />
-                          <div>
-                            <span className="font-bold text-foreground block text-xs">
-                              Export Order Sheet
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              Factory specifications
-                            </span>
-                          </div>
+                        <div>
+                          <span className="font-bold text-foreground block text-xs">
+                            Offer Sheet
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block mt-0.5">
+                            Product specifications & commercial offer
+                          </span>
                         </div>
-                        <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded font-bold">
-                          B2B
-                        </span>
                       </Link>
 
                       <Link
                         href={`/ayc/documents/PROFORMA_INVOICE/order_${createdOrder.id}`}
                         target="_blank"
-                        className="p-2.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary transition-colors flex items-center justify-between group"
+                        className="p-3 rounded-xl border border-border bg-secondary/30 hover:bg-secondary transition-colors flex flex-col justify-between group"
                         id="btn-pos-doc-pi"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-2 mb-2">
                           <FileText
                             size={16}
                             className="text-primary group-hover:scale-110 transition-transform"
                           />
-                          <div>
-                            <span className="font-bold text-foreground block text-xs">
-                              Proforma Invoice (PI)
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              Bank & LC documentation
-                            </span>
-                          </div>
+                          <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded font-bold">
+                            PI
+                          </span>
                         </div>
-                        <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded font-bold">
-                          PI
-                        </span>
+                        <div>
+                          <span className="font-bold text-foreground block text-xs">
+                            Proforma Invoice (PI)
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block mt-0.5">
+                            Provisional terms & payment instructions
+                          </span>
+                        </div>
                       </Link>
 
                       <Link
                         href={`/ayc/documents/COMMERCIAL_INVOICE/order_${createdOrder.id}`}
                         target="_blank"
-                        className="p-2.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary transition-colors flex items-center justify-between group"
+                        className="p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors flex flex-col justify-between group"
                         id="btn-pos-doc-ci"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-2 mb-2">
                           <Printer
                             size={16}
                             className="text-primary group-hover:scale-110 transition-transform"
                           />
-                          <div>
-                            <span className="font-bold text-foreground block text-xs">
-                              Commercial Invoice (CI)
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              Customs & export declaration
-                            </span>
-                          </div>
+                          <span className="text-[10px] font-mono uppercase bg-primary/20 text-primary px-1.5 py-0.5 rounded font-bold">
+                            CI
+                          </span>
                         </div>
-                        <span className="text-[10px] font-mono uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold">
-                          Export
-                        </span>
-                      </Link>
-
-                      <Link
-                        href={`/ayc/documents/PACKING_LIST/order_${createdOrder.id}`}
-                        target="_blank"
-                        className="p-2.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary transition-colors flex items-center justify-between group sm:col-span-2"
-                        id="btn-pos-doc-packinglist"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Package
-                            size={16}
-                            className="text-primary group-hover:scale-110 transition-transform"
-                          />
-                          <div>
-                            <span className="font-bold text-foreground block text-xs">
-                              Export Packing List
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              Carton & weight breakdown
-                            </span>
-                          </div>
+                        <div>
+                          <span className="font-bold text-foreground block text-xs">
+                            Commercial Invoice (CI)
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block mt-0.5">
+                            Final commercial & export declaration
+                          </span>
                         </div>
-                        <span className="text-[10px] font-mono uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded font-bold">
-                              Cargo
-                        </span>
                       </Link>
                     </div>
                   </div>

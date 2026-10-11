@@ -1173,57 +1173,57 @@ export default function CustomerOrderDetailPage({ params }: Props) {
           <span className="text-[0.6875rem] text-slate-400">Standard ISO A4 format</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          {/* Proforma Invoice */}
-          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <FileText size={18} className="text-amber-600" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          {/* 1. Offer Sheet */}
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <FileText size={18} className="text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-slate-900 dark:text-white">Proforma Invoice</p>
-                <p className="text-[0.6875rem] text-slate-500">Official commercial invoice quote</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => downloadProformaInvoicePDF(order)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
-            >
-              <Download size={12} />
-              <span>PDF</span>
-            </button>
-          </div>
-
-          {/* Product Offer Sheet */}
-          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <FileText size={18} className="text-amber-600" />
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">Product Spec Sheet</p>
-                <p className="text-[0.6875rem] text-slate-500">Style specs and package assortment</p>
+                <p className="font-bold text-slate-900 dark:text-white">Offer Sheet</p>
+                <p className="text-[0.6875rem] text-slate-500">Product specifications & commercial offer</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => handleDownloadOfferSheet()}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
             >
               <Download size={12} />
-              <span>PDF</span>
+              <span>Download PDF</span>
             </button>
           </div>
 
-          {/* Commercial Invoice (unlocked after payment) */}
-          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+          {/* 2. Proforma Invoice (PI) */}
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <FileText size={18} className="text-sky-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white">Proforma Invoice (PI)</p>
+                <p className="text-[0.6875rem] text-slate-500">Provisional terms & payment instructions</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => downloadProformaInvoicePDF(order)}
+              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+            >
+              <Download size={12} />
+              <span>Download PDF</span>
+            </button>
+          </div>
+
+          {/* 3. Commercial Invoice (CI) (unlocked after payment) */}
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between gap-3">
+            <div className="flex items-start gap-2.5">
               {order.payment_status === "paid" ? (
-                <FileText size={18} className="text-emerald-600" />
+                <FileText size={18} className="text-emerald-600 shrink-0 mt-0.5" />
               ) : (
-                <Lock size={18} className="text-slate-400" />
+                <Lock size={18} className="text-slate-400 shrink-0 mt-0.5" />
               )}
               <div>
-                <p className="font-bold text-slate-900 dark:text-white">Commercial Invoice</p>
+                <p className="font-bold text-slate-900 dark:text-white">Commercial Invoice (CI)</p>
                 <p className="text-[0.6875rem] text-slate-500">
-                  {order.payment_status === "paid" ? "Final customs documentation" : "Unlocks after payment"}
+                  {order.payment_status === "paid" ? "Final commercial & export declaration" : "Unlocks after payment confirmation"}
                 </p>
               </div>
             </div>
@@ -1231,7 +1231,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               <div className="flex items-center gap-2">
                 <Link
                   href={`/ayc/documents/COMMERCIAL_INVOICE/order_${order.id}`}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+                  className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
                 >
                   <ExternalLink size={12} />
                   <span>View</span>
@@ -1239,35 +1239,16 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                 <button
                   type="button"
                   onClick={() => downloadCommercialInvoicePDF(order)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs"
                   id="btn-download-commercial-invoice-sec8"
                 >
                   <Download size={12} />
-                  <span>Download PDF</span>
+                  <span>PDF</span>
                 </button>
               </div>
             ) : (
-              <span className="text-[0.625rem] text-slate-400 italic">Available after payment confirmation</span>
+              <span className="text-[0.625rem] text-slate-400 italic text-center py-1">Available upon payment verification</span>
             )}
-          </div>
-
-          {/* Packing List */}
-          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <FileText size={18} className="text-blue-600" />
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">Export Packing List</p>
-                <p className="text-[0.6875rem] text-slate-500">Carton breakdown & dimensions</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleDownloadOfferSheet()}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
-            >
-              <Download size={12} />
-              <span>PDF</span>
-            </button>
           </div>
         </div>
       </div>

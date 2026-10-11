@@ -269,7 +269,7 @@ class Order extends Model
         $docTitle = match ($normalizedType) {
             'INVOICE', 'SALES_INVOICE', 'TAX_INVOICE' => 'SALES INVOICE',
             'PROFORMA_INVOICE' => 'PROFORMA INVOICE',
-            'ORDER_SHEET' => 'COMMERCIAL ORDER SHEET',
+            'OFFER_SHEET', 'ORDER_SHEET' => 'COMMERCIAL OFFER SHEET',
             'COMMERCIAL_INVOICE' => 'COMMERCIAL INVOICE',
             'PACKING_LIST' => 'COMMERCIAL PACKING LIST',
             'CHALAN' => 'DELIVERY CHALAN / GATE PASS',
@@ -279,7 +279,7 @@ class Order extends Model
         $prefix = match ($normalizedType) {
             'INVOICE', 'SALES_INVOICE', 'TAX_INVOICE' => 'INV',
             'PROFORMA_INVOICE' => 'PI',
-            'ORDER_SHEET' => 'ORD',
+            'OFFER_SHEET', 'ORDER_SHEET' => 'ORD',
             'COMMERCIAL_INVOICE' => 'INV',
             'PACKING_LIST' => 'PL',
             default => 'DOC',

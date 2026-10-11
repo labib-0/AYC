@@ -151,14 +151,9 @@ function runTests() {
     "POS order management includes canonical Commercial Documents Hub"
   );
   assert(
-    posPageCode.includes('id="btn-pos-doc-invoice"') &&
-      posPageCode.includes("/ayc/documents/INVOICE/order_"),
-    "Exposes canonical Official Sales Invoice (/ayc/documents/INVOICE/order_{id})"
-  );
-  assert(
-    posPageCode.includes('id="btn-pos-doc-ordersheet"') &&
-      posPageCode.includes("/ayc/documents/ORDER_SHEET/order_"),
-    "Exposes canonical Export Order Sheet (/ayc/documents/ORDER_SHEET/order_{id})"
+    posPageCode.includes('id="btn-pos-doc-offersheet"') &&
+      posPageCode.includes("/ayc/documents/OFFER_SHEET/order_"),
+    "Exposes canonical Offer Sheet (/ayc/documents/OFFER_SHEET/order_{id})"
   );
   assert(
     posPageCode.includes('id="btn-pos-doc-pi"') &&
@@ -171,9 +166,9 @@ function runTests() {
     "Exposes canonical Commercial Invoice (CI) (/ayc/documents/COMMERCIAL_INVOICE/order_{id})"
   );
   assert(
-    posPageCode.includes('id="btn-pos-doc-packinglist"') &&
-      posPageCode.includes("/ayc/documents/PACKING_LIST/order_"),
-    "Exposes canonical Export Packing List (/ayc/documents/PACKING_LIST/order_{id})"
+    !posPageCode.includes('id="btn-pos-doc-invoice"') &&
+      !posPageCode.includes('id="btn-pos-doc-packinglist"'),
+    "Retired Official Sales Invoice and Export Packing List are not offered in POS"
   );
   assert(
     posPageCode.includes('id="btn-pos-view-full-order"') &&

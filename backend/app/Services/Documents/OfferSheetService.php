@@ -11,7 +11,7 @@ class OfferSheetService
     /**
      * Build Offer Sheet document representation from an Order
      */
-    public function generateForOrder(Order $order): array
+    public function generateForOrder(Order $order, string $docType = 'OFFER_SHEET'): array
     {
         $year = date('Y', strtotime($order->created_at ?: now()));
         $docSuffix = substr($order->order_number, -6);
@@ -54,14 +54,16 @@ class OfferSheetService
             ];
         }
 
+        $canonicalDocType = strtoupper(trim($docType));
+
         return [
-            'id' => "doc_ORDER_SHEET_{$order->id}",
+            'id' => "doc_{$canonicalDocType}_{$order->id}",
             'docNumber' => $docNumber,
             'doc_number' => $docNumber,
-            'docType' => 'ORDER_SHEET',
-            'doc_type' => 'ORDER_SHEET',
-            'document_type' => 'order_sheet',
-            'title' => 'COMMERCIAL ORDER SHEET',
+            'docType' => $canonicalDocType,
+            'doc_type' => $canonicalDocType,
+            'document_type' => strtolower($canonicalDocType),
+            'title' => 'COMMERCIAL OFFER SHEET',
             'date' => date('Y-m-d', strtotime($order->created_at ?: now())),
             'validUntil' => date('Y-m-d', strtotime('+30 days', strtotime($order->created_at ?: now()))),
             'orderNumber' => $order->order_number,

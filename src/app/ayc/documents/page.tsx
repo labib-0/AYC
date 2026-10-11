@@ -38,13 +38,14 @@ interface DocumentHubItem {
   href: string;
 }
 
-const TYPE_BADGES: Record<CommercialDocType, { label: string; color: string }> = {
-  INVOICE: { label: "Sales Invoice", color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20" },
-  PROFORMA_INVOICE: { label: "Proforma Invoice (PI)", color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" },
+const TYPE_BADGES: Record<string, { label: string; color: string }> = {
+  OFFER_SHEET: { label: "Offer Sheet", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" },
   ORDER_SHEET: { label: "Offer Sheet", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" },
-  COMMERCIAL_INVOICE: { label: "Commercial Invoice", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" },
+  PROFORMA_INVOICE: { label: "Proforma Invoice (PI)", color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" },
+  COMMERCIAL_INVOICE: { label: "Commercial Invoice (CI)", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" },
+  QUOTATION: { label: "Commercial Offer", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" },
+  INVOICE: { label: "Sales Invoice", color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20" },
   PACKING_LIST: { label: "Packing List", color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" },
-  QUOTATION: { label: "Commercial Quote", color: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20" },
   CHALAN: { label: "Delivery Chalan", color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20" },
 };
 
@@ -77,7 +78,7 @@ export default function AdminDocumentsHubPage() {
     loadData();
   }, [loadData]);
 
-  // Derive document list from real orders and quotations
+  // Derive document list from real orders and quotations strictly for the three canonical types
   const allDocuments: DocumentHubItem[] = useMemo(() => {
     const docs: DocumentHubItem[] = [];
 
@@ -97,50 +98,31 @@ export default function AdminDocumentsHubPage() {
       const totalAmount = order.total_amount || 0;
       const currency = order.currency || "USD";
 
-      // Sales Invoice (Always available)
+      // 1. Offer Sheet (Always available)
       docs.push({
-        id: `doc_INVOICE_order_${order.id}`,
-        docNumber: `INV-${order.order_number}`,
-        docType: "INVOICE",
-        title: "Commercial Sales Invoice",
-        sourceType: "ORDER",
-        sourceId: order.id,
-        sourceRef: `#${order.order_number}`,
-        companyName: company,
-        buyerName: buyer,
-        date: dateStr,
-        amount: totalAmount,
-        currency,
-        isAvailable: true,
-        isGated: false,
-        href: `/ayc/documents/INVOICE/order_${order.id}`,
-      });
-
-      // Order Sheet (Always available)
-      docs.push({
-        id: `doc_ORDER_SHEET_order_${order.id}`,
+        id: `doc_OFFER_SHEET_order_${order.id}`,
         docNumber: `ORD-${order.order_number}`,
-        docType: "ORDER_SHEET",
-        title: "Commercial Order Sheet",
+        docType: "OFFER_SHEET",
+        title: "Commercial Offer Sheet",
         sourceType: "ORDER",
         sourceId: order.id,
         sourceRef: `#${order.order_number}`,
         companyName: company,
         buyerName: buyer,
         date: dateStr,
-        amount: totalAmount,
+        amount: order.subtotal || totalAmount,
         currency,
         isAvailable: true,
         isGated: false,
-        href: `/ayc/documents/ORDER_SHEET/order_${order.id}`,
+        href: `/ayc/documents/OFFER_SHEET/order_${order.id}`,
       });
 
-      // Proforma Invoice (Always available)
+      // 2. Proforma Invoice (PI) (Always available)
       docs.push({
         id: `doc_PROFORMA_INVOICE_order_${order.id}`,
         docNumber: `PI-${order.order_number}`,
         docType: "PROFORMA_INVOICE",
-        title: "Commercial Proforma Invoice",
+        title: "Proforma Invoice (PI)",
         sourceType: "ORDER",
         sourceId: order.id,
         sourceRef: `#${order.order_number}`,
@@ -154,12 +136,12 @@ export default function AdminDocumentsHubPage() {
         href: `/ayc/documents/PROFORMA_INVOICE/order_${order.id}`,
       });
 
-      // Commercial Invoice (Gated until paid)
+      // 3. Commercial Invoice (CI) (Gated until paid)
       docs.push({
         id: `doc_COMMERCIAL_INVOICE_order_${order.id}`,
         docNumber: `INV-${order.order_number}`,
         docType: "COMMERCIAL_INVOICE",
-        title: "Export Commercial Invoice",
+        title: "Commercial Invoice (CI)",
         sourceType: "ORDER",
         sourceId: order.id,
         sourceRef: `#${order.order_number}`,
@@ -171,25 +153,6 @@ export default function AdminDocumentsHubPage() {
         isAvailable: isPaid,
         isGated: !isPaid,
         href: `/ayc/documents/COMMERCIAL_INVOICE/order_${order.id}`,
-      });
-
-      // Packing List (Gated until paid)
-      docs.push({
-        id: `doc_PACKING_LIST_order_${order.id}`,
-        docNumber: `PL-${order.order_number}`,
-        docType: "PACKING_LIST",
-        title: "Commercial Packing List",
-        sourceType: "ORDER",
-        sourceId: order.id,
-        sourceRef: `#${order.order_number}`,
-        companyName: company,
-        buyerName: buyer,
-        date: dateStr,
-        amount: totalAmount,
-        currency,
-        isAvailable: isPaid,
-        isGated: !isPaid,
-        href: `/ayc/documents/PACKING_LIST/order_${order.id}`,
       });
     }
 
@@ -241,9 +204,9 @@ export default function AdminDocumentsHubPage() {
 
       // Offer Sheet from Quote
       docs.push({
-        id: `doc_ORDER_SHEET_${quote.id}`,
+        id: `doc_OFFER_SHEET_${quote.id}`,
         docNumber: `ORD-${quote.quotationNumber}`,
-        docType: "ORDER_SHEET",
+        docType: "OFFER_SHEET",
         title: "Commercial Offer Sheet",
         sourceType: "QUOTATION",
         sourceId: quote.id,
@@ -255,7 +218,7 @@ export default function AdminDocumentsHubPage() {
         currency,
         isAvailable: true,
         isGated: false,
-        href: `/ayc/documents/ORDER_SHEET/${quote.id}`,
+        href: `/ayc/documents/OFFER_SHEET/${quote.id}`,
       });
     }
 
@@ -267,8 +230,12 @@ export default function AdminDocumentsHubPage() {
   const filteredDocuments = useMemo(() => {
     return allDocuments.filter((doc) => {
       // Type filter
-      if (selectedType !== "ALL" && doc.docType !== selectedType) {
-        return false;
+      if (selectedType !== "ALL") {
+        if (selectedType === "OFFER_SHEET" && (doc.docType === "OFFER_SHEET" || doc.docType === "ORDER_SHEET" || doc.docType === "QUOTATION")) {
+          // match
+        } else if (doc.docType !== selectedType) {
+          return false;
+        }
       }
 
       // Text search
@@ -297,11 +264,9 @@ export default function AdminDocumentsHubPage() {
   const kpiCounts = useMemo(() => {
     return {
       total: allDocuments.length,
-      invoice: allDocuments.filter((d) => d.docType === "INVOICE").length,
+      offerSheets: allDocuments.filter((d) => d.docType === "OFFER_SHEET" || d.docType === "ORDER_SHEET" || d.docType === "QUOTATION").length,
       pi: allDocuments.filter((d) => d.docType === "PROFORMA_INVOICE").length,
-      offerSheets: allDocuments.filter((d) => d.docType === "ORDER_SHEET" || d.docType === "QUOTATION").length,
       ci: allDocuments.filter((d) => d.docType === "COMMERCIAL_INVOICE").length,
-      pl: allDocuments.filter((d) => d.docType === "PACKING_LIST").length,
     };
   }, [allDocuments]);
 
@@ -330,7 +295,7 @@ export default function AdminDocumentsHubPage() {
             </span>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Access, view, print, and export official commercial export documentation.
+            Access, view, print, and export official commercial export documentation (Offer Sheet, PI, and CI).
           </p>
         </div>
 
@@ -347,8 +312,8 @@ export default function AdminDocumentsHubPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      {/* KPI Cards: Exactly Three Canonical Types */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div 
           onClick={() => handleFilterType("ALL")}
           className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
@@ -360,6 +325,19 @@ export default function AdminDocumentsHubPage() {
             <FileText size={14} />
           </div>
           <div className="text-xl font-bold text-foreground mt-1">{kpiCounts.total}</div>
+        </div>
+
+        <div 
+          onClick={() => handleFilterType("OFFER_SHEET")}
+          className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+            selectedType === "OFFER_SHEET" ? "bg-amber-500/10 border-amber-500" : "bg-card border-border/70 hover:border-border"
+          }`}
+        >
+          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
+            <span>Offer Sheets</span>
+            <Sparkles size={14} className="text-amber-500" />
+          </div>
+          <div className="text-xl font-bold text-foreground mt-1">{kpiCounts.offerSheets}</div>
         </div>
 
         <div 
@@ -376,42 +354,16 @@ export default function AdminDocumentsHubPage() {
         </div>
 
         <div 
-          onClick={() => handleFilterType("ORDER_SHEET")}
-          className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-            selectedType === "ORDER_SHEET" ? "bg-amber-500/10 border-amber-500" : "bg-card border-border/70 hover:border-border"
-          }`}
-        >
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>Offer Sheets</span>
-            <Sparkles size={14} className="text-amber-500" />
-          </div>
-          <div className="text-xl font-bold text-foreground mt-1">{kpiCounts.offerSheets}</div>
-        </div>
-
-        <div 
           onClick={() => handleFilterType("COMMERCIAL_INVOICE")}
           className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
             selectedType === "COMMERCIAL_INVOICE" ? "bg-emerald-500/10 border-emerald-500" : "bg-card border-border/70 hover:border-border"
           }`}
         >
           <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>Invoices (CI)</span>
+            <span>Commercial (CI)</span>
             <Layers size={14} className="text-emerald-500" />
           </div>
           <div className="text-xl font-bold text-foreground mt-1">{kpiCounts.ci}</div>
-        </div>
-
-        <div 
-          onClick={() => handleFilterType("PACKING_LIST")}
-          className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-            selectedType === "PACKING_LIST" ? "bg-purple-500/10 border-purple-500" : "bg-card border-border/70 hover:border-border"
-          }`}
-        >
-          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
-            <span>Packing Lists</span>
-            <Package size={14} className="text-purple-500" />
-          </div>
-          <div className="text-xl font-bold text-foreground mt-1">{kpiCounts.pl}</div>
         </div>
       </div>
 
@@ -431,12 +383,9 @@ export default function AdminDocumentsHubPage() {
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           {[
             { id: "ALL", label: "All Types" },
-            { id: "INVOICE", label: "Invoice" },
-            { id: "PROFORMA_INVOICE", label: "PI" },
-            { id: "ORDER_SHEET", label: "Offer Sheet" },
-            { id: "COMMERCIAL_INVOICE", label: "CI" },
-            { id: "PACKING_LIST", label: "Packing List" },
-            { id: "QUOTATION", label: "Quote" },
+            { id: "OFFER_SHEET", label: "Offer Sheet" },
+            { id: "PROFORMA_INVOICE", label: "Proforma Invoice (PI)" },
+            { id: "COMMERCIAL_INVOICE", label: "Commercial Invoice (CI)" },
           ].map((tab) => (
             <button
               key={tab.id}

@@ -1013,6 +1013,7 @@ class OrderController extends ApiController
             $authorization = app(\App\Services\Rbac\AdminAuthorizationService::class);
             $hasGeneralAccess = $authorization->can($user, 'document.view') || $authorization->can($user, 'document.download');
             $hasSpecificAccess = match ($normalizedType) {
+                'OFFER_SHEET', 'ORDER_SHEET' => $authorization->can($user, 'document.view') || $authorization->can($user, 'document.proforma.generate'),
                 'INVOICE', 'SALES_INVOICE', 'TAX_INVOICE' => $authorization->can($user, 'document.invoice.generate'),
                 'PROFORMA_INVOICE' => $authorization->can($user, 'document.proforma.generate'),
                 'COMMERCIAL_INVOICE' => $authorization->can($user, 'document.commercial_invoice.generate'),
@@ -1044,19 +1045,19 @@ class OrderController extends ApiController
             return response()->json([
                 'success' => false,
                 'is_gated' => true,
-                'message' => "Commercial Invoice and Packing List are generated exclusively upon payment confirmation. Please complete payment or view your Proforma Invoice (PI) / Sales Invoice.",
+                'message' => "Commercial Invoice is generated exclusively upon payment confirmation. Please complete payment or view your Offer Sheet / Proforma Invoice (PI).",
                 'data' => [
                     'order_id' => (string) $order->id,
                     'order_number' => $order->order_number,
                     'payment_status' => $order->payment_status,
-                    'available_documents' => ['INVOICE', 'PROFORMA_INVOICE', 'ORDER_SHEET'],
+                    'available_documents' => ['OFFER_SHEET', 'PROFORMA_INVOICE'],
                 ],
             ], 403);
         }
 
-        if ($normalizedType === 'ORDER_SHEET') {
+        if (in_array($normalizedType, ['OFFER_SHEET', 'ORDER_SHEET'])) {
             $offerSheetService = app(\App\Services\Documents\OfferSheetService::class);
-            $docPayload = $offerSheetService->generateForOrder($order);
+            $docPayload = $offerSheetService->generateForOrder($order, $normalizedType);
         } elseif (in_array($normalizedType, ['INVOICE', 'SALES_INVOICE', 'TAX_INVOICE'])) {
             $invoiceService = app(\App\Services\Documents\InvoiceService::class);
             $docPayload = $invoiceService->generateForOrder($order, $isAdmin);
@@ -1251,7 +1252,22 @@ class OrderController extends ApiController
 
             $allDocs = [];
 
-            // 1. Proforma Invoice (PI) - always available
+            // 1. Offer Sheet (canonical commercial offer) - always available
+            $allDocs[] = [
+                'id' => "doc_OFFER_{$order->id}",
+                'doc_type' => 'OFFER_SHEET',
+                'type_name' => 'Offer Sheet',
+                'badge_code' => 'OFFER',
+                'reference' => "ORD-{$year}-{$orderNumClean}",
+                'date' => $order->created_at ? $order->created_at->format('Y-m-d') : date('Y-m-d'),
+                'date_formatted' => $order->created_at ? $order->created_at->format('d M Y') : date('d M Y'),
+                'amount' => (float) ($order->subtotal ?: $order->total_amount),
+                'currency' => $order->currency ?: 'USD',
+                'source_id' => (string) $order->id,
+                'is_gated' => false,
+            ];
+
+            // 2. Proforma Invoice (PI) - always available
             $allDocs[] = [
                 'id' => "doc_PI_{$order->id}",
                 'doc_type' => 'PROFORMA_INVOICE',
@@ -1266,7 +1282,7 @@ class OrderController extends ApiController
                 'is_gated' => false,
             ];
 
-            // 2. Commercial Invoice (CI) - available upon payment / order confirmation
+            // 3. Commercial Invoice (CI) - available upon payment / order confirmation
             if ($isPaid) {
                 $allDocs[] = [
                     'id' => "doc_CI_{$order->id}",
@@ -1283,61 +1299,16 @@ class OrderController extends ApiController
                 ];
             }
 
-            // 3. Invoice / Order Invoice (INV) - always available
-            $allDocs[] = [
-                'id' => "doc_INV_{$order->id}",
-                'doc_type' => 'INVOICE',
-                'type_name' => 'Invoice',
-                'badge_code' => 'INV',
-                'reference' => "INV-{$year}-{$orderNumClean}",
-                'date' => $order->created_at ? $order->created_at->format('Y-m-d') : date('Y-m-d'),
-                'date_formatted' => $order->created_at ? $order->created_at->format('d M Y') : date('d M Y'),
-                'amount' => (float) $order->total_amount,
-                'currency' => $order->currency ?: 'USD',
-                'source_id' => (string) $order->id,
-                'is_gated' => false,
-            ];
-
-            // 4. Order Sheet (OS) - always available
-            $allDocs[] = [
-                'id' => "doc_OS_{$order->id}",
-                'doc_type' => 'ORDER_SHEET',
-                'type_name' => 'Order Sheet',
-                'badge_code' => 'OS',
-                'reference' => "ORD-{$year}-{$orderNumClean}",
-                'date' => $order->created_at ? $order->created_at->format('Y-m-d') : date('Y-m-d'),
-                'date_formatted' => $order->created_at ? $order->created_at->format('d M Y') : date('d M Y'),
-                'amount' => (float) ($order->subtotal ?: $order->total_amount),
-                'currency' => $order->currency ?: 'USD',
-                'source_id' => (string) $order->id,
-                'is_gated' => false,
-            ];
-
-            // 5. Packing List (PL) - available upon payment / order confirmation
-            if ($isPaid) {
-                $allDocs[] = [
-                    'id' => "doc_PL_{$order->id}",
-                    'doc_type' => 'PACKING_LIST',
-                    'type_name' => 'Packing List',
-                    'badge_code' => 'PL',
-                    'reference' => "PL-{$year}-{$orderNumClean}",
-                    'date' => $order->created_at ? $order->created_at->format('Y-m-d') : date('Y-m-d'),
-                    'date_formatted' => $order->created_at ? $order->created_at->format('d M Y') : date('d M Y'),
-                    'amount' => null,
-                    'currency' => $order->currency ?: 'USD',
-                    'source_id' => (string) $order->id,
-                    'is_gated' => false,
-                ];
-            }
-
             // Apply document filter inside the order group (preserves whole order entity)
             $visibleDocs = $allDocs;
             if ($docFilter !== 'ALL') {
                 $visibleDocs = array_values(array_filter($allDocs, function ($d) use ($docFilter) {
                     return match ($docFilter) {
-                        'INVOICES' => in_array($d['doc_type'], ['PROFORMA_INVOICE', 'COMMERCIAL_INVOICE', 'INVOICE']),
-                        'QUOTATIONS' => in_array($d['doc_type'], ['QUOTATION', 'ORDER_SHEET']),
-                        'PACKING' => $d['doc_type'] === 'PACKING_LIST',
+                        'OFFER_SHEET', 'OFFERS', 'ORDER_SHEET', 'QUOTATIONS' => in_array($d['doc_type'], ['OFFER_SHEET', 'ORDER_SHEET', 'QUOTATION']),
+                        'PROFORMA_INVOICE', 'PI' => $d['doc_type'] === 'PROFORMA_INVOICE',
+                        'COMMERCIAL_INVOICE', 'CI' => $d['doc_type'] === 'COMMERCIAL_INVOICE',
+                        'INVOICES' => in_array($d['doc_type'], ['PROFORMA_INVOICE', 'COMMERCIAL_INVOICE']),
+                        'PACKING' => false,
                         default => true,
                     };
                 }));

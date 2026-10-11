@@ -449,11 +449,25 @@ export class OrderService {
 
       const allDocs: OrderDocumentItem[] = [];
 
-      // 1. Proforma Invoice (PI)
+      // 1. Offer Sheet (Always available)
+      allDocs.push({
+        id: `doc_OFFER_SHEET_${order.id}`,
+        doc_type: "OFFER_SHEET",
+        type_name: "Offer Sheet",
+        badge_code: "OFFER",
+        reference: `ORD-${year}-${orderNumClean}`,
+        date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        amount: order.subtotal || order.total_amount,
+        currency: order.currency || "USD",
+        source_id: order.id,
+        is_gated: false,
+      });
+
+      // 2. Proforma Invoice (PI) (Always available)
       allDocs.push({
         id: `doc_PI_${order.id}`,
         doc_type: "PROFORMA_INVOICE",
-        type_name: "Proforma Invoice",
+        type_name: "Proforma Invoice (PI)",
         badge_code: "PI",
         reference: `PI-${year}-${orderNumClean}`,
         date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
@@ -463,60 +477,16 @@ export class OrderService {
         is_gated: false,
       });
 
-      // 2. Commercial Invoice (CI) - paid only
+      // 3. Commercial Invoice (CI) - paid only
       if (isPaid) {
         allDocs.push({
           id: `doc_CI_${order.id}`,
           doc_type: "COMMERCIAL_INVOICE",
-          type_name: "Commercial Invoice",
+          type_name: "Commercial Invoice (CI)",
           badge_code: "CI",
           reference: `CI-${year}-${orderNumClean}`,
           date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
           amount: order.total_amount,
-          currency: order.currency || "USD",
-          source_id: order.id,
-          is_gated: false,
-        });
-      }
-
-      // 3. Invoice / Order Invoice (INV)
-      allDocs.push({
-        id: `doc_INV_${order.id}`,
-        doc_type: "INVOICE",
-        type_name: "Invoice",
-        badge_code: "INV",
-        reference: `INV-${year}-${orderNumClean}`,
-        date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
-        amount: order.total_amount,
-        currency: order.currency || "USD",
-        source_id: order.id,
-        is_gated: false,
-      });
-
-      // 4. Order Sheet (OS)
-      allDocs.push({
-        id: `doc_OS_${order.id}`,
-        doc_type: "ORDER_SHEET",
-        type_name: "Order Sheet",
-        badge_code: "OS",
-        reference: `ORD-${year}-${orderNumClean}`,
-        date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
-        amount: order.subtotal || order.total_amount,
-        currency: order.currency || "USD",
-        source_id: order.id,
-        is_gated: false,
-      });
-
-      // 5. Packing List (PL) - paid only
-      if (isPaid) {
-        allDocs.push({
-          id: `doc_PL_${order.id}`,
-          doc_type: "PACKING_LIST",
-          type_name: "Packing List",
-          badge_code: "PL",
-          reference: `PL-${year}-${orderNumClean}`,
-          date: order.placed_at ? order.placed_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
-          amount: null,
           currency: order.currency || "USD",
           source_id: order.id,
           is_gated: false,
@@ -528,10 +498,19 @@ export class OrderService {
       const docFilter = (params?.filter || "ALL").toUpperCase();
       if (docFilter !== "ALL") {
         visibleDocs = allDocs.filter((d) => {
-          if (docFilter === "INVOICES") return ["PROFORMA_INVOICE", "COMMERCIAL_INVOICE", "INVOICE"].includes(d.doc_type);
-          if (docFilter === "QUOTATIONS") return ["QUOTATION", "ORDER_SHEET"].includes(d.doc_type as any);
-          if (docFilter === "PACKING") return d.doc_type === "PACKING_LIST";
-          return true;
+          if (docFilter === "OFFER_SHEET" || docFilter === "OFFERS" || docFilter === "QUOTATIONS") {
+            return d.doc_type === "OFFER_SHEET" || (d.doc_type as string) === "ORDER_SHEET";
+          }
+          if (docFilter === "PROFORMA_INVOICE" || docFilter === "PI") {
+            return d.doc_type === "PROFORMA_INVOICE";
+          }
+          if (docFilter === "COMMERCIAL_INVOICE" || docFilter === "CI") {
+            return d.doc_type === "COMMERCIAL_INVOICE";
+          }
+          if (docFilter === "INVOICES") {
+            return ["PROFORMA_INVOICE", "COMMERCIAL_INVOICE"].includes(d.doc_type);
+          }
+          return d.doc_type === docFilter;
         });
       }
 

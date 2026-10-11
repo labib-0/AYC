@@ -54,7 +54,7 @@ class GenerateCommercialDocumentJob implements ShouldQueue
         ]);
 
         $pdf = match ($normalizedType) {
-            'offer-sheet' => $offerSheetService->generate($quotation),
+            'offer-sheet', 'order-sheet' => $offerSheetService->generate($quotation),
             'proforma-invoice' => $piService->generate($quotation),
             'commercial-invoice' => $ciService->generate($quotation),
             default => throw new \InvalidArgumentException("Unsupported document type: {$this->documentType}"),

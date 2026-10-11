@@ -101,6 +101,7 @@ function DocumentPreviewModal({
         return <ProformaInvoiceDocument doc={doc} />;
       case "COMMERCIAL_INVOICE":
         return <CommercialInvoiceDocument doc={doc} />;
+      case "OFFER_SHEET":
       case "ORDER_SHEET":
         return <OfferSheetDocument doc={doc} />;
       case "PACKING_LIST":
@@ -191,10 +192,19 @@ function DocumentPreviewModal({
   );
 }
 
-// ─── Helper Badge Functions ───────────────────────────────────────────────────
-
 function getDocTypeBadge(type: CommercialDocType, badgeCode?: string) {
   switch (type) {
+    case "OFFER_SHEET":
+    case "ORDER_SHEET":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 px-2.5 py-1 rounded-lg">
+          <FileSpreadsheet size={12} className="shrink-0" />
+          <span className="font-mono text-[10px] bg-amber-200/60 dark:bg-amber-900 px-1 py-0.2 rounded font-black">
+            {badgeCode || "OFFER"}
+          </span>
+          <span>Offer Sheet</span>
+        </span>
+      );
     case "PROFORMA_INVOICE":
       return (
         <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/60 px-2.5 py-1 rounded-lg">
@@ -202,7 +212,7 @@ function getDocTypeBadge(type: CommercialDocType, badgeCode?: string) {
           <span className="font-mono text-[10px] bg-sky-200/60 dark:bg-sky-900 px-1 py-0.2 rounded font-black">
             {badgeCode || "PI"}
           </span>
-          <span>Proforma Invoice</span>
+          <span>Proforma Invoice (PI)</span>
         </span>
       );
     case "COMMERCIAL_INVOICE":
@@ -212,7 +222,7 @@ function getDocTypeBadge(type: CommercialDocType, badgeCode?: string) {
           <span className="font-mono text-[10px] bg-emerald-200/60 dark:bg-emerald-900 px-1 py-0.2 rounded font-black">
             {badgeCode || "CI"}
           </span>
-          <span>Commercial Invoice</span>
+          <span>Commercial Invoice (CI)</span>
         </span>
       );
     case "PACKING_LIST":
@@ -223,16 +233,6 @@ function getDocTypeBadge(type: CommercialDocType, badgeCode?: string) {
             {badgeCode || "PL"}
           </span>
           <span>Packing List</span>
-        </span>
-      );
-    case "ORDER_SHEET":
-      return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 px-2.5 py-1 rounded-lg">
-          <FileSpreadsheet size={12} className="shrink-0" />
-          <span className="font-mono text-[10px] bg-indigo-200/60 dark:bg-indigo-900 px-1 py-0.2 rounded font-black">
-            {badgeCode || "OS"}
-          </span>
-          <span>Order Sheet</span>
         </span>
       );
     case "INVOICE":
@@ -515,9 +515,9 @@ export default function DocumentCenterPage() {
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
             {[
               { id: "ALL", label: "All Documents" },
-              { id: "INVOICES", label: "Invoices (PI & CI)" },
-              { id: "QUOTATIONS", label: "Quotes & Offers" },
-              { id: "PACKING", label: "Packing Lists" },
+              { id: "OFFER_SHEET", label: "Offer Sheets" },
+              { id: "PROFORMA_INVOICE", label: "Proforma Invoices (PI)" },
+              { id: "COMMERCIAL_INVOICE", label: "Commercial Invoices (CI)" },
             ].map((pill) => (
               <button
                 key={pill.id}

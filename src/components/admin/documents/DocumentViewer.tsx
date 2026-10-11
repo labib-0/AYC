@@ -42,6 +42,7 @@ export default function DocumentViewer({ doc }: DocumentViewerProps) {
         return <CommercialInvoiceDocument doc={doc} />;
       case "PROFORMA_INVOICE":
         return <ProformaInvoiceDocument doc={doc} />;
+      case "OFFER_SHEET":
       case "ORDER_SHEET":
         return <OfferSheetDocument doc={doc} />;
       case "QUOTATION":

@@ -308,7 +308,54 @@ export interface QuotationRecord {
   proformaInvoiceId?: string;
 }
 
-export type CommercialDocType = "INVOICE" | "QUOTATION" | "PROFORMA_INVOICE" | "ORDER_SHEET" | "COMMERCIAL_INVOICE" | "PACKING_LIST" | "CHALAN";
+export type CanonicalCommercialDocType = "OFFER_SHEET" | "PROFORMA_INVOICE" | "COMMERCIAL_INVOICE";
+
+export type CommercialDocType =
+  | CanonicalCommercialDocType
+  | "OFFER_SHEET"
+  | "PROFORMA_INVOICE"
+  | "COMMERCIAL_INVOICE"
+  | "INVOICE"
+  | "QUOTATION"
+  | "ORDER_SHEET"
+  | "PACKING_LIST"
+  | "CHALAN";
+
+export interface CanonicalCommercialDocDefinition {
+  key: CanonicalCommercialDocType;
+  slug: "offer_sheet" | "proforma_invoice" | "commercial_invoice";
+  label: string;
+  badge: string;
+  description: string;
+  requiresPayment: boolean;
+}
+
+export const CANONICAL_COMMERCIAL_DOC_TYPES: readonly CanonicalCommercialDocDefinition[] = [
+  {
+    key: "OFFER_SHEET",
+    slug: "offer_sheet",
+    label: "Offer Sheet",
+    badge: "OFFER",
+    description: "Product specifications and commercial offer",
+    requiresPayment: false,
+  },
+  {
+    key: "PROFORMA_INVOICE",
+    slug: "proforma_invoice",
+    label: "Proforma Invoice (PI)",
+    badge: "PI",
+    description: "Provisional commercial terms and payment instructions",
+    requiresPayment: false,
+  },
+  {
+    key: "COMMERCIAL_INVOICE",
+    slug: "commercial_invoice",
+    label: "Commercial Invoice (CI)",
+    badge: "CI",
+    description: "Applicable final commercial and export declaration details",
+    requiresPayment: true,
+  },
+] as const;
 
 export interface OrderShippingSnapshot {
   provider?: "aramex" | "akij" | string;
@@ -548,7 +595,7 @@ export interface OrderDocumentItem {
   id: string;
   doc_type: CommercialDocType;
   type_name: string;
-  badge_code: "PI" | "CI" | "INV" | "OS" | "PL" | "QT";
+  badge_code: "OFFER" | "PI" | "CI" | "INV" | "OS" | "PL" | "QT" | string;
   reference: string;
   date: string;
   date_formatted?: string;

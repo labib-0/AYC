@@ -62,7 +62,7 @@ describe("Customer Document Center — Order-Wise Grouping & Smart Search", () =
   });
 
   // 2. Multiple Documents under One Order
-  it("2. Multiple commercial documents (PI, CI, INV, OS, PL) appear inside one order group", async () => {
+  it("2. Multiple commercial documents (PI, CI, OFFER_SHEET) appear inside one order group", async () => {
     const res = await orderService.getCustomerDocumentGroups({ userId: testCustomerId });
     const paidGroup = res.data.find((g) => g.order.order_number === "AYN-20261007-CZPIV");
     assert.ok(paidGroup, "Paid order group found");
@@ -70,9 +70,7 @@ describe("Customer Document Center — Order-Wise Grouping & Smart Search", () =
     const docTypes = paidGroup.documents.map((d) => d.doc_type);
     assert.ok(docTypes.includes("PROFORMA_INVOICE"), "Must include Proforma Invoice");
     assert.ok(docTypes.includes("COMMERCIAL_INVOICE"), "Must include Commercial Invoice for paid order");
-    assert.ok(docTypes.includes("INVOICE"), "Must include Order Invoice");
-    assert.ok(docTypes.includes("ORDER_SHEET"), "Must include Order Sheet");
-    assert.ok(docTypes.includes("PACKING_LIST"), "Must include Packing List for paid order");
+    assert.ok(docTypes.includes("OFFER_SHEET"), "Must include Offer Sheet");
 
     // All documents in this group must point to the same source order ID
     for (const doc of paidGroup.documents) {
@@ -104,7 +102,7 @@ describe("Customer Document Center — Order-Wise Grouping & Smart Search", () =
     });
     assert.strictEqual(res.data.length, 1, "Exactly one order matches CZPIV");
     assert.strictEqual(res.data[0].order.order_number, "AYN-20261007-CZPIV");
-    assert.ok(res.data[0].documents.length >= 4, "Order group contains all related documents");
+    assert.ok(res.data[0].documents.length >= 3, "Order group contains all related documents");
   });
 
   // 5. Search by PI Number
@@ -140,10 +138,10 @@ describe("Customer Document Center — Order-Wise Grouping & Smart Search", () =
     assert.strictEqual(res.data.length, 1);
     const docs = res.data[0].documents;
     // Must contain both CI and other documents like PI, OS, INV, PL
-    assert.ok(docs.length >= 4, "Complete order group returned with all documents");
+    assert.ok(docs.length >= 3, "Complete order group returned with all documents");
     assert.ok(docs.some((d) => d.doc_type === "COMMERCIAL_INVOICE"), "Has CI");
     assert.ok(docs.some((d) => d.doc_type === "PROFORMA_INVOICE"), "Has PI");
-    assert.ok(docs.some((d) => d.doc_type === "ORDER_SHEET"), "Has Order Sheet");
+    assert.ok(docs.some((d) => d.doc_type === "OFFER_SHEET"), "Has Offer Sheet");
   });
 
   // 8. Filters Preserve Order Grouping
@@ -171,10 +169,8 @@ describe("Customer Document Center — Order-Wise Grouping & Smart Search", () =
 
     const docTypes = unpaidGroup.documents.map((d) => d.doc_type);
     assert.ok(docTypes.includes("PROFORMA_INVOICE"), "Unpaid order still has Proforma Invoice");
-    assert.ok(docTypes.includes("INVOICE"), "Unpaid order still has Order Invoice");
-    assert.ok(docTypes.includes("ORDER_SHEET"), "Unpaid order still has Order Sheet");
+    assert.ok(docTypes.includes("OFFER_SHEET"), "Unpaid order still has Offer Sheet");
     assert.strictEqual(docTypes.includes("COMMERCIAL_INVOICE"), false, "Unpaid order must NOT have Commercial Invoice");
-    assert.strictEqual(docTypes.includes("PACKING_LIST"), false, "Unpaid order must NOT have Packing List");
   });
 
   // 10. Order-Based Pagination
@@ -244,9 +240,7 @@ describe("Customer Document Center — Order-Wise Grouping & Smart Search", () =
     assert.ok(content.includes("getDocTypeBadge"), "Uses getDocTypeBadge");
     assert.ok(content.includes("PROFORMA_INVOICE"), "Handles Proforma Invoice");
     assert.ok(content.includes("COMMERCIAL_INVOICE"), "Handles Commercial Invoice");
-    assert.ok(content.includes("ORDER_SHEET"), "Handles Order Sheet");
-    assert.ok(content.includes("PACKING_LIST"), "Handles Packing List");
-    assert.ok(content.includes("INVOICE"), "Handles Order Invoice");
+    assert.ok(content.includes("OFFER_SHEET"), "Handles Offer Sheet");
 
     // Actions
     assert.ok(content.includes("handleView"), "Preserves handleView modal preview");

@@ -13,7 +13,7 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
     <div className="space-y-6 text-xs font-sans">
       {/* Header */}
       <DocumentHeader
-        badgeText="Commercial Order Sheet"
+        badgeText="Commercial Offer Sheet"
         title={doc.title || "COMMERCIAL OFFER SHEET"}
         docNumber={doc.docNumber}
         date={doc.date}
