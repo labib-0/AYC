@@ -1,7 +1,7 @@
 import { generateMetadata as generateHomepageMetadata } from "../src/app/page";
 import robots from "../src/app/robots";
 import sitemap from "../src/app/sitemap";
-import { CANONICAL_DOMAIN, getCanonicalBaseUrl, canonicalUrl, absoluteUrl, SITE_CONFIG } from "../src/lib/seo";
+import { CANONICAL_DOMAIN, getCanonicalBaseUrl, canonicalUrl, SITE_CONFIG } from "../src/lib/seo";
 import { generateProductJsonLd, generateOrganizationJsonLd, generateWebSiteJsonLd } from "../src/lib/seo";
 import { siteSettingsService } from "../src/services/site-settings.service";
 import { productService } from "../src/services/product.service";
@@ -210,7 +210,9 @@ async function runTests() {
   const disallows = Array.isArray(rules?.disallow) ? rules?.disallow : [rules?.disallow];
 
   assert(allows.includes("/"), "Robots must allow homepage '/'");
+  assert(allows.includes("/sitemap.xml"), "Robots must explicitly allow '/sitemap.xml'");
   assert(allows.includes("/search"), "Robots must allow '/search'");
+  assert(allows.includes("/products"), "Robots must allow '/products'");
   assert(allows.includes("/products/"), "Robots must allow '/products/'");
   assert(allows.includes("/privacy-policy"), "Robots must allow '/privacy-policy'");
   assert(allows.includes("/terms-and-conditions"), "Robots must allow '/terms-and-conditions'");
@@ -484,9 +486,27 @@ async function runTests() {
   assert(!("aggregateRating" in productJsonLd), "Must NOT fabricate fake ratings");
   assert(!("review" in productJsonLd), "Must NOT fabricate fake reviews");
 
-  console.log("\n=================================================================");
-  console.log("✅ ALL 9 GOOGLE SEARCH CONSOLE & TECHNICAL SEO TESTS PASSED (9/9)");
-  console.log("=================================================================\n");
+  // ── TEST 10: SITEMAP & METADATA MULTI-SLASH NORMALIZATION ────────────────
+  console.log("10. Testing Sitemap and Robots.txt Multi-Slash URL Normalization...");
+  const sitemapPattern = /^\/+sitemap\.xml\/?$/i;
+  assert(sitemapPattern.test("//sitemap.xml"), "Pattern must match double-slash '//sitemap.xml'");
+  assert(sitemapPattern.test("///sitemap.xml"), "Pattern must match triple-slash '///sitemap.xml'");
+  assert(sitemapPattern.test("/sitemap.xml"), "Pattern must match standard '/sitemap.xml'");
+  assert(sitemapPattern.test("/sitemap.xml/"), "Pattern must match trailing-slash '/sitemap.xml/'");
+  assert(sitemapPattern.test("//sitemap.xml/"), "Pattern must match double-slash with trailing slash");
+  assert(!sitemapPattern.test("/sitemap.html"), "Pattern must NOT match '/sitemap.html'");
+  assert(!sitemapPattern.test("/products/sitemap.xml"), "Pattern must NOT match subpath '/products/sitemap.xml'");
+
+  const robotsPattern = /^\/+robots\.txt\/?$/i;
+  assert(robotsPattern.test("//robots.txt"), "Pattern must match double-slash '//robots.txt'");
+  assert(robotsPattern.test("///robots.txt"), "Pattern must match triple-slash '///robots.txt'");
+  assert(robotsPattern.test("/robots.txt"), "Pattern must match standard '/robots.txt'");
+  assert(robotsPattern.test("/robots.txt/"), "Pattern must match trailing-slash '/robots.txt/'");
+  assert(!robotsPattern.test("/robots.html"), "Pattern must NOT match '/robots.html'");
+
+  console.log("\n==================================================================");
+  console.log("✅ ALL 10 GOOGLE SEARCH CONSOLE & TECHNICAL SEO TESTS PASSED (10/10)");
+  console.log("==================================================================\n");
 }
 
 runTests().catch((err) => {

@@ -128,6 +128,7 @@ export function HomepageSeoManager({
   const [savedToken, setSavedToken] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [copiedSitemap, setCopiedSitemap] = useState(false);
+  const [copiedGscPath, setCopiedGscPath] = useState(false);
   const [extractedNotice, setExtractedNotice] = useState(false);
 
   // Initialize from props
@@ -218,13 +219,25 @@ export function HomepageSeoManager({
   };
 
   const sitemapUrl = `${CANONICAL_DOMAIN}/sitemap.xml`;
+  const sitemapPath = "sitemap.xml";
 
   const handleCopySitemap = async () => {
     try {
       await navigator.clipboard.writeText(sitemapUrl);
       setCopiedSitemap(true);
-      showToast("Sitemap URL copied to clipboard.", "success");
+      showToast("Full sitemap URL copied to clipboard.", "success");
       setTimeout(() => setCopiedSitemap(false), 2500);
+    } catch {
+      showToast("Unable to copy to clipboard.", "error");
+    }
+  };
+
+  const handleCopyGscPath = async () => {
+    try {
+      await navigator.clipboard.writeText(sitemapPath);
+      setCopiedGscPath(true);
+      showToast("GSC relative path (sitemap.xml) copied.", "success");
+      setTimeout(() => setCopiedGscPath(false), 2500);
     } catch {
       showToast("Unable to copy to clipboard.", "error");
     }
@@ -388,43 +401,73 @@ export function HomepageSeoManager({
         </div>
 
         {/* Sitemap URL Quick Copy Container */}
-        <div className="pt-2 border-t border-border/60">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-secondary/20 p-3 sm:p-4 rounded-xl border border-border/80">
-            <div className="space-y-0.5">
+        <div className="pt-2 border-t border-border/60 space-y-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-secondary/20 p-3 sm:p-4 rounded-xl border border-border/80">
+            <div className="space-y-0.5 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-foreground uppercase tracking-wider">
                   Production XML Sitemap
                 </span>
-                <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary shrink-0">
                   Ready for Crawling
                 </span>
               </div>
-              <p className="text-2xs text-muted-foreground font-mono truncate">
+              <p className="text-2xs text-muted-foreground font-mono truncate" title={sitemapUrl}>
                 {sitemapUrl}
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleCopySitemap}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-card border border-border text-foreground hover:bg-secondary/70 text-xs font-semibold transition-all cursor-pointer shrink-0 shadow-2xs"
-            >
-              {copiedSitemap ? (
-                <>
-                  <Check size={13} className="text-emerald-500" />
-                  <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy size={13} />
-                  <span>Copy Sitemap URL</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleCopySitemap}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-border text-foreground hover:bg-secondary/70 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                title="Copy the complete URL: https://ayaanclothing.com/sitemap.xml"
+              >
+                {copiedSitemap ? (
+                  <>
+                    <Check size={13} className="text-emerald-500" />
+                    <span className="text-emerald-600 dark:text-emerald-400">Copied Full URL!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={13} />
+                    <span>Copy Full URL</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyGscPath}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                title="Copy relative path for Google Search Console: sitemap.xml"
+              >
+                {copiedGscPath ? (
+                  <>
+                    <Check size={13} className="text-emerald-500" />
+                    <span className="text-emerald-600 dark:text-emerald-400">Copied sitemap.xml!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={13} />
+                    <span>Copy GSC Path (sitemap.xml)</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-          <p className="text-2xs text-muted-foreground mt-1.5 px-1">
-            Submit this sitemap under <strong>Sitemaps</strong> in Google Search Console to accelerate discovery of your homepage, catalog, and published product catalog.
-          </p>
+
+          {/* GSC Input Guidance Tip */}
+          <div className="p-3 rounded-xl border border-sky-500/20 bg-sky-500/5 space-y-1.5 text-2xs sm:text-xs">
+            <div className="flex items-center gap-1.5 font-semibold text-sky-700 dark:text-sky-300">
+              <Info size={13} className="shrink-0" />
+              <span>Google Search Console Submission Guidance</span>
+            </div>
+            <p className="text-muted-foreground leading-relaxed">
+              In Google Search Console under <strong>Sitemaps &rarr; Add a new sitemap</strong>, the origin prefix <code className="bg-secondary px-1 py-0.5 rounded text-foreground font-mono">{`${CANONICAL_DOMAIN}/`}</code> is already fixed by Google. Enter only <strong className="text-foreground font-mono">sitemap.xml</strong> (do <em>not</em> type a leading slash <code className="bg-secondary px-1 py-0.5 rounded text-foreground font-mono">/</code> or the full domain, as entering a leading slash produces a double-slash URL like <code className="bg-secondary px-1 py-0.5 rounded text-foreground font-mono">{"//sitemap.xml"}</code> resulting in a fetch redirect error).
+            </p>
+          </div>
         </div>
       </div>
     </section>

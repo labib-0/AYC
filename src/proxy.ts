@@ -23,6 +23,20 @@ export async function proxy(request: NextRequest) {
   // Remove port if present for consistent checking
   const currentHost = hostname.replace(`:${url.port}`, '');
 
+  // ── Sitemap & Metadata URL Normalization ─────────────────────────────────
+  // Handle requests with leading multiple slashes (e.g. //sitemap.xml when submitted
+  // with a leading slash in Google Search Console's prefix-anchored input field).
+  // Internally rewrite directly to canonical path instead of issuing an HTTP 308 redirect,
+  // preventing crawler "Couldn't fetch" errors.
+  if (url.pathname !== '/sitemap.xml' && /^\/+sitemap\.xml\/?$/i.test(url.pathname)) {
+    url.pathname = '/sitemap.xml';
+    return NextResponse.rewrite(url);
+  }
+  if (url.pathname !== '/robots.txt' && /^\/+robots\.txt\/?$/i.test(url.pathname)) {
+    url.pathname = '/robots.txt';
+    return NextResponse.rewrite(url);
+  }
+
   const adminAppUrl = process.env.NEXT_PUBLIC_ADMIN_APP_URL
     ? new URL(process.env.NEXT_PUBLIC_ADMIN_APP_URL)
     : null;
