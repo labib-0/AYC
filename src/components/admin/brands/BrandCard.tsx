@@ -5,12 +5,22 @@ import { Edit2, Trash2, Power, Tag } from "lucide-react";
 import { BrandModel } from "@/services/brand.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { TableDragHandle, TableMoveControls } from "@/components/admin/ordered-list";
 
 export interface BrandCardProps {
   brand: BrandModel;
   onEdit: (brand: BrandModel) => void;
   onToggleStatus: (brand: BrandModel) => void;
   onDelete: (brand: BrandModel) => void;
+  globalIndex?: number;
+  localIndex?: number;
+  isReorderDisabled?: boolean;
+  disabledReason?: string;
+  onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 export default function BrandCard({
@@ -18,9 +28,20 @@ export default function BrandCard({
   onEdit,
   onToggleStatus,
   onDelete,
+  globalIndex = 0,
+  localIndex = 0,
+  isReorderDisabled = false,
+  disabledReason = "Reordering is disabled while search or filters are active.",
+  onPointerDown,
+  onMoveUp,
+  onMoveDown,
+  isFirst = false,
+  isLast = false,
 }: BrandCardProps) {
   const { can } = useAdminAuth();
   const [imgError, setImgError] = useState(false);
+
+  const canReorder = can("brand.edit") || can("brand.manage") || can("brand.reorder");
 
   const rawLogo = brand.logo_url || brand.logo;
   const resolvedLogo = getBrandLogoUrl(brand.name, rawLogo) || rawLogo || "";
@@ -78,9 +99,44 @@ export default function BrandCard({
 
       {/* Card Footer: Product Count & Actions */}
       <div className="flex items-center justify-between pt-2 border-t border-border/60">
-        <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
-          <strong className="text-foreground font-bold">{productCount}</strong> {productCount === 1 ? "product" : "products"}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <TableDragHandle
+            globalIndex={globalIndex}
+            localIndex={localIndex}
+            itemTitle={brand.name}
+            disabled={!canReorder || isReorderDisabled}
+            disabledReason={
+              !canReorder
+                ? "You do not have permission to reorder brands."
+                : disabledReason
+            }
+            onPointerDown={onPointerDown || (() => {})}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+          />
+          <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
+            <strong className="text-foreground font-bold">{productCount}</strong> {productCount === 1 ? "product" : "products"}
+          </span>
+          <span className="text-[10px] font-mono text-muted-foreground">
+            #{brand.sort_order ?? 0}
+          </span>
+          {onMoveUp && onMoveDown && (
+            <TableMoveControls
+              globalIndex={globalIndex}
+              isFirst={isFirst}
+              isLast={isLast}
+              disabled={!canReorder || isReorderDisabled}
+              disabledReason={
+                !canReorder
+                  ? "You do not have permission to reorder brands."
+                  : disabledReason
+              }
+              onMoveUp={onMoveUp}
+              onMoveDown={onMoveDown}
+              itemTitle={brand.name}
+            />
+          )}
+        </div>
 
         <div className="flex items-center gap-1.5">
           {can("brand.edit") && (

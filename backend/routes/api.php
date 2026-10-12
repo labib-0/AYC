@@ -123,6 +123,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/{slugOrId}', [ProductController::class, 'show']);
 
         Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+            Route::put('/reorder', [ProductController::class, 'reorder'])
+                ->middleware('permission:product.edit');
+            Route::post('/reorder', [ProductController::class, 'reorder'])
+                ->middleware('permission:product.edit');
             Route::post('/', [ProductController::class, 'store'])
                 ->middleware('permission:product.create');
             Route::put('/{id}', [ProductController::class, 'update'])
@@ -147,6 +151,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/{slug}', [CategoryController::class, 'show']);
 
         Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+            Route::put('/reorder', [CategoryController::class, 'reorder'])
+                ->middleware('permission:category.edit');
+            Route::post('/reorder', [CategoryController::class, 'reorder'])
+                ->middleware('permission:category.edit');
             Route::post('/', [CategoryController::class, 'store'])
                 ->middleware('permission:category.create');
             Route::put('/{id}', [CategoryController::class, 'update'])
@@ -163,6 +171,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/{slug}', [BrandController::class, 'show']);
 
         Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+            Route::put('/reorder', [BrandController::class, 'reorder'])
+                ->middleware('permission:brand.edit');
+            Route::post('/reorder', [BrandController::class, 'reorder'])
+                ->middleware('permission:brand.edit');
             Route::post('/', [BrandController::class, 'store'])
                 ->middleware('permission:brand.create');
             Route::put('/{id}', [BrandController::class, 'update'])

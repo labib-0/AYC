@@ -23,7 +23,7 @@ const expectedSections = [
   },
   {
     title: "CATALOG",
-    expectedItems: ["Products", "Categories", "Brands", "Inventory"],
+    expectedItems: ["Products", "Categories", "Brands"],
   },
   {
     title: "COMMERCE",
@@ -116,9 +116,9 @@ assert(
 console.log("✔ Add Product verified as prominent contextual action in Products.");
 
 // -----------------------------------------------------------------------------
-// Suite 4: Stock Control Integration into Inventory
+// Suite 4: Inventory Consolidation into Products
 // -----------------------------------------------------------------------------
-console.log("\n▶ Suite 4: Stock Control Integration into Inventory");
+console.log("\n▶ Suite 4: Inventory Consolidation into Products");
 
 const inventorySource = fs.readFileSync(
   path.join(rootDir, "src/app/ayc/inventory/page.tsx"),
@@ -126,23 +126,23 @@ const inventorySource = fs.readFileSync(
 );
 
 assert(
-  inventorySource.includes("Stock Control & Alerts") && inventorySource.includes("btn-tab-inventory"),
-  "Inventory page must have dedicated Stock Control & Alerts tab"
+  productsSource.includes("StockAdjustmentModal"),
+  "Products page must have StockAdjustmentModal integrated"
 );
 assert(
-  inventorySource.includes('tabParam === "stock-control"'),
-  "Inventory page must recognize ?tab=stock-control query parameter"
+  productsSource.includes("InventoryHistoryModal"),
+  "Products page must have InventoryHistoryModal integrated"
 );
 assert(
-  inventorySource.includes("StockAdjustmentModal"),
-  "Inventory page must preserve StockAdjustmentModal capability"
+  productsSource.includes("btn-products-adjust-stock"),
+  "Products page must have Adjust Stock CTA"
 );
 assert(
-  inventorySource.includes("InventoryHistoryModal"),
-  "Inventory page must preserve InventoryHistoryModal audit capability"
+  inventorySource.includes("router.replace(destination)") && inventorySource.includes("/ayc/products"),
+  "Inventory page must seamlessly redirect to Products"
 );
 
-console.log("✔ Stock Control successfully integrated into Inventory with all capabilities preserved.");
+console.log("✔ Inventory successfully consolidated into Products with all capabilities preserved.");
 
 // -----------------------------------------------------------------------------
 // Suite 5: Pending Orders Integration into Orders & Fulfillment

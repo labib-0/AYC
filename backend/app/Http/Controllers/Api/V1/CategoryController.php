@@ -350,4 +350,50 @@ class CategoryController extends ApiController
             ]);
         }
     }
+
+    /**
+     * PUT or POST /api/v1/categories/reorder
+     * Reorder categories persistently by updating their sort_order.
+     */
+    public function reorder(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'category.reorder') && !$this->authorization->can($user, 'category.edit')) {
+            return $this->forbidden("Forbidden: you do not have permission to reorder categories.");
+        }
+
+        $validated = $request->validate([
+            'orders' => ['sometimes', 'array'],
+            'orders.*.id' => ['required_with:orders', 'exists:categories,id'],
+            'orders.*.sort_order' => ['required_with:orders', 'integer', 'min:0'],
+            'ids' => ['sometimes', 'array'],
+            'ids.*' => ['integer', 'exists:categories,id'],
+        ]);
+
+        if (empty($validated['orders']) && empty($validated['ids'])) {
+            return $this->error('Either orders or ids must be provided.', 422);
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
+            if (!empty($validated['orders'])) {
+                foreach ($validated['orders'] as $item) {
+                    Category::where('id', $item['id'])->update(['sort_order' => (int) $item['sort_order']]);
+                }
+            } elseif (!empty($validated['ids'])) {
+                foreach ($validated['ids'] as $idx => $id) {
+                    Category::where('id', $id)->update(['sort_order' => (int) $idx]);
+                }
+            }
+        });
+
+        $this->invalidateCategoryCache(null, 'reorder');
+
+        $categories = Category::with(['parent', 'children'])
+            ->withCount('products')
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('name', 'asc')
+            ->get();
+
+        return $this->success(CategoryResource::collection($categories), 'Categories reordered successfully');
+    }
 }

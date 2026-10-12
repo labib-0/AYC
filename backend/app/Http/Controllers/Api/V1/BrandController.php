@@ -313,4 +313,49 @@ class BrandController extends ApiController
             ]);
         }
     }
+
+    /**
+     * PUT or POST /api/v1/brands/reorder
+     * Reorder brands persistently by updating their sort_order.
+     */
+    public function reorder(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'brand.reorder') && !$this->authorization->can($user, 'brand.edit')) {
+            return $this->forbidden("Forbidden: you do not have permission to reorder brands.");
+        }
+
+        $validated = $request->validate([
+            'orders' => ['sometimes', 'array'],
+            'orders.*.id' => ['required_with:orders', 'exists:brands,id'],
+            'orders.*.sort_order' => ['required_with:orders', 'integer', 'min:0'],
+            'ids' => ['sometimes', 'array'],
+            'ids.*' => ['integer', 'exists:brands,id'],
+        ]);
+
+        if (empty($validated['orders']) && empty($validated['ids'])) {
+            return $this->error('Either orders or ids must be provided.', 422);
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
+            if (!empty($validated['orders'])) {
+                foreach ($validated['orders'] as $item) {
+                    Brand::where('id', $item['id'])->update(['sort_order' => (int) $item['sort_order']]);
+                }
+            } elseif (!empty($validated['ids'])) {
+                foreach ($validated['ids'] as $idx => $id) {
+                    Brand::where('id', $id)->update(['sort_order' => (int) $idx]);
+                }
+            }
+        });
+
+        $this->invalidateBrandCache(null, 'reorder');
+
+        $brands = Brand::withCount('products')
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('name', 'asc')
+            ->get();
+
+        return $this->success(BrandResource::collection($brands), 'Brands reordered successfully');
+    }
 }

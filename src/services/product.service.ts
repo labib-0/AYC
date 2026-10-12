@@ -35,7 +35,7 @@ export interface ProductQueryParams {
   isPreorder?: boolean;
   is_sold_out?: boolean;
   isSoldOut?: boolean;
-  availability?: "ready_stock" | "preorder" | "sold_out" | "all";
+  availability?: "ready_stock" | "preorder" | "sold_out" | "low_stock" | "out_of_stock" | "all";
   in_stock?: boolean;
   sort?: string;
   sort_by?: "price_asc" | "price_desc" | "newest" | "popular" | "hot" | "featured" | "name_asc" | "name_desc";
@@ -493,6 +493,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     shippingPackageProfiles: shippingPackageProfiles,
     shipping_package_profiles: shippingPackageProfiles,
     isPackageAssortment: isPackageAssortment,
+    sort_order: p.sort_order !== undefined ? Number(p.sort_order) : (p.sortOrder !== undefined ? Number(p.sortOrder) : 0),
+    sortOrder: p.sort_order !== undefined ? Number(p.sort_order) : (p.sortOrder !== undefined ? Number(p.sortOrder) : 0),
     createdAt: p.createdAt || p.created_at || undefined,
     created_at: p.created_at || p.createdAt || undefined,
     updatedAt: p.updatedAt || p.updated_at || undefined,
@@ -1337,6 +1339,14 @@ export class ProductService {
         if (options.availability === 'ready_stock' && (p.isPreorder || p.isSoldOut)) return false;
         if (options.availability === 'preorder' && !p.isPreorder) return false;
         if (options.availability === 'sold_out' && !p.isSoldOut) return false;
+        if (options.availability === 'low_stock') {
+          const s = p.availableStock !== undefined ? Number(p.availableStock) : Number(p.stock || 0);
+          if (s <= 0 || s >= 200) return false;
+        }
+        if (options.availability === 'out_of_stock') {
+          const s = p.availableStock !== undefined ? Number(p.availableStock) : Number(p.stock || 0);
+          if (s > 0) return false;
+        }
       }
       return true;
     });
@@ -1344,7 +1354,9 @@ export class ProductService {
     // Sorting
     const sort = options?.sort_by || options?.sort;
     if (sort) {
-      if (sort === "price_asc") {
+      if (sort === "manual" || sort === "sort_order") {
+        result.sort((a, b) => ((a.sort_order ?? a.sortOrder ?? 0) - (b.sort_order ?? b.sortOrder ?? 0)));
+      } else if (sort === "price_asc") {
         result.sort((a, b) => (a.standardPrice ?? a.wholesalePrice ?? 0) - (b.standardPrice ?? b.wholesalePrice ?? 0));
       } else if (sort === "price_desc") {
         result.sort((a, b) => (b.standardPrice ?? b.wholesalePrice ?? 0) - (a.standardPrice ?? a.wholesalePrice ?? 0));
@@ -1361,8 +1373,34 @@ export class ProductService {
 
     return result;
   }
+
+  /**
+   * Persistent bulk reordering of products
+   */
+  async reorderProducts(
+    orders: Array<{ id: string | number; sort_order: number }> | (string | number)[]
+  ): Promise<B2BProductInput[]> {
+    if (!isFrontendOnly()) {
+      const payload =
+        Array.isArray(orders) && orders.length > 0 && typeof orders[0] === "object"
+          ? { orders }
+          : { ids: orders };
+      await apiClient.put("/products/reorder", payload);
+      return this.getProducts({ all: true, isAdmin: true, sort: "manual" });
+    }
+
+    const normalizedOrders =
+      Array.isArray(orders) && orders.length > 0 && typeof orders[0] === "object"
+        ? (orders as Array<{ id: string | number; sort_order: number }>)
+        : (orders as (string | number)[]).map((id, idx) => ({ id, sort_order: idx }));
+
+    mockStore.reorderProducts(normalizedOrders);
+    return this.getProducts({ all: true, isAdmin: true, sort: "manual" });
+  }
 }
 
 export const productService = new ProductService();
 export const toggleProductStorefrontVisibility = (id: string, isHidden?: boolean) =>
   productService.toggleProductStorefrontVisibility(id, isHidden);
+export const reorderProducts = (orders: Array<{ id: string | number; sort_order: number }> | (string | number)[]) =>
+  productService.reorderProducts(orders);

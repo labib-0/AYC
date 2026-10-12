@@ -246,9 +246,47 @@ export class CategoryService {
   async deleteCategory(id: number | string): Promise<boolean> {
     if (!isFrontendOnly()) {
       await apiClient.delete(`/categories/${id}`);
+      this.invalidateCache();
       return true;
     }
     return mockStore.deleteCategory(id);
+  }
+
+  /**
+   * Persistent bulk reordering of categories
+   */
+  async reorderCategories(
+    orders: Array<{ id: string | number; sort_order: number }> | (string | number)[]
+  ): Promise<CategoryModel[]> {
+    if (!isFrontendOnly()) {
+      const payload =
+        Array.isArray(orders) && orders.length > 0 && typeof orders[0] === "object"
+          ? { orders }
+          : { ids: orders };
+      const res = await apiClient.put<any>("/categories/reorder", payload);
+      this.invalidateCache();
+      const items = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(items)) {
+        return items.map((c) => {
+          const resolvedImg = getCategoryImageUrl(c.slug || c.name, c.image_url || c.image);
+          return {
+            ...c,
+            image: resolvedImg,
+            image_url: resolvedImg,
+          };
+        });
+      }
+      return this.getCategories({ all: true, isAdmin: true });
+    }
+
+    const normalizedOrders =
+      Array.isArray(orders) && orders.length > 0 && typeof orders[0] === "object"
+        ? (orders as Array<{ id: string | number; sort_order: number }>)
+        : (orders as (string | number)[]).map((id, idx) => ({ id, sort_order: idx }));
+
+    mockStore.reorderCategories(normalizedOrders);
+    this.invalidateCache();
+    return this.getCategories({ all: true, isAdmin: true });
   }
 }
 

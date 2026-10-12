@@ -13,12 +13,15 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  SlidersHorizontal,
+  History,
 } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
 import { LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { getProductCanonicalUrl } from "@/config/business-profile";
+import { TableDragHandle, TableMoveControls } from "@/components/admin/ordered-list";
 
 interface ProductTableRowProps {
   product: B2BProductInput;
@@ -28,6 +31,18 @@ interface ProductTableRowProps {
   onToggleStorefrontVisibility?: (product: B2BProductInput) => void;
   onDuplicate: (product: B2BProductInput) => void;
   onDelete: (product: B2BProductInput) => void;
+  onAdjustStock?: (product: B2BProductInput) => void;
+  onViewStockHistory?: (product: B2BProductInput) => void;
+  globalIndex?: number;
+  localIndex?: number;
+  isReorderDisabled?: boolean;
+  disabledReason?: string;
+  onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
+  rowVisualClass?: string;
 }
 
 export default function ProductTableRow({
@@ -38,9 +53,24 @@ export default function ProductTableRow({
   onToggleStorefrontVisibility,
   onDuplicate,
   onDelete,
+  onAdjustStock,
+  onViewStockHistory,
+  globalIndex = 0,
+  localIndex = 0,
+  isReorderDisabled = false,
+  disabledReason = "Reordering is disabled while search or filters are active.",
+  onPointerDown,
+  onMoveUp,
+  onMoveDown,
+  isFirst = false,
+  isLast = false,
+  rowVisualClass = "",
 }: ProductTableRowProps) {
   const pathname = usePathname();
-  const { can } = useAdminAuth();
+  const { can, isSuperAdmin } = useAdminAuth();
+  const canReorder = can("product.edit") || can("product.manage");
+  const canAdjustStock = isSuperAdmin || can("inventory.adjust") || can("product.edit");
+  const canViewHistory = isSuperAdmin || can("inventory.audit") || can("inventory.view") || can("product.view");
   const [menuOpen, setMenuOpen] = useState(false);
   const [storefrontBase, setStorefrontBase] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
@@ -94,7 +124,28 @@ export default function ProductTableRow({
   const storefrontHref = getProductCanonicalUrl(product);
 
   return (
-    <tr className="border-b border-border/40 hover:bg-secondary/40 transition-colors group">
+    <tr
+      data-ordered-row
+      className={`border-b border-border/40 hover:bg-secondary/40 transition-colors group ${rowVisualClass}`}
+    >
+      {/* 0. Reorder Drag Handle */}
+      <td className="px-1 py-1.5 w-9 text-center" style={{ width: "36px" }}>
+        <TableDragHandle
+          globalIndex={globalIndex}
+          localIndex={localIndex}
+          itemTitle={product.name}
+          disabled={!canReorder || isReorderDisabled}
+          disabledReason={
+            !canReorder
+              ? "You do not have permission to reorder products."
+              : disabledReason
+          }
+          onPointerDown={onPointerDown || (() => {})}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+        />
+      </td>
+
       {/* Checkbox */}
       <td className="px-1.5 py-1.5 w-8 text-center" style={{ width: "32px" }}>
         <input
@@ -241,15 +292,30 @@ export default function ProductTableRow({
       {/* Available Stock */}
       <td className="px-1 py-1.5 w-[60px] text-right whitespace-nowrap" style={{ width: "60px" }}>
         <div className="text-right leading-tight">
-          <span
-            className={`text-xs font-bold tabular-nums ${
-              isLowStock
-                ? "text-red-600 dark:text-red-400"
-                : "text-foreground"
-            }`}
-          >
-            {availableStock.toLocaleString()}
-          </span>
+          {canAdjustStock && onAdjustStock ? (
+            <button
+              type="button"
+              onClick={() => onAdjustStock(product)}
+              className={`text-xs font-bold tabular-nums hover:underline cursor-pointer inline-flex items-center justify-end ${
+                isLowStock
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-foreground hover:text-primary"
+              }`}
+              title="Click to adjust stock"
+            >
+              {availableStock.toLocaleString()}
+            </button>
+          ) : (
+            <span
+              className={`text-xs font-bold tabular-nums ${
+                isLowStock
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-foreground"
+              }`}
+            >
+              {availableStock.toLocaleString()}
+            </span>
+          )}
           <span className="text-[9px] text-muted-foreground ml-0.5">pcs</span>
           {isLowStock && (
             <span className="block text-[8px] font-bold uppercase text-red-500 dark:text-red-400 leading-none mt-0.5">
@@ -315,19 +381,37 @@ export default function ProductTableRow({
 
       {/* Actions */}
       <td
-        className={`px-1 py-1.5 w-[42px] text-center sticky right-0 bg-card group-hover:bg-secondary/40 transition-colors ${
+        className={`px-1 py-1.5 w-[78px] text-center sticky right-0 bg-card group-hover:bg-secondary/40 transition-colors ${
           menuOpen ? "z-40" : "z-10"
         }`}
-        style={{ width: "42px" }}
+        style={{ width: "78px" }}
       >
-        <div className="relative inline-block" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer mx-auto"
-            aria-label={`Actions for ${product.name}`}
-          >
-            <MoreHorizontal size={14} />
-          </button>
+        <div className="flex items-center justify-center gap-1">
+          {onMoveUp && onMoveDown && (
+            <TableMoveControls
+              globalIndex={globalIndex}
+              isFirst={isFirst}
+              isLast={isLast}
+              disabled={!canReorder || isReorderDisabled}
+              disabledReason={
+                !canReorder
+                  ? "You do not have permission to reorder products."
+                  : disabledReason
+              }
+              onMoveUp={onMoveUp}
+              onMoveDown={onMoveDown}
+              itemTitle={product.name}
+            />
+          )}
+
+          <div className="relative inline-block" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer mx-auto"
+              aria-label={`Actions for ${product.name}`}
+            >
+              <MoreHorizontal size={14} />
+            </button>
 
           {menuOpen && (
             <div className="absolute right-0 top-7 z-50 w-48 rounded-xl border border-border/80 bg-card p-1 shadow-lg animate-in fade-in zoom-in-95 duration-100 text-left">
@@ -340,6 +424,34 @@ export default function ProductTableRow({
                   <Edit size={13} />
                   Edit Product
                 </Link>
+              )}
+
+              {canAdjustStock && onAdjustStock && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onAdjustStock(product);
+                  }}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
+                >
+                  <SlidersHorizontal size={13} className="text-primary" />
+                  Adjust Stock
+                </button>
+              )}
+
+              {canViewHistory && onViewStockHistory && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onViewStockHistory(product);
+                  }}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
+                >
+                  <History size={13} className="text-muted-foreground" />
+                  Stock Movement History
+                </button>
               )}
 
               <a
@@ -430,6 +542,7 @@ export default function ProductTableRow({
               )}
             </div>
           )}
+        </div>
         </div>
       </td>
     </tr>

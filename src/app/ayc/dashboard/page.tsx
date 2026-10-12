@@ -185,13 +185,13 @@ export default function AdminDashboardPage() {
                 />
               )}
 
-              {can("inventory.view") && (
+              {(can("inventory.view") || can("product.view")) && (
                 <DashboardMetricCard
                   label="LOW STOCK"
                   value={metrics.low_stock_items}
                   icon={AlertTriangle}
                   variant={metrics.low_stock_items > 0 ? "warning" : "default"}
-                  href="/ayc/inventory"
+                  href="/ayc/products?availability=low_stock"
                   subtext="Below bulk MOQ"
                 />
               )}

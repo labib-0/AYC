@@ -156,6 +156,8 @@ export interface B2BProductInput {
   seo_description?: string;
   keywords?: string[];
   seo_keywords?: string[];
+  sort_order?: number;
+  sortOrder?: number;
   createdAt?: string | null;
   created_at?: string | null;
   updatedAt?: string | null;

@@ -1,11 +1,12 @@
 "use client";
 
-import { CheckSquare, ArrowUpCircle, ArrowDownCircle, X } from "lucide-react";
+import { CheckSquare, ArrowUpCircle, ArrowDownCircle, SlidersHorizontal, X } from "lucide-react";
 
 interface ProductBulkActionsProps {
   selectedCount: number;
   onBulkPublish: () => void;
   onBulkUnpublish: () => void;
+  onBulkAdjustStock?: () => void;
   onClearSelection: () => void;
   loading?: boolean;
 }
@@ -14,6 +15,7 @@ export default function ProductBulkActions({
   selectedCount,
   onBulkPublish,
   onBulkUnpublish,
+  onBulkAdjustStock,
   onClearSelection,
   loading,
 }: ProductBulkActionsProps) {
@@ -34,7 +36,7 @@ export default function ProductBulkActions({
       <button
         onClick={onBulkPublish}
         disabled={loading}
-        className="h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+        className="h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
       >
         <ArrowUpCircle size={12} />
         Publish
@@ -43,11 +45,22 @@ export default function ProductBulkActions({
       <button
         onClick={onBulkUnpublish}
         disabled={loading}
-        className="h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-amber-600 text-white hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+        className="h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-amber-600 text-white hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
       >
         <ArrowDownCircle size={12} />
         Unpublish
       </button>
+
+      {onBulkAdjustStock && (
+        <button
+          onClick={onBulkAdjustStock}
+          disabled={loading}
+          className="h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+        >
+          <SlidersHorizontal size={12} />
+          Adjust Stock
+        </button>
+      )}
 
       <button
         onClick={onClearSelection}

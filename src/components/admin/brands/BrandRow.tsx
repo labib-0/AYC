@@ -5,12 +5,23 @@ import { Edit2, Trash2, Power, ExternalLink, Tag } from "lucide-react";
 import { BrandModel } from "@/services/brand.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { TableDragHandle, TableMoveControls } from "@/components/admin/ordered-list";
 
 interface BrandRowProps {
   brand: BrandModel;
   onEdit: (brand: BrandModel) => void;
   onToggleStatus: (brand: BrandModel) => void;
   onDelete: (brand: BrandModel) => void;
+  globalIndex?: number;
+  localIndex?: number;
+  isReorderDisabled?: boolean;
+  disabledReason?: string;
+  onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
+  rowVisualClass?: string;
 }
 
 export default function BrandRow({
@@ -18,9 +29,21 @@ export default function BrandRow({
   onEdit,
   onToggleStatus,
   onDelete,
+  globalIndex = 0,
+  localIndex = 0,
+  isReorderDisabled = false,
+  disabledReason = "Reordering is disabled while search or filters are active.",
+  onPointerDown,
+  onMoveUp,
+  onMoveDown,
+  isFirst = false,
+  isLast = false,
+  rowVisualClass = "",
 }: BrandRowProps) {
   const { can } = useAdminAuth();
   const [imgError, setImgError] = useState(false);
+
+  const canReorder = can("brand.edit") || can("brand.manage") || can("brand.reorder");
 
   // Resolve logo using explicit brand logo, falling back to brand logo dictionary
   const rawLogo = brand.logo_url || brand.logo;
@@ -29,9 +52,31 @@ export default function BrandRow({
 
   const isActive = brand.is_active !== false;
   const productCount = brand.products_count ?? 0;
+  const sortOrder = brand.sort_order ?? 0;
 
   return (
-    <tr className="border-b border-border/60 hover:bg-secondary/30 transition-colors group">
+    <tr
+      data-ordered-row
+      className={`border-b border-border/60 hover:bg-secondary/30 transition-colors group ${rowVisualClass}`}
+    >
+      {/* 0. Reorder Drag Handle Column */}
+      <td className="py-3 px-2 w-10 text-center">
+        <TableDragHandle
+          globalIndex={globalIndex}
+          localIndex={localIndex}
+          itemTitle={brand.name}
+          disabled={!canReorder || isReorderDisabled}
+          disabledReason={
+            !canReorder
+              ? "You do not have permission to reorder brands."
+              : disabledReason
+          }
+          onPointerDown={onPointerDown || (() => {})}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+        />
+      </td>
+
       {/* 1. Logo Column */}
       <td className="py-3 px-4 w-28">
         <div className="w-20 h-11 rounded-xl bg-card border border-border/80 flex items-center justify-center p-1.5 overflow-hidden shadow-2xs group-hover:border-foreground/20 transition-colors">
@@ -96,7 +141,30 @@ export default function BrandRow({
         </span>
       </td>
 
-      {/* 5. Status Column */}
+      {/* 5. Sort Order Column */}
+      <td className="py-3 px-4 text-xs font-mono text-muted-foreground tabular-nums">
+        <div className="flex items-center gap-2">
+          <span>#{sortOrder}</span>
+          {onMoveUp && onMoveDown && (
+            <TableMoveControls
+              globalIndex={globalIndex}
+              isFirst={isFirst}
+              isLast={isLast}
+              disabled={!canReorder || isReorderDisabled}
+              disabledReason={
+                !canReorder
+                  ? "You do not have permission to reorder brands."
+                  : disabledReason
+              }
+              onMoveUp={onMoveUp}
+              onMoveDown={onMoveDown}
+              itemTitle={brand.name}
+            />
+          )}
+        </div>
+      </td>
+
+      {/* 6. Status Column */}
       <td className="py-3 px-4">
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${

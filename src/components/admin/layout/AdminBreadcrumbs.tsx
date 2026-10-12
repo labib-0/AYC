@@ -58,7 +58,7 @@ export function getAdminBreadcrumbs(pathname: string): BreadcrumbItem[] {
   }
   if (pathname === "/ayc/inventory") {
     items.push({ label: "Catalog" });
-    items.push({ label: "Inventory", isCurrent: true });
+    items.push({ label: "Products", href: "/ayc/products", isCurrent: true });
     return items;
   }
 

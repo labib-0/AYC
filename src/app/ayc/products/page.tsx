@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, SlidersHorizontal, CheckCircle2, AlertTriangle, X } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import {
   getProducts,
@@ -11,6 +11,7 @@ import {
   deleteProduct,
   duplicateProduct,
   togglePublishStatus,
+  reorderProducts,
 } from "@/lib/services/products";
 import { brandService } from "@/services/brand.service";
 import { categoryService } from "@/services/category.service";
@@ -28,15 +29,65 @@ import {
   ProductToast,
 } from "@/components/admin/products";
 import type { ProductFilters, ToastMessage } from "@/components/admin/products";
-import { LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
+import {
+  adminInventoryService,
+  InventoryRecord,
+  LOW_STOCK_THRESHOLD,
+} from "@/services/admin/inventory.service";
+import {
+  StockAdjustmentModal,
+  InventoryHistoryModal,
+} from "@/components/admin/inventory";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 import { PermissionGate } from "@/components/admin/auth/PermissionGate";
 import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
+import { useTableReorder, TableReorderBanner } from "@/components/admin/ordered-list";
+
+function mapProductToInventoryRecord(product: B2BProductInput): InventoryRecord {
+  const parsedId =
+    typeof product.id === "number"
+      ? product.id
+      : parseInt(String(product.id).replace(/\D/g, ""), 10) || 1;
+  const stock =
+    product.availableStock !== undefined
+      ? Number(product.availableStock)
+      : Number(product.stock || 0);
+
+  return {
+    id: parsedId,
+    product_id: typeof product.id === "number" ? product.id : (parsedId || null),
+    warehouse_id: 1,
+    quantity: stock,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    product: {
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      sku: product.sku || product.productId || "—",
+      wholesale_price: product.wholesalePrice,
+      brand: product.brand,
+      category: product.categoryName,
+      images: product.images,
+    },
+    warehouse: {
+      id: 1,
+      name: "Uttara Warehouse",
+      code: "WH-UTTARA-01",
+      city: "Dhaka",
+      country_code: "BD",
+    },
+  };
+}
 
 
 function AdminProductsContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { can, isSuperAdmin } = useAdminAuth();
+  const canAdjustStock = isSuperAdmin || can("inventory.adjust") || can("product.edit");
+  const canViewHistory = isSuperAdmin || can("inventory.audit") || can("inventory.view") || can("product.view");
 
   // Read initial status filter from URL if present
   const initialStatusParam = searchParams.get("status");
@@ -44,6 +95,15 @@ function AdminProductsContent() {
     initialStatusParam === "draft" || initialStatusParam === "published"
       ? initialStatusParam
       : "all";
+
+  // Initial availability parameter from URL or redirect
+  const tabParam = searchParams.get("tab");
+  const availParam = searchParams.get("availability");
+  const stockControlParam = searchParams.get("stock_control");
+  const initialAvailability =
+    tabParam === "stock-control" || availParam === "low_stock" || stockControlParam === "true"
+      ? "low_stock"
+      : (availParam || "all");
 
   // ── Data State ──
   const [allProducts, setAllProducts] = useState<B2BProductInput[]>([]);
@@ -68,10 +128,10 @@ function AdminProductsContent() {
     category: "all",
     designType: "all",
     purchasePriceStatus: "all",
-    availability: "all",
+    availability: initialAvailability,
   });
 
-  // ── Sync URL with Status Filter ──
+  // ── Sync URL with Status & Availability Filter ──
   useEffect(() => {
     if (typeof window === "undefined") return;
     const currentParams = new URLSearchParams(window.location.search);
@@ -80,10 +140,25 @@ function AdminProductsContent() {
     } else {
       currentParams.delete("status");
     }
+    if (filters.availability && filters.availability !== "all") {
+      currentParams.set("availability", filters.availability);
+    } else {
+      currentParams.delete("availability");
+    }
     const queryString = currentParams.toString();
     const targetUrl = `${pathname}${queryString ? `?${queryString}` : ""}`;
     window.history.replaceState(null, "", targetUrl);
-  }, [filters.status, pathname]);
+  }, [filters.status, filters.availability, pathname]);
+
+  // Handle URL redirect query params from former /ayc/inventory
+  useEffect(() => {
+    const currentTab = searchParams.get("tab");
+    const currentAvail = searchParams.get("availability");
+    const currentStockControl = searchParams.get("stock_control");
+    if (currentTab === "stock-control" || currentAvail === "low_stock" || currentStockControl === "true") {
+      setFilters((prev) => ({ ...prev, availability: "low_stock" }));
+    }
+  }, [searchParams]);
 
   // ── Pagination ──
   const [currentPage, setCurrentPage] = useState(1);
@@ -96,6 +171,21 @@ function AdminProductsContent() {
   const [deleteTarget, setDeleteTarget] = useState<B2BProductInput | null>(null);
   const [duplicateTarget, setDuplicateTarget] = useState<B2BProductInput | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
+
+  // ── Inventory Integration Modals ──
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [adjustingItem, setAdjustingItem] = useState<InventoryRecord | null>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [historyItem, setHistoryItem] = useState<InventoryRecord | null>(null);
+
+  // ── Bulk Stock Adjustment State ──
+  const [isBulkAdjustOpen, setIsBulkAdjustOpen] = useState(false);
+  const [bulkDeltaQuantity, setBulkDeltaQuantity] = useState("50");
+  const [bulkDeltaSign, setBulkDeltaSign] = useState<"+" | "-">("+");
+  const [bulkReason, setBulkReason] = useState("New Stock Received");
+  const [bulkNotes, setBulkNotes] = useState("");
+  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   // ── Toast ──
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -192,9 +282,15 @@ function AdminProductsContent() {
         filtered = filtered.filter((p) => {
           const isPreorder = Boolean(p.isPreorder || (p as any).is_preorder);
           const isSoldOut = Boolean(p.isSoldOut || (p as any).is_sold_out);
+          const stock =
+            p.availableStock !== undefined
+              ? Number(p.availableStock)
+              : Number(p.stock || 0);
           if (avail === "preorder") return isPreorder;
-          if (avail === "sold_out") return isSoldOut;
-          if (avail === "ready_stock") return !isPreorder && !isSoldOut;
+          if (avail === "sold_out") return isSoldOut || stock <= 0;
+          if (avail === "low_stock") return stock > 0 && stock < LOW_STOCK_THRESHOLD;
+          if (avail === "out_of_stock") return stock <= 0;
+          if (avail === "ready_stock") return !isPreorder && !isSoldOut && stock >= LOW_STOCK_THRESHOLD;
           return true;
         });
       }
@@ -261,6 +357,26 @@ function AdminProductsContent() {
     filters.designType !== "all" ||
     filters.purchasePriceStatus !== "all" ||
     Boolean(filters.availability && filters.availability !== "all");
+
+  // Persistent Reordering Hook
+  const reorder = useTableReorder<B2BProductInput>({
+    items: allProducts,
+    onItemsChange: setAllProducts,
+    getItemId: (p) => p.id,
+    getItemTitle: (p) => p.name,
+    isReorderDisabled: hasActiveFilters,
+    disabledReason:
+      "Reordering is disabled while search or catalog filters are active. Clear filters to return to manual sequence.",
+    currentPage: safePage,
+    pageSize: perPage,
+    onPageChange: setCurrentPage,
+    onPersistOrder: async (newItems) => {
+      await reorderProducts(
+        newItems.map((p, idx) => ({ id: p.id, sort_order: idx + 1 }))
+      );
+    },
+    showToast: (message, type) => addToast(type, message),
+  });
 
   // ── Status Filter Click from Summary Cards ──
   const handleStatusFilterClick = (targetStatus: "all" | "published" | "draft") => {
@@ -426,6 +542,113 @@ function AdminProductsContent() {
     });
   };
 
+  // ── Inventory Integration Actions ──
+  const inventoryRecords: InventoryRecord[] = allProducts.map(mapProductToInventoryRecord);
+
+  const handleToggleLowStockFilter = () => {
+    setFilters((prev) => ({
+      ...prev,
+      availability: prev.availability === "low_stock" ? "all" : "low_stock",
+    }));
+  };
+
+  const handleOpenGlobalAdjust = () => {
+    setAdjustingItem(null);
+    setIsAdjustModalOpen(true);
+  };
+
+  const handleOpenRowAdjust = (product: B2BProductInput) => {
+    setAdjustingItem(mapProductToInventoryRecord(product));
+    setIsAdjustModalOpen(true);
+  };
+
+  const handleOpenRowHistory = (product: B2BProductInput) => {
+    setHistoryItem(mapProductToInventoryRecord(product));
+    setIsHistoryModalOpen(true);
+  };
+
+  const handleMutationSuccess = (message: string) => {
+    addToast("success", message);
+    Promise.all([loadProducts(), loadGlobalMetrics()]);
+  };
+
+  const handleOpenBulkAdjust = () => {
+    setBulkError(null);
+    setBulkDeltaQuantity("50");
+    setBulkDeltaSign("+");
+    setBulkReason("New Stock Received");
+    setBulkNotes("");
+    setIsBulkAdjustOpen(true);
+  };
+
+  const handleBulkAdjustSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const rawDelta = parseInt(bulkDeltaQuantity, 10);
+    if (isNaN(rawDelta) || rawDelta <= 0) {
+      setBulkError("Please enter a valid positive quantity delta.");
+      return;
+    }
+    if (!bulkReason.trim()) {
+      setBulkError("Please specify a reason for this inventory adjustment.");
+      return;
+    }
+
+    const signedDelta = bulkDeltaSign === "+" ? rawDelta : -rawDelta;
+    const selectedProducts = allProducts.filter((p) => selectedIds.has(p.id));
+
+    if (signedDelta < 0) {
+      const invalidProduct = selectedProducts.find((p) => {
+        const curStock =
+          p.availableStock !== undefined
+            ? Number(p.availableStock)
+            : Number(p.stock || 0);
+        return curStock + signedDelta < 0;
+      });
+      if (invalidProduct) {
+        setBulkError(
+          `Adjustment would reduce stock below zero for ${invalidProduct.name} (Current: ${invalidProduct.stock || 0}).`
+        );
+        return;
+      }
+    }
+
+    setIsBulkSubmitting(true);
+    setBulkError(null);
+    let updatedCount = 0;
+
+    try {
+      for (const product of selectedProducts) {
+        const parsedId =
+          typeof product.id === "number"
+            ? product.id
+            : parseInt(String(product.id).replace(/\D/g, ""), 10) || 1;
+        await adminInventoryService.adjustInventory({
+          product_id: product.id,
+          inventory_id: parsedId,
+          adjustment_amount: signedDelta,
+          reason: bulkReason.trim(),
+          notes: bulkNotes.trim() || undefined,
+        });
+        updatedCount++;
+      }
+
+      addToast(
+        "success",
+        `Successfully adjusted stock (${bulkDeltaSign}${rawDelta} units) across ${updatedCount} products.`
+      );
+      setIsBulkAdjustOpen(false);
+      setSelectedIds(new Set());
+      await Promise.all([loadProducts(), loadGlobalMetrics()]);
+    } catch (err: unknown) {
+      setBulkError(
+        (err as Error)?.message ||
+          "Failed to complete bulk adjustment. Please verify input."
+      );
+    } finally {
+      setIsBulkSubmitting(false);
+    }
+  };
+
   const isUnderAdminPath = pathname.startsWith("/ayc") || pathname.startsWith("/admin");
   const addProductHref = isUnderAdminPath ? "/ayc/products/new" : "/products/new";
 
@@ -436,19 +659,33 @@ function AdminProductsContent() {
         <div>
           <h1 className="text-lg font-bold text-foreground tracking-tight">Products</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Manage your wholesale product catalog.
+            Manage your wholesale product catalog and warehouse inventory.
           </p>
         </div>
-        <PermissionGate permission="product.create">
-          <Link
-            href={addProductHref}
-            id="btn-add-product-contextual"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:bg-foreground/90 transition-all shadow-xs shrink-0 cursor-pointer"
-          >
-            <Plus size={14} />
-            <span>Add Product</span>
-          </Link>
-        </PermissionGate>
+        <div className="flex items-center gap-2 flex-wrap">
+          {canAdjustStock && (
+            <button
+              type="button"
+              id="btn-products-adjust-stock"
+              onClick={handleOpenGlobalAdjust}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-secondary border border-border/80 text-foreground hover:bg-secondary/80 transition-all shadow-xs shrink-0 cursor-pointer"
+              title="Record verified stock adjustments"
+            >
+              <SlidersHorizontal size={14} className="text-primary" />
+              <span>Adjust Stock</span>
+            </button>
+          )}
+          <PermissionGate permission="product.create">
+            <Link
+              href={addProductHref}
+              id="btn-add-product-contextual"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background hover:bg-foreground/90 transition-all shadow-xs shrink-0 cursor-pointer"
+            >
+              <Plus size={14} />
+              <span>Add Product</span>
+            </Link>
+          </PermissionGate>
+        </div>
       </div>
 
       {/* Summary Metrics (Clickable Draft and other status cards) */}
@@ -460,6 +697,8 @@ function AdminProductsContent() {
         purchasePricePending={globalMetrics.purchasePricePending}
         activeStatus={filters.status}
         onStatusClick={handleStatusFilterClick}
+        onLowStockClick={handleToggleLowStockFilter}
+        isLowStockActive={filters.availability === "low_stock"}
         onPurchasePricePendingClick={() =>
           setFilters((f) => ({
             ...f,
@@ -482,7 +721,16 @@ function AdminProductsContent() {
         selectedCount={selectedIds.size}
         onBulkPublish={handleBulkPublish}
         onBulkUnpublish={handleBulkUnpublish}
+        onBulkAdjustStock={canAdjustStock ? handleOpenBulkAdjust : undefined}
         onClearSelection={() => setSelectedIds(new Set())}
+      />
+
+      {/* Reorder Status & Filter Guard Banner */}
+      <TableReorderBanner
+        isSaving={reorder.isSaving}
+        isReorderDisabled={reorder.isReorderDisabled}
+        disabledReason={reorder.disabledReason}
+        onClearFilters={handleClearFilters}
       />
 
       {/* Product Table */}
@@ -497,9 +745,20 @@ function AdminProductsContent() {
         onToggleStorefrontVisibility={handleToggleStorefrontVisibility}
         onDuplicate={(p) => setDuplicateTarget(p)}
         onDelete={(p) => setDeleteTarget(p)}
+        onAdjustStock={canAdjustStock ? handleOpenRowAdjust : undefined}
+        onViewStockHistory={canViewHistory ? handleOpenRowHistory : undefined}
         onRetry={loadProducts}
         onClearFilters={handleClearFilters}
         hasActiveFilters={hasActiveFilters}
+        startIndex={startIdx}
+        isReorderDisabled={reorder.isReorderDisabled}
+        disabledReason={reorder.disabledReason}
+        onPointerDown={reorder.handlePointerDown}
+        onMoveUp={reorder.moveUp}
+        onMoveDown={reorder.moveDown}
+        isFirstItem={reorder.isFirstItem}
+        isLastItem={reorder.isLastItem}
+        getRowVisualClass={reorder.getRowVisualClass}
       />
 
       {/* Pagination */}
@@ -532,6 +791,190 @@ function AdminProductsContent() {
         onCancel={() => setDuplicateTarget(null)}
         loading={modalLoading}
       />
+
+      {/* Stock Adjustment Modal (Row-preselected or Global Item Picker) */}
+      <StockAdjustmentModal
+        isOpen={isAdjustModalOpen}
+        onClose={() => setIsAdjustModalOpen(false)}
+        inventoryItem={adjustingItem}
+        allItems={inventoryRecords}
+        onSuccess={handleMutationSuccess}
+      />
+
+      {/* Stock Movement History Audit Trail Modal */}
+      <InventoryHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        inventoryItem={historyItem}
+      />
+
+      {/* Bulk Stock Adjustment Modal */}
+      {isBulkAdjustOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-ink/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bulk-stock-adjust-title"
+        >
+          <div className="bg-card border border-border/80 rounded-3xl p-5 sm:p-7 max-w-lg w-full shadow-2xl space-y-4 my-8 animate-in zoom-in-95 text-xs">
+            <div className="flex items-start justify-between pb-3 border-b border-border/60">
+              <div>
+                <h3
+                  id="bulk-stock-adjust-title"
+                  className="font-display font-bold text-base uppercase tracking-tight text-foreground"
+                >
+                  Bulk Adjust Stock ({selectedIds.size} Products)
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Record unified inventory revisions across all selected products.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBulkAdjustOpen(false)}
+                disabled={isBulkSubmitting}
+                className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-secondary transition-colors cursor-pointer"
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {bulkError && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle size={15} className="shrink-0" />
+                <span>{bulkError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleBulkAdjustSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+                  Adjustment Delta *
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex p-1 bg-secondary/40 rounded-xl border border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setBulkDeltaSign("+")}
+                      disabled={isBulkSubmitting}
+                      className={`px-3 py-2 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                        bulkDeltaSign === "+"
+                          ? "bg-emerald-500 text-white shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      + Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBulkDeltaSign("-")}
+                      disabled={isBulkSubmitting}
+                      className={`px-3 py-2 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                        bulkDeltaSign === "-"
+                          ? "bg-rose-500 text-white shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      - Deduct
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    placeholder="e.g. 50"
+                    value={bulkDeltaQuantity}
+                    onChange={(e) => setBulkDeltaQuantity(e.target.value)}
+                    disabled={isBulkSubmitting}
+                    className="flex-1 px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-foreground font-display font-bold text-base focus:ring-1 focus:ring-primary outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+                  Reason for Adjustment *
+                </label>
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  {[
+                    "New Stock Received",
+                    "Factory Shipment Arrival",
+                    "Physical Audit Correction",
+                    "Damaged Goods Write-off",
+                    "Customer Return Restock",
+                  ].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setBulkReason(r)}
+                      disabled={isBulkSubmitting}
+                      className={`text-[10px] px-2.5 py-1 rounded-full font-semibold border transition-all cursor-pointer ${
+                        bulkReason === r
+                          ? "bg-foreground text-background border-foreground shadow-2xs"
+                          : "bg-secondary/30 border-border/70 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  required
+                  placeholder="Or enter custom reason..."
+                  value={bulkReason}
+                  onChange={(e) => setBulkReason(e.target.value)}
+                  disabled={isBulkSubmitting}
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-border bg-secondary/30 text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+                  Notes (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Batch adjustment reference or audit note..."
+                  value={bulkNotes}
+                  onChange={(e) => setBulkNotes(e.target.value)}
+                  disabled={isBulkSubmitting}
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-border bg-secondary/30 text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkAdjustOpen(false)}
+                  disabled={isBulkSubmitting}
+                  className="px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary text-foreground text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isBulkSubmitting || !bulkReason.trim() || !bulkDeltaQuantity}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all shadow-xs cursor-pointer"
+                >
+                  {isBulkSubmitting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <span>Updating Stock...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={14} />
+                      <span>Confirm Bulk Adjustment</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Toast Notifications */}
       <ProductToast toasts={toasts} onDismiss={dismissToast} />

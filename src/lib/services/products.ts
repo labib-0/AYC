@@ -8,13 +8,14 @@ import {
   SearchSuggestionsResult,
   PaginatedProductsResult,
   toggleProductStorefrontVisibility,
+  reorderProducts,
 } from "@/services/product.service";
 import { B2BProductInput } from "@/types/b2b";
 import { Product } from "@/types";
 import { homepageService } from "@/services/homepage.service";
 import { INITIAL_MOCK_PRODUCTS } from "@/lib/mock-data/mock-products";
 
-export { normalizeToB2BProduct, toStorefrontProduct, generateProductSku, toggleProductStorefrontVisibility };
+export { normalizeToB2BProduct, toStorefrontProduct, generateProductSku, toggleProductStorefrontVisibility, reorderProducts };
 export type { ProductQueryParams, SearchSuggestionsResult, PaginatedProductsResult };
 
 export async function getProducts(options?: ProductQueryParams): Promise<B2BProductInput[]> {

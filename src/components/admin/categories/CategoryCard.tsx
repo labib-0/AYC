@@ -4,12 +4,22 @@ import React, { useState } from "react";
 import { Edit2, Trash2, Power, Layers } from "lucide-react";
 import { CategoryModel } from "@/services/category.service";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { TableDragHandle, TableMoveControls } from "@/components/admin/ordered-list";
 
 export interface CategoryCardProps {
   category: CategoryModel;
   onEdit: (category: CategoryModel) => void;
   onToggleStatus: (category: CategoryModel) => void;
   onDelete: (category: CategoryModel) => void;
+  globalIndex?: number;
+  localIndex?: number;
+  isReorderDisabled?: boolean;
+  disabledReason?: string;
+  onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 export default function CategoryCard({
@@ -17,9 +27,20 @@ export default function CategoryCard({
   onEdit,
   onToggleStatus,
   onDelete,
+  globalIndex = 0,
+  localIndex = 0,
+  isReorderDisabled = false,
+  disabledReason = "Reordering is disabled while search or filters are active.",
+  onPointerDown,
+  onMoveUp,
+  onMoveDown,
+  isFirst = false,
+  isLast = false,
 }: CategoryCardProps) {
   const { can } = useAdminAuth();
   const [imgError, setImgError] = useState(false);
+
+  const canReorder = can("category.edit") || can("category.manage") || can("category.reorder");
 
   const rawImage = category.image_url || category.image;
   const hasImage = Boolean(rawImage && !imgError);
@@ -77,13 +98,43 @@ export default function CategoryCard({
 
       {/* Card Footer: Product Count, Sort Order, Actions */}
       <div className="flex items-center justify-between pt-2 border-t border-border/60">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <TableDragHandle
+            globalIndex={globalIndex}
+            localIndex={localIndex}
+            itemTitle={category.name}
+            disabled={!canReorder || isReorderDisabled}
+            disabledReason={
+              !canReorder
+                ? "You do not have permission to reorder categories."
+                : disabledReason
+            }
+            onPointerDown={onPointerDown || (() => {})}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+          />
           <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
             <strong className="text-foreground font-bold">{productCount}</strong> {productCount === 1 ? "product" : "products"}
           </span>
           <span className="text-[10px] font-mono text-muted-foreground">
             #{sortOrder}
           </span>
+          {onMoveUp && onMoveDown && (
+            <TableMoveControls
+              globalIndex={globalIndex}
+              isFirst={isFirst}
+              isLast={isLast}
+              disabled={!canReorder || isReorderDisabled}
+              disabledReason={
+                !canReorder
+                  ? "You do not have permission to reorder categories."
+                  : disabledReason
+              }
+              onMoveUp={onMoveUp}
+              onMoveDown={onMoveDown}
+              itemTitle={category.name}
+            />
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">

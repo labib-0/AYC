@@ -12,6 +12,8 @@ interface ProductSummaryMetricsProps {
   onStatusClick?: (status: "all" | "published" | "draft") => void;
   onPurchasePricePendingClick?: () => void;
   isPricePendingActive?: boolean;
+  onLowStockClick?: () => void;
+  isLowStockActive?: boolean;
 }
 
 export default function ProductSummaryMetrics({
@@ -24,13 +26,15 @@ export default function ProductSummaryMetrics({
   onStatusClick,
   onPurchasePricePendingClick,
   isPricePendingActive = false,
+  onLowStockClick,
+  isLowStockActive = false,
 }: ProductSummaryMetricsProps) {
   const baseCard =
     "border rounded-xl px-4 py-3.5 flex items-center gap-3 transition-all duration-150 text-left w-full cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-  const isTotalActive = activeStatus === "all" && !isPricePendingActive;
-  const isPublishedActive = activeStatus === "published";
-  const isDraftActive = activeStatus === "draft";
+  const isTotalActive = activeStatus === "all" && !isPricePendingActive && !isLowStockActive;
+  const isPublishedActive = activeStatus === "published" && !isLowStockActive;
+  const isDraftActive = activeStatus === "draft" && !isLowStockActive;
 
   const cards = [
     {
@@ -77,11 +81,12 @@ export default function ProductSummaryMetrics({
       value: lowStock,
       icon: AlertTriangle,
       color: "text-red-600 dark:text-red-400",
-      isActive: false,
-      activeClasses: "bg-card border-border/60",
-      defaultClasses: "bg-card border-border/60 hover:bg-secondary/40",
-      title: "Products below low stock threshold",
-      onClick: undefined,
+      isActive: isLowStockActive,
+      activeClasses:
+        "bg-red-500/15 dark:bg-red-950/40 border-red-500 ring-2 ring-red-500/30 shadow-xs font-semibold",
+      defaultClasses: "bg-card border-border/60 hover:bg-red-500/10 dark:hover:bg-red-950/20 hover:border-red-400 dark:hover:border-red-700",
+      title: isLowStockActive ? "Click to clear Low Stock filter" : "Filter products below low stock threshold (< 200 pcs)",
+      onClick: onLowStockClick,
     },
   ];
 

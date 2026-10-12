@@ -17,6 +17,7 @@ import ProductToast, { ToastMessage } from "@/components/admin/products/ProductT
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 import { PermissionGate } from "@/components/admin/auth/PermissionGate";
 import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
+import { useTableReorder, TableReorderBanner } from "@/components/admin/ordered-list";
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<CategoryModel[]>([]);
@@ -123,6 +124,28 @@ export default function AdminCategoriesPage() {
     const startIndex = (currentPage - 1) * perPage;
     return filteredCategories.slice(startIndex, startIndex + perPage);
   }, [filteredCategories, currentPage, perPage]);
+
+  const isFiltered = Boolean(search.trim() || statusFilter !== "ALL");
+
+  // Persistent Reordering Hook
+  const reorder = useTableReorder<CategoryModel>({
+    items: categories,
+    onItemsChange: setCategories,
+    getItemId: (c) => c.id,
+    getItemTitle: (c) => c.name,
+    isReorderDisabled: isFiltered,
+    disabledReason:
+      "Reordering is disabled while search or status filters are active. Clear filters to return to manual sequence.",
+    currentPage,
+    pageSize: perPage,
+    onPageChange: setCurrentPage,
+    onPersistOrder: async (newItems) => {
+      await categoryService.reorderCategories(
+        newItems.map((c, idx) => ({ id: c.id, sort_order: idx + 1 }))
+      );
+    },
+    showToast: (message, type) => addToast(type, message),
+  });
 
   // Determine next available sort order for category creation
   const nextSortOrder = useMemo(() => {
@@ -246,11 +269,12 @@ export default function AdminCategoriesPage() {
           <PermissionGate permission="category.create">
             <button
               type="button"
+              id="btn-add-category"
               onClick={handleOpenCreate}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-xs self-start sm:self-auto cursor-pointer"
             >
               <Plus size={15} />
-              <span>+ Add Category</span>
+              <span>Add Category</span>
             </button>
           </PermissionGate>
         </div>
@@ -294,16 +318,33 @@ export default function AdminCategoriesPage() {
               isRefreshing={isRefreshing}
             />
 
+            {/* ── Reorder Status & Filter Guard Banner ── */}
+            <TableReorderBanner
+              isSaving={reorder.isSaving}
+              isReorderDisabled={reorder.isReorderDisabled}
+              disabledReason={reorder.disabledReason}
+              onClearFilters={handleClearFilters}
+            />
+
             {/* ── Category Table & Responsive Mobile Cards ── */}
             <CategoryTable
               categories={paginatedCategories}
               loading={loading}
-              isFiltered={Boolean(search || statusFilter !== "ALL")}
+              isFiltered={isFiltered}
               onEdit={handleOpenEdit}
               onToggleStatus={handlePromptToggleStatus}
               onDelete={handlePromptDelete}
               onAddCategory={handleOpenCreate}
               onClearFilters={handleClearFilters}
+              startIndex={(currentPage - 1) * perPage}
+              isReorderDisabled={reorder.isReorderDisabled}
+              disabledReason={reorder.disabledReason}
+              onPointerDown={reorder.handlePointerDown}
+              onMoveUp={reorder.moveUp}
+              onMoveDown={reorder.moveDown}
+              isFirstItem={reorder.isFirstItem}
+              isLastItem={reorder.isLastItem}
+              getRowVisualClass={reorder.getRowVisualClass}
             />
 
             {/* ── Category Pagination ── */}

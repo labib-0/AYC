@@ -261,6 +261,12 @@ class ProductController extends ApiController
                 $query->where('is_preorder', true);
             } elseif ($avail === 'sold_out') {
                 $query->where('is_sold_out', true);
+            } elseif ($avail === 'low_stock') {
+                $query->where('stock', '>', 0)->where('stock', '<', 200);
+            } elseif ($avail === 'out_of_stock') {
+                $query->where(function ($q) {
+                    $q->where('stock', '<=', 0)->orWhere('is_sold_out', true);
+                });
             }
         }
 
@@ -311,9 +317,17 @@ class ProductController extends ApiController
             case 'name_desc':
                 $query->orderBy('name', 'desc');
                 break;
+            case 'manual':
+            case 'sort_order':
+                $query->orderBy('sort_order', 'asc')->orderBy('id', 'desc');
+                break;
             case 'newest':
             default:
-                $query->orderBy('created_at', 'desc');
+                if ($isAdmin && ($sortBy === 'manual' || $request->input('sort') === 'manual')) {
+                    $query->orderBy('sort_order', 'asc')->orderBy('id', 'desc');
+                } else {
+                    $query->orderBy('created_at', 'desc');
+                }
                 break;
         }
 
@@ -2528,5 +2542,46 @@ class ProductController extends ApiController
             }
             $prevMax = $max;
         }
+    }
+
+    /**
+     * PUT or POST /api/v1/products/reorder
+     * Reorder products persistently by updating their sort_order.
+     */
+    public function reorder(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.edit')) {
+            return $this->forbidden("Forbidden: you do not have permission to reorder products.");
+        }
+
+        $validated = $request->validate([
+            'orders' => ['sometimes', 'array'],
+            'orders.*.id' => ['required_with:orders'],
+            'orders.*.sort_order' => ['required_with:orders', 'integer', 'min:0'],
+            'ids' => ['sometimes', 'array'],
+            'ids.*' => ['required_with:ids'],
+        ]);
+
+        if (empty($validated['orders']) && empty($validated['ids'])) {
+            return $this->error('Either orders or ids must be provided.', 422);
+        }
+
+        DB::transaction(function () use ($validated) {
+            if (!empty($validated['orders'])) {
+                foreach ($validated['orders'] as $item) {
+                    Product::where('id', $item['id'])->update(['sort_order' => (int) $item['sort_order']]);
+                }
+            } elseif (!empty($validated['ids'])) {
+                foreach ($validated['ids'] as $idx => $id) {
+                    Product::where('id', $id)->update(['sort_order' => (int) $idx]);
+                }
+            }
+        });
+
+        CatalogCacheService::invalidateAll();
+        ActivityLogger::log('product.reorder', null, ['count' => count($validated['orders'] ?? $validated['ids'])]);
+
+        return $this->success(null, 'Products reordered successfully');
     }
 }

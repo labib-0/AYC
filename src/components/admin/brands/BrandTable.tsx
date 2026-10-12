@@ -15,6 +15,15 @@ interface BrandTableProps {
   onDelete: (brand: BrandModel) => void;
   onAddBrand: () => void;
   onClearFilters: () => void;
+  startIndex?: number;
+  isReorderDisabled?: boolean;
+  disabledReason?: string;
+  onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
+  onMoveUp?: (globalIndex: number) => void;
+  onMoveDown?: (globalIndex: number) => void;
+  isFirstItem?: (globalIndex: number) => boolean;
+  isLastItem?: (globalIndex: number) => boolean;
+  getRowVisualClass?: (globalIndex: number) => string;
 }
 
 export default function BrandTable({
@@ -26,6 +35,15 @@ export default function BrandTable({
   onDelete,
   onAddBrand,
   onClearFilters,
+  startIndex = 0,
+  isReorderDisabled = false,
+  disabledReason,
+  onPointerDown,
+  onMoveUp,
+  onMoveDown,
+  isFirstItem,
+  isLastItem,
+  getRowVisualClass,
 }: BrandTableProps) {
   if (loading) {
     return (
@@ -35,10 +53,12 @@ export default function BrandTable({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border/80 bg-secondary/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="py-3 px-3 w-10 text-center"><span className="sr-only">Reorder</span></th>
                 <th className="py-3 px-4 w-28">Logo</th>
                 <th className="py-3 px-4">Brand</th>
                 <th className="py-3 px-4">Slug</th>
                 <th className="py-3 px-4">Products</th>
+                <th className="py-3 px-4">Sort Order</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -46,6 +66,9 @@ export default function BrandTable({
             <tbody>
               {Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="border-b border-border/40">
+                  <td className="py-3 px-3 w-10 text-center">
+                    <div className="w-5 h-5 bg-secondary animate-pulse rounded mx-auto" />
+                  </td>
                   <td className="py-3 px-4">
                     <div className="w-20 h-11 bg-secondary animate-pulse rounded-xl" />
                   </td>
@@ -57,6 +80,9 @@ export default function BrandTable({
                   </td>
                   <td className="py-3 px-4">
                     <div className="h-5 w-20 bg-secondary animate-pulse rounded-full" />
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="h-3.5 w-8 bg-secondary animate-pulse rounded" />
                   </td>
                   <td className="py-3 px-4">
                     <div className="h-5 w-16 bg-secondary animate-pulse rounded-full" />
@@ -97,39 +123,66 @@ export default function BrandTable({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-border/80 bg-secondary/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <th scope="col" className="py-3 px-3 w-10 text-center"><span className="sr-only">Reorder</span></th>
               <th scope="col" className="py-3 px-4 w-28">Logo</th>
               <th scope="col" className="py-3 px-4">Brand</th>
               <th scope="col" className="py-3 px-4">Slug</th>
               <th scope="col" className="py-3 px-4">Products</th>
+              <th scope="col" className="py-3 px-4">Sort Order</th>
               <th scope="col" className="py-3 px-4">Status</th>
               <th scope="col" className="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
-            {brands.map((b) => (
-              <BrandRow
-                key={b.id}
-                brand={b}
-                onEdit={onEdit}
-                onToggleStatus={onToggleStatus}
-                onDelete={onDelete}
-              />
-            ))}
+            {brands.map((b, i) => {
+              const globalIndex = startIndex + i;
+              return (
+                <BrandRow
+                  key={b.id}
+                  brand={b}
+                  globalIndex={globalIndex}
+                  localIndex={i}
+                  isReorderDisabled={isReorderDisabled}
+                  disabledReason={disabledReason}
+                  onPointerDown={onPointerDown}
+                  onMoveUp={onMoveUp ? () => onMoveUp(globalIndex) : undefined}
+                  onMoveDown={onMoveDown ? () => onMoveDown(globalIndex) : undefined}
+                  isFirst={isFirstItem ? isFirstItem(globalIndex) : false}
+                  isLast={isLastItem ? isLastItem(globalIndex) : false}
+                  rowVisualClass={getRowVisualClass ? getRowVisualClass(globalIndex) : ""}
+                  onEdit={onEdit}
+                  onToggleStatus={onToggleStatus}
+                  onDelete={onDelete}
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Mobile Card Layout */}
       <div className="md:hidden p-3 space-y-2.5">
-        {brands.map((b) => (
-          <BrandCard
-            key={b.id}
-            brand={b}
-            onEdit={onEdit}
-            onToggleStatus={onToggleStatus}
-            onDelete={onDelete}
-          />
-        ))}
+        {brands.map((b, i) => {
+          const globalIndex = startIndex + i;
+          return (
+            <BrandCard
+              key={b.id}
+              brand={b}
+              globalIndex={globalIndex}
+              localIndex={i}
+              isReorderDisabled={isReorderDisabled}
+              disabledReason={disabledReason}
+              onPointerDown={onPointerDown}
+              onMoveUp={onMoveUp ? () => onMoveUp(globalIndex) : undefined}
+              onMoveDown={onMoveDown ? () => onMoveDown(globalIndex) : undefined}
+              isFirst={isFirstItem ? isFirstItem(globalIndex) : false}
+              isLast={isLastItem ? isLastItem(globalIndex) : false}
+              onEdit={onEdit}
+              onToggleStatus={onToggleStatus}
+              onDelete={onDelete}
+            />
+          );
+        })}
       </div>
     </div>
   );

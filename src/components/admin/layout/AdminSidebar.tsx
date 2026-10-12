@@ -8,7 +8,6 @@ import {
   Package,
   Tag,
   Layers,
-  Warehouse,
   ShoppingBag,
   Users,
   FileText,
@@ -57,7 +56,6 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
       { label: "Products", href: "/ayc/products", icon: Package, permission: ADMIN_PERMISSIONS.PRODUCT_VIEW },
       { label: "Categories", href: "/ayc/categories", icon: Layers, permission: ADMIN_PERMISSIONS.CATEGORY_VIEW },
       { label: "Brands", href: "/ayc/brands", icon: Tag, permission: ADMIN_PERMISSIONS.BRAND_VIEW },
-      { label: "Inventory", href: "/ayc/inventory", icon: Warehouse, permission: ADMIN_PERMISSIONS.INVENTORY_VIEW },
     ],
   },
   {

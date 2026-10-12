@@ -39,6 +39,8 @@ const STATUSES = [
 const AVAILABILITIES = [
   { value: "all", label: "All Availability" },
   { value: "ready_stock", label: "Ready Stock" },
+  { value: "low_stock", label: "Low Stock (< 200 pcs)" },
+  { value: "out_of_stock", label: "Out of Stock (0 pcs)" },
   { value: "preorder", label: "Pre-Order" },
   { value: "sold_out", label: "Sold Out" },
 ];

@@ -15,6 +15,15 @@ interface CategoryTableProps {
   onDelete: (category: CategoryModel) => void;
   onAddCategory: () => void;
   onClearFilters: () => void;
+  startIndex?: number;
+  isReorderDisabled?: boolean;
+  disabledReason?: string;
+  onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
+  onMoveUp?: (globalIndex: number) => void;
+  onMoveDown?: (globalIndex: number) => void;
+  isFirstItem?: (globalIndex: number) => boolean;
+  isLastItem?: (globalIndex: number) => boolean;
+  getRowVisualClass?: (globalIndex: number) => string;
 }
 
 export default function CategoryTable({
@@ -26,6 +35,15 @@ export default function CategoryTable({
   onDelete,
   onAddCategory,
   onClearFilters,
+  startIndex = 0,
+  isReorderDisabled = false,
+  disabledReason,
+  onPointerDown,
+  onMoveUp,
+  onMoveDown,
+  isFirstItem,
+  isLastItem,
+  getRowVisualClass,
 }: CategoryTableProps) {
   if (loading) {
     return (
@@ -35,6 +53,7 @@ export default function CategoryTable({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border/80 bg-secondary/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="py-3 px-3 w-10 text-center"><span className="sr-only">Reorder</span></th>
                 <th className="py-3 px-4 w-24">Image</th>
                 <th className="py-3 px-4">Category</th>
                 <th className="py-3 px-4">Slug</th>
@@ -47,6 +66,9 @@ export default function CategoryTable({
             <tbody>
               {Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="border-b border-border/40">
+                  <td className="py-3 px-3 w-10 text-center">
+                    <div className="w-5 h-5 bg-secondary animate-pulse rounded mx-auto" />
+                  </td>
                   <td className="py-3 px-4">
                     <div className="w-16 h-12 bg-secondary animate-pulse rounded-xl" />
                   </td>
@@ -101,6 +123,7 @@ export default function CategoryTable({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-border/80 bg-secondary/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <th scope="col" className="py-3 px-3 w-10 text-center"><span className="sr-only">Reorder</span></th>
               <th scope="col" className="py-3 px-4 w-24">Image</th>
               <th scope="col" className="py-3 px-4">Category</th>
               <th scope="col" className="py-3 px-4">Slug</th>
@@ -111,30 +134,55 @@ export default function CategoryTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
-            {categories.map((c) => (
-              <CategoryRow
-                key={c.id}
-                category={c}
-                onEdit={onEdit}
-                onToggleStatus={onToggleStatus}
-                onDelete={onDelete}
-              />
-            ))}
+            {categories.map((c, i) => {
+              const globalIndex = startIndex + i;
+              return (
+                <CategoryRow
+                  key={c.id}
+                  category={c}
+                  globalIndex={globalIndex}
+                  localIndex={i}
+                  isReorderDisabled={isReorderDisabled}
+                  disabledReason={disabledReason}
+                  onPointerDown={onPointerDown}
+                  onMoveUp={onMoveUp ? () => onMoveUp(globalIndex) : undefined}
+                  onMoveDown={onMoveDown ? () => onMoveDown(globalIndex) : undefined}
+                  isFirst={isFirstItem ? isFirstItem(globalIndex) : false}
+                  isLast={isLastItem ? isLastItem(globalIndex) : false}
+                  rowVisualClass={getRowVisualClass ? getRowVisualClass(globalIndex) : ""}
+                  onEdit={onEdit}
+                  onToggleStatus={onToggleStatus}
+                  onDelete={onDelete}
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Mobile Card Layout */}
       <div className="md:hidden p-3 space-y-2.5">
-        {categories.map((c) => (
-          <CategoryCard
-            key={c.id}
-            category={c}
-            onEdit={onEdit}
-            onToggleStatus={onToggleStatus}
-            onDelete={onDelete}
-          />
-        ))}
+        {categories.map((c, i) => {
+          const globalIndex = startIndex + i;
+          return (
+            <CategoryCard
+              key={c.id}
+              category={c}
+              globalIndex={globalIndex}
+              localIndex={i}
+              isReorderDisabled={isReorderDisabled}
+              disabledReason={disabledReason}
+              onPointerDown={onPointerDown}
+              onMoveUp={onMoveUp ? () => onMoveUp(globalIndex) : undefined}
+              onMoveDown={onMoveDown ? () => onMoveDown(globalIndex) : undefined}
+              isFirst={isFirstItem ? isFirstItem(globalIndex) : false}
+              isLast={isLastItem ? isLastItem(globalIndex) : false}
+              onEdit={onEdit}
+              onToggleStatus={onToggleStatus}
+              onDelete={onDelete}
+            />
+          );
+        })}
       </div>
     </div>
   );

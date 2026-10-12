@@ -16,9 +16,20 @@ interface ProductTableProps {
   onToggleStorefrontVisibility?: (product: B2BProductInput) => void;
   onDuplicate: (product: B2BProductInput) => void;
   onDelete: (product: B2BProductInput) => void;
+  onAdjustStock?: (product: B2BProductInput) => void;
+  onViewStockHistory?: (product: B2BProductInput) => void;
   onRetry: () => void;
   onClearFilters: () => void;
   hasActiveFilters: boolean;
+  startIndex?: number;
+  isReorderDisabled?: boolean;
+  disabledReason?: string;
+  onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
+  onMoveUp?: (globalIndex: number) => void;
+  onMoveDown?: (globalIndex: number) => void;
+  isFirstItem?: (globalIndex: number) => boolean;
+  isLastItem?: (globalIndex: number) => boolean;
+  getRowVisualClass?: (globalIndex: number) => string;
 }
 
 interface ColumnDef {
@@ -31,6 +42,13 @@ interface ColumnDef {
 }
 
 export const PRODUCT_COLUMNS: ColumnDef[] = [
+  {
+    key: "reorder",
+    label: "",
+    width: "36px",
+    colWidthClass: "w-9",
+    thClass: "px-1 py-2 w-9 text-center",
+  },
   {
     key: "select",
     label: "",
@@ -130,9 +148,9 @@ export const PRODUCT_COLUMNS: ColumnDef[] = [
   {
     key: "actions",
     label: "Actions",
-    width: "42px",
-    colWidthClass: "w-[42px]",
-    thClass: "px-1 py-2 w-[42px] text-center sticky right-0 bg-secondary/80 backdrop-blur-xs z-10",
+    width: "78px",
+    colWidthClass: "w-[78px]",
+    thClass: "px-1 py-2 w-[78px] text-center sticky right-0 bg-secondary/80 backdrop-blur-xs z-10",
   },
 ];
 
@@ -147,9 +165,20 @@ export default function ProductTable({
   onToggleStorefrontVisibility,
   onDuplicate,
   onDelete,
+  onAdjustStock,
+  onViewStockHistory,
   onRetry,
   onClearFilters,
   hasActiveFilters,
+  startIndex = 0,
+  isReorderDisabled = false,
+  disabledReason,
+  onPointerDown,
+  onMoveUp,
+  onMoveDown,
+  isFirstItem,
+  isLastItem,
+  getRowVisualClass,
 }: ProductTableProps) {
   const allSelected = products.length > 0 && products.every((p) => selectedIds.has(p.id));
   const someSelected = products.some((p) => selectedIds.has(p.id)) && !allSelected;
@@ -188,6 +217,9 @@ export default function ProductTable({
             <tbody className="divide-y divide-border/40">
               {Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-border/40">
+                  <td className="px-1 py-1.5 w-9 text-center" style={{ width: "36px" }}>
+                    <div className="w-5 h-5 rounded bg-secondary animate-pulse mx-auto" />
+                  </td>
                   <td className="px-1.5 py-1.5 w-8 text-center" style={{ width: "32px" }}>
                     <div className="w-3.5 h-3.5 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
@@ -301,6 +333,12 @@ export default function ProductTable({
                 className={PRODUCT_COLUMNS[0].thClass}
                 style={PRODUCT_COLUMNS[0].width ? { width: PRODUCT_COLUMNS[0].width } : undefined}
               >
+                <span className="sr-only">Reorder</span>
+              </th>
+              <th
+                className={PRODUCT_COLUMNS[1].thClass}
+                style={PRODUCT_COLUMNS[1].width ? { width: PRODUCT_COLUMNS[1].width } : undefined}
+              >
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -312,7 +350,7 @@ export default function ProductTable({
                   aria-label="Select all products"
                 />
               </th>
-              {PRODUCT_COLUMNS.slice(1).map((col) => (
+              {PRODUCT_COLUMNS.slice(2).map((col) => (
                 <th
                   key={col.key}
                   className={col.thClass}
@@ -327,18 +365,33 @@ export default function ProductTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
-            {products.map((product) => (
-              <ProductTableRow
-                key={product.id}
-                product={product}
-                selected={selectedIds.has(product.id)}
-                onSelect={onSelect}
-                onTogglePublish={onTogglePublish}
-                onToggleStorefrontVisibility={onToggleStorefrontVisibility}
-                onDuplicate={onDuplicate}
-                onDelete={onDelete}
-              />
-            ))}
+            {products.map((product, i) => {
+              const globalIndex = startIndex + i;
+              return (
+                <ProductTableRow
+                  key={product.id}
+                  product={product}
+                  selected={selectedIds.has(product.id)}
+                  globalIndex={globalIndex}
+                  localIndex={i}
+                  isReorderDisabled={isReorderDisabled}
+                  disabledReason={disabledReason}
+                  onPointerDown={onPointerDown}
+                  onMoveUp={onMoveUp ? () => onMoveUp(globalIndex) : undefined}
+                  onMoveDown={onMoveDown ? () => onMoveDown(globalIndex) : undefined}
+                  isFirst={isFirstItem ? isFirstItem(globalIndex) : false}
+                  isLast={isLastItem ? isLastItem(globalIndex) : false}
+                  rowVisualClass={getRowVisualClass ? getRowVisualClass(globalIndex) : ""}
+                  onSelect={onSelect}
+                  onTogglePublish={onTogglePublish}
+                  onToggleStorefrontVisibility={onToggleStorefrontVisibility}
+                  onDuplicate={onDuplicate}
+                  onDelete={onDelete}
+                  onAdjustStock={onAdjustStock}
+                  onViewStockHistory={onViewStockHistory}
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>

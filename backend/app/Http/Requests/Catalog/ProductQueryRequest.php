@@ -64,8 +64,8 @@ class ProductQueryRequest extends FormRequest
             'is_sold_out' => ['nullable', 'boolean'],
             'availability' => ['nullable', 'string', 'in:ready_stock,preorder,sold_out,all'],
             'in_stock' => ['nullable', 'boolean'],
-            'sort' => ['nullable', 'string', 'in:price_asc,price_desc,newest,popular,hot,featured,name_asc,name_desc'],
-            'sort_by' => ['nullable', 'string', 'in:price_asc,price_desc,newest,popular,hot,featured,name_asc,name_desc'],
+            'sort' => ['nullable', 'string', 'in:price_asc,price_desc,newest,popular,hot,featured,name_asc,name_desc,manual,sort_order'],
+            'sort_by' => ['nullable', 'string', 'in:price_asc,price_desc,newest,popular,hot,featured,name_asc,name_desc,manual,sort_order'],
             'isAdmin' => ['nullable', 'boolean'],
             'exclude' => ['nullable', 'string', 'max:255'],
         ];

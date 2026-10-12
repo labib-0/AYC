@@ -1,6 +1,7 @@
-import React from "react";
-import { X, History, Clock, ArrowUpRight, ArrowDownRight, User, FileText } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, History, Clock, ArrowUpRight, ArrowDownRight, User, FileText, Loader2 } from "lucide-react";
 import {
+  adminInventoryService,
   InventoryRecord,
   InventoryAdjustment,
   getInventoryProduct,
@@ -19,6 +20,41 @@ export default function InventoryHistoryModal({
   onClose,
   inventoryItem,
 }: InventoryHistoryModalProps) {
+  const [loadedAdjustments, setLoadedAdjustments] = useState<InventoryAdjustment[]>(
+    inventoryItem?.adjustments || []
+  );
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isOpen || !inventoryItem) return;
+
+    if (inventoryItem.adjustments && inventoryItem.adjustments.length > 0) {
+      setLoadedAdjustments(inventoryItem.adjustments);
+      return;
+    }
+
+    const currentItemId = inventoryItem.id;
+    let isMounted = true;
+    async function fetchHistory() {
+      setLoadingHistory(true);
+      try {
+        const hist = await adminInventoryService.getInventoryItemHistory(currentItemId);
+        if (isMounted && Array.isArray(hist)) {
+          setLoadedAdjustments(hist);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch inventory item history:", err);
+      } finally {
+        if (isMounted) setLoadingHistory(false);
+      }
+    }
+
+    fetchHistory();
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, inventoryItem]);
+
   if (!isOpen || !inventoryItem) return null;
 
   const product = getInventoryProduct(inventoryItem);
@@ -26,7 +62,7 @@ export default function InventoryHistoryModal({
   const warehouse = inventoryItem.warehouse;
   const sku = getInventorySku(inventoryItem);
   const imageUrl = getInventoryImageUrl(inventoryItem);
-  const adjustments: InventoryAdjustment[] = inventoryItem.adjustments || [];
+  const adjustments: InventoryAdjustment[] = loadedAdjustments;
 
   // Sort descending by created_at (most recent first)
   const sortedAdjustments = [...adjustments].sort((a, b) => {
@@ -107,7 +143,12 @@ export default function InventoryHistoryModal({
 
         {/* Adjustments Timeline / List */}
         <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-          {sortedAdjustments.length === 0 ? (
+          {loadingHistory ? (
+            <div className="p-8 text-center border border-border/60 rounded-2xl bg-secondary/10 flex flex-col items-center justify-center gap-2">
+              <Loader2 size={24} className="animate-spin text-primary" />
+              <p className="text-xs font-semibold text-muted-foreground">Loading audit trail history...</p>
+            </div>
+          ) : sortedAdjustments.length === 0 ? (
             <div className="p-8 text-center border border-border/60 rounded-2xl bg-secondary/10">
               <Clock size={24} className="mx-auto text-muted-foreground mb-2" />
               <p className="font-bold text-xs text-foreground">

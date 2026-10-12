@@ -253,9 +253,40 @@ export class BrandService {
   async deleteBrand(id: string | number): Promise<boolean> {
     if (!isFrontendOnly()) {
       await apiClient.delete(`/brands/${id}`);
+      this.invalidateCache();
       return true;
     }
     return mockStore.deleteBrand(id);
+  }
+
+  /**
+   * Persistent bulk reordering of brands
+   */
+  async reorderBrands(
+    orders: Array<{ id: string | number; sort_order: number }> | (string | number)[]
+  ): Promise<BrandModel[]> {
+    if (!isFrontendOnly()) {
+      const payload =
+        Array.isArray(orders) && orders.length > 0 && typeof orders[0] === "object"
+          ? { orders }
+          : { ids: orders };
+      const res = await apiClient.put<any>("/brands/reorder", payload);
+      this.invalidateCache();
+      const items = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(items)) {
+        return items;
+      }
+      return this.getBrands({ all: true, isAdmin: true });
+    }
+
+    const normalizedOrders =
+      Array.isArray(orders) && orders.length > 0 && typeof orders[0] === "object"
+        ? (orders as Array<{ id: string | number; sort_order: number }>)
+        : (orders as (string | number)[]).map((id, idx) => ({ id, sort_order: idx }));
+
+    mockStore.reorderBrands(normalizedOrders);
+    this.invalidateCache();
+    return this.getBrands({ all: true, isAdmin: true });
   }
 }
 

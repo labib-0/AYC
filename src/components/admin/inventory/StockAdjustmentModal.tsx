@@ -35,7 +35,7 @@ export default function StockAdjustmentModal({
   onSuccess,
 }: StockAdjustmentModalProps) {
   const { can, isSuperAdmin } = useAdminAuth();
-  const canAdjust = isSuperAdmin || can("inventory.adjust");
+  const canAdjust = isSuperAdmin || can("inventory.adjust") || can("product.edit");
   // If no specific item was passed (global button), allow user to pick one
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [mode, setMode] = useState<"set" | "delta">("delta");
@@ -121,13 +121,16 @@ export default function StockAdjustmentModal({
 
         await adminInventoryService.adjustInventory({
           inventory_id: activeRecord.id,
+          product_id: activeRecord.product_id || activeRecord.product?.id,
+          variant_id: activeRecord.product_variant_id || activeRecord.variant?.id,
+          warehouse_id: activeRecord.warehouse_id || activeRecord.warehouse?.id,
           new_quantity: newQty,
           reason: reason.trim(),
           notes: notes.trim() || undefined,
         });
 
         onSuccess(
-          `Stock set to ${newQty.toLocaleString()} units for ${activeRecord.variant?.sku || "item"}.`
+          `Stock set to ${newQty.toLocaleString()} units for ${activeRecord.product?.name || activeRecord.variant?.sku || "item"}.`
         );
       } else {
         const rawDelta = parseInt(deltaQuantity, 10);
@@ -140,6 +143,9 @@ export default function StockAdjustmentModal({
 
         await adminInventoryService.adjustInventory({
           inventory_id: activeRecord.id,
+          product_id: activeRecord.product_id || activeRecord.product?.id,
+          variant_id: activeRecord.product_variant_id || activeRecord.variant?.id,
+          warehouse_id: activeRecord.warehouse_id || activeRecord.warehouse?.id,
           adjustment_amount: signedDelta,
           reason: reason.trim(),
           notes: notes.trim() || undefined,
@@ -147,7 +153,7 @@ export default function StockAdjustmentModal({
 
         const signPrefix = signedDelta > 0 ? `+${signedDelta}` : `${signedDelta}`;
         onSuccess(
-          `Stock adjusted (${signPrefix} units) for ${activeRecord.variant?.sku || "item"}.`
+          `Stock adjusted (${signPrefix} units) for ${activeRecord.product?.name || activeRecord.variant?.sku || "item"}.`
         );
       }
 

@@ -4,12 +4,23 @@ import React, { useState } from "react";
 import { Edit2, Trash2, Power, Layers } from "lucide-react";
 import { CategoryModel } from "@/services/category.service";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { TableDragHandle, TableMoveControls } from "@/components/admin/ordered-list";
 
 interface CategoryRowProps {
   category: CategoryModel;
   onEdit: (category: CategoryModel) => void;
   onToggleStatus: (category: CategoryModel) => void;
   onDelete: (category: CategoryModel) => void;
+  globalIndex?: number;
+  localIndex?: number;
+  isReorderDisabled?: boolean;
+  disabledReason?: string;
+  onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
+  rowVisualClass?: string;
 }
 
 export default function CategoryRow({
@@ -17,10 +28,21 @@ export default function CategoryRow({
   onEdit,
   onToggleStatus,
   onDelete,
+  globalIndex = 0,
+  localIndex = 0,
+  isReorderDisabled = false,
+  disabledReason = "Reordering is disabled while search or filters are active.",
+  onPointerDown,
+  onMoveUp,
+  onMoveDown,
+  isFirst = false,
+  isLast = false,
+  rowVisualClass = "",
 }: CategoryRowProps) {
   const { can } = useAdminAuth();
   const [imgError, setImgError] = useState(false);
 
+  const canReorder = can("category.edit") || can("category.manage") || can("category.reorder");
   const rawImage = category.image_url || category.image;
   const hasImage = Boolean(rawImage && !imgError);
 
@@ -29,7 +51,27 @@ export default function CategoryRow({
   const sortOrder = category.sort_order ?? 0;
 
   return (
-    <tr className="border-b border-border/60 hover:bg-secondary/30 transition-colors group">
+    <tr
+      data-ordered-row
+      className={`border-b border-border/60 hover:bg-secondary/30 transition-colors group ${rowVisualClass}`}
+    >
+      {/* 0. Reorder Drag Handle Column */}
+      <td className="py-3 px-2 w-10 text-center">
+        <TableDragHandle
+          globalIndex={globalIndex}
+          localIndex={localIndex}
+          itemTitle={category.name}
+          disabled={!canReorder || isReorderDisabled}
+          disabledReason={
+            !canReorder
+              ? "You do not have permission to reorder categories."
+              : disabledReason
+          }
+          onPointerDown={onPointerDown || (() => {})}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+        />
+      </td>
         {/* 1. Image Column */}
         <td className="py-3 px-4 w-24">
           <div className="w-16 h-12 rounded-xl bg-card border border-border/80 flex items-center justify-center p-1 overflow-hidden shadow-2xs group-hover:border-foreground/20 transition-colors">
@@ -86,7 +128,25 @@ export default function CategoryRow({
 
         {/* 5. Sort Order Column */}
         <td className="py-3 px-4 text-xs font-mono text-muted-foreground tabular-nums">
-          #{sortOrder}
+          <div className="flex items-center gap-2">
+            <span>#{sortOrder}</span>
+            {onMoveUp && onMoveDown && (
+              <TableMoveControls
+                globalIndex={globalIndex}
+                isFirst={isFirst}
+                isLast={isLast}
+                disabled={!canReorder || isReorderDisabled}
+                disabledReason={
+                  !canReorder
+                    ? "You do not have permission to reorder categories."
+                    : disabledReason
+                }
+                onMoveUp={onMoveUp}
+                onMoveDown={onMoveDown}
+                itemTitle={category.name}
+              />
+            )}
+          </div>
         </td>
 
         {/* 6. Status Column */}

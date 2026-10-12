@@ -145,6 +145,8 @@ class ProductResource extends JsonResource
             'vimeoVideoId' => $this->getVimeoVideoId(),
 
             'status' => $this->status ?: 'published',
+            'sort_order' => (int) ($this->sort_order ?? 0),
+            'sortOrder' => (int) ($this->sort_order ?? 0),
             'isFeatured' => (bool) $this->isFeaturedActive(),
             'is_featured' => (bool) $this->isFeaturedActive(),
             'featured_sort_order' => (int) ($this->featured_sort_order ?? 0),

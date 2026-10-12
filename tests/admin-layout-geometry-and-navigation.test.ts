@@ -105,7 +105,6 @@ const expectedLabels = [
   "Products",
   "Categories",
   "Brands",
-  "Inventory",
   "Orders & Fulfillment",
   "Customers",
   "RFQs",
@@ -121,6 +120,9 @@ const expectedLabels = [
 
 const allNavItems = ADMIN_NAV_SECTIONS.flatMap((s) => s.items);
 const allNavLabels = allNavItems.map((i) => i.label);
+
+assert(!allNavLabels.includes("Inventory"), "Inventory module must be consolidated into Products and removed from sidebar");
+assert(allNavLabels.includes("Products"), "Products navigation entry must be present in sidebar");
 
 for (const label of expectedLabels) {
   assert(

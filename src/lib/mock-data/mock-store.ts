@@ -221,11 +221,27 @@ class MockStore {
     return copy;
   }
 
+  reorderProducts(orders: Array<{ id: string | number; sort_order: number }>): void {
+    const products = this.getProducts();
+    const orderMap = new Map<string, number>();
+    orders.forEach((o) => orderMap.set(String(o.id), o.sort_order));
+    products.forEach((p) => {
+      const order = orderMap.get(String(p.id));
+      if (order !== undefined) {
+        p.sort_order = order;
+        p.sortOrder = order;
+      }
+    });
+    products.sort((a, b) => ((a.sort_order ?? 0) - (b.sort_order ?? 0)));
+    this.setItem(STORAGE_KEYS.PRODUCTS, products);
+  }
+
   // ==========================================
   // CATEGORIES
   // ==========================================
   getCategories(): CategoryModel[] {
-    return this.getItem<CategoryModel[]>(STORAGE_KEYS.CATEGORIES, INITIAL_MOCK_CATEGORIES);
+    const cats = this.getItem<CategoryModel[]>(STORAGE_KEYS.CATEGORIES, INITIAL_MOCK_CATEGORIES);
+    return [...cats].sort((a, b) => ((a.sort_order ?? 0) - (b.sort_order ?? 0)));
   }
 
   getCategoryBySlug(slugOrId: string): CategoryModel | null {
@@ -236,6 +252,20 @@ class MockStore {
         (c) => String(c.id).toLowerCase() === clean || String(c.slug).toLowerCase() === clean
       ) || null
     );
+  }
+
+  reorderCategories(orders: Array<{ id: string | number; sort_order: number }>): void {
+    const categories = this.getCategories();
+    const orderMap = new Map<string, number>();
+    orders.forEach((o) => orderMap.set(String(o.id), o.sort_order));
+    categories.forEach((c) => {
+      const order = orderMap.get(String(c.id));
+      if (order !== undefined) {
+        c.sort_order = order;
+      }
+    });
+    categories.sort((a, b) => ((a.sort_order ?? 0) - (b.sort_order ?? 0)));
+    this.setItem(STORAGE_KEYS.CATEGORIES, categories);
   }
 
   saveCategory(data: Partial<CategoryModel>): CategoryModel {
@@ -277,7 +307,8 @@ class MockStore {
   // BRANDS
   // ==========================================
   getBrands(): BrandModel[] {
-    return this.getItem<BrandModel[]>(STORAGE_KEYS.BRANDS, INITIAL_MOCK_BRANDS);
+    const brands = this.getItem<BrandModel[]>(STORAGE_KEYS.BRANDS, INITIAL_MOCK_BRANDS);
+    return [...brands].sort((a, b) => ((a.sort_order ?? 0) - (b.sort_order ?? 0)));
   }
 
   getBrandBySlug(slugOrId: string): BrandModel | null {
@@ -288,6 +319,20 @@ class MockStore {
         (b) => String(b.id).toLowerCase() === clean || String(b.slug).toLowerCase() === clean
       ) || null
     );
+  }
+
+  reorderBrands(orders: Array<{ id: string | number; sort_order: number }>): void {
+    const brands = this.getBrands();
+    const orderMap = new Map<string, number>();
+    orders.forEach((o) => orderMap.set(String(o.id), o.sort_order));
+    brands.forEach((b) => {
+      const order = orderMap.get(String(b.id));
+      if (order !== undefined) {
+        b.sort_order = order;
+      }
+    });
+    brands.sort((a, b) => ((a.sort_order ?? 0) - (b.sort_order ?? 0)));
+    this.setItem(STORAGE_KEYS.BRANDS, brands);
   }
 
   saveBrand(data: Partial<BrandModel>): BrandModel {
