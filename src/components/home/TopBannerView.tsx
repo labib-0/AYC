@@ -86,14 +86,15 @@ export default function TopBannerView({
     <section
       id="top-banner"
       className="w-full bg-background pt-2.5 sm:pt-3.5 pb-0"
-      aria-label="Ayaan Clothing Promotional Banner"
+      aria-label="Ayaan Clothing — Garment Manufacturer & Exporter in Bangladesh"
     >
+      <span id="built-for-international-buyers" className="sr-only" aria-hidden="true" />
       <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         <a
           href={banner.target || "#featured"}
           onClick={handleClick}
           title="Browse Wholesale Collection — Featured Products"
-          aria-label={`${banner.title || "Your Wholesale Apparel Sourcing Partner"} - Click to browse featured products`}
+          aria-label={`${banner.title || "Garment Manufacturer & Exporter in Bangladesh"} - Click to browse featured products`}
           className="group relative block w-full overflow-hidden rounded-2xl sm:rounded-3xl bg-secondary/60 border border-border/70 hover:border-foreground/30 shadow-2xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-all duration-300 active:scale-[0.998]"
         >
           {/* Reduced Height (~15-20% slimmer): Thin promotional banner proportions */}
@@ -102,7 +103,7 @@ export default function TopBannerView({
             {imgSrc && !isFailed ? (
               <Image
                 src={imgSrc}
-                alt={banner.altText || "AYAAN CLOTHING — Your Wholesale Apparel Sourcing Partner"}
+                alt={banner.altText || "Ayaan Clothing — Garment Manufacturer & Exporter in Bangladesh"}
                 fill
                 preload={true}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 1760px"
@@ -129,14 +130,14 @@ export default function TopBannerView({
             <div className="relative z-10 w-full max-w-xl px-5 sm:px-8 md:px-10 lg:px-12 py-2 sm:py-2.5 flex flex-col justify-center">
               {/* Eyebrow / Brand Mark */}
               <span className="text-[9.5px] sm:text-[10.5px] font-mono font-bold tracking-[0.2em] text-primary uppercase mb-0.5 sm:mb-1">
-                {banner.eyebrow || "AYAAN CLOTHING"}
+                {banner.eyebrow || "Ayaan Clothing"}
               </span>
 
               {/* Main Headline: Confident, professional B2B introduction */}
               <h1 className="text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl xl:text-[1.375rem] font-display font-extrabold tracking-tight text-foreground leading-[1.2]">
-                {banner.title === "YOUR WHOLESALE APPAREL SOURCING PARTNER"
-                  ? "Your Wholesale Apparel Sourcing Partner"
-                  : banner.title || "Your Wholesale Apparel Sourcing Partner"}
+                {banner.title === "YOUR WHOLESALE APPAREL SOURCING PARTNER" || banner.title === "Your Wholesale Apparel Sourcing Partner"
+                  ? "Garment Manufacturer & Exporter in Bangladesh"
+                  : banner.title || "Garment Manufacturer & Exporter in Bangladesh"}
               </h1>
 
               {/* Supporting Text: Quality apparel for retailers, boutiques & bulk buyers */}

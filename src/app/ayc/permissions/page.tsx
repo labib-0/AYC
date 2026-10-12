@@ -16,6 +16,8 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { rbacService, RbacPermission, RbacRole } from "@/services/admin/rbac.service";
+import { AdminPagination, PageSizeSelector } from "@/components/admin/common";
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
@@ -25,6 +27,10 @@ export default function PermissionsPage() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Pagination & Page Size (Default: 5)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -133,15 +139,33 @@ export default function PermissionsPage() {
     });
   }, [permissions, selectedModule, searchQuery]);
 
-  // Group filtered by module
+  // Reset to page 1 when search or module filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedModule]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPermissions.length / perPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedPermissions = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return filteredPermissions.slice(start, start + perPage);
+  }, [filteredPermissions, currentPage, perPage]);
+
+  // Group paginated permissions by module
   const groupedPermissions = useMemo(() => {
     const map: Record<string, RbacPermission[]> = {};
-    for (const p of filteredPermissions) {
+    for (const p of paginatedPermissions) {
       if (!map[p.module]) map[p.module] = [];
       map[p.module].push(p);
     }
     return map;
-  }, [filteredPermissions]);
+  }, [paginatedPermissions]);
 
   return (
     <AdminPageGate permission="permission.view" moduleName="Permission Catalog">
@@ -265,22 +289,38 @@ export default function PermissionsPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
-            Domain:
-          </span>
-          <select
-            value={selectedModule}
-            onChange={(e) => setSelectedModule(e.target.value)}
-            className="px-3 py-1.5 bg-secondary/40 border border-border/80 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-foreground transition-all cursor-pointer"
-          >
-            <option value="ALL">All Domains ({permissions.length})</option>
-            {modules.map((mod) => (
-              <option key={mod} value={mod}>
-                {mod}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
+              Domain:
+            </span>
+            <select
+              value={selectedModule}
+              onChange={(e) => setSelectedModule(e.target.value)}
+              className="px-3 py-1.5 bg-secondary/40 border border-border/80 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-foreground transition-all cursor-pointer"
+            >
+              <option value="ALL">All Domains ({permissions.length})</option>
+              {modules.map((mod) => (
+                <option key={mod} value={mod}>
+                  {mod}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
+              Show:
+            </span>
+            <PageSizeSelector
+              value={perPage}
+              onChange={(newSize) => {
+                setPerPage(newSize);
+                setCurrentPage(1);
+              }}
+              id="permissions-per-page-select"
+            />
+          </div>
         </div>
       </div>
 
@@ -420,6 +460,23 @@ export default function PermissionsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Pagination */}
+      {!loading && (
+        <AdminPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredPermissions.length}
+          perPage={perPage}
+          onPageChange={setCurrentPage}
+          onPerPageChange={(newSize) => {
+            setPerPage(newSize);
+            setCurrentPage(1);
+          }}
+          itemName="permissions"
+          idPrefix="permissions-pagination"
+        />
       )}
 
       {/* Info notice */}

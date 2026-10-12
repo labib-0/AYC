@@ -16,6 +16,7 @@ import {
   SearchX
 } from "lucide-react";
 import { CouponSalesOrderRecord } from "@/services/admin/coupon.service";
+import AdminPagination from "@/components/admin/common/AdminPagination";
 
 export interface CouponSalesOrdersTableProps {
   orders: CouponSalesOrderRecord[];
@@ -25,6 +26,7 @@ export interface CouponSalesOrdersTableProps {
   totalItems: number;
   perPage: number;
   onPageChange: (page: number) => void;
+  onPerPageChange?: (perPage: any) => void;
   onViewOrder: (order: CouponSalesOrderRecord) => void;
   search?: string;
 }
@@ -37,6 +39,7 @@ export default function CouponSalesOrdersTable({
   totalItems,
   perPage,
   onPageChange,
+  onPerPageChange,
   onViewOrder,
   search,
 }: CouponSalesOrdersTableProps) {
@@ -280,42 +283,16 @@ export default function CouponSalesOrdersTable({
       </div>
 
       {/* Pagination Footer */}
-      {totalItems > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-border/60 bg-secondary/10">
-          <div className="text-xs text-muted-foreground">
-            Showing <span className="font-semibold text-foreground">{orders.length}</span> of{" "}
-            <span className="font-semibold text-foreground">{totalItems}</span> orders
-          </div>
-
-          {lastPage > 1 && (
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => onPageChange(currentPage - 1)}
-                disabled={currentPage <= 1 || loading}
-                className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors cursor-pointer"
-                title="Previous page"
-                id="btn-prev-page"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <span className="px-3 py-1 text-xs font-semibold text-foreground font-mono">
-                {currentPage} / {lastPage}
-              </span>
-              <button
-                type="button"
-                onClick={() => onPageChange(currentPage + 1)}
-                disabled={currentPage >= lastPage || loading}
-                className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors cursor-pointer"
-                title="Next page"
-                id="btn-next-page"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      <AdminPagination
+        currentPage={currentPage}
+        totalPages={lastPage}
+        totalItems={totalItems}
+        perPage={perPage}
+        onPageChange={onPageChange}
+        onPerPageChange={onPerPageChange}
+        itemName="attributed orders"
+        idPrefix="coupon-sales-orders-pagination"
+      />
     </div>
   );
 }

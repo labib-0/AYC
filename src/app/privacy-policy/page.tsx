@@ -3,7 +3,7 @@ import LegalPageContent from "@/components/legal/LegalPageContent";
 import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | AYAAN CLOTHING",
+  title: "Privacy Policy",
   description: "Review our privacy policy, commercial data protection standards, and buyer confidentiality principles.",
   alternates: {
     canonical: canonicalUrl("/privacy-policy"),

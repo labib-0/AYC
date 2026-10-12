@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import { SITE_CONFIG, absoluteUrl, canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Wholesale Apparel Catalog & B2B Sourcing | AYAAN CLOTHING",
+  title: "Wholesale Apparel Catalog & B2B Sourcing",
   description:
     "Explore our complete B2B wholesale clothing catalog from Bangladesh. Ready-made garments, t-shirts, sweaters, hoodies, trousers, and custom apparel manufacturing.",
   alternates: {
     canonical: canonicalUrl("/search"),
   },
   openGraph: {
-    title: "Wholesale Apparel Catalog & B2B Sourcing | AYAAN CLOTHING",
+    title: "Wholesale Apparel Catalog & B2B Sourcing | Ayaan Clothing",
     description:
       "Explore our complete B2B wholesale clothing catalog from Bangladesh. Ready-made garments, t-shirts, sweaters, hoodies, trousers, and custom apparel manufacturing.",
     url: canonicalUrl("/search"),
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Wholesale Apparel Catalog & B2B Sourcing | AYAAN CLOTHING",
+    title: "Wholesale Apparel Catalog & B2B Sourcing | Ayaan Clothing",
     description:
       "Explore our complete B2B wholesale clothing catalog from Bangladesh.",
     images: [SITE_CONFIG.ogImage],

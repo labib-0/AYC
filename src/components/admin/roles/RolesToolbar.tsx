@@ -2,6 +2,8 @@
 
 import React from "react";
 import { Search, X } from "lucide-react";
+import { PageSizeSelector } from "@/components/admin/common";
+import { AdminPageSize } from "@/types/admin-listing";
 
 export interface RolesToolbarProps {
   searchQuery: string;
@@ -11,6 +13,8 @@ export interface RolesToolbarProps {
   statusFilter: string;
   onStatusFilterChange: (status: string) => void;
   totalResults: number;
+  perPage?: AdminPageSize;
+  onPerPageChange?: (size: AdminPageSize) => void;
 }
 
 export default function RolesToolbar({
@@ -21,6 +25,8 @@ export default function RolesToolbar({
   statusFilter,
   onStatusFilterChange,
   totalResults,
+  perPage,
+  onPerPageChange,
 }: RolesToolbarProps) {
   const hasActiveFilters = searchQuery.trim() !== "" || typeFilter !== "ALL" || statusFilter !== "ALL";
 
@@ -87,6 +93,16 @@ export default function RolesToolbar({
               <option value="inactive">Inactive</option>
             </select>
           </div>
+
+          {/* Page Size Selector */}
+          {perPage && onPerPageChange && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                Show:
+              </span>
+              <PageSizeSelector value={perPage} onChange={onPerPageChange} id="roles-per-page-select" />
+            </div>
+          )}
 
           {/* Reset */}
           {hasActiveFilters && (

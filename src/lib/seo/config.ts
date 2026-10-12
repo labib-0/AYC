@@ -17,9 +17,9 @@ export const SITE_CONFIG = {
   name: "AYAAN CLOTHING",
   legalName: "AYAAN CLOTHING",
   brandMark: "AYN",
-  tagline: "Original-Branded Garments Manufacturer & Exporter",
+  tagline: "Garment Manufacturer & Exporter in Bangladesh",
   description:
-    "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers. Est. 2010.",
+    "Bangladesh garment manufacturer and exporter supplying wholesale apparel, original-branded stock lots, factory surplus, and custom OEM production to international buyers.",
   url: SITE_URL,
   ogImage: `${SITE_URL}/og-image.jpg`,
   locale: "en_US",
@@ -33,14 +33,14 @@ export const SITE_CONFIG = {
     countryName: "Bangladesh",
   },
   contact: {
-    email: "info@ayaanclothing.com",
-    phone: "+880 1842-786000",
+    email: "export@ayaanclothing.com",
+    phone: "+880 1620-853502",
     whatsApp: "+880 1620-853502",
   },
   social: {
-    facebook: "https://facebook.com",
-    linkedin: "https://linkedin.com",
-    instagram: "https://instagram.com",
+    facebook: "https://www.facebook.com/profile.php?id=61579913706663",
+    linkedin: "",
+    instagram: "",
   },
   exportMarkets: [
     "European Union",

@@ -19,6 +19,8 @@ import { getAllQuotations } from "@/lib/services/quotations";
 import { OrderRecord } from "@/services/order.service";
 import { QuotationRecord, CommercialDocType } from "@/types/b2b";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
+import AdminPagination from "@/components/admin/common/AdminPagination";
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 interface DocumentHubItem {
   id: string;
@@ -56,7 +58,7 @@ export default function AdminDocumentsHubPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -545,38 +547,20 @@ export default function AdminDocumentsHubPage() {
         )}
 
         {/* Pagination Footer */}
-        {!loading && filteredDocuments.length > 0 && (
-          <div className="p-4 border-t border-border/70 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-            <div>
-              Showing <span className="font-semibold text-foreground">{(currentPage - 1) * pageSize + 1}</span> to{" "}
-              <span className="font-semibold text-foreground">
-                {Math.min(currentPage * pageSize, filteredDocuments.length)}
-              </span>{" "}
-              of <span className="font-semibold text-foreground">{filteredDocuments.length}</span> documents
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-lg border border-border bg-secondary/40 text-foreground font-semibold disabled:opacity-40 hover:bg-secondary transition-colors"
-              >
-                Previous
-              </button>
-              <span className="px-3 py-1.5 text-xs font-semibold">
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1.5 rounded-lg border border-border bg-secondary/40 text-foreground font-semibold disabled:opacity-40 hover:bg-secondary transition-colors"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+        {!loading && (
+          <AdminPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredDocuments.length}
+            perPage={pageSize}
+            onPageChange={setCurrentPage}
+            onPerPageChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+            itemName="commercial documents"
+            idPrefix="commercial-documents-pagination"
+          />
         )}
         </div>
       </div>

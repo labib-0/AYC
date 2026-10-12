@@ -3,6 +3,9 @@
 import React from "react";
 import { Tag, Users, CheckCircle2, Clock, AlertTriangle, SearchX } from "lucide-react";
 import { CouponPerformanceRecord } from "@/services/admin/coupon.service";
+import AdminPagination from "@/components/admin/common/AdminPagination";
+import { DEFAULT_ADMIN_PAGE_SIZE } from "@/types/admin-listing";
+import { useAdminListing } from "@/hooks/useAdminListing";
 
 export interface SuperAdminCouponsOverviewTableProps {
   coupons: CouponPerformanceRecord[];
@@ -17,6 +20,19 @@ export default function SuperAdminCouponsOverviewTable({
   search,
   currency = "USD",
 }: SuperAdminCouponsOverviewTableProps) {
+  const {
+    items: displayedCoupons,
+    totalItems,
+    totalPages,
+    page,
+    perPage,
+    setPage,
+    setPerPage,
+  } = useAdminListing<CouponPerformanceRecord>({
+    items: coupons,
+    initialPageSize: DEFAULT_ADMIN_PAGE_SIZE,
+  });
+
   const currencySymbol = currency === "BDT" ? "৳" : currency === "EUR" ? "€" : "$";
 
   const formatAmount = (num: number) => {
@@ -135,7 +151,7 @@ export default function SuperAdminCouponsOverviewTable({
                 </td>
               </tr>
             ) : (
-              coupons.map((c) => {
+              displayedCoupons.map((c) => {
                 const discountLabel =
                   c.discount_type === "percentage"
                     ? `${c.discount_value}% OFF`
@@ -222,6 +238,17 @@ export default function SuperAdminCouponsOverviewTable({
           </tbody>
         </table>
       </div>
+
+      <AdminPagination
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        perPage={perPage}
+        onPageChange={setPage}
+        onPerPageChange={setPerPage}
+        itemName="coupons"
+        idPrefix="super-admin-coupons-overview-pagination"
+      />
     </div>
   );
 }

@@ -16,8 +16,7 @@ import {
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { Trash2, AlertTriangle, X } from "lucide-react";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
-
-const PER_PAGE = 20;
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 export default function AdminCustomersPage() {
   // Data State
@@ -34,6 +33,7 @@ export default function AdminCustomersPage() {
 
   // Filter & Pagination State
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
   const [search, setSearch] = useState("");
 
   // Customer Deletion State
@@ -57,7 +57,7 @@ export default function AdminCustomersPage() {
       const [custRes, summaryRes] = await Promise.all([
         adminCustomerService.getCustomers({
           page,
-          per_page: PER_PAGE,
+          per_page: perPage,
           search: search.trim() || undefined,
         }),
         adminCustomerService.getCustomerSummary(),
@@ -74,7 +74,7 @@ export default function AdminCustomersPage() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [page, search]);
+  }, [page, perPage, search]);
 
   useEffect(() => {
     loadData();
@@ -154,13 +154,17 @@ export default function AdminCustomersPage() {
       />
 
       {/* 5. Pagination */}
-      {!loading && !error && customers.length > 0 && (
+      {!loading && !error && (
         <CustomerPagination
           currentPage={page}
           totalPages={totalPages}
           totalCustomers={total}
-          perPage={PER_PAGE}
+          perPage={perPage}
           onPageChange={(p) => setPage(p)}
+          onPerPageChange={(newSize) => {
+            setPerPage(newSize);
+            setPage(1);
+          }}
           isLoading={loading}
         />
       )}

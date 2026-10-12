@@ -7,12 +7,20 @@ import { Product } from "@/types";
  * Generates Schema.org Organization structured data
  */
 export function generateOrganizationJsonLd() {
+  const sameAsLinks = [
+    SITE_CONFIG.social.facebook,
+    SITE_CONFIG.social.linkedin,
+    SITE_CONFIG.social.instagram,
+  ]
+    .map((s) => (s ? s.trim() : ""))
+    .filter((s) => s.length > 0 && !s.endsWith("linkedin.com") && !s.endsWith("instagram.com"));
+
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: SITE_CONFIG.name,
     legalName: SITE_CONFIG.legalName,
-    alternateName: SITE_CONFIG.brandMark,
+    alternateName: ["Ayaan Clothing", "AYC"],
     url: SITE_CONFIG.url,
     logo: `${SITE_CONFIG.url}/logo.png`,
     description: SITE_CONFIG.description,
@@ -30,11 +38,7 @@ export function generateOrganizationJsonLd() {
       contactType: "sales",
       availableLanguage: ["English", "Bengali"],
     },
-    sameAs: [
-      SITE_CONFIG.social.facebook,
-      SITE_CONFIG.social.linkedin,
-      SITE_CONFIG.social.instagram,
-    ].filter(Boolean),
+    sameAs: sameAsLinks,
   };
 }
 
@@ -46,7 +50,9 @@ export function generateWebSiteJsonLd() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: SITE_CONFIG.name,
+    alternateName: "Ayaan Clothing",
     url: SITE_CONFIG.url,
+    description: SITE_CONFIG.description,
     potentialAction: {
       "@type": "SearchAction",
       target: {

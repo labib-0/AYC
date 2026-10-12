@@ -1,8 +1,13 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import { CustomerRecentOrder } from "@/services/admin";
-import { ShoppingBag, Eye, ExternalLink } from "lucide-react";
+import { ShoppingBag, Eye, ExternalLink, Search, X } from "lucide-react";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/admin/orders";
+import AdminPagination from "@/components/admin/common/AdminPagination";
+import { DEFAULT_ADMIN_PAGE_SIZE } from "@/types/admin-listing";
+import { useAdminListing } from "@/hooks/useAdminListing";
 
 export interface CustomerOrdersTableProps {
   orders: CustomerRecentOrder[];
@@ -13,16 +18,63 @@ export default function CustomerOrdersTable({
   orders,
   orderBaseUrl = "/ayc/orders",
 }: CustomerOrdersTableProps) {
+  const {
+    search,
+    setSearch,
+    items: displayedOrders,
+    totalItems,
+    totalPages,
+    page,
+    perPage,
+    setPage,
+    setPerPage,
+  } = useAdminListing<CustomerRecentOrder>({
+    items: orders,
+    initialPageSize: DEFAULT_ADMIN_PAGE_SIZE,
+    filterItem: (item, q) => {
+      if (!q.trim()) return true;
+      const term = q.toLowerCase().trim();
+      return (
+        item.order_number.toLowerCase().includes(term) ||
+        item.status.toLowerCase().includes(term) ||
+        item.payment_status.toLowerCase().includes(term)
+      );
+    },
+  });
+
   return (
     <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">
-      <div className="flex items-center justify-between pb-3 border-b border-border/60">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border/60 gap-3">
         <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
           <ShoppingBag size={16} className="text-primary" />
           <span>Recent Orders ({orders.length})</span>
         </h2>
-        <span className="text-[10px] font-mono text-muted-foreground uppercase">
-          Phase 7 Linked
-        </span>
+
+        {orders.length > 0 && (
+          <div className="relative w-full sm:w-64">
+            <Search
+              size={13}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search order number, status…"
+              className="w-full h-8 pl-8 pr-7 rounded-lg border border-border bg-background text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground transition-colors"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {orders.length === 0 ? (
@@ -31,9 +83,14 @@ export default function CustomerOrdersTable({
           <p className="font-medium text-foreground">No orders found.</p>
           <p className="text-[11px]">This customer has not placed any commercial orders yet.</p>
         </div>
+      ) : displayedOrders.length === 0 ? (
+        <div className="py-8 text-center text-muted-foreground text-xs space-y-1">
+          <p className="font-medium text-foreground">No matching orders</p>
+          <p className="text-[11px]">No orders match &quot;{search}&quot;.</p>
+        </div>
       ) : (
         <div className="divide-y divide-border/60">
-          {orders.map((ord) => {
+          {displayedOrders.map((ord) => {
             const detailHref = `${orderBaseUrl}/${ord.id}`;
             const formattedDate = ord.created_at
               ? new Date(ord.created_at).toLocaleDateString("en-US", {
@@ -88,6 +145,19 @@ export default function CustomerOrdersTable({
             );
           })}
         </div>
+      )}
+
+      {orders.length > 0 && (
+        <AdminPagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          perPage={perPage}
+          onPageChange={setPage}
+          onPerPageChange={setPerPage}
+          itemName="orders"
+          idPrefix="cust-orders-pagination"
+        />
       )}
     </div>
   );

@@ -168,7 +168,7 @@ async function runTests() {
     `Homepage canonical must be absolute ${CANONICAL_DOMAIN}`
   );
   assert(
-    typeof configuredMetadata.title === "string" && configuredMetadata.title.includes("AYAAN CLOTHING"),
+    typeof configuredMetadata.title === "string" && (configuredMetadata.title.includes("Ayaan Clothing") || configuredMetadata.title.includes("AYAAN CLOTHING")),
     "Homepage title must be preserved"
   );
   assert(

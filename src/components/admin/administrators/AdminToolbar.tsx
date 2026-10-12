@@ -2,6 +2,8 @@
 
 import React from "react";
 import { Search, Shield, Filter, X } from "lucide-react";
+import { PageSizeSelector } from "@/components/admin/common";
+import { AdminPageSize } from "@/types/admin-listing";
 import { RbacRole } from "@/services/admin/rbac.service";
 
 export interface AdminToolbarProps {
@@ -13,6 +15,8 @@ export interface AdminToolbarProps {
   onRoleFilterChange: (role: string) => void;
   availableRoles: RbacRole[];
   totalResults: number;
+  perPage?: AdminPageSize;
+  onPerPageChange?: (size: AdminPageSize) => void;
 }
 
 export default function AdminToolbar({
@@ -24,6 +28,8 @@ export default function AdminToolbar({
   onRoleFilterChange,
   availableRoles,
   totalResults,
+  perPage,
+  onPerPageChange,
 }: AdminToolbarProps) {
   const hasActiveFilters = searchQuery.trim() !== "" || statusFilter !== "ALL" || roleFilter !== "ALL";
 
@@ -93,6 +99,16 @@ export default function AdminToolbar({
               ))}
             </select>
           </div>
+
+          {/* Page Size Selector */}
+          {perPage && onPerPageChange && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                Show:
+              </span>
+              <PageSizeSelector value={perPage} onChange={onPerPageChange} id="admin-per-page-select" />
+            </div>
+          )}
 
           {/* Reset Filters button */}
           {hasActiveFilters && (

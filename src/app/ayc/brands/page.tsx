@@ -15,8 +15,7 @@ import {
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 import { PermissionGate } from "@/components/admin/auth/PermissionGate";
-
-const PER_PAGE = 20;
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 export default function AdminBrandsPage() {
   const [brands, setBrands] = useState<BrandModel[]>([]);
@@ -28,6 +27,7 @@ export default function AdminBrandsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<BrandStatusFilter>("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
 
   // Dialog & Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -117,11 +117,11 @@ export default function AdminBrandsPage() {
   const inactiveCount = useMemo(() => brands.filter((b) => b.is_active === false).length, [brands]);
 
   // Pagination Calculations
-  const totalPages = Math.ceil(filteredBrands.length / PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredBrands.length / perPage));
   const paginatedBrands = useMemo(() => {
-    const startIndex = (currentPage - 1) * PER_PAGE;
-    return filteredBrands.slice(startIndex, startIndex + PER_PAGE);
-  }, [filteredBrands, currentPage]);
+    const startIndex = (currentPage - 1) * perPage;
+    return filteredBrands.slice(startIndex, startIndex + perPage);
+  }, [filteredBrands, currentPage, perPage]);
 
   // Determine next available sort order for brand creation
   const nextSortOrder = useMemo(() => {
@@ -216,7 +216,7 @@ export default function AdminBrandsPage() {
         return matchesSearch && matchesStatus;
       });
 
-      const newTotalPages = Math.ceil(remainingFiltered.length / PER_PAGE);
+      const newTotalPages = Math.ceil(remainingFiltered.length / perPage);
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages);
       }
@@ -303,13 +303,17 @@ export default function AdminBrandsPage() {
             />
 
             {/* ── Brand Pagination ── */}
-            {!loading && filteredBrands.length > 0 && (
+            {!loading && (
               <BrandPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 totalItems={filteredBrands.length}
-                perPage={PER_PAGE}
+                perPage={perPage}
                 onPageChange={setCurrentPage}
+                onPerPageChange={(newSize) => {
+                  setPerPage(newSize);
+                  setCurrentPage(1);
+                }}
               />
             )}
           </>

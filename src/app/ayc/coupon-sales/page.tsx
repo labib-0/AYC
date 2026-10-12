@@ -20,6 +20,7 @@ import {
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { TrendingUp, ShieldAlert, Sparkles, AlertCircle, RefreshCw, ShoppingBag, Tag, Crown } from "lucide-react";
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 function CouponSalesDashboardContent() {
   const searchParams = useSearchParams();
@@ -59,6 +60,7 @@ function CouponSalesDashboardContent() {
   const [search, setSearch] = useState(initialSearch);
   const [sort, setSort] = useState(initialSort);
   const [page, setPage] = useState(initialPage);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
 
   // Selected Order for Modal View
   const [selectedOrder, setSelectedOrder] = useState<CouponSalesOrderRecord | null>(null);
@@ -135,7 +137,7 @@ function CouponSalesDashboardContent() {
         search: search || undefined,
         sort,
         page,
-        per_page: 20,
+        per_page: perPage,
       });
       setOrdersResponse(data);
     } catch (err: unknown) {
@@ -145,7 +147,7 @@ function CouponSalesDashboardContent() {
     } finally {
       setLoadingOrders(false);
     }
-  }, [selectedCouponId, selectedAdminId, orderStatus, dateFilter, startDate, endDate, search, sort, page, showToast]);
+  }, [selectedCouponId, selectedAdminId, orderStatus, dateFilter, startDate, endDate, search, sort, page, perPage, showToast]);
 
   // 3. Load Super Admin Coupons Overview Table (Section 19 & 20)
   const loadCouponsOverview = useCallback(async () => {
@@ -407,8 +409,12 @@ function CouponSalesDashboardContent() {
                   currentPage={ordersResponse?.current_page || 1}
                   lastPage={ordersResponse?.last_page || 1}
                   totalItems={ordersResponse?.total || 0}
-                  perPage={ordersResponse?.per_page || 20}
+                  perPage={perPage}
                   onPageChange={(p) => setPage(p)}
+                  onPerPageChange={(newSize) => {
+                    setPerPage(newSize);
+                    setPage(1);
+                  }}
                   onViewOrder={handleViewOrder}
                   search={search}
                 />

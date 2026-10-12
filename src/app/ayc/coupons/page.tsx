@@ -17,8 +17,7 @@ import {
 import { Tag, UserCheck } from "lucide-react";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
-
-const PER_PAGE = 20;
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState<CouponRecord[]>([]);
@@ -27,6 +26,7 @@ export default function AdminCouponsPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "percentage" | "flat">("all");
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
   const [activeTab, setActiveTab] = useState<"coupons" | "bindings">("coupons");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -93,11 +93,11 @@ export default function AdminCouponsPage() {
   }, [coupons, statusFilter, typeFilter, search]);
 
   const paginatedCoupons = useMemo(() => {
-    const start = (page - 1) * PER_PAGE;
-    return filteredCoupons.slice(start, start + PER_PAGE);
-  }, [filteredCoupons, page]);
+    const start = (page - 1) * perPage;
+    return filteredCoupons.slice(start, start + perPage);
+  }, [filteredCoupons, page, perPage]);
 
-  const totalPages = Math.ceil(filteredCoupons.length / PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredCoupons.length / perPage));
 
   // Handlers
   const handleOpenAdd = () => {
@@ -240,8 +240,12 @@ export default function AdminCouponsPage() {
               currentPage={page}
               totalPages={totalPages}
               totalItems={filteredCoupons.length}
-              pageSize={PER_PAGE}
+              perPage={perPage}
               onPageChange={setPage}
+              onPerPageChange={(newSize) => {
+                setPerPage(newSize);
+                setPage(1);
+              }}
             />
 
             {/* 6. Modals */}

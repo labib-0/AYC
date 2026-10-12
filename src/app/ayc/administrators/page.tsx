@@ -19,6 +19,8 @@ import {
   AdminDeleteDialog,
   AdminRoleAssignModal,
 } from "@/components/admin/administrators";
+import { AdminPagination } from "@/components/admin/common";
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
@@ -31,6 +33,10 @@ export default function AdministratorsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [togglingId, setTogglingId] = useState<string | number | null>(null);
+
+  // Pagination & Page Size (Default: 5)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,6 +120,24 @@ export default function AdministratorsPage() {
       return true;
     });
   }, [admins, statusFilter, roleFilter, searchQuery]);
+
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, roleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAdmins.length / perPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedAdmins = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return filteredAdmins.slice(start, start + perPage);
+  }, [filteredAdmins, currentPage, perPage]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -218,6 +242,11 @@ export default function AdministratorsPage() {
         onRoleFilterChange={setRoleFilter}
         availableRoles={availableRoles}
         totalResults={filteredAdmins.length}
+        perPage={perPage}
+        onPerPageChange={(newSize) => {
+          setPerPage(newSize);
+          setCurrentPage(1);
+        }}
       />
 
       {/* Administrators Table */}
@@ -227,18 +256,33 @@ export default function AdministratorsPage() {
           <span className="text-xs font-mono">Loading administrator accounts...</span>
         </div>
       ) : (
-        <AdminTable
-          admins={filteredAdmins}
-          currentUserId={currentUser?.id}
-          isCurrentUserSuperAdmin={isCurrentUserSuperAdmin}
-          onEdit={handleOpenEdit}
-          onAssignRoles={handleOpenAssignRoles}
-          onInspectPermissions={handleOpenInspectPermissions}
-          onResetPassword={handleOpenResetPassword}
-          onToggleStatus={handleToggleStatus}
-          onDelete={handleOpenDelete}
-          togglingId={togglingId}
-        />
+        <>
+          <AdminTable
+            admins={paginatedAdmins}
+            currentUserId={currentUser?.id}
+            isCurrentUserSuperAdmin={isCurrentUserSuperAdmin}
+            onEdit={handleOpenEdit}
+            onAssignRoles={handleOpenAssignRoles}
+            onInspectPermissions={handleOpenInspectPermissions}
+            onResetPassword={handleOpenResetPassword}
+            onToggleStatus={handleToggleStatus}
+            onDelete={handleOpenDelete}
+            togglingId={togglingId}
+          />
+          <AdminPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredAdmins.length}
+            perPage={perPage}
+            onPageChange={setCurrentPage}
+            onPerPageChange={(newSize) => {
+              setPerPage(newSize);
+              setCurrentPage(1);
+            }}
+            itemName="administrator accounts"
+            idPrefix="admin-users-pagination"
+          />
+        </>
       )}
 
       {/* Modals */}

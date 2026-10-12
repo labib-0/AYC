@@ -1,6 +1,11 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import { CustomerPurchasedProduct } from "@/services/admin";
-import { Package, ShoppingBag } from "lucide-react";
+import { Package, ShoppingBag, Search, X } from "lucide-react";
+import AdminPagination from "@/components/admin/common/AdminPagination";
+import { AdminPageSize, DEFAULT_ADMIN_PAGE_SIZE } from "@/types/admin-listing";
+import { useAdminListing } from "@/hooks/useAdminListing";
 
 export interface CustomerPurchasedProductsTableProps {
   products: CustomerPurchasedProduct[];
@@ -9,16 +14,64 @@ export interface CustomerPurchasedProductsTableProps {
 export default function CustomerPurchasedProductsTable({
   products,
 }: CustomerPurchasedProductsTableProps) {
+  const {
+    search,
+    setSearch,
+    items: displayedProducts,
+    totalItems,
+    totalPages,
+    page,
+    perPage,
+    setPage,
+    setPerPage,
+  } = useAdminListing<CustomerPurchasedProduct>({
+    items: products,
+    initialPageSize: DEFAULT_ADMIN_PAGE_SIZE,
+    filterItem: (item, q) => {
+      if (!q.trim()) return true;
+      const term = q.toLowerCase().trim();
+      return (
+        item.product_name.toLowerCase().includes(term) ||
+        (item.sku && item.sku.toLowerCase().includes(term)) ||
+        item.order_number.toLowerCase().includes(term)
+      );
+    },
+  });
+
   return (
     <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">
-      <div className="flex items-center justify-between pb-3 border-b border-border/60">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border/60 gap-3">
         <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
           <Package size={16} className="text-primary" />
           <span>Products Purchased ({products.length})</span>
         </h2>
-        <span className="text-[10px] font-mono text-muted-foreground uppercase bg-secondary px-2 py-0.5 rounded border border-border/50">
-          Commercial History
-        </span>
+
+        {/* Search input if items exist */}
+        {products.length > 0 && (
+          <div className="relative w-full sm:w-64">
+            <Search
+              size={13}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products, SKU, order…"
+              className="w-full h-8 pl-8 pr-7 rounded-lg border border-border bg-background text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground transition-colors"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {products.length === 0 ? (
@@ -28,6 +81,11 @@ export default function CustomerPurchasedProductsTable({
           <p className="text-[11px]">
             Items will appear here once the customer completes commercial orders.
           </p>
+        </div>
+      ) : displayedProducts.length === 0 ? (
+        <div className="py-8 text-center text-muted-foreground text-xs space-y-1">
+          <p className="font-medium text-foreground">No matching products found</p>
+          <p className="text-[11px]">No items match &quot;{search}&quot;.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -44,7 +102,7 @@ export default function CustomerPurchasedProductsTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-              {products.map((item, idx) => {
+              {displayedProducts.map((item, idx) => {
                 const formattedDate = item.order_date
                   ? new Date(item.order_date).toLocaleDateString("en-US", {
                       month: "short",
@@ -88,6 +146,19 @@ export default function CustomerPurchasedProductsTable({
             </tbody>
           </table>
         </div>
+      )}
+
+      {products.length > 0 && (
+        <AdminPagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          perPage={perPage}
+          onPageChange={setPage}
+          onPerPageChange={setPerPage}
+          itemName="purchased products"
+          idPrefix="cust-purchased-products-pagination"
+        />
       )}
     </div>
   );

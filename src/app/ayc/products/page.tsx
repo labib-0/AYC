@@ -31,8 +31,8 @@ import type { ProductFilters, ToastMessage } from "@/components/admin/products";
 import { LOW_STOCK_THRESHOLD } from "@/services/admin/inventory.service";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 import { PermissionGate } from "@/components/admin/auth/PermissionGate";
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
-const ITEMS_PER_PAGE = 20;
 
 function AdminProductsContent() {
   const pathname = usePathname();
@@ -87,6 +87,7 @@ function AdminProductsContent() {
 
   // ── Pagination ──
   const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
 
   // ── Selection ──
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -246,10 +247,10 @@ function AdminProductsContent() {
 
   // ── Pagination Calculation ──
   const totalProducts = allProducts.length;
-  const totalPages = Math.max(1, Math.ceil(totalProducts / ITEMS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(totalProducts / perPage));
   const safePage = Math.min(currentPage, totalPages);
-  const startIdx = (safePage - 1) * ITEMS_PER_PAGE;
-  const pageProducts = allProducts.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+  const startIdx = (safePage - 1) * perPage;
+  const pageProducts = allProducts.slice(startIdx, startIdx + perPage);
 
   const hasActiveFilters =
     filters.search.trim() !== "" ||
@@ -506,8 +507,12 @@ function AdminProductsContent() {
         currentPage={safePage}
         totalPages={totalPages}
         totalItems={totalProducts}
-        perPage={ITEMS_PER_PAGE}
+        perPage={perPage}
         onPageChange={setCurrentPage}
+        onPerPageChange={(newSize) => {
+          setPerPage(newSize);
+          setCurrentPage(1);
+        }}
       />
 
       {/* Delete Modal */}

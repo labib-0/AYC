@@ -16,8 +16,7 @@ import {
 import { DateFilterPreset } from "@/components/admin/orders/OrderDateFilter";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
-
-const PER_PAGE = 20;
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 export default function AdminRfqPage() {
   // Data State
@@ -34,6 +33,7 @@ export default function AdminRfqPage() {
 
   // Filter & Pagination State
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [datePreset, setDatePreset] = useState<DateFilterPreset>("all");
@@ -108,7 +108,7 @@ export default function AdminRfqPage() {
       const [rfqRes, summaryRes] = await Promise.all([
         adminRfqService.getRfqs({
           page,
-          per_page: PER_PAGE,
+          per_page: perPage,
           search: search.trim() || undefined,
           status: status !== "all" ? status : undefined,
           date_preset: datePreset !== "all" ? datePreset : undefined,
@@ -131,7 +131,7 @@ export default function AdminRfqPage() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [page, search, status, datePreset, dateFrom, dateTo, sortBy, sortOrder]);
+  }, [page, perPage, search, status, datePreset, dateFrom, dateTo, sortBy, sortOrder]);
 
   useEffect(() => {
     loadData();
@@ -230,13 +230,17 @@ export default function AdminRfqPage() {
         />
 
         {/* 5. Pagination */}
-        {!loading && !error && rfqs.length > 0 && (
+        {!loading && !error && (
           <RfqPagination
             currentPage={page}
             totalPages={totalPages}
             totalRfqs={total}
-            perPage={PER_PAGE}
+            perPage={perPage}
             onPageChange={(p) => setPage(p)}
+            onPerPageChange={(newSize) => {
+              setPerPage(newSize);
+              setPage(1);
+            }}
             isLoading={loading}
           />
         )}

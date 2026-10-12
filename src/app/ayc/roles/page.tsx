@@ -17,6 +17,8 @@ import {
   RoleDetailModal,
   RoleDeleteDialog,
 } from "@/components/admin/roles";
+import { AdminPagination } from "@/components/admin/common";
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 
@@ -25,6 +27,10 @@ export default function RolesPage() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Pagination & Page Size (Default: 5)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,6 +99,24 @@ export default function RolesPage() {
       return true;
     });
   }, [roles, typeFilter, statusFilter, searchQuery]);
+
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, typeFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRoles.length / perPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedRoles = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return filteredRoles.slice(start, start + perPage);
+  }, [filteredRoles, currentPage, perPage]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -190,6 +214,11 @@ export default function RolesPage() {
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
         totalResults={filteredRoles.length}
+        perPage={perPage}
+        onPerPageChange={(newSize) => {
+          setPerPage(newSize);
+          setCurrentPage(1);
+        }}
       />
 
       {/* Roles Table */}
@@ -199,13 +228,28 @@ export default function RolesPage() {
           <span className="text-xs font-mono">Loading RBAC roles...</span>
         </div>
       ) : (
-        <RolesTable
-          roles={filteredRoles}
-          onEdit={handleOpenEdit}
-          onManagePermissions={handleOpenManagePermissions}
-          onViewDetails={handleOpenViewDetails}
-          onDelete={handleOpenDelete}
-        />
+        <>
+          <RolesTable
+            roles={paginatedRoles}
+            onEdit={handleOpenEdit}
+            onManagePermissions={handleOpenManagePermissions}
+            onViewDetails={handleOpenViewDetails}
+            onDelete={handleOpenDelete}
+          />
+          <AdminPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredRoles.length}
+            perPage={perPage}
+            onPageChange={setCurrentPage}
+            onPerPageChange={(newSize) => {
+              setPerPage(newSize);
+              setCurrentPage(1);
+            }}
+            itemName="roles"
+            idPrefix="roles-pagination"
+          />
+        </>
       )}
 
       {/* Modals */}

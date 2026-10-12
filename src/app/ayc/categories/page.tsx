@@ -16,8 +16,7 @@ import {
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 import { PermissionGate } from "@/components/admin/auth/PermissionGate";
-
-const PER_PAGE = 20;
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<CategoryModel[]>([]);
@@ -29,6 +28,7 @@ export default function AdminCategoriesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<CategoryStatusFilter>("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
 
   // Dialog & Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -118,11 +118,11 @@ export default function AdminCategoriesPage() {
   const inactiveCount = useMemo(() => categories.filter((c) => c.is_active === false).length, [categories]);
 
   // Pagination Calculations
-  const totalPages = Math.ceil(filteredCategories.length / PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / perPage));
   const paginatedCategories = useMemo(() => {
-    const startIndex = (currentPage - 1) * PER_PAGE;
-    return filteredCategories.slice(startIndex, startIndex + PER_PAGE);
-  }, [filteredCategories, currentPage]);
+    const startIndex = (currentPage - 1) * perPage;
+    return filteredCategories.slice(startIndex, startIndex + perPage);
+  }, [filteredCategories, currentPage, perPage]);
 
   // Determine next available sort order for category creation
   const nextSortOrder = useMemo(() => {
@@ -217,7 +217,7 @@ export default function AdminCategoriesPage() {
         return matchesSearch && matchesStatus;
       });
 
-      const newTotalPages = Math.ceil(remainingFiltered.length / PER_PAGE);
+      const newTotalPages = Math.ceil(remainingFiltered.length / perPage);
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages);
       }
@@ -307,13 +307,17 @@ export default function AdminCategoriesPage() {
             />
 
             {/* ── Category Pagination ── */}
-            {!loading && filteredCategories.length > 0 && (
+            {!loading && (
               <CategoryPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 totalItems={filteredCategories.length}
-                perPage={PER_PAGE}
+                perPage={perPage}
                 onPageChange={setCurrentPage}
+                onPerPageChange={(newSize) => {
+                  setPerPage(newSize);
+                  setCurrentPage(1);
+                }}
               />
             )}
           </>

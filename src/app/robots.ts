@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
           "/products/",
           "/privacy-policy",
           "/terms-and-conditions",
+          "/rfq",
         ],
         disallow: [
           "/ayc",
@@ -32,7 +33,6 @@ export default function robots(): MetadataRoute.Robots {
           "/checkout",
           "/login",
           "/signup",
-          "/rfq",
           "/api/*",
         ],
       },

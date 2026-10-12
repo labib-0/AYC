@@ -60,6 +60,8 @@ import {
   getPaymentPresentation,
   getCanonicalCustomerStatus,
 } from "@/lib/order-status";
+import { AdminPagination, PageSizeSelector } from "@/components/admin/common";
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 function formatCurrency(amount: number | string | null | undefined, currency: string = "USD"): string {
   const num = typeof amount === "string" ? parseFloat(amount) : Number(amount ?? 0);
@@ -115,6 +117,8 @@ export default function AdminPosPage() {
   const [productSearch, setProductSearch] = useState("");
   const [productResults, setProductResults] = useState<PosProduct[]>([]);
   const [isSearchingProducts, setIsSearchingProducts] = useState(false);
+  const [productCurrentPage, setProductCurrentPage] = useState<number>(1);
+  const [productPerPage, setProductPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
   const [categories, setCategories] = useState<CategoryModel[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | number | null>(null);
   const [warehouses, setWarehouses] = useState<PosWarehouse[]>([]);
@@ -189,7 +193,7 @@ export default function AdminPosPage() {
             setCategories(cats);
           }
         }
-        const initialProducts = await posService.searchProducts("", whs[0]?.id || null, 16);
+        const initialProducts = await posService.searchProducts("", whs[0]?.id || null, 50);
         if (mounted) {
           setProductResults(initialProducts);
         }
@@ -202,7 +206,7 @@ export default function AdminPosPage() {
     };
   }, []);
 
-  // Customer search with debounce
+  // Customer search with debounce (default 5 records)
   useEffect(() => {
     if (!customerSearch.trim()) {
       setCustomerResults([]);
@@ -213,7 +217,7 @@ export default function AdminPosPage() {
     const timer = setTimeout(async () => {
       setIsSearchingCustomers(true);
       try {
-        const results = await posService.searchCustomers(customerSearch.trim(), 10);
+        const results = await posService.searchCustomers(customerSearch.trim(), 5);
         setCustomerResults(results);
         setShowCustomerDropdown(true);
       } catch (err) {
@@ -234,7 +238,7 @@ export default function AdminPosPage() {
         const results = await posService.searchProducts(
           productSearch.trim(),
           selectedWarehouseId,
-          24,
+          50,
           selectedCategoryId ? Number(selectedCategoryId) : null
         );
         setProductResults(results);
@@ -247,6 +251,24 @@ export default function AdminPosPage() {
 
     return () => clearTimeout(timer);
   }, [productSearch, selectedWarehouseId, selectedCategoryId]);
+
+  // Reset product page when search or category filter changes
+  useEffect(() => {
+    setProductCurrentPage(1);
+  }, [productSearch, selectedWarehouseId, selectedCategoryId]);
+
+  const productTotalPages = Math.max(1, Math.ceil(productResults.length / productPerPage));
+
+  useEffect(() => {
+    if (productCurrentPage > productTotalPages) {
+      setProductCurrentPage(productTotalPages);
+    }
+  }, [productCurrentPage, productTotalPages]);
+
+  const paginatedProducts = useMemo(() => {
+    const start = (productCurrentPage - 1) * productPerPage;
+    return productResults.slice(start, start + productPerPage);
+  }, [productResults, productCurrentPage, productPerPage]);
 
   // Sync activeProduct selection defaults
   useEffect(() => {
@@ -1199,9 +1221,21 @@ export default function AdminPosPage() {
 
             {/* Product Catalog Grid */}
             <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-3">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                 <span className="font-mono font-medium">Catalog Products ({productResults.length})</span>
-                <span className="text-[11px]">Click card to configure & add</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                    Show:
+                  </span>
+                  <PageSizeSelector
+                    value={productPerPage}
+                    onChange={(newSize) => {
+                      setProductPerPage(newSize);
+                      setProductCurrentPage(1);
+                    }}
+                    id="pos-catalog-page-size"
+                  />
+                </div>
               </div>
 
               {productResults.length === 0 ? (
@@ -1212,7 +1246,7 @@ export default function AdminPosPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[620px] overflow-y-auto pr-1">
-                  {productResults.map((product) => {
+                  {paginatedProducts.map((product) => {
                     const isSoldOut = product.is_sold_out || product.total_available_stock <= 0;
                     const isSelected = activeProduct?.id === product.id;
 
@@ -1284,6 +1318,25 @@ export default function AdminPosPage() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* POS Catalog Pagination */}
+              {productResults.length > 0 && (
+                <div className="pt-2 border-t border-border/40">
+                  <AdminPagination
+                    currentPage={productCurrentPage}
+                    totalPages={productTotalPages}
+                    totalItems={productResults.length}
+                    perPage={productPerPage}
+                    onPageChange={setProductCurrentPage}
+                    onPerPageChange={(newSize) => {
+                      setProductPerPage(newSize);
+                      setProductCurrentPage(1);
+                    }}
+                    itemName="catalog products"
+                    idPrefix="pos-catalog-pagination"
+                  />
                 </div>
               )}
             </div>

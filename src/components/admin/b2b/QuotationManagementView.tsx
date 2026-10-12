@@ -11,7 +11,7 @@ import {
 } from "@/components/admin/quotations";
 import { RefreshCw } from "lucide-react";
 
-const PAGE_SIZE = 20;
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 export default function QuotationManagementView() {
   const pathname = usePathname();
@@ -23,6 +23,7 @@ export default function QuotationManagementView() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
 
   const isUnderAdmin = pathname.startsWith("/ayc") || pathname.startsWith("/admin");
   const rfqBaseUrl = isUnderAdmin ? "/ayc/rfq" : "/rfq";
@@ -71,11 +72,11 @@ export default function QuotationManagementView() {
   }, [search, statusFilter]);
 
   // Sliced page data
-  const totalPages = Math.ceil(filteredQuotations.length / PAGE_SIZE) || 1;
+  const totalPages = Math.ceil(filteredQuotations.length / perPage) || 1;
   const paginatedQuotations = useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-    return filteredQuotations.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredQuotations, currentPage]);
+    const startIndex = (currentPage - 1) * perPage;
+    return filteredQuotations.slice(startIndex, startIndex + perPage);
+  }, [filteredQuotations, currentPage, perPage]);
 
   const handleResetFilters = () => {
     setSearch("");
@@ -130,13 +131,17 @@ export default function QuotationManagementView() {
       />
 
       {/* Pagination */}
-      {!loading && !error && filteredQuotations.length > 0 && (
+      {!loading && !error && (
         <QuotationPagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={filteredQuotations.length}
-          pageSize={PAGE_SIZE}
+          perPage={perPage}
           onPageChange={setCurrentPage}
+          onPerPageChange={(newSize) => {
+            setPerPage(newSize);
+            setCurrentPage(1);
+          }}
           isLoading={loading}
         />
       )}

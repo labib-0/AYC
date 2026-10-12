@@ -35,24 +35,6 @@ const DEFAULT_PUBLIC_SETTINGS: PublicSiteSettings = {
       is_active: true,
       sort_order: 1,
     },
-    {
-      id: "link_linkedin",
-      provider: "linkedin",
-      name: "LinkedIn",
-      url: "https://linkedin.com",
-      icon: "linkedin",
-      is_active: true,
-      sort_order: 2,
-    },
-    {
-      id: "link_instagram",
-      provider: "instagram",
-      name: "Instagram",
-      url: "https://instagram.com",
-      icon: "instagram",
-      is_active: true,
-      sort_order: 3,
-    },
   ],
   legal_pages: [
     {

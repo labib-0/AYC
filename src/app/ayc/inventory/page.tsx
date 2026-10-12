@@ -22,8 +22,7 @@ import ProductToast, {
   ToastMessage,
 } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
-
-const PER_PAGE = 20;
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 function AdminInventoryContent() {
   const searchParams = useSearchParams();
@@ -47,6 +46,7 @@ function AdminInventoryContent() {
 
   // Filters & Pagination
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StockFilterStatus>(
     tabParam === "stock-control" ? "LOW_STOCK" : "ALL"
@@ -82,7 +82,7 @@ function AdminInventoryContent() {
         const [invRes, summaryRes] = await Promise.all([
           adminInventoryService.getInventory({
             page,
-            per_page: PER_PAGE,
+            per_page: perPage,
             search: search.trim() || undefined,
             status,
           }),
@@ -101,7 +101,7 @@ function AdminInventoryContent() {
         setIsRefreshing(false);
       }
     },
-    [page, search, status]
+    [page, perPage, search, status]
   );
 
   useEffect(() => {
@@ -298,9 +298,13 @@ function AdminInventoryContent() {
         {/* 5. Real Pagination Controls */}
         <InventoryPagination
           currentPage={page}
-          perPage={PER_PAGE}
+          perPage={perPage}
           totalItems={total}
           onPageChange={(newPage) => setPage(newPage)}
+          onPerPageChange={(newSize) => {
+            setPerPage(newSize);
+            setPage(1);
+          }}
         />
 
         {/* 6. Stock Adjustment Modal (Global + Row-preselected) */}

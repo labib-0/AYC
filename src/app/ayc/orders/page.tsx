@@ -17,8 +17,7 @@ import {
 } from "@/components/admin/orders";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
-
-const PER_PAGE = 20;
+import { DEFAULT_ADMIN_PAGE_SIZE, AdminPageSize } from "@/types/admin-listing";
 
 export default function AdminOrdersPage() {
   // Data State
@@ -35,6 +34,7 @@ export default function AdminOrdersPage() {
 
   // Filter & Pagination State
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<AdminPageSize>(DEFAULT_ADMIN_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const [customerStatus, setCustomerStatus] = useState("all");
   const [status, setStatus] = useState("all");
@@ -110,7 +110,7 @@ export default function AdminOrdersPage() {
       const [orderRes, summaryRes] = await Promise.all([
         adminOrderService.getOrders({
           page,
-          per_page: PER_PAGE,
+          per_page: perPage,
           search: search.trim() || undefined,
           customer_status: customerStatus !== "all" ? customerStatus : undefined,
           status: status !== "all" ? status : undefined,
@@ -134,7 +134,7 @@ export default function AdminOrdersPage() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [page, search, customerStatus, status, paymentStatus, fulfillmentStatus, datePreset, dateFrom, dateTo]);
+  }, [page, perPage, search, customerStatus, status, paymentStatus, fulfillmentStatus, datePreset, dateFrom, dateTo]);
 
   useEffect(() => {
     loadData();
@@ -314,13 +314,17 @@ export default function AdminOrdersPage() {
         />
 
         {/* 5. Pagination */}
-        {!loading && !error && orders.length > 0 && (
+        {!loading && !error && (
           <OrderPagination
             currentPage={page}
             totalPages={totalPages}
             totalOrders={total}
-            perPage={PER_PAGE}
+            perPage={perPage}
             onPageChange={(p) => setPage(p)}
+            onPerPageChange={(newSize) => {
+              setPerPage(newSize);
+              setPage(1);
+            }}
             isLoading={loading}
           />
         )}

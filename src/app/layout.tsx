@@ -30,14 +30,27 @@ const siteUrl = SITE_URL;
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
-    template: "%s | AYAAN CLOTHING",
+    default: "Ayaan Clothing | Garment Manufacturer & Exporter in Bangladesh",
+    template: "%s | Ayaan Clothing",
   },
   description:
-    "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers. Est. 2010.",
-  authors: [{ name: "AYAAN CLOTHING" }],
-  creator: "AYAAN CLOTHING",
-  publisher: "AYAAN CLOTHING",
+    "Bangladesh garment manufacturer and exporter supplying wholesale apparel, original-branded stock lots, factory surplus, and custom OEM production to international buyers.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/icon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-256x256.png", sizes: "256x256", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+  },
+  authors: [{ name: "Ayaan Clothing" }],
+  creator: "Ayaan Clothing",
+  publisher: "Ayaan Clothing",
   formatDetection: {
     email: false,
     address: false,
@@ -50,24 +63,24 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: siteUrl,
-    siteName: "AYAAN CLOTHING",
-    title: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
+    siteName: "Ayaan Clothing",
+    title: "Ayaan Clothing | Garment Manufacturer & Exporter in Bangladesh",
     description:
-      "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers.",
+      "Bangladesh garment manufacturer and exporter supplying wholesale apparel, original-branded stock lots, factory surplus, and custom OEM production to international buyers.",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
+        alt: "Ayaan Clothing | Garment Manufacturer & Exporter in Bangladesh",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter",
+    title: "Ayaan Clothing | Garment Manufacturer & Exporter in Bangladesh",
     description:
-      "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers.",
+      "Bangladesh garment manufacturer and exporter supplying wholesale apparel, original-branded stock lots, factory surplus, and custom OEM production to international buyers.",
     images: ["/og-image.jpg"],
   },
   robots: {

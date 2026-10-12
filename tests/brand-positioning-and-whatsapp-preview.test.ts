@@ -38,8 +38,8 @@ async function runTests() {
   console.log("==================================================================");
 
   const rootDir = path.resolve(__dirname, "..");
-  const APPROVED_HEADING = "AYAAN CLOTHING — Original-Branded Garments Manufacturer & Exporter";
-  const APPROVED_DESCRIPTION = "Original-branded garments manufacturer and exporter from Bangladesh, supplying B2B wholesale apparel to international buyers.";
+  const APPROVED_HEADING = "Ayaan Clothing | Garment Manufacturer & Exporter in Bangladesh";
+  const APPROVED_DESCRIPTION = "Bangladesh garment manufacturer and exporter supplying wholesale apparel, original-branded stock lots, factory surplus, and custom OEM production to international buyers.";
 
   // ── TEST 1: HOMEPAGE METADATA GENERATION ────────────────────────────────────
   console.log("\n▶ Group 1: Homepage Metadata (generateMetadata)");
@@ -122,17 +122,17 @@ async function runTests() {
   // ── TEST 3: SITE_CONFIG AND STRUCTURED DATA ─────────────────────────────────
   console.log("\n▶ Group 3: Core SEO Config and Structured Data");
   assert(
-    SITE_CONFIG.tagline === "Original-Branded Garments Manufacturer & Exporter",
-    'SITE_CONFIG tagline reflects "Original-Branded Garments Manufacturer & Exporter"'
+    SITE_CONFIG.tagline === "Garment Manufacturer & Exporter in Bangladesh",
+    'SITE_CONFIG tagline reflects "Garment Manufacturer & Exporter in Bangladesh"'
   );
   assert(
-    SITE_CONFIG.description.startsWith("Original-branded garments manufacturer"),
-    'SITE_CONFIG description begins with "Original-branded garments manufacturer"'
+    SITE_CONFIG.description.startsWith("Bangladesh garment manufacturer"),
+    'SITE_CONFIG description begins with "Bangladesh garment manufacturer"'
   );
 
   const orgJsonLd = generateOrganizationJsonLd();
   assert(
-    orgJsonLd.description.includes("Original-branded garments manufacturer"),
+    orgJsonLd.description.includes("Bangladesh garment manufacturer"),
     "Organization JSON-LD structured data incorporates approved brand description"
   );
 
@@ -140,12 +140,12 @@ async function runTests() {
   console.log("\n▶ Group 4: Web Manifest");
   const manifestData = manifest();
   assert(
-    (manifestData.name ?? "").includes("Original-Branded Garments"),
-    'Web manifest name incorporates "Original-Branded Garments"'
+    (manifestData.name ?? "").includes("Ayaan Clothing"),
+    'Web manifest name incorporates "Ayaan Clothing"'
   );
   assert(
-    (manifestData.description ?? "").includes("Original-Branded Garments"),
-    'Web manifest description incorporates "Original-Branded Garments"'
+    (manifestData.description ?? "").includes("Bangladesh garment manufacturer"),
+    'Web manifest description incorporates "Bangladesh garment manufacturer"'
   );
 
   // ── TEST 5: SOCIAL SHARING IMAGE ASSET (public/og-image.jpg) ────────────────
