@@ -27,7 +27,7 @@ const expectedSections = [
   },
   {
     title: "COMMERCE",
-    expectedItems: ["Orders & Fulfillment", "RFQs", "POS", "Customers"],
+    expectedItems: ["Orders", "RFQs", "POS", "Customers"],
   },
   {
     title: "MARKETING",
@@ -145,29 +145,33 @@ assert(
 console.log("✔ Inventory successfully consolidated into Products with all capabilities preserved.");
 
 // -----------------------------------------------------------------------------
-// Suite 5: Pending Orders Integration into Orders & Fulfillment
+// Suite 5: Pending Orders Integration into Orders
 // -----------------------------------------------------------------------------
-console.log("\n▶ Suite 5: Pending Orders Tab / Filter in Orders & Fulfillment");
+console.log("\n▶ Suite 5: Pending Orders Integration into Orders");
 
 const ordersSource = fs.readFileSync(
   path.join(rootDir, "src/app/ayc/orders/page.tsx"),
   "utf8"
 );
+const kpisSource = fs.readFileSync(
+  path.join(rootDir, "src/components/admin/orders/OrderKpis.tsx"),
+  "utf8"
+);
 
 assert(
-  ordersSource.includes("Pending Orders") && ordersSource.includes("btn-tab-order"),
-  "Orders page must have dedicated Pending Orders tab"
+  kpisSource.includes("Pending Action") && kpisSource.includes('"pending"'),
+  "Orders page must support filtering by pending status via summary KPI card"
 );
 assert(
-  ordersSource.includes('id: "pending"') && ordersSource.includes("Pending Orders"),
-  "Orders page must support filtering by pending status tab"
+  ordersSource.includes("OrderToolbar") && ordersSource.includes("handleStatusChange"),
+  "Orders page must support filtering by pending status"
 );
 assert(
   ordersSource.includes("PaymentReviewModal"),
   "Orders page must preserve PaymentReviewModal capability"
 );
 
-console.log("✔ Pending Orders successfully integrated as dedicated tab/filter in Orders.");
+console.log("✔ Pending Orders successfully accessible via summary cards and filters in Orders.");
 
 // -----------------------------------------------------------------------------
 // Suite 6: Roles & Permissions Grouping and Deep Links
@@ -208,7 +212,7 @@ console.log("✔ Roles and Permissions grouped cleanly with bidirectional sub-na
 console.log("\n▶ Suite 7: Collapsible Desktop Sidebar & Responsive Drawer");
 
 const layoutSource = fs.readFileSync(
-  path.join(rootDir, "src/app/ayc/layout.tsx"),
+  path.join(rootDir, "src/app/ayc/AdminLayoutClient.tsx"),
   "utf8"
 );
 
@@ -259,11 +263,11 @@ const testCases = [
   },
   {
     path: "/ayc/orders",
-    expectedLabels: ["Dashboard", "Commerce", "Orders & Fulfillment"],
+    expectedLabels: ["Dashboard", "Commerce", "Orders"],
   },
   {
     path: "/ayc/orders/ORD-2026-0001",
-    expectedLabels: ["Dashboard", "Commerce", "Orders & Fulfillment", "Order #ORD-2026-0001"],
+    expectedLabels: ["Dashboard", "Commerce", "Orders", "Order #ORD-2026-0001"],
   },
   {
     path: "/ayc/rfq/456",
@@ -333,8 +337,8 @@ assert(resolveActive("/ayc/products", "/ayc/products"), "/ayc/products activates
 assert(resolveActive("/ayc/products", "/ayc/products/new"), "/ayc/products/new activates Products");
 assert(resolveActive("/ayc/products", "/ayc/products/99/edit"), "/ayc/products/99/edit activates Products");
 
-assert(resolveActive("/ayc/orders", "/ayc/orders"), "/ayc/orders activates Orders & Fulfillment");
-assert(resolveActive("/ayc/orders", "/ayc/orders/ORD-001"), "/ayc/orders/ORD-001 activates Orders & Fulfillment");
+assert(resolveActive("/ayc/orders", "/ayc/orders"), "/ayc/orders activates Orders");
+assert(resolveActive("/ayc/orders", "/ayc/orders/ORD-001"), "/ayc/orders/ORD-001 activates Orders");
 
 assert(resolveActive("/ayc/roles", "/ayc/roles"), "/ayc/roles activates Roles & Permissions");
 assert(resolveActive("/ayc/roles", "/ayc/permissions"), "/ayc/permissions activates Roles & Permissions");
@@ -353,8 +357,7 @@ const permissionMap: Record<string, string> = {
   "Products": ADMIN_PERMISSIONS.PRODUCT_VIEW,
   "Categories": ADMIN_PERMISSIONS.CATEGORY_VIEW,
   "Brands": ADMIN_PERMISSIONS.BRAND_VIEW,
-  "Inventory": ADMIN_PERMISSIONS.INVENTORY_VIEW,
-  "Orders & Fulfillment": ADMIN_PERMISSIONS.ORDER_VIEW,
+  "Orders": ADMIN_PERMISSIONS.ORDER_VIEW,
   "RFQs": ADMIN_PERMISSIONS.RFQ_VIEW,
   "POS": ADMIN_PERMISSIONS.POS_VIEW,
   "Customers": ADMIN_PERMISSIONS.CUSTOMER_VIEW,

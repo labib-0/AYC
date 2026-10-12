@@ -11,10 +11,10 @@ export default function OrderListHeader({
   isLoading = false,
 }: OrderListHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
       <div>
         <h1 className="text-2xl sm:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
-          Orders
+          ORDERS
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 leading-relaxed">
           Manage customer orders, payment status and fulfillment.

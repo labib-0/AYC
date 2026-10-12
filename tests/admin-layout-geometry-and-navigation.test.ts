@@ -14,7 +14,7 @@ const rootDir = path.resolve(__dirname, "..");
 // =========================================================================
 console.log("\n▶ 1. Shared Admin Application Shell Layout Inspection");
 
-const layoutPath = path.join(rootDir, "src/app/ayc/layout.tsx");
+const layoutPath = path.join(rootDir, "src/app/ayc/AdminLayoutClient.tsx");
 assert(fs.existsSync(layoutPath), "src/app/ayc/layout.tsx exists");
 const layoutContent = fs.readFileSync(layoutPath, "utf8");
 
@@ -105,7 +105,7 @@ const expectedLabels = [
   "Products",
   "Categories",
   "Brands",
-  "Orders & Fulfillment",
+  "Orders",
   "Customers",
   "RFQs",
   "POS",
@@ -137,13 +137,15 @@ const productsPagePath = path.join(rootDir, "src/app/ayc/products/page.tsx");
 const productsPageContent = fs.readFileSync(productsPagePath, "utf8");
 assert(productsPageContent.includes("Add Product"), "Products page must preserve contextual Add Product action");
 
+assert(productsPageContent.includes("Adjust Stock"), "Products page must provide consolidated Adjust Stock action");
+
 const inventoryPagePath = path.join(rootDir, "src/app/ayc/inventory/page.tsx");
 const inventoryPageContent = fs.readFileSync(inventoryPagePath, "utf8");
-assert(inventoryPageContent.includes("Stock Control"), "Inventory page must preserve Stock Control tab/action");
+assert(inventoryPageContent.includes("/ayc/products"), "Inventory page cleanly redirects to Products");
 
-const ordersPagePath = path.join(rootDir, "src/app/ayc/orders/page.tsx");
-const ordersPageContent = fs.readFileSync(ordersPagePath, "utf8");
-assert(ordersPageContent.includes("Pending Orders"), "Orders page must preserve Pending Orders tab/filter");
+const kpisPagePath = path.join(rootDir, "src/components/admin/orders/OrderKpis.tsx");
+const kpisPageContent = fs.readFileSync(kpisPagePath, "utf8");
+assert(kpisPageContent.includes("Pending Action"), "Orders page must preserve Pending Action summary card");
 
 // Test Active Item resolution logic
 function calculateIsActive(

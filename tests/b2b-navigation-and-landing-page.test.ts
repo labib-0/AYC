@@ -36,8 +36,8 @@ const commerceLabels = commerceSection?.items.map((i) => i.label) || [];
 const commerceHrefs = commerceSection?.items.map((i) => i.href) || [];
 
 assert(
-  commerceLabels.includes("Orders & Fulfillment"),
-  "Commerce section contains 'Orders & Fulfillment' item"
+  commerceLabels.includes("Orders"),
+  "Commerce section contains 'Orders' item"
 );
 
 assert(

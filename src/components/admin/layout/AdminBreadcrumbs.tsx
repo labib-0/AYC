@@ -65,13 +65,13 @@ export function getAdminBreadcrumbs(pathname: string): BreadcrumbItem[] {
   // Commerce
   if (pathname === "/ayc/orders") {
     items.push({ label: "Commerce" });
-    items.push({ label: "Orders & Fulfillment", isCurrent: true });
+    items.push({ label: "Orders", isCurrent: true });
     return items;
   }
   if (pathname.startsWith("/ayc/orders/")) {
     const orderId = pathname.replace("/ayc/orders/", "");
     items.push({ label: "Commerce" });
-    items.push({ label: "Orders & Fulfillment", href: "/ayc/orders" });
+    items.push({ label: "Orders", href: "/ayc/orders" });
     items.push({ label: `Order #${orderId}`, isCurrent: true });
     return items;
   }

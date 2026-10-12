@@ -61,7 +61,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: "COMMERCE",
     items: [
-      { label: "Orders & Fulfillment", href: "/ayc/orders", icon: ShoppingBag, permission: ADMIN_PERMISSIONS.ORDER_VIEW },
+      { label: "Orders", href: "/ayc/orders", icon: ShoppingBag, permission: ADMIN_PERMISSIONS.ORDER_VIEW },
       { label: "RFQs", href: "/ayc/rfq", icon: FileText, permission: ADMIN_PERMISSIONS.RFQ_VIEW },
       { label: "POS", href: "/ayc/pos", icon: Store, permission: ADMIN_PERMISSIONS.POS_VIEW },
       { label: "Customers", href: "/ayc/customers", icon: Users, permission: ADMIN_PERMISSIONS.CUSTOMER_VIEW },
