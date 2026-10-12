@@ -34,6 +34,10 @@ export interface PublicLegalPageSummary {
 
 export interface PublicSiteSettings {
   site_title: string;
+  company_name?: string;
+  public_email?: string;
+  public_phone?: string;
+  public_address?: string;
   site_logo: string | null;
   whatsapp: {
     display: string;

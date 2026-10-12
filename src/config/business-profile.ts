@@ -274,7 +274,7 @@ export const BUSINESS_PROFILE: BusinessProfile = {
     orangeClass: "text-[#EA580C]",
   },
   contact: {
-    email: null,
+    email: "export@ayaanclothing.com",
     phone: WHATSAPP_BUSINESS_DISPLAY,
     whatsappNumber: WHATSAPP_BUSINESS_NUMBER,
     whatsappDisplay: WHATSAPP_BUSINESS_DISPLAY,

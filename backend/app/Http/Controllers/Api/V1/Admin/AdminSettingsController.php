@@ -44,12 +44,12 @@ class AdminSettingsController extends Controller
 
         $whatsappUrl = WhatsAppNormalizationService::buildWhatsAppUrl($whatsappNumber);
 
-        $socialLinks = SystemSetting::get('social_links', [
+        $defaultSocialLinks = [
             [
                 'id' => 'link_facebook',
                 'provider' => 'facebook',
                 'name' => 'Facebook',
-                'url' => 'https://facebook.com',
+                'url' => 'https://www.facebook.com/profile.php?id=61579913706663',
                 'icon' => 'facebook',
                 'is_active' => true,
                 'sort_order' => 1,
@@ -58,21 +58,60 @@ class AdminSettingsController extends Controller
                 'id' => 'link_linkedin',
                 'provider' => 'linkedin',
                 'name' => 'LinkedIn',
-                'url' => 'https://linkedin.com',
+                'url' => '',
                 'icon' => 'linkedin',
                 'is_active' => true,
                 'sort_order' => 2,
             ],
             [
-                'id' => 'link_instagram',
-                'provider' => 'instagram',
-                'name' => 'Instagram',
-                'url' => 'https://instagram.com',
-                'icon' => 'instagram',
+                'id' => 'link_tiktok',
+                'provider' => 'tiktok',
+                'name' => 'TikTok',
+                'url' => '',
+                'icon' => 'tiktok',
                 'is_active' => true,
                 'sort_order' => 3,
             ],
-        ]);
+            [
+                'id' => 'link_instagram',
+                'provider' => 'instagram',
+                'name' => 'Instagram',
+                'url' => '',
+                'icon' => 'instagram',
+                'is_active' => true,
+                'sort_order' => 4,
+            ],
+        ];
+
+        $socialLinks = SystemSetting::get('social_links', $defaultSocialLinks);
+        if (is_array($socialLinks)) {
+            // Ensure essential platforms (LinkedIn and TikTok) are always present as configurable options
+            $existingProviders = array_map(fn ($item) => strtolower(trim($item['provider'] ?? '')), $socialLinks);
+            if (!in_array('linkedin', $existingProviders, true)) {
+                $socialLinks[] = [
+                    'id' => 'link_linkedin',
+                    'provider' => 'linkedin',
+                    'name' => 'LinkedIn',
+                    'url' => '',
+                    'icon' => 'linkedin',
+                    'is_active' => true,
+                    'sort_order' => count($socialLinks) + 1,
+                ];
+            }
+            if (!in_array('tiktok', $existingProviders, true)) {
+                $socialLinks[] = [
+                    'id' => 'link_tiktok',
+                    'provider' => 'tiktok',
+                    'name' => 'TikTok',
+                    'url' => '',
+                    'icon' => 'tiktok',
+                    'is_active' => true,
+                    'sort_order' => count($socialLinks) + 1,
+                ];
+            }
+        } else {
+            $socialLinks = $defaultSocialLinks;
+        }
 
         $footerDescription = SystemSetting::get('footer_description', 'Ready-made Garments Manufacturer & Exporter. Serving international retail chains and corporate apparel importers with export-grade ready-made garments.');
 
@@ -102,7 +141,7 @@ class AdminSettingsController extends Controller
             'social_links.*.id' => ['nullable', 'string'],
             'social_links.*.provider' => ['required', 'string', 'max:50'],
             'social_links.*.name' => ['required', 'string', 'max:100'],
-            'social_links.*.url' => ['required', 'string', 'max:500'],
+            'social_links.*.url' => ['nullable', 'string', 'max:500'],
             'social_links.*.icon' => ['nullable', 'string', 'max:50'],
             'social_links.*.is_active' => ['required', 'boolean'],
             'social_links.*.sort_order' => ['nullable', 'integer'],
@@ -120,6 +159,24 @@ class AdminSettingsController extends Controller
                     'whatsapp_display' => ['Please enter a valid international or local phone number (7 to 15 digits).'],
                 ],
             ], 422);
+        }
+
+        // Validate social links individually (safety, https scheme, provider domain, generic roots)
+        if (isset($validated['social_links'])) {
+            $socialErrors = [];
+            foreach ($validated['social_links'] as $index => $link) {
+                $err = $this->validateSocialLinkUrl($link['provider'] ?? 'website', $link['url'] ?? null);
+                if ($err !== null) {
+                    $socialErrors["social_links.{$index}.url"] = [$err];
+                }
+            }
+            if (!empty($socialErrors)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'One or more social links are invalid.',
+                    'errors' => $socialErrors,
+                ], 422);
+            }
         }
 
         // Normalize WhatsApp Display and automatically derive machine/URL number
@@ -159,7 +216,7 @@ class AdminSettingsController extends Controller
                     'id' => !empty($link['id']) ? $link['id'] : 'link_' . Str::random(8),
                     'provider' => $provider,
                     'name' => trim($link['name']),
-                    'url' => trim($link['url']),
+                    'url' => trim($link['url'] ?? ''),
                     'icon' => !empty($link['icon']) ? trim($link['icon']) : $provider,
                     'is_active' => (bool) $link['is_active'],
                     'sort_order' => isset($link['sort_order']) ? (int) $link['sort_order'] : ($index + 1),
@@ -924,5 +981,105 @@ class AdminSettingsController extends Controller
             'message' => "{$page->title} updated successfully.",
             'data' => $page,
         ]);
+    }
+
+    /**
+     * Validate individual social media link URL for safety, protocol, domain, and generic root avoidance.
+     */
+    private function validateSocialLinkUrl(string $provider, ?string $url): ?string
+    {
+        if ($url === null) {
+            return null;
+        }
+        $trimmed = trim($url);
+        if ($trimmed === '') {
+            return null; // Nullable / clearable
+        }
+
+        // Dangerous schemes
+        if (preg_match('/^(javascript|data|vbscript|file):/i', $trimmed)) {
+            return 'Unsafe URL scheme detected.';
+        }
+
+        // Must be strictly https://
+        if (!preg_match('/^https:\/\//i', $trimmed)) {
+            return 'Social links must start with https://.';
+        }
+
+        $parsed = parse_url($trimmed);
+        if ($parsed === false || empty($parsed['host'])) {
+            return 'Please enter a valid URL.';
+        }
+
+        $host = strtolower(preg_replace('/^www\./', '', $parsed['host']));
+        $path = trim($parsed['path'] ?? '', '/');
+        $query = trim($parsed['query'] ?? '');
+        $normProvider = strtolower(trim($provider));
+
+        switch ($normProvider) {
+            case 'linkedin':
+                if ($host !== 'linkedin.com' && !str_ends_with($host, '.linkedin.com')) {
+                    return 'LinkedIn URL must be under linkedin.com.';
+                }
+                if ($path === '' && $query === '') {
+                    return 'Generic LinkedIn homepage cannot be saved as an official profile. Please enter an official company URL (e.g. https://www.linkedin.com/company/ayaanclothing) or leave blank.';
+                }
+                break;
+
+            case 'tiktok':
+                if ($host !== 'tiktok.com' && !str_ends_with($host, '.tiktok.com')) {
+                    return 'TikTok URL must be under tiktok.com.';
+                }
+                if ($path === '' && $query === '') {
+                    return 'Generic TikTok homepage cannot be saved as an official profile. Please enter an official profile URL (e.g. https://www.tiktok.com/@ayaanclothing) or leave blank.';
+                }
+                break;
+
+            case 'facebook':
+                if ($host !== 'facebook.com' && !str_ends_with($host, '.facebook.com') && $host !== 'fb.com') {
+                    return 'Facebook URL must be under facebook.com.';
+                }
+                if ($path === '' && $query === '') {
+                    return 'Generic Facebook homepage cannot be saved as an official profile. Please enter an official page URL or leave blank.';
+                }
+                break;
+
+            case 'instagram':
+                if ($host !== 'instagram.com' && !str_ends_with($host, '.instagram.com')) {
+                    return 'Instagram URL must be under instagram.com.';
+                }
+                if ($path === '' && $query === '') {
+                    return 'Generic Instagram homepage cannot be saved as an official profile. Please enter an official profile handle URL or leave blank.';
+                }
+                break;
+
+            case 'youtube':
+                if ($host !== 'youtube.com' && !str_ends_with($host, '.youtube.com') && $host !== 'youtu.be') {
+                    return 'YouTube URL must be under youtube.com or youtu.be.';
+                }
+                if ($path === '' && $query === '') {
+                    return 'Generic YouTube homepage cannot be saved as an official profile.';
+                }
+                break;
+
+            case 'x':
+            case 'twitter':
+                if ($host !== 'x.com' && $host !== 'twitter.com' && !str_ends_with($host, '.x.com') && !str_ends_with($host, '.twitter.com')) {
+                    return 'X / Twitter URL must be under x.com or twitter.com.';
+                }
+                if ($path === '' && $query === '') {
+                    return 'Generic X / Twitter homepage cannot be saved as an official profile.';
+                }
+                break;
+
+            default:
+                $genericHosts = ['pinterest.com', 'threads.net', 'telegram.me', 't.me'];
+                if (in_array($host, $genericHosts, true) && $path === '' && $query === '') {
+                    return 'Generic platform homepage cannot be saved as an official profile.';
+                }
+                break;
+        }
+
+        return null;
     }
 }

@@ -43,40 +43,38 @@ class PublicSettingsController extends Controller
             $storedSocialLinks = SystemSetting::get('social_links', null);
             if (is_array($storedSocialLinks)) {
                 $socialLinks = array_values(array_filter($storedSocialLinks, function ($item) {
-                    return !empty($item['is_active']);
+                    if (empty($item['is_active'])) {
+                        return false;
+                    }
+                    $url = trim($item['url'] ?? '');
+                    if ($url === '') {
+                        return false;
+                    }
+                    $provider = strtolower(trim($item['provider'] ?? ''));
+                    if (in_array($provider, ['linkedin', 'tiktok', 'instagram', 'facebook', 'youtube', 'x', 'twitter'])) {
+                        $parsed = parse_url($url);
+                        $path = trim($parsed['path'] ?? '', '/');
+                        $query = $parsed['query'] ?? '';
+                        if ($path === '' && $query === '') {
+                            return false;
+                        }
+                    }
+                    return true;
                 }));
                 usort($socialLinks, function ($a, $b) {
                     return ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?? 0);
                 });
             } else {
-                // Default fallback links
+                // Default fallback: verified official Facebook profile
                 $socialLinks = [
                     [
                         'id' => 'link_facebook',
                         'provider' => 'facebook',
                         'name' => 'Facebook',
-                        'url' => 'https://facebook.com',
+                        'url' => 'https://www.facebook.com/profile.php?id=61579913706663',
                         'icon' => 'facebook',
                         'is_active' => true,
                         'sort_order' => 1,
-                    ],
-                    [
-                        'id' => 'link_linkedin',
-                        'provider' => 'linkedin',
-                        'name' => 'LinkedIn',
-                        'url' => 'https://linkedin.com',
-                        'icon' => 'linkedin',
-                        'is_active' => true,
-                        'sort_order' => 2,
-                    ],
-                    [
-                        'id' => 'link_instagram',
-                        'provider' => 'instagram',
-                        'name' => 'Instagram',
-                        'url' => 'https://instagram.com',
-                        'icon' => 'instagram',
-                        'is_active' => true,
-                        'sort_order' => 3,
                     ],
                 ];
             }

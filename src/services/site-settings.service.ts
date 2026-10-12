@@ -15,6 +15,10 @@ import BUSINESS_PROFILE, {
 
 const DEFAULT_PUBLIC_SETTINGS: PublicSiteSettings = {
   site_title: BUSINESS_PROFILE.name || "AYAAN CLOTHING",
+  company_name: BUSINESS_PROFILE.name || "AYAAN CLOTHING",
+  public_email: "export@ayaanclothing.com",
+  public_phone: WHATSAPP_BUSINESS_DISPLAY,
+  public_address: BUSINESS_PROFILE.address.formatted,
   site_logo: null,
   whatsapp: {
     display: WHATSAPP_BUSINESS_DISPLAY,
@@ -26,7 +30,7 @@ const DEFAULT_PUBLIC_SETTINGS: PublicSiteSettings = {
       id: "link_facebook",
       provider: "facebook",
       name: "Facebook",
-      url: "https://facebook.com",
+      url: "https://www.facebook.com/profile.php?id=61579913706663",
       icon: "facebook",
       is_active: true,
       sort_order: 1,

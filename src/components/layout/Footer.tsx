@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { MapPin, ArrowUp, MessageCircle } from "lucide-react";
-import BrandName from "../common/BrandName";
+import { MapPin, ArrowUp, MessageCircle, Mail, Phone } from "lucide-react";
 import HeaderBranding from "../common/HeaderBranding";
 import SocialIcon from "../common/SocialIcon";
 import { useSiteSettings } from "@/lib/SiteSettingsContext";
-import BUSINESS_PROFILE from "@/config/business-profile";
+import BUSINESS_PROFILE, { normalizeWhatsAppNumber } from "@/config/business-profile";
 import { categoryService, CategoryModel } from "@/services/category.service";
 import { brandService, BrandModel } from "@/services/brand.service";
+import { filterConfiguredSocialLinks } from "@/lib/social-links";
 
 export default function Footer() {
   const { settings, getWhatsAppUrl } = useSiteSettings();
@@ -60,33 +60,24 @@ export default function Footer() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Smooth scroll & auto-expand "Built for international buyers"
-  const handleAboutUsClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    window.dispatchEvent(new CustomEvent("expand-about-us"));
-    const section = document.getElementById("built-for-international-buyers");
-    if (section) {
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
-
-  // Smooth scroll to Compliance & Certifications
-  const handleComplianceClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const section = document.getElementById("brand-trust");
-    if (section) {
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
-
   // Scroll to top
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Authoritative business contact details
+  const businessAddress = settings.public_address || BUSINESS_PROFILE.address.formatted;
+  const googleMapsUrl = businessAddress
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessAddress)}`
+    : null;
+  const businessEmail = settings.public_email || BUSINESS_PROFILE.contact.email;
+  const rawPhone = settings.public_phone || settings.whatsapp?.display || BUSINESS_PROFILE.contact.phone || "+880 1620-853502";
+  const telDigits = normalizeWhatsAppNumber(rawPhone);
+  const activeSocialLinks = filterConfiguredSocialLinks(settings.social_links);
+
   return (
     <>
-      <footer className="bg-[#0b1329] text-white/90 pt-14 pb-10 border-t border-white/10">
+      <footer className="bg-[#0b1329] text-white/90 pt-14 pb-20 sm:pb-10 border-t border-white/10">
         <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
           
           {/* Main 5-Column Structured IA Grid */}
@@ -104,27 +95,25 @@ export default function Footer() {
               </Link>
               
               <div>
-                <button
-                  type="button"
-                  onClick={handleAboutUsClick}
-                  className="text-xs font-bold uppercase tracking-[0.15em] text-white hover:text-white/80 transition-colors text-left flex items-center gap-1 group cursor-pointer"
+                <Link
+                  href="/#top-banner"
+                  className="text-xs font-bold uppercase tracking-[0.15em] text-white hover:text-white/80 transition-colors text-left inline-flex items-center gap-1 group"
                 >
                   <span>ABOUT US</span>
                   <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
-                </button>
+                </Link>
                 <p className="text-[13px] text-white/70 leading-relaxed mt-2.5 max-w-sm">
                   {BUSINESS_PROFILE.description}. Established in {BUSINESS_PROFILE.establishedYear}, serving international retail chains and corporate apparel importers with export-grade ready-made garments.
                 </p>
               </div>
 
               <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={handleAboutUsClick}
-                  className="inline-flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wider text-white/80 hover:text-white transition-colors underline underline-offset-4 cursor-pointer"
+                <Link
+                  href="/rfq"
+                  className="inline-flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wider text-white/80 hover:text-white transition-colors underline underline-offset-4"
                 >
                   Explore Buyer Capabilities →
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -250,30 +239,19 @@ export default function Footer() {
                     </Link>
                   </li>
                   <li>
-                    <button
-                      type="button"
-                      onClick={handleComplianceClick}
-                      className="hover:text-white transition-colors text-left cursor-pointer"
+                    <Link
+                      href="/#certificate"
+                      className="hover:text-white transition-colors text-left"
                     >
                       Compliance &amp; Certifications (AQL 2.5)
-                    </button>
-                  </li>
-                  <li>
-                    <Link href="#shipping" className="hover:text-white transition-colors">
-                      Export Shipping &amp; Incoterms
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="#faq" className="hover:text-white transition-colors">
-                      Wholesale FAQ
                     </Link>
                   </li>
                 </ul>
 
-                {/* Social Icons (Dynamic Line style SVGs) */}
-                <div className="flex items-center gap-2.5 mb-4 flex-wrap">
-                  {settings.social_links && settings.social_links.length > 0 ? (
-                    settings.social_links.map((link) => (
+                {/* Social Icons (Dynamic Line style SVGs, minimum 40px touch targets, verified profiles only) */}
+                {activeSocialLinks.length > 0 ? (
+                  <div className="flex items-center gap-2.5 mb-4 flex-wrap">
+                    {activeSocialLinks.map((link) => (
                       <a
                         key={link.id}
                         href={link.url}
@@ -281,30 +259,66 @@ export default function Footer() {
                         rel="noopener noreferrer"
                         aria-label={link.name}
                         title={link.name}
-                        className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors text-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors text-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                       >
                         <SocialIcon provider={link.icon || link.provider} className="w-4 h-4" />
                       </a>
-                    ))
-                  ) : null}
-                </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               {/* Official Business Information */}
-              <div className="space-y-2 text-[13px] text-white/75 border-t border-white/10 pt-3">
+              <div className="space-y-2.5 text-[13px] text-white/75 border-t border-white/10 pt-3">
+                {googleMapsUrl ? (
+                  <div className="flex items-start gap-2.5">
+                    <a
+                      href={googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`View ${settings.site_title} office on Google Maps`}
+                      className="flex items-start gap-2.5 text-white/75 hover:text-white transition-colors group"
+                    >
+                      <MapPin size={15} className="text-white/60 group-hover:text-white shrink-0 mt-0.5 transition-colors" />
+                      <span className="leading-relaxed group-hover:underline underline-offset-4">
+                        {businessAddress}
+                      </span>
+                    </a>
+                  </div>
+                ) : null}
+
+                {businessEmail ? (
+                  <div className="flex items-start gap-2.5">
+                    <Mail size={15} className="text-white/60 shrink-0 mt-0.5" />
+                    <a
+                      href={`mailto:${businessEmail}`}
+                      aria-label={`Email ${settings.site_title} at ${businessEmail}`}
+                      className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
+                    >
+                      {businessEmail}
+                    </a>
+                  </div>
+                ) : null}
+
                 <div className="flex items-start gap-2.5">
-                  <MapPin size={15} className="text-white/60 shrink-0 mt-0.5" />
-                  <span className="leading-relaxed">
-                    {BUSINESS_PROFILE.address.formatted}
-                  </span>
+                  <Phone size={15} className="text-white/60 shrink-0 mt-0.5" />
+                  <a
+                    href={`tel:+${telDigits}`}
+                    aria-label={`Call ${settings.site_title} at ${rawPhone}`}
+                    className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
+                  >
+                    Call: {rawPhone}
+                  </a>
                 </div>
+
                 <div className="flex items-start gap-2.5">
                   <MessageCircle size={15} className="text-[#25D366] shrink-0 mt-0.5" />
                   <a
                     href={getWhatsAppUrl(`Hi ${settings.site_title}, I have an inquiry regarding wholesale apparel sourcing.`)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-white transition-colors underline-offset-4 hover:underline"
+                    aria-label={`Chat with ${settings.site_title} on WhatsApp`}
+                    className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
                   >
                     WhatsApp: {settings.whatsapp?.display || "+880 1620-853502"}
                   </a>
@@ -379,31 +393,3 @@ export default function Footer() {
   );
 }
 
-// Clean line-style SVG icons for social networks
-function FacebookIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-    </svg>
-  );
-}
-
-function LinkedinIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-      <rect x="2" y="9" width="4" height="12" />
-      <circle cx="4" cy="4" r="2" />
-    </svg>
-  );
-}
-
-function InstagramIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-    </svg>
-  );
-}

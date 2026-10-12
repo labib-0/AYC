@@ -363,4 +363,239 @@ class SiteSettingsAndLegalPagesTest extends TestCase
             ->putJson('/api/v1/admin/legal/privacy_policy', ['title' => 'Hacked', 'content' => '...', 'is_active' => true])
             ->assertStatus(403);
     }
+
+    /**
+     * Test admin settings endpoint includes TikTok and LinkedIn configurable fields.
+     */
+    public function test_admin_settings_returns_tiktok_and_linkedin_fields(): void
+    {
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->getJson('/api/v1/admin/settings');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success');
+
+        $socialLinks = $response->json('data.social_links');
+        $providers = array_column($socialLinks, 'provider');
+
+        $this->assertContains('tiktok', $providers);
+        $this->assertContains('linkedin', $providers);
+        $this->assertContains('facebook', $providers);
+    }
+
+    /**
+     * Test admin can configure and persist valid TikTok and LinkedIn profiles.
+     */
+    public function test_admin_can_save_valid_tiktok_and_linkedin_profiles(): void
+    {
+        $payload = [
+            'site_title' => 'AYAAN CLOTHING',
+            'whatsapp_display' => '+880 1620-853502',
+            'social_links' => [
+                [
+                    'provider' => 'facebook',
+                    'name' => 'Facebook',
+                    'url' => 'https://www.facebook.com/profile.php?id=61579913706663',
+                    'is_active' => true,
+                    'sort_order' => 1,
+                ],
+                [
+                    'provider' => 'linkedin',
+                    'name' => 'LinkedIn',
+                    'url' => 'https://www.linkedin.com/company/ayaanclothing',
+                    'is_active' => true,
+                    'sort_order' => 2,
+                ],
+                [
+                    'provider' => 'tiktok',
+                    'name' => 'TikTok',
+                    'url' => 'https://www.tiktok.com/@ayaanclothing',
+                    'is_active' => true,
+                    'sort_order' => 3,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson('/api/v1/admin/settings', $payload);
+
+        $response->assertStatus(200);
+
+        // Verify public settings API returns all three verified profiles
+        $publicResp = $this->getJson('/api/v1/settings/public');
+        $publicResp->assertStatus(200);
+
+        $publicLinks = $publicResp->json('data.social_links');
+        $this->assertCount(3, $publicLinks);
+
+        $providers = array_column($publicLinks, 'provider');
+        $this->assertEquals(['facebook', 'linkedin', 'tiktok'], $providers);
+        $this->assertEquals('https://www.tiktok.com/@ayaanclothing', $publicLinks[2]['url']);
+        $this->assertEquals('https://www.linkedin.com/company/ayaanclothing', $publicLinks[1]['url']);
+    }
+
+    /**
+     * Test admin settings reject generic root homepages, unsafe schemes, and mismatched domains.
+     */
+    public function test_admin_settings_reject_generic_roots_and_unsafe_urls(): void
+    {
+        // 1. Generic LinkedIn homepage rejected
+        $resp1 = $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson('/api/v1/admin/settings', [
+                'site_title' => 'AYAAN CLOTHING',
+                'whatsapp_display' => '+880 1620-853502',
+                'social_links' => [
+                    [
+                        'provider' => 'linkedin',
+                        'name' => 'LinkedIn',
+                        'url' => 'https://linkedin.com',
+                        'is_active' => true,
+                    ],
+                ],
+            ]);
+        $resp1->assertStatus(422)
+            ->assertJsonValidationErrors('social_links.0.url');
+
+        // 2. Generic TikTok homepage rejected
+        $resp2 = $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson('/api/v1/admin/settings', [
+                'site_title' => 'AYAAN CLOTHING',
+                'whatsapp_display' => '+880 1620-853502',
+                'social_links' => [
+                    [
+                        'provider' => 'tiktok',
+                        'name' => 'TikTok',
+                        'url' => 'https://www.tiktok.com/',
+                        'is_active' => true,
+                    ],
+                ],
+            ]);
+        $resp2->assertStatus(422)
+            ->assertJsonValidationErrors('social_links.0.url');
+
+        // 3. Dangerous javascript: scheme rejected
+        $resp3 = $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson('/api/v1/admin/settings', [
+                'site_title' => 'AYAAN CLOTHING',
+                'whatsapp_display' => '+880 1620-853502',
+                'social_links' => [
+                    [
+                        'provider' => 'tiktok',
+                        'name' => 'TikTok',
+                        'url' => 'javascript:alert(1)',
+                        'is_active' => true,
+                    ],
+                ],
+            ]);
+        $resp3->assertStatus(422)
+            ->assertJsonValidationErrors('social_links.0.url');
+
+        // 4. Non-https scheme rejected
+        $resp4 = $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson('/api/v1/admin/settings', [
+                'site_title' => 'AYAAN CLOTHING',
+                'whatsapp_display' => '+880 1620-853502',
+                'social_links' => [
+                    [
+                        'provider' => 'tiktok',
+                        'name' => 'TikTok',
+                        'url' => 'http://www.tiktok.com/@ayaanclothing',
+                        'is_active' => true,
+                    ],
+                ],
+            ]);
+        $resp4->assertStatus(422)
+            ->assertJsonValidationErrors('social_links.0.url');
+
+        // 5. Unrelated domain rejected
+        $resp5 = $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson('/api/v1/admin/settings', [
+                'site_title' => 'AYAAN CLOTHING',
+                'whatsapp_display' => '+880 1620-853502',
+                'social_links' => [
+                    [
+                        'provider' => 'tiktok',
+                        'name' => 'TikTok',
+                        'url' => 'https://www.instagram.com/ayaanclothing',
+                        'is_active' => true,
+                    ],
+                ],
+            ]);
+        $resp5->assertStatus(422)
+            ->assertJsonValidationErrors('social_links.0.url');
+    }
+
+    /**
+     * Test admin can clear a social URL, preserving other links without errors.
+     */
+    public function test_admin_can_clear_social_urls_and_hide_from_public_api(): void
+    {
+        // First configure Facebook and LinkedIn
+        $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson('/api/v1/admin/settings', [
+                'site_title' => 'AYAAN CLOTHING',
+                'whatsapp_display' => '+880 1620-853502',
+                'social_links' => [
+                    [
+                        'provider' => 'facebook',
+                        'name' => 'Facebook',
+                        'url' => 'https://www.facebook.com/profile.php?id=61579913706663',
+                        'is_active' => true,
+                        'sort_order' => 1,
+                    ],
+                    [
+                        'provider' => 'linkedin',
+                        'name' => 'LinkedIn',
+                        'url' => 'https://www.linkedin.com/company/ayaanclothing',
+                        'is_active' => true,
+                        'sort_order' => 2,
+                    ],
+                    [
+                        'provider' => 'tiktok',
+                        'name' => 'TikTok',
+                        'url' => '', // Cleared / unconfigured
+                        'is_active' => true,
+                        'sort_order' => 3,
+                    ],
+                ],
+            ])
+            ->assertStatus(200);
+
+        // Verify public settings only return Facebook and LinkedIn, omitting unconfigured TikTok
+        $publicResp = $this->getJson('/api/v1/settings/public');
+        $publicResp->assertStatus(200);
+
+        $publicLinks = $publicResp->json('data.social_links');
+        $this->assertCount(2, $publicLinks);
+        $this->assertEquals(['facebook', 'linkedin'], array_column($publicLinks, 'provider'));
+
+        // Now clear LinkedIn as well
+        $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson('/api/v1/admin/settings', [
+                'site_title' => 'AYAAN CLOTHING',
+                'whatsapp_display' => '+880 1620-853502',
+                'social_links' => [
+                    [
+                        'provider' => 'facebook',
+                        'name' => 'Facebook',
+                        'url' => 'https://www.facebook.com/profile.php?id=61579913706663',
+                        'is_active' => true,
+                        'sort_order' => 1,
+                    ],
+                    [
+                        'provider' => 'linkedin',
+                        'name' => 'LinkedIn',
+                        'url' => null, // Set to null
+                        'is_active' => true,
+                        'sort_order' => 2,
+                    ],
+                ],
+            ])
+            ->assertStatus(200);
+
+        $publicResp2 = $this->getJson('/api/v1/settings/public');
+        $publicLinks2 = $publicResp2->json('data.social_links');
+        $this->assertCount(1, $publicLinks2);
+        $this->assertEquals('facebook', $publicLinks2[0]['provider']);
+    }
 }
