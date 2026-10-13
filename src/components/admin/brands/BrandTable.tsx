@@ -45,6 +45,18 @@ export default function BrandTable({
   isLastItem,
   getRowVisualClass,
 }: BrandTableProps) {
+  const hasDuplicateSortOrders = React.useMemo(() => {
+    const seen = new Set<number>();
+    for (const b of brands) {
+      const order = b.sort_order ?? 0;
+      if (order <= 0 || seen.has(order)) {
+        return true;
+      }
+      seen.add(order);
+    }
+    return false;
+  }, [brands]);
+
   if (loading) {
     return (
       <div className="bg-card border border-border/80 rounded-2xl overflow-hidden shadow-xs">
@@ -133,7 +145,7 @@ export default function BrandTable({
               <th scope="col" className="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/40">
+          <tbody data-ordered-container className="divide-y divide-border/40">
             {brands.map((b, i) => {
               const globalIndex = startIndex + i;
               return (
@@ -142,6 +154,7 @@ export default function BrandTable({
                   brand={b}
                   globalIndex={globalIndex}
                   localIndex={i}
+                  hasDuplicateSortOrders={hasDuplicateSortOrders}
                   isReorderDisabled={isReorderDisabled}
                   disabledReason={disabledReason}
                   onPointerDown={onPointerDown}
@@ -161,7 +174,7 @@ export default function BrandTable({
       </div>
 
       {/* Mobile Card Layout */}
-      <div className="md:hidden p-3 space-y-2.5">
+      <div data-ordered-container className="md:hidden p-3 space-y-2.5">
         {brands.map((b, i) => {
           const globalIndex = startIndex + i;
           return (
@@ -170,6 +183,8 @@ export default function BrandTable({
               brand={b}
               globalIndex={globalIndex}
               localIndex={i}
+              hasDuplicateSortOrders={hasDuplicateSortOrders}
+              rowVisualClass={getRowVisualClass ? getRowVisualClass(globalIndex) : ""}
               isReorderDisabled={isReorderDisabled}
               disabledReason={disabledReason}
               onPointerDown={onPointerDown}

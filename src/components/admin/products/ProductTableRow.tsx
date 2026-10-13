@@ -126,6 +126,8 @@ export default function ProductTableRow({
   return (
     <tr
       data-ordered-row
+      data-global-index={globalIndex}
+      data-index={localIndex}
       className={`border-b border-border/40 hover:bg-secondary/40 transition-colors group ${rowVisualClass}`}
     >
       {/* 0. Reorder Drag Handle */}

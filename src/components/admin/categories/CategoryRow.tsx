@@ -13,6 +13,7 @@ interface CategoryRowProps {
   onDelete: (category: CategoryModel) => void;
   globalIndex?: number;
   localIndex?: number;
+  hasDuplicateSortOrders?: boolean;
   isReorderDisabled?: boolean;
   disabledReason?: string;
   onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
@@ -30,6 +31,7 @@ export default function CategoryRow({
   onDelete,
   globalIndex = 0,
   localIndex = 0,
+  hasDuplicateSortOrders = false,
   isReorderDisabled = false,
   disabledReason = "Reordering is disabled while search or filters are active.",
   onPointerDown,
@@ -48,11 +50,18 @@ export default function CategoryRow({
 
   const isActive = category.is_active !== false;
   const productCount = category.products_count ?? 0;
-  const sortOrder = category.sort_order ?? 0;
+  // Calculate deterministic 1-based sequence position if sort_order is duplicate, zero, or unassigned
+  const displaySortOrder = hasDuplicateSortOrders
+    ? globalIndex + 1
+    : category.sort_order && category.sort_order > 0
+    ? category.sort_order
+    : globalIndex + 1;
 
   return (
     <tr
       data-ordered-row
+      data-global-index={globalIndex}
+      data-index={localIndex}
       className={`border-b border-border/60 hover:bg-secondary/30 transition-colors group ${rowVisualClass}`}
     >
       {/* 0. Reorder Drag Handle Column */}
@@ -126,10 +135,17 @@ export default function CategoryRow({
           </span>
         </td>
 
-        {/* 5. Sort Order Column */}
         <td className="py-3 px-4 text-xs font-mono text-muted-foreground tabular-nums">
           <div className="flex items-center gap-2">
-            <span>#{sortOrder}</span>
+            <span
+              title={
+                hasDuplicateSortOrders
+                  ? `Position #${displaySortOrder} (raw sort_order: ${category.sort_order ?? 0})`
+                  : `Sort Order #${displaySortOrder}`
+              }
+            >
+              #{displaySortOrder}
+            </span>
             {onMoveUp && onMoveDown && (
               <TableMoveControls
                 globalIndex={globalIndex}

@@ -139,9 +139,10 @@ export default function AdminBrandsPage() {
     pageSize: perPage,
     onPageChange: setCurrentPage,
     onPersistOrder: async (newItems) => {
-      await brandService.reorderBrands(
+      const updated = await brandService.reorderBrands(
         newItems.map((b, idx) => ({ id: b.id, sort_order: idx + 1 }))
       );
+      return updated;
     },
     showToast: (message, type) => addToast(type, message),
   });

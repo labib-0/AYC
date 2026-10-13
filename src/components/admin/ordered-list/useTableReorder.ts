@@ -8,6 +8,8 @@ export interface UseTableReorderOptions<T> {
   onItemsChange: (items: T[]) => void;
   getItemId: (item: T) => string | number;
   getItemTitle?: (item: T) => string;
+  getItemOrder?: (item: T) => number;
+  setItemOrder?: (item: T, newOrder: number) => T;
   onPersistOrder: (items: T[]) => Promise<any>;
   onReorderSuccess?: () => void;
   isReorderDisabled?: boolean;
@@ -44,6 +46,8 @@ export function useTableReorder<T>({
   onItemsChange,
   getItemId,
   getItemTitle,
+  getItemOrder,
+  setItemOrder,
   onPersistOrder,
   onReorderSuccess,
   isReorderDisabled = false,
@@ -61,14 +65,36 @@ export function useTableReorder<T>({
     itemsRef.current = items;
   }, [items]);
 
-  // Persist order with optimistic update and safe rollback
+  const updateItemOrder = useCallback(
+    (item: T, newOrder: number): T => {
+      if (setItemOrder) {
+        return setItemOrder(item, newOrder);
+      }
+      if (typeof item === "object" && item !== null) {
+        return {
+          ...item,
+          sort_order: newOrder,
+          ...(("sortOrder" in (item as Record<string, unknown>)) ? { sortOrder: newOrder } : {}),
+        };
+      }
+      return item;
+    },
+    [setItemOrder]
+  );
+
+  // Persist order with optimistic update, response sync, and safe rollback
   const persistSequence = useCallback(
     async (newItems: T[]) => {
       const rollbackItems = [...previousSavedRef.current];
       setIsSaving(true);
       try {
-        await onPersistOrder(newItems);
-        previousSavedRef.current = [...newItems];
+        const result = await onPersistOrder(newItems);
+        if (Array.isArray(result) && result.length > 0) {
+          onItemsChange(result);
+          previousSavedRef.current = [...result];
+        } else {
+          previousSavedRef.current = [...newItems];
+        }
         if (showToast) {
           showToast("Order updated successfully.", "success");
         }
@@ -109,8 +135,11 @@ export function useTableReorder<T>({
       const [moved] = next.splice(fromGlobalIdx, 1);
       next.splice(toGlobalIdx, 0, moved);
 
+      // Normalize sequence with authoritative 1-based sequential sort orders
+      const normalized = next.map((item, idx) => updateItemOrder(item, idx + 1));
+
       // Optimistic update
-      onItemsChange(next);
+      onItemsChange(normalized);
 
       // Follow moved item if landing crosses page boundary
       if (onPageChange && pageSize > 0) {
@@ -121,9 +150,9 @@ export function useTableReorder<T>({
       }
 
       // Persist to backend
-      persistSequence(next);
+      persistSequence(normalized);
     },
-    [isReorderDisabled, onItemsChange, onPageChange, pageSize, currentPage, persistSequence]
+    [isReorderDisabled, onItemsChange, onPageChange, pageSize, currentPage, persistSequence, updateItemOrder]
   );
 
   // Pointer drag reorder hook
@@ -157,17 +186,19 @@ export function useTableReorder<T>({
       next[targetIdx] = next[globalIdx];
       next[globalIdx] = temp;
 
+      const normalized = next.map((item, idx) => updateItemOrder(item, idx + 1));
+
       // Optimistic update
-      onItemsChange(next);
+      onItemsChange(normalized);
 
       // Follow item if moving crosses page boundary upwards
       if (onPageChange && pageSize > 0 && targetIdx < (currentPage - 1) * pageSize) {
         onPageChange(Math.max(1, currentPage - 1));
       }
 
-      await persistSequence(next);
+      await persistSequence(normalized);
     },
-    [isReorderDisabled, isSaving, onItemsChange, onPageChange, pageSize, currentPage, persistSequence]
+    [isReorderDisabled, isSaving, onItemsChange, onPageChange, pageSize, currentPage, persistSequence, updateItemOrder]
   );
 
   // Move Down action
@@ -184,8 +215,10 @@ export function useTableReorder<T>({
       next[targetIdx] = next[globalIdx];
       next[globalIdx] = temp;
 
+      const normalized = next.map((item, idx) => updateItemOrder(item, idx + 1));
+
       // Optimistic update
-      onItemsChange(next);
+      onItemsChange(normalized);
 
       // Follow item if moving crosses page boundary downwards
       if (onPageChange && pageSize > 0 && targetIdx >= currentPage * pageSize) {
@@ -193,9 +226,9 @@ export function useTableReorder<T>({
         onPageChange(Math.min(totalPages, currentPage + 1));
       }
 
-      await persistSequence(next);
+      await persistSequence(normalized);
     },
-    [isReorderDisabled, isSaving, onItemsChange, onPageChange, pageSize, currentPage, persistSequence]
+    [isReorderDisabled, isSaving, onItemsChange, onPageChange, pageSize, currentPage, persistSequence, updateItemOrder]
   );
 
   const isFirstItem = useCallback((globalIndex: number) => globalIndex === 0, []);

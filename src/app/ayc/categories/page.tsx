@@ -140,9 +140,10 @@ export default function AdminCategoriesPage() {
     pageSize: perPage,
     onPageChange: setCurrentPage,
     onPersistOrder: async (newItems) => {
-      await categoryService.reorderCategories(
+      const updated = await categoryService.reorderCategories(
         newItems.map((c, idx) => ({ id: c.id, sort_order: idx + 1 }))
       );
+      return updated;
     },
     showToast: (message, type) => addToast(type, message),
   });

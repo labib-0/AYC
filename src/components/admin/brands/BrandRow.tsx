@@ -14,6 +14,7 @@ interface BrandRowProps {
   onDelete: (brand: BrandModel) => void;
   globalIndex?: number;
   localIndex?: number;
+  hasDuplicateSortOrders?: boolean;
   isReorderDisabled?: boolean;
   disabledReason?: string;
   onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
@@ -31,6 +32,7 @@ export default function BrandRow({
   onDelete,
   globalIndex = 0,
   localIndex = 0,
+  hasDuplicateSortOrders = false,
   isReorderDisabled = false,
   disabledReason = "Reordering is disabled while search or filters are active.",
   onPointerDown,
@@ -52,11 +54,18 @@ export default function BrandRow({
 
   const isActive = brand.is_active !== false;
   const productCount = brand.products_count ?? 0;
-  const sortOrder = brand.sort_order ?? 0;
+  // Calculate deterministic 1-based sequence position if sort_order is duplicate, zero, or unassigned
+  const displaySortOrder = hasDuplicateSortOrders
+    ? globalIndex + 1
+    : brand.sort_order && brand.sort_order > 0
+    ? brand.sort_order
+    : globalIndex + 1;
 
   return (
     <tr
       data-ordered-row
+      data-global-index={globalIndex}
+      data-index={localIndex}
       className={`border-b border-border/60 hover:bg-secondary/30 transition-colors group ${rowVisualClass}`}
     >
       {/* 0. Reorder Drag Handle Column */}
@@ -116,7 +125,7 @@ export default function BrandRow({
             </a>
           )}
         </div>
-        {brand.sort_order !== undefined && brand.sort_order > 0 && (
+        {!hasDuplicateSortOrders && brand.sort_order !== undefined && brand.sort_order > 0 && (
           <span className="text-[10px] text-muted-foreground/70 block mt-0.5">
             Priority: {brand.sort_order}
           </span>
@@ -144,7 +153,15 @@ export default function BrandRow({
       {/* 5. Sort Order Column */}
       <td className="py-3 px-4 text-xs font-mono text-muted-foreground tabular-nums">
         <div className="flex items-center gap-2">
-          <span>#{sortOrder}</span>
+          <span
+            title={
+              hasDuplicateSortOrders
+                ? `Position #${displaySortOrder} (raw sort_order: ${brand.sort_order ?? 0})`
+                : `Sort Order #${displaySortOrder}`
+            }
+          >
+            #{displaySortOrder}
+          </span>
           {onMoveUp && onMoveDown && (
             <TableMoveControls
               globalIndex={globalIndex}

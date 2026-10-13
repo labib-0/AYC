@@ -13,6 +13,8 @@ export interface CategoryCardProps {
   onDelete: (category: CategoryModel) => void;
   globalIndex?: number;
   localIndex?: number;
+  hasDuplicateSortOrders?: boolean;
+  rowVisualClass?: string;
   isReorderDisabled?: boolean;
   disabledReason?: string;
   onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
@@ -29,6 +31,8 @@ export default function CategoryCard({
   onDelete,
   globalIndex = 0,
   localIndex = 0,
+  hasDuplicateSortOrders = false,
+  rowVisualClass = "",
   isReorderDisabled = false,
   disabledReason = "Reordering is disabled while search or filters are active.",
   onPointerDown,
@@ -47,10 +51,19 @@ export default function CategoryCard({
 
   const isActive = category.is_active !== false;
   const productCount = category.products_count ?? 0;
-  const sortOrder = category.sort_order ?? 0;
+  const displaySortOrder = hasDuplicateSortOrders
+    ? globalIndex + 1
+    : category.sort_order && category.sort_order > 0
+    ? category.sort_order
+    : globalIndex + 1;
 
   return (
-    <div className="p-3.5 rounded-2xl bg-card border border-border/80 space-y-3 shadow-2xs">
+    <div
+      data-ordered-row
+      data-global-index={globalIndex}
+      data-index={localIndex}
+      className={`p-3.5 rounded-2xl bg-card border border-border/80 space-y-3 shadow-2xs transition-colors ${rowVisualClass}`}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           {/* Mobile Image */}
@@ -117,7 +130,7 @@ export default function CategoryCard({
             <strong className="text-foreground font-bold">{productCount}</strong> {productCount === 1 ? "product" : "products"}
           </span>
           <span className="text-[10px] font-mono text-muted-foreground">
-            #{sortOrder}
+            #{displaySortOrder}
           </span>
           {onMoveUp && onMoveDown && (
             <TableMoveControls

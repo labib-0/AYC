@@ -364,7 +364,7 @@ export default function ProductTable({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/40">
+          <tbody data-ordered-container className="divide-y divide-border/40">
             {products.map((product, i) => {
               const globalIndex = startIndex + i;
               return (
