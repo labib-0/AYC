@@ -215,7 +215,7 @@ async function runTests() {
     "Search page provides unified recovery button without competing duplicate clear controls"
   );
   assert(
-    searchPageSource.includes("COLLECTION —"),
+    searchPageSource.includes("COLLECTION"),
     "S4",
     "Search page clearly identifies brand collection in page heading when filtered by brand"
   );

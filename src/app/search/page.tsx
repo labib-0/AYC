@@ -31,10 +31,13 @@ import { brandService, BrandModel } from "@/services/brand.service";
 import { categoryService, CategoryModel } from "@/services/category.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
 import GlobalFilterRail from "@/components/common/GlobalFilterRail";
+import StorefrontBreadcrumbs, {
+  buildStorefrontBreadcrumbs,
+} from "@/components/common/StorefrontBreadcrumbs";
+import { generateBreadcrumbJsonLd } from "@/lib/seo/structured-data";
 import {
   X,
   Filter,
-  Sparkles,
   Search,
   SlidersHorizontal,
   Check,
@@ -77,6 +80,8 @@ function SearchResultsContent() {
   const initialDesignTypeParam = searchParams.get("designType") || searchParams.get("design_type") || "";
   const initialAudienceParam= searchParams.get("audience") || "";
   const initialCategoryParam= searchParams.get("category") || "";
+  const initialSubcategoryParam =
+    searchParams.get("subcategory") || searchParams.get("subcategories") || "";
   const initialSortParam    = (searchParams.get("sort") || "newest") as SortValue;
   const initialPageParam    = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
   const initialFilterOpen   = searchParams.get("filterOpen") === "true";
@@ -174,12 +179,13 @@ function SearchResultsContent() {
       if (designTypes.length)params.set("designType", designTypes.join(","));
       if (audiences.length)  params.set("audience", audiences.map((a) => a.toLowerCase()).join(","));
       if (categories.length) params.set("category", categories.map((c) => c.toLowerCase()).join(","));
+      if (initialSubcategoryParam) params.set("subcategory", initialSubcategoryParam);
       if (sortVal !== "newest") params.set("sort", sortVal);
       if (page > 1)          params.set("page",     page.toString());
       if (isFilterOpen)      params.set("filterOpen", "true");
       router.replace(`/search?${params.toString()}`, { scroll: false });
     },
-    [query, router, isFilterOpen]
+    [query, router, isFilterOpen, initialSubcategoryParam]
   );
 
   const handleFilterToggle = () => {
@@ -528,11 +534,78 @@ function SearchResultsContent() {
   const currentSortLabel =
     SORT_OPTIONS.find((o) => o.value === sort)?.label ?? "Sort";
 
+  // ── Breadcrumbs & Page Heading ────────────────────────────────────────────
+  const { crumbs, jsonLdItems } = useMemo(() => {
+    return buildStorefrontBreadcrumbs({
+      query,
+      selectedBrands,
+      selectedCategories,
+      selectedAudiences,
+      subcategory: initialSubcategoryParam,
+      liveBrands,
+      liveCategories,
+    });
+  }, [
+    query,
+    selectedBrands,
+    selectedCategories,
+    selectedAudiences,
+    initialSubcategoryParam,
+    liveBrands,
+    liveCategories,
+  ]);
+
+  const jsonLdBreadcrumb = useMemo(() => {
+    return crumbs.length > 1 ? generateBreadcrumbJsonLd(jsonLdItems) : null;
+  }, [crumbs.length, jsonLdItems]);
+
+  const pageHeading = useMemo(() => {
+    if (error && products.length === 0) {
+      if (query.trim()) return "SEARCH RESULTS";
+      if (selectedBrands.length === 1) {
+        const bName =
+          liveBrands.find((b) => b.name.toLowerCase() === selectedBrands[0].toLowerCase())?.name ||
+          selectedBrands[0];
+        return `${bName.toUpperCase()} COLLECTION`;
+      }
+      return "ALL PRODUCTS";
+    }
+
+    if (query.trim()) {
+      return "SEARCH RESULTS";
+    }
+    if (selectedBrands.length === 1 && selectedCategories.length === 0 && selectedAudiences.length === 0) {
+      const bName =
+        liveBrands.find((b) => b.name.toLowerCase() === selectedBrands[0].toLowerCase())?.name ||
+        selectedBrands[0];
+      return `${bName.toUpperCase()} COLLECTION`;
+    }
+    if (selectedCategories.length === 1 && selectedAudiences.length === 0 && selectedBrands.length === 0) {
+      const cName =
+        liveCategories.find((c) => c.name.toLowerCase() === selectedCategories[0].toLowerCase())?.name ||
+        selectedCategories[0];
+      return cName.toUpperCase();
+    }
+    if (selectedCategories.length === 1 && selectedAudiences.length === 1 && selectedBrands.length === 0) {
+      const cName =
+        liveCategories.find((c) => c.name.toLowerCase() === selectedCategories[0].toLowerCase())?.name ||
+        selectedCategories[0];
+      return `${selectedAudiences[0].toUpperCase()} ${cName.toUpperCase()}`;
+    }
+    if (selectedAudiences.length === 1 && selectedCategories.length === 0 && selectedBrands.length === 0) {
+      return `${selectedAudiences[0].toUpperCase()} COLLECTION`;
+    }
+    return "ALL PRODUCTS";
+  }, [error, products.length, query, selectedBrands, selectedCategories, selectedAudiences, liveBrands, liveCategories]);
+
   // ── Initial loading skeleton (full grid) ──────────────────────────────────
   if (loading) {
     return (
       <div className="w-full bg-background min-h-[70vh] py-6 sm:py-8">
         <div className="mx-auto w-full max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
+          {/* Breadcrumb Navigation Skeleton */}
+          <StorefrontBreadcrumbs items={crumbs} />
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border/70 mb-6">
             <div className="space-y-2">
               <div className="h-7 bg-secondary/60 rounded-full w-64 animate-pulse" />
@@ -555,26 +628,23 @@ function SearchResultsContent() {
   return (
     <div className="w-full bg-background min-h-[70vh] py-6 sm:py-8">
       <div className="mx-auto w-full max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
+        {/* Schema.org BreadcrumbList JSON-LD */}
+        {jsonLdBreadcrumb && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdBreadcrumb) }}
+          />
+        )}
+
+        {/* Breadcrumb Navigation */}
+        <StorefrontBreadcrumbs items={crumbs} />
 
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border/70 mb-6">
           <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
-                {error && products.length === 0
-                  ? query.trim()
-                    ? `SEARCH RESULTS`
-                    : selectedBrands.length === 1
-                    ? `${selectedBrands[0].toUpperCase()} COLLECTION`
-                    : `ALL PRODUCTS`
-                  : query.trim()
-                  ? `SEARCH RESULTS — ${total.toLocaleString()} PRODUCT${total !== 1 ? "S" : ""}`
-                  : selectedBrands.length === 1
-                  ? `${selectedBrands[0].toUpperCase()} COLLECTION — ${total.toLocaleString()} PRODUCT${total !== 1 ? "S" : ""}`
-                  : `ALL PRODUCTS — ${total.toLocaleString()} PRODUCT${total !== 1 ? "S" : ""}`}
-              </h1>
-              <Sparkles size={18} className="text-primary hidden sm:inline-block" />
-            </div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
+              {pageHeading}
+            </h1>
             {query.trim() && (
               <p className="section-subtitle mt-1 sm:mt-1.5">
                 Showing wholesale &amp; retail products matching{" "}
