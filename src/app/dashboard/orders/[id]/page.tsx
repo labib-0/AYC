@@ -72,6 +72,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
   const [receiptSuccess, setReceiptSuccess] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState("");
   const [paymentTxnId, setPaymentTxnId] = useState("");
   const [paymentPayer, setPaymentPayer] = useState("");
   const [paymentBank, setPaymentBank] = useState("Pubali Bank Limited");
@@ -163,11 +164,18 @@ export default function CustomerOrderDetailPage({ params }: Props) {
     if (e) e.preventDefault();
     if (!order) return;
 
+    // Frontend validation: payment_details is mandatory
+    if (!paymentDetails.trim()) {
+      setReceiptError("Please enter your payment details before submitting.");
+      return;
+    }
+
     setUploadingReceipt(true);
     setReceiptError(null);
 
     try {
       const details: PaymentSubmissionDetails = {
+        payment_details: paymentDetails.trim(),
         payment_method: paymentMethod || "Bank Transfer",
         transaction_id: paymentTxnId.trim() || undefined,
         payer_name: paymentPayer.trim() || order.shipping_name,
@@ -181,44 +189,13 @@ export default function CustomerOrderDetailPage({ params }: Props) {
       if (result) {
         setReceiptSuccess(true);
         setSelectedFile(null);
+        setPaymentDetails("");
         setShowSubmitForm(false);
         await fetchOrder();
       }
     } catch (err: any) {
       console.error("Receipt upload error:", err);
       setReceiptError(err.message || "Failed to submit payment details.");
-    } finally {
-      setUploadingReceipt(false);
-    }
-  };
-
-  const handleUploadReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !order) return;
-
-    setSelectedFile(file);
-    setUploadingReceipt(true);
-    setReceiptError(null);
-
-    try {
-      const details: PaymentSubmissionDetails = {
-        payment_method: paymentMethod || "Bank Transfer",
-        transaction_id: paymentTxnId.trim() || undefined,
-        payer_name: paymentPayer.trim() || order.shipping_name,
-        bank_name: paymentBank.trim() || "Pubali Bank Limited",
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : order.total_amount,
-        payment_date: paymentDate || new Date().toISOString().split("T")[0],
-        notes: paymentNotes.trim() || undefined,
-      };
-
-      const result = await uploadPaymentProof(file, order.id, details);
-      if (result) {
-        setReceiptSuccess(true);
-        await fetchOrder();
-      }
-    } catch (err: any) {
-      console.error("Receipt upload error:", err);
-      setReceiptError(err.message || "Failed to upload payment proof.");
     } finally {
       setUploadingReceipt(false);
     }
@@ -874,71 +851,76 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               </div>
             </div>
 
-            {/* Quick Upload / Form Toggle */}
+            {/* Quick Upload / Form Toggle — now always shows the structured form */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400">
                   Payment Receipt &amp; Verification
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setShowSubmitForm(!showSubmitForm)}
-                  className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
-                >
-                  {showSubmitForm ? "Quick Slip Upload" : "Enter Payment Details"}
-                </button>
               </div>
 
-              {!showSubmitForm ? (
-                <div className="space-y-2">
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-white/15 rounded-xl p-4 cursor-pointer hover:border-amber-500 transition-colors bg-slate-50/50 dark:bg-white/[0.01]">
-                    <Upload size={20} className="text-slate-400 mb-1" />
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      {uploadingReceipt ? "Submitting receipt..." : "Upload Bank Wire Receipt"}
-                    </span>
-                    <span className="text-[0.625rem] text-slate-400 mt-0.5">
-                      JPG, PNG, WEBP, PDF (Max 10MB)
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      onChange={handleUploadReceipt}
-                      disabled={uploadingReceipt}
-                      className="hidden"
-                      id="input-customer-receipt-upload"
-                    />
-                  </label>
-                </div>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => setShowSubmitForm(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 text-xs font-bold transition-colors cursor-pointer"
+                id="btn-open-payment-form"
+              >
+                <Upload size={14} />
+                <span>Submit Payment Details &amp; Proof</span>
+              </button>
             </div>
           </div>
         </div>
         )}
 
-        {/* 6.4 STRUCTURED PAYMENT SUBMISSION FORM (Active when form toggled or needed) */}
-        {(showSubmitForm || (order.payment_status === "pending" && !order.payment_proof_url)) && order.payment_status !== "paid" && (
+        {/* 6.4 STRUCTURED PAYMENT SUBMISSION FORM */}
+        {(showSubmitForm || order.payment_status === "pending") && order.payment_status !== "paid" && (
           <form onSubmit={handleSubmitPaymentDetails} className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/30 space-y-4 text-xs">
             <div>
               <h3 className="font-bold text-slate-900 dark:text-white uppercase text-xs tracking-wider">
-                Submit Payment Details &amp; Receipt
+                Submit Payment Details
               </h3>
-              <p className="text-[11px] text-slate-500">
-                Provide transfer details so our finance team can verify and confirm your payment promptly.
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Provide payment details so our finance team can verify and confirm your payment.
+                A bank receipt/slip is <span className="font-bold">optional</span> — you may submit details alone for WhatsApp-arranged payments.
+              </p>
+            </div>
+
+            {/* Payment Details — MANDATORY */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300 block">
+                Payment Details <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                required
+                rows={3}
+                placeholder="e.g. Transferred via Pubali Bank TT, Ref: TXN-987654321, Amount: $4,255.00, Date: 2026-09-25, Sender: ABC Fashion Ltd. — or describe your WhatsApp payment arrangement."
+                value={paymentDetails}
+                onChange={(e) => setPaymentDetails(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs outline-none focus:border-amber-500 resize-none"
+                id="customer-payment-details"
+              />
+              <p className="text-[10px] text-slate-400">
+                Include: payment method, transaction/reference ID, amount, date, sender/bank name, or explanation.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {/* Receipt File */}
+              {/* Receipt File — OPTIONAL */}
               <div className="space-y-1 sm:col-span-2 lg:col-span-3">
                 <label className="text-[10px] font-bold uppercase text-slate-500 block">
-                  Payment Receipt / Slip (JPG, PNG, PDF)
+                  Payment Receipt / Slip — <span className="text-slate-400 font-normal">(Optional)</span> JPG, PNG, PDF
                 </label>
                 <input
                   type="file"
                   accept="image/*,application/pdf"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer"
+                  id="input-customer-receipt-upload"
                 />
+                {selectedFile && (
+                  <p className="text-[10px] text-slate-500">Selected: {selectedFile.name}</p>
+                )}
               </div>
 
               {/* Transaction ID */}
@@ -1035,15 +1017,26 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               <span className="text-[10px] text-slate-400 italic">
                 Rule: Order is marked PAID strictly after admin confirmation.
               </span>
-              <button
-                type="submit"
-                disabled={uploadingReceipt}
-                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-                id="btn-submit-payment-details"
-              >
-                <Check size={14} />
-                <span>{uploadingReceipt ? "Submitting..." : "Submit Payment Details"}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {showSubmitForm && (
+                  <button
+                    type="button"
+                    onClick={() => { setShowSubmitForm(false); setReceiptError(null); }}
+                    className="px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={uploadingReceipt || !paymentDetails.trim()}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                  id="btn-submit-payment-details"
+                >
+                  <Check size={14} />
+                  <span>{uploadingReceipt ? "Submitting..." : "Submit Payment Details"}</span>
+                </button>
+              </div>
             </div>
           </form>
         )}

@@ -269,7 +269,8 @@ class CheckoutTest extends TestCase
         $file = UploadedFile::fake()->create('bank_receipt.pdf', 500, 'application/pdf');
 
         $response = $this->actingAs($user, 'sanctum')->postJson("/api/v1/orders/{$order->id}/payment-proof", [
-            'receipt' => $file,
+            'receipt'         => $file,
+            'payment_details' => 'Bank receipt attached via Pubali Bank transfer.',
         ]);
 
         $response->assertStatus(200);

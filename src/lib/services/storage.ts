@@ -177,6 +177,7 @@ export async function uploadCategoryImage(file: File): Promise<UploadResult> {
   });
 }
 export interface PaymentSubmissionDetails {
+  payment_details?: string;
   payment_method?: string;
   transaction_id?: string;
   payer_name?: string;
@@ -206,6 +207,7 @@ export async function uploadPaymentProof(
     }
     formData.append("order_id", orderId);
     if (details) {
+      if (details.payment_details) formData.append("payment_details", details.payment_details);
       if (details.payment_method) formData.append("payment_method", details.payment_method);
       if (details.transaction_id) formData.append("transaction_id", details.transaction_id);
       if (details.payer_name) formData.append("payer_name", details.payer_name);

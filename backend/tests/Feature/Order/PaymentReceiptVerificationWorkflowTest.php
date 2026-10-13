@@ -309,4 +309,72 @@ class PaymentReceiptVerificationWorkflowTest extends TestCase
         ]);
         $this->assertEquals('paid', $this->order->fresh()->payment_status);
     }
+
+    public function test_customer_can_submit_payment_details_without_receipt_file(): void
+    {
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'payment_details' => 'Arranged via WhatsApp. Transaction ID: TXN-WA-992211. Paid via Bank Wire $4255.00 on 2026-09-25.',
+                'payment_method'  => 'Bank Transfer',
+                'transaction_id'  => 'TXN-WA-992211',
+                'payer_name'      => 'ABC Fashion Ltd.',
+                'payment_amount'  => 4255.00,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.payment_status', 'payment_submitted');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $this->order->id,
+            'payment_status' => 'payment_submitted',
+        ]);
+
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $this->order->id,
+            'status' => 'submitted',
+            'transaction_id' => 'TXN-WA-992211',
+            'receipt_path' => null,
+        ]);
+    }
+
+    public function test_customer_submission_fails_when_payment_details_empty_and_no_receipt(): void
+    {
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'payment_details' => '   ',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Please enter your payment details before submitting.');
+    }
+
+    public function test_admin_can_approve_payment_and_attach_receipt_file(): void
+    {
+        $adminFile = UploadedFile::fake()->image('admin_bank_slip.png', 400, 400);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->post("/api/v1/admin/orders/{$this->order->id}/payment-proof/review", [
+                'action'         => 'approve',
+                'payment_method' => 'Bank Transfer',
+                'transaction_id' => 'TXN-ADMIN-CONFIRMED-88',
+                'payer_name'     => 'ABC Fashion Ltd.',
+                'bank_name'      => 'Pubali Bank Limited',
+                'payment_amount' => 4255.00,
+                'payment_date'   => '2026-09-25',
+                'note'           => 'WhatsApp payment confirmed with bank slip attached by admin.',
+                'receipt'        => $adminFile,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.payment_status', 'paid')
+            ->assertJsonPath('data.status', 'processing');
+
+        $fresh = $this->order->fresh();
+        $this->assertEquals('paid', $fresh->payment_status);
+        $this->assertNotNull($fresh->payment_proof_url);
+        $this->assertEquals('PAID', $fresh->payment_details['payment_status']);
+        $this->assertEquals('TXN-ADMIN-CONFIRMED-88', $fresh->payment_details['transaction_id']);
+        $this->assertNotNull($fresh->payment_details['receipt_url']);
+    }
 }
+

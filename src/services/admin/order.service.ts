@@ -194,9 +194,27 @@ export class AdminOrderService {
       account_number?: string;
       payment_amount?: number;
       payment_date?: string;
+      receipt?: File;
     }
   ): Promise<OrderRecord> {
     if (!isFrontendOnly()) {
+      const receiptFile = paymentDetails?.receipt;
+      if (receiptFile) {
+        // Use multipart FormData when admin uploads a receipt file
+        const formData = new FormData();
+        formData.append("action", action);
+        if (note) formData.append("note", note);
+        if (paymentDetails?.payment_method) formData.append("payment_method", paymentDetails.payment_method);
+        if (paymentDetails?.transaction_id) formData.append("transaction_id", paymentDetails.transaction_id);
+        if (paymentDetails?.payer_name) formData.append("payer_name", paymentDetails.payer_name);
+        if (paymentDetails?.bank_name) formData.append("bank_name", paymentDetails.bank_name);
+        if (paymentDetails?.account_number) formData.append("account_number", paymentDetails.account_number);
+        if (paymentDetails?.payment_amount !== undefined) formData.append("payment_amount", String(paymentDetails.payment_amount));
+        if (paymentDetails?.payment_date) formData.append("payment_date", paymentDetails.payment_date);
+        formData.append("receipt", receiptFile);
+        const res = await apiClient.post<any>(`/admin/orders/${id}/payment-proof/review`, formData);
+        return (res?.data || res) as OrderRecord;
+      }
       const res = await apiClient.post<any>(`/admin/orders/${id}/payment-proof/review`, {
         action,
         note,

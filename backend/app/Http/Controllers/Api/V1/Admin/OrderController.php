@@ -458,15 +458,17 @@ class OrderController extends ApiController
         })->firstOrFail();
 
         $validated = $request->validate([
-            'action' => ['required', 'string', 'in:approve,reject,verify'],
-            'note' => ['nullable', 'string', 'max:1000'],
-            'payment_method' => ['nullable', 'string', 'max:50'],
-            'transaction_id' => ['nullable', 'string', 'max:100'],
-            'payer_name' => ['nullable', 'string', 'max:255'],
-            'bank_name' => ['nullable', 'string', 'max:255'],
-            'account_number' => ['nullable', 'string', 'max:100'],
-            'payment_amount' => ['nullable', 'numeric', 'min:0'],
-            'payment_date' => ['nullable', 'date'],
+            'action'          => ['required', 'string', 'in:approve,reject,verify'],
+            'note'            => ['nullable', 'string', 'max:1000'],
+            'payment_details' => ['nullable', 'string', 'max:2000'],
+            'payment_method'  => ['nullable', 'string', 'max:50'],
+            'transaction_id'  => ['nullable', 'string', 'max:100'],
+            'payer_name'      => ['nullable', 'string', 'max:255'],
+            'bank_name'       => ['nullable', 'string', 'max:255'],
+            'account_number'  => ['nullable', 'string', 'max:100'],
+            'payment_amount'  => ['nullable', 'numeric', 'min:0'],
+            'payment_date'    => ['nullable', 'date'],
+            'receipt'         => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240'],
         ]);
 
         $admin = $request->user();
@@ -484,8 +486,20 @@ class OrderController extends ApiController
         $note = $validated['note'] ?? ($isApprove ? 'Payment verified and approved by accounts team.' : 'Payment proof rejected.');
         $alreadyProcessed = false;
 
+        // ─── Admin receipt file upload (for WhatsApp / direct payment arrangements) ───
+        $adminReceiptPath = null;
+        $adminReceiptUrl  = null;
+        $adminReceiptName = null;
+        if ($isApprove && $request->hasFile('receipt')) {
+            $adminFile       = $request->file('receipt');
+            $adminReceiptPath = $adminFile->store('order-receipts', 'public');
+            $adminReceiptUrl  = asset('storage/' . $adminReceiptPath);
+            $adminReceiptName = $adminFile->getClientOriginalName();
+        }
+
+
         try {
-            DB::transaction(function () use ($id, $action, $isApprove, $admin, $note, $request, &$order, &$alreadyProcessed) {
+            DB::transaction(function () use ($id, $action, $isApprove, $admin, $note, $request, $adminReceiptUrl, $adminReceiptName, &$order, &$alreadyProcessed) {
                 // Pessimistic lock on the order row to prevent concurrent race conditions
                 $order = Order::with('payments')->where(function ($q) use ($id) {
                     if (is_numeric($id)) {
@@ -537,6 +551,10 @@ class OrderController extends ApiController
                     $paymentDate = $request->input('payment_date')
                         ?: ($latestPayment?->payment_date?->format('Y-m-d') ?: now()->toDateString());
 
+                    // Resolve the receipt URL: prefer admin-uploaded receipt, fall back to customer's.
+                    $resolvedReceiptUrl  = $adminReceiptUrl ?? $latestPayment?->receipt_url ?? $order->payment_proof_url;
+                    $resolvedReceiptName = $adminReceiptName ?? $latestPayment?->receipt_original_name;
+
                     $confirmedSnapshot = array_merge(is_array($order->payment_details) ? $order->payment_details : [], [
                         'payment_status' => 'PAID',
                         'payment_method' => $paymentMethod,
@@ -548,8 +566,8 @@ class OrderController extends ApiController
                         'currency' => $order->currency ?? 'USD',
                         'payment_date' => $paymentDate,
                         'notes' => $note,
-                        'receipt_url' => $latestPayment?->receipt_url ?? $order->payment_proof_url,
-                        'receipt_original_name' => $latestPayment?->receipt_original_name,
+                        'receipt_url' => $resolvedReceiptUrl,
+                        'receipt_original_name' => $resolvedReceiptName,
                         'confirmed_at' => now()->toIso8601String(),
                         'confirmed_by_id' => $admin->id,
                         'confirmed_by_name' => $admin->name,
@@ -557,14 +575,18 @@ class OrderController extends ApiController
                         'inventory_decremented_at' => now()->toIso8601String(),
                     ]);
 
-                    $order->update([
+                    $orderUpdateData = [
                         'payment_status' => 'paid',
                         'status' => in_array($order->status, ['pending', 'order_placed'], true) ? 'processing' : $order->status,
                         'payment_method' => $paymentMethod,
                         'payment_details' => $confirmedSnapshot,
                         'payment_confirmed_at' => now(),
                         'payment_confirmed_by' => $admin->id,
-                    ]);
+                    ];
+                    if ($adminReceiptUrl) {
+                        $orderUpdateData['payment_proof_url'] = $adminReceiptUrl;
+                    }
+                    $order->update($orderUpdateData);
 
                     if ($latestPayment) {
                         $latestPayment->update([

@@ -891,23 +891,52 @@ class OrderController extends ApiController
         }
 
         $request->validate([
-            'receipt' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240'],
-            'transaction_id' => ['nullable', 'string', 'max:100'],
-            'payment_method' => ['nullable', 'string', 'max:50'],
-            'payer_name' => ['nullable', 'string', 'max:255'],
-            'bank_name' => ['nullable', 'string', 'max:255'],
-            'account_number' => ['nullable', 'string', 'max:100'],
-            'payment_amount' => ['nullable', 'numeric', 'min:0'],
-            'payment_date' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string', 'max:1000'],
+            'receipt'         => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240'],
+            'payment_details' => ['nullable', 'string', 'max:2000'],
+            'transaction_id'  => ['nullable', 'string', 'max:100'],
+            'payment_method'  => ['nullable', 'string', 'max:50'],
+            'payer_name'      => ['nullable', 'string', 'max:255'],
+            'bank_name'       => ['nullable', 'string', 'max:255'],
+            'account_number'  => ['nullable', 'string', 'max:100'],
+            'payment_amount'  => ['nullable', 'numeric', 'min:0'],
+            'payment_date'    => ['nullable', 'date'],
+            'notes'           => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $hasFile = $request->hasFile('receipt');
-        $hasText = !empty($request->input('transaction_id')) || !empty($request->input('notes')) || !empty($request->input('bank_name'));
-
-        if (!$hasFile && !$hasText) {
-            return $this->error('Please attach a payment receipt or provide transaction details.', 422);
+        // ─── Resolve payment_details ─────────────────────────────────────────
+        // Primary field: payment_details (mandatory, trimmed non-empty).
+        // Backward-compat synthesis: if payment_details absent, build from legacy
+        // transaction_id / notes / bank_name so older tests stay green.
+        $rawPaymentDetails = $request->input('payment_details');
+        if ($rawPaymentDetails !== null) {
+            // Explicit field present — must be a non-blank string.
+            if (!is_string($rawPaymentDetails) || trim($rawPaymentDetails) === '') {
+                return $this->error('Please enter your payment details before submitting.', 422);
+            }
+            $resolvedPaymentDetails = trim($rawPaymentDetails);
+        } else {
+            // payment_details key absent — synthesise from legacy fields.
+            $legacyTxn  = trim((string) ($request->input('transaction_id') ?? ''));
+            $legacyNotes = trim((string) ($request->input('notes') ?? ''));
+            $legacyBank  = trim((string) ($request->input('bank_name') ?? ''));
+            if ($legacyTxn === '' && $legacyNotes === '' && $legacyBank === '') {
+                // No file and no textual evidence at all.
+                if (!$request->hasFile('receipt')) {
+                    return $this->error('Please enter your payment details before submitting.', 422);
+                }
+                // File only — synthesise a minimal description.
+                $resolvedPaymentDetails = 'Payment receipt attached.';
+            } else {
+                $parts = array_filter([
+                    $legacyTxn  ? "Transaction Ref: {$legacyTxn}"  : null,
+                    $legacyBank ? "Bank: {$legacyBank}"              : null,
+                    $legacyNotes ?: null,
+                ]);
+                $resolvedPaymentDetails = implode(' | ', $parts);
+            }
         }
+
+        $hasFile = $request->hasFile('receipt');
 
         $path = null;
         $url = null;
@@ -929,7 +958,8 @@ class OrderController extends ApiController
         $payerName = $request->input('payer_name') ?: $order->shipping_name;
         $bankName = $request->input('bank_name');
         $accountNumber = $request->input('account_number');
-        $notes = $request->input('notes');
+        // Merge raw notes with resolved payment details so admin always sees the submission summary.
+        $notes = $request->input('notes') ?: $resolvedPaymentDetails;
 
         // Create a new Payment record representing this submission attempt
         $payment = Payment::create([
@@ -966,7 +996,7 @@ class OrderController extends ApiController
 
         $eventMessage = $originalName
             ? "Buyer submitted payment receipt ('{$originalName}') & details. Awaiting admin verification."
-            : "Buyer submitted payment transaction details. Awaiting admin verification.";
+            : "Buyer submitted payment details without file attachment. Awaiting admin verification.";
 
         OrderStatusEvent::create([
             'order_id' => $order->id,

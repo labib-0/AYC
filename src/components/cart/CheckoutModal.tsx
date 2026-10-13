@@ -326,6 +326,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     }
   }, [isOpen]);
 
+  // Close the address sheet without saving
+  const handleCloseAddressSheet = useCallback(() => {
+    setAddressFormMode(null);
+    setAddressFormTarget(null);
+    setAddressFormError("");
+  }, []);
+
   // Handle keyboard accessibility (Escape to close modal or address sheet)
   useEffect(() => {
     if (!isOpen) return;
@@ -340,7 +347,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, addressFormMode, onClose]);
+  }, [isOpen, addressFormMode, onClose, handleCloseAddressSheet]);
 
   // Revalidate applied coupon when subtotal changes (e.g. cart quantity modified)
   useEffect(() => {
@@ -374,13 +381,6 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   // Open the address sheet in Add mode
   const handleOpenAddAddress = () => {
     setAddressFormMode("add");
-    setAddressFormTarget(null);
-    setAddressFormError("");
-  };
-
-  // Close the address sheet without saving
-  const handleCloseAddressSheet = () => {
-    setAddressFormMode(null);
     setAddressFormTarget(null);
     setAddressFormError("");
   };

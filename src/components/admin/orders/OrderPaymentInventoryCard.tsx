@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { OrderRecord } from "@/services/order.service";
 import PaymentStatusBadge from "./PaymentStatusBadge";
 import {
@@ -28,6 +28,7 @@ export interface PaymentVerificationDetails {
   payment_amount?: number;
   payment_date?: string;
   note?: string;
+  receipt?: File;
 }
 
 export interface OrderPaymentInventoryCardProps {
@@ -51,6 +52,9 @@ export default function OrderPaymentInventoryCard({
   const [showApprovalForm, setShowApprovalForm] = useState(false);
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  // Admin receipt file upload (for WhatsApp / manual direct-payment approval)
+  const [adminReceiptFile, setAdminReceiptFile] = useState<File | null>(null);
+  const adminReceiptInputRef = useRef<HTMLInputElement>(null);
 
   // Lightbox Modal State
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -82,7 +86,11 @@ export default function OrderPaymentInventoryCard({
     : Math.max(0, totalAmount - paidAmount);
 
   const receiptUrl = order.payment_proof_url || order.payment_details?.receipt_url;
-  const hasProof = Boolean(receiptUrl);
+  const hasProof =
+    Boolean(receiptUrl) ||
+    Boolean(order.payment_details?.notes) ||
+    Boolean(order.payment_details?.payment_details) ||
+    order.payment_status === "payment_submitted";
   const isTerminal = ["cancelled", "refunded"].includes(order.status);
   const isUnderReview = !isPaid && hasProof && !isTerminal;
 
@@ -144,8 +152,10 @@ export default function OrderPaymentInventoryCard({
       payment_amount: Number(paymentAmount),
       payment_date: paymentDate,
       note: note.trim(),
+      receipt: adminReceiptFile ?? undefined,
     });
     setShowApprovalForm(false);
+    setAdminReceiptFile(null);
   };
 
   const handleRejectSubmit = async (e: React.FormEvent) => {
@@ -556,15 +566,195 @@ export default function OrderPaymentInventoryCard({
             )}
           </div>
         ) : (
-          /* State C: Unpaid and No Receipt Uploaded Yet */
-          <div className="p-4 rounded-2xl bg-secondary/30 border border-border/60 text-xs space-y-2">
-            <div className="flex items-center gap-2 font-bold uppercase text-muted-foreground">
-              <Clock size={15} />
-              <span>Awaiting Customer Payment Proof</span>
+          /* State C: Unpaid and No Customer Proof — Admin Manual Direct-Payment Approval */
+          <div className="space-y-3">
+            <div className="p-4 rounded-2xl bg-secondary/30 border border-border/60 text-xs space-y-2">
+              <div className="flex items-center gap-2 font-bold uppercase text-muted-foreground">
+                <Clock size={15} />
+                <span>Awaiting Customer Payment Proof</span>
+              </div>
+              <p className="text-muted-foreground leading-relaxed text-[11px]">
+                Customer has not submitted online proof. If payment was arranged directly (e.g. via WhatsApp),
+                use the form below to record the payment and approve the order.
+              </p>
             </div>
-            <p className="text-muted-foreground leading-relaxed text-[11px]">
-              Customer has not submitted wire transfer proof. Confirmation is gated by payment approval to prevent premature inventory decrement.
-            </p>
+
+            {/* Admin Manual Direct-Payment Approval */}
+            {canVerifyPayment && !showApprovalForm && !showRejectBox && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowApprovalForm(true)}
+                  disabled={isLoading || hasStockConflict}
+                  className="px-4 py-2 rounded-xl bg-primary/90 text-primary-foreground font-bold uppercase tracking-wider text-xs hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  id="btn-admin-manual-payment-approval"
+                >
+                  <CheckCircle2 size={14} />
+                  <span>Record Direct Payment &amp; Approve</span>
+                </button>
+              </div>
+            )}
+
+            {/* Inline Approval Form for Direct/WhatsApp Payments */}
+            {showApprovalForm && (
+              <form
+                onSubmit={handleApproveSubmit}
+                className="p-4 rounded-2xl bg-card border border-border/80 space-y-3 pt-3 mt-2"
+                id="form-direct-payment-approve"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                  <span className="font-bold uppercase text-foreground text-xs">
+                    Direct / WhatsApp Payment Verification
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowApprovalForm(false)}
+                    className="text-muted-foreground hover:text-foreground text-xs"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-muted-foreground">
+                  Enter the payment details received via WhatsApp or direct arrangement. Receipt upload is optional.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                      Payment Method
+                    </label>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs outline-hidden focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="bank_transfer">Direct Bank Wire (TT)</option>
+                      <option value="mobile_banking">Mobile Banking (bKash / Nagad)</option>
+                      <option value="pos_cash">Cash in Hand (POS)</option>
+                      <option value="stripe">Credit / Debit Card</option>
+                      <option value="net_30">Net 30 Commercial Credit</option>
+                      <option value="whatsapp_direct">WhatsApp Direct Arrangement</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                      Transaction / TT Ref <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={transactionId}
+                      onChange={(e) => setTransactionId(e.target.value)}
+                      placeholder="e.g. WHATSAPP-AGREED-2026"
+                      className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs font-mono outline-hidden focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                      Payer Account / Name
+                    </label>
+                    <input
+                      type="text"
+                      value={payerName}
+                      onChange={(e) => setPayerName(e.target.value)}
+                      placeholder="e.g. Export Consignee Co."
+                      className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs outline-hidden focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                      Bank Name
+                    </label>
+                    <input
+                      type="text"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                      placeholder="e.g. Pubali Bank Ltd"
+                      className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs outline-hidden focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                      Payment Date
+                    </label>
+                    <input
+                      type="date"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs font-mono outline-hidden focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                      Verified Amount (USD) <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs font-mono outline-hidden focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                {/* Optional receipt upload */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                    Receipt / Proof — <span className="font-normal text-muted-foreground">(Optional)</span>
+                  </label>
+                  <input
+                    type="file"
+                    ref={adminReceiptInputRef}
+                    accept="image/*,application/pdf"
+                    onChange={(e) => setAdminReceiptFile(e.target.files?.[0] ?? null)}
+                    className="w-full text-xs text-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary file:text-primary-foreground hover:file:opacity-90 cursor-pointer"
+                    id="admin-direct-payment-receipt"
+                  />
+                  {adminReceiptFile && (
+                    <p className="text-[10px] text-muted-foreground mt-1">Selected: {adminReceiptFile.name}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                    Audit Verification Note
+                  </label>
+                  <input
+                    type="text"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="e.g. Payment confirmed via WhatsApp on 2026-09-25..."
+                    className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs outline-hidden focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => setShowApprovalForm(false)}
+                    className="px-3 py-1.5 rounded-xl border border-border text-xs uppercase font-bold text-muted-foreground hover:text-foreground"
+                  >
+                    Dismiss
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLoading || !transactionId.trim()}
+                    className="px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-40 shadow-xs cursor-pointer"
+                    id="btn-submit-direct-payment-approve"
+                  >
+                    {isLoading ? "Processing..." : "Confirm & Approve Order"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
       </div>

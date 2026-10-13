@@ -142,6 +142,7 @@ export interface OrderRecord {
     currency?: string;
     payment_date?: string;
     notes?: string;
+    payment_details?: string;
     receipt_url?: string;
     receipt_original_name?: string;
     confirmed_at?: string;
