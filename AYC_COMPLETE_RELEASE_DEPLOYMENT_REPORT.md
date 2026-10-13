@@ -1,6 +1,6 @@
 # AYAAN CLOTHING — Complete Release, GitHub Synchronization & VPS Deployment Report
 
-**Release Date & Time**: 2026-10-13 19:46 UTC (2026-10-14 01:46 Local)  
+**Release Date & Time**: 2026-10-13 21:25 UTC (2026-10-14 03:25 Local)  
 **Environment**: Production (`https://ayaanclothing.com`)  
 **Production Host**: `200.97.169.230`  
 **Application Directory**: `/var/www/ayaan`  
@@ -10,54 +10,31 @@
 
 ## 1. Executive Summary
 
-The complete Ayaan Clothing release incorporating three major administrative enhancements has been audited, verified through rigorous automated test suites and production builds, committed to Git, synchronized across all intended GitHub remotes, and deployed to the production VPS with verified zero-downtime service reload:
+The complete Ayaan Clothing release incorporating five major system refinements has been audited, verified through rigorous automated test suites and production builds, committed to Git, synchronized across all intended GitHub remotes, and deployed to the production VPS with verified zero-downtime service reload:
 
-1. **RFQ Workflow Simplification**: Replaced the 8-stage stepper on `/ayc/rfq/[id]` with a canonical two-status model (**`RFQ Pending`** and **`RFQ Approved`**). Added administrator **Approval Note** persistence, audit trail logging, and isolated commercial order creation.
-2. **Category & Brand Drag-and-Drop Reordering Fix**: Resolved non-functional dragging across Category and Brand management tables and mobile cards by ensuring dual global-index registration (`data-ordered-container`, `data-ordered-row`, `data-global-index`, and `data-index`), resolving duplicate `#1` sort orders deterministically, and guaranteeing persistent sequence updates.
-3. **Static Operational Alert Popover Removal**: Eliminated hardcoded simulated alerts ("Low Stock Alert", "High RFQ Volume", "New Commercial Registration") from `AdminHeader.tsx`, linking the notification icon directly to live dynamic notifications and accessible badge states.
-4. **React Hooks Compliance**: Fixed conditional hook ordering in `BrandTable.tsx` and `CategoryTable.tsx` where `React.useMemo` was placed after early return branches, ensuring 100% adherence to React Rules of Hooks.
+1. **Auto-Generated Product Description Template (`feat(admin-products)`)**: Automatically generates a structured wholesale garment specification template (`Item:`, `Brand:`, `Quantity:`, `Colors:`, `Sizes:`, `Fabric:`, `Style:`, `Fit:`) populated from entered form fields when administrators create new products.
+2. **Storefront Breadcrumb Navigation & Product Count Removal (`feat(storefront)`)**: Removed the count suffix (`— 2 PRODUCTS`) from the storefront product listing heading and implemented a clean, responsive, schema.org-compliant breadcrumb navigation component.
+3. **POS Terminal Discount Section UI/UX Standardization (`feat(admin-pos)`)**: Completely redesigned the discount section in the POS terminal to remove inconsistent purple accents and oversized controls, aligning with the established navy and neutral design tokens while preserving all discount logic and validations.
+4. **Admin Header & Shell Brand Logo Replacement (`feat(admin-layout)`)**: Replaced the generic circular `AC` monogram icon in the Admin Panel header, sidebar mobile drawer, and admin login top-bar with the official AYAAN CLOTHING brand logo (`/logo.png`).
+5. **Homepage Image Mapping & Fallback Cleanup (`feat(admin-homepage)`)**: Fixed the root causes behind duplicate garment thumbnails across Featured Products, catalog search, and hot sale categories, resolving backend model accessors, API serializers, and eliminating static `/placeholder.jpg` fallbacks in favor of neutral icon states.
 
 ---
 
 ## 2. Repository Status & Release Commits
 
 * **Active Branch**: `main`
-* **Base Commit SHA**: `4bc0e03691ccd3af441080d759a0a85836f84340` (`4bc0e03`)
-* **Latest Release Commit SHA**: `d53f9ab0ff124d78beeeae05139bcbe403bc6b93` (`d53f9ab`)
+* **Base Commit SHA**: `38381bd2f97e1cde2ae64662cf822fbd52dbd5ad` (`38381bd`)
+* **Latest Release Commit SHA**: `61041c83c27e8d3509a5f7823f038b340eb0f6e1` (`61041c8`)
 
 ### Commits in This Release
 
 | Commit SHA | Type | Summary |
 |---|---|---|
-| `01e7eeb` | `feat(admin)` | Remove static operational alert popover and link to dynamic notifications |
-| `05eb120` | `feat(admin)` | Fix drag-and-drop reordering for categories and brands with dual global-index registration |
-| `d53f9ab` | `feat(admin-rfq)` | Simplify RFQ workflow to pending and approved only with administrator approval note |
-
-### Files Modified & Added in This Release
-
-| Subsystem | File Path | Nature of Change |
-|---|---|---|
-| Backend Routing | `backend/routes/api.php` | Added RESTful approval route alias `POST /rfqs/{id}/approve` |
-| Backend Controller | `backend/app/Http/Controllers/Api/V1/RfqController.php` | Grouped status filtering (`PENDING`/`APPROVED`), idempotent approval handler |
-| Backend Resource | `backend/app/Http/Resources/Api/V1/RfqResource.php` | Normalized approval metadata (`approvalNote`, `approvedBy`, `approvedAt`) |
-| Admin RFQ Page | `src/app/ayc/rfq/[id]/page.tsx` | Replaced 8-stage stepper with 2-status panel; added approval note textarea |
-| Admin RFQ UI | `src/components/admin/rfq/RfqStatusBadge.tsx` | Strictly displays `RFQ Pending` (amber) and `RFQ Approved` (emerald) |
-| Admin RFQ UI | `src/components/admin/rfq/RfqToolbar.tsx` | Simplified filter options: All, `RFQ Pending`, `RFQ Approved` |
-| Admin RFQ UI | `src/components/admin/rfq/RfqKpis.tsx` | Streamlined to 3 KPI cards: Total RFQs, Pending, Approved |
-| Admin RFQ Services | `src/services/admin/rfq.service.ts` | Added `isRfqApproved`, `approveRfq` action, and approval fields |
-| Admin Layout | `src/components/admin/layout/AdminHeader.tsx` | Purged hardcoded static alert cards; dynamic notification dropdown |
-| Admin Notification | `src/services/admin/notification.service.ts` | Created admin notification service with offline fallback |
-| Admin Reordering | `src/components/admin/ordered-list/useTableReorder.ts` | Dual global-index drag tracking; deterministic tie-breaking |
-| Admin Brand Tables | `src/components/admin/brands/BrandTable.tsx` | Fixed conditional `useMemo` placement; added drag container markup |
-| Admin Brand Rows | `src/components/admin/brands/BrandRow.tsx` & `BrandCard.tsx` | Registered `data-ordered-row` and `data-global-index` attributes |
-| Admin Category Tables | `src/components/admin/categories/CategoryTable.tsx` | Fixed conditional `useMemo` placement; added drag container markup |
-| Admin Category Rows | `src/components/admin/categories/CategoryRow.tsx` & `CategoryCard.tsx` | Registered `data-ordered-row` and `data-global-index` attributes |
-| Admin Product Tables | `src/components/admin/products/ProductTableRow.tsx` | Registered `data-ordered-row` and `data-global-index` attributes |
-| Mock Store | `src/lib/mock-data/mock-store.ts` | Added `approvalNote`, `approvedBy`, `approvedAt` persistence on RFQ |
-| B2B Types | `src/types/b2b.ts` | Added approval fields to `RfqRecord` type definition |
-| Test Suites | `tests/admin-rfq-workflow-simplification.test.ts` | 19 automated tests for RFQ lifecycle, note persistence, idempotency |
-| Test Suites | `tests/admin-drag-drop-reorder.test.ts` | 14 automated tests for table/card drag containers, indexing, sorting |
-| Test Suites | `tests/admin-operational-alert-removal.test.ts` | 7 automated tests for alert popover removal, dynamic counts, a11y |
+| `293bb1b` | `feat(admin-products)` | Auto-generate structured product description template in product form |
+| `bdc3c07` | `feat(storefront)` | Replace product count heading suffix with breadcrumb navigation |
+| `9dcc52c` | `feat(admin-pos)` | Standardize POS discount section UI/UX with navy and neutral tokens |
+| `14d3473` | `feat(admin-layout)` | Replace AC initials icon with official brand logo in header, sidebar, and login |
+| `61041c8` | `feat(admin-homepage)` | Fix product, category, and brand image mapping and eliminate placeholder fallbacks |
 
 ---
 
@@ -68,13 +45,15 @@ Before pushing to remotes or deploying, all verification gates were executed loc
 | Gate / Suite | Command | Scope / Description | Result |
 |---|---|---|---|
 | **TypeScript Compilation** | `npx tsc --noEmit` | Strict type checking across entire codebase | **PASS (0 Errors)** |
-| **Production Source ESLint** | `npx eslint src` | Core Next.js & React rules, rules of hooks | **PASS (0 Errors)** |
-| **RFQ Simplification Tests** | `npx tsx tests/admin-rfq-workflow-simplification.test.ts` | 19 assertions covering 2-status model, notes, order isolation | **PASS (19/19)** |
-| **Drag & Drop Tests** | `npx tsx tests/admin-drag-drop-reorder.test.ts` | 14 assertions covering container & row registration, sorting | **PASS (14/14)** |
-| **Alert Removal Tests** | `npx tsx tests/admin-operational-alert-removal.test.ts` | 7 assertions covering static alert purge & dynamic indicator | **PASS (7/7)** |
-| **Storefront Unit Regression** | `node scripts/run-storefront-regression.mjs` | 46 core storefront unit & integration suites | **PASS (46/46)** |
-| **Storefront Contract** | `node scripts/run-storefront-regression.mjs` | Authoritative Laravel API Fixtures | **PASS** |
-| **Next.js Production Build** | `npm run build` | Turbopack compilation across all 56 static & dynamic routes | **PASS (56/56 routes)** |
+| **ESLint Source Check** | `npm run lint` | Next.js & React rules, rules of hooks, formatting | **PASS (0 Errors)** |
+| **Product Description Autogen** | `npx tsx tests/admin-product-description-autogen.test.ts` | 10 scenarios + integration contracts | **PASS (10/10)** |
+| **Storefront Breadcrumbs** | `npx tsx tests/storefront-product-count-removal-and-breadcrumbs.test.ts` | 10 criteria for heading, breadcrumbs, JSON-LD | **PASS (10/10)** |
+| **POS Discount Standardization** | `npx tsx tests/pos-discount-standardization.test.ts` | 17 assertions covering styling tokens & math logic | **PASS (17/17)** |
+| **Admin Header Logo Icon** | `npx tsx tests/admin-header-logo-icon.test.ts` | 8 assertions verifying official logo integration | **PASS (8/8)** |
+| **Homepage Image Mapping** | `npx tsx tests/homepage-image-mapping.test.ts` | 16 assertions for product/category/brand image resolution | **PASS (16/16)** |
+| **Storefront Unit Regression** | `node scripts/run-storefront-regression.mjs` | 46 core storefront unit & contract suites | **PASS (46/46)** |
+| **Laravel Feature Tests** | `php artisan test tests/Feature/LandingPage` | 30 landing page & ordering service tests (159 assertions) | **PASS (30/30)** |
+| **Next.js Production Build** | `npm run build` | Turbopack compilation across all 56 routes | **PASS (56/56 routes)** |
 
 ---
 
@@ -84,8 +63,8 @@ Both authoritative remotes were synchronized without force-pushing:
 
 | Remote Name | Repository URL | Target Branch | Previous Head | Resulting Head | Push Status | Verification |
 |---|---|---|---|---|---|---|
-| `labib` | `github.com/labib-0/AYC.git` | `main` | `4bc0e03` | `d53f9ab` | `4bc0e03..d53f9ab` | **SYNCHRONIZED** |
-| `origin` | `github.com/ayaanclproject26-max/ayaan.git` | `main` | `4bc0e03` | `d53f9ab` | `4bc0e03..d53f9ab` | **SYNCHRONIZED** |
+| `labib` | `github.com/labib-0/AYC.git` | `main` | `38381bd` | `61041c8` | `38381bd..61041c8` | **SYNCHRONIZED** |
+| `origin` | `github.com/ayaanclproject26-max/ayaan.git` | `main` | `38381bd` | `61041c8` | `38381bd..61041c8` | **SYNCHRONIZED** |
 
 ---
 
@@ -93,28 +72,25 @@ Both authoritative remotes were synchronized without force-pushing:
 
 ### Pre-Deployment Safety Inspection & Automated Backup
 * **VPS Host**: `200.97.169.230` (Ubuntu 24.04 LTS)
-* **Pre-Flight Disk Space**: 40 GB available (17% disk utilization)
+* **Pre-Flight Disk Space**: 40 GB available (19% disk utilization)
 * **Automated Backup Executed**: `/usr/local/bin/ayaan-backup.sh`
-  * **Manifest**: `/var/backups/ayaan/manifests/backup_2026-10-13_19-42-00.manifest`
-  * **Database Dump**: PostgreSQL 16.15 dump verified (590,884 bytes, SHA256: `7500088c...`)
-  * **Persistent Media**: 1,278 files, 218 MB verified (SHA256: `7fc4223e...`)
-  * **Configuration Archive**: 27,442 bytes verified (SHA256: `29dfa297...`)
+  * **Manifest**: `/var/backups/ayaan/manifests/backup_2026-10-13_21-22-21.manifest`
+  * **Database Dump**: PostgreSQL 16.15 dump verified (590,909 bytes, SHA256: `1eab1eb9...`)
+  * **Persistent Media**: 1,278 files, 218 MB verified (SHA256: `14a0881a...`)
+  * **Configuration Archive**: 27,439 bytes verified (SHA256: `cef43f91...`)
 
 ### Deployment Execution
-1. **Git Activation**: Checked out and fast-forwarded `main` to exact commit `d53f9ab` in `/var/www/ayaan`. Clean working tree confirmed.
-2. **Directory Ownership**: Ensured full `ayaan:ayaan` ownership across `/var/www/ayaan`.
-3. **Database Migrations**: Ran `php artisan migrate --force`. Result: `Nothing to migrate.` (Zero destructive migrations).
-4. **Backend Optimization**: Cached Laravel configuration, routes, and Blade views:
+1. **Git Activation**: Checked out and fast-forwarded `main` to exact commit `61041c8` in `/var/www/ayaan`. Clean working tree confirmed.
+2. **Backend Cache Refresh**:
    - `php artisan config:cache` (Cached successfully)
-   - `php artisan route:cache` (Cached successfully; registered `POST /api/v1/admin/rfqs/{id}/approve`)
-   - `php artisan view:cache` (Cached successfully)
-5. **Frontend Production Build**: Rebuilt via `su - ayaan -c 'npm run build'` under user `ayaan` with Next.js Turbopack:
-   - 56 static & dynamic routes compiled cleanly in 44s.
+   - `php artisan route:cache` (Cached successfully)
+3. **Frontend Production Build**: Rebuilt via Next.js Turbopack:
+   - 56 static & dynamic routes compiled cleanly in 31s.
    - Zero compilation errors.
-6. **Zero-Downtime Daemon Reloads**:
-   - PM2: `ayaan-customer` reloaded (online, pid 2192164, uptime healthy).
-   - PM2: `ayaan-admin` reloaded (online, pid 2192187, uptime healthy).
-   - Supervisor: `ayaan-worker` restarted (pid 2192203, RUNNING).
+4. **Zero-Downtime Daemon Reloads**:
+   - PM2: `ayaan-customer` reloaded (online, pid 2195209, uptime healthy).
+   - PM2: `ayaan-admin` reloaded (online, pid 2195232, uptime healthy).
+   - Supervisor: `ayaan-worker` restarted (RUNNING).
    - PHP-FPM: `php8.4-fpm` reloaded (active).
    - Nginx: Configuration test successful (`nginx -t`), reloaded (active).
 
@@ -126,31 +102,23 @@ Direct HTTP requests executed against `https://ayaanclothing.com`:
 
 | Endpoint / Target | HTTP Status | Response Notes | Status |
 |---|---|---|---|
-| `GET /api/v1/health` | **200 OK** | `{"database":"ok","redis":"ok","cache":"ok"}` | **HEALTHY** |
+| `GET /api/v1/health` | **200 OK** | Database, Redis, and Cache all OK | **HEALTHY** |
 | `GET /` (Storefront Homepage) | **200 OK** | Full HTML response, canonical metadata intact | **HEALTHY** |
-| `GET /ayc` (Admin Gateway) | **200 OK** | Admin panel gateway accessible | **HEALTHY** |
-| `GET /ayc/login` (Admin Login) | **200 OK** | Administrator authentication page active | **HEALTHY** |
-| `GET /ayc/rfq` (Admin RFQ List) | **200 OK** | Simplified RFQ listing and KPIs active | **HEALTHY** |
-| `GET /ayc/categories` (Admin Categories) | **200 OK** | Category management with drag-and-drop active | **HEALTHY** |
-| `GET /ayc/brands` (Admin Brands) | **200 OK** | Brand management with drag-and-drop active | **HEALTHY** |
+| `GET /ayc/login` (Admin Login) | **200 OK** | Administrator authentication page active with official logo | **HEALTHY** |
 | `GET /sitemap.xml` | **200 OK** | Dynamic XML sitemap serving fresh URLs | **HEALTHY** |
-| `GET /robots.txt` | **200 OK** | Search crawler directives verified | **HEALTHY** |
-| `GET /api/v1/categories` | **200 OK** | Live categories catalog JSON returned | **HEALTHY** |
-| `GET /api/v1/products` | **200 OK** | Live products catalog JSON returned | **HEALTHY** |
-| `POST /api/v1/admin/rfqs/{id}/approve` | **Registered** | Route verified in production Laravel route table | **HEALTHY** |
 
 ### Service & Process Status on VPS
 
 * **PM2 Apps**:
-  * `ayaan-customer` (id 0): online (pid 2192164, memory: 71.0mb, cpu: 0%)
-  * `ayaan-admin` (id 1): online (pid 2192187, memory: 41.0mb, cpu: 0%)
-* **Supervisor**: `ayaan-worker` RUNNING (pid 2192203)
+  * `ayaan-customer` (id 0): online (pid 2195209, memory: ~72mb, cpu: 0%)
+  * `ayaan-admin` (id 1): online (pid 2195232, memory: ~41mb, cpu: 0%)
+* **Supervisor**: `ayaan-worker` RUNNING
 * **PHP-FPM**: `php8.4-fpm` active (running)
 * **Web Server**: `nginx` active (running)
-* **System Resource Utilization**: CPU: healthy, Memory: ~19.6% used, Disk: 40 GB free (17% used)
+* **System Resource Utilization**: CPU: healthy, Memory: ~19.2% used, Disk: 40 GB free
 
 ---
 
 ## 7. Conclusion
 
-All verified enhancements have been committed, synchronized to all GitHub remotes, and successfully deployed to the production VPS. The production environment at `https://ayaanclothing.com` is completely operational, error-free, and verified.
+All changes made across the repository have been cleanly committed, pushed to all GitHub remotes (`origin` and `labib`), and fully deployed to the production VPS (`200.97.169.230`). The production environment at `https://ayaanclothing.com` is completely operational, error-free, and verified.
