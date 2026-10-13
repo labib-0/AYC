@@ -2,7 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { AlertCircle, Check } from "lucide-react";
-import { AddressFormData, getCountryName } from "@/lib/services/address.service";
+import {
+  AddressFormData,
+  getCountryName,
+  COUNTRIES_REQUIRING_POSTAL,
+  COUNTRIES_REQUIRING_STATE,
+} from "@/lib/services/address.service";
 import AddressContactSection from "./AddressContactSection";
 import AddressLocationSection from "./AddressLocationSection";
 import AddressSettingsSection from "./AddressSettingsSection";
@@ -23,24 +28,6 @@ export interface AddressFormProps {
   saveToBookDefault?: boolean;
   onSaveToBookChange?: (save: boolean) => void;
 }
-
-// Countries where postal codes and states are conditionally required
-const COUNTRIES_REQUIRING_POSTAL = [
-  "US",
-  "CA",
-  "GB",
-  "DE",
-  "FR",
-  "IT",
-  "ES",
-  "NL",
-  "AU",
-  "JP",
-  "BR",
-  "MX",
-  "IN",
-];
-const COUNTRIES_REQUIRING_STATE = ["US", "CA", "AU", "IN", "BR", "MX"];
 
 export default function AddressForm({
   initialData,

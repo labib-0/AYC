@@ -195,12 +195,12 @@ class OrderShippingSnapshotTest extends TestCase
         $this->assertEquals(24.0, (float) $piRes->json('data.shipping_snapshot.gross_weight'));
         $this->assertEquals(0.144, (float) $piRes->json('data.shipping_snapshot.cbm'));
 
-        // 2. Order Sheet
+        // 2. Order Sheet (Canonical Offer Sheet)
         $osRes = $this->actingAs($this->customer)
             ->getJson("/api/v1/orders/{$order->id}/documents/ORDER_SHEET");
 
         $osRes->assertStatus(200)
-            ->assertJsonPath('data.title', 'COMMERCIAL ORDER SHEET');
+            ->assertJsonPath('data.title', 'COMMERCIAL OFFER SHEET');
         
         $this->assertEquals(1043.00, (float) $osRes->json('data.financials.grand_total'));
     }

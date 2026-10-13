@@ -2,7 +2,11 @@
 
 import React from "react";
 import { MapPin } from "lucide-react";
-import { COUNTRIES } from "@/lib/services/address.service";
+import {
+  COUNTRIES,
+  COUNTRIES_REQUIRING_POSTAL,
+  COUNTRIES_REQUIRING_STATE,
+} from "@/lib/services/address.service";
 
 interface AddressLocationSectionProps {
   addressLine1: string;
@@ -26,23 +30,6 @@ interface AddressLocationSectionProps {
   errors: Record<string, string>;
   disabled?: boolean;
 }
-
-const COUNTRIES_REQUIRING_POSTAL = [
-  "US",
-  "CA",
-  "GB",
-  "DE",
-  "FR",
-  "IT",
-  "ES",
-  "NL",
-  "AU",
-  "JP",
-  "BR",
-  "MX",
-  "IN",
-];
-const COUNTRIES_REQUIRING_STATE = ["US", "CA", "AU", "IN", "BR", "MX"];
 
 export default function AddressLocationSection({
   addressLine1,

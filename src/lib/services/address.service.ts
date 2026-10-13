@@ -58,6 +58,118 @@ export function getCountryName(code: string): string {
   return found ? found.name : code;
 }
 
+export const COUNTRIES_REQUIRING_POSTAL = [
+  "US",
+  "CA",
+  "GB",
+  "DE",
+  "FR",
+  "IT",
+  "ES",
+  "NL",
+  "AU",
+  "JP",
+  "BR",
+  "MX",
+  "IN",
+];
+
+export const COUNTRIES_REQUIRING_STATE = ["US", "CA", "AU", "IN", "BR", "MX"];
+
+export interface AddressValidationResult {
+  isValid: boolean;
+  missingFields: string[];
+  fieldErrors: Record<string, string>;
+}
+
+/**
+ * Validates whether an address has all required fields according to international shipping rules.
+ */
+export function validateAddressFields(addr: {
+  name?: string;
+  contact_name?: string;
+  company_name?: string;
+  email?: string;
+  phone?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country_code?: string;
+}): AddressValidationResult {
+  const missingFields: string[] = [];
+  const fieldErrors: Record<string, string> = {};
+
+  const name = (addr.name || addr.contact_name || "").trim();
+  if (name.length < 2) {
+    missingFields.push("Contact Name");
+    fieldErrors.name = "Contact person name is required (min 2 characters).";
+  }
+
+  const company = (addr.company_name || "").trim();
+  if (company.length < 2) {
+    missingFields.push("Company");
+    fieldErrors.company_name = "Company name is required for commercial consignee.";
+  }
+
+  const email = (addr.email || "").trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    missingFields.push("Valid Email");
+    fieldErrors.email = "Please enter a valid email address.";
+  }
+
+  const phone = (addr.phone || "").trim();
+  if (!phone) {
+    missingFields.push("Phone");
+    fieldErrors.phone = "Phone number is required for carrier delivery contact.";
+  } else if (!/^\+?[0-9\s\-().]{7,25}$/.test(phone)) {
+    missingFields.push("Valid Phone");
+    fieldErrors.phone = "Enter a valid international phone number (e.g. +33 1 23 45 67 89 or +1 555 0192).";
+  }
+
+  const line1 = (addr.address_line_1 || "").trim();
+  if (line1.length < 3) {
+    missingFields.push("Street Address");
+    fieldErrors.address_line_1 = "Street address (Address Line 1) is required.";
+  }
+
+  const city = (addr.city || "").trim();
+  if (city.length < 2) {
+    missingFields.push("City");
+    fieldErrors.city = "City is required (min 2 characters).";
+  }
+
+  const countryCode = (addr.country_code || "").trim().toUpperCase();
+  if (!countryCode) {
+    missingFields.push("Country");
+    fieldErrors.country_code = "Destination country is required.";
+  }
+
+  const postal = (addr.postal_code || "").trim();
+  const requiresPostal = COUNTRIES_REQUIRING_POSTAL.includes(countryCode);
+  if (requiresPostal && !postal) {
+    missingFields.push("Postal Code");
+    fieldErrors.postal_code = `Postal / ZIP code is required for ${getCountryName(countryCode)}.`;
+  } else if (postal && postal.length < 2) {
+    missingFields.push("Valid Postal Code");
+    fieldErrors.postal_code = "Postal code must be at least 2 characters.";
+  }
+
+  const state = (addr.state || "").trim();
+  const requiresState = COUNTRIES_REQUIRING_STATE.includes(countryCode);
+  if (requiresState && !state) {
+    missingFields.push("State / Province");
+    fieldErrors.state = `State / Province is required for ${getCountryName(countryCode)}.`;
+  }
+
+  return {
+    isValid: missingFields.length === 0,
+    missingFields,
+    fieldErrors,
+  };
+}
+
 function generateId(): string {
   return `addr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }

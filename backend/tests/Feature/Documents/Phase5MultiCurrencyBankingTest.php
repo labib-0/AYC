@@ -597,7 +597,7 @@ class Phase5MultiCurrencyBankingTest extends TestCase
         $this->assertNull($pl['bankDetails']);
 
         // Offer sheet remains an offer document without price tier leaks
-        $this->assertEquals('COMMERCIAL ORDER SHEET', $offer['title']);
+        $this->assertEquals('COMMERCIAL OFFER SHEET', $offer['title']);
         $this->assertFalse($offer['show_all_pricing_tiers']);
     }
 

@@ -186,7 +186,7 @@ class DompdfStandardizationTest extends TestCase
 
         $this->assertNotEmpty($binary);
         $this->assertStringStartsWith('%PDF-', $binary);
-        $this->assertStringContainsString('COMMERCIAL ORDER SHEET', $binary);
+        $this->assertStringContainsString('COMMERCIAL OFFER SHEET', $binary);
 
         // Strictly omit bank details on Offer Sheet
         $this->assertStringNotContainsString('Pubali Bank', $binary);

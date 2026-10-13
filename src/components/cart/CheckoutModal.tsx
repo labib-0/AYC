@@ -6,7 +6,12 @@ import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import { createOrder, OrderRecord } from "@/lib/services/orders";
 import { shippingService, ShippingQuoteOption, ShipmentSpecs } from "@/services/shipping.service";
-import { addressService, AddressFormData, getCountryName } from "@/lib/services/address.service";
+import {
+  addressService,
+  AddressFormData,
+  getCountryName,
+  validateAddressFields,
+} from "@/lib/services/address.service";
 import { UserAddress } from "@/types/api";
 import AddressForm from "@/components/account/AddressForm";
 import { getWhatsAppUrl, getCommercialOrderWhatsAppMessage } from "@/config/business-profile";
@@ -215,16 +220,20 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   // Per-field validation helpers (used both for inline indicators and submit)
   const validateShippingDestination = useCallback((dest: ReturnType<typeof resolveShippingDestination>) => {
-    const missing: string[] = [];
-    if (dest.name.length < 2)   missing.push("Contact");
-    if (dest.company.length < 2) missing.push("Company");
-    if (dest.email === "" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dest.email)) missing.push("Email");
-    if (dest.phone.length < 7 || !/^\+?[0-9\s\-().]{7,25}$/.test(dest.phone)) missing.push("Phone");
-    if (dest.address.length < 3) missing.push("Address");
-    if (dest.city.length < 2)    missing.push("City");
-    if (dest.country === "")     missing.push("Country");
-    return missing;
-  }, [resolveShippingDestination]);
+    const res = validateAddressFields({
+      name: dest.name,
+      company_name: dest.company,
+      email: dest.email,
+      phone: dest.phone,
+      address_line_1: dest.address,
+      address_line_2: dest.address2,
+      city: dest.city,
+      state: dest.state,
+      postal_code: dest.postalCode,
+      country_code: dest.country,
+    });
+    return res.missingFields;
+  }, []);
 
   // Derive live validation state for UI indicators from current state/ref
   // (used by the form to show real-time field highlights)
@@ -305,6 +314,33 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       setIsSubmitAttempted(false);
     }
   }, [isOpen, loadCustomerAddresses]);
+
+  // Prevent background page scrolling while modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // Handle keyboard accessibility (Escape to close modal or address sheet)
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (addressFormMode !== null) {
+          handleCloseAddressSheet();
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, addressFormMode, onClose]);
 
   // Revalidate applied coupon when subtotal changes (e.g. cart quantity modified)
   useEffect(() => {
@@ -778,19 +814,23 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           className="fixed inset-0 bg-ink/60 backdrop-blur-xs z-[220] animate-in fade-in"
           onClick={onClose}
         />
-        <div className="fixed inset-0 z-[230] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-[230] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden">
           <div
-            className="bg-card border border-border/80 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-placed-heading"
+            className="bg-card border border-border/80 w-full max-w-xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,840px)] animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-amber-500/5">
+            {/* Modal Header (Pinned) */}
+            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-border bg-amber-500/5 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
                   <CheckCircle2 size={22} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold font-display text-foreground">
+                    <h2 id="order-placed-heading" className="text-base sm:text-lg font-bold font-display text-foreground">
                       Order Placed
                     </h2>
                     <span className="px-2 py-0.5 rounded-full text-[0.625rem] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50">
@@ -805,13 +845,15 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               <button
                 type="button"
                 onClick={onClose}
+                aria-label="Close order confirmation modal"
                 className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto font-sans">
+            {/* Modal Body (Independently Scrollable) */}
+            <div className="p-5 sm:p-6 space-y-5 flex-1 min-h-0 overflow-y-auto font-sans">
               <div className="p-4 rounded-2xl bg-secondary/30 border border-border space-y-2 text-xs">
                 <p className="text-foreground leading-relaxed">
                   Your order has been placed. Please complete payment and submit your payment proof for approval.
@@ -875,10 +917,16 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
               {/* Official Documents */}
               <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <FileText size={15} className="text-primary" />
-                  <span>Official Commercial Documents</span>
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <FileText size={15} className="text-primary" />
+                    <span>Official Commercial Documents</span>
+                  </h3>
+                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <ShieldCheck size={13} />
+                    <span>Proforma Invoice issued</span>
+                  </span>
+                </div>
 
                 <button
                   type="button"
@@ -931,9 +979,11 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                   <p className="text-[11px] text-destructive">{offerSheetError}</p>
                 )}
               </div>
+            </div>
 
-              {/* Actions */}
-              <div className="pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Modal Footer (Pinned Actions) */}
+            <div className="shrink-0 px-5 sm:px-6 py-3.5 sm:py-4 border-t border-border bg-card/95 backdrop-blur-xs pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <a
                   href={getWhatsAppUrl(getCommercialOrderWhatsAppMessage(confirmedOrder))}
                   target="_blank"
@@ -968,21 +1018,45 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   }
 
   // ─── MAIN CHECKOUT FORM VIEW ────────────────────────────────────────────────
+  const selectedAddress = savedAddresses.find((a) => String(a.id) === selectedAddressId) || null;
+  const selectedAddressValidation = selectedAddress
+    ? validateAddressFields({
+        name: selectedAddress.name || selectedAddress.contact_name,
+        company_name: selectedAddress.company_name,
+        email: selectedAddress.email || user?.email,
+        phone: selectedAddress.phone || user?.phone,
+        address_line_1: selectedAddress.address_line_1,
+        address_line_2: selectedAddress.address_line_2,
+        city: selectedAddress.city,
+        state: selectedAddress.state,
+        postal_code: selectedAddress.postal_code,
+        country_code: selectedAddress.country_code,
+      })
+    : null;
+
+  const hasConfirmedShipping =
+    shippingMode === "aramex" && Boolean(aramexQuote) && aramexShippingCost > 0;
+
   return (
     <>
       <div
         className="fixed inset-0 bg-ink/60 backdrop-blur-xs z-[220] animate-in fade-in"
         onClick={onClose}
       />
-      <div className="fixed inset-0 z-[230] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-        <div
-          className="bg-card border border-border/80 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200"
+      <div className="fixed inset-0 z-[230] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden">
+        <form
+          id="checkout-order-form"
+          onSubmit={handlePlaceOrder}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="checkout-modal-title"
+          className="bg-card border border-border/80 w-full max-w-2xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,840px)] animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Modal Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
+          {/* Modal Header (Pinned) */}
+          <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-border bg-card shrink-0">
             <div>
-              <h2 className="text-base sm:text-lg font-bold font-display text-foreground uppercase tracking-wide">
+              <h2 id="checkout-modal-title" className="text-base sm:text-lg font-bold font-display text-foreground uppercase tracking-wide">
                 Confirm Commercial Order
               </h2>
               <p className="text-xs font-medium text-muted-foreground mt-0.5">
@@ -992,13 +1066,15 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close checkout modal"
               className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <X size={18} />
             </button>
           </div>
 
-          <form onSubmit={handlePlaceOrder} className="p-5 sm:p-6 space-y-6 max-h-[82vh] overflow-y-auto">
+          {/* Modal Body (Independently Scrollable) */}
+          <div className="p-5 sm:p-6 space-y-5 sm:space-y-6 flex-1 min-h-0 overflow-y-auto">
             {error && (
               <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-medium flex items-start gap-2.5 animate-in fade-in">
                 <AlertCircle size={16} className="shrink-0 mt-0.5" />
@@ -1046,83 +1122,148 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {savedAddresses.map((addr) => {
-                      const isSelected = String(addr.id) === selectedAddressId;
-                      const countryTitle = addr.country || getCountryName(addr.country_code);
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {savedAddresses.map((addr) => {
+                        const isSelected = String(addr.id) === selectedAddressId;
+                        const countryTitle = addr.country || getCountryName(addr.country_code);
+                        const validation = validateAddressFields({
+                          name: addr.name || addr.contact_name,
+                          company_name: addr.company_name,
+                          email: addr.email || user?.email,
+                          phone: addr.phone || user?.phone,
+                          address_line_1: addr.address_line_1,
+                          address_line_2: addr.address_line_2,
+                          city: addr.city,
+                          state: addr.state,
+                          postal_code: addr.postal_code,
+                          country_code: addr.country_code,
+                        });
 
-                      return (
-                        <div
-                          key={addr.id}
-                          onClick={() => handleSelectAddress(addr)}
-                          className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all relative flex flex-col justify-between ${
-                            isSelected
-                              ? "border-amber-500 bg-amber-50/20 dark:bg-amber-950/20 shadow-xs ring-1 ring-amber-500/50"
-                              : "border-border/80 bg-card hover:border-foreground/40 hover:bg-secondary/20"
-                          }`}
-                        >
-                          <div className="space-y-1.5">
-                            {/* Card header: label + default badge + edit button + select indicator */}
-                            <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-secondary text-foreground shrink-0">
-                                  {addr.label || "Address"}
-                                </span>
-                                {addr.is_default && (
-                                  <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider shrink-0">
-                                    Default
+                        return (
+                          <div
+                            key={addr.id}
+                            onClick={() => handleSelectAddress(addr)}
+                            className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all relative flex flex-col justify-between ${
+                              isSelected
+                                ? "border-amber-500 bg-amber-50/20 dark:bg-amber-950/20 shadow-xs ring-1 ring-amber-500/50"
+                                : "border-border/80 bg-card hover:border-foreground/40 hover:bg-secondary/20"
+                            }`}
+                          >
+                            <div className="space-y-2">
+                              {/* Card header: label + default badge + edit button + select indicator */}
+                              <div className="flex items-center justify-between gap-1">
+                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-secondary text-foreground shrink-0">
+                                    {addr.label || "Address"}
                                   </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {/* Edit button — type="button" prevents checkout form submit */}
-                                <button
-                                  type="button"
-                                  aria-label={`Edit address: ${addr.label || addr.name}`}
-                                  onClick={(e) => handleOpenEditAddress(addr, e)}
-                                  className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
-                                >
-                                  <Pencil size={10} />
-                                  <span>Edit</span>
-                                </button>
-                                <div className="w-4 h-4 rounded-full border flex items-center justify-center transition-colors">
-                                  {isSelected && <Check size={12} className="text-amber-500 font-black" />}
+                                  {addr.is_default && (
+                                    <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider shrink-0">
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {/* Edit button — type="button" prevents checkout form submit */}
+                                  <button
+                                    type="button"
+                                    aria-label={`Edit address: ${addr.label || addr.name}`}
+                                    onClick={(e) => handleOpenEditAddress(addr, e)}
+                                    className="inline-flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                                  >
+                                    <Pencil size={10} />
+                                    <span>Edit</span>
+                                  </button>
+                                  <div className="w-4 h-4 rounded-full border flex items-center justify-center transition-colors">
+                                    {isSelected && <Check size={12} className="text-amber-500 font-black" />}
+                                  </div>
                                 </div>
                               </div>
+
+                              {/* Structured Address Fields with explicit roles */}
+                              <div className="text-xs space-y-1">
+                                <p className="font-bold text-foreground">
+                                  {addr.name || addr.contact_name}
+                                </p>
+                                {addr.company_name && (
+                                  <p className="text-muted-foreground text-[11px] flex items-center gap-1 font-medium">
+                                    <Building2 size={11} className="shrink-0 text-muted-foreground" />
+                                    <span>{addr.company_name}</span>
+                                  </p>
+                                )}
+                                <div className="pt-1 text-[11px] text-muted-foreground space-y-0.5">
+                                  <p>
+                                    <span className="text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider">Street: </span>
+                                    <span className="text-foreground">{addr.address_line_1}</span>
+                                  </p>
+                                  {addr.address_line_2 && (
+                                    <p>
+                                      <span className="text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider">Area / Unit: </span>
+                                      <span className="text-foreground">{addr.address_line_2}</span>
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="pt-1 text-[11px] grid grid-cols-2 gap-x-2 gap-y-1">
+                                  <div>
+                                    <span className="text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider block">City</span>
+                                    <span className="text-foreground font-medium">{addr.city}</span>
+                                  </div>
+                                  {addr.state && (
+                                    <div>
+                                      <span className="text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider block">State / Region</span>
+                                      <span className="text-foreground font-medium">{addr.state}</span>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <span className="text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider block">Postal Code</span>
+                                    <span className="text-foreground font-mono font-medium">
+                                      {addr.postal_code || <span className="text-amber-600 dark:text-amber-400 font-bold font-sans">Missing</span>}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider block">Country</span>
+                                    <span className="text-foreground font-semibold">{countryTitle}</span>
+                                  </div>
+                                </div>
+                                {!validation.isValid && (
+                                  <div className="pt-1.5 mt-1 border-t border-amber-500/20 text-[10px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                                    <AlertCircle size={10} className="shrink-0" />
+                                    <span>Needs attention: {validation.missingFields.join(", ")}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
 
-                            <div className="text-xs">
-                              <p className="font-bold text-foreground">
-                                {addr.name || addr.contact_name}
-                              </p>
-                              {addr.company_name && (
-                                <p className="text-muted-foreground text-[11px] flex items-center gap-1">
-                                  <Building2 size={10} className="shrink-0" />
-                                  <span>{addr.company_name}</span>
-                                </p>
-                              )}
-                              <p className="text-muted-foreground text-[11px] pt-1">
-                                {addr.address_line_1}
-                                {addr.address_line_2 ? `, ${addr.address_line_2}` : ""}
-                              </p>
-                              <p className="text-muted-foreground text-[11px]">
-                                {addr.city}{addr.state ? `, ${addr.state}` : ""} {addr.postal_code}
-                              </p>
-                              <p className="text-foreground text-[11px] font-semibold">
-                                {countryTitle}
-                              </p>
+                            <div className="text-[10px] text-muted-foreground pt-2 border-t border-border/40 mt-2 flex items-center justify-between">
+                              <span className="font-mono">
+                                {addr.phone ? `Tel: ${addr.phone}` : <span className="text-amber-600 dark:text-amber-400 font-bold font-sans">No Phone</span>}
+                              </span>
+                              {addr.email && <span className="truncate max-w-[120px] text-muted-foreground/80">{addr.email}</span>}
                             </div>
                           </div>
+                        );
+                      })}
+                    </div>
 
-                          {addr.phone && (
-                            <p className="text-[10px] text-muted-foreground pt-2 border-t border-border/40 mt-2 font-mono">
-                              {addr.phone}
-                            </p>
-                          )}
+                    {/* Notice if selected address has missing fields */}
+                    {selectedAddress && selectedAddressValidation && !selectedAddressValidation.isValid && (
+                      <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2.5 animate-in fade-in">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle size={15} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                          <span>
+                            Selected address requires updates: <strong>{selectedAddressValidation.missingFields.join(", ")}</strong>.
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenEditAddress(selectedAddress, e)}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider shrink-0 transition-colors cursor-pointer shadow-xs"
+                        >
+                          Edit Address
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -1137,7 +1278,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               </h3>
 
               {/* Two-option selector: ARAMEX | DISCUSS DIRECTLY */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                 {/* Option 1 — ARAMEX */}
                 <button
@@ -1170,13 +1311,17 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       )}
                     </div>
                     <span className="text-[11px] text-muted-foreground block leading-snug">
-                      Priority Air · 3–5 business days
+                      Priority Air Express · 3–5 business days
                     </span>
-                    {!aramexEnabled && (
+                    {!aramexEnabled ? (
                       <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block pt-0.5">
-                        Currently unavailable
+                        Service currently disabled
                       </span>
-                    )}
+                    ) : aramexError ? (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium block pt-0.5">
+                        Quote unavailable for selected country
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="flex justify-end w-full mt-2 min-h-[20px] items-center">
@@ -1197,8 +1342,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                         </span>
                       </span>
                     ) : aramexQuote ? (
-                      <span className="font-bold text-sm text-foreground">
-                        ${(aramexQuote.amount || 0).toFixed(2)} USD
+                      <span className="font-bold text-sm text-foreground font-mono">
+                        {formatPrice(aramexQuote.amount || 0)} USD
                       </span>
                     ) : (
                       <span className="text-[11px] text-muted-foreground">Est. on confirmation</span>
@@ -1229,10 +1374,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       {shippingMode === "manual" && <CheckCircle2 size={15} className="text-foreground shrink-0" />}
                     </div>
                     <span className="text-[11px] text-muted-foreground block leading-snug">
-                      Shipping arrangements will be discussed with our team.
+                      Shipping arrangements and freight charges will be confirmed directly with our export team.
                     </span>
                   </div>
-                  <div className="flex justify-end w-full mt-2 min-h-[20px] items-center">
+                  <div className="flex justify-between w-full mt-2 min-h-[20px] items-center gap-1">
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                      Freight to be confirmed
+                    </span>
                     {shippingMode === "manual" && (
                       <a
                         href={getWhatsAppUrl(manualShippingWhatsAppMsg)}
@@ -1242,7 +1390,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                         className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#25D366]/10 text-[#25D366] text-[10px] font-bold uppercase tracking-wider hover:bg-[#25D366]/20 transition-colors"
                       >
                         <MessageCircle size={11} />
-                        Inquire on WhatsApp
+                        Inquire
                       </a>
                     )}
                   </div>
@@ -1268,7 +1416,6 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
             {/* ─── 3. SPECIAL INSTRUCTIONS & THIRD PARTY NOTIFY ────────────── */}
             <div className="space-y-3">
-              {/* Special Instructions */}
               <div className="space-y-1">
                 <label htmlFor="specialInstructions" className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
                   <span>Special Instructions / Remarks</span>
@@ -1406,10 +1553,10 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             <hr className="border-border/60" />
 
             {/* ─── 5. FINANCIAL SUMMARY ────────────────────────────────────── */}
-            <div className="space-y-1.5 text-sm font-sans pt-1">
+            <div className="space-y-2 text-sm font-sans pt-1">
               <div className="flex justify-between text-muted-foreground font-medium">
-                <span className="uppercase tracking-wide text-xs">Subtotal</span>
-                <span className="text-foreground font-semibold">{formatPrice(subtotal)}</span>
+                <span className="uppercase tracking-wide text-xs">Merchandise Subtotal</span>
+                <span className="text-foreground font-semibold font-mono">{formatPrice(subtotal)} USD</span>
               </div>
 
               {discountAmount > 0 && appliedCoupon && (
@@ -1419,31 +1566,45 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       ? `Discount (${appliedCoupon.discount_value}%)`
                       : `Discount ($${appliedCoupon.discount_value})`}
                   </span>
-                  <span className="font-semibold font-mono">-{formatPrice(discountAmount)}</span>
+                  <span className="font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+                    -{formatPrice(discountAmount)} USD
+                  </span>
                 </div>
               )}
 
               <div className="flex justify-between text-muted-foreground font-medium">
-                <span className="uppercase tracking-wide text-xs">Shipping</span>
+                <span className="uppercase tracking-wide text-xs">Shipping &amp; Freight</span>
                 <span className="text-foreground font-semibold">
-                  {shippingMode === "manual" ? (
-                    <span className="text-amber-600 dark:text-amber-400">TO BE CONFIRMED</span>
-                  ) : aramexLoading ? (
-                    <span className="text-xs">CALCULATING...</span>
-                  ) : aramexQuote ? (
-                    formatPrice(aramexShippingCost)
+                  {hasConfirmedShipping ? (
+                    <span className="font-mono">{formatPrice(aramexShippingCost)} USD</span>
                   ) : (
-                    <span className="text-amber-600 dark:text-amber-400">TO BE CONFIRMED</span>
+                    <span className="text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
+                      To be confirmed (freight excluded)
+                    </span>
                   )}
                 </span>
               </div>
+
               <div className="flex justify-between items-end pt-3 mt-2 border-t border-border">
-                <span className="font-bold text-foreground text-sm uppercase tracking-wide">Grand Total</span>
-                <div className="text-right">
-                  <span className="font-black text-lg text-foreground">
-                    {formatPrice(shippingMode === "aramex" && aramexQuote ? total : merchandiseAfterDiscount)}
+                <div>
+                  <span className="font-bold text-foreground text-sm uppercase tracking-wide block">
+                    {hasConfirmedShipping ? "Grand Total" : "Merchandise Subtotal"}
                   </span>
-                  {(shippingMode === "manual" || !aramexQuote) && (
+                  {!hasConfirmedShipping ? (
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold block mt-0.5">
+                      Freight charges excluded · Confirmed by export team
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground font-medium block mt-0.5">
+                      Includes {formatPrice(aramexShippingCost)} USD priority air freight
+                    </span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="font-black text-lg text-foreground font-mono">
+                    {formatPrice(hasConfirmedShipping ? total : merchandiseAfterDiscount)} USD
+                  </span>
+                  {!hasConfirmedShipping && (
                     <span className="block text-[11px] text-muted-foreground font-medium mt-0.5">
                       + freight charges
                     </span>
@@ -1451,43 +1612,44 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 pt-1">
+          {/* ─── MODAL FOOTER (Pinned & Visible) ─────────────────────────── */}
+          <div className="shrink-0 px-5 sm:px-6 py-3.5 sm:py-4 border-t border-border bg-card/95 backdrop-blur-xs space-y-2.5 pb-[calc(0.875rem+env(safe-area-inset-bottom,0px))]">
+            {stockViolations.length > 0 && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                <AlertCircle size={15} className="shrink-0" />
+                <span>
+                  {stockViolations[0]?.message || "Some items in your cart exceed currently available stock. Please reduce quantities to proceed."}
+                </span>
+              </div>
+            )}
+
+            <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
               <ShieldCheck size={14} className="text-foreground opacity-70 shrink-0" />
-              <span>Commercial wholesale order · Proforma Invoice issued</span>
+              <span>Commercial wholesale order · Proforma Invoice generated after confirmation</span>
             </div>
 
-            {/* ─── 6. FINAL CTA ───────────────────────────────────────────── */}
-            <div className="pt-2">
-              {stockViolations.length > 0 && (
-                <div className="mb-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-                  <AlertCircle size={15} className="shrink-0" />
-                  <span>
-                    {stockViolations[0]?.message || "Some items in your cart exceed currently available stock. Please reduce quantities to proceed."}
-                  </span>
-                </div>
+            <button
+              type="submit"
+              disabled={loading || stockViolations.length > 0}
+              className={`w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
+                loading || stockViolations.length > 0
+                  ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60"
+                  : "bg-foreground text-background hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
+              }`}
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span>Confirm Order &amp; Generate Proforma</span>
+                  <ArrowRight size={16} />
+                </>
               )}
-              <button
-                type="submit"
-                disabled={loading || stockViolations.length > 0}
-                className={`w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                  loading || stockViolations.length > 0
-                    ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60"
-                    : "bg-foreground text-background hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
-                }`}
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Confirm Order &amp; Generate Proforma</span>
-                    <ArrowRight size={16} />
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
+            </button>
+          </div>
+        </form>
       </div>
       {/* ─── ADDRESS FORM SHEET ────────────────────────────────────────────────
            Rendered here — OUTSIDE the checkout <form> — as a sibling overlay.

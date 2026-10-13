@@ -10,6 +10,8 @@ export class InsufficientStockError extends Error {
   size?: string;
   requestedQuantity: number;
   availableQuantity: number;
+  existingCartQuantity?: number;
+  currentRequestedQuantity?: number;
 
   constructor(
     message: string,
@@ -20,6 +22,8 @@ export class InsufficientStockError extends Error {
       size?: string;
       requestedQuantity: number;
       availableQuantity: number;
+      existingCartQuantity?: number;
+      currentRequestedQuantity?: number;
     }
   ) {
     super(message);
@@ -30,6 +34,8 @@ export class InsufficientStockError extends Error {
     this.size = details.size;
     this.requestedQuantity = details.requestedQuantity;
     this.availableQuantity = details.availableQuantity;
+    this.existingCartQuantity = details.existingCartQuantity;
+    this.currentRequestedQuantity = details.currentRequestedQuantity;
   }
 }
 
@@ -252,11 +258,17 @@ export class CartService {
       } catch (err: any) {
         const errorData = err?.data?.data || err?.data;
         if (err?.data?.error_code === "INSUFFICIENT_STOCK" || errorData?.available_quantity !== undefined) {
-          const avail = errorData?.available_quantity ?? 0;
-          const req = errorData?.requested_quantity ?? newQty;
+          const avail = Number(errorData?.available_quantity ?? 0);
+          const req = Number(errorData?.requested_quantity ?? newQty);
+          const existingCartQty = Number(errorData?.existing_cart_quantity ?? 0);
+          const currentRequested = Number(errorData?.current_request_quantity ?? quantity);
           const sizeName = size && size !== "Standard Assorted" && size !== "Assorted" ? ` size ${size}` : "";
+          const defaultMsg = existingCartQty > 0
+            ? `Insufficient stock for '${product.name}'${sizeName}. Adding ${currentRequested} pcs to your existing cart quantity of ${existingCartQty} pcs (total: ${req} pcs) exceeds available stock of ${avail} pcs.`
+            : `Insufficient stock for '${product.name}'${sizeName}. Requested: ${req}, Available: ${avail}.`;
+
           throw new InsufficientStockError(
-            err.message || `Insufficient stock for '${product.name}'${sizeName}. Requested: ${req}, Available: ${avail}.`,
+            err?.data?.message || err?.message || defaultMsg,
             {
               productId: product.id,
               productName: product.name,
@@ -264,6 +276,8 @@ export class CartService {
               size: size || "Standard Assorted",
               requestedQuantity: req,
               availableQuantity: avail,
+              existingCartQuantity: existingCartQty,
+              currentRequestedQuantity: currentRequested,
             }
           );
         }

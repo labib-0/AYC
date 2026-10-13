@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
@@ -8,6 +8,7 @@ import { X, Minus, Plus, ShoppingCart, Check, FileText, AlertCircle } from "luci
 import { useProductModal } from "@/lib/ProductModalContext";
 import { useCart } from "@/lib/CartContext";
 import { useRfq } from "@/lib/RfqContext";
+import { InsufficientStockError } from "@/services/cart.service";
 import ProductGallery from "@/components/product/ProductGallery";
 import ProductBrandLogoOverlay from "@/components/common/ProductBrandLogoOverlay";
 import ProductPromotionBadges from "@/components/common/ProductPromotionBadges";
@@ -55,13 +56,17 @@ export default function ProductQuickAddModal() {
   const { user } = useAuth();
   const { selectedProduct: rawProduct, closeProductModal } = useProductModal();
   const product = rawProduct as ExtendedProduct | null;
-  const { addToCart, setIsCartOpen } = useCart();
+  const { addToCart, setIsCartOpen, items: cartItems } = useCart();
   const { addToRfq } = useRfq();
 
   const [packageCount, setPackageCount] = useState<number>(1);
+  const [quantityInput, setQuantityInput] = useState<string>("1");
   const [addedSuccess, setAddedSuccess] = useState(false);
   const [stockError, setStockError] = useState<string | null>(null);
   const [addedRfqSuccess, setAddedRfqSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const activeRequestIdRef = useRef<number>(0);
 
   const moq = Math.max(1, product?.moq ?? 1);
 
@@ -174,14 +179,57 @@ export default function ProductQuickAddModal() {
     return product.brandLogo || product.brand_logo || (product as any).brand_data?.logo_url || (product as any).brand_data?.logo;
   }, [product]);
 
-  // Reset state when product opens
+  // In-cart quantity for the current product
+  const existingCartItem = useMemo(() => {
+    if (!product || !cartItems) return null;
+    return cartItems.find((item) => String(item.product?.id) === String(product.id));
+  }, [cartItems, product]);
+
+  const existingCartQty = existingCartItem ? existingCartItem.quantity : 0;
+
+  // Authoritative client-side quantity validation against live stock and cart
+  const validateQuantity = useCallback(
+    (qty: number, packages: number): string | null => {
+      if (!product) return null;
+      if (isSoldOut) {
+        return "This product is sold out and cannot be purchased.";
+      }
+      const lowestPrice = getLowestValidCustomerUnitPrice(product);
+      const hasValidPrice = lowestPrice !== null && lowestPrice > 0;
+      if (!hasValidPrice) {
+        return "This product does not have a configured customer selling price. Please request a quote.";
+      }
+      if (packages < 1 || qty < moq) {
+        return `Order quantity must be at least the minimum order quantity (${moq.toLocaleString()} pcs).`;
+      }
+      if (qty % moq !== 0) {
+        return `Order quantity must be an exact multiple of the MOQ (${moq.toLocaleString()} pcs).`;
+      }
+      if (!isPreorder && completePackageStock > 0 && qty > completePackageStock) {
+        return `Requested ${qty.toLocaleString()} pcs exceeds available stock of ${completePackageStock.toLocaleString()} pcs.`;
+      }
+      if (!isPreorder && completePackageStock > 0 && existingCartQty + qty > completePackageStock) {
+        return `Requested ${qty.toLocaleString()} pcs combined with ${existingCartQty.toLocaleString()} pcs already in your cart (total: ${(existingCartQty + qty).toLocaleString()} pcs) exceeds available stock of ${completePackageStock.toLocaleString()} pcs.`;
+      }
+      return null;
+    },
+    [product, isSoldOut, isPreorder, moq, completePackageStock, existingCartQty]
+  );
+
+  // Reset state and re-validate when product opens
   useEffect(() => {
     if (product) {
+      activeRequestIdRef.current++;
       setPackageCount(1);
+      setQuantityInput(String(moq));
       setAddedSuccess(false);
-      setStockError(null);
+      setAddedRfqSuccess(false);
+      setIsSubmitting(false);
+
+      const initialErr = validateQuantity(moq, 1);
+      setStockError(initialErr);
     }
-  }, [product]);
+  }, [product, moq, validateQuantity]);
 
   // Escape key closes modal
   useEffect(() => {
@@ -195,52 +243,151 @@ export default function ProductQuickAddModal() {
   }, [product, closeProductModal]);
 
   const decreasePackages = useCallback(() => {
-    setStockError(null);
-    setPackageCount((prev) => Math.max(1, prev - 1));
-  }, []);
+    activeRequestIdRef.current++;
+    const nextPackages = Math.max(1, packageCount - 1);
+    const nextQty = nextPackages * moq;
+    setPackageCount(nextPackages);
+    setQuantityInput(String(nextQty));
+    const error = validateQuantity(nextQty, nextPackages);
+    setStockError(error);
+  }, [packageCount, moq, validateQuantity]);
 
   const increasePackages = useCallback(() => {
-    setStockError(null);
-    setPackageCount((prev) => Math.min(isPreorder ? 9999 : (maxCompletePackages > 0 ? maxCompletePackages : 9999), prev + 1));
-  }, [maxCompletePackages, isPreorder]);
+    activeRequestIdRef.current++;
+    const maxPkgs = isPreorder ? 9999 : (maxCompletePackages > 0 ? maxCompletePackages : 9999);
+    const nextPackages = Math.min(maxPkgs, packageCount + 1);
+    const nextQty = nextPackages * moq;
+    setPackageCount(nextPackages);
+    setQuantityInput(String(nextQty));
+    const error = validateQuantity(nextQty, nextPackages);
+    setStockError(error);
+  }, [packageCount, moq, maxCompletePackages, isPreorder, validateQuantity]);
+
+  const handleQuantityInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      activeRequestIdRef.current++;
+      const val = e.target.value;
+      setQuantityInput(val);
+
+      const parsed = parseInt(val, 10);
+      if (isNaN(parsed) || parsed <= 0) {
+        setStockError(`Please enter a valid quantity of at least ${moq.toLocaleString()} pcs.`);
+        return;
+      }
+
+      const calculatedPackages = Math.max(1, Math.round(parsed / moq));
+      const normalizedQty = calculatedPackages * moq;
+      setPackageCount(calculatedPackages);
+
+      const error = validateQuantity(normalizedQty, calculatedPackages);
+      setStockError(error);
+    },
+    [moq, validateQuantity]
+  );
+
+  const handleQuantityInputBlur = useCallback(() => {
+    activeRequestIdRef.current++;
+    const parsed = parseInt(quantityInput, 10);
+    if (isNaN(parsed) || parsed < moq) {
+      setPackageCount(1);
+      setQuantityInput(String(moq));
+      setStockError(validateQuantity(moq, 1));
+      return;
+    }
+
+    const calculatedPackages = Math.max(1, Math.round(parsed / moq));
+    const normalizedQty = calculatedPackages * moq;
+    setPackageCount(calculatedPackages);
+    setQuantityInput(String(normalizedQty));
+    setStockError(validateQuantity(normalizedQty, calculatedPackages));
+  }, [quantityInput, moq, validateQuantity]);
 
   const handleAddToCart = useCallback(async () => {
-    if (!product) return;
-    if (isSoldOut) {
-      setStockError("This product is sold out and cannot be purchased.");
+    if (!product || isSubmitting) return;
+
+    // Run authoritative client-side pre-validation
+    const clientError = validateQuantity(totalQuantity, packageCount);
+    if (clientError) {
+      setStockError(clientError);
       return;
     }
-    const lowestPrice = getLowestValidCustomerUnitPrice(product);
-    const hasValidPrice = lowestPrice !== null && lowestPrice > 0;
-    if (!hasValidPrice) {
-      setStockError("This product does not have a configured customer selling price. Please request a quote.");
-      return;
-    }
-    if (!isPreorder && completePackageStock > 0 && totalQuantity > completePackageStock) {
-      setStockError(
-        `Requested ${totalQuantity.toLocaleString()} pcs exceeds available stock of ${completePackageStock.toLocaleString()} pcs.`
-      );
-      return;
-    }
+
+    const currentRequestId = ++activeRequestIdRef.current;
+    setIsSubmitting(true);
     setStockError(null);
+
     try {
       await addToCart(product, "Assorted", totalQuantity, undefined, currentOrderBreakdown);
+
+      // Check for race condition / stale request completion
+      if (activeRequestIdRef.current !== currentRequestId) {
+        return;
+      }
+
+      setIsSubmitting(false);
       setAddedSuccess(true);
       setTimeout(() => {
         closeProductModal();
         setIsCartOpen(true);
       }, 800);
     } catch (err: any) {
-      setStockError(err?.message || "Failed to add product to cart.");
+      // Check for race condition / stale request completion
+      if (activeRequestIdRef.current !== currentRequestId) {
+        return;
+      }
+      setIsSubmitting(false);
+
+      // Synchronize and format error message cleanly to the current request
+      let errorMsg = err?.message || "Failed to add product to cart.";
+      if (err instanceof InsufficientStockError || err?.data?.error_code === "INSUFFICIENT_STOCK") {
+        const errorData = err?.data?.data || err?.data || (err as any)?.details;
+        const avail = errorData?.available_quantity ?? (err as any)?.availableQuantity ?? completePackageStock;
+        const req = errorData?.requested_quantity ?? (err as any)?.requestedQuantity ?? totalQuantity;
+        const inCart = errorData?.existing_cart_quantity ?? (err as any)?.existingCartQuantity ?? existingCartQty;
+
+        if (inCart > 0 && req > totalQuantity) {
+          errorMsg = `Requested ${totalQuantity.toLocaleString()} pcs combined with ${inCart.toLocaleString()} pcs already in your cart (total: ${req.toLocaleString()} pcs) exceeds available stock of ${avail.toLocaleString()} pcs.`;
+        } else {
+          errorMsg = `Requested ${totalQuantity.toLocaleString()} pcs exceeds available stock of ${avail.toLocaleString()} pcs.`;
+        }
+      }
+
+      setStockError(errorMsg);
     }
-  }, [product, isPreorder, isSoldOut, packageCount, totalQuantity, maxCompletePackages, completePackageStock, currentOrderBreakdown, addToCart, closeProductModal, setIsCartOpen]);
+  }, [
+    product,
+    isSubmitting,
+    validateQuantity,
+    totalQuantity,
+    packageCount,
+    currentOrderBreakdown,
+    addToCart,
+    closeProductModal,
+    setIsCartOpen,
+    completePackageStock,
+    existingCartQty,
+  ]);
 
   const handleAddToRfq = useCallback(() => {
     if (!product) return;
+    if (isSoldOut) {
+      setStockError("This product is sold out and cannot be quoted.");
+      return;
+    }
+    if (packageCount < 1 || totalQuantity < moq) {
+      setStockError(`Minimum order quantity for RFQ is ${moq.toLocaleString()} pcs.`);
+      return;
+    }
+    if (totalQuantity % moq !== 0) {
+      setStockError(`RFQ quantity must be an exact multiple of the MOQ (${moq.toLocaleString()} pcs).`);
+      return;
+    }
+
+    setStockError(null);
     addToRfq(product, totalQuantity, {
       size: "Assorted",
       color: "Standard",
-      buyerNotes: `Quantity: ${totalQuantity.toLocaleString()} pcs`,
+      buyerNotes: `Quantity: ${totalQuantity.toLocaleString()} pcs (${packageCount.toLocaleString()} packages)`,
     });
     closeProductModal();
     if (!user) {
@@ -255,7 +402,7 @@ export default function ProductQuickAddModal() {
     setTimeout(() => {
       setAddedRfqSuccess(false);
     }, 800);
-  }, [product, packageCount, totalQuantity, addToRfq, closeProductModal, user, router]);
+  }, [product, isSoldOut, packageCount, totalQuantity, moq, addToRfq, closeProductModal, user, router]);
 
   if (!product) return null;
 
@@ -441,9 +588,18 @@ export default function ProductQuickAddModal() {
                         >
                           <Minus size={15} strokeWidth={2} />
                         </button>
-                        <span className="min-w-16 px-2 text-center text-sm sm:text-base font-bold tabular-nums font-sans select-none border-x border-border/50">
-                          {totalQuantity.toLocaleString()}
-                        </span>
+                        <input
+                          id="quick-view-quantity-input"
+                          type="number"
+                          min={moq}
+                          step={moq}
+                          value={quantityInput}
+                          onChange={handleQuantityInputChange}
+                          onBlur={handleQuantityInputBlur}
+                          disabled={isSoldOut}
+                          className="w-20 sm:w-24 px-2 text-center text-sm sm:text-base font-bold tabular-nums font-sans border-x border-border/50 bg-transparent text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          aria-label="Order Quantity in Pieces"
+                        />
                         <button
                           type="button"
                           onClick={increasePackages}
@@ -455,7 +611,7 @@ export default function ProductQuickAddModal() {
                         </button>
                       </div>
                       <span className="text-xs sm:text-sm font-semibold text-muted-foreground font-sans">
-                        PCS
+                        PCS ({packageCount} {packageCount === 1 ? "pkg" : "pkgs"})
                       </span>
                     </div>
 
@@ -463,6 +619,11 @@ export default function ProductQuickAddModal() {
                       <strong className="text-foreground">{totalQuantity.toLocaleString()} pcs</strong> · MOQ: {moq} pcs · {
                         isSoldOut ? "Sold Out" : isPreorder ? "Pre-Order" : `Available: ${completePackageStock.toLocaleString()} pcs`
                       }
+                      {existingCartQty > 0 && (
+                        <span className="text-primary font-semibold ml-1.5">
+                          · In Cart: {existingCartQty.toLocaleString()} pcs
+                        </span>
+                      )}
                     </p>
                   </div>
 
@@ -480,10 +641,13 @@ export default function ProductQuickAddModal() {
                       onClick={handleAddToCart}
                       disabled={
                         isSoldOut ||
+                        isSubmitting ||
                         !(getLowestValidCustomerUnitPrice(product) !== null && (getLowestValidCustomerUnitPrice(product) ?? 0) > 0) ||
                         addedSuccess ||
                         (!isPreorder && maxCompletePackages > 0 && packageCount > maxCompletePackages) ||
-                        (!isPreorder && maxCompletePackages <= 0)
+                        (!isPreorder && maxCompletePackages <= 0) ||
+                        (!isPreorder && completePackageStock > 0 && totalQuantity > completePackageStock) ||
+                        (!isPreorder && completePackageStock > 0 && (totalQuantity + existingCartQty) > completePackageStock)
                       }
                       className={`w-full h-11 sm:h-12 rounded-xl text-xs sm:text-sm font-sans font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                         addedSuccess
@@ -502,6 +666,8 @@ export default function ProductQuickAddModal() {
                         </>
                       ) : !(getLowestValidCustomerUnitPrice(product) !== null && (getLowestValidCustomerUnitPrice(product) ?? 0) > 0) ? (
                         <span>Quote Only</span>
+                      ) : isSubmitting ? (
+                        <span>Adding...</span>
                       ) : (
                         <>
                           <ShoppingCart size={16} strokeWidth={2} />
