@@ -73,6 +73,12 @@ export default function ProductForm({
   const [brand, setBrand] = useState(initialData?.brand || "");
   const [brandId, setBrandId] = useState<string | number | undefined>(initialData?.brand_id);
   const [brandLogo, setBrandLogo] = useState<string | undefined>(initialData?.brandLogo);
+  const [supplierName, setSupplierName] = useState<string>(
+    initialData?.supplierName ||
+    initialData?.supplier_name ||
+    (typeof initialData?.supplier === 'string' ? initialData.supplier : initialData?.supplier?.name) ||
+    ""
+  );
   const [supplierId, setSupplierId] = useState<string | number | undefined>(
     initialData?.supplierId || (initialData as any)?.supplier_id
   );
@@ -511,6 +517,10 @@ export default function ProductForm({
       if (Array.isArray(rawProfiles) && rawProfiles.length > 0) {
         setShippingProfiles((current) => current.length > 0 ? current : rawProfiles);
       }
+      const incomingSupplierName = initialData.supplierName ?? initialData.supplier_name ?? (typeof initialData.supplier === 'string' ? initialData.supplier : initialData.supplier?.name);
+      if (incomingSupplierName !== undefined) {
+        setSupplierName(incomingSupplierName || "");
+      }
       if (initialData.supplierId !== undefined || (initialData as any)?.supplier_id !== undefined) {
         setSupplierId(initialData.supplierId ?? (initialData as any)?.supplier_id);
       }
@@ -666,9 +676,11 @@ export default function ProductForm({
       seo_keywords: keywords,
       images,
       videoUrl,
+      supplierName: supplierName.trim() || undefined,
+      supplier_name: supplierName.trim() || undefined,
       supplierId: supplierId || undefined,
       supplier_id: supplierId ? Number(supplierId) : undefined,
-      supplier: selectedSupplier,
+      supplier: supplierName.trim() || selectedSupplier || undefined,
       wholesalePrice,
       bulkPricingEnabled,
       bulk_pricing_enabled: bulkPricingEnabled,
@@ -694,7 +706,7 @@ export default function ProductForm({
       status: "draft",
     };
   }, [
-    productId, name, slug, sku, isHiddenFromStorefront, brand, brandId, brandLogo, supplierId, selectedSupplier, categoryId, categoryName,
+    productId, name, slug, sku, isHiddenFromStorefront, brand, brandId, brandLogo, supplierName, supplierId, selectedSupplier, categoryId, categoryName,
     audience, designType, material, sizeDescription, colourDescription,
     packageAssortmentVisible, packageAssortmentMessage, description, seoTitle, seoDescription,
     keywords, images, videoUrl, wholesalePrice, bulkPricingEnabled, bulkThreshold, bulkPrice,
@@ -1266,9 +1278,11 @@ export default function ProductForm({
         sku: sku.trim() || (isEdit ? (initialData?.sku || undefined) : (name.trim() ? generatedSku : (undefined as any))),
         isHiddenFromStorefront: isHiddenFromStorefront,
         is_hidden_from_storefront: isHiddenFromStorefront,
+        supplierName: supplierName.trim() || null,
+        supplier_name: supplierName.trim() || null,
         supplierId: supplierId || undefined,
         supplier_id: supplierId ? Number(supplierId) : null,
-        supplier: selectedSupplier,
+        supplier: supplierName.trim() || selectedSupplier || null,
         brand: brand.trim() || (isEdit ? (initialData?.brand || undefined) : (undefined as any)),
         brandLogo: activeBrand?.logo_url || brandLogo || (isEdit ? (initialData?.brandLogo || undefined) : undefined),
         brand_id: activeBrand?.id ? String(activeBrand.id) : (brandId ? String(brandId) : (isEdit ? (initialData?.brand_id ? String(initialData.brand_id) : undefined) : undefined)),
@@ -1422,6 +1436,10 @@ export default function ProductForm({
         if (clean.length > 0) {
           setImages(clean);
         }
+      }
+      const returnedSupplierName = (res as any).supplier_name ?? (res as any).supplierName ?? (typeof (res as any).supplier === 'string' ? (res as any).supplier : (res as any).supplier?.name);
+      if (returnedSupplierName !== undefined) {
+        setSupplierName(returnedSupplierName || "");
       }
       if ((res as any).supplier_id !== undefined) {
         setSupplierId((res as any).supplier_id);
@@ -1692,11 +1710,28 @@ export default function ProductForm({
             brandId={brandId}
             categoryId={categoryId}
             categoryName={categoryName}
+            supplierName={supplierName}
+            onSupplierNameChange={(val) => {
+              setSupplierName(val);
+              setHasUserEdited(true);
+              hasUserEditedRef.current = true;
+              if (errors.supplier_name || errors.supplierName) {
+                setErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.supplier_name;
+                  delete next.supplierName;
+                  return next;
+                });
+              }
+            }}
             supplierId={supplierId}
             selectedSupplier={selectedSupplier}
             onSupplierChange={(sId, sup) => {
               setSupplierId(sId ?? undefined);
               setSelectedSupplier(sup);
+              if (sup?.name) {
+                setSupplierName(sup.name);
+              }
             }}
             audience={audience}
             designType={designType}

@@ -9,7 +9,6 @@ import { CategoryModel } from "@/services/category.service";
 import { useOptionalAdminAuth } from "@/lib/AdminAuthContext";
 import ProductDescriptionEditor from "./ProductDescriptionEditor";
 import SearchableSelect from "@/components/common/SearchableSelect";
-import SupplierSelect from "./SupplierSelect";
 import { SupplierModel } from "@/types/b2b";
 
 interface CategoryOption {
@@ -38,6 +37,7 @@ interface ProductBasicInfoSectionProps {
   sizeDescription?: string;
   colourDescription?: string;
   description: string;
+  supplierName?: string;
   supplierId?: string | number | null;
   selectedSupplier?: SupplierModel | null;
   brands: BrandOption[];
@@ -52,6 +52,7 @@ interface ProductBasicInfoSectionProps {
   onSkuChange: (val: string) => void;
   onBrandChange: (brandName: string, brandId?: string, brandLogo?: string) => void;
   onCategoryChange: (catId: string, catName?: string) => void;
+  onSupplierNameChange?: (name: string) => void;
   onSupplierChange?: (supplierId: number | null, supplier: SupplierModel | null) => void;
   onAudienceChange: (val: "MEN" | "WOMEN" | "BOYS" | "GIRLS" | "UNISEX" | "") => void;
   onDesignTypeChange: (val: "ORIGINAL" | "MASTER COPY" | "") => void;
@@ -107,6 +108,8 @@ export default function ProductBasicInfoSection({
   onSkuChange,
   onBrandChange,
   onCategoryChange,
+  supplierName,
+  onSupplierNameChange,
   onSupplierChange,
   onAudienceChange,
   onDesignTypeChange,
@@ -255,12 +258,29 @@ export default function ProductBasicInfoSection({
           </div>
 
           <div>
-            <SupplierSelect
-              value={supplierId}
-              selectedSupplier={selectedSupplier}
-              onChange={(supId, sup) => onSupplierChange?.(supId, sup)}
-              error={errors.supplier_id || errors.supplierId}
+            <label
+              htmlFor="product-supplier-input"
+              className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5"
+            >
+              Supplier{" "}
+              <span className="text-[10px] font-normal text-muted-foreground lowercase">
+                (admin only / optional)
+              </span>
+            </label>
+            <input
+              id="product-supplier-input"
+              type="text"
+              value={supplierName ?? ""}
+              onChange={(e) => onSupplierNameChange?.(e.target.value)}
+              placeholder="Enter supplier name (optional)"
+              className={inputClass(Boolean(errors.supplier_name || errors.supplierName || errors.supplier_id || errors.supplierId))}
             />
+            {(errors.supplier_name || errors.supplierName || errors.supplier_id || errors.supplierId) && (
+              <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
+                <AlertCircle size={12} />
+                {errors.supplier_name || errors.supplierName || errors.supplier_id || errors.supplierId}
+              </p>
+            )}
           </div>
         </div>
 

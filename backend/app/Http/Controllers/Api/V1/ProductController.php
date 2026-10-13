@@ -102,9 +102,13 @@ class ProductController extends ApiController
                       $cq->where('name', $likeOp, "%{$searchTerm}%");
                   });
 
-                // Product ID search is internal and authoritative for Admins
+                // Product ID and Supplier search are internal and authoritative for Admins
                 if ($isAdmin) {
-                    $q->orWhere('product_id', $likeOp, "%{$searchTerm}%");
+                    $q->orWhere('product_id', $likeOp, "%{$searchTerm}%")
+                      ->orWhere('supplier_name', $likeOp, "%{$searchTerm}%")
+                      ->orWhereHas('supplier', function ($sq) use ($searchTerm, $likeOp) {
+                          $sq->where('name', $likeOp, "%{$searchTerm}%");
+                      });
                 }
             });
         }
@@ -112,6 +116,19 @@ class ProductController extends ApiController
         // Direct product_id filter for Admins
         if ($isAdmin && $request->filled('product_id')) {
             $query->where('product_id', $likeOp, '%' . trim($request->input('product_id')) . '%');
+        }
+
+        // Direct supplier / supplier_name filter for Admins
+        if ($isAdmin && ($request->filled('supplier_name') || $request->filled('supplier'))) {
+            $supTerm = trim((string) ($request->input('supplier_name') ?? $request->input('supplier')));
+            if ($supTerm !== '') {
+                $query->where(function ($sq) use ($supTerm, $likeOp) {
+                    $sq->where('supplier_name', $likeOp, "%{$supTerm}%")
+                       ->orWhereHas('supplier', function ($rel) use ($supTerm, $likeOp) {
+                           $rel->where('name', $likeOp, "%{$supTerm}%");
+                       });
+                });
+            }
         }
 
         // Category filter (slug, id, or comma-separated list - case-insensitive)
@@ -659,6 +676,26 @@ class ProductController extends ApiController
         if ($request->has('supplierId') && !$request->has('supplier_id')) {
             $request->merge(['supplier_id' => $request->input('supplierId')]);
         }
+        // Normalize Supplier Name (internal text metadata)
+        $rawSupplierName = $request->input('supplier_name', $request->input('supplierName'));
+        if ($rawSupplierName === null && is_string($request->input('supplier'))) {
+            $rawSupplierName = $request->input('supplier');
+        }
+        if (is_string($rawSupplierName)) {
+            $trimmedSupplier = trim($rawSupplierName);
+            $request->merge(['supplier_name' => $trimmedSupplier !== '' ? $trimmedSupplier : null]);
+        } elseif ($request->has('supplier_name') || $request->has('supplierName') || ($request->has('supplier') && !is_numeric($request->input('supplier')))) {
+            $request->merge(['supplier_name' => null]);
+        }
+        if (empty($request->input('supplier_name')) && ($request->filled('supplier_id') || $request->filled('supplierId'))) {
+            $supId = $request->input('supplier_id', $request->input('supplierId'));
+            if (is_numeric($supId)) {
+                $supObj = \App\Models\Supplier::find((int) $supId);
+                if ($supObj) {
+                    $request->merge(['supplier_name' => $supObj->name]);
+                }
+            }
+        }
         if ($request->has('product_id')) {
             $rawPid = (string) $request->input('product_id');
             $normalizedPid = preg_replace('/\s+/', '', $rawPid);
@@ -700,8 +737,11 @@ class ProductController extends ApiController
             'sku' => ['nullable', 'string', Rule::unique('products', 'sku')->whereNull('deleted_at')],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'brand' => ['nullable', 'string'],
-            'supplier_id' => ['nullable', 'exists:suppliers,id'],
-            'supplierId' => ['nullable', 'exists:suppliers,id'],
+            'supplier_name' => ['nullable', 'string', 'max:255'],
+            'supplierName' => ['nullable', 'string', 'max:255'],
+            'supplier' => ['nullable'],
+            'supplier_id' => ['nullable'],
+            'supplierId' => ['nullable'],
             'new_brand_name' => ['nullable', 'string', 'max:255'],
             'new_brand_logo' => ['nullable', 'string'],
             'short_description' => ['nullable', 'string'],
@@ -858,7 +898,12 @@ class ProductController extends ApiController
             'standardPrice', 'standard_price', 'wholesalePrice',
             'fullStockPrice', 'costPrice',
             'initial_stock', 'stock', 'warehouse_id', 'initial_inventory',
+            'supplierName', 'supplierId',
         ])->toArray();
+
+        if ($request->has('supplier_name') || $request->has('supplierName') || is_string($request->input('supplier'))) {
+            $productData['supplier_name'] = $request->input('supplier_name');
+        }
 
         if (array_key_exists('sizeDescription', $validated) && !array_key_exists('size_description', $validated)) {
             $productData['size_description'] = $validated['sizeDescription'];
@@ -1451,6 +1496,26 @@ class ProductController extends ApiController
         if ($request->has('supplierId') && !$request->has('supplier_id')) {
             $request->merge(['supplier_id' => $request->input('supplierId')]);
         }
+        // Normalize Supplier Name (internal text metadata)
+        $rawSupplierName = $request->input('supplier_name', $request->input('supplierName'));
+        if ($rawSupplierName === null && is_string($request->input('supplier'))) {
+            $rawSupplierName = $request->input('supplier');
+        }
+        if (is_string($rawSupplierName)) {
+            $trimmedSupplier = trim($rawSupplierName);
+            $request->merge(['supplier_name' => $trimmedSupplier !== '' ? $trimmedSupplier : null]);
+        } elseif ($request->has('supplier_name') || $request->has('supplierName') || ($request->has('supplier') && !is_numeric($request->input('supplier')))) {
+            $request->merge(['supplier_name' => null]);
+        }
+        if (empty($request->input('supplier_name')) && ($request->filled('supplier_id') || $request->filled('supplierId'))) {
+            $supId = $request->input('supplier_id', $request->input('supplierId'));
+            if (is_numeric($supId)) {
+                $supObj = \App\Models\Supplier::find((int) $supId);
+                if ($supObj) {
+                    $request->merge(['supplier_name' => $supObj->name]);
+                }
+            }
+        }
 
         $validated = $request->validate([
             'product_id' => [
@@ -1466,8 +1531,11 @@ class ProductController extends ApiController
             'sku' => ['sometimes', 'string', Rule::unique('products', 'sku')->ignore($product->id)->whereNull('deleted_at')],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'brand' => ['nullable', 'string'],
-            'supplier_id' => ['nullable', 'exists:suppliers,id'],
-            'supplierId' => ['nullable', 'exists:suppliers,id'],
+            'supplier_name' => ['nullable', 'string', 'max:255'],
+            'supplierName' => ['nullable', 'string', 'max:255'],
+            'supplier' => ['nullable'],
+            'supplier_id' => ['nullable'],
+            'supplierId' => ['nullable'],
             'new_brand_name' => ['nullable', 'string', 'max:255'],
             'new_brand_logo' => ['nullable', 'string'],
             'short_description' => ['nullable', 'string'],
@@ -1671,7 +1739,12 @@ class ProductController extends ApiController
             'featured_duration_days', 'hot_duration_days', 'new_duration_days',
             'standardPrice', 'standard_price', 'wholesalePrice',
             'fullStockPrice', 'costPrice',
+            'supplierName', 'supplierId',
         ])->toArray();
+
+        if ($request->has('supplier_name') || $request->has('supplierName') || is_string($request->input('supplier'))) {
+            $productData['supplier_name'] = $request->input('supplier_name');
+        }
 
         if ($standardPriceInput !== null) {
             $productData['wholesale_price'] = (float) $standardPriceInput;

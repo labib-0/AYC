@@ -37,7 +37,9 @@ export interface B2BProductInput {
   brand_id?: string;
   supplierId?: number | string | null;
   supplier_id?: number | string | null;
-  supplier?: { id: number; code: string; name: string; is_active?: boolean } | null;
+  supplier_name?: string | null;
+  supplierName?: string | null;
+  supplier?: { id: number; code: string; name: string; is_active?: boolean } | string | null;
   categoryId?: string;
   categoryName?: string;
   categories?: (number | string)[];

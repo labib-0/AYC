@@ -225,6 +225,16 @@ export default function ProductTableRow({
                 $ Pending
               </span>
             )}
+            {Boolean(
+              (product.supplier_name || product.supplierName || (typeof product.supplier === 'string' ? product.supplier : product.supplier?.name))?.trim()
+            ) && (
+              <span
+                className="text-[8.5px] font-medium px-1 py-0.2 rounded bg-secondary text-muted-foreground border border-border/50 shrink-0 truncate max-w-[140px]"
+                title={`Supplier: ${(product.supplier_name || product.supplierName || (typeof product.supplier === 'string' ? product.supplier : product.supplier?.name))}`}
+              >
+                Sup: {(product.supplier_name || product.supplierName || (typeof product.supplier === 'string' ? product.supplier : product.supplier?.name))}
+              </span>
+            )}
           </div>
         </div>
       </td>

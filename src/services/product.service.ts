@@ -357,6 +357,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     brand_id: p.brand_id ? String(p.brand_id) : undefined,
     supplier_id: p.supplier_id ? (Number(p.supplier_id) || p.supplier_id) : (p.supplierId ? (Number(p.supplierId) || p.supplierId) : undefined),
     supplierId: p.supplierId ? (Number(p.supplierId) || p.supplierId) : (p.supplier_id ? (Number(p.supplier_id) || p.supplier_id) : undefined),
+    supplier_name: p.supplier_name || p.supplierName || (typeof p.supplier === 'string' ? p.supplier : p.supplier?.name) || undefined,
+    supplierName: p.supplierName || p.supplier_name || (typeof p.supplier === 'string' ? p.supplier : p.supplier?.name) || undefined,
     supplier: p.supplier || undefined,
     categoryId: categoryInfo.id,
     categoryName: categoryInfo.name,
@@ -1032,6 +1034,21 @@ export class ProductService {
     }
 
     if (input.brand_id !== undefined) payload.brand_id = input.brand_id;
+
+    if (input.supplier_name !== undefined) {
+      payload.supplier_name = typeof input.supplier_name === "string" ? input.supplier_name.trim() || null : null;
+      payload.supplierName = payload.supplier_name;
+    } else if (input.supplierName !== undefined) {
+      payload.supplier_name = typeof input.supplierName === "string" ? input.supplierName.trim() || null : null;
+      payload.supplierName = payload.supplier_name;
+    } else if (typeof input.supplier === "string") {
+      payload.supplier_name = input.supplier.trim() || null;
+      payload.supplierName = payload.supplier_name;
+    } else if (input.supplier && typeof (input.supplier as any).name === "string") {
+      payload.supplier_name = (input.supplier as any).name.trim() || null;
+      payload.supplierName = payload.supplier_name;
+    }
+
     if (input.supplier_id !== undefined) {
       payload.supplier_id = input.supplier_id ? Number(input.supplier_id) : null;
       payload.supplierId = payload.supplier_id;
@@ -1302,6 +1319,7 @@ export class ProductService {
         const cat = (p.categoryName || p.categoryId || "").toLowerCase();
         const desc = (p.description || p.shortDescription || "").toLowerCase();
         const prodId = options?.isAdmin ? ((p.productId || (p as any).product_id || "").toLowerCase()) : "";
+        const supName = options?.isAdmin ? ((p.supplier_name || p.supplierName || (typeof p.supplier === 'string' ? p.supplier : p.supplier?.name) || "").toLowerCase()) : "";
         const match = terms.every(
           (t) =>
             name.includes(t) ||
@@ -1309,7 +1327,8 @@ export class ProductService {
             sku.includes(t) ||
             cat.includes(t) ||
             desc.includes(t) ||
-            (prodId && prodId.includes(t))
+            (prodId && prodId.includes(t)) ||
+            (supName && supName.includes(t))
         );
         if (!match) return false;
       }
