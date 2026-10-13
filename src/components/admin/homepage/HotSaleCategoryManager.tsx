@@ -23,7 +23,7 @@ import {
   HomepageHotSaleCategoryModel, 
   HomepageCategoryRecord 
 } from "@/services/homepage.service";
-import { getCategoryImageUrl } from "@/lib/category-images";
+import { resolveCategoryImageUrl } from "@/lib/category-images";
 import { useAdminOrderedList } from "@/components/admin/ordered-list";
 
 function CategoryItemThumbnail({
@@ -37,24 +37,20 @@ function CategoryItemThumbnail({
   fallbackSlug?: string;
   size?: "sm" | "md";
 }) {
-  const [currentSrc, setCurrentSrc] = useState<string>(() => {
-    return src || getCategoryImageUrl(fallbackSlug || alt);
-  });
+  const resolved = useMemo(() => {
+    return resolveCategoryImageUrl(src, fallbackSlug || alt);
+  }, [src, fallbackSlug, alt]);
+
+  const [currentSrc, setCurrentSrc] = useState<string | null>(() => resolved);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    setCurrentSrc(src || getCategoryImageUrl(fallbackSlug || alt));
+    setCurrentSrc(resolved);
     setHasError(false);
-  }, [src, fallbackSlug, alt]);
+  }, [resolved]);
 
   const handleError = () => {
-    if (!hasError) {
-      setHasError(true);
-      const fallback = getCategoryImageUrl(fallbackSlug || alt);
-      if (fallback && fallback !== currentSrc) {
-        setCurrentSrc(fallback);
-      }
-    }
+    setHasError(true);
   };
 
   const containerClasses =
@@ -138,7 +134,7 @@ export default function HotSaleCategoryManager({
         id: cat.id,
         name: cat.name,
         slug: cat.slug,
-        image_url: cat.image_url || getCategoryImageUrl(cat.slug),
+        image_url: cat.image_url || resolveCategoryImageUrl(cat.slug, cat.name) || undefined,
         description: cat.description,
         is_active: cat.is_active !== false,
         parent_id: cat.parent_id,

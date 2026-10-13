@@ -123,6 +123,10 @@ class Product extends Model
         'keywords' => 'array',
     ];
 
+    protected $appends = [
+        'primary_image_url',
+    ];
+
     public function getKeywordsAttribute($value): array
     {
         if (is_array($value)) {
@@ -308,6 +312,28 @@ class Product extends Model
     public function primaryImage(): HasOne
     {
         return $this->hasOne(ProductImage::class)->where('is_primary', true);
+    }
+
+    /**
+     * Authoritative primary image URL for the product.
+     */
+    public function getPrimaryImageUrlAttribute(): ?string
+    {
+        if ($this->relationLoaded('primaryImage') && $this->primaryImage) {
+            return $this->primaryImage->image_url;
+        }
+
+        if ($this->relationLoaded('images') && $this->images->isNotEmpty()) {
+            $primary = $this->images->firstWhere('is_primary', true) ?? $this->images->first();
+            return $primary?->image_url;
+        }
+
+        if ($this->exists) {
+            $primary = $this->primaryImage()->first() ?? $this->images()->first();
+            return $primary?->image_url;
+        }
+
+        return null;
     }
 
     public function variants(): HasMany

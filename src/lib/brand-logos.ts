@@ -95,7 +95,7 @@ export const BRAND_LOGO_MAP: Record<string, string> = {
  * Resolves the authentic brand logo asset path for a given brand name and explicit logo.
  * Follows Rule 92: The admin-uploaded logo is authoritative, with fallback to verified SVG/PNG assets.
  */
-export function getBrandLogoUrl(brandName?: string, explicitLogo?: string): string | null {
+export function getBrandLogoUrl(brandName?: string, explicitLogo?: string | null): string | null {
   const norm = explicitLogo?.trim();
   if (
     norm &&

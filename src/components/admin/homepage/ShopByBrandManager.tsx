@@ -23,21 +23,32 @@ import {
   HomepageBrandRecord 
 } from "@/services/homepage.service";
 import { useAdminOrderedList } from "@/components/admin/ordered-list";
+import { getBrandLogoUrl } from "@/lib/brand-logos";
 
 function BrandItemLogo({
   logo,
+  name,
+  slug,
   alt,
   size = "md",
 }: {
   logo?: string | null;
+  name?: string;
+  slug?: string;
   alt: string;
   size?: "sm" | "md";
 }) {
+  const resolvedLogo = useMemo(() => {
+    return getBrandLogoUrl(name || slug || alt, logo);
+  }, [name, slug, alt, logo]);
+
+  const [currentLogo, setCurrentLogo] = useState<string | null>(() => resolvedLogo);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    setCurrentLogo(resolvedLogo);
     setHasError(false);
-  }, [logo]);
+  }, [resolvedLogo]);
 
   const containerClasses =
     size === "sm"
@@ -120,7 +131,7 @@ export default function ShopByBrandManager({
         id: brand.id,
         name: brand.name,
         slug: brand.slug,
-        logo_url: brand.logo_url || brand.logo,
+        logo_url: brand.logo_url || getBrandLogoUrl(brand.name, brand.logo) || undefined,
         website: brand.website,
         sort_order: brand.sort_order,
         is_active: brand.is_active !== false,
@@ -429,7 +440,13 @@ export default function ShopByBrandManager({
                       </span>
 
                       {/* Brand Logo & Name */}
-                      <BrandItemLogo logo={brand?.logo_url || brand?.logo} alt={brand?.name || "Brand"} size="sm" />
+                      <BrandItemLogo
+                        logo={brand?.logo_url || brand?.logo}
+                        name={brand?.name}
+                        slug={brand?.slug}
+                        alt={brand?.name || "Brand"}
+                        size="sm"
+                      />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 truncate">
                           <p className="text-xs sm:text-sm font-bold text-foreground truncate font-sans">
@@ -574,7 +591,13 @@ export default function ShopByBrandManager({
                       •
                     </div>
 
-                    <BrandItemLogo logo={brand.logo_url || brand.logo} alt={brand.name} size="sm" />
+                    <BrandItemLogo
+                      logo={brand.logo_url || brand.logo}
+                      name={brand.name}
+                      slug={brand.slug}
+                      alt={brand.name}
+                      size="sm"
+                    />
                     <div className="min-w-0">
                       <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
                         {brand.name}

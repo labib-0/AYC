@@ -155,3 +155,82 @@ export function deduplicateMediaUrls(urls: Array<string | null | undefined>): st
   return result;
 }
 
+/**
+ * Authoritatively resolves the primary thumbnail URL for a product record.
+ * Inspects all possible backend/frontend representations in priority order:
+ * 1. primary_image_url / primaryImageUrl (string)
+ * 2. image_url / imageUrl / image (string)
+ * 3. primaryImage relation object: { image_url }
+ * 4. images array: checks objects with is_primary === true first, then first valid object or string URL
+ * 5. media array: checks first valid object or string URL
+ * 6. Normalizes storage/relative paths via normalizeImageUrl()
+ * 7. Ignores generic placeholder references and returns null for authentic neutral no-image state.
+ */
+export function resolveProductThumbnail(product?: any): string | null {
+  if (!product || typeof product !== "object") return null;
+
+  const sanitize = (val?: string | null): string | null => {
+    if (!val || typeof val !== "string") return null;
+    const trimmed = val.trim();
+    if (
+      !trimmed ||
+      trimmed === "/placeholder.jpg" ||
+      trimmed.includes("placeholder") ||
+      trimmed.includes("default.jpg")
+    ) {
+      return null;
+    }
+    const normalized = normalizeImageUrl(trimmed);
+    if (!isValidImageUrl(normalized) || normalized.includes("placeholder")) {
+      return null;
+    }
+    return normalized;
+  };
+
+  // 1. Direct explicit primary image fields
+  const directPrimary = sanitize(product.primary_image_url || product.primaryImageUrl);
+  if (directPrimary) return directPrimary;
+
+  // 2. Direct single image URL fields
+  const directImage = sanitize(product.image_url || product.imageUrl || product.image);
+  if (directImage) return directImage;
+
+  // 3. Primary image relation object
+  if (product.primaryImage && typeof product.primaryImage === "object") {
+    const fromRel = sanitize(product.primaryImage.image_url || product.primaryImage.url);
+    if (fromRel) return fromRel;
+  }
+  if (product.primary_image && typeof product.primary_image === "object") {
+    const fromRel = sanitize(product.primary_image.image_url || product.primary_image.url);
+    if (fromRel) return fromRel;
+  }
+
+  // 4. images collection / array
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    // Check for marked is_primary first
+    for (const item of product.images) {
+      if (item && typeof item === "object" && (item.is_primary || item.isPrimary)) {
+        const primaryCandidate = sanitize(item.image_url || item.url || item.src);
+        if (primaryCandidate) return primaryCandidate;
+      }
+    }
+    // Then check in order of sort_order or index
+    for (const item of product.images) {
+      const candidate = typeof item === "string" ? item : item?.image_url || item?.url || item?.src;
+      const resolved = sanitize(candidate);
+      if (resolved) return resolved;
+    }
+  }
+
+  // 5. media collection / array
+  if (Array.isArray(product.media) && product.media.length > 0) {
+    for (const item of product.media) {
+      const candidate = typeof item === "string" ? item : item?.url || item?.image_url;
+      const resolved = sanitize(candidate);
+      if (resolved) return resolved;
+    }
+  }
+
+  return null;
+}
+

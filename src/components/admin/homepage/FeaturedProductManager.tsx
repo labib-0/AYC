@@ -24,6 +24,7 @@ import {
   ProductSearchResultItem 
 } from "@/services/homepage.service";
 import { useAdminOrderedList } from "@/components/admin/ordered-list";
+import { resolveProductThumbnail } from "@/lib/media";
 
 function ProductItemThumbnail({
   src,
@@ -32,21 +33,16 @@ function ProductItemThumbnail({
   src?: string | null;
   alt: string;
 }) {
-  const [currentSrc, setCurrentSrc] = useState<string>(() => src || "/placeholder.jpg");
+  const [currentSrc, setCurrentSrc] = useState<string | null>(() => src || null);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    setCurrentSrc(src || "/placeholder.jpg");
+    setCurrentSrc(src || null);
     setHasError(false);
   }, [src]);
 
   const handleError = () => {
-    if (!hasError && currentSrc !== "/placeholder.jpg") {
-      setHasError(true);
-      setCurrentSrc("/placeholder.jpg");
-    } else {
-      setHasError(true);
-    }
+    setHasError(true);
   };
 
   return (
@@ -128,7 +124,8 @@ export default function FeaturedProductManager({
         sku: prod.sku,
         price: prod.price,
         formatted_price: prod.formatted_price,
-        primary_image_url: prod.primary_image_url,
+        primary_image_url: resolveProductThumbnail(prod) || undefined,
+        images: prod.images,
         is_active: prod.is_active,
         brand_name: prod.brand_name,
         category_name: prod.category_name,
@@ -398,7 +395,7 @@ export default function FeaturedProductManager({
                   ? calcTargetPosition(draggedGlobalIndex, globalIndex, "below")
                   : position;
 
-              const thumb = prod?.primary_image_url || null;
+              const thumb = resolveProductThumbnail(prod);
 
               return (
                 <React.Fragment key={`pinned-prod-${item.product_id}`}>
@@ -608,7 +605,7 @@ export default function FeaturedProductManager({
         {viewFilter === "all" && (
           <div className="divide-y divide-border/40">
             {unpinnedCatalogProducts.map((prod) => {
-              const thumb = prod.primary_image_url || null;
+              const thumb = resolveProductThumbnail(prod);
 
               return (
                 <div
@@ -628,10 +625,14 @@ export default function FeaturedProductManager({
                       </p>
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono truncate">
                         <span>SKU: {prod.sku}</span>
-                        <span>•</span>
-                        <span className="text-foreground font-semibold">
-                          {prod.formatted_price || `$${prod.price}`}
-                        </span>
+                        {(prod.formatted_price || (prod.price !== undefined && prod.price !== null)) && (
+                          <>
+                            <span>•</span>
+                            <span className="text-foreground font-semibold">
+                              {prod.formatted_price || `$${prod.price}`}
+                            </span>
+                          </>
+                        )}
                         {prod.brand_name && (
                           <>
                             <span>•</span>

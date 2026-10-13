@@ -447,8 +447,19 @@ class HomepageManagementController extends ApiController
 
         $paginated = $query->orderBy('id', 'desc')->paginate($perPage);
 
+        $items = collect($paginated->items())->map(function ($product) {
+            $data = $product->toArray();
+            $data['primary_image_url'] = $product->primary_image_url;
+            $data['brand_name'] = $product->brand?->name;
+            $data['category_name'] = $product->categories?->first()?->name;
+            $price = $product->wholesale_price ?? $product->selling_price ?? $product->base_price ?? null;
+            $data['price'] = $price !== null ? (float) $price : null;
+            $data['formatted_price'] = $price !== null ? '$' . number_format((float) $price, 2) : null;
+            return $data;
+        });
+
         return $this->success([
-            'items' => $paginated->items(),
+            'items' => $items,
             'pagination' => [
                 'current_page' => $paginated->currentPage(),
                 'last_page' => $paginated->lastPage(),

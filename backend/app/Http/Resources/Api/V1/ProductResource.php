@@ -88,6 +88,8 @@ class ProductResource extends JsonResource
             'videoProvider' => $this->getVideoProvider(),
             'videoEmbedUrl' => $this->getVideoEmbedUrl(),
             'images' => !empty($imagesList) ? $imagesList : ['/placeholder.jpg'],
+            'primary_image_url' => $this->primary_image_url ?: (!empty($imagesList) ? $imagesList[0] : null),
+            'primaryImageUrl' => $this->primary_image_url ?: (!empty($imagesList) ? $imagesList[0] : null),
             'price' => $lowestCustomerPrice ?? $effectivePrice,
             'effective_customer_unit_price' => $lowestCustomerPrice,
             'effectiveCustomerUnitPrice' => $lowestCustomerPrice,

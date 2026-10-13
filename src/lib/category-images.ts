@@ -9,6 +9,8 @@
  * - Category filter rails, search, and navigation
  */
 
+import { normalizeImageUrl, isValidImageUrl } from "./media";
+
 export const CANONICAL_CATEGORY_IMAGES: Record<string, string> = {
   sweaters: "https://images.pexels.com/photos/15694151/pexels-photo-15694151.jpeg?auto=compress&cs=tinysrgb&h=650&w=940",
   "t-shirts": "https://images.pexels.com/photos/7658459/pexels-photo-7658459.jpeg?auto=compress&cs=tinysrgb&h=650&w=940",
@@ -115,4 +117,60 @@ export function getCategoryImageUrl(
   }
 
   return DEFAULT_CATEGORY_FALLBACK;
+}
+
+/**
+ * Resolves authoritative category image without substituting an unrelated generic garment photo.
+ * Returns null if no authentic category image or canonical association exists,
+ * allowing UI components to render a neutral, consistent no-image state.
+ */
+export function resolveCategoryImageUrl(
+  categoryKeyOrUrl?: string | null,
+  secondaryKeyOrUrl?: string | null
+): string | null {
+  let url = "";
+  let key = "";
+
+  const looksLikeUrl = (val?: string | null) =>
+    Boolean(
+      val &&
+        typeof val === "string" &&
+        val.trim().length > 0 &&
+        (val.startsWith("http://") || val.startsWith("https://") || val.startsWith("/"))
+    );
+
+  if (looksLikeUrl(categoryKeyOrUrl)) {
+    url = categoryKeyOrUrl!;
+    key = secondaryKeyOrUrl || "";
+  } else if (looksLikeUrl(secondaryKeyOrUrl)) {
+    url = secondaryKeyOrUrl!;
+    key = categoryKeyOrUrl || "";
+  } else {
+    key = categoryKeyOrUrl || secondaryKeyOrUrl || "";
+  }
+
+  if (
+    url &&
+    !url.includes("default.jpg") &&
+    !url.includes("placeholder") &&
+    url.trim() !== DEFAULT_CATEGORY_FALLBACK
+  ) {
+    const normalized = normalizeImageUrl(url);
+    if (isValidImageUrl(normalized) && normalized !== DEFAULT_CATEGORY_FALLBACK) {
+      return normalized;
+    }
+  }
+
+  const normalizedKey = normalizeCategorySlug(key);
+  if (CANONICAL_CATEGORY_IMAGES[normalizedKey]) {
+    return CANONICAL_CATEGORY_IMAGES[normalizedKey];
+  }
+
+  for (const [canonicalKey, canonicalUrl] of Object.entries(CANONICAL_CATEGORY_IMAGES)) {
+    if (normalizedKey && (normalizedKey.includes(canonicalKey) || canonicalKey.includes(normalizedKey))) {
+      return canonicalUrl;
+    }
+  }
+
+  return null;
 }
