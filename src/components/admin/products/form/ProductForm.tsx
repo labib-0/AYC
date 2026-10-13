@@ -23,6 +23,12 @@ import ProductPricingSection from "./ProductPricingSection";
 import ProductPackageBreakdownSection, { DEFAULT_PACKAGE_ASSORTMENT_MESSAGE } from "./ProductPackageBreakdownSection";
 import ProductShippingSection from "./ProductShippingSection";
 import ProductSeoSection from "./ProductSeoSection";
+import {
+  buildProductDescriptionTemplate,
+  syncProductDescription,
+  isProductDescriptionTemplate,
+  ProductDescriptionTemplateData,
+} from "@/lib/product-description-template";
 
 interface ProductFormProps {
   initialData?: Partial<B2BProductInput>;
@@ -99,7 +105,29 @@ export default function ProductForm({
     const raw = initialData?.packageAssortmentMessage ?? (initialData as any)?.package_assortment_message;
     return typeof raw === "string" && raw.trim() !== "" ? raw.trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
   });
-  const [description, setDescription] = useState(initialData?.description || "");
+  const [description, setDescription] = useState<string>(() => {
+    if (initialData?.description !== undefined && initialData?.description !== null && initialData?.description !== "") {
+      return initialData.description;
+    }
+    if (!isEdit) {
+      return buildProductDescriptionTemplate({
+        item: initialData?.name,
+        brand: initialData?.brand,
+        fabric: initialData?.material,
+        colors: initialData?.colourDescription || initialData?.colors,
+        sizes: initialData?.sizeDescription || initialData?.sizes,
+      });
+    }
+    return "";
+  });
+
+  const [isDescriptionManuallyEdited, setIsDescriptionManuallyEdited] = useState<boolean>(() => {
+    if (isEdit) return true;
+    if (initialData?.description && initialData.description.trim() !== "") {
+      return !isProductDescriptionTemplate(initialData.description);
+    }
+    return false;
+  });
 
   // Media
   const [images, setImages] = useState<string[]>(() => {
@@ -330,7 +358,71 @@ export default function ProductForm({
     (initialData?.keywords && initialData.keywords.length > 0) ||
     ((initialData as any)?.seo_keywords && (initialData as any).seo_keywords.length > 0)
   ));
-  const hasUserEditedDescriptionRef = useRef(false);
+  const hasUserEditedDescriptionRef = useRef(isDescriptionManuallyEdited);
+  const isDescriptionManuallyEditedRef = useRef<boolean>(isDescriptionManuallyEdited);
+  useEffect(() => {
+    isDescriptionManuallyEditedRef.current = isDescriptionManuallyEdited;
+    hasUserEditedDescriptionRef.current = isDescriptionManuallyEdited;
+  }, [isDescriptionManuallyEdited]);
+
+  const previousTemplateFieldsRef = useRef<ProductDescriptionTemplateData>({
+    item: initialData?.name || "",
+    brand: initialData?.brand || "",
+    fabric: initialData?.material || "",
+    colors: initialData?.colourDescription || initialData?.colors || "",
+    sizes: initialData?.sizeDescription || initialData?.sizes || "",
+  });
+
+  const syncDescriptionWithForm = useCallback(
+    (overrides?: Partial<ProductDescriptionTemplateData>) => {
+      if (isEdit) return;
+
+      const currentData: ProductDescriptionTemplateData = {
+        item: overrides?.item !== undefined ? overrides.item : name,
+        brand: overrides?.brand !== undefined ? overrides.brand : brand,
+        fabric: overrides?.fabric !== undefined ? overrides.fabric : material,
+        colors: overrides?.colors !== undefined ? overrides.colors : (colourDescription || colors),
+        sizes: overrides?.sizes !== undefined ? overrides.sizes : (sizeDescription || sizes),
+        quantity: overrides?.quantity !== undefined ? overrides.quantity : (packageTotalUnits > 0 ? packageTotalUnits : undefined),
+        style: overrides?.style,
+        fit: overrides?.fit,
+      };
+
+      setDescription((prev) => {
+        return syncProductDescription(
+          prev,
+          currentData,
+          isDescriptionManuallyEditedRef.current,
+          previousTemplateFieldsRef.current
+        );
+      });
+
+      previousTemplateFieldsRef.current = { ...currentData };
+    },
+    [isEdit, name, brand, material, colourDescription, colors, sizeDescription, sizes, packageTotalUnits]
+  );
+
+  const handleRegenerateTemplate = useCallback(() => {
+    const currentData: ProductDescriptionTemplateData = {
+      item: name,
+      brand: brand,
+      fabric: material,
+      colors: colourDescription || colors,
+      sizes: sizeDescription || sizes,
+      quantity: packageTotalUnits > 0 ? packageTotalUnits : undefined,
+    };
+    const fresh = buildProductDescriptionTemplate(currentData);
+    hasUserEditedDescriptionRef.current = false;
+    setIsDescriptionManuallyEdited(false);
+    setDescription(fresh);
+    previousTemplateFieldsRef.current = { ...currentData };
+  }, [name, brand, material, colourDescription, colors, sizeDescription, sizes, packageTotalUnits]);
+
+  const handleDescriptionChange = useCallback((val: string) => {
+    hasUserEditedDescriptionRef.current = true;
+    setIsDescriptionManuallyEdited(true);
+    setDescription(val);
+  }, []);
 
   // Synchronize all fields from initialData when in edit mode and admin hasn't overridden them
   useEffect(() => {
@@ -929,6 +1021,7 @@ export default function ProductForm({
   // Auto-generate slug and SKU from name in Create mode (unless manually edited)
   const handleNameChange = (val: string) => {
     setName(val);
+    syncDescriptionWithForm({ item: val });
     if (!isEdit && !slugManuallyEdited) {
       const generated = val
         .toLowerCase()
@@ -1625,6 +1718,7 @@ export default function ProductForm({
               setBrand(bName);
               setBrandId(bId);
               setBrandLogo(bLogo);
+              syncDescriptionWithForm({ brand: bName });
               if (errors.brand) {
                 setErrors((prev) => {
                   const next = { ...prev };
@@ -1668,16 +1762,22 @@ export default function ProductForm({
             }}
             onMaterialChange={(val) => {
               setMaterial(val);
+              syncDescriptionWithForm({ fabric: val });
               if (!isEdit) {
                 autoPopulateSeoDefaults(name, brand, categoryName, audience, val);
               }
             }}
-            onSizeDescriptionChange={setSizeDescription}
-            onColourDescriptionChange={setColourDescription}
-            onDescriptionChange={(val) => {
-              hasUserEditedDescriptionRef.current = true;
-              setDescription(val);
+            onSizeDescriptionChange={(val) => {
+              setSizeDescription(val);
+              syncDescriptionWithForm({ sizes: val || sizes });
             }}
+            onColourDescriptionChange={(val) => {
+              setColourDescription(val);
+              syncDescriptionWithForm({ colors: val || colors });
+            }}
+            onDescriptionChange={handleDescriptionChange}
+            onRegenerateTemplate={handleRegenerateTemplate}
+            isAutoGenerated={!isDescriptionManuallyEdited}
             onBrandCreated={(newB) => {
               setBrands((prev) => [...prev, { id: String(newB.id), name: newB.name, logo_url: newB.logo_url || newB.logo }]);
             }}
@@ -1741,9 +1841,19 @@ export default function ProductForm({
             allocations={packageAllocations}
             stock={stock !== undefined ? stock : 0}
             errors={errors}
-            onColorsChange={setColors}
-            onSizesChange={setSizes}
-            onAllocationsChange={handlePackageAllocationsChange}
+            onColorsChange={(nextColors) => {
+              setColors(nextColors);
+              syncDescriptionWithForm({ colors: colourDescription || nextColors });
+            }}
+            onSizesChange={(nextSizes) => {
+              setSizes(nextSizes);
+              syncDescriptionWithForm({ sizes: sizeDescription || nextSizes });
+            }}
+            onAllocationsChange={(nextAllocs) => {
+              handlePackageAllocationsChange(nextAllocs);
+              const sum = nextAllocs.reduce((acc, a) => acc + (Number(a.quantity) || 0), 0);
+              syncDescriptionWithForm({ quantity: sum > 0 ? sum : undefined });
+            }}
           />
 
           {/* Section 3: Shipping Logistics */}
