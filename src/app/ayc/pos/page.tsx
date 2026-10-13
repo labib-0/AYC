@@ -159,6 +159,7 @@ export default function AdminPosPage() {
   } | null>(null);
   const [manualDiscountError, setManualDiscountError] = useState<string | null>(null);
   const [showManualDiscountForm, setShowManualDiscountForm] = useState<boolean>(false);
+  const [isApplyingManualDiscount, setIsApplyingManualDiscount] = useState<boolean>(false);
 
   // ── Payment & Cash Tender State ───────────────────────────────────────────
   const [paymentMethod, setPaymentMethod] = useState<string>("pos_cash");
@@ -692,6 +693,7 @@ export default function AdminPosPage() {
     }
 
     setManualDiscountError(null);
+    setIsApplyingManualDiscount(true);
     try {
       const payloadItems: PosSaleItemPayload[] = cart.map((item) => ({
         product_id: item.product.id,
@@ -727,6 +729,8 @@ export default function AdminPosPage() {
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Failed to apply manual discount.";
       setManualDiscountError(msg);
+    } finally {
+      setIsApplyingManualDiscount(false);
     }
   };
 
@@ -1603,15 +1607,22 @@ export default function AdminPosPage() {
               {/* ── 3. Discounts & Coupon Collapsible ──────────────────────────── */}
               <div className="pt-2 border-t border-border/60 space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    {/* Coupon Button */}
+                  <div className="flex items-center gap-1.5">
+                    <Tag size={13} className="text-primary" />
+                    <span className="font-bold text-xs uppercase tracking-wider font-mono text-foreground">
+                      Discounts
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    {/* Coupon Button / Badge */}
                     {appliedCouponCode ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[10px] font-bold border border-emerald-500/20">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] font-bold border border-emerald-500/20">
                         <Tag size={10} /> {appliedCouponCode} (-${couponDiscountAmount.toFixed(2)})
                         <button
                           type="button"
                           onClick={handleRemoveCoupon}
                           className="hover:text-destructive ml-1"
+                          title="Remove coupon"
                         >
                           <X size={10} />
                         </button>
@@ -1620,21 +1631,22 @@ export default function AdminPosPage() {
                       <button
                         type="button"
                         onClick={() => setShowCouponInput((prev) => !prev)}
-                        className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 font-mono"
+                        className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 font-mono transition-colors"
                       >
-                        <Tag size={12} className="text-primary" /> + Coupon
+                        <Tag size={11} className="text-primary" /> + Coupon
                       </button>
                     )}
 
-                    {/* Manual Discount Button */}
+                    {/* Manual Discount Button / Badge */}
                     {can(ADMIN_PERMISSIONS.POS_DISCOUNT) && (
                       appliedManualDiscount ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 font-mono text-[10px] font-bold border border-purple-500/20">
-                          <Percent size={10} /> Override (-${manualDiscountAmount.toFixed(2)})
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] font-bold border border-emerald-500/20">
+                          <Percent size={10} /> Admin (-${manualDiscountAmount.toFixed(2)})
                           <button
                             type="button"
                             onClick={handleRemoveManualDiscount}
                             className="hover:text-destructive ml-1"
+                            title="Remove admin discount"
                           >
                             <X size={10} />
                           </button>
@@ -1642,10 +1654,13 @@ export default function AdminPosPage() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setShowManualDiscountForm((prev) => !prev)}
-                          className="text-[11px] text-muted-foreground hover:text-purple-500 flex items-center gap-1 font-mono"
+                          onClick={() => {
+                            setShowManualDiscountForm((prev) => !prev);
+                            setManualDiscountError(null);
+                          }}
+                          className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 font-mono transition-colors"
                         >
-                          <Percent size={12} className="text-purple-500" /> + Admin Discount
+                          <Percent size={11} className="text-primary" /> + Admin Discount
                         </button>
                       )
                     )}
@@ -1654,41 +1669,80 @@ export default function AdminPosPage() {
 
                 {/* Coupon input form */}
                 {showCouponInput && !appliedCouponCode && (
-                  <div className="space-y-1">
+                  <div className="p-3 rounded-xl bg-secondary/30 border border-border/80 text-xs space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Tag size={11} className="text-primary" /> Promo / Coupon Code
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCouponInput(false);
+                          setCouponError(null);
+                        }}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        title="Close coupon input"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
                     <div className="flex gap-1.5">
                       <input
                         type="text"
                         value={couponCodeInput}
                         onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
                         placeholder="ENTER PROMO CODE"
-                        className="flex-1 px-2.5 py-1.5 bg-background border border-border rounded-lg text-xs font-mono uppercase text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="flex-1 px-2.5 py-1.5 bg-background border border-border rounded-lg text-xs font-mono uppercase text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                       />
                       <button
                         type="button"
                         onClick={handleApplyCoupon}
                         disabled={isValidatingCoupon || !couponCodeInput.trim()}
-                        className="px-3 py-1.5 bg-primary text-primary-foreground font-bold text-xs rounded-lg disabled:opacity-50"
+                        className="px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs rounded-lg shadow-xs transition-colors disabled:opacity-50 cursor-pointer active:scale-[0.98]"
                       >
                         {isValidatingCoupon ? "..." : "Apply"}
                       </button>
                     </div>
                     {couponError && (
-                      <p className="text-[10px] text-destructive">{couponError}</p>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] font-medium">
+                        <AlertCircle size={13} className="shrink-0" />
+                        <span>{couponError}</span>
+                      </div>
                     )}
                   </div>
                 )}
 
                 {/* Manual Admin Discount form */}
                 {showManualDiscountForm && !appliedManualDiscount && (
-                  <div className="p-2.5 rounded-xl bg-purple-500/5 border border-purple-500/20 text-xs space-y-2">
-                    <div className="grid grid-cols-2 gap-1 bg-background p-0.5 rounded-lg border border-border">
+                  <div className="p-3 rounded-xl bg-secondary/30 border border-border/80 text-xs space-y-2.5">
+                    {/* Header with dismiss */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <Percent size={13} className="text-primary" />
+                        <span>Admin Discount Override</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowManualDiscountForm(false);
+                          setManualDiscountError(null);
+                        }}
+                        className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded"
+                        title="Close discount form"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+
+                    {/* Segmented Control: Percentage vs Fixed */}
+                    <div className="grid grid-cols-2 p-0.5 rounded-lg bg-secondary/80 border border-border/70 text-xs gap-0.5">
                       <button
                         type="button"
                         onClick={() => setManualDiscountType("percentage")}
-                        className={`py-0.5 text-center font-mono text-[10px] rounded ${
+                        className={`py-1.5 px-2 text-center text-xs font-medium rounded-md transition-all cursor-pointer ${
                           manualDiscountType === "percentage"
-                            ? "bg-purple-600 text-white font-bold"
-                            : "text-muted-foreground"
+                            ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                            : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                         }`}
                       >
                         Percentage (%)
@@ -1696,51 +1750,90 @@ export default function AdminPosPage() {
                       <button
                         type="button"
                         onClick={() => setManualDiscountType("fixed")}
-                        className={`py-0.5 text-center font-mono text-[10px] rounded ${
+                        className={`py-1.5 px-2 text-center text-xs font-medium rounded-md transition-all cursor-pointer ${
                           manualDiscountType === "fixed"
-                            ? "bg-purple-600 text-white font-bold"
-                            : "text-muted-foreground"
+                            ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                            : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                         }`}
                       >
                         Fixed ($)
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step={manualDiscountType === "percentage" ? "1" : "0.01"}
-                        value={manualDiscountValue}
-                        onChange={(e) => setManualDiscountValue(e.target.value)}
-                        placeholder={manualDiscountType === "percentage" ? "Value %" : "Amount $"}
-                        className="px-2 py-1 bg-background border border-border rounded-lg text-xs font-mono text-foreground focus:outline-none"
-                      />
-                      <input
-                        type="text"
-                        value={manualDiscountReason}
-                        onChange={(e) => setManualDiscountReason(e.target.value)}
-                        placeholder="Reason (Mandatory)"
-                        className="px-2 py-1 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none"
-                      />
+                    {/* Inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label
+                          htmlFor="pos-manual-discount-value"
+                          className="block text-[11px] font-medium text-muted-foreground"
+                        >
+                          {manualDiscountType === "percentage" ? "Discount Rate (%)" : "Discount Amount ($)"}
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="pos-manual-discount-value"
+                            type="number"
+                            min="0"
+                            max={manualDiscountType === "percentage" ? "100" : undefined}
+                            step={manualDiscountType === "percentage" ? "1" : "0.01"}
+                            value={manualDiscountValue}
+                            onChange={(e) => setManualDiscountValue(e.target.value)}
+                            placeholder={manualDiscountType === "percentage" ? "e.g. 10" : "0.00"}
+                            className="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg text-xs font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                          />
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-mono text-muted-foreground pointer-events-none">
+                            {manualDiscountType === "percentage" ? "%" : "$"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label
+                          htmlFor="pos-manual-discount-reason"
+                          className="block text-[11px] font-medium text-muted-foreground"
+                        >
+                          Reason <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          id="pos-manual-discount-reason"
+                          type="text"
+                          value={manualDiscountReason}
+                          onChange={(e) => setManualDiscountReason(e.target.value)}
+                          placeholder="e.g. Clearance promo"
+                          className="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                        />
+                      </div>
                     </div>
 
+                    {/* Validation error */}
                     {manualDiscountError && (
-                      <p className="text-[10px] text-destructive">{manualDiscountError}</p>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] font-medium">
+                        <AlertCircle size={13} className="shrink-0" />
+                        <span>{manualDiscountError}</span>
+                      </div>
                     )}
 
-                    <div className="flex gap-2">
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2 pt-0.5">
                       <button
                         type="button"
                         onClick={handleApplyManualDiscount}
-                        className="flex-1 py-1 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-lg transition-colors"
+                        disabled={isApplyingManualDiscount}
+                        id="btn-apply-manual-discount"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs shadow-xs transition-colors cursor-pointer active:scale-[0.98] disabled:opacity-50"
                       >
-                        Apply Discount
+                        <Check size={13} />
+                        <span>{isApplyingManualDiscount ? "Applying..." : "Apply Discount"}</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setShowManualDiscountForm(false)}
-                        className="px-2 py-1 border border-border text-muted-foreground hover:text-foreground text-xs rounded-lg"
+                        onClick={() => {
+                          setShowManualDiscountForm(false);
+                          setManualDiscountError(null);
+                        }}
+                        disabled={isApplyingManualDiscount}
+                        id="btn-cancel-manual-discount"
+                        className="px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-secondary text-muted-foreground hover:text-foreground font-medium text-xs transition-colors cursor-pointer active:scale-[0.98] disabled:opacity-50"
                       >
                         Cancel
                       </button>
