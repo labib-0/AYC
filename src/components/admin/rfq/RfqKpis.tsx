@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, Clock, FileSearch, CheckCircle2, FileCheck } from "lucide-react";
+import { FileText, Clock, CheckCircle2 } from "lucide-react";
 import { RfqSummaryMetrics } from "@/services/admin/rfq.service";
 
 export interface RfqKpisProps {
@@ -17,8 +17,8 @@ export default function RfqKpis({
 }: RfqKpisProps) {
   if (isLoading || !metrics) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
-        {[1, 2, 3, 4, 5].map((i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+        {[1, 2, 3].map((i) => (
           <div
             key={i}
             className="p-4 rounded-2xl border border-border/60 bg-card/60 animate-pulse space-y-2.5"
@@ -31,6 +31,18 @@ export default function RfqKpis({
     );
   }
 
+  const pendingCount = metrics.pending !== undefined 
+    ? metrics.pending 
+    : (metrics.received || 0) + (metrics.underReview || 0);
+
+  const isPendingActive =
+    activeStatusFilter === "PENDING" ||
+    activeStatusFilter === "SUBMITTED" ||
+    activeStatusFilter === "RFQ_RECEIVED" ||
+    activeStatusFilter === "UNDER_REVIEW";
+
+  const isApprovedActive = activeStatusFilter === "APPROVED";
+
   const items = [
     {
       label: "Total RFQs",
@@ -41,52 +53,25 @@ export default function RfqKpis({
       borderColor: "border-border/70",
     },
     {
-      label: "Received",
-      value: metrics.received,
-      icon: <Clock size={16} className="text-blue-500" />,
-      active: activeStatusFilter === "SUBMITTED" || activeStatusFilter === "RFQ_RECEIVED",
-      onClick: () =>
-        onSelectStatusFilter(
-          activeStatusFilter === "SUBMITTED" || activeStatusFilter === "RFQ_RECEIVED" ? "all" : "SUBMITTED"
-        ),
-      borderColor: "border-blue-500/30",
-    },
-    {
-      label: "Under Review",
-      value: metrics.underReview,
-      icon: <FileSearch size={16} className="text-amber-500" />,
-      active: activeStatusFilter === "UNDER_REVIEW",
-      onClick: () =>
-        onSelectStatusFilter(activeStatusFilter === "UNDER_REVIEW" ? "all" : "UNDER_REVIEW"),
+      label: "RFQ Pending",
+      value: pendingCount,
+      icon: <Clock size={16} className="text-amber-500" />,
+      active: isPendingActive,
+      onClick: () => onSelectStatusFilter(isPendingActive ? "all" : "PENDING"),
       borderColor: "border-amber-500/30",
     },
     {
-      label: "Approved",
+      label: "RFQ Approved",
       value: metrics.approved,
       icon: <CheckCircle2 size={16} className="text-emerald-500" />,
-      active: activeStatusFilter === "APPROVED",
-      onClick: () =>
-        onSelectStatusFilter(activeStatusFilter === "APPROVED" ? "all" : "APPROVED"),
+      active: isApprovedActive,
+      onClick: () => onSelectStatusFilter(isApprovedActive ? "all" : "APPROVED"),
       borderColor: "border-emerald-500/30",
-    },
-    {
-      label: "Quotation Generated",
-      value: metrics.quotationGenerated,
-      icon: <FileCheck size={16} className="text-indigo-500" />,
-      active:
-        activeStatusFilter === "QUOTATION_GENERATED" ||
-        activeStatusFilter === "QUOTATION_APPROVED" ||
-        activeStatusFilter === "PAID",
-      onClick: () =>
-        onSelectStatusFilter(
-          activeStatusFilter === "QUOTATION_GENERATED" ? "all" : "QUOTATION_GENERATED"
-        ),
-      borderColor: "border-indigo-500/30",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
       {items.map((item, idx) => (
         <button
           key={idx}
@@ -97,6 +82,7 @@ export default function RfqKpis({
               ? "bg-card border-primary ring-2 ring-primary/20 shadow-sm"
               : `bg-card/70 hover:bg-card hover:border-foreground/30 ${item.borderColor}`
           }`}
+          data-testid={`kpi-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
         >
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">

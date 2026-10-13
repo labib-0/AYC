@@ -46,6 +46,49 @@ class RfqResource extends JsonResource
             return RfqMessageResource::collection($this->messages);
         });
 
+        $approvalNote = null;
+        $approvedBy = null;
+        $approvedAt = null;
+
+        $isApproved = in_array(strtoupper((string) $this->status), [
+            'APPROVED', 'ACCEPTED', 'QUOTATION_GENERATED', 'QUOTATION_APPROVED', 'QUOTATION_PREPARED', 'SENT_TO_BUYER', 'PAID'
+        ]);
+
+        if ($isApproved) {
+            $approvalActivity = \App\Models\Activity::where('subject_type', \App\Models\Quote::class)
+                ->where('subject_id', (string) $this->id)
+                ->where('action', 'rfq.status_changed')
+                ->whereJsonContains('metadata->new_status', 'APPROVED')
+                ->latest()
+                ->first();
+
+            if ($approvalActivity) {
+                $approvalNote = $approvalActivity->metadata['note'] ?? null;
+                $approvedBy = $approvalActivity->user?->name ?? 'Administrator';
+                $approvedAt = $approvalActivity->created_at?->toISOString();
+            }
+
+            if (!$approvalNote) {
+                $adminMsg = $this->relationLoaded('messages')
+                    ? $this->messages->where('sender_role', 'admin')->last()
+                    : $this->messages()->where('sender_role', 'admin')->latest()->first();
+
+                if ($adminMsg) {
+                    $cleaned = preg_replace('/^(Approval Note:\s*|Status changed to APPROVED\.\s*)/', '', $adminMsg->message);
+                    $approvalNote = $cleaned ?: null;
+                    $approvedBy = $approvedBy ?? $adminMsg->sender_name ?? 'Administrator';
+                    $approvedAt = $approvedAt ?? $adminMsg->created_at?->toISOString();
+                }
+            }
+
+            if (!$approvedAt) {
+                $approvedAt = $this->updated_at?->toISOString();
+            }
+            if (!$approvedBy) {
+                $approvedBy = 'Administrator';
+            }
+        }
+
         return [
             'id' => (string) $this->id,
             'rfqNumber' => $this->rfq_number,
@@ -78,6 +121,12 @@ class RfqResource extends JsonResource
             'generalNotes' => $this->general_notes,
             'general_notes' => $this->general_notes,
             'status' => $this->status,
+            'approvalNote' => $approvalNote,
+            'approval_note' => $approvalNote,
+            'approvedBy' => $approvedBy,
+            'approved_by' => $approvedBy,
+            'approvedAt' => $approvedAt,
+            'approved_at' => $approvedAt,
             'items' => $items,
             'messages' => $messages,
             'quotationId' => $this->whenLoaded('latestQuotation', fn () => $this->latestQuotation?->id ? (string) $this->latestQuotation->id : null),

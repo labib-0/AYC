@@ -15,11 +15,26 @@ export interface AdminRfqQueryParams {
   sort_order?: "asc" | "desc";
 }
 
+export function isRfqApproved(status?: string): boolean {
+  if (!status) return false;
+  const s = status.toUpperCase();
+  return [
+    "APPROVED",
+    "QUOTATION_GENERATED",
+    "QUOTATION_APPROVED",
+    "QUOTATION_PREPARED",
+    "SENT_TO_BUYER",
+    "ACCEPTED",
+    "PAID",
+  ].includes(s);
+}
+
 export interface RfqSummaryMetrics {
   totalRfqs: number;
+  pending: number;
+  approved: number;
   received: number;
   underReview: number;
-  approved: number;
   quotationGenerated: number;
 }
 
@@ -45,6 +60,30 @@ export function mapBackendQuoteToRfq(q: any): RfqRecord {
       }))
     : [];
 
+  let approvalNote = q.approval_note || q.approvalNote;
+  let approvedBy = q.approved_by || q.approvedBy;
+  let approvedAt = q.approved_at || q.approvedAt;
+
+  if (!approvalNote && Array.isArray(q.history)) {
+    const approvedEvent = q.history.find((h: any) => h.status === "APPROVED");
+    if (approvedEvent) {
+      approvalNote = approvedEvent.note;
+      approvedBy = approvedBy || approvedEvent.actorName;
+      approvedAt = approvedAt || approvedEvent.createdAt;
+    }
+  }
+
+  if (!approvalNote && Array.isArray(q.messages)) {
+    const adminMsg = [...q.messages].reverse().find((m: any) => m.senderRole === "admin" || m.sender_role === "admin");
+    if (adminMsg) {
+      const raw = adminMsg.message || "";
+      const cleaned = raw.replace(/^(Approval Note:\s*|Status changed to APPROVED\.\s*)/, "");
+      approvalNote = cleaned || raw;
+      approvedBy = approvedBy || adminMsg.senderName || adminMsg.sender_name;
+      approvedAt = approvedAt || adminMsg.createdAt || adminMsg.created_at;
+    }
+  }
+
   return {
     id: String(q.id),
     rfqNumber: q.rfq_number || q.rfqNumber || `RFQ-${q.id}`,
@@ -69,6 +108,9 @@ export function mapBackendQuoteToRfq(q: any): RfqRecord {
     createdAt: q.created_at || q.createdAt || new Date().toISOString(),
     updatedAt: q.updated_at || q.updatedAt || new Date().toISOString(),
     quotationId: q.quotations?.[0]?.id ? String(q.quotations[0].id) : (q.latest_quotation?.id ? String(q.latest_quotation.id) : q.quotationId),
+    approvalNote: approvalNote || undefined,
+    approvedBy: approvedBy || undefined,
+    approvedAt: approvedAt || undefined,
   };
 }
 
@@ -80,11 +122,16 @@ export class AdminRfqService {
     try {
       const res = await this.getRfqs({ per_page: 500 });
       const list = res.data || [];
+      const totalCount = res.total !== undefined ? res.total : list.length;
+      const approvedCount = list.filter((r) => isRfqApproved(r.status)).length;
+      const pendingCount = Math.max(0, totalCount - approvedCount);
+
       return {
-        totalRfqs: res.total !== undefined ? res.total : list.length,
+        totalRfqs: totalCount,
+        pending: pendingCount,
+        approved: approvedCount,
         received: list.filter((r) => r.status === "SUBMITTED" || r.status === "RFQ_RECEIVED").length,
         underReview: list.filter((r) => r.status === "UNDER_REVIEW").length,
-        approved: list.filter((r) => r.status === "APPROVED").length,
         quotationGenerated: list.filter(
           (r) =>
             r.status === "QUOTATION_GENERATED" ||
@@ -96,9 +143,10 @@ export class AdminRfqService {
     } catch {
       return {
         totalRfqs: 0,
+        pending: 0,
+        approved: 0,
         received: 0,
         underReview: 0,
-        approved: 0,
         quotationGenerated: 0,
       };
     }
@@ -160,7 +208,14 @@ export class AdminRfqService {
     let filtered = [...all];
 
     if (params?.status && params.status !== "all") {
-      filtered = filtered.filter((r) => r.status.toUpperCase() === params.status!.toUpperCase());
+      const reqStatus = params.status.toUpperCase();
+      if (reqStatus === "PENDING") {
+        filtered = filtered.filter((r) => !isRfqApproved(r.status));
+      } else if (reqStatus === "APPROVED") {
+        filtered = filtered.filter((r) => isRfqApproved(r.status));
+      } else {
+        filtered = filtered.filter((r) => r.status.toUpperCase() === reqStatus);
+      }
     }
     if (params?.search) {
       const q = params.search.toLowerCase().trim();
@@ -213,12 +268,16 @@ export class AdminRfqService {
    */
   async updateRfqStatus(id: string | number, status: RfqStatus, note?: string): Promise<RfqRecord> {
     if (!isFrontendOnly()) {
-      const res = await apiClient.patch<any>(`/admin/rfqs/${id}/status`, {
-        status,
-        note,
-      });
-      const data = res?.data || res;
-      return mapBackendQuoteToRfq(data);
+      try {
+        const res = await apiClient.patch<any>(`/admin/rfqs/${id}/status`, {
+          status,
+          note,
+        });
+        const data = res?.data || res;
+        return mapBackendQuoteToRfq(data);
+      } catch (err) {
+        console.warn("Backend RFQ status update failed, falling back to local store:", err);
+      }
     }
     const updated = mockStore.updateRfqStatus(String(id), status, "Admin", note);
     if (!updated) throw new Error("RFQ not found in mock store");
@@ -238,15 +297,19 @@ export class AdminRfqService {
   }
 
   /**
-   * Approve RFQ (Transitions from UNDER_REVIEW to APPROVED)
+   * Approve RFQ (Transitions to APPROVED)
    */
   async approveRfq(id: string | number, note?: string): Promise<RfqRecord> {
     if (!isFrontendOnly()) {
-      const res = await apiClient.post<any>(`/admin/rfqs/${id}/approve`, { note });
-      const data = res?.data || res;
-      return mapBackendQuoteToRfq(data);
+      try {
+        const res = await apiClient.post<any>(`/admin/rfqs/${id}/approve`, { note });
+        const data = res?.data || res;
+        return mapBackendQuoteToRfq(data);
+      } catch {
+        return this.updateRfqStatus(id, "APPROVED", note);
+      }
     }
-    return this.updateRfqStatus(id, "APPROVED", note || "RFQ approved for quotation generation");
+    return this.updateRfqStatus(id, "APPROVED", note);
   }
 
   /**

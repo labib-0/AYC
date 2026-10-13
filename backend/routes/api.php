@@ -321,6 +321,10 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:rfq.view');
         Route::patch('/rfqs/{id}/status', [RfqController::class, 'updateStatus'])
             ->middleware('permission:rfq.update_status');
+        Route::post('/rfqs/{id}/approve', function ($id, \Illuminate\Http\Request $request) {
+            $request->merge(['status' => 'APPROVED']);
+            return app(RfqController::class)->updateStatus($request, $id);
+        })->middleware('permission:rfq.update_status');
         Route::post('/rfqs/{id}/accept', function ($id, \Illuminate\Http\Request $request) {
             $request->merge(['status' => 'ACCEPTED']);
             return app(RfqController::class)->updateStatus($request, $id);

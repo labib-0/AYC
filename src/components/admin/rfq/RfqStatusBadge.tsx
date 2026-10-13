@@ -1,5 +1,5 @@
 import React from "react";
-import { Clock, FileSearch, CheckCircle2, FileCheck, Check, DollarSign, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle2 } from "lucide-react";
 
 export interface RfqStatusBadgeProps {
   status: string;
@@ -7,64 +7,43 @@ export interface RfqStatusBadgeProps {
   showIcon?: boolean;
 }
 
+/**
+ * Determine if the RFQ status represents an approved state.
+ * Any non-approved status (e.g. SUBMITTED, RFQ_RECEIVED, UNDER_REVIEW, PENDING)
+ * maps to RFQ Pending.
+ */
+export function isRfqApproved(status?: string): boolean {
+  if (!status) return false;
+  const s = status.toUpperCase();
+  return [
+    "APPROVED",
+    "QUOTATION_GENERATED",
+    "QUOTATION_APPROVED",
+    "QUOTATION_PREPARED",
+    "SENT_TO_BUYER",
+    "ACCEPTED",
+    "PAID",
+  ].includes(s);
+}
+
 export default function RfqStatusBadge({
   status,
   size = "md",
   showIcon = true,
 }: RfqStatusBadgeProps) {
-  const s = (status || "").toUpperCase();
+  const approved = isRfqApproved(status);
 
-  let colorClasses = "bg-secondary text-foreground border-border";
-  let icon = <AlertCircle size={size === "sm" ? 11 : 13} />;
-  let label = s.replace(/_/g, " ");
+  const colorClasses = approved
+    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+    : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30";
 
-  switch (s) {
-    case "SUBMITTED":
-    case "RFQ_RECEIVED":
-      colorClasses = "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/30";
-      icon = <Clock size={size === "sm" ? 11 : 13} />;
-      label = "RFQ Received";
-      break;
+  const icon = approved ? (
+    <CheckCircle2 size={size === "sm" ? 11 : 13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+  ) : (
+    <Clock size={size === "sm" ? 11 : 13} className="text-amber-600 dark:text-amber-400 shrink-0" />
+  );
 
-    case "UNDER_REVIEW":
-      colorClasses = "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30";
-      icon = <FileSearch size={size === "sm" ? 11 : 13} />;
-      label = "Under Review";
-      break;
-
-    case "APPROVED":
-      colorClasses = "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30";
-      icon = <CheckCircle2 size={size === "sm" ? 11 : 13} />;
-      label = "Approved";
-      break;
-
-    case "QUOTATION_GENERATED":
-    case "QUOTATION_PREPARED":
-    case "SENT_TO_BUYER":
-      colorClasses = "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-500/30";
-      icon = <FileCheck size={size === "sm" ? 11 : 13} />;
-      label = "Quotation Generated";
-      break;
-
-    case "QUOTATION_APPROVED":
-    case "ACCEPTED":
-      colorClasses = "bg-teal-500/15 text-teal-700 dark:text-teal-400 border-teal-500/30";
-      icon = <Check size={size === "sm" ? 11 : 13} />;
-      label = "Quotation Approved";
-      break;
-
-    case "PAID":
-      colorClasses = "bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500/40 font-bold";
-      icon = <DollarSign size={size === "sm" ? 11 : 13} />;
-      label = "Payment Paid";
-      break;
-
-    default:
-      colorClasses = "bg-secondary text-muted-foreground border-border/60";
-      icon = <Clock size={size === "sm" ? 11 : 13} />;
-      label = s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, " ");
-      break;
-  }
+  const label = approved ? "RFQ Approved" : "RFQ Pending";
 
   const sizeClasses =
     size === "sm"
@@ -74,6 +53,8 @@ export default function RfqStatusBadge({
   return (
     <span
       className={`inline-flex items-center font-bold uppercase tracking-wider rounded-full border ${colorClasses} ${sizeClasses}`}
+      data-testid="rfq-status-badge"
+      data-status={approved ? "APPROVED" : "PENDING"}
     >
       {showIcon && icon}
       <span>{label}</span>

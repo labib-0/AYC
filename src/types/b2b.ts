@@ -248,6 +248,9 @@ export interface RfqRecord {
   createdAt: string;
   updatedAt: string;
   quotationId?: string;
+  approvalNote?: string;
+  approvedBy?: string;
+  approvedAt?: string;
 }
 
 export type QuotationStatus = 

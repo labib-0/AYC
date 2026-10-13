@@ -47,7 +47,14 @@ class RfqController extends ApiController
 
         // Status Filter
         if ($request->filled('status') && $request->input('status') !== 'all') {
-            $query->where('status', strtoupper($request->input('status')));
+            $statusFilter = strtoupper($request->input('status'));
+            if ($statusFilter === 'PENDING') {
+                $query->whereIn('status', ['PENDING', 'SUBMITTED', 'RFQ_RECEIVED', 'UNDER_REVIEW', 'NEED_INFORMATION']);
+            } elseif ($statusFilter === 'APPROVED') {
+                $query->whereIn('status', ['APPROVED', 'QUOTATION_GENERATED', 'QUOTATION_APPROVED', 'QUOTATION_PREPARED', 'SENT_TO_BUYER', 'ACCEPTED', 'PAID']);
+            } else {
+                $query->where('status', $statusFilter);
+            }
         }
 
         // Search Query
@@ -387,6 +394,14 @@ class RfqController extends ApiController
             return $this->forbidden("Customers cannot set administrative status '{$newStatus}'");
         }
 
+        // Repeated approval requests must not generate duplicate approval events or inconsistent records
+        $isAlreadyApproved = in_array(strtoupper($rfq->status), [
+            'APPROVED', 'ACCEPTED', 'QUOTATION_GENERATED', 'QUOTATION_APPROVED', 'PAID'
+        ]);
+        if ($newStatus === 'APPROVED' && $isAlreadyApproved) {
+            return $this->success(new RfqResource($rfq->load(['items', 'messages'])), 'RFQ is already approved');
+        }
+
         $rfq->update(['status' => $newStatus]);
 
         ActivityLogger::log('rfq.status_changed', $rfq, [
@@ -396,12 +411,16 @@ class RfqController extends ApiController
         ]);
 
         if (!empty($validated['note'])) {
+            $msgContent = $newStatus === 'APPROVED'
+                ? "Approval Note: " . $validated['note']
+                : "Status changed to {$newStatus}. " . $validated['note'];
+
             RfqMessage::create([
                 'quote_id' => $rfq->id,
                 'user_id' => $user->id,
                 'sender_role' => $user->isAdmin() ? 'admin' : 'customer',
                 'sender_name' => $user->name,
-                'message' => "Status changed to {$newStatus}. " . $validated['note'],
+                'message' => $msgContent,
             ]);
         }
 

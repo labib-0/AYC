@@ -95,12 +95,8 @@ export default function RfqToolbar({
           aria-label="Filter by RFQ Status"
         >
           <option value="all">All RFQ Statuses</option>
-          <option value="SUBMITTED">RFQ Received</option>
-          <option value="UNDER_REVIEW">Under Review</option>
-          <option value="APPROVED">Approved</option>
-          <option value="QUOTATION_GENERATED">Quotation Generated</option>
-          <option value="QUOTATION_APPROVED">Quotation Approved</option>
-          <option value="PAID">Payment Paid</option>
+          <option value="PENDING">RFQ Pending</option>
+          <option value="APPROVED">RFQ Approved</option>
         </select>
 
         {/* Sort Filter */}

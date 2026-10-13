@@ -570,8 +570,21 @@ class MockStore {
     const rfq = this.getRfqById(id);
     if (!rfq) return null;
 
+    // Idempotent approval handling: repeated approvals do not duplicate events
+    const isAlreadyApproved = ["APPROVED", "QUOTATION_GENERATED", "QUOTATION_APPROVED", "ACCEPTED", "PAID"].includes(rfq.status);
+    if (status === "APPROVED" && isAlreadyApproved) {
+      return rfq;
+    }
+
     rfq.status = status;
     rfq.updatedAt = new Date().toISOString();
+
+    if (status === "APPROVED") {
+      rfq.approvalNote = note !== undefined ? note : (rfq.approvalNote || "");
+      rfq.approvedBy = actorName || rfq.approvedBy || "Administrator";
+      rfq.approvedAt = new Date().toISOString();
+    }
+
     if (!rfq.history) rfq.history = [];
     rfq.history.unshift({
       id: `hist_${Date.now()}`,
@@ -581,6 +594,14 @@ class MockStore {
       note: note || `Status updated to ${status}`,
       createdAt: new Date().toISOString(),
     });
+
+    if (note) {
+      this.addRfqMessage(id, {
+        senderRole: "admin",
+        senderName: actorName,
+        message: note,
+      });
+    }
 
     return this.saveRfq(rfq);
   }

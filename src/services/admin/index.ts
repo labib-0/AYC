@@ -7,3 +7,4 @@ export * from "./admin-auth.service";
 export * from "./analytics.service";
 export * from "./admin-user.service";
 export * from "./rfq.service";
+export * from "./notification.service";

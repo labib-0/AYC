@@ -2,21 +2,18 @@
 
 import React, { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { adminRfqService } from "@/services/admin/rfq.service";
-import { RfqRecord, QuotationRecord } from "@/types/b2b";
+import { adminRfqService, isRfqApproved } from "@/services/admin/rfq.service";
+import { RfqRecord } from "@/types/b2b";
 import RfqStatusBadge from "@/components/admin/rfq/RfqStatusBadge";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
+import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { 
   ArrowLeft, 
   RefreshCw, 
   Package, 
-  FileText, 
   CheckCircle2, 
-  DollarSign, 
-  Lock, 
-  Unlock, 
-  ExternalLink, 
+  Clock, 
   User, 
   Building, 
   Mail, 
@@ -24,10 +21,10 @@ import {
   Globe, 
   Calendar, 
   AlertTriangle,
-  Clock,
-  FileCheck,
-  ChevronRight,
-  Image as ImageIcon
+  Image as ImageIcon,
+  FileText,
+  DollarSign,
+  ShieldCheck
 } from "lucide-react";
 
 export default function AdminRfqDetailPage({
@@ -36,10 +33,13 @@ export default function AdminRfqDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const { can } = useAdminAuth();
 
   // Core Data State
   const [rfq, setRfq] = useState<RfqRecord | null>(null);
-  const [quotation, setQuotation] = useState<QuotationRecord | null>(null);
+
+  // Approval Note Input State (preserved on failure or editing)
+  const [approvalNoteInput, setApprovalNoteInput] = useState<string>("");
 
   // UX & Loading State
   const [loading, setLoading] = useState(true);
@@ -47,12 +47,6 @@ export default function AdminRfqDetailPage({
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  // Quotation Editor State (for custom unit prices and manual shipping fee)
-  const [quotedPrices, setQuotedPrices] = useState<Record<string, number>>({});
-  const [quotedQuantities, setQuotedQuantities] = useState<Record<string, number>>({});
-  const [shippingFee, setShippingFee] = useState<number>(0);
-  const [adminNotes, setAdminNotes] = useState<string>("");
 
   const addToast = (type: "success" | "error", message: string) => {
     const toastId = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -63,7 +57,7 @@ export default function AdminRfqDetailPage({
     setToasts((prev) => prev.filter((t) => t.id !== toastId));
   };
 
-  // Load RFQ and linked Quotation
+  // Load RFQ details
   const loadData = useCallback(async (isSilentRefresh = false) => {
     if (!isSilentRefresh) setLoading(true);
     setError(null);
@@ -76,47 +70,9 @@ export default function AdminRfqDetailPage({
       }
       setRfq(rfqData);
 
-      // Attempt to load associated quotation if quotationId exists or check backend
-      if (rfqData.quotationId) {
-        try {
-          const { getStoredQuotations } = await import("@/lib/services/quotations");
-          const { apiClient } = await import("@/services/api-client");
-          let qRecord: QuotationRecord | null = null;
-          try {
-            const res = await apiClient.get<any>(`/admin/quotations/${rfqData.quotationId}`);
-            qRecord = res?.data || res;
-          } catch {
-            const allQuotes = getStoredQuotations();
-            qRecord = allQuotes.find(
-              (q) => q.id === rfqData.quotationId || q.quotationNumber === rfqData.quotationId
-            ) || null;
-          }
-
-          if (qRecord) {
-            setQuotation(qRecord);
-            setShippingFee(Number(qRecord.shippingFee || 0));
-            const initialPrices: Record<string, number> = {};
-            const initialQtys: Record<string, number> = {};
-            (qRecord.items || []).forEach((it) => {
-              initialPrices[it.productId || it.id] = Number(it.unitPrice || 0);
-              initialQtys[it.productId || it.id] = Number(it.quantity || 1);
-            });
-            setQuotedPrices(initialPrices);
-            setQuotedQuantities(initialQtys);
-          }
-        } catch (qErr) {
-          console.warn("Could not load quotation details:", qErr);
-        }
-      } else {
-        // Initialize default quotation form values from RFQ items
-        const initialPrices: Record<string, number> = {};
-        const initialQtys: Record<string, number> = {};
-        (rfqData.items || []).forEach((it) => {
-          initialPrices[it.productId || it.id] = Number(it.targetPrice || it.unitPrice || 0);
-          initialQtys[it.productId || it.id] = Number(it.quantity || 1);
-        });
-        setQuotedPrices(initialPrices);
-        setQuotedQuantities(initialQtys);
+      // If RFQ is already approved, pre-populate or display existing note
+      if (rfqData.approvalNote && !approvalNoteInput) {
+        setApprovalNoteInput(rfqData.approvalNote);
       }
     } catch (err: unknown) {
       setError((err as Error)?.message || "Failed to load RFQ details.");
@@ -124,7 +80,7 @@ export default function AdminRfqDetailPage({
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [id]);
+  }, [id, approvalNoteInput]);
 
   useEffect(() => {
     loadData();
@@ -136,130 +92,28 @@ export default function AdminRfqDetailPage({
     addToast("success", "RFQ details refreshed.");
   };
 
-  // Workflow Action 1: Review RFQ (SUBMITTED -> UNDER_REVIEW)
-  const handleReviewRfq = async () => {
-    if (!rfq) return;
-    setActionLoading(true);
-    try {
-      const updated = await adminRfqService.reviewRfq(rfq.id);
-      setRfq(updated);
-      addToast("success", "RFQ status updated to UNDER REVIEW.");
-    } catch (err: unknown) {
-      addToast("error", (err as Error)?.message || "Unable to update RFQ to review status.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Workflow Action 2: Approve RFQ (UNDER_REVIEW -> APPROVED)
+  // Approve RFQ Action (RFQ Pending -> RFQ Approved)
   const handleApproveRfq = async () => {
     if (!rfq) return;
+
+    if (!can("rfq.update_status")) {
+      addToast("error", "You do not have permission to approve RFQs.");
+      return;
+    }
+
     setActionLoading(true);
     try {
-      const updated = await adminRfqService.approveRfq(rfq.id);
+      const noteToSend = approvalNoteInput.trim() || undefined;
+      const updated = await adminRfqService.approveRfq(rfq.id, noteToSend);
       setRfq(updated);
-      addToast("success", "RFQ has been APPROVED. You may now generate a formal quotation.");
+      addToast("success", "RFQ approved successfully.");
     } catch (err: unknown) {
-      addToast("error", (err as Error)?.message || "Unable to approve RFQ.");
+      // Do not discard entered note if validation fails
+      addToast("error", (err as Error)?.message || "Failed to approve RFQ.");
     } finally {
       setActionLoading(false);
     }
   };
-
-  // Workflow Action 3: Generate Quotation
-  const handleGenerateQuotation = async () => {
-    if (!rfq) return;
-    setActionLoading(true);
-    try {
-      const itemsPayload = (rfq.items || []).map((it) => {
-        const itemKey = it.productId || it.id;
-        const customPrice = quotedPrices[itemKey] !== undefined ? quotedPrices[itemKey] : Number(it.unitPrice || 0);
-        const qty = quotedQuantities[itemKey] !== undefined ? quotedQuantities[itemKey] : Number(it.quantity || 1);
-        return {
-          product_id: it.productId,
-          product_name: it.productName,
-          sku: it.sku,
-          quantity: qty,
-          unit_price: customPrice,
-          package_breakdown: it.package_breakdown,
-        };
-      });
-
-      const newQuote = await adminRfqService.createQuotation({
-        rfq_id: rfq.id,
-        buyer_name: rfq.buyerName,
-        buyer_email: rfq.buyerEmail,
-        buyer_phone: rfq.buyerPhone,
-        company_name: rfq.companyName,
-        destination_country: rfq.destinationCountry,
-        destination_city: rfq.destinationCity,
-        shipping_fee: Number(shippingFee || 0),
-        admin_notes: adminNotes || undefined,
-        items: itemsPayload,
-      });
-
-      setQuotation(newQuote);
-      await loadData(true);
-      addToast("success", `Quotation #${newQuote.quotationNumber || newQuote.id} generated successfully.`);
-    } catch (err: unknown) {
-      addToast("error", (err as Error)?.message || "Failed to generate quotation.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Workflow Action 4: Approve Quotation (Snapshots values, generates PI)
-  const handleApproveQuotation = async () => {
-    if (!quotation) return;
-    setActionLoading(true);
-    try {
-      const approved = await adminRfqService.approveQuotation(quotation.id);
-      setQuotation(approved);
-      await loadData(true);
-      addToast("success", "Quotation APPROVED! Commercial values snapshotted. Proforma Invoice & Offer Sheet are now available.");
-    } catch (err: unknown) {
-      addToast("error", (err as Error)?.message || "Failed to approve quotation.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Workflow Action 5: Mark Payment as Paid (PENDING -> PAID)
-  const handleMarkPaymentPaid = async () => {
-    if (!quotation) return;
-    setActionLoading(true);
-    try {
-      const updated = await adminRfqService.updatePaymentStatus(quotation.id, "PAID");
-      setQuotation(updated);
-      await loadData(true);
-      addToast("success", "Payment marked as PAID. Commercial Invoice generation is now unlocked!");
-    } catch (err: unknown) {
-      addToast("error", (err as Error)?.message || "Failed to mark payment as paid.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Computed Quotation Values
-  const lineSubtotal = (rfq?.items || []).reduce((sum, it) => {
-    const itemKey = it.productId || it.id;
-    const price = quotedPrices[itemKey] !== undefined ? quotedPrices[itemKey] : Number(it.unitPrice || 0);
-    const qty = quotedQuantities[itemKey] !== undefined ? quotedQuantities[itemKey] : Number(it.quantity || 1);
-    return sum + price * qty;
-  }, 0);
-
-  const grandTotal = lineSubtotal + Number(shippingFee || 0);
-
-  // Workflow stage resolution
-  const statusStr = (rfq?.status || "").toUpperCase();
-  const quoteStatusStr = (quotation?.status || "").toUpperCase();
-  const isQuoteApproved =
-    statusStr === "QUOTATION_APPROVED" ||
-    statusStr === "PAID" ||
-    quoteStatusStr === "APPROVED" ||
-    quoteStatusStr === "ACCEPTED" ||
-    quoteStatusStr === "PAID";
-  const isPaid = statusStr === "PAID" || quoteStatusStr === "PAID";
 
   // Loading State
   if (loading) {
@@ -293,6 +147,8 @@ export default function AdminRfqDetailPage({
     );
   }
 
+  const isApproved = isRfqApproved(rfq.status);
+
   const createdDate = rfq.createdAt
     ? new Date(rfq.createdAt).toLocaleDateString("en-US", {
         month: "short",
@@ -301,10 +157,28 @@ export default function AdminRfqDetailPage({
       })
     : "—";
 
+  const approvedDate = rfq.approvedAt || (isApproved ? rfq.updatedAt : null);
+  const formattedApprovedDate = approvedDate
+    ? new Date(approvedDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  // Computed summary metrics
+  const totalUnits = (rfq.items || []).reduce((sum, it) => sum + (it.quantity || 0), 0);
+  const targetSubtotal = (rfq.items || []).reduce((sum, it) => {
+    const unitPrice = Number(it.targetPrice ?? it.unitPrice ?? 0);
+    return sum + unitPrice * (it.quantity || 0);
+  }, 0);
+
   return (
     <AdminPageGate permission="rfq.view" moduleName="RFQ Details">
       <div className="space-y-8 w-full max-w-full">
-        {/* 1. Header matching OrderDetailHeader */}
+        {/* 1. Header with RFQ Number, Status, and Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/70">
           <div className="space-y-1">
             <Link
@@ -342,9 +216,9 @@ export default function AdminRfqDetailPage({
 
         {/* 2. Main Two-Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* LEFT COLUMN (2 Cols on lg): Items, Quotation Editor/Snapshot, Documents */}
+          {/* LEFT COLUMN (2 Cols on lg): Requested Items & Buyer Inquiries */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Section 1: Requested Products & Existing Package Assortment */}
+            {/* Section 1: Requested Products & Package Assortment */}
             <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-border/60">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
@@ -352,7 +226,7 @@ export default function AdminRfqDetailPage({
                   <span>Requested Line Items ({rfq.items?.length || 0})</span>
                 </h2>
                 <span className="text-xs font-mono text-muted-foreground">
-                  {(rfq.items || []).reduce((sum, it) => sum + (it.quantity || 0), 0).toLocaleString()} units total
+                  {totalUnits.toLocaleString()} units total
                 </span>
               </div>
 
@@ -369,6 +243,9 @@ export default function AdminRfqDetailPage({
                       breakdown = null;
                     }
                   }
+
+                  const targetPrice = Number(item.targetPrice ?? item.unitPrice ?? 0);
+                  const lineTotal = targetPrice * (item.quantity || 0);
 
                   return (
                     <div key={item.id || `item-${idx}`} className="py-4 flex items-start sm:items-center gap-4 text-xs">
@@ -416,7 +293,7 @@ export default function AdminRfqDetailPage({
                         )}
 
                         <div className="text-muted-foreground font-mono text-xs pt-0.5">
-                          Target: ${Number(item.targetPrice || item.unitPrice || 0).toFixed(2)} × {item.quantity} units
+                          Target: ${targetPrice.toFixed(2)} × {item.quantity} units = <span className="font-bold text-foreground">${lineTotal.toFixed(2)}</span>
                         </div>
                       </div>
 
@@ -432,471 +309,170 @@ export default function AdminRfqDetailPage({
               </div>
             </div>
 
-            {/* Section 2: Quotation Generation & Authoritative Value Authority */}
-            {(statusStr === "APPROVED" || statusStr === "QUOTATION_GENERATED" || isQuoteApproved) && (
-              <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
-                  <div>
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
-                      <DollarSign size={16} className="text-primary" />
-                      <span>Commercial Quotation Values</span>
-                    </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {isQuoteApproved
-                        ? "Authoritative quotation values are locked and snapshotted."
-                        : "Define custom Admin unit prices and manual shipping fee."}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {isQuoteApproved ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30">
-                        <Lock size={12} />
-                        <span>Snapshot Locked</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/30">
-                        <Unlock size={12} />
-                        <span>Editable</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Line Items Pricing Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-border/60 bg-secondary/20 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                        <th className="py-2.5 px-3">Product</th>
-                        <th className="py-2.5 px-3 text-right">Quantity</th>
-                        <th className="py-2.5 px-3 text-right">Custom Unit Price ($)</th>
-                        <th className="py-2.5 px-3 text-right">Line Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {(rfq.items || []).map((it) => {
-                        const itemKey = it.productId || it.id;
-                        const currentPrice =
-                          quotedPrices[itemKey] !== undefined
-                            ? quotedPrices[itemKey]
-                            : Number(it.targetPrice || it.unitPrice || 0);
-                        const currentQty =
-                          quotedQuantities[itemKey] !== undefined
-                            ? quotedQuantities[itemKey]
-                            : Number(it.quantity || 1);
-                        const itemLineTotal = currentPrice * currentQty;
-
-                        return (
-                          <tr key={itemKey}>
-                            <td className="py-3 px-3">
-                              <span className="font-bold text-foreground block">{it.productName}</span>
-                              <span className="text-[10px] text-muted-foreground font-mono">{it.sku}</span>
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              {isQuoteApproved ? (
-                                <span className="font-mono font-bold text-foreground">{currentQty} pcs</span>
-                              ) : (
-                                <input
-                                  type="number"
-                                  min={1}
-                                  value={currentQty}
-                                  onChange={(e) =>
-                                    setQuotedQuantities({
-                                      ...quotedQuantities,
-                                      [itemKey]: Math.max(1, Number(e.target.value) || 1),
-                                    })
-                                  }
-                                  className="w-20 px-2 py-1 text-right text-xs font-mono font-bold rounded-lg border border-border bg-card text-foreground focus:ring-1 focus:ring-primary outline-none"
-                                />
-                              )}
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              {isQuoteApproved ? (
-                                <span className="font-mono font-bold text-foreground">
-                                  ${currentPrice.toFixed(2)}
-                                </span>
-                              ) : (
-                                <div className="inline-flex items-center gap-1 justify-end">
-                                  <span className="text-muted-foreground font-mono">$</span>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0.01"
-                                    value={currentPrice}
-                                    onChange={(e) =>
-                                      setQuotedPrices({
-                                        ...quotedPrices,
-                                        [itemKey]: Math.max(0, Number(e.target.value) || 0),
-                                      })
-                                    }
-                                    className="w-24 px-2 py-1 text-right text-xs font-mono font-bold rounded-lg border border-border bg-card text-foreground focus:ring-1 focus:ring-primary outline-none"
-                                    placeholder="3.85"
-                                  />
-                                </div>
-                              )}
-                            </td>
-                            <td className="py-3 px-3 text-right font-mono font-bold text-foreground">
-                              ${itemLineTotal.toFixed(2)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Section 9: Manual Shipping Fee Field */}
-                <div className="p-4 rounded-2xl bg-secondary/30 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                  <div>
-                    <span className="font-bold uppercase tracking-wider text-foreground block">
-                      Manual Shipping Fee
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      Admin manually defines the authoritative freight charge.
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-mono font-bold text-foreground">$</span>
-                    {isQuoteApproved ? (
-                      <span className="text-sm font-mono font-bold text-foreground">
-                        {Number(shippingFee || 0).toFixed(2)}
-                      </span>
-                    ) : (
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={shippingFee}
-                        onChange={(e) => setShippingFee(Math.max(0, Number(e.target.value) || 0))}
-                        className="w-28 px-3 py-1.5 text-right text-xs font-mono font-bold rounded-xl border border-border bg-card text-foreground focus:ring-1 focus:ring-primary outline-none"
-                        placeholder="75.00"
-                        id="input-shipping-fee"
-                      />
-                    )}
-                    <span className="text-[10px] uppercase font-mono text-muted-foreground">USD</span>
-                  </div>
-                </div>
-
-                {/* Quotation Totals Calculation */}
-                <div className="pt-3 border-t border-border/60 flex flex-col sm:flex-row items-end sm:items-center justify-between gap-3 text-xs">
-                  <div className="space-y-1 text-muted-foreground">
-                    <div>Product Subtotal: <strong className="font-mono text-foreground">${lineSubtotal.toFixed(2)}</strong></div>
-                    <div>Manual Shipping Fee: <strong className="font-mono text-foreground">${Number(shippingFee || 0).toFixed(2)}</strong></div>
-                  </div>
-
-                  <div className="text-right">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
-                      Authoritative Quotation Total
-                    </span>
-                    <span className="text-xl sm:text-2xl font-display font-bold text-foreground font-mono">
-                      ${grandTotal.toFixed(2)} USD
-                    </span>
-                  </div>
-                </div>
-
-                {/* Quotation Action Buttons */}
-                {!isQuoteApproved && (
-                  <div className="pt-3 border-t border-border/50 flex items-center justify-end gap-3">
-                    {!quotation ? (
-                      <button
-                        type="button"
-                        onClick={handleGenerateQuotation}
-                        disabled={actionLoading}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
-                        id="btn-generate-quotation"
-                      >
-                        <FileCheck size={14} />
-                        <span>Generate Quotation</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleApproveQuotation}
-                        disabled={actionLoading}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm"
-                        id="btn-approve-quotation"
-                      >
-                        <CheckCircle2 size={14} />
-                        <span>Approve Quotation</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Section 3: Commercial Documents & Payment Gate */}
-            {isQuoteApproved && (
-              <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-6">
+            {/* Section 2: Buyer Inquiries & Request Notes */}
+            {(rfq.generalNotes || rfq.requestTitle) && (
+              <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-3">
                 <div className="pb-3 border-b border-border/60 flex items-center justify-between">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
                     <FileText size={16} className="text-primary" />
-                    <span>Commercial Documents</span>
+                    <span>Buyer Inquiries & Requirements</span>
                   </h2>
-                  <span className="text-xs font-mono text-muted-foreground">
-                    PI #{quotation?.proformaInvoiceId || `PI-${quotation?.quotationNumber || rfq.id}`}
-                  </span>
                 </div>
 
-                {/* Approved Documents: PI & Offer Sheet */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl border border-border/80 bg-secondary/20 space-y-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-foreground block">
-                      Proforma Invoice (PI)
+                {rfq.requestTitle && (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground font-bold uppercase tracking-wider block text-[11px]">
+                      Request Title
                     </span>
-                    <p className="text-[11px] text-muted-foreground">
-                      Authoritative commercial invoice for advance payment processing.
-                    </p>
-                    <Link
-                      href={`/ayc/documents/proforma_invoice/${quotation?.id || rfq.id}`}
-                      target="_blank"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary hover:underline pt-1"
-                    >
-                      <span>Generate PI</span>
-                      <ExternalLink size={12} />
-                    </Link>
-                  </div>
-
-                  <div className="p-4 rounded-2xl border border-border/80 bg-secondary/20 space-y-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-foreground block">
-                      Official Offer Sheet
+                    <span className="font-medium text-foreground block mt-0.5">
+                      {rfq.requestTitle}
                     </span>
-                    <p className="text-[11px] text-muted-foreground">
-                      Complete product specification and FOB terms sheet.
+                  </div>
+                )}
+
+                {rfq.generalNotes && (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground font-bold uppercase tracking-wider block text-[11px]">
+                      Buyer Notes
+                    </span>
+                    <p className="mt-1 p-3 rounded-2xl bg-secondary/30 border border-border/50 text-foreground text-xs leading-relaxed">
+                      {rfq.generalNotes}
                     </p>
-                    <Link
-                      href={`/ayc/documents/offer_sheet/${quotation?.id || rfq.id}`}
-                      target="_blank"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary hover:underline pt-1"
-                    >
-                      <span>Generate Offer Sheet</span>
-                      <ExternalLink size={12} />
-                    </Link>
                   </div>
-                </div>
-
-                {/* Payment Status & Commercial Invoice Gating */}
-                <div className="p-4 rounded-2xl border border-border/80 bg-secondary/30 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-foreground block">
-                        Payment Status
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        Payment must be verified as PAID before commercial invoice can be generated.
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      {isPaid ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold uppercase">
-                          <CheckCircle2 size={13} />
-                          <span>PAID</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 text-xs font-bold uppercase">
-                          <Clock size={13} />
-                          <span>PENDING</span>
-                        </span>
-                      )}
-
-                      {!isPaid && (
-                        <button
-                          type="button"
-                          onClick={handleMarkPaymentPaid}
-                          disabled={actionLoading}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
-                          id="btn-mark-payment-paid"
-                        >
-                          <DollarSign size={13} />
-                          <span>Mark Paid</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Commercial Invoice Section */}
-                  <div className="pt-3 border-t border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-foreground block">
-                        Commercial Invoice
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {isPaid
-                          ? "Payment verified. Commercial invoice generation unlocked."
-                          : "Locked: strictly gated until payment status is marked Paid."}
-                      </span>
-                    </div>
-
-                    {isPaid ? (
-                      <Link
-                        href={`/ayc/documents/commercial_invoice/${quotation?.id || rfq.id}`}
-                        target="_blank"
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
-                        id="btn-generate-commercial-invoice"
-                      >
-                        <FileCheck size={13} />
-                        <span>Generate Commercial Invoice</span>
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-secondary text-muted-foreground border border-border text-xs font-bold uppercase tracking-wider opacity-60 cursor-not-allowed"
-                        title="Payment required"
-                      >
-                        <Lock size={12} />
-                        <span>Commercial Invoice Locked</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* RIGHT COLUMN (1 Col on lg): Workflow Progression, Customer Info, Financial Summary */}
+          {/* RIGHT COLUMN (1 Col on lg): RFQ Workflow Panel, Customer Info, Target Summary */}
           <div className="space-y-6">
-            {/* Section 15: Minimal Workflow Progression Card */}
+            {/* Section 3: Simplified RFQ Workflow Panel (Pending vs Approved Only) */}
             <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground pb-3 border-b border-border/60">
-                RFQ Workflow
-              </h2>
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-primary" />
+                  <span>RFQ Workflow</span>
+                </h2>
+                <RfqStatusBadge status={rfq.status} size="sm" />
+              </div>
 
-              <div className="space-y-2.5 text-xs">
-                {[
-                  { id: "SUBMITTED", label: "1. RFQ Received", active: true },
-                  {
-                    id: "UNDER_REVIEW",
-                    label: "2. RFQ Under Review",
-                    active: statusStr !== "SUBMITTED" && statusStr !== "RFQ_RECEIVED",
-                  },
-                  {
-                    id: "APPROVED",
-                    label: "3. RFQ Approved",
-                    active:
-                      statusStr !== "SUBMITTED" &&
-                      statusStr !== "RFQ_RECEIVED" &&
-                      statusStr !== "UNDER_REVIEW",
-                  },
-                  {
-                    id: "QUOTATION_GENERATED",
-                    label: "4. Quotation Generation",
-                    active: Boolean(quotation),
-                  },
-                  {
-                    id: "QUOTATION_APPROVED",
-                    label: "5. Quotation Approved",
-                    active: isQuoteApproved,
-                  },
-                  {
-                    id: "PI_OFFER_SHEET",
-                    label: "6. PI + Offer Sheet",
-                    active: isQuoteApproved,
-                  },
-                  {
-                    id: "PAID",
-                    label: "7. Payment Paid",
-                    active: isPaid,
-                  },
-                  {
-                    id: "COMMERCIAL_INVOICE",
-                    label: "8. Commercial Invoice",
-                    active: isPaid,
-                  },
-                ].map((step, idx) => (
-                  <div
-                    key={step.id || idx}
-                    className={`flex items-center justify-between p-2 rounded-xl border transition-colors ${
-                      step.active
-                        ? "bg-primary/10 border-primary/30 text-foreground font-bold"
-                        : "bg-secondary/20 border-border/40 text-muted-foreground"
-                    }`}
-                  >
-                    <span>{step.label}</span>
-                    {step.active ? (
-                      <CheckCircle2 size={14} className="text-primary" />
-                    ) : (
-                      <ChevronRight size={14} className="text-muted-foreground/40" />
+              {!isApproved ? (
+                /* ── PENDING STATE ── */
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                    <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
+                      <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>RFQ Pending Review</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
+                      This inquiry is awaiting administrative approval. Review requested quantities and target specifications before approving.
+                    </p>
+                  </div>
+
+                  {/* Approval Note Input Field */}
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="input-approval-note"
+                      className="block text-xs font-bold uppercase tracking-wider text-foreground"
+                    >
+                      Approval Note
+                    </label>
+                    <textarea
+                      id="input-approval-note"
+                      rows={3}
+                      value={approvalNoteInput}
+                      onChange={(e) => setApprovalNoteInput(e.target.value)}
+                      placeholder="Add an optional note about this RFQ approval..."
+                      className="w-full p-3 text-xs rounded-2xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none transition-colors resize-none"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Optional note stored with approval audit records.
+                    </p>
+                  </div>
+
+                  {/* Single Approve Action Button */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleApproveRfq}
+                      disabled={actionLoading || !can("rfq.update_status")}
+                      className="w-full py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm text-center flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      id="btn-approve-rfq"
+                    >
+                      {actionLoading ? (
+                        <>
+                          <RefreshCw size={14} className="animate-spin" />
+                          <span>Approving RFQ...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={14} />
+                          <span>Approve RFQ</span>
+                        </>
+                      )}
+                    </button>
+                    {!can("rfq.update_status") && (
+                      <p className="text-[10px] text-destructive text-center mt-1">
+                        You do not have permission to approve RFQs.
+                      </p>
                     )}
                   </div>
-                ))}
-              </div>
-
-              {/* Contextual Single Workflow Action Button */}
-              <div className="pt-3 border-t border-border/50">
-                {(statusStr === "SUBMITTED" || statusStr === "RFQ_RECEIVED") && (
-                  <button
-                    type="button"
-                    onClick={handleReviewRfq}
-                    disabled={actionLoading}
-                    className="w-full py-2.5 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer shadow-sm text-center block"
-                    id="btn-workflow-review"
-                  >
-                    Review RFQ
-                  </button>
-                )}
-
-                {statusStr === "UNDER_REVIEW" && (
-                  <button
-                    type="button"
-                    onClick={handleApproveRfq}
-                    disabled={actionLoading}
-                    className="w-full py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm text-center block"
-                    id="btn-workflow-approve"
-                  >
-                    Approve RFQ
-                  </button>
-                )}
-
-                {statusStr === "APPROVED" && !quotation && (
-                  <button
-                    type="button"
-                    onClick={handleGenerateQuotation}
-                    disabled={actionLoading}
-                    className="w-full py-2.5 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer shadow-sm text-center block"
-                    id="btn-workflow-generate-quote"
-                  >
-                    Generate Quotation
-                  </button>
-                )}
-
-                {statusStr === "QUOTATION_GENERATED" && quotation && !isQuoteApproved && (
-                  <button
-                    type="button"
-                    onClick={handleApproveQuotation}
-                    disabled={actionLoading}
-                    className="w-full py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm text-center block"
-                    id="btn-workflow-approve-quote"
-                  >
-                    Approve Quotation
-                  </button>
-                )}
-
-                {isQuoteApproved && !isPaid && (
-                  <button
-                    type="button"
-                    onClick={handleMarkPaymentPaid}
-                    disabled={actionLoading}
-                    className="w-full py-2.5 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer shadow-sm text-center block"
-                    id="btn-workflow-mark-paid"
-                  >
-                    Mark Payment as Paid
-                  </button>
-                )}
-
-                {isPaid && (
-                  <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-center font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5">
-                    <CheckCircle2 size={15} />
-                    <span>Workflow Completed</span>
+                </div>
+              ) : (
+                /* ── APPROVED STATE ── */
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
+                    <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
+                      <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>RFQ Approved</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-emerald-700 dark:text-emerald-400">
+                      This RFQ has been reviewed and approved by administration.
+                    </p>
                   </div>
-                )}
-              </div>
+
+                  {/* Approval Metadata */}
+                  <div className="space-y-2 p-3 rounded-2xl bg-secondary/30 border border-border/60 text-xs">
+                    <div className="flex items-center justify-between text-muted-foreground text-[11px]">
+                      <span className="uppercase font-bold tracking-wider">Approved Date</span>
+                      <span className="font-mono text-foreground font-medium">
+                        {formattedApprovedDate || createdDate}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-muted-foreground text-[11px]">
+                      <span className="uppercase font-bold tracking-wider">Approved By</span>
+                      <span className="font-medium text-foreground">
+                        {rfq.approvedBy || "Administrator"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Display Saved Approval Note */}
+                  <div className="space-y-1.5">
+                    <span className="block text-xs font-bold uppercase tracking-wider text-foreground">
+                      Approval Note
+                    </span>
+                    {rfq.approvalNote || approvalNoteInput ? (
+                      <div className="p-3 rounded-2xl bg-secondary/40 border border-border/70 text-xs text-foreground italic leading-relaxed whitespace-pre-wrap">
+                        &ldquo;{rfq.approvalNote || approvalNoteInput}&rdquo;
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-2xl bg-secondary/20 border border-border/40 text-xs text-muted-foreground italic">
+                        No approval note was recorded.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Context Note: RFQ Separation from Commercial Orders */}
+                  <div className="pt-2 border-t border-border/50 text-[11px] text-muted-foreground leading-relaxed">
+                    Formal commercial quotations, Proforma Invoices, and confirmed orders are processed independently in the Quotations and Orders modules.
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Customer Information Card (matching CustomerInfoCard.tsx) */}
+            {/* Section 4: Customer Information Card */}
             <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-border/60">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
@@ -981,42 +557,37 @@ export default function AdminRfqDetailPage({
               </div>
             </div>
 
-            {/* Financial Summary Card (matching OrderFinancialSummary.tsx) */}
+            {/* Section 5: Target Value Summary Card */}
             <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">
               <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2 pb-3 border-b border-border/60">
                 <DollarSign size={16} className="text-primary" />
-                <span>Financial Summary</span>
+                <span>Target Value Summary</span>
               </h2>
 
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Goods Value (Subtotal)</span>
+                  <span>Line Items</span>
                   <span className="font-mono font-bold text-foreground">
-                    ${lineSubtotal.toFixed(2)}
+                    {rfq.items?.length || 0}
                   </span>
                 </div>
 
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Shipping / Freight</span>
+                  <span>Total Quantity</span>
                   <span className="font-mono font-bold text-foreground">
-                    {shippingFee === 0 ? "FREE" : `$${Number(shippingFee).toFixed(2)}`}
+                    {totalUnits.toLocaleString()} pcs
                   </span>
                 </div>
 
                 <div className="pt-2 border-t border-border/60 flex justify-between text-sm">
-                  <span className="font-bold text-foreground">Quotation Total</span>
+                  <span className="font-bold text-foreground">Estimated Target Total</span>
                   <span className="font-mono font-bold text-foreground text-base">
-                    ${grandTotal.toFixed(2)}
+                    ${targetSubtotal.toFixed(2)} USD
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center pt-2 text-[11px]">
-                  <span className="text-muted-foreground uppercase font-bold">Payment Status</span>
-                  {isPaid ? (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold uppercase">PAID</span>
-                  ) : (
-                    <span className="text-amber-600 dark:text-amber-400 font-bold uppercase">PENDING</span>
-                  )}
+                <div className="pt-2 text-[10px] text-muted-foreground leading-normal border-t border-border/40">
+                  Values represent buyer requested targets. Commercial quotations and confirmed orders are created separately.
                 </div>
               </div>
             </div>
