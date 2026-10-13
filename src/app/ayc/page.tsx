@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { OFFICIAL_AYC_SITE_LOGO_PATH } from "@/lib/site-logo";
 import { 
   Lock, 
   Mail, 
@@ -72,8 +74,15 @@ export default function AdminLoginPage() {
       {/* Top Bar */}
       <div className="w-full max-w-5xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold font-mono text-sm tracking-tighter shadow-xs">
-            AC
+          <div className="relative w-8 h-8 sm:w-8.5 sm:h-8.5 shrink-0 flex items-center justify-center">
+            <Image
+              src={OFFICIAL_AYC_SITE_LOGO_PATH}
+              alt="Ayaan Clothing"
+              width={34}
+              height={34}
+              priority
+              className="w-full h-full object-contain pointer-events-none drop-shadow-2xs"
+            />
           </div>
           <span className="font-extrabold text-sm sm:text-base tracking-wider text-foreground uppercase font-display">
             AYAAN CLOTHING ADMIN

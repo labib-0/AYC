@@ -2,6 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { OFFICIAL_AYC_SITE_LOGO_PATH } from "@/lib/site-logo";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
@@ -146,8 +148,14 @@ export default function AdminSidebar({
       {isMobileDrawer && (
         <div className="flex items-center justify-between pb-3 mb-2 border-b border-border/80 w-full">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold font-mono text-xs shadow-xs">
-              AC
+            <div className="relative w-6 h-6 shrink-0 flex items-center justify-center">
+              <Image
+                src={OFFICIAL_AYC_SITE_LOGO_PATH}
+                alt="Ayaan Clothing"
+                width={24}
+                height={24}
+                className="w-full h-full object-contain pointer-events-none"
+              />
             </div>
             <span className="font-extrabold text-xs tracking-wider text-foreground uppercase">
               Admin Navigation
