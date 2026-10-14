@@ -110,26 +110,26 @@ function runTests() {
     "PosController exposes POST /admin/pos/customers endpoint"
   );
 
-  console.log("\n▶ Group 3: Cash Tender & Dynamic Change Return");
+  console.log("\n▶ Group 3: Automatic Cash Settlement & Duplicate Controls Retirement");
   assert(
-    posPageCode.includes("pos-cash-tendered-input"),
-    "POS screen provides dedicated 'pos-cash-tendered-input' field"
+    !posPageCode.includes("pos-cash-tendered-input"),
+    "Manual 'pos-cash-tendered-input' is retired in favor of automatic amount calculation"
   );
   assert(
-    posPageCode.includes("pos-change-return-display"),
-    "POS screen provides dynamic 'pos-change-return-display' card"
+    !posPageCode.includes("pos-change-return-display"),
+    "Duplicate 'pos-change-return-display' is retired"
   );
   assert(
-    posPageCode.includes("cashChange") && posPageCode.includes("isCashInsufficient"),
-    "POS screen calculates dynamic change return and detects insufficient cash tender"
+    posPageCode.includes("pos-cash-summary-card") && posPageCode.includes("pos-cash-amount-display"),
+    "POS screen provides automatic 'pos-cash-summary-card' displaying calculated sale total"
   );
   assert(
-    posPageCode.includes("cashShortcuts"),
-    "POS screen provides convenient cash tender banknote shortcuts"
+    !posPageCode.includes("cashShortcuts"),
+    "Manual cash tender banknote shortcuts are retired"
   );
   assert(
-    posPageCode.includes("isCash && isCashInsufficient"),
-    "POS screen prevents checkout when cash tender is insufficient"
+    posPageCode.includes("pos-cash-payment-note"),
+    "POS screen provides optional payment note field for remarks"
   );
   assert(
     backendServiceCode.includes("tendered_amount") && backendServiceCode.includes("change_return"),

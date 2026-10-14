@@ -129,9 +129,17 @@ class PosController extends ApiController
             'shipping_method' => ['nullable', 'string', 'max:100'],
             'paid_amount' => ['nullable', 'numeric', 'min:0'],
             'tendered_amount' => ['nullable', 'numeric', 'min:0'],
-            'payment_method' => ['nullable', 'string', 'in:pos_cash,card,bank_transfer,mobile_banking,transfer'],
+            'payment_method' => ['nullable', 'string', 'in:pos_cash,card,bank_transfer,mobile_banking,transfer,bank'],
             'payment_reference' => ['nullable', 'string', 'max:100'],
+            'payment_note' => ['nullable', 'string', 'max:500'],
+            'bank_profile_id' => ['nullable', 'string', 'max:100'],
+            'bank_name' => ['nullable', 'string', 'max:255'],
         ]);
+
+        $paymentMethod = $validated['payment_method'] ?? 'pos_cash';
+        if ($paymentMethod === 'bank') {
+            $paymentMethod = 'bank_transfer';
+        }
 
         $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
 
@@ -159,8 +167,11 @@ class PosController extends ApiController
                 payment: [
                     'paid_amount' => isset($validated['paid_amount']) ? (float) $validated['paid_amount'] : null,
                     'tendered_amount' => isset($validated['tendered_amount']) ? (float) $validated['tendered_amount'] : null,
-                    'payment_method' => $validated['payment_method'] ?? 'pos_cash',
+                    'payment_method' => $paymentMethod,
                     'payment_reference' => $validated['payment_reference'] ?? null,
+                    'payment_note' => $validated['payment_note'] ?? null,
+                    'bank_profile_id' => $validated['bank_profile_id'] ?? null,
+                    'bank_name' => $validated['bank_name'] ?? null,
                 ]
             );
 
@@ -198,13 +209,21 @@ class PosController extends ApiController
             'manual_discount.reason' => ['required_with:manual_discount', 'string', 'min:3', 'max:255'],
             'shipping_cost' => ['nullable', 'numeric', 'min:0'],
             'shipping_method' => ['nullable', 'string', 'max:100'],
-            'payment_method' => ['nullable', 'string', 'in:pos_cash,card,bank_transfer,mobile_banking,transfer'],
+            'payment_method' => ['nullable', 'string', 'in:pos_cash,card,bank_transfer,mobile_banking,transfer,bank'],
             'paid_amount' => ['nullable', 'numeric', 'min:0'],
             'tendered_amount' => ['nullable', 'numeric', 'min:0'],
             'payment_reference' => ['nullable', 'string', 'max:100'],
+            'payment_note' => ['nullable', 'string', 'max:500'],
+            'bank_profile_id' => ['nullable', 'string', 'max:100'],
+            'bank_name' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'idempotency_key' => ['nullable', 'string', 'max:100'],
         ]);
+
+        $paymentMethod = $validated['payment_method'] ?? 'pos_cash';
+        if ($paymentMethod === 'bank') {
+            $paymentMethod = 'bank_transfer';
+        }
 
         $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
 
@@ -231,10 +250,13 @@ class PosController extends ApiController
                     'manual_discount' => $validated['manual_discount'] ?? null,
                     'shipping_cost' => $validated['shipping_cost'] ?? 0.00,
                     'shipping_method' => $validated['shipping_method'] ?? 'POS In-Store Fulfillment',
-                    'payment_method' => $validated['payment_method'] ?? 'pos_cash',
+                    'payment_method' => $paymentMethod,
                     'paid_amount' => isset($validated['paid_amount']) ? (float) $validated['paid_amount'] : null,
                     'tendered_amount' => isset($validated['tendered_amount']) ? (float) $validated['tendered_amount'] : null,
                     'payment_reference' => $validated['payment_reference'] ?? null,
+                    'payment_note' => $validated['payment_note'] ?? null,
+                    'bank_profile_id' => $validated['bank_profile_id'] ?? null,
+                    'bank_name' => $validated['bank_name'] ?? null,
                     'notes' => $validated['notes'] ?? null,
                     'idempotency_key' => $validated['idempotency_key'] ?? $request->header('X-Idempotency-Key'),
                 ]

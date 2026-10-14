@@ -661,4 +661,95 @@ class AdminPosSaleWorkflowTest extends TestCase
         $this->assertEquals($startToteStock, $this->variantlessProduct->fresh()->stock);
         $this->assertEquals($startShirtStock, $this->variantM->fresh()->stock);
     }
+
+    /**
+     * TEST 21: Bank Transfer payment method keeps order unpaid (pending verification) with balance due.
+     */
+    public function test_21_pos_bank_transfer_order_creation_keeps_unpaid_pending_and_records_ci_banking_details(): void
+    {
+        Sanctum::actingAs($this->posAdmin);
+
+        $startStock = $this->variantlessProduct->stock;
+
+        $response = $this->postJson('/api/v1/admin/pos/orders', [
+            'customer_id' => $this->customer->id,
+            'items' => [
+                [
+                    'product_id' => $this->variantlessProduct->id,
+                    'quantity' => 2,
+                ]
+            ],
+            'payment_method' => 'bank_transfer',
+            'bank_name' => 'Pubali Bank Limited',
+            'bank_profile_id' => 'profile_usd_default',
+            'payment_reference' => 'TT-2026-CI-8891',
+            'payment_note' => 'Awaiting 30% advance wire per Commercial Invoice instructions',
+        ]);
+
+        $response->assertStatus(201);
+        $orderData = $response->json('data');
+
+        $this->assertEquals('pending', $orderData['status']);
+        $this->assertEquals('pending', $orderData['payment_status']);
+        $this->assertEquals('bank_transfer', $orderData['payment_method']);
+        $this->assertEquals(0.00, (float)$orderData['paid_amount']);
+        $this->assertEquals(50.00, (float)$orderData['balance_due']);
+        $this->assertEquals(50.00, (float)$orderData['total_amount']);
+
+        // Bank transfer pending order does not decrement stock until payment verification
+        $this->assertEquals($startStock, $this->variantlessProduct->fresh()->stock);
+
+        // Verify order payment details and notes
+        $order = Order::find($orderData['id']);
+        $this->assertNotNull($order);
+        $this->assertEquals('Pubali Bank Limited', $order->payment_details['bank_name'] ?? null);
+        $this->assertEquals('profile_usd_default', $order->payment_details['bank_profile_id'] ?? null);
+        $this->assertEquals('TT-2026-CI-8891', $order->payment_details['payment_reference'] ?? null);
+        $this->assertStringContainsString('Payment Note:', $order->notes);
+    }
+
+    /**
+     * TEST 22: Cash sale with optional payment note requires no bank details and calculates change.
+     */
+    public function test_22_pos_cash_sale_with_optional_payment_note_succeeds_and_does_not_require_bank_fields(): void
+    {
+        Sanctum::actingAs($this->posAdmin);
+
+        $startStock = $this->variantlessProduct->stock;
+
+        $response = $this->postJson('/api/v1/admin/pos/orders', [
+            'customer_id' => $this->customer->id,
+            'items' => [
+                [
+                    'product_id' => $this->variantlessProduct->id,
+                    'quantity' => 1,
+                ]
+            ],
+            'payment_method' => 'pos_cash',
+            'tendered_amount' => 50.00,
+            'payment_note' => 'Counter register drawer #2 - morning shift',
+        ]);
+
+        $response->assertStatus(201);
+        $orderData = $response->json('data');
+
+        $this->assertEquals('processing', $orderData['status']);
+        $this->assertEquals('paid', $orderData['payment_status']);
+        $this->assertEquals('pos_cash', $orderData['payment_method']);
+        $this->assertEquals(25.00, (float)$orderData['paid_amount']);
+        $this->assertEquals(0.00, (float)$orderData['balance_due']);
+
+        // Cash tender change calculation: 50 tendered - 25 total = 25 change return
+        $this->assertEquals(25.00, (float)($orderData['payment_details']['change_return'] ?? 0));
+        $this->assertEquals(50.00, (float)($orderData['payment_details']['tendered_amount'] ?? 0));
+
+        // Confirmed cash order decrements inventory
+        $this->assertEquals($startStock - 1, $this->variantlessProduct->fresh()->stock);
+
+        // Verify payment note in order notes and payment details
+        $order = Order::find($orderData['id']);
+        $this->assertEquals('Counter register drawer #2 - morning shift', $order->payment_details['payment_note'] ?? null);
+        $this->assertStringContainsString('morning shift', $order->notes);
+    }
 }
+

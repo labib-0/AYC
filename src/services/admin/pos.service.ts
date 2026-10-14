@@ -132,6 +132,9 @@ export interface PosSalePayload {
   paid_amount?: number | null;
   tendered_amount?: number | null;
   payment_reference?: string | null;
+  payment_note?: string | null;
+  bank_profile_id?: string | null;
+  bank_name?: string | null;
   notes?: string | null;
   idempotency_key?: string | null;
 }
@@ -215,6 +218,9 @@ export class AdminPosService {
     tendered_amount?: number | null;
     payment_method?: string | null;
     payment_reference?: string | null;
+    payment_note?: string | null;
+    bank_profile_id?: string | null;
+    bank_name?: string | null;
   }): Promise<PosCalculationPreview> {
     const res = await apiClient.post<any>("/admin/pos/calculate", payload);
     return res?.data || res;

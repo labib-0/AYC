@@ -22,7 +22,6 @@ import {
   ExternalLink,
   ChevronRight,
   Warehouse as WarehouseIcon,
-  CreditCard,
   Banknote,
   Landmark,
   ShieldCheck,
@@ -30,7 +29,6 @@ import {
   Check,
   Tag,
   Percent,
-  Smartphone,
   Printer,
   X,
   Sparkles,
@@ -39,10 +37,16 @@ import {
   ArrowRight,
   FileText,
   Truck,
+  Settings,
 } from "lucide-react";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 import { ADMIN_PERMISSIONS } from "@/lib/permissions";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import BUSINESS_PROFILE from "@/config/business-profile";
+import {
+  siteSettingsService,
+  DEFAULT_BUSINESS_SETTINGS,
+} from "@/services/site-settings.service";
 import {
   posService,
   PosCustomer,
@@ -161,13 +165,32 @@ export default function AdminPosPage() {
   const [showManualDiscountForm, setShowManualDiscountForm] = useState<boolean>(false);
   const [isApplyingManualDiscount, setIsApplyingManualDiscount] = useState<boolean>(false);
 
-  // ── Payment & Cash Tender State ───────────────────────────────────────────
-  const [paymentMethod, setPaymentMethod] = useState<string>("pos_cash");
-  const [tenderedAmountInput, setTenderedAmountInput] = useState<string>("");
-  const [isManualTendered, setIsManualTendered] = useState<boolean>(false);
-  const [nonCashPaidInput, setNonCashPaidInput] = useState<string>("");
-  const [isManualNonCashPaid, setIsManualNonCashPaid] = useState<boolean>(false);
-  const [paymentReference, setPaymentReference] = useState<string>("");
+  // ── Payment (Cash & Bank) State ───────────────────────────────────────────
+  const [paymentMethod, setPaymentMethod] = useState<"pos_cash" | "bank_transfer">("pos_cash");
+  const [cashPaymentNote, setCashPaymentNote] = useState<string>("");
+  const [bankPaymentReference, setBankPaymentReference] = useState<string>("");
+  const [bankPaymentNote, setBankPaymentNote] = useState<string>("");
+  const [selectedBankProfileId, setSelectedBankProfileId] = useState<string>("profile_usd_default");
+  const [bankProfiles, setBankProfiles] = useState<any[]>(DEFAULT_BUSINESS_SETTINGS.bank_profiles || []);
+  const [companyBanking, setCompanyBanking] = useState<any>(DEFAULT_BUSINESS_SETTINGS.banking || BUSINESS_PROFILE.banking);
+
+  // Resolved active company bank profile for Commercial Invoice wire instructions
+  const activeBankProfile = useMemo(() => {
+    const found = bankProfiles.find((p) => p.id === selectedBankProfileId);
+    if (found) return found;
+    if (bankProfiles.length > 0) return bankProfiles[0];
+    return {
+      id: "profile_usd_default",
+      name: companyBanking?.bank_name ? `${companyBanking.bank_name} (${companyBanking.currency || "USD"} Account)` : "Pubali Bank Limited (USD Account)",
+      bank_name: companyBanking?.bank_name || BUSINESS_PROFILE.banking.bankName || "Pubali Bank Limited",
+      account_title: companyBanking?.account_name || companyBanking?.account_title || BUSINESS_PROFILE.banking.accountTitle || "M/S AYAAN  CLOTHING",
+      account_number: companyBanking?.account_number || companyBanking?.account_no || BUSINESS_PROFILE.banking.accountNo || "1788-901-044316",
+      swift_code: companyBanking?.swift_code || BUSINESS_PROFILE.banking.swiftCode || "PUBABDDH210",
+      branch_name: companyBanking?.branch_name || companyBanking?.branch || BUSINESS_PROFILE.banking.branch || "Nawabpur Road Branch",
+      bank_address: companyBanking?.branch_name || companyBanking?.bank_address || BUSINESS_PROFILE.banking.bankAddress || "Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh",
+      currency: companyBanking?.currency || "USD",
+    };
+  }, [bankProfiles, selectedBankProfileId, companyBanking]);
 
   // ── Checkout & Submission ─────────────────────────────────────────────────
   const [orderNotes, setOrderNotes] = useState<string>("");
@@ -181,9 +204,10 @@ export default function AdminPosPage() {
     let mounted = true;
     (async () => {
       try {
-        const [whs, cats] = await Promise.all([
+        const [whs, cats, bizSettings] = await Promise.all([
           posService.getWarehouses(),
           categoryService.getCategories({ all: true }).catch(() => []),
+          siteSettingsService.getBusinessSettings().catch(() => DEFAULT_BUSINESS_SETTINGS),
         ]);
         if (mounted) {
           if (whs.length > 0) {
@@ -192,6 +216,18 @@ export default function AdminPosPage() {
           }
           if (Array.isArray(cats)) {
             setCategories(cats);
+          }
+          if (bizSettings) {
+            if (bizSettings.banking) {
+              setCompanyBanking(bizSettings.banking);
+            }
+            if (Array.isArray(bizSettings.bank_profiles) && bizSettings.bank_profiles.length > 0) {
+              setBankProfiles(bizSettings.bank_profiles);
+              const defProf = bizSettings.bank_profiles.find((p: any) => p.is_default) || bizSettings.bank_profiles[0];
+              if (defProf?.id) {
+                setSelectedBankProfileId(defProf.id);
+              }
+            }
           }
         }
         const initialProducts = await posService.searchProducts("", whs[0]?.id || null, 50);
@@ -303,12 +339,6 @@ export default function AdminPosPage() {
         }));
 
         const isCash = paymentMethod === "pos_cash";
-        const numericTendered = isCash && isManualTendered && tenderedAmountInput !== ""
-          ? parseFloat(tenderedAmountInput) || 0
-          : undefined;
-        const numericPaid = !isCash && isManualNonCashPaid && nonCashPaidInput !== ""
-          ? parseFloat(nonCashPaidInput) || 0
-          : undefined;
 
         const preview = await posService.calculatePreview({
           customer_id: selectedCustomer.id,
@@ -324,20 +354,16 @@ export default function AdminPosPage() {
               }
             : undefined,
           payment_method: paymentMethod,
-          tendered_amount: numericTendered,
-          paid_amount: numericPaid,
+          tendered_amount: undefined,
+          paid_amount: isCash ? undefined : 0,
+          payment_reference: !isCash && bankPaymentReference.trim() ? bankPaymentReference.trim() : undefined,
+          payment_note: isCash ? (cashPaymentNote.trim() || undefined) : (bankPaymentNote.trim() || undefined),
+          bank_profile_id: !isCash ? (activeBankProfile?.id || undefined) : undefined,
+          bank_name: !isCash ? (activeBankProfile?.bank_name || undefined) : undefined,
         });
 
         if (isCurrent) {
           setPreviewTotals(preview);
-
-          // Auto-sync cash tender default if not manually typed
-          if (isCash && !isManualTendered) {
-            setTenderedAmountInput(preview.total_amount.toFixed(2));
-          }
-          if (!isCash && !isManualNonCashPaid) {
-            setNonCashPaidInput(preview.total_amount.toFixed(2));
-          }
         }
       } catch (err: any) {
         console.error("Calculation error:", err);
@@ -366,10 +392,10 @@ export default function AdminPosPage() {
     appliedCouponCode,
     appliedManualDiscount,
     paymentMethod,
-    tenderedAmountInput,
-    nonCashPaidInput,
-    isManualTendered,
-    isManualNonCashPaid,
+    cashPaymentNote,
+    bankPaymentReference,
+    bankPaymentNote,
+    activeBankProfile,
   ]);
 
   // ── Customer Handlers ─────────────────────────────────────────────────────
@@ -647,9 +673,6 @@ export default function AdminPosPage() {
 
       setAppliedCouponCode(code);
       setPreviewTotals(preview);
-      if (!isManualTendered && paymentMethod === "pos_cash") {
-        setTenderedAmountInput(preview.total_amount.toFixed(2));
-      }
       setCouponCodeInput("");
       setCouponError(null);
       setShowCouponInput(false);
@@ -722,9 +745,6 @@ export default function AdminPosPage() {
         reason: manualDiscountReason.trim(),
       });
       setPreviewTotals(preview);
-      if (!isManualTendered && paymentMethod === "pos_cash") {
-        setTenderedAmountInput(preview.total_amount.toFixed(2));
-      }
       setShowManualDiscountForm(false);
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Failed to apply manual discount.";
@@ -758,34 +778,8 @@ export default function AdminPosPage() {
     ? previewTotals.total_quantity
     : cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Cash Tender / Change Computations
+  // Cash settlement computation
   const isCash = paymentMethod === "pos_cash";
-  const numericTendered = tenderedAmountInput === "" ? grandTotal : parseFloat(tenderedAmountInput) || 0;
-  const isCashInsufficient = isCash && numericTendered < grandTotal;
-  const cashChange = isCash && numericTendered >= grandTotal
-    ? Math.round((numericTendered - grandTotal) * 100) / 100
-    : 0;
-
-  // Non-Cash Paid Computations
-  const numericNonCashPaid = nonCashPaidInput === "" ? grandTotal : parseFloat(nonCashPaidInput) || 0;
-  const nonCashBalanceDue = Math.max(0, Math.round((grandTotal - numericNonCashPaid) * 100) / 100);
-
-  // Quick cash shortcuts
-  const cashShortcuts = useMemo(() => {
-    if (grandTotal <= 0) return [];
-    const exact = Math.round(grandTotal * 100) / 100;
-    const next10 = Math.ceil(grandTotal / 10) * 10;
-    const next50 = Math.ceil(grandTotal / 50) * 50;
-    const next100 = Math.ceil(grandTotal / 100) * 100;
-
-    const set = new Set<number>();
-    set.add(exact);
-    if (next10 > exact) set.add(next10);
-    if (next50 > exact && next50 !== next10) set.add(next50);
-    if (next100 > exact && set.size < 4) set.add(next100);
-
-    return Array.from(set).sort((a, b) => a - b);
-  }, [grandTotal]);
 
   const handleCompleteSale = async () => {
     if (!selectedCustomer) {
@@ -794,18 +788,6 @@ export default function AdminPosPage() {
     }
     if (cart.length === 0) {
       setSubmissionError("The POS cart is empty. Add products before completing sale.");
-      return;
-    }
-    if (isCash && isCashInsufficient) {
-      setSubmissionError(
-        `Insufficient cash tendered. Total is $${grandTotal.toFixed(2)}, but tendered is $${numericTendered.toFixed(2)}.`
-      );
-      return;
-    }
-    if (!isCash && numericNonCashPaid > grandTotal) {
-      setSubmissionError(
-        `Non-cash payment amount ($${numericNonCashPaid.toFixed(2)}) cannot exceed sale total ($${grandTotal.toFixed(2)}).`
-      );
       return;
     }
     if (!can(ADMIN_PERMISSIONS.POS_CREATE)) {
@@ -835,9 +817,12 @@ export default function AdminPosPage() {
         items: payloadItems,
         warehouse_id: selectedWarehouseId,
         payment_method: paymentMethod,
-        paid_amount: isCash ? grandTotal : numericNonCashPaid,
-        tendered_amount: isCash ? numericTendered : undefined,
-        payment_reference: paymentReference.trim() || undefined,
+        paid_amount: isCash ? grandTotal : 0.00,
+        tendered_amount: isCash ? grandTotal : undefined,
+        payment_reference: isCash ? undefined : (bankPaymentReference.trim() || undefined),
+        payment_note: isCash ? (cashPaymentNote.trim() || undefined) : (bankPaymentNote.trim() || undefined),
+        bank_profile_id: isCash ? undefined : (activeBankProfile?.id || selectedBankProfileId),
+        bank_name: isCash ? undefined : (activeBankProfile?.bank_name || undefined),
         coupon_code: appliedCouponCode || undefined,
         manual_discount: appliedManualDiscount
           ? {
@@ -859,11 +844,9 @@ export default function AdminPosPage() {
       setPreviewTotals(null);
       setAppliedCouponCode(null);
       setAppliedManualDiscount(null);
-      setTenderedAmountInput("");
-      setIsManualTendered(false);
-      setNonCashPaidInput("");
-      setIsManualNonCashPaid(false);
-      setPaymentReference("");
+      setCashPaymentNote("");
+      setBankPaymentReference("");
+      setBankPaymentNote("");
       setOrderNotes("");
     } catch (err: any) {
       console.error("POS transaction failed:", err);
@@ -945,11 +928,9 @@ export default function AdminPosPage() {
     setSubmissionError(null);
     setAppliedCouponCode(null);
     setAppliedManualDiscount(null);
-    setTenderedAmountInput("");
-    setIsManualTendered(false);
-    setNonCashPaidInput("");
-    setIsManualNonCashPaid(false);
-    setPaymentReference("");
+    setCashPaymentNote("");
+    setBankPaymentReference("");
+    setBankPaymentNote("");
     setPaymentMethod("pos_cash");
     setOrderNotes("");
   };
@@ -1872,199 +1853,225 @@ export default function AdminPosPage() {
                 </div>
               </div>
 
-              {/* ── 5. Payment Methods & Cash Tender Calculation ──────────────── */}
+              {/* ── 5. Payment Methods & Settlement Interface (Cash & Bank CI) ──── */}
               <div className="pt-2 border-t border-border/60 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs uppercase tracking-wider font-mono text-foreground">
                     Payment Method:
                   </span>
                   <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-secondary font-bold text-foreground">
-                    {paymentMethod === "pos_cash" ? "Cash Settlement" : paymentMethod}
+                    {paymentMethod === "pos_cash" ? "Cash Settlement" : "Commercial Bank Transfer"}
                   </span>
                 </div>
 
-                {/* Payment Method Switcher */}
-                <div className="grid grid-cols-4 gap-1.5 text-xs">
+                {/* Clean Two-Option Payment Selector: Cash vs Bank */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
                   <button
                     type="button"
+                    id="pos-payment-method-cash"
                     onClick={() => setPaymentMethod("pos_cash")}
-                    className={`py-2 px-1 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                    className={`py-2.5 px-3 rounded-xl border flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       paymentMethod === "pos_cash"
                         ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
-                        : "bg-background border-border hover:bg-secondary/40 text-foreground"
+                        : "bg-background border-border hover:bg-secondary/40 text-foreground font-medium"
                     }`}
                   >
-                    <Banknote size={15} />
-                    <span className="text-[10px]">Cash</span>
+                    <Banknote size={16} />
+                    <span className="text-xs">Cash Payment</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("card")}
-                    className={`py-2 px-1 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
-                      paymentMethod === "card"
-                        ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
-                        : "bg-background border-border hover:bg-secondary/40 text-foreground"
-                    }`}
-                  >
-                    <CreditCard size={15} />
-                    <span className="text-[10px]">Card</span>
-                  </button>
-
-                  <button
-                    type="button"
+                    id="pos-payment-method-bank"
                     onClick={() => setPaymentMethod("bank_transfer")}
-                    className={`py-2 px-1 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                    className={`py-2.5 px-3 rounded-xl border flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       paymentMethod === "bank_transfer"
                         ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
-                        : "bg-background border-border hover:bg-secondary/40 text-foreground"
+                        : "bg-background border-border hover:bg-secondary/40 text-foreground font-medium"
                     }`}
                   >
-                    <Landmark size={15} />
-                    <span className="text-[10px]">Bank</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("mobile_banking")}
-                    className={`py-2 px-1 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
-                      paymentMethod === "mobile_banking"
-                        ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
-                        : "bg-background border-border hover:bg-secondary/40 text-foreground"
-                    }`}
-                  >
-                    <Smartphone size={15} />
-                    <span className="text-[10px]">Mobile</span>
+                    <Landmark size={16} />
+                    <span className="text-xs">Bank Transfer (CI)</span>
                   </button>
                 </div>
 
-                {/* CASH TENDER & CHANGE SECTION */}
+                {/* 1. CASH PAYMENT WORKFLOW */}
                 {paymentMethod === "pos_cash" ? (
-                  <div className="space-y-2 p-3 rounded-xl bg-secondary/30 border border-border/80">
-                    <div className="flex items-center justify-between text-xs">
-                      <label className="font-semibold text-foreground flex items-center gap-1.5 font-mono">
-                        <Coins size={14} className="text-emerald-500" /> Cash Tendered ($):
-                      </label>
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        Due: ${grandTotal.toFixed(2)}
-                      </span>
-                    </div>
-
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={tenderedAmountInput}
-                      onChange={(e) => {
-                        setIsManualTendered(true);
-                        setTenderedAmountInput(e.target.value);
-                      }}
-                      placeholder={grandTotal.toFixed(2)}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm font-mono font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      id="pos-cash-tendered-input"
-                    />
-
-                    {/* Cash Tender Shortcuts */}
-                    {cashShortcuts.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-0.5">
-                        {cashShortcuts.map((amount) => (
-                          <button
-                            key={amount}
-                            type="button"
-                            onClick={() => {
-                              setIsManualTendered(true);
-                              setTenderedAmountInput(amount.toFixed(2));
-                            }}
-                            className={`py-1 px-2.5 rounded-lg border text-[11px] font-mono transition-colors ${
-                              parseFloat(tenderedAmountInput) === amount
-                                ? "bg-primary text-primary-foreground border-primary font-bold"
-                                : "bg-card border-border hover:bg-secondary text-foreground font-medium"
-                            }`}
-                          >
-                            ${amount.toFixed(2)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* DYNAMIC CHANGE RETURN CARD */}
+                  <div className="space-y-2.5 p-3 rounded-xl bg-secondary/30 border border-border/80">
+                    {/* Automatic Calculated Cash Payment Summary */}
                     <div
-                      className={`p-3 rounded-xl border flex items-center justify-between font-mono text-xs transition-all ${
-                        isCashInsufficient
-                          ? "bg-destructive/10 border-destructive/30 text-destructive"
-                          : cashChange > 0
-                          ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold"
-                          : "bg-secondary/60 border-border text-muted-foreground"
-                      }`}
-                      id="pos-change-return-display"
+                      id="pos-cash-summary-card"
+                      className="p-3 rounded-xl bg-background border border-border space-y-1.5"
                     >
-                      <div className="flex items-center gap-1.5">
-                        {isCashInsufficient ? (
-                          <AlertCircle size={15} />
-                        ) : (
-                          <CheckCircle2 size={15} className="text-emerald-500" />
-                        )}
-                        <span className="font-semibold uppercase tracking-wider text-[11px]">
-                          {isCashInsufficient
-                            ? "Insufficient Tender:"
-                            : "Change to Return:"}
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-foreground flex items-center gap-1.5 font-mono text-xs">
+                          <Coins size={14} className="text-emerald-500" /> Cash Settlement Total:
+                        </span>
+                        <span className="text-base font-black font-mono text-foreground" id="pos-cash-amount-display">
+                          ${grandTotal.toFixed(2)}
                         </span>
                       </div>
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        Automatic Settlement: Full calculated sale total (${grandTotal.toFixed(2)}) is automatically assigned as cash tendered and paid. No manual re-entry required.
+                      </p>
+                    </div>
 
-                      <span className="text-base font-black">
-                        {isCashInsufficient
-                          ? `-$${Math.max(0, grandTotal - numericTendered).toFixed(2)}`
-                          : `$${cashChange.toFixed(2)}`}
-                      </span>
+                    {/* Optional Cash Payment Note */}
+                    <div className="space-y-1 pt-1 border-t border-border/50">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                        <label htmlFor="pos-cash-payment-note" className="cursor-pointer">
+                          Payment Note (Optional):
+                        </label>
+                        <span className="text-[10px] text-muted-foreground/70">Remarks / drawer note</span>
+                      </div>
+                      <input
+                        type="text"
+                        id="pos-cash-payment-note"
+                        value={cashPaymentNote}
+                        onChange={(e) => setCashPaymentNote(e.target.value)}
+                        placeholder="e.g. Register drawer #1, Counter cash memo (Optional)"
+                        className="w-full px-3 py-1.5 bg-background border border-border rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
                     </div>
                   </div>
                 ) : (
-                  /* NON-CASH PAYMENT FIELDS */
-                  <div className="space-y-2.5 p-3 rounded-xl bg-secondary/30 border border-border/80 text-xs">
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <label className="font-medium text-muted-foreground font-mono">
-                          Paid Amount ($):
-                        </label>
-                        <span className="text-[10px] font-mono text-muted-foreground">
-                          Max: ${grandTotal.toFixed(2)}
-                        </span>
+                  /* 2. COMMERCIAL BANK TRANSFER WORKFLOW (CI INTEGRATED) */
+                  <div className="space-y-3 p-3 rounded-xl bg-secondary/30 border border-border/80 text-xs">
+                    {/* Header with Settings Link */}
+                    <div className="flex items-center justify-between pb-1 border-b border-border/60">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 size={14} className="text-primary" />
+                        <span className="font-bold text-foreground">Commercial Banking Instructions</span>
                       </div>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max={grandTotal}
-                        value={nonCashPaidInput}
-                        onChange={(e) => {
-                          setIsManualNonCashPaid(true);
-                          setNonCashPaidInput(e.target.value);
-                        }}
-                        placeholder={grandTotal.toFixed(2)}
-                        className="w-full px-3 py-1.5 bg-background border border-border rounded-xl text-xs font-mono font-bold text-foreground focus:outline-none"
-                      />
+                      <Link
+                        href="/ayc/settings"
+                        target="_blank"
+                        className="text-[10px] text-primary hover:underline flex items-center gap-1"
+                        title="Configure Authoritative Bank Accounts in Admin Settings"
+                      >
+                        <Settings size={11} />
+                        <span>Settings</span>
+                      </Link>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="font-medium text-muted-foreground font-mono">
-                        Payment Reference / Slip # (Optional):
-                      </label>
-                      <input
-                        type="text"
-                        value={paymentReference}
-                        onChange={(e) => setPaymentReference(e.target.value)}
-                        placeholder="e.g. Card Slip, bKash Trx ID, Bank Auth #"
-                        className="w-full px-3 py-1.5 bg-background border border-border rounded-xl text-xs font-mono text-foreground focus:outline-none"
-                        id="pos-payment-reference-input"
-                      />
-                    </div>
-
-                    {nonCashBalanceDue > 0 && (
-                      <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-mono text-[11px] flex justify-between">
-                        <span>Balance Remaining Due:</span>
-                        <span className="font-bold">${nonCashBalanceDue.toFixed(2)}</span>
+                    {/* Bank Profile Selector if Multiple Accounts Exist */}
+                    {bankProfiles.length > 1 && (
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-mono text-muted-foreground">
+                          Select Commercial Bank Account:
+                        </label>
+                        <select
+                          value={selectedBankProfileId}
+                          onChange={(e) => setSelectedBankProfileId(e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-background border border-border rounded-xl text-xs text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
+                          {bankProfiles.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name || p.bank_name} ({p.currency || "USD"})
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     )}
+
+                    {/* Authoritative CI Bank Details Summary */}
+                    <div
+                      id="pos-bank-details-summary"
+                      className="p-3 rounded-xl bg-background border border-border space-y-2 font-mono text-[11px]"
+                    >
+                      <div className="flex items-center justify-between pb-1.5 border-b border-border/60">
+                        <span className="text-muted-foreground uppercase text-[10px] tracking-wider">
+                          Authoritative CI Beneficiary
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary">
+                          {activeBankProfile.currency || "USD"} Settlement
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">Beneficiary Name:</span>
+                          <span className="font-bold text-foreground break-words">
+                            {activeBankProfile.account_title || "M/S AYAAN  CLOTHING"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">Bank Name:</span>
+                          <span className="font-bold text-foreground break-words">
+                            {activeBankProfile.bank_name || "Pubali Bank Limited"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">Account No / IBAN:</span>
+                          <span className="font-bold text-foreground break-words select-all">
+                            {activeBankProfile.account_number || "1788-901-044316"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">SWIFT / BIC Code:</span>
+                          <span className="font-bold text-foreground uppercase select-all">
+                            {activeBankProfile.swift_code || "PUBABDDH210"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-1.5 border-t border-border/60">
+                        <span className="text-muted-foreground block text-[10px]">Branch & Address:</span>
+                        <span className="text-foreground text-[10px] leading-relaxed">
+                          {activeBankProfile.branch_name || activeBankProfile.bank_address || "Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Commercial Workflow Notice (Not Paid Automatically) */}
+                    <div
+                      id="pos-bank-status-notice"
+                      className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-[11px] space-y-1"
+                    >
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <AlertCircle size={14} className="text-amber-600 shrink-0" />
+                        <span>Commercial Invoice Payment Workflow</span>
+                      </div>
+                      <p className="text-[10px] leading-relaxed text-muted-foreground">
+                        Order will be recorded with <span className="font-bold text-foreground">Pending Payment</span> status and balance due of <span className="font-bold font-mono text-foreground">${grandTotal.toFixed(2)}</span>. Entering bank instructions does not mark an unpaid wire as received. Payment proof will be reviewed and verified through the standard order review flow.
+                      </p>
+                    </div>
+
+                    {/* Optional Commercial Payment Reference */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                        <label htmlFor="pos-bank-reference-input" className="cursor-pointer">
+                          Commercial Payment Reference (Optional):
+                        </label>
+                        <span className="text-[10px] text-muted-foreground/70">Wire ref or TT #</span>
+                      </div>
+                      <input
+                        type="text"
+                        id="pos-bank-reference-input"
+                        value={bankPaymentReference}
+                        onChange={(e) => setBankPaymentReference(e.target.value)}
+                        placeholder="e.g. Wire TT-2026-8819, Swift ACK, Bank Deposit Slip #"
+                        className="w-full px-3 py-1.5 bg-background border border-border rounded-xl text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                    </div>
+
+                    {/* Optional Bank Payment Note */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                        <label htmlFor="pos-bank-payment-note" className="cursor-pointer">
+                          Bank Payment Note (Optional):
+                        </label>
+                        <span className="text-[10px] text-muted-foreground/70">Remarks or terms</span>
+                      </div>
+                      <input
+                        type="text"
+                        id="pos-bank-payment-note"
+                        value={bankPaymentNote}
+                        onChange={(e) => setBankPaymentNote(e.target.value)}
+                        placeholder="e.g. 30% advance on PI, balance prior to bill of lading"
+                        className="w-full px-3 py-1.5 bg-background border border-border rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -2088,8 +2095,7 @@ export default function AdminPosPage() {
                   disabled={
                     !selectedCustomer ||
                     cart.length === 0 ||
-                    isSubmitting ||
-                    (isCash && isCashInsufficient)
+                    isSubmitting
                   }
                   className="w-full py-3.5 px-4 bg-primary text-primary-foreground font-black uppercase tracking-wider text-xs sm:text-sm rounded-xl shadow-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer"
                   id="btn-complete-pos-sale"
@@ -2624,6 +2630,7 @@ export default function AdminPosPage() {
                         target="_blank"
                         className="p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors flex flex-col justify-between group"
                         id="btn-pos-doc-ci"
+                        data-testid="btn-pos-print-invoice"
                       >
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <Printer

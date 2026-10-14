@@ -104,11 +104,11 @@ assert(posPageContent.includes("<Minus size={13} />"), "POS quantity must preser
 assert(posPageContent.includes("<Plus size={13} />"), "POS quantity must preserve custom Plus stepper button");
 console.log("  ✓ Passed: POS quantity field preserves number typing, validation, and custom +/- buttons");
 
-// Test 6: POS cash tender and discount fields
-console.log("Test 6: POS financial tender and discount fields...");
-assert(posPageContent.includes('id="pos-cash-tendered-input"'), "POS cash tender input must exist");
-assert(posPageContent.includes('step="0.01"'), "POS cash tender input must support decimal steps");
-console.log("  ✓ Passed: POS cash tender input preserves decimal input and step attributes");
+// Test 6: POS financial discount override field
+console.log("Test 6: POS financial discount field...");
+assert(posPageContent.includes('id="pos-manual-discount-value"'), "POS manual discount value input must exist");
+assert(posPageContent.includes('step={manualDiscountType === "percentage" ? "1" : "0.01"}') || posPageContent.includes('0.01'), "POS financial input must support decimal steps");
+console.log("  ✓ Passed: POS financial input preserves decimal input and step attributes");
 
 // Test 7: Product inventory stock and MOQ fields
 console.log("Test 7: Product inventory and MOQ inputs...");

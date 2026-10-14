@@ -30,6 +30,13 @@ return new class extends Migration
                     WHERE p.supplier_id = s.id
                       AND (p.supplier_name IS NULL OR p.supplier_name = '')
                 ");
+            } elseif ($driver === 'sqlite') {
+                DB::statement("
+                    UPDATE products
+                    SET supplier_name = (SELECT name FROM suppliers WHERE suppliers.id = products.supplier_id)
+                    WHERE supplier_id IS NOT NULL
+                      AND (supplier_name IS NULL OR supplier_name = '')
+                ");
             } else {
                 DB::statement("
                     UPDATE products p

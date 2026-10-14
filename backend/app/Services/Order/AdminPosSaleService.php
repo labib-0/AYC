@@ -447,8 +447,32 @@ class AdminPosSaleService
                 $balanceDue = round($totalAmount - $tenderedAmount, 2);
                 $paymentStatus = $tenderedAmount > 0 ? 'partially_paid' : 'pending';
             }
+        } elseif ($paymentMethod === 'bank_transfer') {
+            // Bank transfer defaults to pending wire settlement (paid = 0.00) unless an explicit paid amount is provided
+            $actualPaid = isset($payment['paid_amount']) ? (float) $payment['paid_amount'] : 0.00;
+            $tenderedAmount = $actualPaid;
+            $changeReturn = 0.00;
+
+            if ($actualPaid < 0) {
+                throw ValidationException::withMessages([
+                    'paid_amount' => 'Paid amount cannot be negative.'
+                ]);
+            }
+            if ($actualPaid > $totalAmount) {
+                throw ValidationException::withMessages([
+                    'paid_amount' => "Paid amount (\${$actualPaid}) cannot exceed the grand total (\${$totalAmount})."
+                ]);
+            }
+
+            $balanceDue = max(0.0, round($totalAmount - $actualPaid, 2));
+            $paymentStatus = 'pending';
+            if ($actualPaid >= $totalAmount && $totalAmount > 0) {
+                $paymentStatus = 'paid';
+            } elseif ($actualPaid > 0) {
+                $paymentStatus = 'partially_paid';
+            }
         } else {
-            // Non-cash payment methods (card, bank_transfer, mobile_banking)
+            // Historical / other payment methods (card, mobile_banking)
             $actualPaid = isset($payment['paid_amount']) ? (float) $payment['paid_amount'] : $totalAmount;
             $tenderedAmount = $actualPaid;
             $changeReturn = 0.00;
@@ -605,8 +629,32 @@ class AdminPosSaleService
                     $changeReturn = round($tenderedAmount - $totalAmount, 2);
                     $balanceDue = 0.00;
                     $paymentStatus = 'paid';
+                } elseif ($paymentMethod === 'bank_transfer') {
+                    // Bank transfer orders default to pending settlement (paid = 0.00) unless explicit paid amount is provided
+                    $actualPaid = isset($options['paid_amount']) ? (float) $options['paid_amount'] : 0.00;
+                    $tenderedAmount = $actualPaid;
+                    $changeReturn = 0.00;
+
+                    if ($actualPaid < 0) {
+                        throw ValidationException::withMessages([
+                            'paid_amount' => 'Paid amount cannot be negative.'
+                        ]);
+                    }
+                    if ($actualPaid > $totalAmount) {
+                        throw ValidationException::withMessages([
+                            'paid_amount' => "Paid amount (\${$actualPaid}) cannot exceed the grand total (\${$totalAmount})."
+                        ]);
+                    }
+
+                    $balanceDue = max(0.0, round($totalAmount - $actualPaid, 2));
+                    $paymentStatus = 'pending';
+                    if ($actualPaid >= $totalAmount && $totalAmount > 0) {
+                        $paymentStatus = 'paid';
+                    } elseif ($actualPaid > 0) {
+                        $paymentStatus = 'partially_paid';
+                    }
                 } else {
-                    // Non-cash payment (card, bank_transfer, mobile_banking)
+                    // Historical / other payment methods (card, mobile_banking)
                     $actualPaid = isset($options['paid_amount']) ? (float) $options['paid_amount'] : $totalAmount;
                     $tenderedAmount = $actualPaid;
                     $changeReturn = 0.00;
@@ -696,7 +744,17 @@ class AdminPosSaleService
 
                 // 4. Create the Authoritative Order Record
                 $paymentReference = trim((string) ($options['payment_reference'] ?? ''));
+                $paymentNote = trim((string) ($options['payment_note'] ?? ''));
+                $bankName = trim((string) ($options['bank_name'] ?? ''));
+                $bankProfileId = trim((string) ($options['bank_profile_id'] ?? ''));
                 $notes = $options['notes'] ?? null;
+                $combinedNotes = $notes ? "[POS Note] {$notes}" : null;
+                if (!empty($paymentNote)) {
+                    $combinedNotes = $combinedNotes ? "{$combinedNotes} | [Payment Note: {$paymentNote}]" : "[Payment Note: {$paymentNote}]";
+                }
+                if (empty($combinedNotes)) {
+                    $combinedNotes = 'Point of Sale transaction';
+                }
 
                 $order = Order::create([
                     'order_number' => $orderNumber,
@@ -737,16 +795,20 @@ class AdminPosSaleService
                     'payment_details' => [
                         'method' => $paymentMethod,
                         'reference' => $paymentReference ?: null,
+                        'payment_reference' => $paymentReference ?: null,
                         'tendered_amount' => round($tenderedAmount, 2),
                         'change_return' => round($changeReturn, 2),
                         'paid_amount' => round($actualPaid, 2),
                         'balance_due' => $balanceDue,
                         'status' => $paymentStatus,
                         'warehouse_id' => $warehouseId,
+                        'payment_note' => $paymentNote ?: null,
+                        'bank_name' => $bankName ?: null,
+                        'bank_profile_id' => $bankProfileId ?: null,
                     ],
                     'payment_confirmed_at' => $paymentStatus === 'paid' ? now() : null,
                     'payment_confirmed_by' => $paymentStatus === 'paid' ? $admin->id : null,
-                    'notes' => $notes ? "[POS Note] {$notes}" : 'Point of Sale transaction',
+                    'notes' => $combinedNotes,
                     'placed_at' => now(),
                 ]);
 
@@ -800,8 +862,8 @@ class AdminPosSaleService
                         'confirmed_at' => now(),
                         'confirmed_by' => $admin->id,
                         'notes' => $paymentMethod === 'pos_cash'
-                            ? "POS cash payment of \${$actualPaid} confirmed by {$admin->name}. Tendered: \${$tenderedAmount}, Change: \${$changeReturn}."
-                            : "POS payment of \${$actualPaid} ({$paymentMethod}) confirmed by {$admin->name}. Reference: " . ($paymentReference ?: 'N/A'),
+                            ? ("POS cash payment of \${$actualPaid} confirmed by {$admin->name}. Tendered: \${$tenderedAmount}, Change: \${$changeReturn}." . ($paymentNote ? " Note: {$paymentNote}" : ''))
+                            : ("POS payment of \${$actualPaid} ({$paymentMethod}) confirmed by {$admin->name}. Reference: " . ($paymentReference ?: 'N/A') . ($paymentNote ? " Note: {$paymentNote}" : '')),
                     ]);
 
                     ActivityLogger::log('pos.payment_recorded', $payment, [
