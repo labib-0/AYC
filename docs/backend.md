@@ -6,9 +6,10 @@ The backend is built on **Laravel 13.x** operating under PHP 8.4-FPM on Ubuntu 2
 
 ### Key Architectural Characteristics
 - **Headless JSON REST Engine**: No Blade views in application routes; all endpoints return structured JSON or binary streams (PDF downloads).
-- **Domain Service Layer**: Heavy business logic (pricing, inventory adjustments, document rendering, GeoIP checks) is decoupled from controllers into dedicated domain services in `app/Services/`.
+- **Domain Service Layer**: Heavy business logic (pricing, inventory adjustments, document rendering, GeoIP checks, POS sales) is decoupled from controllers into dedicated domain services in `app/Services/`.
 - **Relational Integrity**: Enforces strict database transactions, foreign key constraints, and pessimistic row locking (`lockForUpdate`) on financial and inventory commitments.
 - **Audited State Changes**: Administrative inventory movements and system mutations log directly to relational audit tables (`activities`, `admin_inventory_adjustments`).
+- **Internal Sourcing & Margin Protection**: Procurement baseline costs (`buying_price`), vendor keys (`supplier_id`), and factory names (`supplier_name`) are strictly internal; controllers and API resources filter these out of all public customer responses.
 
 ---
 
@@ -189,6 +190,24 @@ DB::transaction(function () use ($order, $adminUser) {
 
     // 4. Update order status
     $order->update(['status' => Order::STATUS_CONFIRMED]);
+});
+```
+
+### 4.3 POS Sale Settlement Transaction (`AdminPosSaleService.php`)
+```php
+DB::transaction(function () use ($payload, $adminUser) {
+    // 1. Calculate authoritative total from line items and discounts
+    $calc = $this->calculatePreview($payload['items'], ...);
+
+    // 2. Cash Settlement: full settlement, immediate warehouse deduction
+    if ($payload['payment_method'] === 'pos_cash') {
+        $order = Order::create([..., 'payment_status' => 'paid', 'status' => 'processing']);
+        $order->decrementInventory();
+    }
+    // 3. Bank Settlement: pending verification, inventory preserved
+    else if ($payload['payment_method'] === 'bank_transfer') {
+        $order = Order::create([..., 'payment_status' => 'pending', 'status' => 'pending']);
+    }
 });
 ```
 

@@ -50,7 +50,7 @@ src/app/
     ├── inventory/                 # Warehouse Balances, Stock Movements & Audit
     ├── orders/                    # Order Fulfillment, Status Transitions & Shipping
     │   └── [id]/                  # Order Detail, Payment Verification & AWB Dispatch
-    ├── pos/                       # Cashier POS Terminal (Order Creation & Tender)
+    ├── pos/                       # Cashier POS Terminal (Order Creation & Settlement)
     ├── quotations/                # Commercial Quotations Engine
     ├── rfq/                       # Inbound Buyer RFQs & Messaging
     ├── documents/                 # Centralized Commercial Documents Hub
@@ -169,7 +169,7 @@ All frontend data fetching routes through `src/services/api-client.ts`:
 | Component | Path | Purpose |
 |---|---|---|
 | `AdminSidebar` | `src/components/admin/AdminSidebar.tsx` | Navigation tree grouped by Operations, Merchandising, Sales, and Governance |
-| `PosTerminal` | `src/app/ayc/pos/page.tsx` | High-speed cashier screen with customer lookup, warehouse selector, tender calculator |
+| `PosTerminal` | `src/app/ayc/pos/page.tsx` | High-speed cashier screen with customer lookup, warehouse selector, automatic payment settlement (Cash & Bank Transfer), and commercial document integration |
 | `ProductForm` | `src/components/admin/products/ProductForm.tsx` | Multi-section product creator: media upload, pricing tiers, warehouse stock |
 | `InventoryGrid` | `src/components/admin/inventory/InventoryGrid.tsx` | Multi-warehouse balance tables with audited stock adjustment modals |
 | `OrderFulfillmentModal` | `src/components/admin/orders/OrderFulfillmentModal.tsx` | Aramex AWB dispatch, courier tracking number assignment |

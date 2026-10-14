@@ -114,7 +114,7 @@ Ayaan Clothing exposes a unified REST API versioned under `/api/v1/`. The API se
   - `min_price`, `max_price` (numeric)
   - `search` (string, title/sku keyword query)
   - `sort` (string: `'price_asc'`, `'price_desc'`, `'newest'`, `'moq_asc'`)
-- **Response (200 OK)**: Standard paginated collection of products including 4:5 image URLs, active brands, MOQ thresholds, and lowest customer unit price preview.
+- **Response (200 OK)**: Standard paginated collection of products including 4:5 image URLs, active brands, MOQ thresholds, and lowest customer unit price preview. Note: Internal procurement fields (`buying_price`, `supplier_id`, `supplier_name`) are strictly omitted.
 
 ### 3.4 Product Detail (PDP)
 - **Method & Route**: `GET /products/{slugOrId}` (Explicit slug route: `GET /products/slug/{slug}`)
@@ -198,6 +198,8 @@ Ayaan Clothing exposes a unified REST API versioned under `/api/v1/`. The API se
 
 ## 6. Point of Sale (POS) Administrative APIs
 
+The POS subsystem is streamlined to offer strictly two payment methods: **Cash** (`pos_cash`) and **Bank Transfer** (`bank_transfer`). Duplicate manual payment amount entry and cash change controls have been retired in favor of automatic authoritative settlement.
+
 ### 6.1 Look up Counter Customers
 - **Method & Route**: `GET /admin/pos/customers`
 - **Access**: Admin (`permission:pos.view`)
@@ -213,24 +215,48 @@ Ayaan Clothing exposes a unified REST API versioned under `/api/v1/`. The API se
 ### 6.3 Calculate POS Sale
 - **Method & Route**: `POST /admin/pos/calculate`
 - **Access**: Admin (`permission:pos.view`)
-- **Body**: `{"items": [{"product_id": 14, "quantity": 50}], "warehouse_id": 1, "coupon_code": null}`
-- **Response (200 OK)**: Returns live subtotal, applicable volume discount, tax, and order total.
+- **Body**:
+  ```json
+  {
+    "items": [{"product_id": 14, "quantity": 50}],
+    "warehouse_id": 1,
+    "coupon_code": null,
+    "manual_discount_type": "PERCENTAGE",
+    "manual_discount_value": 5,
+    "payment_method": "pos_cash"
+  }
+  ```
+- **Response (200 OK)**: Returns authoritative breakdown: subtotal, discount total, tax amount, and final grand total.
 
-### 6.4 Submit POS Order & Tender
+### 6.4 Submit POS Sale & Settlement
 - **Method & Route**: `POST /admin/pos/orders`
 - **Access**: Admin (`permission:pos.create`)
-- **Body**:
+- **Body (Cash Settlement)**:
   ```json
   {
     "customer_id": 89,
     "warehouse_id": 1,
     "items": [{"product_id": 14, "quantity": 50}],
-    "payment_method": "CASH",
-    "cash_tendered": 5000.00,
-    "discount_amount": 0
+    "payment_method": "pos_cash",
+    "payment_note": "Counter cash payment - drawer 1"
   }
   ```
-- **Behavior**: Creates standard order with `order_source = 'POS'`, status `CONFIRMED`, decrements physical warehouse stock immediately, and returns `change_due`.
+- **Behavior (Cash)**: Authoritatively sets payment amount to calculated grand total. Transitions order immediately to paid status, generates order number `AYN-POS-YYYYMMDD-XXXXXX`, and atomically decrements warehouse physical inventory.
+- **Body (Bank Transfer)**:
+  ```json
+  {
+    "customer_id": 89,
+    "warehouse_id": 1,
+    "items": [{"product_id": 14, "quantity": 50}],
+    "payment_method": "bank_transfer",
+    "bank_profile_id": "pubali-usd-01",
+    "bank_name": "Pubali Bank Limited",
+    "payment_reference": "TT-REF-892144",
+    "payment_note": "Awaiting Swift MT103 copy"
+  }
+  ```
+- **Behavior (Bank Transfer)**: Creates order with `paid_amount = 0.00`, `balance_due = $totalAmount`, and `payment_status = 'pending'`. Preserves physical inventory until payment proof is verified via admin review.
+- **Backward Compatibility**: Backend PosController preserves validation acceptance for historical `'card'` and `'mobile_banking'` entries to maintain historical audit record integrity.
 
 ---
 

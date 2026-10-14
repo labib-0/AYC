@@ -2,34 +2,30 @@
 
 Welcome to the definitive, source-verified documentation knowledge base for the **Ayaan Clothing (AYC)** B2B garments manufacturing and export platform.
 
-This documentation suite was reconstructed through comprehensive repository audits, live VPS inspections (`200.97.169.230`), database schema extraction, and automated test validations. It serves as the single source of truth for developers, system architects, DevOps engineers, and business operators.
+This documentation suite is organized in a single, flat directory structure directly under `docs/` without nested category folders. Every document is grounded in the current codebase, migrations, and verified production environment (`200.97.169.230`).
 
 ---
 
-## 1. Document Ownership & Authority Matrix
+## 1. Documentation Index & Sitemap
 
-To prevent documentation drift and prevent the recreation of fragmented markdown reports, the following table establishes the **authoritative document** for every system domain.
-
-| Domain / Topic | Authoritative Document | Path |
+| Document | Topic & Scope | File Link |
 |---|---|---|
-| **Business Model, Workflows & Mission** | Project Overview & Business Context | [`docs/business/project-overview.md`](file:///Users/luhasan/Documents/ayaan/docs/business/project-overview.md) |
-| **System Architecture & Topology** | System Architecture | [`docs/architecture/system-architecture.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture/system-architecture.md) |
-| **Architectural Decisions (ADRs)** | Architecture Decision Records | [`docs/architecture/architecture-decisions.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture/architecture-decisions.md) |
-| **Next.js & Frontend Design System** | Frontend Architecture & Design System | [`docs/frontend/architecture-and-design-system.md`](file:///Users/luhasan/Documents/ayaan/docs/frontend/architecture-and-design-system.md) |
-| **Laravel API & Service Layer** | Backend Architecture | [`docs/backend/architecture.md`](file:///Users/luhasan/Documents/ayaan/docs/backend/architecture.md) |
-| **PostgreSQL 16 Schema (53 Tables)** | Database Schema Reference & ERD | [`docs/database/schema-reference.md`](file:///Users/luhasan/Documents/ayaan/docs/database/schema-reference.md) |
-| **REST API v1 Catalog** | REST API Reference | [`docs/api/api-reference.md`](file:///Users/luhasan/Documents/ayaan/docs/api/api-reference.md) |
-| **Complete 25 Feature Specifications**| Feature Reference Catalog | [`docs/features/feature-catalog.md`](file:///Users/luhasan/Documents/ayaan/docs/features/feature-catalog.md) |
-| **Functional Requirements (`FR-*`)** | Functional Requirements Specification | [`docs/requirements/functional-requirements.md`](file:///Users/luhasan/Documents/ayaan/docs/requirements/functional-requirements.md) |
-| **Non-Functional Requirements (`NFR-*`)**| Non-Functional Requirements Specification | [`docs/requirements/non-functional-requirements.md`](file:///Users/luhasan/Documents/ayaan/docs/requirements/non-functional-requirements.md) |
-| **RBAC Roles & Permissions** | User Roles, Permissions & Rules | [`docs/security/roles-and-permissions.md`](file:///Users/luhasan/Documents/ayaan/docs/security/roles-and-permissions.md) |
-| **Redis, Queues & Media Storage** | Caching, Queues & Storage | [`docs/infrastructure/caching-queues-storage.md`](file:///Users/luhasan/Documents/ayaan/docs/infrastructure/caching-queues-storage.md) |
-| **Technical SEO & Search Console** | Technical SEO & Search Console Guide | [`docs/seo/technical-seo.md`](file:///Users/luhasan/Documents/ayaan/docs/seo/technical-seo.md) |
-| **VPS Deployment Runbook** | Deployment & Operations Runbook | [`docs/operations/deployment.md`](file:///Users/luhasan/Documents/ayaan/docs/operations/deployment.md) |
-| **Disaster Recovery & Daily Backups** | Backup & Disaster Recovery Runbook | [`docs/operations/backup-and-restore.md`](file:///Users/luhasan/Documents/ayaan/docs/operations/backup-and-restore.md) |
-| **Health Checks & Troubleshooting** | Monitoring & Troubleshooting Guide | [`docs/operations/monitoring-and-troubleshooting.md`](file:///Users/luhasan/Documents/ayaan/docs/operations/monitoring-and-troubleshooting.md) |
-| **Testing, Quality & Traceability** | Testing Strategy & Traceability Matrix | [`docs/testing/testing-strategy.md`](file:///Users/luhasan/Documents/ayaan/docs/testing/testing-strategy.md) |
-| **Domain & Export Terminology** | Glossary of Terminology | [`docs/reference/glossary.md`](file:///Users/luhasan/Documents/ayaan/docs/reference/glossary.md) |
+| **Project Overview & Business Rules** | RMG export business model, wholesale MOQs, package assortments, actors, and platform boundaries | [`business-rules.md`](file:///Users/luhasan/Documents/ayaan/docs/business-rules.md) |
+| **System Architecture** | System topology, C4 context diagrams, container and component architecture, request lifecycles | [`architecture.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture.md) |
+| **Architecture Decisions (ADRs)** | Formal Architecture Decision Records (ADR-001 through ADR-008) covering core engineering choices | [`architecture-decisions.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture-decisions.md) |
+| **Frontend Architecture & Design System** | Next.js 16 App Router, layout isolation, proxy routing, Tailwind CSS 4 tokens, 4:5 fashion photo standard | [`frontend.md`](file:///Users/luhasan/Documents/ayaan/docs/frontend.md) |
+| **Backend Architecture** | Laravel 13 headless REST API, directory structure, domain services, database transactions, concurrency | [`backend.md`](file:///Users/luhasan/Documents/ayaan/docs/backend.md) |
+| **Database Schema Reference** | PostgreSQL 16 schema (53 tables), ERD, data dictionary, indexes, soft deletes, internal sourcing protection | [`database-schema.md`](file:///Users/luhasan/Documents/ayaan/docs/database-schema.md) |
+| **REST API Reference (v1)** | Complete API endpoint catalog, authentication, request/response envelopes, POS endpoints, error conventions | [`api-reference.md`](file:///Users/luhasan/Documents/ayaan/docs/api-reference.md) |
+| **Complete Feature Catalog** | Exhaustive technical specifications for all 25 major business and operational capabilities | [`features.md`](file:///Users/luhasan/Documents/ayaan/docs/features.md) |
+| **Requirements Specification** | Consolidated Functional Requirements (`FR-*`) and Non-Functional Requirements (`NFR-*`) | [`requirements.md`](file:///Users/luhasan/Documents/ayaan/docs/requirements.md) |
+| **Security, Roles & Permissions** | Two-role boundary (`users.role`), granular administrative RBAC matrix, atomic permissions, data ownership | [`security.md`](file:///Users/luhasan/Documents/ayaan/docs/security.md) |
+| **Caching, Queues & Media Storage** | Redis 7 caching, Supervisord queue workers, local storage disk layout, 4:5 image optimization | [`infrastructure.md`](file:///Users/luhasan/Documents/ayaan/docs/infrastructure.md) |
+| **Technical SEO & Search Console** | Dynamic XML sitemap, double-slash URL normalization in `proxy.ts`, Schema.org JSON-LD, GSC setup | [`seo.md`](file:///Users/luhasan/Documents/ayaan/docs/seo.md) |
+| **Deployment & Operations Runbook** | Runtime requirements, environment variables, local startup, Git multi-remote protocol, zero-downtime VPS deployment | [`deployment.md`](file:///Users/luhasan/Documents/ayaan/docs/deployment.md) |
+| **Operations, Backups & Monitoring** | Automated daily systemd backups, disaster recovery procedures, health checks, process supervision, triage runbooks | [`operations.md`](file:///Users/luhasan/Documents/ayaan/docs/operations.md) |
+| **Testing Strategy & Traceability Matrix**| Multi-tier testing frameworks, commands, environments, and Requirements Traceability Matrix (RTM) | [`testing.md`](file:///Users/luhasan/Documents/ayaan/docs/testing.md) |
+| **Domain & Export Glossary** | Domain-specific RMG terminology, Incoterms (FOB, DAP, DDP), commercial documents, system concepts | [`glossary.md`](file:///Users/luhasan/Documents/ayaan/docs/glossary.md) |
 
 ---
 
@@ -63,24 +59,39 @@ graph TD
 ## 3. Recommended Reading Order
 
 ### For Full-Stack Engineers & Developers
-1. **Business Context**: [`docs/business/project-overview.md`](file:///Users/luhasan/Documents/ayaan/docs/business/project-overview.md)
-2. **System Architecture**: [`docs/architecture/system-architecture.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture/system-architecture.md)
-3. **Frontend & Design System**: [`docs/frontend/architecture-and-design-system.md`](file:///Users/luhasan/Documents/ayaan/docs/frontend/architecture-and-design-system.md)
-4. **Backend Architecture**: [`docs/backend/architecture.md`](file:///Users/luhasan/Documents/ayaan/docs/backend/architecture.md)
-5. **Database Reference**: [`docs/database/schema-reference.md`](file:///Users/luhasan/Documents/ayaan/docs/database/schema-reference.md)
-6. **API Reference**: [`docs/api/api-reference.md`](file:///Users/luhasan/Documents/ayaan/docs/api/api-reference.md)
-7. **Testing Strategy**: [`docs/testing/testing-strategy.md`](file:///Users/luhasan/Documents/ayaan/docs/testing/testing-strategy.md)
+1. **Business Context**: [`business-rules.md`](file:///Users/luhasan/Documents/ayaan/docs/business-rules.md)
+2. **System Architecture**: [`architecture.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture.md)
+3. **Architecture Decisions**: [`architecture-decisions.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture-decisions.md)
+4. **Frontend & Design System**: [`frontend.md`](file:///Users/luhasan/Documents/ayaan/docs/frontend.md)
+5. **Backend Architecture**: [`backend.md`](file:///Users/luhasan/Documents/ayaan/docs/backend.md)
+6. **Database Reference**: [`database-schema.md`](file:///Users/luhasan/Documents/ayaan/docs/database-schema.md)
+7. **API Reference**: [`api-reference.md`](file:///Users/luhasan/Documents/ayaan/docs/api-reference.md)
+8. **Testing Strategy**: [`testing.md`](file:///Users/luhasan/Documents/ayaan/docs/testing.md)
 
 ### For DevOps & Release Engineers
-1. **Deployment Runbook**: [`docs/operations/deployment.md`](file:///Users/luhasan/Documents/ayaan/docs/operations/deployment.md)
-2. **Backup & Disaster Recovery**: [`docs/operations/backup-and-restore.md`](file:///Users/luhasan/Documents/ayaan/docs/operations/backup-and-restore.md)
-3. **Monitoring & Triage**: [`docs/operations/monitoring-and-troubleshooting.md`](file:///Users/luhasan/Documents/ayaan/docs/operations/monitoring-and-troubleshooting.md)
-4. **Caching & Queues**: [`docs/infrastructure/caching-queues-storage.md`](file:///Users/luhasan/Documents/ayaan/docs/infrastructure/caching-queues-storage.md)
+1. **Deployment Runbook**: [`deployment.md`](file:///Users/luhasan/Documents/ayaan/docs/deployment.md)
+2. **Operations & Backups**: [`operations.md`](file:///Users/luhasan/Documents/ayaan/docs/operations.md)
+3. **Caching & Queues**: [`infrastructure.md`](file:///Users/luhasan/Documents/ayaan/docs/infrastructure.md)
 
 ### For Auditors, QA & Business Owners
-1. **Project Overview**: [`docs/business/project-overview.md`](file:///Users/luhasan/Documents/ayaan/docs/business/project-overview.md)
-2. **Feature Reference Catalog**: [`docs/features/feature-catalog.md`](file:///Users/luhasan/Documents/ayaan/docs/features/feature-catalog.md)
-3. **Functional Requirements**: [`docs/requirements/functional-requirements.md`](file:///Users/luhasan/Documents/ayaan/docs/requirements/functional-requirements.md)
-4. **Security & Permissions**: [`docs/security/roles-and-permissions.md`](file:///Users/luhasan/Documents/ayaan/docs/security/roles-and-permissions.md)
-5. **Technical SEO**: [`docs/seo/technical-seo.md`](file:///Users/luhasan/Documents/ayaan/docs/seo/technical-seo.md)
-6. **Glossary**: [`docs/reference/glossary.md`](file:///Users/luhasan/Documents/ayaan/docs/reference/glossary.md)
+1. **Business Rules**: [`business-rules.md`](file:///Users/luhasan/Documents/ayaan/docs/business-rules.md)
+2. **Feature Reference Catalog**: [`features.md`](file:///Users/luhasan/Documents/ayaan/docs/features.md)
+3. **Requirements Specification**: [`requirements.md`](file:///Users/luhasan/Documents/ayaan/docs/requirements.md)
+4. **Security & Permissions**: [`security.md`](file:///Users/luhasan/Documents/ayaan/docs/security.md)
+5. **Technical SEO**: [`seo.md`](file:///Users/luhasan/Documents/ayaan/docs/seo.md)
+6. **Glossary**: [`glossary.md`](file:///Users/luhasan/Documents/ayaan/docs/glossary.md)
+
+---
+
+## 4. Maintenance & Developer Guidance
+
+When application features, APIs, database schemas, or operational procedures change, engineers must update the corresponding authoritative document directly in `docs/`:
+
+- **Database Changes**: Update [`database-schema.md`](file:///Users/luhasan/Documents/ayaan/docs/database-schema.md).
+- **API Endpoint Updates**: Update [`api-reference.md`](file:///Users/luhasan/Documents/ayaan/docs/api-reference.md).
+- **Feature Additions / Modifications**: Update [`features.md`](file:///Users/luhasan/Documents/ayaan/docs/features.md) and [`requirements.md`](file:///Users/luhasan/Documents/ayaan/docs/requirements.md).
+- **Frontend / Styling Tokens**: Update [`frontend.md`](file:///Users/luhasan/Documents/ayaan/docs/frontend.md).
+- **Backend Services / Transactions**: Update [`backend.md`](file:///Users/luhasan/Documents/ayaan/docs/backend.md).
+- **Deployment & Server Changes**: Update [`deployment.md`](file:///Users/luhasan/Documents/ayaan/docs/deployment.md) and [`operations.md`](file:///Users/luhasan/Documents/ayaan/docs/operations.md).
+
+All project documentation Markdown files must reside directly inside `docs/`. Do not re-create category-based subfolders.

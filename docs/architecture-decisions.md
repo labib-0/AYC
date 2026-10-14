@@ -79,7 +79,7 @@ In B2B apparel trade, orders are placed with payment terms such as Bank Wire (T/
 ### Decision
 1. **Order Creation (`PENDING`)**: Validates that stock is available, but does **not** permanently deduct warehouse physical inventory.
 2. **Order Confirmation (`CONFIRMED`)**: When the finance administrator verifies the bank wire slip via `POST /api/v1/admin/orders/{id}/payment/verify`, the backend executes a database transaction with row locks (`lockForUpdate`), decrements `inventories.quantity`, and writes an audited record in `admin_inventory_adjustments`.
-3. POS transactions processed at the showroom counter with immediate cash settlement transition directly to `CONFIRMED` and deduct inventory synchronously.
+3. POS transactions processed at the showroom counter with immediate cash settlement transition directly to `CONFIRMED` and deduct inventory synchronously. Unverified bank transfer POS orders remain in `pending` payment status with full balance due and do not deduct physical inventory until approved.
 
 ### Consequences
 - **Positive**: Unpaid wire orders do not lock factory stock; confirmed orders are guaranteed to deduct warehouse balances atomically.

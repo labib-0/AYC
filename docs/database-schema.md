@@ -10,6 +10,7 @@ The Ayaan Clothing platform uses **PostgreSQL 16.15** (`ayaan_production`) as it
 3. **Audit Immutability**: Historical financial records (`order_items.buying_price_at_sale`), warehouse adjustments (`admin_inventory_adjustments`), and system activities (`activities`) are append-only.
 4. **Soft Deletes**: Key business entities (`products`, `categories`, `brands`, `orders`, `customers`) utilize soft deletion (`deleted_at`) to preserve historical integrity in export documentation.
 5. **Strict No-Wipe Policy**: Production commands like `migrate:fresh`, `db:wipe`, or `truncate` are strictly prohibited.
+6. **Internal Sourcing Protection**: Factory supplier references (`supplier_id`, `supplier_name`) and procurement baseline costs (`buying_price`) are strictly private internal fields, accessible only to authorized administrators and never serialized in customer API payloads.
 
 ---
 
@@ -74,7 +75,7 @@ erDiagram
 - **Key Columns**:
   - `id` (bigint, PK)
   - `name` (varchar(255), not null)
-  - `email` (varchar(255), nullable) — Made nullable to support phone-only POS customer registrations.
+  - `email` (varchar(255), nullable) — Nullable to support phone-only POS customer registrations.
   - `phone` (varchar(50), nullable, indexed)
   - `password` (varchar(255), not null)
   - `role` (varchar(20), not null, default 'customer') — Foundational role: `'admin'` or `'customer'`.
@@ -87,14 +88,14 @@ erDiagram
 
 #### 2. `personal_access_tokens`
 - **Purpose**: Laravel Sanctum bearer tokens for stateless REST authentication.
-- **Key Columns**: `id` (PK), `tokenable_type`, `tokenable_id` (FK -> users.id), `name`, `token` (varchar(64), unique hashed), `abilities` (text), `last_used_at`, `expires_at`.
+- **Key Columns**: `id` (PK), `tokenable_type`, `tokenable_id` (FK -> users.id), `name`, `token` (varchar(64), unique hashed SHA-256), `abilities` (text), `last_used_at`, `expires_at`.
 
 #### 3. `roles`
 - **Purpose**: Administrative RBAC role definitions (e.g., Super Admin, Merchandiser, Cashier).
 - **Key Columns**: `id` (PK), `name` (varchar(100)), `slug` (varchar(100), unique), `description` (text), `is_system` (boolean, default false).
 
 #### 4. `permissions`
-- **Purpose**: Atomic capability registry (e.g., `product.create`, `order.update_status`).
+- **Purpose**: Atomic capability registry (e.g., `product.create`, `order.update_status`, `pos.sale`).
 - **Key Columns**: `id` (PK), `name` (varchar(100)), `slug` (varchar(100), unique), `module` (varchar(50)), `description` (text).
 
 #### 5. `role_permissions`
@@ -126,7 +127,8 @@ erDiagram
   - `slug` (varchar(255), not null, unique where null deleted_at)
   - `sku` (varchar(100), not null, unique where null deleted_at)
   - `brand_id` (bigint, nullable, FK -> brands.id)
-  - `supplier_id` (bigint, nullable, FK -> suppliers.id)
+  - `supplier_id` (bigint, nullable, FK -> suppliers.id) — Internal only.
+  - `supplier_name` (varchar(255), nullable) — Internal supplier name mirror.
   - `design_type` (varchar(50), nullable) — Garment styling (e.g., Slim Fit, Oversized).
   - `description` (text, nullable)
   - `specifications` (jsonb, nullable) — Fabric composition, GSM, wash care.
@@ -134,7 +136,7 @@ erDiagram
   - `bulk_price` (numeric(10,2), nullable) — Tier 2 volume price ($P_{\text{tier2}}$).
   - `bulk_min_quantity` (integer, nullable) — Volume threshold ($Q_2$).
   - `full_stock_price` (numeric(10,2), nullable) — Lot liquidation clearance price.
-  - `buying_price` (numeric(10,2), not null) — Purchase cost price (COGS baseline).
+  - `buying_price` (numeric(10,2), not null) — Procurement cost price (COGS baseline; internal only).
   - `purchase_price_updated_at` (timestamp, nullable)
   - `moq` (integer, not null, default 1) — Minimum order quantity.
   - `stock` (integer, not null, default 0) — Denormalized aggregate warehouse stock preview.
@@ -159,7 +161,7 @@ erDiagram
 - **Key Columns**: `id` (PK), `name`, `slug` (unique), `logo`, `website`, `sort_order`, `is_featured`, `is_active`, `created_at`, `updated_at`.
 
 #### 13. `suppliers`
-- **Purpose**: Upstream garment manufacturing factories and fabric mills.
+- **Purpose**: Upstream garment manufacturing factories and fabric mills (internal management only).
 - **Key Columns**: `id` (PK), `name` (varchar(255)), `contact_person`, `phone`, `email`, `address`, `country`, `is_active`, `created_at`, `updated_at`.
 
 #### 14. `product_variants`
@@ -224,22 +226,23 @@ erDiagram
 - **Key Columns**: `id` (PK), `cart_id` (FK -> carts.id), `product_id` (FK -> products.id), `product_variant_id` (FK -> product_variants.id, nullable), `quantity` (integer), `pricing_mode` (varchar(30), default 'STANDARD'), `package_breakdown` (jsonb, nullable), `created_at`, `updated_at`.
 
 #### 24. `orders`
-- **Purpose**: Master wholesale order records.
+- **Purpose**: Master wholesale order records across online store and POS terminal.
 - **Key Columns**:
   - `id` (PK)
-  - `order_number` (varchar(50), not null, unique) — Format: `ORD-YYYY-XXXXXX`.
+  - `order_number` (varchar(50), not null, unique) — Format: `ORD-YYYY-XXXXXX` or `AYN-POS-YYYYMMDD-XXXXXX`.
   - `user_id` (FK -> users.id, nullable) — Buyer account.
   - `guest_email` (varchar(255), nullable)
   - `order_source` (varchar(30), default 'ONLINE') — `'ONLINE'`, `'POS'`.
   - `operator_id` (FK -> users.id, nullable) — Staff member who processed the order.
   - `status` (varchar(30), not null, default 'PENDING') — `'PENDING'`, `'CONFIRMED'`, `'PROCESSING'`, `'SHIPPED'`, `'DELIVERED'`, `'CANCELLED'`.
-  - `payment_status` (varchar(30), default 'UNPAID') — `'UNPAID'`, `'PAYMENT_SUBMITTED'`, `'PAID'`, `'REJECTED'`.
-  - `payment_method` (varchar(50), default 'WIRE_TRANSFER') — `'WIRE_TRANSFER'`, `'CASH'`, `'LC'`.
+  - `payment_status` (varchar(30), default 'UNPAID') — `'UNPAID'`, `'PAYMENT_SUBMITTED'`, `'PAID'`, `'REJECTED'`, `'pending'`.
+  - `payment_method` (varchar(50), default 'WIRE_TRANSFER') — `'WIRE_TRANSFER'`, `'pos_cash'`, `'bank_transfer'`, `'LC'`.
   - `subtotal`, `tax_amount`, `shipping_amount`, `discount_amount`, `total_amount` (numeric(10,2)).
   - `coupon_id` (FK -> coupons.id, nullable)
   - `coupon_code` (varchar(50), nullable)
   - `shipping_address`, `billing_address` (jsonb)
   - `shipping_snapshot` (jsonb, nullable) — Cartons, CBM, weight.
+  - `payment_details` (jsonb, nullable) — Stores `payment_note`, `bank_profile_id`, `bank_name`, and references.
   - `aramex_shipment_id`, `tracking_number` (varchar(100), nullable)
   - `pos_cash_tendered`, `pos_change_due` (numeric(10,2), nullable)
   - `created_at`, `updated_at`, `deleted_at`

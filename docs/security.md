@@ -1,4 +1,4 @@
-# AYC — User Roles, Permissions & Business Rules
+# AYC — Security, Roles & Permissions
 
 ## 1. Foundational Two-Role Architecture
 
@@ -33,7 +33,7 @@ Administrative staff members are assigned one or more administrative roles in `a
 | **Super Admin** | `super_admin` | Unrestricted access across all operational, financial, and governance modules | ✅ Yes |
 | **Merchandiser** | `merchandiser` | Product catalog, media management, pricing tiers, and homepage merchandising | ❌ No |
 | **Warehouse Operator** | `warehouse_operator` | Warehouse stock adjustments, physical inventory audits, and logistics packing | ❌ No |
-| **Cashier / POS Operator** | `cashier` | Showroom counter order creation, quick customer registration, and cash tender | ❌ No |
+| **Cashier / POS Operator** | `cashier` | Showroom counter order creation, quick customer registration, and cash settlement | ❌ No |
 | **Finance & Accounts Auditor** | `finance_auditor` | Bank wire review, payment verification, order confirmation, and COGS reports | ❌ No |
 | **Coupon Sales Manager** | `coupon_sales` | Sales and revenue reports strictly scoped to assigned promotional coupons | ❌ No |
 

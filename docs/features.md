@@ -35,6 +35,7 @@ This document provides exhaustive, implementation-verified specifications for al
 - **Public Product ID**: Human-friendly alphanumeric identifier (e.g., `AYC-POLO-001`) indexed for catalog lookups.
 - **SKU Architecture**: Master product SKU (e.g., `EXP-POLO-BLK`) and child variant SKUs (e.g., `EXP-POLO-BLK-M`).
 - **Taxonomies**: Multi-tier categories (`categories`), brand collections (`brands`), and garment suppliers (`suppliers`).
+- **Internal Sourcing Data**: Factory supplier keys (`supplier_id`, `supplier_name`) and procurement baseline costs (`buying_price`) are strictly private administrative fields, never exposed on the public storefront.
 - **Variant Permutations**: Supported dimensions include Color and Size. Default standard variants are generated automatically for variantless products to maintain unified warehouse inventory bindings.
 - **Slug Recycling on Deletion**: Eloquent lifecycle hooks (`Product::booted`) suffix deleted slugs (`{slug}-deleted-{id}-{timestamp}`) to immediately free up human-readable URLs for catalog re-use.
 
@@ -127,7 +128,7 @@ stateDiagram-v2
 
 ## 15. POS Terminal & Standard Order Integration
 - **Unified Pipeline**: Counter sales processed in `/ayc/pos` create standard AYC orders (`order_source = 'POS'`) stored in the authoritative `orders` and `order_items` tables.
-- **Warehouse decrements**: Decrements stock synchronously from the cashier's selected warehouse location.
+- **Warehouse decrements**: Decrements stock synchronously from the cashier's selected warehouse location upon paid settlement.
 - **No Barcode Scanner Dependency**: Products are searched via catalog title, SKU, or category chips.
 - **No Thermal Receipt Mini Slips**: Counter orders produce standardized A4 commercial invoices.
 
@@ -140,10 +141,12 @@ stateDiagram-v2
 
 ---
 
-## 17. Cash Tender & Change Calculation
-- **Counter Settlement**: Cashiers select cash tender mode and input the cash amount tendered by the customer.
-- **Server-Side Math**: Calculates change due: $\text{Change} = \text{CashTendered} - \text{OrderTotal}$.
-- **Immediate Confirmation**: Successful cash transactions transition directly to `CONFIRMED` and `PAID`.
+## 17. POS Payment Simplification & Automatic Settlement
+- **Two Payment Options**: Terminal offers strictly **Cash** (`pos_cash`) and **Bank Transfer** (`bank_transfer`). Card and Mobile options are completely removed from the cashier interface.
+- **Automatic Amount Calculation**: Uses authoritative calculated grand total from line items, approved discounts (coupons, percentage, or fixed overrides), and taxes. The cashier never re-enters the sale total.
+- **Retirement of Cash Tender Controls**: The manual cash tendered input (`#pos-cash-tendered-input`), banknote shortcut buttons (`cashShortcuts`), and change return card (`#pos-change-return-display`) are completely retired.
+- **Cash Workflow**: Single-click sale completion with an optional Payment Note field (`#pos-cash-payment-note`), immediately decrementing warehouse inventory and recording the sale as paid.
+- **Bank Transfer Workflow**: Displays authoritative Commercial Invoice banking coordinates (`Pubali Bank Limited`) without re-entering customer information. Sets `paid_amount = 0.00`, `balance_due = $totalAmount`, and `payment_status = 'pending'`, preserving physical inventory until verified by admin review.
 
 ---
 

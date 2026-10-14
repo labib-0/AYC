@@ -39,7 +39,8 @@ npm run build
 # 5. Run Backend Unit Tests (PHPUnit)
 cd backend && ./vendor/bin/phpunit tests/Unit
 
-# 6. Run Backend Feature Tests (e.g. SEO, Catalog)
+# 6. Run Backend Feature Tests (e.g. SEO, Catalog, POS)
+cd backend && ./vendor/bin/phpunit tests/Feature/Admin/AdminPosSaleWorkflowTest.php
 cd backend && ./vendor/bin/phpunit tests/Feature/Seo
 cd backend && ./vendor/bin/phpunit tests/Feature/Catalog
 ```
@@ -76,7 +77,7 @@ This matrix maps functional and non-functional requirements to their authoritati
 | **`FR-ORD-001`** | Wholesale Order Flow | `backend/.../Api/V1/OrderController.php` | `tests/canonical-customer-order-lifecycle.test.ts` | Verified |
 | **`FR-PAY-001`** | Bank Wire Verification | `backend/.../AdminOrderController.php` | `tests/order-flow-final-regression.test.ts` | Verified |
 | **`FR-POS-001`** | Mandatory POS Customer | `src/app/ayc/pos/page.tsx` | `tests/verify-pos-customer-workflow.mjs` | Verified |
-| **`FR-POS-002`** | Cash Tender & Change | `backend/.../Order/AdminPosSaleService.php` | `tests/qa-pos-customer-correction-browser.mjs` | Verified |
+| **`FR-POS-002`** | Automatic Cash & 2-Payment POS | `src/app/ayc/pos/page.tsx`, `AdminPosSaleService.php` | `tests/admin-pos-payment-simplification.test.ts` | Verified |
 | **`FR-DOC-001`** | 3-Document Standard | `backend/.../Services/Documents/*` | `tests/stf-phase-j-commercial-document-normalization.test.ts` | Verified |
 | **`FR-SEO-001`** | XML Sitemap & Proxy | `src/app/sitemap.ts`, `src/proxy.ts` | `tests/google-search-console-and-technical-seo.test.ts` | Verified |
 | **`FR-GEO-001`** | Bangladesh Storefront Lock| `src/proxy.ts`, `StorefrontCountryAccessService` | `tests/geo-block-403-page.test.ts` | Verified |

@@ -19,7 +19,7 @@ C4Context
     System_Ext(google, "Google Identity & Search", "OAuth 2.0 social login and Search Console sitemap indexing")
 
     Rel(buyer, ayc, "Browses wholesale catalog, requests quotes, places orders, uploads wire slips, downloads PI/CI", "HTTPS")
-    Rel(cashier, ayc, "Processes showroom orders, registers counter customers, calculates cash tender", "HTTPS / Port 3001")
+    Rel(cashier, ayc, "Processes showroom orders, registers counter customers, initiates cash settlement", "HTTPS / Port 3001")
     Rel(admin, ayc, "Manages catalog, verifies payments, audits inventory, generates commercial export docs", "HTTPS / Port 3001")
 
     Rel(ayc, bank, "Issues verified wire instructions; staff reconciles accounts", "SWIFT / Manual Wire")

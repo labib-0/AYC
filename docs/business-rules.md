@@ -1,4 +1,4 @@
-# AYC — Project Overview & Business Context
+# AYC — Business Rules, Model & Workflows
 
 ## 1. Executive Summary
 
@@ -61,7 +61,7 @@ graph TD
     SuperAdmin -->|Full System Governance, RBAC, Settings| AdminGateway["Admin Portal /ayc (Port 3001)"]
     SalesManager -->|Catalog, Pricing, Merchandising, RFQ Response| AdminGateway
     WarehouseOp -->|Stock Adjustments, Fulfillment, Aramex AWB| AdminGateway
-    Cashier -->|Counter Customer Order Creation, Cash Tender| AdminGateway
+    Cashier -->|Counter Customer Order Creation & Settlement| AdminGateway
     FinanceAdmin -->|Wire Slip Review, Payment Verification, P&L| AdminGateway
     CouponManager -->|Bound Coupon Sales & Revenue Reports| AdminGateway
 ```
@@ -84,7 +84,7 @@ graph TD
    - Responsibilities: Audits stock across physical warehouses (`WH-UTTARA-01`, `WH-CTG-01`), records stock adjustments with mandatory audit reasons, creates Aramex air freight consignments, inputs international bills of lading (AWB).
 6. **Showroom POS Cashier**:
    - Accesses: `/ayc/pos`.
-   - Responsibilities: Identifies or registers buyers by phone, selects warehouse stock, calculates totals and cash tender change, generates standard commercial orders.
+   - Responsibilities: Identifies or registers buyers by phone, selects warehouse stock, reviews automatic settlement totals, selects Cash or Bank transfer, and generates standard commercial orders.
 7. **Finance & Accounts Auditor**:
    - Accesses: Orders, payments, coupon sales, financial analytics.
    - Responsibilities: Inspects uploaded bank wire payment proofs, verifies funds against Pubali Bank statements, confirms orders (triggering automated inventory deduction), reviews historical Gross Profit and COGS metrics.
