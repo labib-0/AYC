@@ -139,14 +139,14 @@ export default function AdminSidebar({
 
   return (
     <aside
-      className={`flex flex-col border-r border-border/80 bg-card p-3 sm:p-4 shrink-0 h-full overflow-y-auto transition-all duration-200 select-none ${
-        isCollapsed ? "w-16 items-center" : "w-64"
+      className={`flex flex-col border-r border-border/80 bg-card shrink-0 h-full select-none transition-all duration-200 overflow-hidden ${
+        isCollapsed ? "w-16" : "w-64"
       }`}
       aria-label="Admin Navigation Sidebar"
     >
-      {/* Mobile Drawer Header with Close Button */}
+      {/* 1. Mobile Drawer Header with Close Button */}
       {isMobileDrawer && (
-        <div className="flex items-center justify-between pb-3 mb-2 border-b border-border/80 w-full">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/80 shrink-0 w-full">
           <div className="flex items-center gap-2">
             <div className="relative w-6 h-6 shrink-0 flex items-center justify-center">
               <Image
@@ -172,13 +172,48 @@ export default function AdminSidebar({
         </div>
       )}
 
-      {/* Navigation Sections */}
-      <div className={`space-y-4 sm:space-y-5 flex-1 w-full ${isCollapsed ? "space-y-3" : ""}`}>
+      {/* 2. Desktop Rail Top Header (Pinned, NEVER scrolls) */}
+      {!isMobileDrawer && onToggleCollapse && (
+        <div
+          className={`h-11 border-b border-border/60 shrink-0 flex items-center bg-card/60 ${
+            isCollapsed ? "justify-center px-1" : "justify-between px-3.5"
+          }`}
+        >
+          {!isCollapsed && (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80 font-mono truncate">
+                Navigation
+              </span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            id={isCollapsed ? "admin-sidebar-expand-btn-top" : "admin-sidebar-collapse-btn-top"}
+            onClick={onToggleCollapse}
+            aria-expanded={!isCollapsed}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`flex items-center justify-center rounded-lg border border-border/60 bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+              isCollapsed ? "w-9 h-9" : "p-1.5"
+            }`}
+          >
+            {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={15} />}
+          </button>
+        </div>
+      )}
+
+      {/* 3. Central Scrollable Navigation Items */}
+      <div
+        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden subtle-scrollbar w-full ${
+          isCollapsed ? "px-2 py-3 space-y-3" : "p-3 sm:p-4 space-y-4 sm:space-y-5"
+        }`}
+      >
         {visibleSections.map((section, sIdx) => (
           <div key={section.title} className="space-y-1 w-full">
             {/* Section Header */}
             {isCollapsed ? (
-              sIdx > 0 && <div className="h-px bg-border/50 my-2 mx-1 w-8 self-center" />
+              sIdx > 0 && <div className="h-px bg-border/50 my-2 mx-auto w-6" />
             ) : (
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80 px-3 block mb-1 font-mono">
                 {section.title}
@@ -265,25 +300,31 @@ export default function AdminSidebar({
         ))}
       </div>
 
-      {/* Desktop Collapse / Expand Toggle Button at Footer */}
+      {/* 4. Desktop Rail Bottom Footer (Pinned, NEVER scrolls) */}
       {!isMobileDrawer && onToggleCollapse && (
-        <div className="pt-3 mt-auto border-t border-border/60 w-full flex items-center justify-center">
+        <div
+          className={`border-t border-border/60 shrink-0 bg-card p-2 w-full flex items-center ${
+            isCollapsed ? "justify-center" : "justify-between"
+          }`}
+        >
           <button
             type="button"
+            id={isCollapsed ? "admin-sidebar-expand-btn-bottom" : "admin-sidebar-collapse-btn-bottom"}
             onClick={onToggleCollapse}
-            className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer w-full ${
-              isCollapsed ? "justify-center" : "justify-between px-3"
-            }`}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!isCollapsed}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`flex items-center rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40 hover:border-border transition-colors cursor-pointer ${
+              isCollapsed ? "justify-center w-10 h-10" : "justify-between px-3 py-2 w-full"
+            }`}
           >
             {!isCollapsed && (
-              <span className="text-[11px] font-bold uppercase tracking-wider">Collapse</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider">Collapse Sidebar</span>
             )}
             {isCollapsed ? (
               <PanelLeftOpen size={16} />
             ) : (
-              <PanelLeftClose size={16} />
+              <PanelLeftClose size={15} />
             )}
           </button>
         </div>

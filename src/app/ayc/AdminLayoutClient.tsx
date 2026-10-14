@@ -17,12 +17,18 @@ function AdminLayoutInner({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Restore collapsed state preference
+  // Restore collapsed state preference safely
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("ayc_sidebar_collapsed");
-      if (saved === "true") {
-        setSidebarCollapsed(true);
+      try {
+        const saved = localStorage.getItem("ayc_sidebar_collapsed");
+        if (saved === "true") {
+          setSidebarCollapsed(true);
+        } else if (saved === "false") {
+          setSidebarCollapsed(false);
+        }
+      } catch {
+        // Fallback safely if storage is disabled or unavailable
       }
     }
   }, []);
@@ -31,7 +37,11 @@ function AdminLayoutInner({
     setSidebarCollapsed((prev) => {
       const next = !prev;
       if (typeof window !== "undefined") {
-        localStorage.setItem("ayc_sidebar_collapsed", String(next));
+        try {
+          localStorage.setItem("ayc_sidebar_collapsed", String(next));
+        } catch {
+          // Fallback safely if storage is disabled or unavailable
+        }
       }
       return next;
     });
@@ -104,6 +114,8 @@ function AdminLayoutInner({
         user={adminUser}
         mobileMenuOpen={mobileMenuOpen}
         onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={handleToggleCollapse}
         onSignOut={async () => {
           await signOutAdmin();
           router.push("/ayc");

@@ -12,7 +12,9 @@ import {
   Bell, 
   ShieldCheck,
   ExternalLink,
-  CheckCheck
+  CheckCheck,
+  PanelLeftClose,
+  PanelLeftOpen
 } from "lucide-react";
 import { User } from "@/types/api";
 import { getCustomerAppUrl } from "@/config/site-urls";
@@ -23,6 +25,8 @@ export interface AdminHeaderProps {
   mobileMenuOpen: boolean;
   onToggleMobileMenu: () => void;
   onSignOut: () => void;
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -50,6 +54,8 @@ export default function AdminHeader({
   mobileMenuOpen,
   onToggleMobileMenu,
   onSignOut,
+  sidebarCollapsed = false,
+  onToggleSidebar,
 }: AdminHeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotificationItem[]>([]);
@@ -147,6 +153,21 @@ export default function AdminHeader({
         >
           {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
+
+        {/* Desktop Sidebar Toggle Button in Header */}
+        {onToggleSidebar && (
+          <button
+            type="button"
+            id="admin-header-sidebar-toggle"
+            onClick={onToggleSidebar}
+            aria-expanded={!sidebarCollapsed}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="hidden md:flex items-center justify-center p-2 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
+        )}
 
         <Link
           href="/ayc/dashboard"
