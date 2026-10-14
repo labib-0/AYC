@@ -1515,6 +1515,11 @@ class ProductController extends ApiController
                     $request->merge(['supplier_name' => $supObj->name]);
                 }
             }
+        } elseif (($request->has('supplier_id') && is_null($request->input('supplier_id'))) ||
+                  ($request->has('supplierId') && is_null($request->input('supplierId')))) {
+            if (!$request->filled('supplier_name') && !$request->filled('supplierName')) {
+                $request->merge(['supplier_name' => null]);
+            }
         }
 
         $validated = $request->validate([
