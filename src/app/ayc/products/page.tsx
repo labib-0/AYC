@@ -419,13 +419,22 @@ function AdminProductsContent() {
     filters.purchasePriceStatus !== "all" ||
     Boolean(filters.availability && filters.availability !== "all");
 
+  // Reordering is ONLY enabled when ALL conditions are satisfied:
+  // 1. Total Products summary tile is selected
+  // 2. No search query is active
+  // 3. No catalog filters are active
+  // 4. Listing is in authoritative manual-order sorting mode
+  // 5. Page-size is set to "all" (complete sequence loaded)
+  // 6. Complete, unfiltered sequence has finished loading (!loading && !error && totalProducts > 0)
+  const isReorderEligible = !hasActiveFilters && isAll && !loading && !error && totalProducts > 0;
+
   // Persistent Reordering Hook
   const reorder = useTableReorder<B2BProductInput>({
     items: allProducts,
     onItemsChange: setAllProducts,
     getItemId: (p) => p.id,
     getItemTitle: (p) => p.name,
-    isReorderDisabled: hasActiveFilters,
+    isReorderDisabled: !isReorderEligible,
     disabledReason:
       "Reordering is disabled while search or catalog filters are active. Clear filters to return to manual sequence.",
     currentPage: safePage,
@@ -444,6 +453,7 @@ function AdminProductsContent() {
     setFilters((prev) => ({
       ...prev,
       status: targetStatus,
+      ...(targetStatus === "all" ? { availability: "all", purchasePriceStatus: "all" } : {}),
     }));
   };
 
@@ -818,10 +828,10 @@ function AdminProductsContent() {
       {/* Reorder Status & Filter Guard Banner */}
       <TableReorderBanner
         isSaving={reorder.isSaving}
-        isReorderDisabled={reorder.isReorderDisabled}
-        disabledReason={reorder.disabledReason}
+        isReorderDisabled={false}
+        hideDisabledBanner={true}
         onClearFilters={handleClearFilters}
-        isReady={!hasActiveFilters && perPage === "all"}
+        isReady={isReorderEligible}
         readyMessage={`All ${totalProducts} products loaded in manual sequence. Drag handles and Move Up / Down actions are enabled.`}
       />
 
@@ -844,7 +854,8 @@ function AdminProductsContent() {
         onClearFilters={handleClearFilters}
         hasActiveFilters={hasActiveFilters}
         startIndex={startIdx}
-        isReorderDisabled={reorder.isReorderDisabled}
+        showReorderControls={isReorderEligible}
+        isReorderDisabled={!isReorderEligible}
         disabledReason={reorder.disabledReason}
         onPointerDown={reorder.handlePointerDown}
         onMoveUp={reorder.moveUp}

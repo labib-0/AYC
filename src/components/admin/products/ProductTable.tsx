@@ -23,6 +23,7 @@ interface ProductTableProps {
   onClearFilters: () => void;
   hasActiveFilters: boolean;
   startIndex?: number;
+  showReorderControls?: boolean;
   isReorderDisabled?: boolean;
   disabledReason?: string;
   onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
@@ -175,6 +176,7 @@ export default function ProductTable({
   onClearFilters,
   hasActiveFilters,
   startIndex = 0,
+  showReorderControls = false,
   isReorderDisabled = false,
   disabledReason,
   onPointerDown,
@@ -379,14 +381,15 @@ export default function ProductTable({
                   selected={selectedIds.has(product.id)}
                   globalIndex={globalIndex}
                   localIndex={i}
+                  showReorderControls={showReorderControls}
                   isReorderDisabled={isReorderDisabled}
                   disabledReason={disabledReason}
-                  onPointerDown={onPointerDown}
-                  onMoveUp={onMoveUp ? () => onMoveUp(globalIndex) : undefined}
-                  onMoveDown={onMoveDown ? () => onMoveDown(globalIndex) : undefined}
+                  onPointerDown={showReorderControls ? onPointerDown : undefined}
+                  onMoveUp={showReorderControls && onMoveUp ? () => onMoveUp(globalIndex) : undefined}
+                  onMoveDown={showReorderControls && onMoveDown ? () => onMoveDown(globalIndex) : undefined}
                   isFirst={isFirstItem ? isFirstItem(globalIndex) : false}
                   isLast={isLastItem ? isLastItem(globalIndex) : false}
-                  rowVisualClass={getRowVisualClass ? getRowVisualClass(globalIndex) : ""}
+                  rowVisualClass={showReorderControls && getRowVisualClass ? getRowVisualClass(globalIndex) : ""}
                   onSelect={onSelect}
                   onTogglePublish={onTogglePublish}
                   onToggleStorefrontVisibility={onToggleStorefrontVisibility}

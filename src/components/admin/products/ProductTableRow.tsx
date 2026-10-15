@@ -38,6 +38,7 @@ interface ProductTableRowProps {
   onMarkSoldOut?: (product: B2BProductInput) => void;
   globalIndex?: number;
   localIndex?: number;
+  showReorderControls?: boolean;
   isReorderDisabled?: boolean;
   disabledReason?: string;
   onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
@@ -61,6 +62,7 @@ export default function ProductTableRow({
   onMarkSoldOut,
   globalIndex = 0,
   localIndex = 0,
+  showReorderControls = false,
   isReorderDisabled = false,
   disabledReason = "Reordering is disabled while search or filters are active.",
   onPointerDown,
@@ -144,27 +146,25 @@ export default function ProductTableRow({
 
   return (
     <tr
-      data-ordered-row
+      data-ordered-row={showReorderControls ? "" : undefined}
       data-global-index={globalIndex}
       data-index={localIndex}
-      className={`border-b border-border/40 hover:bg-secondary/40 transition-colors group ${rowVisualClass}`}
+      className={`border-b border-border/40 hover:bg-secondary/40 transition-colors group ${showReorderControls ? rowVisualClass : ""}`}
     >
       {/* 0. Reorder Drag Handle */}
       <td className="px-1.5 py-2.5 sm:py-3 w-9 text-center align-middle" style={{ width: "36px" }}>
-        <TableDragHandle
-          globalIndex={globalIndex}
-          localIndex={localIndex}
-          itemTitle={product.name}
-          disabled={!canReorder || isReorderDisabled}
-          disabledReason={
-            !canReorder
-              ? "You do not have permission to reorder products."
-              : disabledReason
-          }
-          onPointerDown={onPointerDown || (() => {})}
-          onMoveUp={onMoveUp}
-          onMoveDown={onMoveDown}
-        />
+        {showReorderControls && canReorder ? (
+          <TableDragHandle
+            globalIndex={globalIndex}
+            localIndex={localIndex}
+            itemTitle={product.name}
+            disabled={isReorderDisabled}
+            disabledReason={disabledReason}
+            onPointerDown={onPointerDown || (() => {})}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+          />
+        ) : null}
       </td>
 
       {/* Checkbox */}
@@ -382,17 +382,13 @@ export default function ProductTableRow({
         style={{ width: "98px" }}
       >
         <div className="flex items-center justify-center gap-1.5">
-          {onMoveUp && onMoveDown && (
+          {showReorderControls && canReorder && onMoveUp && onMoveDown && (
             <TableMoveControls
               globalIndex={globalIndex}
               isFirst={isFirst}
               isLast={isLast}
-              disabled={!canReorder || isReorderDisabled}
-              disabledReason={
-                !canReorder
-                  ? "You do not have permission to reorder products."
-                  : disabledReason
-              }
+              disabled={isReorderDisabled}
+              disabledReason={disabledReason}
               onMoveUp={onMoveUp}
               onMoveDown={onMoveDown}
               itemTitle={product.name}

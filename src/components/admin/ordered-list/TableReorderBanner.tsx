@@ -10,6 +10,7 @@ export interface TableReorderBannerProps {
   isReady?: boolean;
   readyMessage?: string;
   className?: string;
+  hideDisabledBanner?: boolean;
 }
 
 export function TableReorderBanner({
@@ -20,6 +21,7 @@ export function TableReorderBanner({
   isReady = false,
   readyMessage,
   className = "",
+  hideDisabledBanner = false,
 }: TableReorderBannerProps) {
   if (isSaving) {
     return (
@@ -34,7 +36,7 @@ export function TableReorderBanner({
     );
   }
 
-  if (isReorderDisabled) {
+  if (isReorderDisabled && !hideDisabledBanner) {
     return (
       <div
         className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-700 dark:text-amber-400 ${className}`}
