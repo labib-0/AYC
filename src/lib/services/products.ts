@@ -29,6 +29,7 @@ export async function getProductStatistics(): Promise<{
   archived: number;
   lowStock: number;
   purchasePricePending: number;
+  featured: number;
 }> {
   return productService.getProductStatistics();
 }
@@ -54,10 +55,6 @@ export async function createProduct(input: B2BProductInput): Promise<B2BProductI
 
 export async function updateProduct(id: string, updates: Partial<B2BProductInput>): Promise<B2BProductInput | null> {
   return productService.updateProduct(id, updates);
-}
-
-export async function duplicateProduct(id: string): Promise<B2BProductInput | null> {
-  return productService.duplicateProduct(id);
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
@@ -188,6 +185,7 @@ export async function getFeaturedProducts(
           list = list.filter((p) => {
             const rawBrand = typeof p.brand === "string" ? p.brand : (p.brand as any)?.name || (p as any)?.brandName || "";
             const pBrand = rawBrand.toLowerCase().trim();
+            if (brandSet.has(pBrand)) return true;
             const pBrandClean = pBrand.replace(/['’.\s-]/g, "");
             return Array.from(brandSet).some((b) => {
               const bClean = b.replace(/^br_/, "").replace(/['’.\s-]/g, "");
@@ -240,8 +238,31 @@ export async function getFeaturedProducts(
   };
 
   const allFiltered = await productService.getProducts(queryParams);
-  const total = allFiltered.length;
-  const sliced = allFiltered.slice(offset, offset + limit).map(toStorefrontProduct);
+  let orderedProducts = allFiltered;
+
+  if (!isBestDeals && !isNew) {
+    const now = Date.now();
+    const isProductFeatured = (p: B2BProductInput) => {
+      const featUntil = p.featuredUntil || p.featured_until;
+      const isExpired = featUntil ? new Date(featUntil).getTime() <= now : false;
+      return Boolean(p.isFeatured ?? p.is_featured ?? (p as any).featured) && !isExpired;
+    };
+
+    const pinned = allFiltered
+      .filter(isProductFeatured)
+      .sort((a, b) => {
+        const sa = a.featuredSortOrder ?? (a as any).featured_sort_order ?? 9999;
+        const sb = b.featuredSortOrder ?? (b as any).featured_sort_order ?? 9999;
+        return sa - sb;
+      });
+
+    const pinnedIds = new Set(pinned.map((p) => String(p.id)));
+    const remaining = allFiltered.filter((p) => !pinnedIds.has(String(p.id)));
+    orderedProducts = [...pinned, ...remaining];
+  }
+
+  const total = orderedProducts.length;
+  const sliced = orderedProducts.slice(offset, offset + limit).map(toStorefrontProduct);
   const hasMore = offset + sliced.length < total;
 
   return { products: sliced, total, hasMore };

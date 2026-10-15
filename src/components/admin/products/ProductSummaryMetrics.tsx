@@ -1,6 +1,6 @@
 "use client";
 
-import { Package, CheckCircle2, FileText, AlertTriangle, Clock } from "lucide-react";
+import { Package, CheckCircle2, FileText, AlertTriangle, Clock, Star } from "lucide-react";
 
 interface ProductSummaryMetricsProps {
   total: number;
@@ -8,13 +8,16 @@ interface ProductSummaryMetricsProps {
   draft: number;
   lowStock: number;
   purchasePricePending?: number;
+  featured?: number;
   activeStatus?: string;
   loading?: boolean;
-  onStatusClick?: (status: "all" | "published" | "draft") => void;
+  onStatusClick?: (status: "all" | "published" | "draft" | "featured") => void;
   onPurchasePricePendingClick?: () => void;
   isPricePendingActive?: boolean;
   onLowStockClick?: () => void;
   isLowStockActive?: boolean;
+  onFeaturedClick?: () => void;
+  isFeaturedActive?: boolean;
 }
 
 export default function ProductSummaryMetrics({
@@ -23,6 +26,7 @@ export default function ProductSummaryMetrics({
   draft,
   lowStock,
   purchasePricePending,
+  featured = 0,
   activeStatus = "all",
   loading = false,
   onStatusClick,
@@ -30,6 +34,8 @@ export default function ProductSummaryMetrics({
   isPricePendingActive = false,
   onLowStockClick,
   isLowStockActive = false,
+  onFeaturedClick,
+  isFeaturedActive: propIsFeaturedActive,
 }: ProductSummaryMetricsProps) {
   const baseCard =
     "border rounded-xl px-4 py-3.5 flex items-center gap-3 transition-all duration-150 text-left w-full cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -37,6 +43,10 @@ export default function ProductSummaryMetrics({
   const isTotalActive = activeStatus === "all" && !isPricePendingActive && !isLowStockActive;
   const isPublishedActive = activeStatus === "published" && !isLowStockActive;
   const isDraftActive = activeStatus === "draft" && !isLowStockActive;
+  const isFeaturedActive =
+    propIsFeaturedActive !== undefined
+      ? propIsFeaturedActive
+      : activeStatus === "featured" && !isPricePendingActive && !isLowStockActive;
 
   const cards = [
     {
@@ -94,8 +104,8 @@ export default function ProductSummaryMetrics({
 
   const cols =
     purchasePricePending !== undefined
-      ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"
-      : "grid grid-cols-2 sm:grid-cols-4 gap-3";
+      ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
+      : "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3";
 
   return (
     <div className={cols} role="region" aria-label="Product Catalog Metrics and Filters">
@@ -106,6 +116,8 @@ export default function ProductSummaryMetrics({
         return (
           <Component
             key={c.label}
+            id={`card-metric-${c.id}`}
+            data-metric={c.id}
             type={c.onClick ? "button" : undefined}
             onClick={c.onClick}
             title={c.title}
@@ -147,6 +159,8 @@ export default function ProductSummaryMetrics({
       {purchasePricePending !== undefined && (
         <button
           type="button"
+          id="card-metric-cost-pending"
+          data-metric="cost_pending"
           onClick={onPurchasePricePendingClick}
           aria-pressed={isPricePendingActive}
           className={`${baseCard} ${
@@ -194,6 +208,48 @@ export default function ProductSummaryMetrics({
           </div>
         </button>
       )}
+
+      {/* Featured Products Summary Tile */}
+      <button
+        type="button"
+        id="card-metric-featured"
+        data-metric="featured"
+        onClick={onFeaturedClick || (() => onStatusClick?.(isFeaturedActive ? "all" : "featured"))}
+        aria-pressed={isFeaturedActive}
+        className={`${baseCard} ${
+          isFeaturedActive
+            ? "bg-purple-500/15 dark:bg-purple-950/40 border-purple-500 ring-2 ring-purple-500/30 shadow-xs font-semibold"
+            : "bg-card border-border/60 hover:bg-purple-500/10 dark:hover:bg-purple-950/20 hover:border-purple-400 dark:hover:border-purple-700"
+        }`}
+        title={isFeaturedActive ? "Click to clear Featured filter" : "Filter by Featured products"}
+      >
+        <div className="text-purple-600 dark:text-purple-400 shrink-0">
+          <Star size={18} strokeWidth={isFeaturedActive ? 2.5 : 2} className={isFeaturedActive ? "fill-purple-500/30" : ""} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-1">
+            <p
+              className={`text-[11px] font-bold uppercase tracking-widest truncate ${
+                isFeaturedActive ? "text-foreground" : "text-muted-foreground"
+              }`}
+            >
+              Featured
+            </p>
+            {isFeaturedActive && (
+              <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                Active
+              </span>
+            )}
+          </div>
+          {loading ? (
+            <div className="h-6 w-14 bg-secondary animate-pulse rounded mt-0.5" />
+          ) : (
+            <p className="text-lg font-bold tabular-nums text-foreground leading-tight mt-0.5">
+              {featured.toLocaleString()}
+            </p>
+          )}
+        </div>
+      </button>
     </div>
   );
 }

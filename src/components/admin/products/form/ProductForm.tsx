@@ -1039,6 +1039,7 @@ export default function ProductForm({
       const generated = val
         .toLowerCase()
         .trim()
+        .replace(/['’]/g, "")
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
       setSlug(generated);
@@ -1276,6 +1277,8 @@ export default function ProductForm({
         product_id: normalizedPid,
         name: name.trim() || (isEdit ? (initialData?.name || "") : (isDraftTarget ? "" : (undefined as any))),
         slug: slug.trim() || (isEdit ? (initialData?.slug || undefined) : (undefined as any)),
+        slugManuallyEdited: slugManuallyEdited,
+        slug_manually_edited: slugManuallyEdited,
         sku: sku.trim() || (isEdit ? (initialData?.sku || undefined) : (name.trim() ? generatedSku : (undefined as any))),
         isHiddenFromStorefront: isHiddenFromStorefront,
         is_hidden_from_storefront: isHiddenFromStorefront,
@@ -1493,7 +1496,10 @@ export default function ProductForm({
         if (err.errors) {
           const mapped: Record<string, string> = {};
           Object.entries(err.errors).forEach(([k, msgs]) => {
-            mapped[k] = Array.isArray(msgs) ? msgs.join(" ") : String(msgs);
+            const msgStr = Array.isArray(msgs) ? msgs.join(" ") : String(msgs);
+            mapped[k] = msgStr;
+            if (k === "product_id") mapped["productId"] = msgStr;
+            if (k === "productId") mapped["product_id"] = msgStr;
           });
           setErrors((prev) => ({ ...prev, ...mapped }));
         }

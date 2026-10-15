@@ -54,6 +54,8 @@ class ProductController extends ApiController
                 'low_stock_items' => $metrics['low_stock_products'],
                 'price_pending' => $metrics['price_pending_products'],
                 'purchase_price_pending' => $metrics['price_pending_products'],
+                'featured' => $metrics['featured_products'] ?? 0,
+                'featured_products' => $metrics['featured_products'] ?? 0,
             ],
             'message' => 'Product catalog statistics retrieved successfully',
         ]);
@@ -241,12 +243,10 @@ class ProductController extends ApiController
         // Flags (storefront only matches active, unexpired promotional badges)
         $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
         if ($request->boolean('is_featured')) {
-            $query->where('is_featured', true);
-            if (!$isAdmin) {
-                $query->where(function ($q) {
+            $query->where('is_featured', true)
+                ->where(function ($q) {
                     $q->whereNull('featured_until')->orWhere('featured_until', '>', now());
                 });
-            }
         }
         if ($request->boolean('is_hot')) {
             $query->where('is_hot', true);
@@ -525,7 +525,12 @@ class ProductController extends ApiController
                     // 1. Admin-pinned products (HomepageFeaturedProduct is authoritative)
                     $pinnedIds = HomepageFeaturedProduct::query()
                         ->where('is_active', true)
-                        ->whereHas('product', $applyStorefrontFilters)
+                        ->whereHas('product', function ($pq) use ($applyStorefrontFilters) {
+                            $applyStorefrontFilters($pq);
+                            $pq->where(function ($fq) {
+                                $fq->whereNull('featured_until')->orWhere('featured_until', '>', now());
+                            });
+                        })
                         ->orderBy('sort_order', 'asc')
                         ->pluck('product_id')
                         ->filter()
@@ -534,7 +539,11 @@ class ProductController extends ApiController
 
                     // Fallback: If no records in homepage_featured_products, check products with is_featured = true
                     if (empty($pinnedIds)) {
-                        $fallbackPinnedQuery = Product::query()->where('is_featured', true);
+                        $fallbackPinnedQuery = Product::query()
+                            ->where('is_featured', true)
+                            ->where(function ($fq) {
+                                $fq->whereNull('featured_until')->orWhere('featured_until', '>', now());
+                            });
                         $applyStorefrontFilters($fallbackPinnedQuery);
                         $pinnedIds = $fallbackPinnedQuery
                             ->orderBy('featured_sort_order', 'asc')
@@ -728,6 +737,23 @@ class ProductController extends ApiController
         }
         if ($request->has('costPrice') && !$request->has('cost_price')) {
             $request->merge(['cost_price' => $request->input('costPrice')]);
+        }
+
+        $slugManuallyEdited = $request->boolean('slug_manually_edited');
+        $rawSlug = $request->input('slug');
+
+        // Automatically generate deterministic unique slug (e.g. name-2, name-3) if not manually customized or if empty
+        if (!$slugManuallyEdited || empty($rawSlug)) {
+            $slugSource = !empty($request->input('name'))
+                ? $request->input('name')
+                : (!empty($rawSlug) ? $rawSlug : ('product-' . ($request->input('product_id') ?: \Illuminate\Support\Str::random(8))));
+            $baseSlug = \Illuminate\Support\Str::slug($slugSource) ?: 'product-' . \Illuminate\Support\Str::random(8);
+            $slugCandidate = $baseSlug;
+            $sCount = 1;
+            while (Product::where('slug', $slugCandidate)->whereNull('deleted_at')->exists()) {
+                $slugCandidate = $baseSlug . '-' . (++$sCount);
+            }
+            $request->merge(['slug' => $slugCandidate]);
         }
 
         $validated = $request->validate([

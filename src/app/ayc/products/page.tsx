@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { Plus, SlidersHorizontal, CheckCircle2, AlertTriangle, X } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import {
   getProducts,
   getProductStatistics,
   deleteProduct,
-  duplicateProduct,
   togglePublishStatus,
   reorderProducts,
   markProductSoldOut,
@@ -17,7 +16,7 @@ import {
 import { brandService } from "@/services/brand.service";
 import { categoryService } from "@/services/category.service";
 import { productDraftService } from "@/lib/services/product-draft.service";
-import { toggleProductStorefrontVisibility } from "@/services/product.service";
+import { toggleProductStorefrontVisibility, toggleProductFeatured } from "@/services/product.service";
 import { sortBrandsAlphabetically } from "@/lib/brand-sort";
 
 import {
@@ -27,7 +26,6 @@ import {
   ProductPagination,
   ProductBulkActions,
   DeleteProductModal,
-  DuplicateProductModal,
   MarkSoldOutModal,
   ProductToast,
 } from "@/components/admin/products";
@@ -86,6 +84,7 @@ function mapProductToInventoryRecord(product: B2BProductInput): InventoryRecord 
 
 
 function AdminProductsContent() {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { can, isSuperAdmin } = useAdminAuth();
@@ -122,6 +121,7 @@ function AdminProductsContent() {
     draft: 0,
     lowStock: 0,
     purchasePricePending: 0,
+    featured: 0,
   });
 
   // ── Filter State ──
@@ -174,7 +174,6 @@ function AdminProductsContent() {
 
   // ── Modals ──
   const [deleteTarget, setDeleteTarget] = useState<B2BProductInput | null>(null);
-  const [duplicateTarget, setDuplicateTarget] = useState<B2BProductInput | null>(null);
   const [soldOutTarget, setSoldOutTarget] = useState<B2BProductInput | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -237,6 +236,7 @@ function AdminProductsContent() {
         draft: stats.draft,
         lowStock: stats.lowStock,
         purchasePricePending: stats.purchasePricePending,
+        featured: stats.featured || 0,
       });
     } catch {
       // Fallback
@@ -308,7 +308,7 @@ function AdminProductsContent() {
       }
       if (filters.designType !== "all") {
         const dtLower = filters.designType.toLowerCase();
-        filtered = data.filter((p) => {
+        filtered = filtered.filter((p) => {
           const rawDt = ((p.designType || p.productType || "ORIGINAL") as string).toUpperCase();
           const pDt = (rawDt === "MASTER COPY" || rawDt === "REPLICA" || rawDt === "MC") ? "MASTER COPY" : "ORIGINAL";
           if (dtLower === "master_copy" || dtLower === "replica" || dtLower === "mc") {
@@ -440,11 +440,26 @@ function AdminProductsContent() {
   });
 
   // ── Status Filter Click from Summary Cards ──
-  const handleStatusFilterClick = (targetStatus: "all" | "published" | "draft") => {
+  const handleStatusFilterClick = (targetStatus: "all" | "published" | "draft" | "featured") => {
     setFilters((prev) => ({
       ...prev,
       status: targetStatus,
     }));
+  };
+
+  // ── Feature / Unfeature Product Handler ──
+  const handleToggleFeatured = async (product: B2BProductInput) => {
+    const newFeatured = !product.isFeatured;
+    try {
+      await toggleProductFeatured(product.id, newFeatured);
+      addToast(
+        "success",
+        `Product "${product.name || product.productId}" is now ${newFeatured ? "featured on homepage" : "removed from featured products"}.`
+      );
+      await Promise.all([loadProducts(), loadGlobalMetrics()]);
+    } catch (err: any) {
+      addToast("error", err?.message || "Failed to update featured status.");
+    }
   };
 
   // ── Selection Handlers ──
@@ -531,21 +546,6 @@ function AdminProductsContent() {
         err?.message ||
         "Failed to delete product. Please try again.";
       addToast("error", msg);
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  const handleDuplicateConfirm = async () => {
-    if (!duplicateTarget) return;
-    setModalLoading(true);
-    try {
-      await duplicateProduct(duplicateTarget.id);
-      addToast("success", "Product duplicated.");
-      setDuplicateTarget(null);
-      await Promise.all([loadProducts(), loadGlobalMetrics()]);
-    } catch {
-      addToast("error", "Failed to duplicate product.");
     } finally {
       setModalLoading(false);
     }
@@ -639,13 +639,12 @@ function AdminProductsContent() {
   };
 
   const handleOpenGlobalAdjust = () => {
-    setAdjustingItem(null);
-    setIsAdjustModalOpen(true);
+    router.push("/ayc/products/stock");
   };
 
   const handleOpenRowAdjust = (product: B2BProductInput) => {
-    setAdjustingItem(mapProductToInventoryRecord(product));
-    setIsAdjustModalOpen(true);
+    const pid = product.productId || product.id;
+    router.push(`/ayc/products/stock?productId=${encodeURIComponent(String(pid))}`);
   };
 
   const handleOpenRowHistory = (product: B2BProductInput) => {
@@ -750,16 +749,19 @@ function AdminProductsContent() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {canAdjustStock && (
-            <button
-              type="button"
+            <Link
+              href="/ayc/products/stock"
               id="btn-products-adjust-stock"
-              onClick={handleOpenGlobalAdjust}
+              onClick={(e) => {
+                e.preventDefault();
+                handleOpenGlobalAdjust();
+              }}
               className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-secondary border border-border/80 text-foreground hover:bg-secondary/80 transition-all shadow-xs shrink-0 cursor-pointer"
-              title="Record verified stock adjustments"
+              title="Record verified stock adjustments in dedicated inventory workspace"
             >
               <SlidersHorizontal size={14} className="text-primary" />
               <span>Adjust Stock</span>
-            </button>
+            </Link>
           )}
           <PermissionGate permission="product.create">
             <Link
@@ -781,6 +783,7 @@ function AdminProductsContent() {
         draft={globalMetrics.draft}
         lowStock={globalMetrics.lowStock}
         purchasePricePending={globalMetrics.purchasePricePending}
+        featured={globalMetrics.featured}
         activeStatus={filters.status}
         loading={metricsLoading}
         onStatusClick={handleStatusFilterClick}
@@ -832,7 +835,7 @@ function AdminProductsContent() {
         onSelectAll={handleSelectAll}
         onTogglePublish={handleTogglePublish}
         onToggleStorefrontVisibility={handleToggleStorefrontVisibility}
-        onDuplicate={(p) => setDuplicateTarget(p)}
+        onToggleFeatured={handleToggleFeatured}
         onDelete={(p) => setDeleteTarget(p)}
         onMarkSoldOut={canMarkSoldOut ? (p) => setSoldOutTarget(p) : undefined}
         onAdjustStock={canAdjustStock ? handleOpenRowAdjust : undefined}
@@ -872,15 +875,6 @@ function AdminProductsContent() {
         productName={deleteTarget?.name || ""}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTarget(null)}
-        loading={modalLoading}
-      />
-
-      {/* Duplicate Modal */}
-      <DuplicateProductModal
-        open={duplicateTarget !== null}
-        productName={duplicateTarget?.name || ""}
-        onConfirm={handleDuplicateConfirm}
-        onCancel={() => setDuplicateTarget(null)}
         loading={modalLoading}
       />
 

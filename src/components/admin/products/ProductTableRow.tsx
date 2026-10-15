@@ -9,7 +9,6 @@ import {
   ExternalLink,
   ArrowUpCircle,
   ArrowDownCircle,
-  Copy,
   Trash2,
   Eye,
   EyeOff,
@@ -17,6 +16,7 @@ import {
   History,
   Ban,
   Package,
+  Star,
 } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
@@ -31,7 +31,7 @@ interface ProductTableRowProps {
   onSelect: (id: string, selected: boolean) => void;
   onTogglePublish: (product: B2BProductInput) => void;
   onToggleStorefrontVisibility?: (product: B2BProductInput) => void;
-  onDuplicate: (product: B2BProductInput) => void;
+  onToggleFeatured?: (product: B2BProductInput) => void;
   onDelete: (product: B2BProductInput) => void;
   onAdjustStock?: (product: B2BProductInput) => void;
   onViewStockHistory?: (product: B2BProductInput) => void;
@@ -54,7 +54,7 @@ export default function ProductTableRow({
   onSelect,
   onTogglePublish,
   onToggleStorefrontVisibility,
-  onDuplicate,
+  onToggleFeatured,
   onDelete,
   onAdjustStock,
   onViewStockHistory,
@@ -522,6 +522,25 @@ export default function ProductTableRow({
                 </button>
               )}
 
+              {onToggleFeatured && (
+                <button
+                  type="button"
+                  id={`btn-toggle-featured-${product.id}`}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onToggleFeatured(product);
+                  }}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
+                  title={product.isFeatured ? "Remove from featured products" : "Feature this product on homepage"}
+                >
+                  <Star
+                    size={13}
+                    className={product.isFeatured ? "text-amber-500 fill-amber-500" : "text-amber-500"}
+                  />
+                  <span>{product.isFeatured ? "Unfeature Product" : "Feature Product"}</span>
+                </button>
+              )}
+
               {can("product.publish") && (
                 <>
                   <div className="h-px bg-border/60 my-1" />
@@ -545,19 +564,6 @@ export default function ProductTableRow({
                     )}
                   </button>
                 </>
-              )}
-
-              {can("product.create") && (
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onDuplicate(product);
-                  }}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left"
-                >
-                  <Copy size={13} className="text-blue-600" />
-                  Duplicate
-                </button>
               )}
 
               {can("product.delete") && (

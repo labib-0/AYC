@@ -148,6 +148,73 @@ class MockStore {
     const products = this.getProducts();
     const existingIndex = products.findIndex((p) => String(p.id) === String(productInput.id));
 
+    // 1. Enforce Product ID uniqueness
+    const targetPid = ((productInput.productId || (productInput as any).product_id) as string)?.trim().replace(/\s+/g, "");
+    if (targetPid) {
+      const conflict = products.find(
+        (p, idx) =>
+          idx !== existingIndex &&
+          ((p.productId || (p as any).product_id)?.trim().replace(/\s+/g, "").toLowerCase() === targetPid.toLowerCase())
+      );
+      if (conflict) {
+        const err: any = new Error("The product id has already been taken.");
+        err.status = 422;
+        err.errors = {
+          product_id: ["The product id has already been taken."],
+          productId: ["The product id has already been taken."],
+        };
+        throw err;
+      }
+    }
+
+    // 2. Enforce non-empty SKU uniqueness
+    const targetSku = productInput.sku?.trim();
+    if (targetSku) {
+      const conflict = products.find(
+        (p, idx) =>
+          idx !== existingIndex &&
+          Boolean(p.sku && p.sku.trim().toLowerCase() === targetSku.toLowerCase())
+      );
+      if (conflict) {
+        const err: any = new Error("The sku has already been taken.");
+        err.status = 422;
+        err.errors = { sku: ["The sku has already been taken."] };
+        throw err;
+      }
+    }
+
+    // 3. Enforce Slug uniqueness & auto-suffix for same-name products
+    let targetSlug = productInput.slug?.trim().toLowerCase();
+    const isManualSlug = Boolean((productInput as any).slugManuallyEdited ?? (productInput as any).slug_manually_edited);
+    if (!targetSlug && (productInput.name || existingIndex >= 0)) {
+      const nameSource = productInput.name || (existingIndex >= 0 ? products[existingIndex].name : "product");
+      targetSlug = nameSource.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    }
+    if (targetSlug) {
+      if (isManualSlug) {
+        const conflict = products.find(
+          (p, idx) =>
+            idx !== existingIndex &&
+            Boolean(p.slug && p.slug.trim().toLowerCase() === targetSlug)
+        );
+        if (conflict) {
+          const err: any = new Error("The slug has already been taken.");
+          err.status = 422;
+          err.errors = { slug: ["The slug has already been taken."] };
+          throw err;
+        }
+      } else {
+        const baseSlug = targetSlug.replace(/-\d+$/, "");
+        let candidate = targetSlug;
+        let count = 1;
+        while (products.some((p, idx) => idx !== existingIndex && Boolean(p.slug && p.slug.trim().toLowerCase() === candidate))) {
+          candidate = `${baseSlug}-${++count}`;
+        }
+        targetSlug = candidate;
+        productInput.slug = targetSlug;
+      }
+    }
+
     let savedProduct: B2BProductInput;
 
     if (existingIndex >= 0) {
@@ -201,24 +268,6 @@ class MockStore {
     const products = this.getProducts().filter((p) => String(p.id) !== String(id));
     this.setItem(STORAGE_KEYS.PRODUCTS, products);
     return true;
-  }
-
-  duplicateProduct(id: string): B2BProductInput | null {
-    const original = this.getProductByIdOrSlug(id);
-    if (!original) return null;
-
-    const copy: B2BProductInput = {
-      ...original,
-      id: `prd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      name: `${original.name} (Copy)`,
-      slug: `${original.slug}-copy-${Date.now().toString(36)}`,
-      sku: `${original.sku}-CPY`,
-      status: "draft",
-    };
-
-    const products = [copy, ...this.getProducts()];
-    this.setItem(STORAGE_KEYS.PRODUCTS, products);
-    return copy;
   }
 
   reorderProducts(orders: Array<{ id: string | number; sort_order: number }>): void {
@@ -699,12 +748,51 @@ class MockStore {
 
   adjustInventory(payload: InventoryAdjustmentPayload): InventoryRecord | null {
     const inventoryList = this.getInventory();
-    const item = inventoryList.find((i) => i.id === payload.inventory_id);
-    if (!item) return null;
+    let item = inventoryList.find((i) => payload.inventory_id && i.id === payload.inventory_id);
+    if (!item && payload.product_id) {
+      item = inventoryList.find(
+        (i) =>
+          String(i.product_id) === String(payload.product_id) ||
+          String(i.product?.id) === String(payload.product_id)
+      );
+    }
+    if (!item && inventoryList.length > 0 && payload.inventory_id) {
+      item = inventoryList.find((i) => String(i.id) === String(payload.inventory_id));
+    }
+    if (!item) {
+      // Create a virtual inventory record for this product if needed
+      if (payload.product_id) {
+        const prod = this.getProducts().find(
+          (p) => String(p.id) === String(payload.product_id) || p.productId === payload.product_id
+        );
+        const initQty = prod ? Number(prod.availableStock ?? prod.stock ?? 0) : 0;
+        item = {
+          id: Date.now(),
+          product_id: typeof payload.product_id === "number" ? payload.product_id : parseInt(String(payload.product_id).replace(/\D/g, ""), 10) || 1,
+          warehouse_id: 1,
+          quantity: initQty,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          product: prod ? {
+            id: prod.id,
+            name: prod.name,
+            slug: prod.slug,
+            sku: prod.sku,
+            brand: prod.brand,
+            category: prod.categoryName,
+            images: prod.images,
+          } : undefined,
+          adjustments: [],
+        };
+        inventoryList.push(item);
+      } else {
+        return null;
+      }
+    }
 
     const prev = item.quantity;
     const diff = payload.adjustment_amount ?? ((payload.new_quantity ?? prev) - prev);
-    const result = prev + diff;
+    const result = Math.max(0, prev + diff);
 
     item.quantity = result;
     item.updated_at = new Date().toISOString();
@@ -726,6 +814,25 @@ class MockStore {
     });
 
     this.setItem(STORAGE_KEYS.INVENTORY, inventoryList);
+
+    // Sync product in mockStore.products
+    const prodId = payload.product_id || item.product_id || item.product?.id;
+    if (prodId) {
+      const products = this.getProducts();
+      const pIndex = products.findIndex((p) => String(p.id) === String(prodId) || p.productId === prodId);
+      if (pIndex >= 0) {
+        products[pIndex].stock = result;
+        products[pIndex].availableStock = result;
+        products[pIndex].onHandStock = result;
+        if (result > 0 && products[pIndex].isSoldOut) {
+          products[pIndex].isSoldOut = false;
+        } else if (result <= 0) {
+          products[pIndex].isSoldOut = true;
+        }
+        this.setItem(STORAGE_KEYS.PRODUCTS, products);
+      }
+    }
+
     return item;
   }
 

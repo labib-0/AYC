@@ -68,6 +68,13 @@ class AdminProductMetricsService
 
         $pricePendingProducts = Product::whereNull('purchase_price_updated_at')->count();
 
+        $featuredProducts = Product::where('is_featured', true)
+            ->where(function ($q) {
+                $q->whereNull('featured_until')->orWhere('featured_until', '>', now());
+            })
+            ->whereNull('deleted_at')
+            ->count();
+
         return [
             'total_products' => $totalProducts,
             'published_products' => $publishedProducts,
@@ -77,6 +84,8 @@ class AdminProductMetricsService
             'low_stock_products' => $lowStockProducts,
             'low_stock_items' => $lowStockProducts,
             'price_pending_products' => $pricePendingProducts,
+            'featured_products' => $featuredProducts,
+            'featured' => $featuredProducts,
         ];
     }
 }

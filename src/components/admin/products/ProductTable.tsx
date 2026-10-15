@@ -14,7 +14,7 @@ interface ProductTableProps {
   onSelectAll: (selected: boolean) => void;
   onTogglePublish: (product: B2BProductInput) => void;
   onToggleStorefrontVisibility?: (product: B2BProductInput) => void;
-  onDuplicate: (product: B2BProductInput) => void;
+  onToggleFeatured?: (product: B2BProductInput) => void;
   onDelete: (product: B2BProductInput) => void;
   onAdjustStock?: (product: B2BProductInput) => void;
   onViewStockHistory?: (product: B2BProductInput) => void;
@@ -166,7 +166,7 @@ export default function ProductTable({
   onSelectAll,
   onTogglePublish,
   onToggleStorefrontVisibility,
-  onDuplicate,
+  onToggleFeatured,
   onDelete,
   onAdjustStock,
   onViewStockHistory,
@@ -390,7 +390,7 @@ export default function ProductTable({
                   onSelect={onSelect}
                   onTogglePublish={onTogglePublish}
                   onToggleStorefrontVisibility={onToggleStorefrontVisibility}
-                  onDuplicate={onDuplicate}
+                  onToggleFeatured={onToggleFeatured}
                   onDelete={onDelete}
                   onAdjustStock={onAdjustStock}
                   onViewStockHistory={onViewStockHistory}

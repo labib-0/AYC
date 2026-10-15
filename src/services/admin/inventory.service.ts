@@ -365,18 +365,31 @@ export class AdminInventoryService {
   }
 
   async getInventoryItemHistory(inventoryId: number | string): Promise<InventoryRecord["adjustments"]> {
+    if (isFrontendOnly()) {
+      const item = mockStore.getInventory().find((i) => String(i.id) === String(inventoryId));
+      return item?.adjustments || [];
+    }
     try {
       const res = await apiClient.get<any>(`/admin/inventory/${inventoryId}/history`);
       const data = res?.data || res;
       if (Array.isArray(data)) return data;
       return [];
     } catch (err) {
-      console.warn("Failed to fetch inventory history from API:", err);
-      return [];
+      console.warn("Failed to fetch inventory history from API, falling back to local store:", err);
+      const item = mockStore.getInventory().find((i) => String(i.id) === String(inventoryId));
+      return item?.adjustments || [];
     }
   }
 
   async getProductStockHistory(productId: number | string): Promise<InventoryRecord["adjustments"]> {
+    if (isFrontendOnly()) {
+      const item = mockStore.getInventory().find(
+        (i) =>
+          String(i.product_id) === String(productId) ||
+          String(i.product?.id) === String(productId)
+      );
+      return item?.adjustments || [];
+    }
     try {
       const res = await apiClient.get<any>(`/admin/inventory/products/${productId}/history`);
       const data = res?.data || res;
@@ -387,8 +400,13 @@ export class AdminInventoryService {
       if (Array.isArray(fbData)) return fbData;
       return [];
     } catch (err) {
-      console.warn("Failed to fetch product stock history from API:", err);
-      return [];
+      console.warn("Failed to fetch product stock history from API, falling back to local store:", err);
+      const item = mockStore.getInventory().find(
+        (i) =>
+          String(i.product_id) === String(productId) ||
+          String(i.product?.id) === String(productId)
+      );
+      return item?.adjustments || [];
     }
   }
 }

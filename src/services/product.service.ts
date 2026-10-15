@@ -674,13 +674,14 @@ export class ProductService {
   /**
    * Fetch authoritative Admin product statistics from backend
    */
-  async getProductStatistics(): Promise<{
+   async getProductStatistics(): Promise<{
     total: number;
     published: number;
     draft: number;
     archived: number;
     lowStock: number;
     purchasePricePending: number;
+    featured: number;
   }> {
     if (!isFrontendOnly()) {
       try {
@@ -694,6 +695,7 @@ export class ProductService {
             archived: Number(data.archived ?? data.archived_products ?? 0),
             lowStock: Number(data.low_stock ?? data.low_stock_products ?? data.low_stock_items ?? 0),
             purchasePricePending: Number(data.price_pending ?? data.purchase_price_pending ?? 0),
+            featured: Number(data.featured ?? data.featured_products ?? 0),
           };
         }
       } catch {
@@ -710,6 +712,7 @@ export class ProductService {
               archived: Number(dashData.archived_products || 0),
               lowStock: Number(dashData.low_stock_items ?? dashData.low_stock_products ?? 0),
               purchasePricePending: 0,
+              featured: Number(dashData.featured_products ?? dashData.featured ?? 0),
             };
           }
         } catch {
@@ -728,6 +731,17 @@ export class ProductService {
       return avail < effectiveMoq;
     }).length;
 
+    const now = Date.now();
+    const featured = all.filter((p) => {
+      const featuredUntil = p.featuredUntil || p.featured_until || null;
+      const isFeaturedExpired = featuredUntil ? new Date(featuredUntil).getTime() <= now : false;
+      return (
+        Boolean(p.isFeatured ?? p.is_featured ?? p.featured) &&
+        !isFeaturedExpired &&
+        (p.status as any) !== "archived"
+      );
+    }).length;
+
     return {
       total: all.length,
       published,
@@ -735,6 +749,7 @@ export class ProductService {
       archived,
       lowStock,
       purchasePricePending: all.filter((p) => (p as any).purchasePriceUpdated === false).length,
+      featured,
     };
   }
 
@@ -1103,6 +1118,8 @@ export class ProductService {
     if (input.packageAllocations !== undefined) payload.package_allocations = input.packageAllocations;
     if (input.shippingPackageProfiles !== undefined) payload.shipping_package_profiles = input.shippingPackageProfiles;
     if (input.pricingTiers !== undefined) payload.pricing_tiers = input.pricingTiers;
+    if ((input as any).slugManuallyEdited !== undefined) payload.slug_manually_edited = (input as any).slugManuallyEdited;
+    if ((input as any).slug_manually_edited !== undefined) payload.slug_manually_edited = (input as any).slug_manually_edited;
 
     return payload;
   }
@@ -1115,7 +1132,7 @@ export class ProductService {
    * Create a product
    */
   async createProduct(input: Partial<B2BProductInput>): Promise<B2BProductInput> {
-    const slug = input.slug || (input.name || "apparel").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const slug = input.slug || (input.name || "apparel").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const sku = input.sku || generateProductSku(input.brand || "AYN", input.categoryName || "APP", input.name || "PRD");
 
     if (!isFrontendOnly()) {
@@ -1182,36 +1199,6 @@ export class ProductService {
 
     productDraftService.clearDraft(id);
     return mockStore.deleteProduct(id);
-  }
-
-  /**
-   * Duplicate product as a clean new Draft with unique identifiers and zero initial stock.
-   */
-  async duplicateProduct(id: string): Promise<B2BProductInput | null> {
-    if (!isFrontendOnly()) {
-      const existing = await this.getProductBySlugOrId(id);
-      if (!existing) return null;
-      const { id: _ignored, productId: _oldPid, ...rest } = existing;
-      const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-      const newName = `${existing.name} (Copy)`;
-      const newSlug = `${existing.slug}-copy-${Date.now().toString(36)}`;
-      const newSku = `${existing.sku}-CPY-${randomSuffix}`;
-      return this.createProduct({
-        ...rest,
-        productId: undefined,
-        name: newName,
-        slug: newSlug,
-        sku: newSku,
-        status: "draft",
-        stock: 0,
-        initialStock: 0,
-        initial_stock: 0,
-        availableStock: 0,
-        isSoldOut: false,
-        is_sold_out: false,
-      });
-    }
-    return mockStore.duplicateProduct(id);
   }
 
   /**
@@ -1472,5 +1459,7 @@ export class ProductService {
 export const productService = new ProductService();
 export const toggleProductStorefrontVisibility = (id: string, isHidden?: boolean) =>
   productService.toggleProductStorefrontVisibility(id, isHidden);
+export const toggleProductFeatured = (id: string, isFeatured: boolean) =>
+  productService.updateProduct(id, { isFeatured, is_featured: isFeatured });
 export const reorderProducts = (orders: Array<{ id: string | number; sort_order: number }> | (string | number)[]) =>
   productService.reorderProducts(orders);

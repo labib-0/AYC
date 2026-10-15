@@ -152,7 +152,6 @@ const tableMarkup = ReactDOMServer.renderToStaticMarkup(
       onSelectAll: () => {},
       onTogglePublish: () => {},
       onToggleStorefrontVisibility: () => {},
-      onDuplicate: () => {},
       onDelete: () => {},
       onRetry: () => {},
       onClearFilters: () => {},

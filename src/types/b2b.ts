@@ -126,8 +126,14 @@ export interface B2BProductInput {
   isHiddenFromStorefront?: boolean;
   is_hidden_from_storefront?: boolean;
   isFeatured?: boolean;
+  is_featured?: boolean;
+  featured?: boolean;
+  featuredSortOrder?: number;
+  featured_sort_order?: number;
   featuredUntil?: string | null;
   featured_until?: string | null;
+  slugManuallyEdited?: boolean;
+  slug_manually_edited?: boolean;
   isNew?: boolean;
   newUntil?: string | null;
   new_until?: string | null;

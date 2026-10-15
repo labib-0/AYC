@@ -34,6 +34,12 @@ export function getAdminBreadcrumbs(pathname: string): BreadcrumbItem[] {
     items.push({ label: "Add Product", isCurrent: true });
     return items;
   }
+  if (pathname === "/ayc/products/stock") {
+    items.push({ label: "Catalog" });
+    items.push({ label: "Products", href: "/ayc/products" });
+    items.push({ label: "Stock Management", isCurrent: true });
+    return items;
+  }
   if (pathname.startsWith("/ayc/products/") && pathname.endsWith("/edit")) {
     items.push({ label: "Catalog" });
     items.push({ label: "Products", href: "/ayc/products" });

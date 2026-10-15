@@ -185,12 +185,12 @@ export default function ProductBasicInfoSection({
             value={productId}
             onChange={(e) => onProductIdChange(e.target.value)}
             placeholder="e.g. AY-1001, AY/1001"
-            className={`font-mono ${inputClass(Boolean(errors.productId))}`}
+            className={`font-mono ${inputClass(Boolean(errors.productId || errors.product_id))}`}
           />
-          {errors.productId && (
+          {(errors.productId || errors.product_id) && (
             <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1 font-medium">
               <AlertCircle size={12} />
-              {errors.productId}
+              {errors.productId || errors.product_id}
             </p>
           )}
         </div>

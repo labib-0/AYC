@@ -276,37 +276,25 @@ function runProductActionsAuditTests() {
   );
 
   // ─────────────────────────────────────────────────────────────
-  console.log("\n▶ Phase 8: Audit 'Duplicate'");
+  console.log("\n▶ Phase 8: Audit 'Duplicate' (Feature Retired)");
   // ─────────────────────────────────────────────────────────────
 
   assert(
-    rowSrc.includes("Duplicate") &&
-    rowSrc.includes("onDuplicate(product)"),
-    "ProductTableRow has Duplicate action"
+    !rowSrc.includes("onDuplicate(product)") &&
+    !rowSrc.includes(">Duplicate<"),
+    "ProductTableRow has retired Duplicate action (no longer present)"
   );
 
   assert(
-    pageSrc.includes("DuplicateProductModal") &&
-    pageSrc.includes("handleDuplicateConfirm"),
-    "Admin Products page renders DuplicateProductModal with confirmation"
+    !pageSrc.includes("DuplicateProductModal") &&
+    !pageSrc.includes("handleDuplicateConfirm"),
+    "Admin Products page retired DuplicateProductModal"
   );
 
   assert(
-    productServiceSrc.includes("duplicateProduct") &&
-    productsLibSrc.includes("duplicateProduct"),
-    "Product services expose duplicateProduct workflow"
-  );
-
-  assert(
-    productServiceSrc.includes("status: \"draft\"") &&
-    productServiceSrc.includes("stock: 0"),
-    "duplicateProduct strictly sets new clone to draft status with 0 live inventory"
-  );
-
-  assert(
-    productServiceSrc.includes("newSlug") &&
-    productServiceSrc.includes("newSku"),
-    "duplicateProduct generates unique SKU and slug for the cloned product"
+    !productServiceSrc.includes("async duplicateProduct(") &&
+    !productsLibSrc.includes("export async function duplicateProduct("),
+    "Product services cleanly retired duplicateProduct workflow"
   );
 
   // ─────────────────────────────────────────────────────────────
