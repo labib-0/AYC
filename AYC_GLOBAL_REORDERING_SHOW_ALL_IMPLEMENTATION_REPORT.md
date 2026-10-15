@@ -179,27 +179,93 @@ npx next build
    - `21 / 21 PASS` (Homepage managers with in-place selection and reorder).
 
 ### D. Real Browser Verification
-Visual confirmation performed on live rendered pages via browser subagent:
-- **Products**: Verified 258 products loaded in `All` mode with emerald banner and drag handles enabled. Verified warning on search and automatic full restore on clicking `Clear Filters to Reorder`.
-- **Categories**: Verified 10 categories in `All` mode, showing `Showing all 10 categories`, drag handles active, pagination buttons hidden.
-- **Brands**: Verified 10 brands in `All` mode, drag handles active, pagination buttons hidden.
-- **Homepage Managers**: Verified Ticker, Featured Products, Hot Sale Categories, and Shop by Brand all display `Page Size: 5 | 10 | 20 | 50 | All`.
+Visual confirmation performed across both local development and live production environments:
+
+1. **Local Development (`http://localhost:3000`)**:
+   - **Products**: Verified 258 products loaded in `All` mode (from local fallback dataset) with emerald banner and drag handles enabled. Verified amber warning banner on search and automatic full restore on clicking `Clear Filters to Reorder`.
+   - **Categories**: Verified categories loaded in `All` mode without pagination buttons.
+   - **Brands**: Verified brands loaded in `All` mode without pagination buttons.
+   - **Homepage Managers**: Verified Ticker, Featured Products, Hot Sale Categories, and Shop by Brand display `Page Size: 5 | 10 | 20 | 50 | All`.
+
+2. **Live Production VPS (`https://ayaanclothing.com`)**:
+   - **Products (`/ayc/products`)**:
+     - Verified exact record count: **101 products** (99 published + 2 draft), perfectly matching the authoritative PostgreSQL database.
+     - Selecting `All` dynamically loads all 101 products on a single page, hides pagination navigation controls (`<`, `1`, `2`, `3`, `>`), and displays the emerald ready banner: `✓ All 101 products loaded in manual sequence. Drag handles and Move Up / Down actions are enabled.`
+     - Filtering by search (`"Denim"`) immediately displays 7 matching items and switches to the amber warning banner: `Reordering is disabled while search or catalog filters are active.` with the button `Clear Filters to Reorder`.
+     - Clicking `Clear Filters to Reorder` instantly clears the search query, restores `All` page size, restores the emerald ready banner, and displays all 101 products with active reordering controls.
+   - **Categories (`/ayc/categories`)**:
+     - Selecting `All` displays all **38 categories** on a single page.
+     - Shows `✓ All 38 categories loaded in manual sequence. Drag handles and Move Up / Down actions are enabled.`
+     - Hides pagination buttons.
+   - **Brands (`/ayc/brands`)**:
+     - Selecting `All` displays all **102 brands** on a single page.
+     - Shows `✓ All 102 brands loaded in manual sequence. Drag handles and Move Up / Down actions are enabled.`
+     - Hides pagination buttons.
+   - **Homepage Managers (`/ayc/homepage`)**:
+     - Verified Ticker Items, Featured Products, Hot Sale Categories, and Shop by Brand each render `Page Size: 5 | 10 | 20 | 50 | All`.
+   - **Storefront (`https://ayaanclothing.com`)**:
+     - Customer storefront loads with HTTP 200, zero console errors, clean layout, and correct category/brand/product showcases.
 
 ---
 
 ## 8. Captured Visual Proof
 
-1. **Products Full Collection in 'All' Mode with Emerald Ready Banner**:  
-   ![Products All Mode](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/final_products_all_loaded_1792067565665.png)
+### A. Live Production VPS Screenshots (`https://ayaanclothing.com`)
+1. **Live Production Products in 'All' Mode (All 101 Products Loaded & Ready Banner)**:  
+   ![Live Products All Mode](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/live_products_all_selected_png_1792071119608.png)
 
-2. **Categories in 'All' Mode with Sequential Ordering**:  
-   ![Categories All Mode](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/categories_all_selected_1792067767746.png)
+2. **Live Production Search Filter Guard (Amber Reorder Disabled Banner)**:  
+   ![Live Products Search Disabled Banner](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/live_products_denim_filtered_png_1792071157760.png)
 
-3. **Homepage Sections Displaying Reusable 'All' Selector**:  
-   ![Homepage Sections All Options](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/homepage_ticker_and_featured_active_1792068144521.png)
+3. **Live Production One-Click 'Clear Filters to Reorder' Restoration**:  
+   ![Live Products Restored All Mode](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/live_products_clear_filters_reorder_png_1792071205304.png)
+
+4. **Live Production Categories in 'All' Mode (All 38 Categories)**:  
+   ![Live Categories All Mode](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/live_categories_all_mode_1792071309163.png)
+
+5. **Live Production Brands in 'All' Mode (All 102 Brands)**:  
+   ![Live Brands All Mode](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/live_brands_all_mode_1792071355157.png)
+
+6. **Live Production Homepage Ordering Managers with 'All' Selector**:  
+   ![Live Homepage Managers](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/live_homepage_all_mode_1792071372734.png)
+
+7. **Live Production Customer Storefront (Healthy & Verified)**:  
+   ![Live Customer Storefront](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/live_storefront_homepage_1792071412179.png)
+
+### B. Local Environment Baseline Screenshots
+- **Products Local All Mode (258 Mock Items Baseline)**:  
+  ![Products Local Baseline](/Users/luhasan/.gemini/antigravity-ide/brain/08a53646-7211-4fc0-91bc-c2d4cd2126bb/final_products_all_loaded_1792067565665.png)
 
 ---
 
-## 9. Conclusion
+## 9. GitHub Synchronization & VPS Production Deployment
 
-The global “Show All” reordering capability and automated “Clear Filters to Reorder” workflow are complete, fully unified, and verified across all admin catalog and homepage interfaces in the AYAAN CLOTHING Admin Portal.
+### A. GitHub Remotes Synchronization
+All intended remotes were synchronized safely without force-pushing:
+
+| Remote | URL | Branch | Status | Commit SHA |
+| :--- | :--- | :--- | :--- | :--- |
+| **`origin`** | `https://github.com/ayaanclproject26-max/ayaan.git` | `main` | ✅ Synced | `a4eab74` |
+| **`labib`** | `https://github.com/labib-0/AYC.git` | `main` | ✅ Synced | `a4eab74` |
+
+### B. Production VPS Deployment
+- **Target Host**: `200.97.169.230` (`srv2010990`)
+- **Application Path**: `/var/www/ayaan`
+- **Recovery Point Tag**: `backup-pre-show-all-20261015192446`
+- **Deployed Commit**: `a4eab74` (`fix(admin-products): guard reorderProducts against non-numeric local draft IDs`)
+- **Backend Optimizations**: `php artisan optimize:clear && php artisan route:cache && php artisan config:cache` executed.
+- **Frontend Build**: `npm run build` compiled 56/56 routes cleanly in Turbopack.
+- **Service Status**: PM2 processes `ayaan-customer` (online) and `ayaan-admin` (online) reloaded successfully. Nginx and PHP-FPM reloaded with zero errors.
+
+---
+
+## 10. Conclusion & Final Sign-Off
+
+The Global “Show All” reordering capability and automated “Clear Filters to Reorder” workflow are:
+1. **Reconciled**: The 258 count in local browser testing was definitively traced to the local fallback JSON mock store; the live production environment operates on the authoritative 101 PostgreSQL products (99 published, 2 draft).
+2. **Unified**: Built into a shared component architecture (`AdminPagination`, `PageSizeSelector`, `TableReorderBanner`, `useTableReorder`) reused across Products, Categories, Brands, Homepage Ticker, Featured Products, Hot Sale Categories, and Shop by Brand.
+3. **Synchronized**: Pushed cleanly to both `origin` and `labib` GitHub remotes.
+4. **Deployed**: Live on the production VPS (`200.97.169.230`).
+5. **Verified**: Tested extensively with live browser automation on `https://ayaanclothing.com`.
+
+**Final Sign-Off:** `DEPLOYED AND VERIFIED`
