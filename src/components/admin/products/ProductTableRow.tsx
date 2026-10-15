@@ -176,17 +176,17 @@ export default function ProductTableRow({
       </td>
 
       {/* Product ID */}
-      <td className="px-1 py-1.5 w-[68px] text-center" style={{ width: "68px" }}>
+      <td className="px-1.5 py-1.5 w-[82px] text-center" style={{ width: "82px" }}>
         <span
-          className="text-[9.5px] font-mono font-bold text-foreground bg-secondary/80 px-1 py-0.5 rounded border border-border/60 truncate block text-center max-w-full"
-          title={product.productId || (product as any).product_id || ""}
+          className="text-[10px] font-mono font-bold text-foreground bg-secondary/80 px-1.5 py-0.5 rounded border border-border/60 truncate block text-center max-w-full select-all"
+          title={product.productId || (product as any).product_id || "Product ID"}
         >
           {product.productId || (product as any).product_id || "—"}
         </span>
       </td>
 
       {/* Product Name */}
-      <td className="px-2 py-1.5 min-w-0">
+      <td className="px-2.5 py-1.5 min-w-0">
         <div className="min-w-0 pr-1 max-w-full">
           <p
             className={`text-xs font-bold truncate block ${!product.name ? "text-muted-foreground italic font-normal" : "text-foreground"}`}
@@ -200,16 +200,6 @@ export default function ProductTableRow({
                 ? "MASTER COPY"
                 : "ORIGINAL"}
             </span>
-            {isSoldOut && (
-              <span className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-200 shrink-0">
-                Sold Out
-              </span>
-            )}
-            {isPreorder && (
-              <span className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shrink-0">
-                Pre-Order
-              </span>
-            )}
             {product.isNew && (
               <span className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 shrink-0">
                 New
@@ -222,10 +212,10 @@ export default function ProductTableRow({
             )}
             {(product as any).purchasePriceUpdated === false && (
               <span
-                className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-700 shrink-0"
-                title="Purchase Price not yet set"
+                className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/60 shrink-0 inline-flex items-center"
+                title="Wholesale purchase cost price pending entry"
               >
-                $ Pending
+                Cost Pending
               </span>
             )}
             {Boolean(
@@ -243,9 +233,9 @@ export default function ProductTableRow({
       </td>
 
       {/* SKU */}
-      <td className="px-1 py-1.5 w-[60px]" style={{ width: "60px" }}>
+      <td className="px-2 py-1.5 w-[110px]" style={{ width: "110px" }}>
         <span
-          className="text-[10px] font-mono font-medium text-muted-foreground truncate block max-w-full"
+          className="text-[10.5px] font-mono font-medium text-muted-foreground truncate block max-w-full select-all"
           title={product.sku || ""}
         >
           {product.sku || "—"}
@@ -253,7 +243,7 @@ export default function ProductTableRow({
       </td>
 
       {/* Brand */}
-      <td className="px-1 py-1.5 w-[68px]" style={{ width: "68px" }}>
+      <td className="px-1.5 py-1.5 w-[92px]" style={{ width: "92px" }}>
         <div className="flex items-center gap-1 min-w-0 max-w-full" title={product.brand || ""}>
           {brandLogo && (
             <div className="w-3.5 h-3.5 rounded bg-secondary/80 flex items-center justify-center shrink-0 overflow-hidden p-0.5 border border-border/40">
@@ -268,7 +258,7 @@ export default function ProductTableRow({
       </td>
 
       {/* Category */}
-      <td className="px-1 py-1.5 w-[70px]" style={{ width: "70px" }}>
+      <td className="px-1.5 py-1.5 w-[86px]" style={{ width: "86px" }}>
         <span
           className="text-[10.5px] text-muted-foreground truncate block max-w-full"
           title={product.categoryName || ""}
@@ -278,7 +268,7 @@ export default function ProductTableRow({
       </td>
 
       {/* Audience */}
-      <td className="px-1 py-1.5 w-[58px]" style={{ width: "58px" }}>
+      <td className="px-1.5 py-1.5 w-[64px]" style={{ width: "64px" }}>
         <span
           className="text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground truncate block max-w-full"
           title={product.audience || ""}
@@ -288,7 +278,7 @@ export default function ProductTableRow({
       </td>
 
       {/* Price */}
-      <td className="px-1 py-1.5 w-[52px] text-right whitespace-nowrap" style={{ width: "52px" }}>
+      <td className="px-1.5 py-1.5 w-[58px] text-right whitespace-nowrap" style={{ width: "58px" }}>
         <span className="text-xs font-bold tabular-nums text-foreground">
           {product.wholesalePrice !== undefined && product.wholesalePrice !== null && !isNaN(Number(product.wholesalePrice))
             ? `$${Number(product.wholesalePrice).toFixed(2)}`
@@ -297,7 +287,7 @@ export default function ProductTableRow({
       </td>
 
       {/* MOQ */}
-      <td className="px-1 py-1.5 w-[46px] text-right whitespace-nowrap" style={{ width: "46px" }}>
+      <td className="px-1.5 py-1.5 w-[50px] text-right whitespace-nowrap" style={{ width: "50px" }}>
         <span className="text-xs font-mono font-bold tabular-nums text-foreground">
           {effectiveMoq}
         </span>
@@ -305,7 +295,7 @@ export default function ProductTableRow({
       </td>
 
       {/* Available Stock */}
-      <td className="px-1 py-1.5 w-[60px] text-right whitespace-nowrap" style={{ width: "60px" }}>
+      <td className="px-1.5 py-1.5 w-[66px] text-right whitespace-nowrap" style={{ width: "66px" }}>
         <div className="text-right leading-tight">
           {canAdjustStock && onAdjustStock ? (
             <button
@@ -341,7 +331,7 @@ export default function ProductTableRow({
       </td>
 
       {/* Complete MOQs Available */}
-      <td className="px-1 py-1.5 w-[62px] text-right whitespace-nowrap" style={{ width: "62px" }}>
+      <td className="px-1.5 py-1.5 w-[68px] text-right whitespace-nowrap" style={{ width: "68px" }}>
         <span
           className={`inline-flex items-center px-1 py-0.2 rounded text-[9.5px] font-mono font-bold tabular-nums ${
             completeMoqs > 0
@@ -356,10 +346,10 @@ export default function ProductTableRow({
       </td>
 
       {/* Status */}
-      <td className="px-1 py-1.5 w-[64px]" style={{ width: "64px" }}>
+      <td className="px-1.5 py-1.5 w-[80px]" style={{ width: "80px" }}>
         <div className="flex flex-col gap-0.5 items-start">
           <span
-            className={`inline-flex items-center px-1.5 py-0.2 rounded-full text-[8.5px] font-bold uppercase tracking-wider ${
+            className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wider ${
               isPublished
                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
                 : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
@@ -396,12 +386,12 @@ export default function ProductTableRow({
 
       {/* Actions */}
       <td
-        className={`px-1 py-1.5 w-[78px] text-center sticky right-0 bg-card group-hover:bg-secondary/40 transition-colors ${
+        className={`px-1.5 py-1.5 w-[86px] text-center sticky right-0 bg-card group-hover:bg-secondary/40 transition-colors ${
           menuOpen ? "z-40" : "z-10"
         }`}
-        style={{ width: "78px" }}
+        style={{ width: "86px" }}
       >
-        <div className="flex items-center justify-center gap-1">
+        <div className="flex items-center justify-center gap-1.5">
           {onMoveUp && onMoveDown && (
             <TableMoveControls
               globalIndex={globalIndex}
@@ -422,14 +412,15 @@ export default function ProductTableRow({
           <div className="relative inline-block" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer mx-auto"
+              className="w-7 h-7 rounded-lg border border-border/60 bg-card hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-all cursor-pointer mx-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-2xs"
               aria-label={`Actions for ${product.name}`}
+              title="More actions"
             >
-              <MoreHorizontal size={14} />
+              <MoreHorizontal size={15} />
             </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-7 z-50 w-48 rounded-xl border border-border/80 bg-card p-1 shadow-lg animate-in fade-in zoom-in-95 duration-100 text-left">
+            <div className="absolute right-0 top-8 z-50 w-48 rounded-xl border border-border/80 bg-card p-1 shadow-xl animate-in fade-in zoom-in-95 duration-100 text-left">
               {can("product.edit") && (
                 <Link
                   href={editHref}

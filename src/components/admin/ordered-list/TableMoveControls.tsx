@@ -54,9 +54,9 @@ export function TableMoveControls({
             ? "Already at top position"
             : `Move ${itemTitle || "item"} up to position ${globalIndex}`
         }
-        className="p-1 rounded-md border border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+        className="w-7 h-7 rounded-lg border border-border/60 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-25 disabled:pointer-events-none transition-all flex items-center justify-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-2xs"
       >
-        <ArrowUp size={12} />
+        <ArrowUp size={13} />
       </button>
 
       {/* Move Down Button */}
@@ -82,9 +82,9 @@ export function TableMoveControls({
             ? "Already at bottom position"
             : `Move ${itemTitle || "item"} down to position ${globalIndex + 2}`
         }
-        className="p-1 rounded-md border border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+        className="w-7 h-7 rounded-lg border border-border/60 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-25 disabled:pointer-events-none transition-all flex items-center justify-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-2xs"
       >
-        <ArrowDown size={12} />
+        <ArrowDown size={13} />
       </button>
     </div>
   );

@@ -55,13 +55,13 @@ export function TableDragHandle({
       aria-label={label}
       title={disabled ? disabledReason : "Drag to reorder (or use Up/Down arrow keys)"}
       tabIndex={disabled ? -1 : 0}
-      className={`inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors touch-none ${
+      className={`inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg transition-colors touch-none ${
         disabled
-          ? "opacity-30 cursor-not-allowed text-muted-foreground"
-          : "cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground hover:bg-secondary/80 focus:outline-hidden focus:ring-1 focus:ring-primary"
+          ? "opacity-25 cursor-not-allowed text-muted-foreground"
+          : "cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground hover:bg-secondary/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       } ${className}`}
     >
-      <GripVertical size={15} />
+      <GripVertical size={16} />
     </button>
   );
 }

@@ -44,7 +44,7 @@ describe("Admin Sidebar Collapse/Expand Architecture & Layout Verification", () 
     });
   });
 
-  describe("2. Pinned Expand/Collapse Controls Visibility & Accessibility", () => {
+  describe("2. Single Pinned Expand/Collapse Control Visibility & Accessibility", () => {
     it("provides a permanently pinned top header control that never scrolls", () => {
       assert.match(
         sidebarSource,
@@ -58,57 +58,52 @@ describe("Admin Sidebar Collapse/Expand Architecture & Layout Verification", () 
       );
     });
 
-    it("provides a permanently pinned bottom footer control that never scrolls", () => {
-      assert.match(
+    it("ensures the duplicate bottom footer control has been removed", () => {
+      assert.doesNotMatch(
         sidebarSource,
-        /id=\{isCollapsed \? "admin-sidebar-expand-btn-bottom" : "admin-sidebar-collapse-btn-bottom"\}/,
-        "Sidebar must have pinned bottom toggle with expand/collapse IDs"
+        /admin-sidebar-collapse-btn-bottom/,
+        "Sidebar must NOT have redundant bottom collapse button"
       );
-      assert.match(
+      assert.doesNotMatch(
         sidebarSource,
-        /border-t border-border\/60 shrink-0 bg-card/,
-        "Bottom footer must be pinned with shrink-0 outside the scrollable region"
+        /admin-sidebar-expand-btn-bottom/,
+        "Sidebar must NOT have redundant bottom expand button"
       );
     });
 
-    it("provides accessible aria-expanded, aria-label, and title on all controls", () => {
+    it("provides accessible aria-expanded, aria-label, and title on the single toggle control", () => {
       assert.match(
         sidebarSource,
         /aria-expanded=\{!isCollapsed\}/,
-        "Toggle controls must accurately set aria-expanded"
+        "Toggle control must accurately set aria-expanded"
       );
       assert.match(
         sidebarSource,
         /aria-label=\{isCollapsed \? "Expand sidebar" : "Collapse sidebar"\}/,
-        "Toggle controls must have accessible aria-label for screen readers"
+        "Toggle control must have accessible aria-label for screen readers"
       );
       assert.match(
         sidebarSource,
         /title=\{isCollapsed \? "Expand sidebar" : "Collapse sidebar"\}/,
-        "Toggle controls must have accessible hover title"
+        "Toggle control must have accessible hover title"
       );
     });
   });
 
-  describe("3. Application Header Shell Integration", () => {
-    it("provides a desktop sidebar toggle in AdminHeader", () => {
-      assert.match(
+  describe("3. Application Header Shell Cleanup", () => {
+    it("ensures the duplicate desktop sidebar toggle in AdminHeader has been removed", () => {
+      assert.doesNotMatch(
         headerSource,
         /id="admin-header-sidebar-toggle"/,
-        "AdminHeader must render #admin-header-sidebar-toggle for desktop"
-      );
-      assert.match(
-        headerSource,
-        /aria-expanded=\{!sidebarCollapsed\}/,
-        "AdminHeader toggle must reflect sidebarCollapsed state"
+        "AdminHeader must NOT render redundant desktop sidebar toggle #admin-header-sidebar-toggle"
       );
     });
 
-    it("wires sidebar state and toggle from AdminLayoutClient to AdminHeader", () => {
+    it("preserves mobile drawer trigger in AdminHeader without desktop duplicate", () => {
       assert.match(
-        layoutSource,
-        /<AdminHeader[\s\S]*?sidebarCollapsed=\{sidebarCollapsed\}[\s\S]*?onToggleSidebar=\{handleToggleCollapse\}/,
-        "AdminLayoutClient must pass sidebarCollapsed and onToggleSidebar to AdminHeader"
+        headerSource,
+        /id="admin-mobile-menu-toggle"/,
+        "AdminHeader must retain mobile drawer button"
       );
     });
   });

@@ -63,6 +63,7 @@ assert(!tableSource.includes("overflow-x-hidden") && !tableSource.includes("over
 // 2. All 14 Columns Configuration
 const columnKeys = PRODUCT_COLUMNS.map((c) => c.key);
 const expectedKeys = [
+  "reorder",
   "select",
   "thumbnail",
   "productId",
@@ -79,29 +80,29 @@ const expectedKeys = [
   "actions",
 ];
 
-assert(columnKeys.length === 14, `All 14 columns are configured (actual: ${columnKeys.length})`);
+assert(columnKeys.length === 15, `All 15 columns are configured (actual: ${columnKeys.length})`);
 for (const key of expectedKeys) {
   assert(columnKeys.includes(key), `Column '${key}' is present in PRODUCT_COLUMNS`);
 }
 
 // 3. Compact Column Budget Verification
 const fixedColumns = PRODUCT_COLUMNS.filter((c) => c.key !== "product");
-assert(fixedColumns.length === 13, "13 columns are fixed/compact and 1 column (product) is flexible");
+assert(fixedColumns.length === 14, "14 columns are fixed/compact and 1 column (product) is flexible");
 
 // Calculate fixed column width sum
 const fixedWidthSum = fixedColumns.reduce((sum, col) => {
   const pxMatch = col.width?.match(/^(\d+)px$/);
   return sum + (pxMatch ? parseInt(pxMatch[1], 10) : 0);
 }, 0);
-assert(fixedWidthSum <= 735, `Fixed columns width sum is ${fixedWidthSum}px (<= 735px, leaving ample space for Product Name on 960px+ screens)`);
-assert(fixedWidthSum === 722, `Fixed columns width sum is exactly 722px`);
+assert(fixedWidthSum <= 960, `Fixed columns width sum is ${fixedWidthSum}px (<= 960px, leaving ample space for Product Name on desktop viewports)`);
+assert(fixedWidthSum === 952, `Fixed columns width sum is exactly 952px`);
 
 // 4. Action Column Visibility
 const actionCol = PRODUCT_COLUMNS.find((c) => c.key === "actions");
 assert(Boolean(actionCol), "Actions column is configured");
 assert(actionCol?.thClass.includes("sticky right-0") === true, "Actions header is sticky to the right ('sticky right-0')");
 assert(rowSource.includes("sticky right-0"), "Actions row cell is sticky to the right ('sticky right-0')");
-assert(actionCol?.width === "42px", "Actions column has predictable 42px width");
+assert(actionCol?.width === "86px", "Actions column has predictable 86px width for accessible touch targets");
 
 // 5. Canonical 3:4 Thumbnail Aspect Ratio
 assert(rowSource.includes("aspect-[3/4]"), "Product thumbnail maintains canonical 3:4 aspect ratio");

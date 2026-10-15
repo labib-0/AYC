@@ -190,12 +190,13 @@ export default function AdminSidebar({
           <button
             type="button"
             id={isCollapsed ? "admin-sidebar-expand-btn-top" : "admin-sidebar-collapse-btn-top"}
+            data-testid="admin-sidebar-toggle"
             onClick={onToggleCollapse}
             aria-expanded={!isCollapsed}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             className={`flex items-center justify-center rounded-lg border border-border/60 bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-              isCollapsed ? "w-9 h-9" : "p-1.5"
+              isCollapsed ? "w-9 h-9" : "w-7.5 h-7.5 p-1"
             }`}
           >
             {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={15} />}
@@ -300,35 +301,7 @@ export default function AdminSidebar({
         ))}
       </div>
 
-      {/* 4. Desktop Rail Bottom Footer (Pinned, NEVER scrolls) */}
-      {!isMobileDrawer && onToggleCollapse && (
-        <div
-          className={`border-t border-border/60 shrink-0 bg-card p-2 w-full flex items-center ${
-            isCollapsed ? "justify-center" : "justify-between"
-          }`}
-        >
-          <button
-            type="button"
-            id={isCollapsed ? "admin-sidebar-expand-btn-bottom" : "admin-sidebar-collapse-btn-bottom"}
-            onClick={onToggleCollapse}
-            aria-expanded={!isCollapsed}
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={`flex items-center rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-border/40 hover:border-border transition-colors cursor-pointer ${
-              isCollapsed ? "justify-center w-10 h-10" : "justify-between px-3 py-2 w-full"
-            }`}
-          >
-            {!isCollapsed && (
-              <span className="text-[11px] font-bold uppercase tracking-wider">Collapse Sidebar</span>
-            )}
-            {isCollapsed ? (
-              <PanelLeftOpen size={16} />
-            ) : (
-              <PanelLeftClose size={15} />
-            )}
-          </button>
-        </div>
-      )}
+
     </aside>
   );
 }

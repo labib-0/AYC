@@ -115,6 +115,7 @@ function AdminProductsContent() {
   const [error, setError] = useState<string | null>(null);
 
   // ── Global Authoritative Catalog Metrics ──
+  const [metricsLoading, setMetricsLoading] = useState(true);
   const [globalMetrics, setGlobalMetrics] = useState({
     total: 0,
     published: 0,
@@ -217,7 +218,19 @@ function AdminProductsContent() {
   // ── Load Global Metrics (Always reflects the authoritative entire catalog) ──
   const loadGlobalMetrics = useCallback(async () => {
     try {
+      setMetricsLoading(true);
       const stats = await getProductStatistics();
+
+      // Check if an unsynced local draft exists in this admin workspace session
+      const localDraft = productDraftService.getDraft("new");
+      const hasLocalDraft = Boolean(
+        localDraft?.data && (localDraft.data.name?.trim() || localDraft.data.productId?.trim())
+      );
+      if (hasLocalDraft) {
+        stats.total = Number(stats.total) + 1;
+        stats.draft = Number(stats.draft) + 1;
+      }
+
       setGlobalMetrics({
         total: stats.total,
         published: stats.published,
@@ -227,6 +240,8 @@ function AdminProductsContent() {
       });
     } catch {
       // Fallback
+    } finally {
+      setMetricsLoading(false);
     }
   }, []);
 
@@ -346,7 +361,18 @@ function AdminProductsContent() {
         }
       }
 
-      setAllProducts(filtered);
+      // Deduplicate products to prevent duplicate records from being counted
+      const seenIds = new Set<string>();
+      const deduplicated: B2BProductInput[] = [];
+      for (const p of filtered) {
+        const key = String(p.id || p.productId);
+        if (!seenIds.has(key)) {
+          seenIds.add(key);
+          deduplicated.push(p);
+        }
+      }
+
+      setAllProducts(deduplicated);
     } catch (err: unknown) {
       if ((err as any)?.name === "AbortError" || abortController.signal.aborted) {
         return;
@@ -752,6 +778,7 @@ function AdminProductsContent() {
         lowStock={globalMetrics.lowStock}
         purchasePricePending={globalMetrics.purchasePricePending}
         activeStatus={filters.status}
+        loading={metricsLoading}
         onStatusClick={handleStatusFilterClick}
         onLowStockClick={handleToggleLowStockFilter}
         isLowStockActive={filters.availability === "low_stock"}
@@ -791,7 +818,7 @@ function AdminProductsContent() {
         readyMessage={`All ${totalProducts} products loaded in manual sequence. Drag handles and Move Up / Down actions are enabled.`}
       />
 
-      {/* Product Table */}
+      {/* Product Table with integrated pagination footer */}
       <ProductTable
         products={pageProducts}
         loading={loading}
@@ -818,19 +845,21 @@ function AdminProductsContent() {
         isFirstItem={reorder.isFirstItem}
         isLastItem={reorder.isLastItem}
         getRowVisualClass={reorder.getRowVisualClass}
-      />
-
-      {/* Pagination */}
-      <ProductPagination
-        currentPage={safePage}
-        totalPages={totalPages}
-        totalItems={totalProducts}
-        perPage={perPage}
-        onPageChange={setCurrentPage}
-        onPerPageChange={(newSize) => {
-          setPerPage(newSize);
-          setCurrentPage(1);
-        }}
+        pagination={
+          !loading && !error && allProducts.length > 0 ? (
+            <ProductPagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={totalProducts}
+              perPage={perPage}
+              onPageChange={setCurrentPage}
+              onPerPageChange={(newSize) => {
+                setPerPage(newSize);
+                setCurrentPage(1);
+              }}
+            />
+          ) : undefined
+        }
       />
 
       {/* Delete Modal */}

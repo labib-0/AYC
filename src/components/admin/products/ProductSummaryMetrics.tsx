@@ -9,6 +9,7 @@ interface ProductSummaryMetricsProps {
   lowStock: number;
   purchasePricePending?: number;
   activeStatus?: string;
+  loading?: boolean;
   onStatusClick?: (status: "all" | "published" | "draft") => void;
   onPurchasePricePendingClick?: () => void;
   isPricePendingActive?: boolean;
@@ -23,6 +24,7 @@ export default function ProductSummaryMetrics({
   lowStock,
   purchasePricePending,
   activeStatus = "all",
+  loading = false,
   onStatusClick,
   onPurchasePricePendingClick,
   isPricePendingActive = false,
@@ -46,7 +48,7 @@ export default function ProductSummaryMetrics({
       isActive: isTotalActive,
       activeClasses: "bg-secondary border-foreground/30 shadow-xs",
       defaultClasses: "bg-card border-border/60 hover:bg-secondary/40 hover:border-border",
-      title: "View all products",
+      title: "View all catalog products",
       onClick: () => onStatusClick?.("all"),
     },
     {
@@ -72,7 +74,7 @@ export default function ProductSummaryMetrics({
       activeClasses:
         "bg-amber-500/15 dark:bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/30 shadow-xs font-semibold",
       defaultClasses: "bg-card border-border/60 hover:bg-amber-500/10 dark:hover:bg-amber-950/20 hover:border-amber-400 dark:hover:border-amber-700",
-      title: isDraftActive ? "Click to clear Draft filter" : "Filter to ONLY Draft products",
+      title: isDraftActive ? "Click to clear Draft filter" : "Filter by Draft products",
       onClick: () => onStatusClick?.(isDraftActive ? "all" : "draft"),
     },
     {
@@ -130,9 +132,13 @@ export default function ProductSummaryMetrics({
                   </span>
                 )}
               </div>
-              <p className="text-lg font-bold tabular-nums text-foreground leading-tight mt-0.5">
-                {c.value.toLocaleString()}
-              </p>
+              {loading ? (
+                <div className="h-6 w-14 bg-secondary animate-pulse rounded mt-0.5" />
+              ) : (
+                <p className="text-lg font-bold tabular-nums text-foreground leading-tight mt-0.5">
+                  {c.value.toLocaleString()}
+                </p>
+              )}
             </div>
           </Component>
         );
@@ -150,7 +156,7 @@ export default function ProductSummaryMetrics({
               ? "border-amber-300 dark:border-amber-700 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 bg-card"
               : "border-border/60 bg-card hover:bg-secondary/40"
           }`}
-          title={isPricePendingActive ? "Click to clear Price Pending filter" : "Click to filter by Purchase Price Pending"}
+          title={isPricePendingActive ? "Click to clear Cost Pending filter" : "Filter by products with purchase cost price pending"}
         >
           <div
             className={`shrink-0 ${
@@ -170,7 +176,7 @@ export default function ProductSummaryMetrics({
                     : "text-muted-foreground"
                 }`}
               >
-                Price Pending
+                Cost Pending
               </p>
               {isPricePendingActive && (
                 <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -178,9 +184,13 @@ export default function ProductSummaryMetrics({
                 </span>
               )}
             </div>
-            <p className="text-lg font-bold tabular-nums text-foreground leading-tight mt-0.5">
-              {purchasePricePending.toLocaleString()}
-            </p>
+            {loading ? (
+              <div className="h-6 w-14 bg-secondary animate-pulse rounded mt-0.5" />
+            ) : (
+              <p className="text-lg font-bold tabular-nums text-foreground leading-tight mt-0.5">
+                {purchasePricePending.toLocaleString()}
+              </p>
+            )}
           </div>
         </button>
       )}

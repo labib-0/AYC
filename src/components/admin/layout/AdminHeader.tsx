@@ -12,9 +12,7 @@ import {
   Bell, 
   ShieldCheck,
   ExternalLink,
-  CheckCheck,
-  PanelLeftClose,
-  PanelLeftOpen
+  CheckCheck
 } from "lucide-react";
 import { User } from "@/types/api";
 import { getCustomerAppUrl } from "@/config/site-urls";
@@ -147,27 +145,13 @@ export default function AdminHeader({
       <div className="flex items-center gap-3">
         <button
           type="button"
+          id="admin-mobile-menu-toggle"
           onClick={onToggleMobileMenu}
           className="md:hidden p-2 rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer"
           aria-label="Toggle navigation sidebar"
         >
           {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
-
-        {/* Desktop Sidebar Toggle Button in Header */}
-        {onToggleSidebar && (
-          <button
-            type="button"
-            id="admin-header-sidebar-toggle"
-            onClick={onToggleSidebar}
-            aria-expanded={!sidebarCollapsed}
-            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="hidden md:flex items-center justify-center p-2 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-          </button>
-        )}
 
         <Link
           href="/ayc/dashboard"

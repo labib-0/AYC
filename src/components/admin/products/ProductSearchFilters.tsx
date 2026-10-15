@@ -124,14 +124,14 @@ export default function ProductSearchFilters({
   };
 
   const selectClasses =
-    "h-9 px-3 rounded-lg border border-border bg-card text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors appearance-none cursor-pointer";
+    "h-9 px-3 rounded-lg border border-border/80 bg-card text-xs font-semibold text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors cursor-pointer shadow-2xs hover:bg-secondary/40";
 
   return (
-    <div className="space-y-3">
-      {/* Search Row */}
-      <div className="flex items-center gap-3 flex-wrap">
+    <div className="space-y-2.5">
+      {/* Search & Filter Row */}
+      <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
         {/* Search Input */}
-        <div className="relative flex-1 min-w-[220px]">
+        <div className="relative flex-1 min-w-[240px] sm:min-w-[280px]">
           <Search
             size={15}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
@@ -141,7 +141,7 @@ export default function ProductSearchFilters({
             placeholder="Search products by name, SKU, brand, supplier, or Product ID…"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            className="w-full h-9 pl-9 pr-9 rounded-lg border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors"
+            className="w-full h-9 pl-9 pr-9 rounded-lg border border-border/80 bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors shadow-2xs"
           />
           {inputValue && (
             <button
@@ -150,7 +150,7 @@ export default function ProductSearchFilters({
                 setInputValue("");
                 onFilterChange({ ...filters, search: "" });
               }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               aria-label="Clear search"
             >
               <X size={13} />
@@ -159,88 +159,92 @@ export default function ProductSearchFilters({
         </div>
 
         {/* Primary Filters */}
-        <select
-          value={filters.brand}
-          onChange={(e) => update("brand", e.target.value)}
-          className={selectClasses}
-          aria-label="Filter by brand"
-        >
-          <option value="all">All Brands</option>
-          {sortedBrands.map((b) => (
-            <option key={b.id} value={b.name}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filters.audience}
-          onChange={(e) => update("audience", e.target.value)}
-          className={selectClasses}
-          aria-label="Filter by audience"
-        >
-          {AUDIENCES.map((a) => (
-            <option key={a.value} value={a.value}>
-              {a.label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filters.status}
-          onChange={(e) => update("status", e.target.value)}
-          className={selectClasses}
-          aria-label="Filter by status"
-        >
-          {STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filters.availability || "all"}
-          onChange={(e) => update("availability", e.target.value)}
-          className={`${selectClasses} ${filters.availability && filters.availability !== "all" ? "border-primary text-primary font-bold" : ""}`}
-          aria-label="Filter by availability"
-        >
-          {AVAILABILITIES.map((av) => (
-            <option key={av.value} value={av.value}>
-              {av.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Advanced Filters Toggle */}
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className={`h-9 px-3 rounded-lg border text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors ${
-            showAdvanced || activeFilterCount > 3
-              ? "bg-foreground text-background border-foreground"
-              : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
-          }`}
-          aria-label="Toggle advanced filters"
-        >
-          <SlidersHorizontal size={13} />
-          <span className="hidden sm:inline">More</span>
-          {activeFilterCount > 0 && (
-            <span className="w-4.5 h-4.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
-
-        {/* Clear Filters */}
-        {hasActiveFilters && (
-          <button
-            onClick={clearAll}
-            className="h-9 px-3 rounded-lg text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 border border-red-200 dark:border-red-800/50 transition-colors flex items-center gap-1.5"
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+          <select
+            value={filters.brand}
+            onChange={(e) => update("brand", e.target.value)}
+            className={`${selectClasses} min-w-[125px]`}
+            aria-label="Filter by brand"
           >
-            <X size={13} />
-            Clear Filters
+            <option value="all">All Brands</option>
+            {sortedBrands.map((b) => (
+              <option key={b.id} value={b.name}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.audience}
+            onChange={(e) => update("audience", e.target.value)}
+            className={`${selectClasses} min-w-[120px]`}
+            aria-label="Filter by audience"
+          >
+            {AUDIENCES.map((a) => (
+              <option key={a.value} value={a.value}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.status}
+            onChange={(e) => update("status", e.target.value)}
+            className={`${selectClasses} min-w-[115px]`}
+            aria-label="Filter by status"
+          >
+            {STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.availability || "all"}
+            onChange={(e) => update("availability", e.target.value)}
+            className={`${selectClasses} min-w-[135px] ${filters.availability && filters.availability !== "all" ? "border-primary text-primary font-bold" : ""}`}
+            aria-label="Filter by availability"
+          >
+            {AVAILABILITIES.map((av) => (
+              <option key={av.value} value={av.value}>
+                {av.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Advanced Filters Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className={`h-9 px-3 rounded-lg border text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+              showAdvanced || activeFilterCount > 3
+                ? "bg-foreground text-background border-foreground"
+                : "border-border/80 text-muted-foreground hover:text-foreground hover:bg-secondary bg-card"
+            }`}
+            aria-label="Toggle advanced filters"
+          >
+            <SlidersHorizontal size={13} />
+            <span className="hidden sm:inline">More</span>
+            {activeFilterCount > 0 && (
+              <span className="w-4.5 h-4.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
           </button>
-        )}
+
+          {/* Clear Filters */}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="h-9 px-3 rounded-lg text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 border border-red-200 dark:border-red-800/50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            >
+              <X size={13} />
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Advanced Filters Row */}
