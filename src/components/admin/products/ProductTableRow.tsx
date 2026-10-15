@@ -15,6 +15,7 @@ import {
   EyeOff,
   SlidersHorizontal,
   History,
+  Ban,
 } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
@@ -33,6 +34,7 @@ interface ProductTableRowProps {
   onDelete: (product: B2BProductInput) => void;
   onAdjustStock?: (product: B2BProductInput) => void;
   onViewStockHistory?: (product: B2BProductInput) => void;
+  onMarkSoldOut?: (product: B2BProductInput) => void;
   globalIndex?: number;
   localIndex?: number;
   isReorderDisabled?: boolean;
@@ -55,6 +57,7 @@ export default function ProductTableRow({
   onDelete,
   onAdjustStock,
   onViewStockHistory,
+  onMarkSoldOut,
   globalIndex = 0,
   localIndex = 0,
   isReorderDisabled = false,
@@ -466,16 +469,55 @@ export default function ProductTableRow({
                 </button>
               )}
 
-              <a
-                href={storefrontHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
-                onClick={() => setMenuOpen(false)}
-              >
-                <ExternalLink size={13} />
-                View Storefront
-              </a>
+              {canAdjustStock && onMarkSoldOut && (
+                <button
+                  type="button"
+                  id={`btn-mark-sold-out-${product.id}`}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onMarkSoldOut(product);
+                  }}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors w-full text-left cursor-pointer"
+                >
+                  <Ban size={13} />
+                  Mark as Sold Out
+                </button>
+              )}
+
+              {isPublished && !isHiddenFromStorefront ? (
+                <a
+                  href={storefrontHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <ExternalLink size={13} />
+                  View Storefront
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    if (!isPublished) {
+                      alert(`Product "${product.name || product.productId}" is in Draft status and is not published on the public storefront. Publish the product first to view it live.`);
+                    } else {
+                      alert(`Product "${product.name || product.productId}" is currently hidden from the public storefront. Click "Show on Storefront" to make it visible.`);
+                    }
+                  }}
+                  className="flex items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer opacity-75"
+                  title={!isPublished ? "Unpublished draft is not visible on the public storefront." : "Product is hidden from storefront."}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <ExternalLink size={13} />
+                    View Storefront
+                  </span>
+                  <span className="text-[9.5px] font-normal px-1 py-0.2 rounded bg-secondary text-amber-600 dark:text-amber-400 border border-border/50">
+                    {!isPublished ? "Draft" : "Hidden"}
+                  </span>
+                </button>
+              )}
 
               {onToggleStorefrontVisibility && (
                 <button

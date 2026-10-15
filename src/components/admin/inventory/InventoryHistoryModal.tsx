@@ -28,17 +28,28 @@ export default function InventoryHistoryModal({
   useEffect(() => {
     if (!isOpen || !inventoryItem) return;
 
-    if (inventoryItem.adjustments && inventoryItem.adjustments.length > 0) {
-      setLoadedAdjustments(inventoryItem.adjustments);
-      return;
-    }
+    setLoadedAdjustments(inventoryItem.adjustments || []);
 
+    const productId = inventoryItem.product_id || inventoryItem.product?.id;
     const currentItemId = inventoryItem.id;
     let isMounted = true;
+
     async function fetchHistory() {
       setLoadingHistory(true);
       try {
-        const hist = await adminInventoryService.getInventoryItemHistory(currentItemId);
+        let hist: InventoryAdjustment[] | null = null;
+        if (productId) {
+          const prodHist = await adminInventoryService.getProductStockHistory(productId);
+          if (Array.isArray(prodHist) && prodHist.length > 0) {
+            hist = prodHist;
+          }
+        }
+        if (!hist && currentItemId) {
+          const itemHist = await adminInventoryService.getInventoryItemHistory(currentItemId);
+          if (Array.isArray(itemHist)) {
+            hist = itemHist;
+          }
+        }
         if (isMounted && Array.isArray(hist)) {
           setLoadedAdjustments(hist);
         }

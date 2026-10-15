@@ -330,7 +330,7 @@ class HomepageManagementController extends ApiController
             });
         }
 
-        $paginated = $query->orderBy('name', 'asc')->paginate($perPage);
+        $paginated = $query->orderByRaw('LOWER(name) ASC')->orderBy('id', 'asc')->paginate($perPage);
 
         return $this->success([
             'items' => $paginated->items(),

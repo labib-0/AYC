@@ -65,9 +65,13 @@ class BrandController extends ApiController
             });
         }
 
-        $brands = $query->orderBy($isLandingOnly ? 'landing_sort_order' : 'sort_order', 'asc')
-            ->orderBy('name', 'asc')
-            ->get();
+        if ($request->input('sort') === 'name' || $request->input('sort') === 'alphabetical' || $request->input('sort') === 'alpha') {
+            $brands = $query->orderByRaw('LOWER(name) ASC')->orderBy('id', 'asc')->get();
+        } else {
+            $brands = $query->orderBy($isLandingOnly ? 'landing_sort_order' : 'sort_order', 'asc')
+                ->orderBy('name', 'asc')
+                ->get();
+        }
 
         return $this->success(BrandResource::collection($brands), 'Brands retrieved');
     }

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Search, ChevronDown, Check, X } from "lucide-react";
+import { sortBrandsAlphabetically } from "@/lib/brand-sort";
 
 export interface SearchableSelectOption {
   id: string | number;
@@ -27,6 +28,7 @@ interface SearchableSelectProps {
   disabled?: boolean;
   actionButton?: React.ReactNode;
   className?: string;
+  sortAlphabetically?: boolean;
 }
 
 export default function SearchableSelect({
@@ -43,6 +45,7 @@ export default function SearchableSelect({
   disabled,
   actionButton,
   className = "",
+  sortAlphabetically = false,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,12 +70,14 @@ export default function SearchableSelect({
   // Display text: either matched option name, fallbackDisplay, or raw value string
   const displayText = selectedOption?.name || fallbackDisplay || strValue || "";
 
-  // Filter options based on case-insensitive search
+  // Filter options based on case-insensitive search and alphabetical sort if requested
   const filteredOptions = useMemo(() => {
+    const baseList = sortAlphabetically ? sortBrandsAlphabetically(options) : options;
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return options;
-    return options.filter((opt) => opt.name.toLowerCase().includes(q));
-  }, [options, searchQuery]);
+    if (!q) return baseList;
+    const matched = baseList.filter((opt) => opt.name.toLowerCase().includes(q));
+    return sortAlphabetically ? sortBrandsAlphabetically(matched) : matched;
+  }, [options, searchQuery, sortAlphabetically]);
 
   // Close dropdown on click outside
   useEffect(() => {

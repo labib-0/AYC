@@ -194,17 +194,64 @@ class InventoryController extends ApiController
 
     /**
      * GET /api/v1/admin/inventory/{id}/history
-     * Get inventory adjustment history for a specific inventory record.
+     * Get inventory adjustment history for a specific inventory record or product.
      */
-    public function history(int $id): JsonResponse
+    public function history(Request $request, string $id): JsonResponse
     {
-        $inventory = Inventory::findOrFail($id);
-        $adjustments = AdminInventoryAdjustment::with('adminUser')
-            ->where('inventory_id', $inventory->id)
+        if ($request->query('by') === 'product' || $request->boolean('by_product')) {
+            return $this->productHistory($request, $id);
+        }
+
+        $inventory = is_numeric($id) ? Inventory::find((int) $id) : null;
+        if ($inventory) {
+            $adjustments = AdminInventoryAdjustment::with(['adminUser', 'inventory.warehouse', 'inventory.variant'])
+                ->where('inventory_id', $inventory->id)
+                ->orderByDesc('created_at')
+                ->get();
+
+            return $this->success($adjustments, 'Inventory adjustment history retrieved');
+        }
+
+        // Fallback: check if the id corresponds to a product
+        $product = is_numeric($id)
+            ? \App\Models\Product::find((int) $id)
+            : \App\Models\Product::where('product_id', $id)->orWhere('slug', $id)->first();
+
+        if ($product) {
+            return $this->productHistory($request, (string) $product->id);
+        }
+
+        return $this->notFound('Inventory record not found');
+    }
+
+    /**
+     * GET /api/v1/admin/inventory/products/{productId}/history
+     * Retrieve all stock adjustments for a specific product across all variants and warehouses.
+     */
+    public function productHistory(Request $request, string $productId): JsonResponse
+    {
+        $product = is_numeric($productId)
+            ? \App\Models\Product::find((int) $productId)
+            : \App\Models\Product::where('product_id', $productId)->orWhere('slug', $productId)->first();
+
+        if (!$product) {
+            return $this->notFound('Product not found');
+        }
+
+        $variantIds = ProductVariant::where('product_id', $product->id)->pluck('id');
+
+        $inventoryQuery = Inventory::where('product_id', $product->id);
+        if ($variantIds->isNotEmpty()) {
+            $inventoryQuery->orWhereIn('product_variant_id', $variantIds);
+        }
+        $inventoryIds = $inventoryQuery->pluck('id');
+
+        $adjustments = AdminInventoryAdjustment::with(['adminUser', 'inventory.warehouse', 'inventory.variant'])
+            ->whereIn('inventory_id', $inventoryIds)
             ->orderByDesc('created_at')
             ->get();
 
-        return $this->success($adjustments, 'Inventory adjustment history retrieved');
+        return $this->success($adjustments, 'Product stock movement history retrieved');
     }
 
     /**
@@ -214,10 +261,10 @@ class InventoryController extends ApiController
     public function adjust(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'inventory_id' => ['nullable', 'exists:inventories,id'],
-            'variant_id' => ['nullable', 'exists:product_variants,id'],
-            'product_id' => ['nullable', 'exists:products,id'],
-            'warehouse_id' => ['nullable', 'exists:warehouses,id'],
+            'inventory_id' => ['nullable'],
+            'variant_id' => ['nullable'],
+            'product_id' => ['nullable'],
+            'warehouse_id' => ['nullable'],
             'adjustment_amount' => ['nullable', 'integer'], // e.g. +50 or -20
             'new_quantity' => ['nullable', 'integer', 'min:0'], // or absolute new quantity
             'reason' => ['required', 'string', 'max:255'],
@@ -231,59 +278,100 @@ class InventoryController extends ApiController
 
         try {
             $result = DB::transaction(function () use ($validated, $admin) {
-                // Find or create the target inventory row
+                // Resolve warehouse safely
+                $targetWarehouse = null;
+                if (!empty($validated['warehouse_id'])) {
+                    $targetWarehouse = Warehouse::find($validated['warehouse_id']);
+                }
+                if (!$targetWarehouse) {
+                    $targetWarehouse = Warehouse::where('is_active', true)->first()
+                        ?? Warehouse::first()
+                        ?? Warehouse::firstOrCreate(
+                            ['code' => 'WH-UTTARA-01'],
+                            ['name' => 'Uttara Warehouse', 'country_code' => 'BD', 'is_active' => true]
+                        );
+                }
+                $warehouseId = $targetWarehouse->id;
+
+                $inventory = null;
+                $variant = null;
+
+                // 1. Try finding by inventory_id
                 if (!empty($validated['inventory_id'])) {
-                    $inventory = Inventory::where('id', $validated['inventory_id'])
-                        ->lockForUpdate()
-                        ->firstOrFail();
-                    $variant = $inventory->product_variant_id
-                        ? ProductVariant::where('id', $inventory->product_variant_id)->lockForUpdate()->first()
-                        : null;
-                } elseif (!empty($validated['variant_id'])) {
-                    $warehouseId = $validated['warehouse_id'] ?? Warehouse::firstOrCreate(
-                        ['code' => 'WH-UTTARA-01'],
-                        ['name' => 'Uttara Warehouse', 'country_code' => 'BD', 'is_active' => true]
-                    )->id;
+                    $inventory = Inventory::where('id', $validated['inventory_id'])->lockForUpdate()->first();
+                }
 
-                    $variant = ProductVariant::where('id', $validated['variant_id'])
-                        ->lockForUpdate()
-                        ->firstOrFail();
+                // 2. Try finding by variant_id
+                if (!$inventory && !empty($validated['variant_id'])) {
+                    $variant = ProductVariant::where('id', $validated['variant_id'])->lockForUpdate()->first();
+                    if ($variant) {
+                        $inventory = Inventory::where('product_variant_id', $variant->id)
+                            ->where('warehouse_id', $warehouseId)
+                            ->lockForUpdate()
+                            ->first();
 
-                    $inventory = Inventory::firstOrCreate(
-                        [
-                            'product_variant_id' => $variant->id,
-                            'warehouse_id' => $warehouseId,
-                        ],
-                        [
-                            'quantity' => $variant->stock ?? 0,
-                        ]
-                    );
+                        if (!$inventory) {
+                            $inventory = Inventory::create([
+                                'product_variant_id' => $variant->id,
+                                'warehouse_id' => $warehouseId,
+                                'quantity' => (int) ($variant->stock ?? 0),
+                            ]);
+                        }
+                    }
+                }
 
-                    $inventory = Inventory::where('id', $inventory->id)->lockForUpdate()->first();
-                } else {
-                    // product_id (variantless product or product-level inventory)
-                    $warehouseId = $validated['warehouse_id'] ?? Warehouse::firstOrCreate(
-                        ['code' => 'WH-UTTARA-01'],
-                        ['name' => 'Uttara Warehouse', 'country_code' => 'BD', 'is_active' => true]
-                    )->id;
+                // 3. Try finding by product_id (or if inventory_id was actually a product_id)
+                $targetProductId = $validated['product_id'] ?? null;
+                if (!$inventory && !$targetProductId && !empty($validated['inventory_id'])) {
+                    if (\App\Models\Product::where('id', $validated['inventory_id'])->exists()) {
+                        $targetProductId = $validated['inventory_id'];
+                    }
+                }
 
-                    $product = \App\Models\Product::where('id', $validated['product_id'])
-                        ->lockForUpdate()
-                        ->firstOrFail();
+                if (!$inventory && !empty($targetProductId)) {
+                    $product = \App\Models\Product::where('id', $targetProductId)->lockForUpdate()->first();
+                    if ($product) {
+                        // Check if direct inventory exists for product in warehouse
+                        $inventory = Inventory::where('product_id', $product->id)
+                            ->where('warehouse_id', $warehouseId)
+                            ->lockForUpdate()
+                            ->first();
 
-                    $inventory = Inventory::firstOrCreate(
-                        [
-                            'product_id' => $product->id,
-                            'product_variant_id' => null,
-                            'warehouse_id' => $warehouseId,
-                        ],
-                        [
-                            'quantity' => $product->stock ?? 0,
-                        ]
-                    );
+                        // If no direct inventory, check variant inventory
+                        if (!$inventory) {
+                            $firstVariant = ProductVariant::where('product_id', $product->id)->first();
+                            if ($firstVariant) {
+                                $variant = $firstVariant;
+                                $inventory = Inventory::where('product_variant_id', $firstVariant->id)
+                                    ->where('warehouse_id', $warehouseId)
+                                    ->lockForUpdate()
+                                    ->first();
 
-                    $inventory = Inventory::where('id', $inventory->id)->lockForUpdate()->first();
-                    $variant = null;
+                                if (!$inventory) {
+                                    $inventory = Inventory::create([
+                                        'product_variant_id' => $firstVariant->id,
+                                        'warehouse_id' => $warehouseId,
+                                        'quantity' => (int) ($firstVariant->stock ?? 0),
+                                    ]);
+                                }
+                            } else {
+                                $inventory = Inventory::create([
+                                    'product_id' => $product->id,
+                                    'product_variant_id' => null,
+                                    'warehouse_id' => $warehouseId,
+                                    'quantity' => (int) ($product->stock ?? 0),
+                                ]);
+                            }
+                        }
+                    }
+                }
+
+                if (!$inventory) {
+                    throw new \Exception('Could not resolve an inventory record to adjust.', 422);
+                }
+
+                if ($inventory->product_variant_id && !$variant) {
+                    $variant = ProductVariant::where('id', $inventory->product_variant_id)->lockForUpdate()->first();
                 }
 
                 $previousQuantity = (int) $inventory->quantity;
@@ -315,10 +403,29 @@ class InventoryController extends ApiController
                         $q->where('product_id', $variant->product_id)
                           ->orWhereIn('product_variant_id', ProductVariant::where('product_id', $variant->product_id)->pluck('id'));
                     })->sum('quantity');
-                    \App\Models\Product::where('id', $variant->product_id)->update(['stock' => $prodTotalStock]);
+
+                    $prod = \App\Models\Product::find($variant->product_id);
+                    if ($prod) {
+                        $prodUpdates = ['stock' => $prodTotalStock];
+                        if ($prodTotalStock > 0 && $prod->is_sold_out) {
+                            $prodUpdates['is_sold_out'] = false;
+                        } elseif ($prodTotalStock <= 0) {
+                            $prodUpdates['is_sold_out'] = true;
+                        }
+                        $prod->update($prodUpdates);
+                    }
                 } elseif ($inventory->product_id) {
                     $totalStock = Inventory::where('product_id', $inventory->product_id)->sum('quantity');
-                    \App\Models\Product::where('id', $inventory->product_id)->update(['stock' => $totalStock]);
+                    $prod = \App\Models\Product::find($inventory->product_id);
+                    if ($prod) {
+                        $prodUpdates = ['stock' => $totalStock];
+                        if ($totalStock > 0 && $prod->is_sold_out) {
+                            $prodUpdates['is_sold_out'] = false;
+                        } elseif ($totalStock <= 0) {
+                            $prodUpdates['is_sold_out'] = true;
+                        }
+                        $prod->update($prodUpdates);
+                    }
                 }
 
                 // Record audit log

@@ -249,7 +249,7 @@ class PosController extends ApiController
                     'coupon_code' => $validated['coupon_code'] ?? null,
                     'manual_discount' => $validated['manual_discount'] ?? null,
                     'shipping_cost' => $validated['shipping_cost'] ?? 0.00,
-                    'shipping_method' => $validated['shipping_method'] ?? 'POS In-Store Fulfillment',
+                    'shipping_method' => $validated['shipping_method'] ?? 'POS In-Store Handover',
                     'payment_method' => $paymentMethod,
                     'paid_amount' => isset($validated['paid_amount']) ? (float) $validated['paid_amount'] : null,
                     'tendered_amount' => isset($validated['tendered_amount']) ? (float) $validated['tendered_amount'] : null,

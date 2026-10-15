@@ -12,11 +12,13 @@ import {
   duplicateProduct,
   togglePublishStatus,
   reorderProducts,
+  markProductSoldOut,
 } from "@/lib/services/products";
 import { brandService } from "@/services/brand.service";
 import { categoryService } from "@/services/category.service";
 import { productDraftService } from "@/lib/services/product-draft.service";
 import { toggleProductStorefrontVisibility } from "@/services/product.service";
+import { sortBrandsAlphabetically } from "@/lib/brand-sort";
 
 import {
   ProductSummaryMetrics,
@@ -26,6 +28,7 @@ import {
   ProductBulkActions,
   DeleteProductModal,
   DuplicateProductModal,
+  MarkSoldOutModal,
   ProductToast,
 } from "@/components/admin/products";
 import type { ProductFilters, ToastMessage } from "@/components/admin/products";
@@ -88,6 +91,7 @@ function AdminProductsContent() {
   const { can, isSuperAdmin } = useAdminAuth();
   const canAdjustStock = isSuperAdmin || can("inventory.adjust") || can("product.edit");
   const canViewHistory = isSuperAdmin || can("inventory.audit") || can("inventory.view") || can("product.view");
+  const canMarkSoldOut = isSuperAdmin || can("inventory.adjust") || can("product.edit");
 
   // Read initial status filter from URL if present
   const initialStatusParam = searchParams.get("status");
@@ -170,6 +174,7 @@ function AdminProductsContent() {
   // ── Modals ──
   const [deleteTarget, setDeleteTarget] = useState<B2BProductInput | null>(null);
   const [duplicateTarget, setDuplicateTarget] = useState<B2BProductInput | null>(null);
+  const [soldOutTarget, setSoldOutTarget] = useState<B2BProductInput | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
   // ── Inventory Integration Modals ──
@@ -194,6 +199,10 @@ function AdminProductsContent() {
   // ── Reference Data ──
   const [brandsList, setBrandsList] = useState<Array<{ id: string; name: string }>>([]);
   const [categoriesList, setCategoriesList] = useState<Array<{ id: string; name: string }>>([]);
+
+  // ── Search Request In-Flight Management (Protects against stale overwrites) ──
+  const searchRequestIdRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // ── Helpers ──
   const addToast = useCallback((type: "success" | "error", message: string) => {
@@ -230,7 +239,7 @@ function AdminProductsContent() {
     async function loadReferenceData() {
       try {
         const brands = await brandService.getBrands({ all: true, isAdmin: true });
-        setBrandsList(brands.map((b) => ({ id: String(b.id), name: b.name })));
+        setBrandsList(sortBrandsAlphabetically(brands.map((b) => ({ id: String(b.id), name: b.name }))));
       } catch {
         // Use empty list
       }
@@ -245,8 +254,17 @@ function AdminProductsContent() {
     loadReferenceData();
   }, []);
 
-  // ── Load Products (Respects backend filtering e.g. status=draft) ──
+  // ── Load Products (Respects backend filtering e.g. status=draft with stale-request protection) ──
   const loadProducts = useCallback(async () => {
+    const currentRequestId = ++searchRequestIdRef.current;
+
+    // Abort previous pending network request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setLoading(true);
     setError(null);
     try {
@@ -260,7 +278,12 @@ function AdminProductsContent() {
         category: filters.category !== "all" ? filters.category : undefined,
         purchase_price_status: filters.purchasePriceStatus !== "all" ? filters.purchasePriceStatus : undefined,
         availability: filters.availability && filters.availability !== "all" ? (filters.availability as any) : undefined,
-      });
+      }, abortController.signal);
+
+      // Discard stale responses if a newer search request has been triggered
+      if (currentRequestId !== searchRequestIdRef.current) {
+        return;
+      }
 
       // Apply design type filter locally
       let filtered = data;
@@ -325,9 +348,16 @@ function AdminProductsContent() {
 
       setAllProducts(filtered);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load products.");
+      if ((err as any)?.name === "AbortError" || abortController.signal.aborted) {
+        return;
+      }
+      if (currentRequestId === searchRequestIdRef.current) {
+        setError(err instanceof Error ? err.message : "Failed to load products.");
+      }
     } finally {
-      setLoading(false);
+      if (currentRequestId === searchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [filters]);
 
@@ -485,6 +515,25 @@ function AdminProductsContent() {
       await Promise.all([loadProducts(), loadGlobalMetrics()]);
     } catch {
       addToast("error", "Failed to duplicate product.");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleMarkSoldOutConfirm = async (reason?: string) => {
+    if (!soldOutTarget) return;
+    setModalLoading(true);
+    try {
+      await markProductSoldOut(soldOutTarget.id, reason);
+      addToast("success", `"${soldOutTarget.name}" has been marked as sold out.`);
+      setSoldOutTarget(null);
+      await Promise.all([loadProducts(), loadGlobalMetrics()]);
+    } catch (err: any) {
+      const msg =
+        err?.data?.message ||
+        err?.message ||
+        "Failed to mark product as sold out. Please try again.";
+      addToast("error", msg);
     } finally {
       setModalLoading(false);
     }
@@ -745,6 +794,7 @@ function AdminProductsContent() {
         onToggleStorefrontVisibility={handleToggleStorefrontVisibility}
         onDuplicate={(p) => setDuplicateTarget(p)}
         onDelete={(p) => setDeleteTarget(p)}
+        onMarkSoldOut={canMarkSoldOut ? (p) => setSoldOutTarget(p) : undefined}
         onAdjustStock={canAdjustStock ? handleOpenRowAdjust : undefined}
         onViewStockHistory={canViewHistory ? handleOpenRowHistory : undefined}
         onRetry={loadProducts}
@@ -789,6 +839,15 @@ function AdminProductsContent() {
         productName={duplicateTarget?.name || ""}
         onConfirm={handleDuplicateConfirm}
         onCancel={() => setDuplicateTarget(null)}
+        loading={modalLoading}
+      />
+
+      {/* Mark as Sold Out Modal */}
+      <MarkSoldOutModal
+        open={soldOutTarget !== null}
+        product={soldOutTarget}
+        onConfirm={handleMarkSoldOutConfirm}
+        onCancel={() => setSoldOutTarget(null)}
         loading={modalLoading}
       />
 

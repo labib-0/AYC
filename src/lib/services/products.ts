@@ -18,8 +18,8 @@ import { INITIAL_MOCK_PRODUCTS } from "@/lib/mock-data/mock-products";
 export { normalizeToB2BProduct, toStorefrontProduct, generateProductSku, toggleProductStorefrontVisibility, reorderProducts };
 export type { ProductQueryParams, SearchSuggestionsResult, PaginatedProductsResult };
 
-export async function getProducts(options?: ProductQueryParams): Promise<B2BProductInput[]> {
-  return productService.getProducts(options);
+export async function getProducts(options?: ProductQueryParams, signal?: AbortSignal): Promise<B2BProductInput[]> {
+  return productService.getProducts(options, signal);
 }
 
 export async function getProductStatistics(): Promise<{
@@ -57,19 +57,7 @@ export async function updateProduct(id: string, updates: Partial<B2BProductInput
 }
 
 export async function duplicateProduct(id: string): Promise<B2BProductInput | null> {
-  const source = await getProductBySlugOrId(id);
-  if (!source) return null;
-
-  const clone: B2BProductInput = {
-    ...source,
-    id: `prod_${Date.now()}_copy`,
-    name: `${source.name} (Copy)`,
-    slug: `${source.slug}-copy-${Math.random().toString(36).substring(2, 6)}`,
-    sku: generateProductSku(source.brand, source.categoryName || "APP", `${source.name} Copy`),
-    status: "draft",
-  };
-
-  return createProduct(clone);
+  return productService.duplicateProduct(id);
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
@@ -81,6 +69,13 @@ export async function togglePublishStatus(
   newStatus: "published" | "draft" | "unpublished"
 ): Promise<B2BProductInput | null> {
   return updateProduct(id, { status: newStatus });
+}
+
+export async function markProductSoldOut(
+  id: string,
+  reason?: string
+): Promise<B2BProductInput | null> {
+  return productService.markProductSoldOut(id, reason);
 }
 
 export async function getProductShippingSpecs(

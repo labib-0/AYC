@@ -364,7 +364,7 @@ export class AdminInventoryService {
     }
   }
 
-  async getInventoryItemHistory(inventoryId: number): Promise<InventoryRecord["adjustments"]> {
+  async getInventoryItemHistory(inventoryId: number | string): Promise<InventoryRecord["adjustments"]> {
     try {
       const res = await apiClient.get<any>(`/admin/inventory/${inventoryId}/history`);
       const data = res?.data || res;
@@ -372,6 +372,22 @@ export class AdminInventoryService {
       return [];
     } catch (err) {
       console.warn("Failed to fetch inventory history from API:", err);
+      return [];
+    }
+  }
+
+  async getProductStockHistory(productId: number | string): Promise<InventoryRecord["adjustments"]> {
+    try {
+      const res = await apiClient.get<any>(`/admin/inventory/products/${productId}/history`);
+      const data = res?.data || res;
+      if (Array.isArray(data)) return data;
+      // Fallback: try by product query param
+      const fallback = await apiClient.get<any>(`/admin/inventory/${productId}/history?by=product`);
+      const fbData = fallback?.data || fallback;
+      if (Array.isArray(fbData)) return fbData;
+      return [];
+    } catch (err) {
+      console.warn("Failed to fetch product stock history from API:", err);
       return [];
     }
   }

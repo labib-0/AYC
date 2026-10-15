@@ -741,17 +741,21 @@ export class ProductService {
   /**
    * Fetch products with query parameters
    */
-  async getProducts(params?: ProductQueryParams): Promise<B2BProductInput[]> {
+  async getProducts(params?: ProductQueryParams, signal?: AbortSignal): Promise<B2BProductInput[]> {
     if (!isFrontendOnly()) {
       try {
         const res = await apiClient.get<any>("/products", {
           params: params as Record<string, string | number | boolean | undefined>,
-        });
+          signal,
+        } as any);
         const items = Array.isArray(res) ? res : res?.data;
-        if (Array.isArray(items) && items.length > 0) {
+        if (Array.isArray(items)) {
           return items.map(normalizeToB2BProduct);
         }
-      } catch {
+      } catch (err: any) {
+        if (err?.name === "AbortError" || err?.message === "AbortError") {
+          throw err;
+        }
         // Fall through to mockStore
       }
     }
@@ -1181,24 +1185,56 @@ export class ProductService {
   }
 
   /**
-   * Duplicate product
+   * Duplicate product as a clean new Draft with unique identifiers and zero initial stock.
    */
   async duplicateProduct(id: string): Promise<B2BProductInput | null> {
     if (!isFrontendOnly()) {
       const existing = await this.getProductBySlugOrId(id);
       if (!existing) return null;
-      const { id: _ignored, ...rest } = existing;
+      const { id: _ignored, productId: _oldPid, ...rest } = existing;
+      const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
       const newName = `${existing.name} (Copy)`;
       const newSlug = `${existing.slug}-copy-${Date.now().toString(36)}`;
-      const newSku = `${existing.sku}-CPY`;
+      const newSku = `${existing.sku}-CPY-${randomSuffix}`;
       return this.createProduct({
         ...rest,
+        productId: undefined,
         name: newName,
         slug: newSlug,
         sku: newSku,
+        status: "draft",
+        stock: 0,
+        initialStock: 0,
+        initial_stock: 0,
+        availableStock: 0,
+        isSoldOut: false,
+        is_sold_out: false,
       });
     }
     return mockStore.duplicateProduct(id);
+  }
+
+  /**
+   * Mark a product as sold out immediately through authoritative backend inventory
+   */
+  async markProductSoldOut(id: string, reason?: string): Promise<B2BProductInput | null> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>(`/products/${id}/mark-sold-out`, { reason });
+      const item = res?.data || res;
+      return item ? normalizeToB2BProduct(item) : null;
+    }
+
+    const prod = mockStore.getProductByIdOrSlug(id);
+    if (!prod) return null;
+    return mockStore.saveProduct({
+      ...prod,
+      stock: 0,
+      availableStock: 0,
+      isSoldOut: true,
+      is_sold_out: true,
+      isPreorder: false,
+      is_preorder: false,
+    });
   }
 
   /**
@@ -1318,6 +1354,10 @@ export class ProductService {
         const sku = (p.sku || "").toLowerCase();
         const cat = (p.categoryName || p.categoryId || "").toLowerCase();
         const desc = (p.description || p.shortDescription || "").toLowerCase();
+        const idStr = String(p.id ?? "").toLowerCase();
+        const variantSkus = Array.isArray(p.variants)
+          ? p.variants.map((v: any) => (v?.sku || "").toLowerCase()).filter(Boolean)
+          : [];
         const prodId = options?.isAdmin ? ((p.productId || (p as any).product_id || "").toLowerCase()) : "";
         const supName = options?.isAdmin ? ((p.supplier_name || p.supplierName || (typeof p.supplier === 'string' ? p.supplier : p.supplier?.name) || "").toLowerCase()) : "";
         const match = terms.every(
@@ -1325,8 +1365,10 @@ export class ProductService {
             name.includes(t) ||
             brand.includes(t) ||
             sku.includes(t) ||
+            variantSkus.some((vsku: string) => vsku.includes(t)) ||
             cat.includes(t) ||
             desc.includes(t) ||
+            idStr === t ||
             (prodId && prodId.includes(t)) ||
             (supName && supName.includes(t))
         );

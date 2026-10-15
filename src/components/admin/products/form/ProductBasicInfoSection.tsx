@@ -295,6 +295,7 @@ export default function ProductBasicInfoSection({
               placeholder="Select brand"
               searchPlaceholder="Search brands..."
               options={brands}
+              sortAlphabetically
               value={brand || (brandId ? String(brandId) : "")}
               fallbackDisplay={brand || (brandId ? brands.find((b) => String(b.id) === String(brandId))?.name : undefined)}
               onChange={(val, opt) => {

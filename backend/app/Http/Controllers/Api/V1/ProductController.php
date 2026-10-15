@@ -100,6 +100,9 @@ class ProductController extends ApiController
                   })
                   ->orWhereHas('categories', function ($cq) use ($searchTerm, $likeOp) {
                       $cq->where('name', $likeOp, "%{$searchTerm}%");
+                  })
+                  ->orWhereHas('variants', function ($vq) use ($searchTerm, $likeOp) {
+                      $vq->where('sku', $likeOp, "%{$searchTerm}%");
                   });
 
                 // Product ID and Supplier search are internal and authoritative for Admins
@@ -109,6 +112,9 @@ class ProductController extends ApiController
                       ->orWhereHas('supplier', function ($sq) use ($searchTerm, $likeOp) {
                           $sq->where('name', $likeOp, "%{$searchTerm}%");
                       });
+                    if (is_numeric($searchTerm)) {
+                        $q->orWhere('id', (int) $searchTerm);
+                    }
                 }
             });
         }
@@ -2403,6 +2409,148 @@ class ProductController extends ApiController
         ]);
 
         return $this->success(new ProductResource($product), 'Product storefront visibility updated successfully');
+    }
+
+    /**
+     * POST /api/v1/products/{id}/mark-sold-out (Admin)
+     * Marks product as sold out by setting sellable stock to zero through authoritative inventory service,
+     * recording stock adjustment audit history, updating is_sold_out=true, and invalidating cache.
+     */
+    public function markSoldOut(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.edit') && !$this->authorization->can($user, 'inventory.adjust')) {
+            return $this->forbidden("Forbidden: you do not have permission to mark products as sold out.");
+        }
+
+        $product = is_numeric($id)
+            ? Product::find((int) $id)
+            : Product::where('slug', $id)->orWhere('sku', $id)->orWhere('product_id', $id)->first();
+
+        if (!$product) {
+            return $this->notFound('Product not found');
+        }
+
+        $reason = $request->input('reason', 'Admin marked product as sold out');
+        if (empty(trim((string) $reason))) {
+            $reason = 'Admin marked product as sold out';
+        }
+
+        try {
+            DB::transaction(function () use ($product, $user, $reason) {
+                // Lock product row
+                $lockedProduct = Product::where('id', $product->id)->lockForUpdate()->first();
+
+                // 1. Find all active variants
+                $variantIds = \App\Models\ProductVariant::where('product_id', $lockedProduct->id)->pluck('id');
+
+                // 2. Find all inventory records for this product (direct + variants)
+                $inventories = \App\Models\Inventory::where(function ($q) use ($lockedProduct, $variantIds) {
+                    $q->where('product_id', $lockedProduct->id);
+                    if ($variantIds->isNotEmpty()) {
+                        $q->orWhereIn('product_variant_id', $variantIds);
+                    }
+                })->lockForUpdate()->get();
+
+                $canonicalWarehouse = \App\Models\Warehouse::firstOrCreate(
+                    ['code' => 'WH-UTTARA-01'],
+                    ['name' => 'Uttara Warehouse', 'country_code' => 'BD', 'is_active' => true]
+                );
+
+                // If no inventories existed, create one with 0 quantity so audit & inventory record exist
+                if ($inventories->isEmpty()) {
+                    $directInv = \App\Models\Inventory::firstOrCreate(
+                        [
+                            'product_id' => $lockedProduct->id,
+                            'product_variant_id' => null,
+                            'warehouse_id' => $canonicalWarehouse->id,
+                        ],
+                        [
+                            'quantity' => (int) ($lockedProduct->stock ?? 0),
+                        ]
+                    );
+                    $inventories = collect([$directInv]);
+                }
+
+                $totalPreviousStock = 0;
+                $adjustmentsCreated = 0;
+
+                // Adjust all inventory records to 0 with audit trail
+                foreach ($inventories as $inv) {
+                    $prevQty = (int) $inv->quantity;
+                    $totalPreviousStock += $prevQty;
+
+                    if ($prevQty > 0) {
+                        $inv->update(['quantity' => 0]);
+
+                        $adminId = $user?->id ?? \App\Models\User::where('role', 'admin')->value('id') ?? 1;
+                        \App\Models\AdminInventoryAdjustment::create([
+                            'inventory_id' => $inv->id,
+                            'admin_user_id' => $adminId,
+                            'previous_quantity' => $prevQty,
+                            'adjustment_amount' => -$prevQty,
+                            'resulting_quantity' => 0,
+                            'reason' => $reason,
+                        ]);
+                        $adjustmentsCreated++;
+                    }
+                }
+
+                // If total previous stock was 0 but an adjustment wasn't logged, log audit for traceability
+                if ($adjustmentsCreated === 0 && $inventories->isNotEmpty()) {
+                    $firstInv = $inventories->first();
+                    $adminId = $user?->id ?? \App\Models\User::where('role', 'admin')->value('id') ?? 1;
+                    \App\Models\AdminInventoryAdjustment::create([
+                        'inventory_id' => $firstInv->id,
+                        'admin_user_id' => $adminId,
+                        'previous_quantity' => 0,
+                        'adjustment_amount' => 0,
+                        'resulting_quantity' => 0,
+                        'reason' => $reason,
+                    ]);
+                }
+
+                // Zero out all variants' stock
+                if ($variantIds->isNotEmpty()) {
+                    \App\Models\ProductVariant::whereIn('id', $variantIds)->update(['stock' => 0]);
+                }
+
+                // Update product stock and sold out flag
+                $lockedProduct->stock = 0;
+                $lockedProduct->is_sold_out = true;
+                $lockedProduct->is_preorder = false; // Sold out takes precedence over pre-order
+                $lockedProduct->save();
+
+                CatalogCacheService::invalidateProduct($lockedProduct);
+
+                ActivityLogger::log('product.marked_sold_out', $lockedProduct, [
+                    'name' => $lockedProduct->name,
+                    'sku' => $lockedProduct->sku,
+                    'previous_stock' => $totalPreviousStock,
+                    'reason' => $reason,
+                ]);
+            });
+
+            $product->refresh();
+            $product->load([
+                'brand',
+                'supplier',
+                'categories',
+                'images',
+                'variants.inventories.warehouse',
+                'pricingTiers',
+                'packageAllocations',
+                'shippingPackageProfiles'
+            ]);
+
+            return $this->success(new ProductResource($product), 'Product marked as sold out successfully');
+        } catch (\Exception $e) {
+            Log::error('Mark as sold out error: ' . $e->getMessage(), [
+                'product_id' => $product->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return $this->error('Failed to mark product as sold out. Please try again.', 500);
+        }
     }
 
     /**

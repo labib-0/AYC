@@ -1,7 +1,8 @@
 "use client";
 
 import { Search, X, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { sortBrandsAlphabetically } from "@/lib/brand-sort";
 
 export interface ProductFilters {
   search: string;
@@ -64,6 +65,25 @@ export default function ProductSearchFilters({
   categories,
 }: ProductSearchFiltersProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [inputValue, setInputValue] = useState(filters.search);
+
+  // Sync internal input value if external filters.search changes
+  useEffect(() => {
+    setInputValue(filters.search);
+  }, [filters.search]);
+
+  // Debounce search update (approx 300ms) to prevent race conditions and excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inputValue !== filters.search) {
+        onFilterChange({ ...filters, search: inputValue });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [inputValue, filters, onFilterChange]);
+
+  // Deterministically alphabetize brands for administrative selection
+  const sortedBrands = useMemo(() => sortBrandsAlphabetically(brands), [brands]);
 
   const hasActiveFilters =
     filters.brand !== "all" ||
@@ -86,10 +106,11 @@ export default function ProductSearchFilters({
   ].filter(Boolean).length;
 
   const update = (key: keyof ProductFilters, value: string) => {
-    onFilterChange({ ...filters, [key]: value });
+    onFilterChange({ ...filters, search: inputValue, [key]: value });
   };
 
   const clearAll = () => {
+    setInputValue("");
     onFilterChange({
       search: "",
       brand: "all",
@@ -117,14 +138,18 @@ export default function ProductSearchFilters({
           />
           <input
             type="text"
-            placeholder="Search products by name, SKU, supplier, or Product ID…"
-            value={filters.search}
-            onChange={(e) => update("search", e.target.value)}
+            placeholder="Search products by name, SKU, brand, supplier, or Product ID…"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             className="w-full h-9 pl-9 pr-9 rounded-lg border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-colors"
           />
-          {filters.search && (
+          {inputValue && (
             <button
-              onClick={() => update("search", "")}
+              type="button"
+              onClick={() => {
+                setInputValue("");
+                onFilterChange({ ...filters, search: "" });
+              }}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Clear search"
             >
@@ -141,7 +166,7 @@ export default function ProductSearchFilters({
           aria-label="Filter by brand"
         >
           <option value="all">All Brands</option>
-          {brands.map((b) => (
+          {sortedBrands.map((b) => (
             <option key={b.id} value={b.name}>
               {b.name}
             </option>

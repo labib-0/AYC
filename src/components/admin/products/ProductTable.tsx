@@ -18,6 +18,7 @@ interface ProductTableProps {
   onDelete: (product: B2BProductInput) => void;
   onAdjustStock?: (product: B2BProductInput) => void;
   onViewStockHistory?: (product: B2BProductInput) => void;
+  onMarkSoldOut?: (product: B2BProductInput) => void;
   onRetry: () => void;
   onClearFilters: () => void;
   hasActiveFilters: boolean;
@@ -167,6 +168,7 @@ export default function ProductTable({
   onDelete,
   onAdjustStock,
   onViewStockHistory,
+  onMarkSoldOut,
   onRetry,
   onClearFilters,
   hasActiveFilters,
@@ -389,6 +391,7 @@ export default function ProductTable({
                   onDelete={onDelete}
                   onAdjustStock={onAdjustStock}
                   onViewStockHistory={onViewStockHistory}
+                  onMarkSoldOut={onMarkSoldOut}
                 />
               );
             })}
