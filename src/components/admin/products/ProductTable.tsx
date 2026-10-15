@@ -49,110 +49,111 @@ export const PRODUCT_COLUMNS: ColumnDef[] = [
     label: "",
     width: "36px",
     colWidthClass: "w-9",
-    thClass: "px-1 py-2 w-9 text-center",
+    thClass: "px-1.5 py-2.5 w-9 text-center align-middle",
   },
   {
     key: "select",
     label: "",
-    width: "32px",
-    colWidthClass: "w-8",
-    thClass: "px-1.5 py-2 w-8 text-center",
+    width: "34px",
+    colWidthClass: "w-[34px]",
+    thClass: "px-1.5 py-2.5 w-[34px] text-center align-middle",
   },
   {
     key: "thumbnail",
     label: "Image",
     title: "Product Thumbnail",
-    width: "42px",
-    colWidthClass: "w-[42px]",
-    thClass: "px-1 py-2 w-[42px] text-center",
+    width: "60px",
+    colWidthClass: "w-[60px]",
+    thClass: "px-1.5 py-2.5 w-[60px] text-center align-middle",
   },
   {
     key: "productId",
     label: "ID",
     title: "Product Identifier",
-    width: "82px",
-    colWidthClass: "w-[82px]",
-    thClass: "px-1.5 py-2 w-[82px] text-center",
+    width: "86px",
+    colWidthClass: "w-[86px]",
+    thClass: "px-2 py-2.5 w-[86px] text-center align-middle",
   },
   {
     key: "product",
     label: "Product",
-    colWidthClass: "min-w-[190px] w-auto",
-    thClass: "px-2.5 py-2 text-left",
+    width: "250px",
+    colWidthClass: "w-[250px]",
+    thClass: "px-3 py-2.5 w-[250px] text-left align-middle",
   },
   {
     key: "sku",
     label: "SKU",
     title: "Stock Keeping Unit",
-    width: "110px",
-    colWidthClass: "w-[110px]",
-    thClass: "px-2 py-2 w-[110px] text-left",
+    width: "125px",
+    colWidthClass: "w-[125px]",
+    thClass: "px-2.5 py-2.5 w-[125px] text-left align-middle",
   },
   {
     key: "brand",
     label: "Brand",
-    width: "92px",
-    colWidthClass: "w-[92px]",
-    thClass: "px-1.5 py-2 w-[92px] text-left",
+    width: "115px",
+    colWidthClass: "w-[115px]",
+    thClass: "px-2.5 py-2.5 w-[115px] text-left align-middle",
   },
   {
     key: "category",
     label: "Category",
-    width: "86px",
-    colWidthClass: "w-[86px]",
-    thClass: "px-1.5 py-2 w-[86px] text-left",
+    width: "115px",
+    colWidthClass: "w-[115px]",
+    thClass: "px-2.5 py-2.5 w-[115px] text-left align-middle",
   },
   {
     key: "audience",
     label: "Audience",
-    width: "64px",
-    colWidthClass: "w-[64px]",
-    thClass: "px-1.5 py-2 w-[64px] text-left",
+    width: "75px",
+    colWidthClass: "w-[75px]",
+    thClass: "px-2 py-2.5 w-[75px] text-left align-middle",
   },
   {
     key: "price",
     label: "Price",
-    width: "58px",
-    colWidthClass: "w-[58px]",
-    thClass: "px-1.5 py-2 w-[58px] text-right",
+    width: "72px",
+    colWidthClass: "w-[72px]",
+    thClass: "px-2 py-2.5 w-[72px] text-right align-middle",
   },
   {
     key: "moq",
     label: "MOQ",
     title: "Minimum Order Quantity",
-    width: "50px",
-    colWidthClass: "w-[50px]",
-    thClass: "px-1.5 py-2 w-[50px] text-right",
+    width: "65px",
+    colWidthClass: "w-[65px]",
+    thClass: "px-2 py-2.5 w-[65px] text-right align-middle",
   },
   {
     key: "stock",
     label: "Stock",
     title: "Available Stock",
-    width: "66px",
-    colWidthClass: "w-[66px]",
-    thClass: "px-1.5 py-2 w-[66px] text-right",
+    width: "84px",
+    colWidthClass: "w-[84px]",
+    thClass: "px-2 py-2.5 w-[84px] text-right align-middle",
   },
   {
     key: "availableMoqs",
     label: "MOQs",
     title: "Available Complete MOQs",
-    width: "68px",
-    colWidthClass: "w-[68px]",
-    thClass: "px-1.5 py-2 w-[68px] text-right",
+    width: "90px",
+    colWidthClass: "w-[90px]",
+    thClass: "px-2 py-2.5 w-[90px] text-right align-middle",
   },
   {
     key: "status",
     label: "Status",
-    width: "80px",
-    colWidthClass: "w-[80px]",
-    thClass: "px-1.5 py-2 w-[80px] text-left",
+    width: "100px",
+    colWidthClass: "w-[100px]",
+    thClass: "px-2.5 py-2.5 w-[100px] text-left align-middle",
   },
   {
     key: "actions",
     label: "Actions",
-    width: "86px",
-    colWidthClass: "w-[86px]",
-    thClass: "px-1.5 py-2 w-[86px] text-center sticky right-0 bg-secondary/80 backdrop-blur-xs z-10",
+    width: "98px",
+    colWidthClass: "w-[98px]",
+    thClass: "px-2 py-2.5 w-[98px] text-center sticky right-0 bg-secondary/90 backdrop-blur-xs z-10 align-middle",
   },
 ];
 
@@ -191,8 +192,8 @@ export default function ProductTable({
   if (loading) {
     return (
       <div className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed text-left">
+        <div className="overflow-x-auto subtle-scrollbar">
+          <table className="w-full min-w-[1405px] table-fixed text-left">
             <colgroup>
               {PRODUCT_COLUMNS.map((col) => (
                 <col
@@ -220,52 +221,52 @@ export default function ProductTable({
             </thead>
             <tbody className="divide-y divide-border/40">
               {Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i} className="border-b border-border/40">
-                  <td className="px-1 py-1.5 w-9 text-center" style={{ width: "36px" }}>
+                <tr key={i} className="border-b border-border/40 h-[84px]">
+                  <td className="px-1.5 py-3 w-9 text-center align-middle" style={{ width: "36px" }}>
                     <div className="w-5 h-5 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-8 text-center" style={{ width: "32px" }}>
+                  <td className="px-1.5 py-3 w-[34px] text-center align-middle" style={{ width: "34px" }}>
                     <div className="w-3.5 h-3.5 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
-                  <td className="px-1 py-1.5 w-[42px] text-center" style={{ width: "42px" }}>
-                    <div className="w-7 h-[37px] rounded-md bg-secondary animate-pulse mx-auto" />
+                  <td className="px-1.5 py-3 w-[60px] text-center align-middle" style={{ width: "60px" }}>
+                    <div className="w-12 h-16 rounded bg-secondary/70 animate-pulse mx-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-[82px] text-center" style={{ width: "82px" }}>
+                  <td className="px-2 py-3 w-[86px] text-center align-middle" style={{ width: "86px" }}>
                     <div className="h-4 w-14 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
-                  <td className="px-2.5 py-1.5 min-w-0">
-                    <div className="h-3.5 w-3/4 rounded bg-secondary animate-pulse mb-1" />
-                    <div className="h-2.5 w-20 rounded bg-secondary/60 animate-pulse" />
+                  <td className="px-3 py-3 w-[250px] align-middle" style={{ width: "250px" }}>
+                    <div className="h-3.5 w-4/5 rounded bg-secondary animate-pulse mb-2" />
+                    <div className="h-2.5 w-24 rounded bg-secondary/60 animate-pulse" />
                   </td>
-                  <td className="px-2 py-1.5 w-[110px]" style={{ width: "110px" }}>
-                    <div className="h-3 w-20 rounded bg-secondary animate-pulse" />
+                  <td className="px-2.5 py-3 w-[125px] align-middle" style={{ width: "125px" }}>
+                    <div className="h-3.5 w-20 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-[92px]" style={{ width: "92px" }}>
-                    <div className="h-3 w-16 rounded bg-secondary animate-pulse" />
+                  <td className="px-2.5 py-3 w-[115px] align-middle" style={{ width: "115px" }}>
+                    <div className="h-3.5 w-18 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-[86px]" style={{ width: "86px" }}>
-                    <div className="h-3 w-14 rounded bg-secondary animate-pulse" />
+                  <td className="px-2.5 py-3 w-[115px] align-middle" style={{ width: "115px" }}>
+                    <div className="h-3.5 w-16 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-[64px]" style={{ width: "64px" }}>
-                    <div className="h-3 w-12 rounded bg-secondary animate-pulse" />
+                  <td className="px-2 py-3 w-[75px] align-middle" style={{ width: "75px" }}>
+                    <div className="h-3.5 w-12 rounded bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-[58px] text-right" style={{ width: "58px" }}>
-                    <div className="h-3 w-10 rounded bg-secondary animate-pulse ml-auto" />
+                  <td className="px-2 py-3 w-[72px] text-right align-middle" style={{ width: "72px" }}>
+                    <div className="h-3.5 w-12 rounded bg-secondary animate-pulse ml-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-[50px] text-right" style={{ width: "50px" }}>
-                    <div className="h-3 w-8 rounded bg-secondary animate-pulse ml-auto" />
+                  <td className="px-2 py-3 w-[65px] text-right align-middle" style={{ width: "65px" }}>
+                    <div className="h-3.5 w-10 rounded bg-secondary animate-pulse ml-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-[66px] text-right" style={{ width: "66px" }}>
-                    <div className="h-3 w-12 rounded bg-secondary animate-pulse ml-auto" />
+                  <td className="px-2 py-3 w-[84px] text-right align-middle" style={{ width: "84px" }}>
+                    <div className="h-3.5 w-14 rounded bg-secondary animate-pulse ml-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-[68px] text-right" style={{ width: "68px" }}>
-                    <div className="h-3 w-12 rounded bg-secondary animate-pulse ml-auto" />
+                  <td className="px-2 py-3 w-[90px] text-right align-middle" style={{ width: "90px" }}>
+                    <div className="h-3.5 w-14 rounded bg-secondary animate-pulse ml-auto" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-[80px]" style={{ width: "80px" }}>
-                    <div className="h-4 w-14 rounded-full bg-secondary animate-pulse" />
+                  <td className="px-2.5 py-3 w-[100px] align-middle" style={{ width: "100px" }}>
+                    <div className="h-4 w-16 rounded-full bg-secondary animate-pulse" />
                   </td>
-                  <td className="px-1.5 py-1.5 w-[86px] text-center sticky right-0 bg-card" style={{ width: "86px" }}>
-                    <div className="h-5 w-12 rounded bg-secondary animate-pulse mx-auto" />
+                  <td className="px-2 py-3 w-[98px] text-center align-middle sticky right-0 bg-card" style={{ width: "98px" }}>
+                    <div className="h-6 w-14 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
                 </tr>
               ))}
@@ -320,8 +321,8 @@ export default function ProductTable({
 
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-xs">
-      <div className="overflow-x-auto">
-        <table className="w-full table-fixed text-left">
+      <div className="overflow-x-auto subtle-scrollbar">
+        <table className="w-full min-w-[1405px] table-fixed text-left">
           <colgroup>
             {PRODUCT_COLUMNS.map((col) => (
               <col

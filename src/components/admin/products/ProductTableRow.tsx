@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   History,
   Ban,
+  Package,
 } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
@@ -134,7 +135,7 @@ export default function ProductTableRow({
       className={`border-b border-border/40 hover:bg-secondary/40 transition-colors group ${rowVisualClass}`}
     >
       {/* 0. Reorder Drag Handle */}
-      <td className="px-1 py-1.5 w-9 text-center" style={{ width: "36px" }}>
+      <td className="px-1.5 py-2.5 sm:py-3 w-9 text-center align-middle" style={{ width: "36px" }}>
         <TableDragHandle
           globalIndex={globalIndex}
           localIndex={localIndex}
@@ -152,7 +153,7 @@ export default function ProductTableRow({
       </td>
 
       {/* Checkbox */}
-      <td className="px-1.5 py-1.5 w-8 text-center" style={{ width: "32px" }}>
+      <td className="px-1.5 py-2.5 sm:py-3 w-[34px] text-center align-middle" style={{ width: "34px" }}>
         <input
           type="checkbox"
           checked={selected}
@@ -162,21 +163,25 @@ export default function ProductTableRow({
         />
       </td>
 
-      {/* Thumbnail (Canonical 3:4 aspect ratio) */}
-      <td className="px-1 py-1.5 w-10 text-center" style={{ width: "40px" }}>
-        <div className="w-7 h-[37px] aspect-[3/4] rounded-md overflow-hidden bg-secondary border border-border/40 shrink-0 p-0.5 mx-auto flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={thumbnail}
-            alt={product.name}
-            className="w-full h-full object-contain"
-            loading="lazy"
-          />
+      {/* Thumbnail (Canonical 3:4 aspect ratio, clean presentation without decorative border or background card) */}
+      <td className="px-1.5 py-2.5 sm:py-3 w-[60px] text-center align-middle" style={{ width: "60px" }}>
+        <div className="w-12 h-16 aspect-[3/4] mx-auto flex items-center justify-center shrink-0">
+          {thumbnail && thumbnail !== "/placeholder.jpg" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbnail}
+              alt={product.name}
+              className="w-full h-full object-contain pointer-events-none"
+              loading="lazy"
+            />
+          ) : (
+            <Package size={22} className="text-muted-foreground/35 pointer-events-none" />
+          )}
         </div>
       </td>
 
       {/* Product ID */}
-      <td className="px-1.5 py-1.5 w-[82px] text-center" style={{ width: "82px" }}>
+      <td className="px-2 py-2.5 sm:py-3 w-[86px] text-center align-middle" style={{ width: "86px" }}>
         <span
           className="text-[10px] font-mono font-bold text-foreground bg-secondary/80 px-1.5 py-0.5 rounded border border-border/60 truncate block text-center max-w-full select-all"
           title={product.productId || (product as any).product_id || "Product ID"}
@@ -186,33 +191,33 @@ export default function ProductTableRow({
       </td>
 
       {/* Product Name */}
-      <td className="px-2.5 py-1.5 min-w-0">
-        <div className="min-w-0 pr-1 max-w-full">
+      <td className="px-3 py-2.5 sm:py-3 w-[250px] align-middle" style={{ width: "250px" }}>
+        <div className="min-w-0 max-w-full">
           <p
-            className={`text-xs font-bold truncate block ${!product.name ? "text-muted-foreground italic font-normal" : "text-foreground"}`}
+            className={`text-xs font-bold leading-snug line-clamp-2 block ${!product.name ? "text-muted-foreground italic font-normal" : "text-foreground"}`}
             title={product.name}
           >
             {product.name || "(Untitled Draft)"}
           </p>
-          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-            <span className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-secondary text-foreground/80 border border-border/50 shrink-0">
+          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+            <span className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary text-foreground/80 border border-border/50 shrink-0">
               {(product.designType || "").toUpperCase() === "MASTER COPY"
                 ? "MASTER COPY"
                 : "ORIGINAL"}
             </span>
             {product.isNew && (
-              <span className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 shrink-0">
+              <span className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 shrink-0">
                 New
               </span>
             )}
             {product.isHot && (
-              <span className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 shrink-0">
+              <span className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 shrink-0">
                 Hot
               </span>
             )}
             {(product as any).purchasePriceUpdated === false && (
               <span
-                className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/60 shrink-0 inline-flex items-center"
+                className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/60 shrink-0 inline-flex items-center"
                 title="Wholesale purchase cost price pending entry"
               >
                 Cost Pending
@@ -222,7 +227,7 @@ export default function ProductTableRow({
               (product.supplier_name || product.supplierName || (typeof product.supplier === 'string' ? product.supplier : product.supplier?.name))?.trim()
             ) && (
               <span
-                className="text-[8.5px] font-medium px-1 py-0.2 rounded bg-secondary text-muted-foreground border border-border/50 shrink-0 truncate max-w-[140px]"
+                className="text-[8.5px] font-medium px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border/50 shrink-0 truncate max-w-[130px]"
                 title={`Supplier: ${(product.supplier_name || product.supplierName || (typeof product.supplier === 'string' ? product.supplier : product.supplier?.name))}`}
               >
                 Sup: {(product.supplier_name || product.supplierName || (typeof product.supplier === 'string' ? product.supplier : product.supplier?.name))}
@@ -233,9 +238,9 @@ export default function ProductTableRow({
       </td>
 
       {/* SKU */}
-      <td className="px-2 py-1.5 w-[110px]" style={{ width: "110px" }}>
+      <td className="px-2.5 py-2.5 sm:py-3 w-[125px] align-middle" style={{ width: "125px" }}>
         <span
-          className="text-[10.5px] font-mono font-medium text-muted-foreground truncate block max-w-full select-all"
+          className="text-xs font-mono font-medium text-muted-foreground truncate block max-w-full select-all"
           title={product.sku || ""}
         >
           {product.sku || "—"}
@@ -243,24 +248,24 @@ export default function ProductTableRow({
       </td>
 
       {/* Brand */}
-      <td className="px-1.5 py-1.5 w-[92px]" style={{ width: "92px" }}>
-        <div className="flex items-center gap-1 min-w-0 max-w-full" title={product.brand || ""}>
+      <td className="px-2.5 py-2.5 sm:py-3 w-[115px] align-middle" style={{ width: "115px" }}>
+        <div className="flex items-center gap-1.5 min-w-0 max-w-full" title={product.brand || ""}>
           {brandLogo && (
-            <div className="w-3.5 h-3.5 rounded bg-secondary/80 flex items-center justify-center shrink-0 overflow-hidden p-0.5 border border-border/40">
+            <div className="w-4 h-4 shrink-0 flex items-center justify-center overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={brandLogo} alt="" className="w-full h-full object-contain" />
             </div>
           )}
-          <span className="text-[10.5px] font-semibold text-foreground truncate block">
+          <span className="text-xs font-semibold text-foreground truncate block">
             {product.brand || "—"}
           </span>
         </div>
       </td>
 
       {/* Category */}
-      <td className="px-1.5 py-1.5 w-[86px]" style={{ width: "86px" }}>
+      <td className="px-2.5 py-2.5 sm:py-3 w-[115px] align-middle" style={{ width: "115px" }}>
         <span
-          className="text-[10.5px] text-muted-foreground truncate block max-w-full"
+          className="text-xs text-muted-foreground truncate block max-w-full"
           title={product.categoryName || ""}
         >
           {product.categoryName || "—"}
@@ -268,9 +273,9 @@ export default function ProductTableRow({
       </td>
 
       {/* Audience */}
-      <td className="px-1.5 py-1.5 w-[64px]" style={{ width: "64px" }}>
+      <td className="px-2 py-2.5 sm:py-3 w-[75px] align-middle" style={{ width: "75px" }}>
         <span
-          className="text-[9.5px] font-bold uppercase tracking-wider text-muted-foreground truncate block max-w-full"
+          className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate block max-w-full"
           title={product.audience || ""}
         >
           {product.audience || "—"}
@@ -278,7 +283,7 @@ export default function ProductTableRow({
       </td>
 
       {/* Price */}
-      <td className="px-1.5 py-1.5 w-[58px] text-right whitespace-nowrap" style={{ width: "58px" }}>
+      <td className="px-2 py-2.5 sm:py-3 w-[72px] text-right whitespace-nowrap align-middle" style={{ width: "72px" }}>
         <span className="text-xs font-bold tabular-nums text-foreground">
           {product.wholesalePrice !== undefined && product.wholesalePrice !== null && !isNaN(Number(product.wholesalePrice))
             ? `$${Number(product.wholesalePrice).toFixed(2)}`
@@ -287,15 +292,15 @@ export default function ProductTableRow({
       </td>
 
       {/* MOQ */}
-      <td className="px-1.5 py-1.5 w-[50px] text-right whitespace-nowrap" style={{ width: "50px" }}>
+      <td className="px-2 py-2.5 sm:py-3 w-[65px] text-right whitespace-nowrap align-middle" style={{ width: "65px" }}>
         <span className="text-xs font-mono font-bold tabular-nums text-foreground">
           {effectiveMoq}
         </span>
-        <span className="text-[9px] text-muted-foreground ml-0.5">pcs</span>
+        <span className="text-[10px] text-muted-foreground ml-0.5">pcs</span>
       </td>
 
       {/* Available Stock */}
-      <td className="px-1.5 py-1.5 w-[66px] text-right whitespace-nowrap" style={{ width: "66px" }}>
+      <td className="px-2 py-2.5 sm:py-3 w-[84px] text-right whitespace-nowrap align-middle" style={{ width: "84px" }}>
         <div className="text-right leading-tight">
           {canAdjustStock && onAdjustStock ? (
             <button
@@ -321,9 +326,9 @@ export default function ProductTableRow({
               {availableStock.toLocaleString()}
             </span>
           )}
-          <span className="text-[9px] text-muted-foreground ml-0.5">pcs</span>
+          <span className="text-[10px] text-muted-foreground ml-0.5">pcs</span>
           {isLowStock && (
-            <span className="block text-[8px] font-bold uppercase text-red-500 dark:text-red-400 leading-none mt-0.5">
+            <span className="block text-[8.5px] font-bold uppercase text-red-500 dark:text-red-400 leading-none mt-1">
               {isPreorder ? "Pre-Order" : (availableStock === 0 ? "Out" : "Low")}
             </span>
           )}
@@ -331,9 +336,9 @@ export default function ProductTableRow({
       </td>
 
       {/* Complete MOQs Available */}
-      <td className="px-1.5 py-1.5 w-[68px] text-right whitespace-nowrap" style={{ width: "68px" }}>
+      <td className="px-2 py-2.5 sm:py-3 w-[90px] text-right whitespace-nowrap align-middle" style={{ width: "90px" }}>
         <span
-          className={`inline-flex items-center px-1 py-0.2 rounded text-[9.5px] font-mono font-bold tabular-nums ${
+          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tabular-nums ${
             completeMoqs > 0
               ? "bg-primary/10 text-primary border border-primary/20"
               : isPreorder
@@ -346,10 +351,10 @@ export default function ProductTableRow({
       </td>
 
       {/* Status */}
-      <td className="px-1.5 py-1.5 w-[80px]" style={{ width: "80px" }}>
-        <div className="flex flex-col gap-0.5 items-start">
+      <td className="px-2.5 py-2.5 sm:py-3 w-[100px] align-middle" style={{ width: "100px" }}>
+        <div className="flex flex-col gap-1 items-start">
           <span
-            className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wider ${
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
               isPublished
                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
                 : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
@@ -359,7 +364,7 @@ export default function ProductTableRow({
           </span>
           {isSoldOut && (
             <span
-              className="inline-flex items-center px-1 py-0.2 rounded text-[7.5px] font-bold uppercase tracking-wider bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-200 whitespace-nowrap"
+              className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-200 whitespace-nowrap"
               title="Sold Out"
             >
               Sold Out
@@ -367,7 +372,7 @@ export default function ProductTableRow({
           )}
           {isPreorder && (
             <span
-              className="inline-flex items-center px-1 py-0.2 rounded text-[7.5px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-300 dark:border-purple-700 whitespace-nowrap"
+              className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-300 dark:border-purple-700 whitespace-nowrap"
               title={product.estimatedDeliveryDate ? `Pre-Order (Est: ${product.estimatedDeliveryDate})` : "Pre-Order"}
             >
               Pre-Order
@@ -375,7 +380,7 @@ export default function ProductTableRow({
           )}
           {isHiddenFromStorefront && (
             <span
-              className="inline-flex items-center px-1 py-0.2 rounded text-[7.5px] font-bold uppercase tracking-wider bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 whitespace-nowrap"
+              className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 whitespace-nowrap"
               title="Hidden from Storefront"
             >
               Hidden
@@ -386,10 +391,10 @@ export default function ProductTableRow({
 
       {/* Actions */}
       <td
-        className={`px-1.5 py-1.5 w-[86px] text-center sticky right-0 bg-card group-hover:bg-secondary/40 transition-colors ${
+        className={`px-2 py-2.5 sm:py-3 w-[98px] text-center align-middle sticky right-0 bg-card group-hover:bg-secondary/40 transition-colors shadow-[-4px_0_8px_rgba(0,0,0,0.04)] ${
           menuOpen ? "z-40" : "z-10"
         }`}
-        style={{ width: "86px" }}
+        style={{ width: "98px" }}
       >
         <div className="flex items-center justify-center gap-1.5">
           {onMoveUp && onMoveDown && (

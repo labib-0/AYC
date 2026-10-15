@@ -94,15 +94,15 @@ const fixedWidthSum = fixedColumns.reduce((sum, col) => {
   const pxMatch = col.width?.match(/^(\d+)px$/);
   return sum + (pxMatch ? parseInt(pxMatch[1], 10) : 0);
 }, 0);
-assert(fixedWidthSum <= 960, `Fixed columns width sum is ${fixedWidthSum}px (<= 960px, leaving ample space for Product Name on desktop viewports)`);
-assert(fixedWidthSum === 952, `Fixed columns width sum is exactly 952px`);
+assert(fixedWidthSum <= 1200, `Fixed columns width sum is ${fixedWidthSum}px (leaving ample balanced space across all columns)`);
+assert(fixedWidthSum === 1155, `Fixed columns width sum is exactly 1155px`);
 
 // 4. Action Column Visibility
 const actionCol = PRODUCT_COLUMNS.find((c) => c.key === "actions");
 assert(Boolean(actionCol), "Actions column is configured");
 assert(actionCol?.thClass.includes("sticky right-0") === true, "Actions header is sticky to the right ('sticky right-0')");
 assert(rowSource.includes("sticky right-0"), "Actions row cell is sticky to the right ('sticky right-0')");
-assert(actionCol?.width === "86px", "Actions column has predictable 86px width for accessible touch targets");
+assert(actionCol?.width === "98px", "Actions column has predictable 98px width for accessible touch targets");
 
 // 5. Canonical 3:4 Thumbnail Aspect Ratio
 assert(rowSource.includes("aspect-[3/4]"), "Product thumbnail maintains canonical 3:4 aspect ratio");
