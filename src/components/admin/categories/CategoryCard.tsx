@@ -15,6 +15,7 @@ export interface CategoryCardProps {
   localIndex?: number;
   hasDuplicateSortOrders?: boolean;
   rowVisualClass?: string;
+  showReorderControls?: boolean;
   isReorderDisabled?: boolean;
   disabledReason?: string;
   onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
@@ -33,6 +34,7 @@ export default function CategoryCard({
   localIndex = 0,
   hasDuplicateSortOrders = false,
   rowVisualClass = "",
+  showReorderControls = false,
   isReorderDisabled = false,
   disabledReason = "Reordering is disabled while search or filters are active.",
   onPointerDown,
@@ -59,10 +61,10 @@ export default function CategoryCard({
 
   return (
     <div
-      data-ordered-row
+      data-ordered-row={showReorderControls ? "" : undefined}
       data-global-index={globalIndex}
       data-index={localIndex}
-      className={`p-3.5 rounded-2xl bg-card border border-border/80 space-y-3 shadow-2xs transition-colors ${rowVisualClass}`}
+      className={`p-3.5 rounded-2xl bg-card border border-border/80 space-y-3 shadow-2xs transition-colors ${showReorderControls ? rowVisualClass : ""}`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -112,37 +114,31 @@ export default function CategoryCard({
       {/* Card Footer: Product Count, Sort Order, Actions */}
       <div className="flex items-center justify-between pt-2 border-t border-border/60">
         <div className="flex items-center gap-1.5">
-          <TableDragHandle
-            globalIndex={globalIndex}
-            localIndex={localIndex}
-            itemTitle={category.name}
-            disabled={!canReorder || isReorderDisabled}
-            disabledReason={
-              !canReorder
-                ? "You do not have permission to reorder categories."
-                : disabledReason
-            }
-            onPointerDown={onPointerDown || (() => {})}
-            onMoveUp={onMoveUp}
-            onMoveDown={onMoveDown}
-          />
+          {showReorderControls && canReorder && (
+            <TableDragHandle
+              globalIndex={globalIndex}
+              localIndex={localIndex}
+              itemTitle={category.name}
+              disabled={isReorderDisabled}
+              disabledReason={disabledReason}
+              onPointerDown={onPointerDown || (() => {})}
+              onMoveUp={onMoveUp}
+              onMoveDown={onMoveDown}
+            />
+          )}
           <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
             <strong className="text-foreground font-bold">{productCount}</strong> {productCount === 1 ? "product" : "products"}
           </span>
           <span className="text-[10px] font-mono text-muted-foreground">
             #{displaySortOrder}
           </span>
-          {onMoveUp && onMoveDown && (
+          {showReorderControls && canReorder && onMoveUp && onMoveDown && (
             <TableMoveControls
               globalIndex={globalIndex}
               isFirst={isFirst}
               isLast={isLast}
-              disabled={!canReorder || isReorderDisabled}
-              disabledReason={
-                !canReorder
-                  ? "You do not have permission to reorder categories."
-                  : disabledReason
-              }
+              disabled={isReorderDisabled}
+              disabledReason={disabledReason}
               onMoveUp={onMoveUp}
               onMoveDown={onMoveDown}
               itemTitle={category.name}

@@ -47,6 +47,7 @@ interface ProductTableRowProps {
   isFirst?: boolean;
   isLast?: boolean;
   rowVisualClass?: string;
+  initialMenuOpen?: boolean;
 }
 
 export default function ProductTableRow({
@@ -71,13 +72,14 @@ export default function ProductTableRow({
   isFirst = false,
   isLast = false,
   rowVisualClass = "",
+  initialMenuOpen = false,
 }: ProductTableRowProps) {
   const pathname = usePathname();
   const { can, isSuperAdmin } = useAdminAuth();
   const canReorder = can("product.edit") || can("product.manage");
   const canAdjustStock = isSuperAdmin || can("inventory.adjust") || can("product.edit");
   const canViewHistory = isSuperAdmin || can("inventory.audit") || can("inventory.view") || can("product.view");
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(initialMenuOpen);
   const [storefrontBase, setStorefrontBase] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -137,6 +139,10 @@ export default function ProductTableRow({
     : isOriginal
     ? "Original"
     : (rawDesignType ? String(rawDesignType).trim() : "—");
+
+  const featUntil = product.featuredUntil || (product as any).featured_until;
+  const isFeaturedExpired = featUntil ? new Date(featUntil).getTime() <= Date.now() : false;
+  const isPinned = Boolean(product.isFeatured || (product as any).is_featured || (product as any).featured) && !isFeaturedExpired;
 
   const isUnderAdminPath = Boolean(pathname?.startsWith("/ayc") || pathname?.startsWith("/admin"));
   const editHref = product.id === "draft_local_new"
@@ -207,7 +213,16 @@ export default function ProductTableRow({
 
       {/* Product Name */}
       <td className="px-3 py-2.5 sm:py-3 w-[250px] align-middle" style={{ width: "250px" }}>
-        <div className="min-w-0 max-w-full">
+        <div className="min-w-0 max-w-full flex items-start gap-1.5">
+          {isPinned && (
+            <span
+              data-testid="featured-pin-indicator"
+              className="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-xs shrink-0 mt-1 ring-2 ring-emerald-500/20"
+              title="Pinned to Featured"
+              aria-label="Pinned to Featured"
+              role="status"
+            />
+          )}
           <p
             className={`text-xs font-bold leading-snug line-clamp-2 block ${!product.name ? "text-muted-foreground italic font-normal" : "text-foreground"}`}
             title={product.name}
@@ -527,13 +542,13 @@ export default function ProductTableRow({
                     onToggleFeatured(product);
                   }}
                   className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
-                  title={product.isFeatured ? "Remove from featured products" : "Feature this product on homepage"}
+                  title={isPinned ? "Unpin from Featured" : "Pin to Featured"}
                 >
                   <Star
                     size={13}
-                    className={product.isFeatured ? "text-amber-500 fill-amber-500" : "text-amber-500"}
+                    className={isPinned ? "text-emerald-500 fill-emerald-500" : "text-muted-foreground"}
                   />
-                  <span>{product.isFeatured ? "Unfeature Product" : "Feature Product"}</span>
+                  <span>{isPinned ? "Unpin from Featured" : "Pin to Featured"}</span>
                 </button>
               )}
 

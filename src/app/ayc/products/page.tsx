@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { Plus, SlidersHorizontal, CheckCircle2, AlertTriangle, X } from "lucide-react";
@@ -17,7 +17,15 @@ import { brandService } from "@/services/brand.service";
 import { categoryService } from "@/services/category.service";
 import { productDraftService } from "@/lib/services/product-draft.service";
 import { toggleProductStorefrontVisibility, toggleProductFeatured } from "@/services/product.service";
+import { homepageService } from "@/services/homepage.service";
 import { sortBrandsAlphabetically } from "@/lib/brand-sort";
+
+// Authoritative featured-pin detection (strictly pinned products, independent of promotional tags)
+export const isProductPinned = (p: B2BProductInput): boolean => {
+  const featUntil = p.featuredUntil || (p as any).featured_until;
+  const isExpired = featUntil ? new Date(featUntil).getTime() <= Date.now() : false;
+  return Boolean(p.isFeatured || (p as any).is_featured || (p as any).featured) && !isExpired;
+};
 
 import {
   ProductSummaryMetrics,
@@ -376,7 +384,12 @@ function AdminProductsContent() {
         }
       }
 
-      setAllProducts(deduplicated);
+      // Priority ordering: Featured-pinned products appear first in saved manual order, followed by non-pinned products in relative manual order
+      const pinnedGroup = deduplicated.filter(isProductPinned);
+      const nonPinnedGroup = deduplicated.filter((p) => !isProductPinned(p));
+      const orderedCatalog = [...pinnedGroup, ...nonPinnedGroup];
+
+      setAllProducts(orderedCatalog);
     } catch (err: unknown) {
       if ((err as any)?.name === "AbortError" || abortController.signal.aborted) {
         return;
@@ -428,10 +441,17 @@ function AdminProductsContent() {
   // 6. Complete, unfiltered sequence has finished loading (!loading && !error && totalProducts > 0)
   const isReorderEligible = !hasActiveFilters && isAll && !loading && !error && totalProducts > 0;
 
+  // Boundary tracking for Pinned vs Non-Pinned groups
+  const pinnedCount = useMemo(() => allProducts.filter(isProductPinned).length, [allProducts]);
+
   // Persistent Reordering Hook
   const reorder = useTableReorder<B2BProductInput>({
     items: allProducts,
-    onItemsChange: setAllProducts,
+    onItemsChange: (newItems) => {
+      const pinned = newItems.filter(isProductPinned);
+      const nonPinned = newItems.filter((p) => !isProductPinned(p));
+      setAllProducts([...pinned, ...nonPinned]);
+    },
     getItemId: (p) => p.id,
     getItemTitle: (p) => p.name,
     isReorderDisabled: !isReorderEligible,
@@ -441,12 +461,65 @@ function AdminProductsContent() {
     pageSize: perPage,
     onPageChange: setCurrentPage,
     onPersistOrder: async (newItems) => {
+      const pinned = newItems.filter(isProductPinned);
+      const nonPinned = newItems.filter((p) => !isProductPinned(p));
+      const safeSequence = [...pinned, ...nonPinned];
       await reorderProducts(
-        newItems.map((p, idx) => ({ id: p.id, sort_order: idx + 1 }))
+        safeSequence.map((p, idx) => ({ id: p.id, sort_order: idx + 1 }))
       );
+      if (typeof window !== "undefined") {
+        homepageService.invalidateStorefrontCache();
+        window.dispatchEvent(new CustomEvent("ayaan:homepage-updated"));
+      }
+      return safeSequence;
     },
     showToast: (message, type) => addToast(type, message),
   });
+
+  // Guarded group boundary controls
+  const customIsFirstItem = useCallback(
+    (globalIdx: number) => {
+      // First item of non-pinned group cannot move up into pinned group
+      if (pinnedCount > 0 && globalIdx === pinnedCount) {
+        return true;
+      }
+      return globalIdx === 0;
+    },
+    [pinnedCount]
+  );
+
+  const customIsLastItem = useCallback(
+    (globalIdx: number) => {
+      // Last item of pinned group cannot move down into non-pinned group
+      if (pinnedCount > 0 && globalIdx === pinnedCount - 1) {
+        return true;
+      }
+      return globalIdx === allProducts.length - 1;
+    },
+    [pinnedCount, allProducts.length]
+  );
+
+  const handleMoveUp = useCallback(
+    async (globalIdx: number) => {
+      if (pinnedCount > 0 && globalIdx === pinnedCount) {
+        // Guard boundary: non-pinned product cannot move above pinned group
+        return;
+      }
+      await reorder.moveUp(globalIdx);
+    },
+    [pinnedCount, reorder]
+  );
+
+  const handleMoveDown = useCallback(
+    async (globalIdx: number) => {
+      if (pinnedCount > 0 && globalIdx === pinnedCount - 1) {
+        // Guard boundary: pinned product cannot move below into non-pinned group
+        return;
+      }
+      await reorder.moveDown(globalIdx);
+    },
+    [pinnedCount, reorder]
+  );
 
   // ── Status Filter Click from Summary Cards ──
   const handleStatusFilterClick = (targetStatus: "all" | "published" | "draft" | "featured") => {
@@ -459,13 +532,18 @@ function AdminProductsContent() {
 
   // ── Feature / Unfeature Product Handler ──
   const handleToggleFeatured = async (product: B2BProductInput) => {
-    const newFeatured = !product.isFeatured;
+    const isPinned = isProductPinned(product);
+    const newFeatured = !isPinned;
     try {
       await toggleProductFeatured(product.id, newFeatured);
       addToast(
         "success",
-        `Product "${product.name || product.productId}" is now ${newFeatured ? "featured on homepage" : "removed from featured products"}.`
+        `Product "${product.name || product.productId}" is now ${newFeatured ? "pinned to Featured" : "unpinned from Featured"}.`
       );
+      if (typeof window !== "undefined") {
+        homepageService.invalidateStorefrontCache();
+        window.dispatchEvent(new CustomEvent("ayaan:homepage-updated"));
+      }
       await Promise.all([loadProducts(), loadGlobalMetrics()]);
     } catch (err: any) {
       addToast("error", err?.message || "Failed to update featured status.");
@@ -857,12 +935,12 @@ function AdminProductsContent() {
         showReorderControls={isReorderEligible}
         isReorderDisabled={!isReorderEligible}
         disabledReason={reorder.disabledReason}
-        onPointerDown={reorder.handlePointerDown}
-        onMoveUp={reorder.moveUp}
-        onMoveDown={reorder.moveDown}
-        isFirstItem={reorder.isFirstItem}
-        isLastItem={reorder.isLastItem}
-        getRowVisualClass={reorder.getRowVisualClass}
+        onPointerDown={isReorderEligible ? reorder.handlePointerDown : undefined}
+        onMoveUp={isReorderEligible ? handleMoveUp : undefined}
+        onMoveDown={isReorderEligible ? handleMoveDown : undefined}
+        isFirstItem={customIsFirstItem}
+        isLastItem={customIsLastItem}
+        getRowVisualClass={isReorderEligible ? reorder.getRowVisualClass : undefined}
         pagination={
           !loading && !error && allProducts.length > 0 ? (
             <ProductPagination

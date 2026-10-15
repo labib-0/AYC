@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { brandService, BrandModel } from "@/services/brand.service";
+import { homepageService } from "@/services/homepage.service";
 import {
   BrandToolbar,
   BrandStatusFilter,
@@ -134,6 +135,7 @@ export default function AdminBrandsPage() {
   }, [filteredBrands, startIndex, perPage, isAll]);
 
   const isFiltered = Boolean(search.trim() || statusFilter !== "ALL");
+  const isReorderEligible = !isFiltered && isAll && !loading && !error && brands.length > 0;
 
   // Persistent Reordering Hook
   const reorder = useTableReorder<BrandModel>({
@@ -141,7 +143,7 @@ export default function AdminBrandsPage() {
     onItemsChange: setBrands,
     getItemId: (b) => b.id,
     getItemTitle: (b) => b.name,
-    isReorderDisabled: isFiltered,
+    isReorderDisabled: !isReorderEligible,
     disabledReason:
       "Reordering is disabled while search or status filters are active. Clear filters to return to manual sequence.",
     currentPage,
@@ -151,6 +153,10 @@ export default function AdminBrandsPage() {
       const updated = await brandService.reorderBrands(
         newItems.map((b, idx) => ({ id: b.id, sort_order: idx + 1 }))
       );
+      if (typeof window !== "undefined") {
+        homepageService.invalidateStorefrontCache();
+        window.dispatchEvent(new CustomEvent("ayaan:homepage-updated"));
+      }
       return updated;
     },
     showToast: (message, type) => addToast(type, message),
@@ -328,10 +334,10 @@ export default function AdminBrandsPage() {
             {/* ── Reorder Status & Filter Guard Banner ── */}
             <TableReorderBanner
               isSaving={reorder.isSaving}
-              isReorderDisabled={reorder.isReorderDisabled}
-              disabledReason={reorder.disabledReason}
+              isReorderDisabled={false}
+              hideDisabledBanner={true}
               onClearFilters={handleClearFilters}
-              isReady={!isFiltered && perPage === "all"}
+              isReady={isReorderEligible}
               readyMessage={`All ${brands.length} brands loaded in manual sequence. Drag handles and Move Up / Down actions are enabled.`}
             />
 
@@ -346,14 +352,15 @@ export default function AdminBrandsPage() {
               onAddBrand={handleOpenCreate}
               onClearFilters={handleClearFilters}
               startIndex={startIndex}
-              isReorderDisabled={reorder.isReorderDisabled}
+              showReorderControls={isReorderEligible}
+              isReorderDisabled={!isReorderEligible}
               disabledReason={reorder.disabledReason}
-              onPointerDown={reorder.handlePointerDown}
-              onMoveUp={reorder.moveUp}
-              onMoveDown={reorder.moveDown}
+              onPointerDown={isReorderEligible ? reorder.handlePointerDown : undefined}
+              onMoveUp={isReorderEligible ? reorder.moveUp : undefined}
+              onMoveDown={isReorderEligible ? reorder.moveDown : undefined}
               isFirstItem={reorder.isFirstItem}
               isLastItem={reorder.isLastItem}
-              getRowVisualClass={reorder.getRowVisualClass}
+              getRowVisualClass={isReorderEligible ? reorder.getRowVisualClass : undefined}
             />
 
             {/* ── Brand Pagination ── */}

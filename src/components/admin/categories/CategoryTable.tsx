@@ -16,6 +16,7 @@ interface CategoryTableProps {
   onAddCategory: () => void;
   onClearFilters: () => void;
   startIndex?: number;
+  showReorderControls?: boolean;
   isReorderDisabled?: boolean;
   disabledReason?: string;
   onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
@@ -36,6 +37,7 @@ export default function CategoryTable({
   onAddCategory,
   onClearFilters,
   startIndex = 0,
+  showReorderControls = false,
   isReorderDisabled = false,
   disabledReason,
   onPointerDown,
@@ -155,14 +157,15 @@ export default function CategoryTable({
                   globalIndex={globalIndex}
                   localIndex={i}
                   hasDuplicateSortOrders={hasDuplicateSortOrders}
+                  showReorderControls={showReorderControls}
                   isReorderDisabled={isReorderDisabled}
                   disabledReason={disabledReason}
-                  onPointerDown={onPointerDown}
-                  onMoveUp={onMoveUp ? () => onMoveUp(globalIndex) : undefined}
-                  onMoveDown={onMoveDown ? () => onMoveDown(globalIndex) : undefined}
+                  onPointerDown={showReorderControls ? onPointerDown : undefined}
+                  onMoveUp={showReorderControls && onMoveUp ? () => onMoveUp(globalIndex) : undefined}
+                  onMoveDown={showReorderControls && onMoveDown ? () => onMoveDown(globalIndex) : undefined}
                   isFirst={isFirstItem ? isFirstItem(globalIndex) : false}
                   isLast={isLastItem ? isLastItem(globalIndex) : false}
-                  rowVisualClass={getRowVisualClass ? getRowVisualClass(globalIndex) : ""}
+                  rowVisualClass={showReorderControls && getRowVisualClass ? getRowVisualClass(globalIndex) : ""}
                   onEdit={onEdit}
                   onToggleStatus={onToggleStatus}
                   onDelete={onDelete}
@@ -184,12 +187,13 @@ export default function CategoryTable({
               globalIndex={globalIndex}
               localIndex={i}
               hasDuplicateSortOrders={hasDuplicateSortOrders}
-              rowVisualClass={getRowVisualClass ? getRowVisualClass(globalIndex) : ""}
+              rowVisualClass={showReorderControls && getRowVisualClass ? getRowVisualClass(globalIndex) : ""}
+              showReorderControls={showReorderControls}
               isReorderDisabled={isReorderDisabled}
               disabledReason={disabledReason}
-              onPointerDown={onPointerDown}
-              onMoveUp={onMoveUp ? () => onMoveUp(globalIndex) : undefined}
-              onMoveDown={onMoveDown ? () => onMoveDown(globalIndex) : undefined}
+              onPointerDown={showReorderControls ? onPointerDown : undefined}
+              onMoveUp={showReorderControls && onMoveUp ? () => onMoveUp(globalIndex) : undefined}
+              onMoveDown={showReorderControls && onMoveDown ? () => onMoveDown(globalIndex) : undefined}
               isFirst={isFirstItem ? isFirstItem(globalIndex) : false}
               isLast={isLastItem ? isLastItem(globalIndex) : false}
               onEdit={onEdit}

@@ -14,6 +14,7 @@ interface CategoryRowProps {
   globalIndex?: number;
   localIndex?: number;
   hasDuplicateSortOrders?: boolean;
+  showReorderControls?: boolean;
   isReorderDisabled?: boolean;
   disabledReason?: string;
   onPointerDown?: (e: React.PointerEvent, globalIndex: number, localIndex: number) => void;
@@ -32,6 +33,7 @@ export default function CategoryRow({
   globalIndex = 0,
   localIndex = 0,
   hasDuplicateSortOrders = false,
+  showReorderControls = false,
   isReorderDisabled = false,
   disabledReason = "Reordering is disabled while search or filters are active.",
   onPointerDown,
@@ -59,27 +61,25 @@ export default function CategoryRow({
 
   return (
     <tr
-      data-ordered-row
+      data-ordered-row={showReorderControls ? "" : undefined}
       data-global-index={globalIndex}
       data-index={localIndex}
-      className={`border-b border-border/60 hover:bg-secondary/30 transition-colors group ${rowVisualClass}`}
+      className={`border-b border-border/60 hover:bg-secondary/30 transition-colors group ${showReorderControls ? rowVisualClass : ""}`}
     >
       {/* 0. Reorder Drag Handle Column */}
       <td className="py-3 px-2 w-10 text-center">
-        <TableDragHandle
-          globalIndex={globalIndex}
-          localIndex={localIndex}
-          itemTitle={category.name}
-          disabled={!canReorder || isReorderDisabled}
-          disabledReason={
-            !canReorder
-              ? "You do not have permission to reorder categories."
-              : disabledReason
-          }
-          onPointerDown={onPointerDown || (() => {})}
-          onMoveUp={onMoveUp}
-          onMoveDown={onMoveDown}
-        />
+        {showReorderControls && canReorder ? (
+          <TableDragHandle
+            globalIndex={globalIndex}
+            localIndex={localIndex}
+            itemTitle={category.name}
+            disabled={isReorderDisabled}
+            disabledReason={disabledReason}
+            onPointerDown={onPointerDown || (() => {})}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+          />
+        ) : null}
       </td>
         {/* 1. Image Column */}
         <td className="py-3 px-4 w-24">
@@ -156,17 +156,13 @@ export default function CategoryRow({
             >
               #{displaySortOrder}
             </span>
-            {onMoveUp && onMoveDown && (
+            {showReorderControls && canReorder && onMoveUp && onMoveDown && (
               <TableMoveControls
                 globalIndex={globalIndex}
                 isFirst={isFirst}
                 isLast={isLast}
-                disabled={!canReorder || isReorderDisabled}
-                disabledReason={
-                  !canReorder
-                    ? "You do not have permission to reorder categories."
-                    : disabledReason
-                }
+                disabled={isReorderDisabled}
+                disabledReason={disabledReason}
                 onMoveUp={onMoveUp}
                 onMoveDown={onMoveDown}
                 itemTitle={category.name}
