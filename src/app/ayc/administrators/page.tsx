@@ -126,7 +126,9 @@ export default function AdministratorsPage() {
     setCurrentPage(1);
   }, [searchQuery, statusFilter, roleFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredAdmins.length / perPage));
+  const isAll = perPage === "all";
+  const numericPerPage = isAll ? Math.max(1, filteredAdmins.length) : Number(perPage) || 5;
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(filteredAdmins.length / numericPerPage));
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -135,9 +137,10 @@ export default function AdministratorsPage() {
   }, [currentPage, totalPages]);
 
   const paginatedAdmins = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filteredAdmins.slice(start, start + perPage);
-  }, [filteredAdmins, currentPage, perPage]);
+    if (isAll) return filteredAdmins;
+    const start = (currentPage - 1) * numericPerPage;
+    return filteredAdmins.slice(start, start + numericPerPage);
+  }, [filteredAdmins, currentPage, numericPerPage, isAll]);
 
   // Statistics
   const stats = useMemo(() => {

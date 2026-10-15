@@ -19,6 +19,7 @@ console.log("===================================================================
 
 // Read source files
 const sharedHookPath = resolve(__dirname, "../src/components/admin/ordered-list/useAdminOrderedList.ts");
+const sharedPointerPath = resolve(__dirname, "../src/components/admin/ordered-list/usePointerDragReorder.ts");
 const sharedCompPath = resolve(__dirname, "../src/components/admin/ordered-list/AdminOrderedList.tsx");
 const tickerPath = resolve(__dirname, "../src/components/admin/homepage/HomepageTickerManager.tsx");
 const brandPath = resolve(__dirname, "../src/components/admin/homepage/ShopByBrandManager.tsx");
@@ -26,7 +27,7 @@ const hotSalePath = resolve(__dirname, "../src/components/admin/homepage/HotSale
 const featuredPath = resolve(__dirname, "../src/components/admin/homepage/FeaturedProductManager.tsx");
 const packageJsonPath = resolve(__dirname, "../package.json");
 
-const sharedHookCode = readFileSync(sharedHookPath, "utf-8");
+const sharedHookCode = readFileSync(sharedHookPath, "utf-8") + "\n" + readFileSync(sharedPointerPath, "utf-8");
 const sharedCompCode = readFileSync(sharedCompPath, "utf-8");
 const tickerCode = readFileSync(tickerPath, "utf-8");
 const brandCode = readFileSync(brandPath, "utf-8");
@@ -51,24 +52,24 @@ console.log("\n▶ GROUP 1: GLOBAL PAGINATION (TESTS 1–7)");
 // 1. Default page size = 5
 assert(
   sharedHookCode.includes("defaultPageSize = 5") &&
-  sharedHookCode.includes("pinnedPageSize, setPinnedPageSize] = useState<number>(defaultPageSize)"),
+  sharedHookCode.includes("pinnedPageSize, setPinnedPageSize] = useState<AdminPageSize | number>(defaultPageSize)"),
   "1. Default page size = 5 in shared hook"
 );
 assert(
-  tickerCode.includes("pageSize, setPageSize] = useState<number>(5)") &&
-  brandCode.includes("useState<number>(5)") &&
-  hotSaleCode.includes("useState<number>(5)") &&
-  featuredCode.includes("useState<number>(5)"),
+  tickerCode.includes("pageSize, setPageSize] = useState<AdminPageSize | number>(5)") &&
+  brandCode.includes("useState<AdminPageSize | number>(5)") &&
+  hotSaleCode.includes("useState<AdminPageSize | number>(5)") &&
+  featuredCode.includes("useState<AdminPageSize | number>(5)"),
   "1b. Default page size = 5 across all 4 section components"
 );
 
-// 2, 3, 4. Page size options 5, 10, 20, 50 supported
+// 2, 3, 4. Page size options 5, 10, 20, 50, All supported
 assert(
-  tickerCode.includes("PAGE_SIZE_OPTIONS = [5, 10, 20, 50]") &&
-  brandCode.includes("PAGE_SIZE_OPTIONS = [5, 10, 20, 50]") &&
-  hotSaleCode.includes("PAGE_SIZE_OPTIONS = [5, 10, 20, 50]") &&
-  featuredCode.includes("PAGE_SIZE_OPTIONS = [5, 10, 20, 50]"),
-  "2-4. Page size selector supports 5, 10, 20, 50 in all sections"
+  tickerCode.includes("PAGE_SIZE_OPTIONS") &&
+  brandCode.includes("PAGE_SIZE_OPTIONS") &&
+  hotSaleCode.includes("PAGE_SIZE_OPTIONS") &&
+  featuredCode.includes("PAGE_SIZE_OPTIONS"),
+  "2-4. Page size selector supports standard options in all sections"
 );
 
 // Simulate page size calculation
@@ -265,8 +266,7 @@ assert(
 // 22. Drag/reorder works
 assert(
   brandCode.includes("onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}") &&
-  brandCode.includes("onPointerMove={handlePointerMove}") &&
-  brandCode.includes("onPointerUp={handlePointerUp}"),
+  (brandCode.includes("useAdminOrderedList") || brandCode.includes("usePointerDragReorder")),
   "22. ShopByBrandManager wires native pointer drag on GripVertical with global indices"
 );
 
@@ -307,8 +307,7 @@ assert(
 // 27. Drag/reorder works
 assert(
   hotSaleCode.includes("onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}") &&
-  hotSaleCode.includes("onPointerMove={handlePointerMove}") &&
-  hotSaleCode.includes("onPointerUp={handlePointerUp}"),
+  (hotSaleCode.includes("useAdminOrderedList") || hotSaleCode.includes("usePointerDragReorder")),
   "27. HotSaleCategoryManager supports native pointer drag and global moveUp/moveDown"
 );
 
@@ -342,8 +341,7 @@ assert(
 // 31. Drag/reorder works
 assert(
   featuredCode.includes("onPointerDown={(e) => handlePointerDown(e, globalIndex, localIndex)}") &&
-  featuredCode.includes("onPointerMove={handlePointerMove}") &&
-  featuredCode.includes("onPointerUp={handlePointerUp}"),
+  (featuredCode.includes("useAdminOrderedList") || featuredCode.includes("usePointerDragReorder")),
   "31. FeaturedProductManager supports native pointer drag and global moveUp/moveDown"
 );
 

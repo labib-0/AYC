@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { CouponSalesOrderRecord } from "@/services/admin/coupon.service";
 import AdminPagination from "@/components/admin/common/AdminPagination";
+import { AdminPageSize } from "@/types/admin-listing";
 
 export interface CouponSalesOrdersTableProps {
   orders: CouponSalesOrderRecord[];
@@ -24,9 +25,9 @@ export interface CouponSalesOrdersTableProps {
   currentPage: number;
   lastPage: number;
   totalItems: number;
-  perPage: number;
+  perPage: AdminPageSize | number;
   onPageChange: (page: number) => void;
-  onPerPageChange?: (perPage: any) => void;
+  onPerPageChange?: (perPage: AdminPageSize) => void;
   onViewOrder: (order: CouponSalesOrderRecord) => void;
   search?: string;
 }
@@ -135,7 +136,7 @@ export default function CouponSalesOrdersTable({
           <tbody className="divide-y divide-border/50">
             {loading ? (
               // Polished Table Skeletons to prevent layout shifts
-              Array.from({ length: Math.min(5, perPage) }).map((_, idx) => (
+              Array.from({ length: Math.min(5, typeof perPage === "number" ? perPage : 5) }).map((_, idx) => (
                 <tr key={`skeleton-${idx}`} className="animate-pulse">
                   <td className="py-3.5 px-4">
                     <div className="h-4 w-28 bg-secondary/60 rounded-md mb-1" />

@@ -8,8 +8,8 @@ export interface CouponPaginationProps {
   currentPage: number;
   totalPages?: number;
   totalItems: number;
-  pageSize?: number;
-  perPage?: number;
+  pageSize?: AdminPageSize | number;
+  perPage?: AdminPageSize | number;
   onPageChange: (page: number) => void;
   onPerPageChange?: (perPage: AdminPageSize) => void;
 }

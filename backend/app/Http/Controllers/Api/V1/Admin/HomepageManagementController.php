@@ -330,6 +330,20 @@ class HomepageManagementController extends ApiController
             });
         }
 
+        $isAll = $request->boolean('all') || $request->input('per_page') === 'all' || (int) $request->input('per_page') === -1;
+        if ($isAll) {
+            $items = $query->orderByRaw('LOWER(name) ASC')->orderBy('id', 'asc')->get();
+            return $this->success([
+                'items' => $items,
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $items->count(),
+                    'total' => $items->count(),
+                ],
+            ], 'Brands retrieved for landing page selector');
+        }
+
         $paginated = $query->orderByRaw('LOWER(name) ASC')->orderBy('id', 'asc')->paginate($perPage);
 
         return $this->success([
@@ -374,6 +388,20 @@ class HomepageManagementController extends ApiController
                     $q->orWhere('id', (int) $search);
                 }
             });
+        }
+
+        $isAll = $request->boolean('all') || $request->input('per_page') === 'all' || (int) $request->input('per_page') === -1;
+        if ($isAll) {
+            $items = $query->orderBy('name', 'asc')->get();
+            return $this->success([
+                'items' => $items,
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $items->count(),
+                    'total' => $items->count(),
+                ],
+            ], 'Categories retrieved for landing page selector');
         }
 
         $paginated = $query->orderBy('name', 'asc')->paginate($perPage);
@@ -443,6 +471,31 @@ class HomepageManagementController extends ApiController
 
         if (!empty($brandId)) {
             $query->where('brand_id', $brandId);
+        }
+
+        $isAll = $request->boolean('all') || $request->input('per_page') === 'all' || (int) $request->input('per_page') === -1;
+        if ($isAll) {
+            $products = $query->orderBy('id', 'desc')->get();
+            $items = $products->map(function ($product) {
+                $data = $product->toArray();
+                $data['primary_image_url'] = $product->primary_image_url;
+                $data['brand_name'] = $product->brand?->name;
+                $data['category_name'] = $product->categories?->first()?->name;
+                $price = $product->wholesale_price ?? $product->selling_price ?? $product->base_price ?? null;
+                $data['price'] = $price !== null ? (float) $price : null;
+                $data['formatted_price'] = $price !== null ? '$' . number_format((float) $price, 2) : null;
+                return $data;
+            });
+
+            return $this->success([
+                'items' => $items,
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $items->count(),
+                    'total' => $items->count(),
+                ],
+            ], 'Products retrieved for landing page selector');
         }
 
         $paginated = $query->orderBy('id', 'desc')->paginate($perPage);

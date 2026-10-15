@@ -372,11 +372,12 @@ function AdminProductsContent() {
   }, [filters]);
 
   // ── Pagination Calculation ──
+  const isAll = perPage === "all";
   const totalProducts = allProducts.length;
-  const totalPages = Math.max(1, Math.ceil(totalProducts / perPage));
-  const safePage = Math.min(currentPage, totalPages);
-  const startIdx = (safePage - 1) * perPage;
-  const pageProducts = allProducts.slice(startIdx, startIdx + perPage);
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalProducts / (perPage as number)));
+  const safePage = isAll ? 1 : Math.min(currentPage, totalPages);
+  const startIdx = isAll ? 0 : (safePage - 1) * (perPage as number);
+  const pageProducts = isAll ? allProducts : allProducts.slice(startIdx, startIdx + (perPage as number));
 
   const hasActiveFilters =
     filters.search.trim() !== "" ||
@@ -589,6 +590,12 @@ function AdminProductsContent() {
       purchasePriceStatus: "all",
       availability: "all",
     });
+    setCurrentPage(1);
+    setPerPage("all");
+    addToast(
+      "success",
+      `Filters cleared. Showing all ${allProducts.length} products in manual sequence. Reordering enabled.`
+    );
   };
 
   // ── Inventory Integration Actions ──
@@ -780,6 +787,8 @@ function AdminProductsContent() {
         isReorderDisabled={reorder.isReorderDisabled}
         disabledReason={reorder.disabledReason}
         onClearFilters={handleClearFilters}
+        isReady={!hasActiveFilters && perPage === "all"}
+        readyMessage={`All ${totalProducts} products loaded in manual sequence. Drag handles and Move Up / Down actions are enabled.`}
       />
 
       {/* Product Table */}

@@ -16,8 +16,10 @@ import {
   Plus,
 } from "lucide-react";
 import { UseAdminOrderedListReturn } from "./useAdminOrderedList";
+import { PAGE_SIZE_OPTIONS, AdminPageSize } from "@/types/admin-listing";
 
-export const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+// Standard options: PAGE_SIZE_OPTIONS = [5, 10, 20, 50, "all"] (previously PAGE_SIZE_OPTIONS = [5, 10, 20, 50])
+export { PAGE_SIZE_OPTIONS };
 
 export interface AdminOrderedListProps<T, C = any> {
   orderedList: UseAdminOrderedListReturn<T, C>;
@@ -235,7 +237,7 @@ export function AdminOrderedList<T, C = any>({
                           : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                       }`}
                     >
-                      {size}
+                      {size === "all" ? "All" : size}
                     </button>
                   ))}
                 </div>
@@ -437,8 +439,14 @@ export function AdminOrderedList<T, C = any>({
               );
             })}
 
-            {/* ── Compact Pinned Items Pagination Bar ── */}
-            {pinnedTotalPages > 1 && (
+            {/* ── Compact Pinned Items Pagination / Count Bar ── */}
+            {pageSize === "all" ? (
+              <div className="flex items-center justify-between px-3.5 py-2.5 bg-secondary/20 border-t border-border/60 text-xs">
+                <span className="text-xs text-muted-foreground font-mono">
+                  Showing all {pinnedTotalCount} selected items
+                </span>
+              </div>
+            ) : pinnedTotalPages > 1 ? (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-3.5 py-2.5 bg-secondary/20 border-t border-border/60 text-xs">
                 <span className="text-xs text-muted-foreground font-mono">
                   Showing {pinnedStartIndex + 1}–{pinnedEndIndex} of {pinnedTotalCount} selected items • Page {pinnedPage} of {pinnedTotalPages}
@@ -469,7 +477,7 @@ export function AdminOrderedList<T, C = any>({
                   </button>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         )}
 
@@ -477,7 +485,7 @@ export function AdminOrderedList<T, C = any>({
         {hasCatalog && viewFilter === "all" && filteredPinnedItems.length > 0 && availableCatalog.length > 0 && (
           <div className="px-3 py-1.5 bg-secondary/30 text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>
-              {catalogDividerLabel} (Page {currentPage} of {totalPages})
+              {catalogDividerLabel} {pageSize === "all" ? `(All ${totalCount} items)` : `(Page ${currentPage} of ${totalPages})`}
             </span>
             <span>{catalogDividerSublabel}</span>
           </div>
@@ -533,37 +541,45 @@ export function AdminOrderedList<T, C = any>({
       </div>
 
       {/* ── Pagination Bar (Catalog Navigation) ── */}
-      {hasCatalog && showPagination && viewFilter === "all" && totalPages > 1 && (
-        <div className="flex items-center justify-between pt-1 text-xs">
-          <span className="text-xs text-muted-foreground font-mono">
-            Page {currentPage} of {totalPages} ({totalCount} total catalog items)
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage <= 1 || isLoadingCatalog}
-              aria-label="Previous Page"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-            >
-              <ChevronLeft size={14} />
-              <span>Prev</span>
-            </button>
-            <span className="px-2.5 py-1 text-xs font-mono font-bold text-foreground">
-              {currentPage} / {totalPages}
+      {hasCatalog && showPagination && viewFilter === "all" && (
+        pageSize === "all" ? (
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <span className="text-xs text-muted-foreground font-mono">
+              Showing all {totalCount} available catalog items
             </span>
-            <button
-              type="button"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages || isLoadingCatalog}
-              aria-label="Next Page"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-            >
-              <span>Next</span>
-              <ChevronRight size={14} />
-            </button>
           </div>
-        </div>
+        ) : totalPages > 1 ? (
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <span className="text-xs text-muted-foreground font-mono">
+              Page {currentPage} of {totalPages} ({totalCount} total catalog items)
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage <= 1 || isLoadingCatalog}
+                aria-label="Previous Page"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              >
+                <ChevronLeft size={14} />
+                <span>Prev</span>
+              </button>
+              <span className="px-2.5 py-1 text-xs font-mono font-bold text-foreground">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages || isLoadingCatalog}
+                aria-label="Next Page"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              >
+                <span>Next</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        ) : null
       )}
     </div>
   );

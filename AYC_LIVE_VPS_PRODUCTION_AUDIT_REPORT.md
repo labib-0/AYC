@@ -8,6 +8,9 @@
 **Target Application Root:** `/var/www/ayaan`  
 **Deployment Status:** Verified Live in Production  
 
+> [!NOTE]
+> **Audit Follow-up & Verification Report Available:** See [AYC_PRODUCTION_AUDIT_FOLLOWUP_REPORT.md](file:///Users/luhasan/Documents/ayaan/AYC_PRODUCTION_AUDIT_FOLLOWUP_REPORT.md) for the complete reconciliation of product counts (99 published vs. 101 total catalog items), functional verification (drag-drop, stock adjustment, mark sold out, POS, RFQ notes, documents), and order/RFQ database audit.
+
 ---
 
 ## Executive Summary

@@ -8,7 +8,7 @@ export interface OrderPaginationProps {
   currentPage: number;
   totalPages?: number;
   totalOrders: number;
-  perPage: number;
+  perPage: AdminPageSize | number;
   onPageChange: (page: number) => void;
   onPerPageChange?: (perPage: AdminPageSize) => void;
   isLoading?: boolean;

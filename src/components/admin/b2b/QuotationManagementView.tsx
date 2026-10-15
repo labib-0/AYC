@@ -72,11 +72,14 @@ export default function QuotationManagementView() {
   }, [search, statusFilter]);
 
   // Sliced page data
-  const totalPages = Math.ceil(filteredQuotations.length / perPage) || 1;
+  const isAll = perPage === "all";
+  const numericPerPage = isAll ? Math.max(1, filteredQuotations.length) : Number(perPage) || 5;
+  const totalPages = isAll ? 1 : (Math.ceil(filteredQuotations.length / numericPerPage) || 1);
   const paginatedQuotations = useMemo(() => {
-    const startIndex = (currentPage - 1) * perPage;
-    return filteredQuotations.slice(startIndex, startIndex + perPage);
-  }, [filteredQuotations, currentPage, perPage]);
+    if (isAll) return filteredQuotations;
+    const startIndex = (currentPage - 1) * numericPerPage;
+    return filteredQuotations.slice(startIndex, startIndex + numericPerPage);
+  }, [filteredQuotations, currentPage, numericPerPage, isAll]);
 
   const handleResetFilters = () => {
     setSearch("");

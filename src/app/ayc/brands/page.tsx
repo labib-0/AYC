@@ -91,6 +91,11 @@ export default function AdminBrandsPage() {
     setSearch("");
     setStatusFilter("ALL");
     setCurrentPage(1);
+    setPerPage("all");
+    addToast(
+      "success",
+      `Filters cleared. Showing all ${brands.length} brands in manual sequence. Reordering enabled.`
+    );
   };
 
   // Filtered & Paginated Brands
@@ -118,11 +123,13 @@ export default function AdminBrandsPage() {
   const inactiveCount = useMemo(() => brands.filter((b) => b.is_active === false).length, [brands]);
 
   // Pagination Calculations
-  const totalPages = Math.max(1, Math.ceil(filteredBrands.length / perPage));
+  const isAll = perPage === "all";
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(filteredBrands.length / (perPage as number)));
+  const startIndex = isAll ? 0 : (currentPage - 1) * (perPage as number);
   const paginatedBrands = useMemo(() => {
-    const startIndex = (currentPage - 1) * perPage;
-    return filteredBrands.slice(startIndex, startIndex + perPage);
-  }, [filteredBrands, currentPage, perPage]);
+    if (isAll) return filteredBrands;
+    return filteredBrands.slice(startIndex, startIndex + (perPage as number));
+  }, [filteredBrands, startIndex, perPage, isAll]);
 
   const isFiltered = Boolean(search.trim() || statusFilter !== "ALL");
 
@@ -240,7 +247,7 @@ export default function AdminBrandsPage() {
         return matchesSearch && matchesStatus;
       });
 
-      const newTotalPages = Math.ceil(remainingFiltered.length / perPage);
+      const newTotalPages = perPage === "all" ? 1 : Math.ceil(remainingFiltered.length / (perPage as number));
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages);
       }
@@ -321,6 +328,8 @@ export default function AdminBrandsPage() {
               isReorderDisabled={reorder.isReorderDisabled}
               disabledReason={reorder.disabledReason}
               onClearFilters={handleClearFilters}
+              isReady={!isFiltered && perPage === "all"}
+              readyMessage={`All ${brands.length} brands loaded in manual sequence. Drag handles and Move Up / Down actions are enabled.`}
             />
 
             {/* ── Brand Table & Responsive Mobile Cards ── */}
@@ -333,7 +342,7 @@ export default function AdminBrandsPage() {
               onDelete={handlePromptDelete}
               onAddBrand={handleOpenCreate}
               onClearFilters={handleClearFilters}
-              startIndex={(currentPage - 1) * perPage}
+              startIndex={startIndex}
               isReorderDisabled={reorder.isReorderDisabled}
               disabledReason={reorder.disabledReason}
               onPointerDown={reorder.handlePointerDown}

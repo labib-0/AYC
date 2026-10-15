@@ -8,10 +8,12 @@ export interface DragOverTarget {
   position: "above" | "below";
 }
 
+import { AdminPageSize } from "@/types/admin-listing";
+
 export interface UsePointerDragReorderOptions {
   totalCount: number;
   startIndex?: number;
-  pageSize?: number;
+  pageSize?: AdminPageSize | number;
   onReorder: (fromGlobalIndex: number, toGlobalIndex: number) => void;
 }
 

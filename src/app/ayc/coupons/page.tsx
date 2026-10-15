@@ -92,12 +92,16 @@ export default function AdminCouponsPage() {
     });
   }, [coupons, statusFilter, typeFilter, search]);
 
-  const paginatedCoupons = useMemo(() => {
-    const start = (page - 1) * perPage;
-    return filteredCoupons.slice(start, start + perPage);
-  }, [filteredCoupons, page, perPage]);
+  const isAll = perPage === "all";
+  const numericPerPage = isAll ? Math.max(1, filteredCoupons.length) : Number(perPage) || 5;
 
-  const totalPages = Math.max(1, Math.ceil(filteredCoupons.length / perPage));
+  const paginatedCoupons = useMemo(() => {
+    if (isAll) return filteredCoupons;
+    const start = (page - 1) * numericPerPage;
+    return filteredCoupons.slice(start, start + numericPerPage);
+  }, [filteredCoupons, page, numericPerPage, isAll]);
+
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(filteredCoupons.length / numericPerPage));
 
   // Handlers
   const handleOpenAdd = () => {

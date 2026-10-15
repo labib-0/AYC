@@ -26,8 +26,8 @@ describe("1. Core Listing Types and Standards", () => {
     assert.strictEqual(DEFAULT_ADMIN_PAGE_SIZE, 5);
   });
 
-  it("PAGE_SIZE_OPTIONS must strictly provide [5, 10, 20, 50]", () => {
-    assert.deepStrictEqual(PAGE_SIZE_OPTIONS, [5, 10, 20, 50]);
+  it("PAGE_SIZE_OPTIONS must strictly provide [5, 10, 20, 50, 'all']", () => {
+    assert.deepStrictEqual(PAGE_SIZE_OPTIONS, [5, 10, 20, 50, "all"]);
   });
 
   it("calculatePaginationRange calculates accurate 1-based item ranges", () => {

@@ -82,15 +82,17 @@ export interface HotSaleCategoryManagerProps {
   showToast: (message: string, type: "success" | "error") => void;
 }
 
-export const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+import { PAGE_SIZE_OPTIONS, AdminPageSize } from "@/types/admin-listing";
+
+export { PAGE_SIZE_OPTIONS };
 
 export default function HotSaleCategoryManager({
   initialCategories,
   onSaveSuccess,
   showToast,
 }: HotSaleCategoryManagerProps) {
-  // Page size state conforming to exact contract [5, 10, 20, 50]
-  const [pageSize, setPageSize] = useState<number>(5);
+  // Page size state conforming to exact contract [5, 10, 20, 50, "all"]
+  const [pageSize, setPageSize] = useState<AdminPageSize | number>(5);
 
   // Hook owns common ordering, drag & drop, pagination, search, exclusion, and save logic
   const orderedList = useAdminOrderedList<HomepageHotSaleCategoryModel, HomepageCategoryRecord>({
@@ -186,7 +188,7 @@ export default function HotSaleCategoryManager({
     handleAddFromCatalog,
   } = orderedList;
 
-  const handlePageSizeChange = (newSize: number) => {
+  const handlePageSizeChange = (newSize: AdminPageSize | number) => {
     setPageSize(newSize);
     setOrderedListPageSize(newSize);
   };
@@ -202,10 +204,13 @@ export default function HotSaleCategoryManager({
     });
   }, [categories, searchQuery]);
 
+  const isPinnedAll = pageSize === "all";
+
   // Paginated visible pinned items (default page size: 5)
   const visiblePinnedCategories = useMemo(() => {
+    if (isPinnedAll) return filteredPinnedCategories;
     return filteredPinnedCategories.slice(pinnedStartIndex, pinnedEndIndex);
-  }, [filteredPinnedCategories, pinnedStartIndex, pinnedEndIndex]);
+  }, [filteredPinnedCategories, pinnedStartIndex, pinnedEndIndex, isPinnedAll]);
 
   // Available catalog items guaranteed unpinned
   const unpinnedCatalogCategories = useMemo(() => {
@@ -330,7 +335,7 @@ export default function HotSaleCategoryManager({
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                   }`}
                 >
-                  {size}
+                  {size === "all" ? "All" : size}
                 </button>
               ))}
             </div>
@@ -538,8 +543,14 @@ export default function HotSaleCategoryManager({
               );
             })}
 
-            {/* ── Compact Pinned Items Pagination Bar ── */}
-            {pinnedTotalPages > 1 && (
+            {/* ── Compact Pinned Items Pagination / Count Bar ── */}
+            {isPinnedAll ? (
+              <div className="flex items-center justify-between px-3.5 py-2.5 bg-secondary/20 border-t border-border/60 text-xs">
+                <span className="text-xs text-muted-foreground font-mono">
+                  Showing all {pinnedTotalCount} selected categories
+                </span>
+              </div>
+            ) : pinnedTotalPages > 1 ? (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-3.5 py-2.5 bg-secondary/20 border-t border-border/60 text-xs">
                 <span className="text-xs text-muted-foreground font-mono">
                   Showing {pinnedStartIndex + 1}–{pinnedEndIndex} of {pinnedTotalCount} selected categories • Page {pinnedPage} of {pinnedTotalPages}
@@ -570,14 +581,14 @@ export default function HotSaleCategoryManager({
                   </button>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         )}
 
         {/* Divider indicating remaining unselected categories in catalog */}
         {viewFilter === "all" && filteredPinnedCategories.length > 0 && unpinnedCatalogCategories.length > 0 && (
           <div className="px-3.5 py-2 bg-secondary/40 text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>Available Categories (Page {currentPage} of {totalPages})</span>
+            <span>Available Categories {pageSize === "all" ? `(All ${totalCount} in taxonomy)` : `(Page ${currentPage} of ${totalPages})`}</span>
             <span>Click + ADD to pin to Hot Sale</span>
           </div>
         )}
@@ -640,37 +651,45 @@ export default function HotSaleCategoryManager({
       </div>
 
       {/* ── Pagination Bar (Catalog Navigation) ── */}
-      {viewFilter === "all" && totalPages > 1 && (
-        <div className="flex items-center justify-between pt-1 text-xs">
-          <span className="text-xs text-muted-foreground font-mono">
-            Page {currentPage} of {totalPages} ({totalCount} total categories in taxonomy)
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage <= 1 || isLoadingCatalog}
-              aria-label="Previous Page"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-            >
-              <ChevronLeft size={14} />
-              <span>Prev</span>
-            </button>
-            <span className="px-2.5 py-1 text-xs font-mono font-bold text-foreground">
-              {currentPage} / {totalPages}
+      {viewFilter === "all" && (
+        pageSize === "all" ? (
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <span className="text-xs text-muted-foreground font-mono">
+              Showing all {totalCount} total categories in taxonomy
             </span>
-            <button
-              type="button"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages || isLoadingCatalog}
-              aria-label="Next Page"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-            >
-              <span>Next</span>
-              <ChevronRight size={14} />
-            </button>
           </div>
-        </div>
+        ) : totalPages > 1 ? (
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <span className="text-xs text-muted-foreground font-mono">
+              Page {currentPage} of {totalPages} ({totalCount} total categories in taxonomy)
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage <= 1 || isLoadingCatalog}
+                aria-label="Previous Page"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              >
+                <ChevronLeft size={14} />
+                <span>Prev</span>
+              </button>
+              <span className="px-2.5 py-1 text-xs font-mono font-bold text-foreground">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages || isLoadingCatalog}
+                aria-label="Next Page"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-medium disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+              >
+                <span>Next</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        ) : null
       )}
     </div>
   );

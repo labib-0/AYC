@@ -5,7 +5,7 @@ import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export interface AdminRfqQueryParams {
   page?: number;
-  per_page?: number;
+  per_page?: number | string;
   search?: string;
   status?: string;
   date_preset?: string;
@@ -160,7 +160,7 @@ export class AdminRfqService {
     current_page: number;
     last_page: number;
     total: number;
-    per_page: number;
+    per_page: number | string;
   }> {
     if (!isFrontendOnly()) {
       try {
@@ -228,19 +228,20 @@ export class AdminRfqService {
       );
     }
 
-    const perPage = params?.per_page ?? 20;
+    const isAll = params?.per_page === "all";
+    const numericPerPage = isAll ? Math.max(1, filtered.length) : Number(params?.per_page) || 20;
     const page = params?.page ?? 1;
     const total = filtered.length;
-    const lastPage = Math.max(1, Math.ceil(total / perPage));
-    const start = (page - 1) * perPage;
-    const paginated = filtered.slice(start, start + perPage);
+    const lastPage = isAll ? 1 : Math.max(1, Math.ceil(total / numericPerPage));
+    const start = isAll ? 0 : (page - 1) * numericPerPage;
+    const paginated = isAll ? filtered : filtered.slice(start, start + numericPerPage);
 
     return {
       data: paginated,
       current_page: page,
       last_page: lastPage,
       total,
-      per_page: perPage,
+      per_page: params?.per_page ?? 20,
     };
   }
 

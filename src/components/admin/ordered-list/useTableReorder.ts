@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { usePointerDragReorder, DragOverTarget } from "./usePointerDragReorder";
+import { AdminPageSize } from "@/types/admin-listing";
 
 export interface UseTableReorderOptions<T> {
   items: T[];
@@ -15,7 +16,7 @@ export interface UseTableReorderOptions<T> {
   isReorderDisabled?: boolean;
   disabledReason?: string;
   currentPage?: number;
-  pageSize?: number;
+  pageSize?: AdminPageSize | number;
   onPageChange?: (newPage: number) => void;
   showToast?: (message: string, type: "success" | "error") => void;
 }
@@ -60,6 +61,10 @@ export function useTableReorder<T>({
   const [isSaving, setIsSaving] = useState(false);
   const itemsRef = useRef<T[]>(items);
   const previousSavedRef = useRef<T[]>(items);
+
+  const isAll = pageSize === "all";
+  const numericPageSize = isAll ? Math.max(1, items.length) : (Number(pageSize) || 5);
+  const startIndex = isAll ? 0 : (currentPage - 1) * numericPageSize;
 
   useEffect(() => {
     itemsRef.current = items;
@@ -141,9 +146,9 @@ export function useTableReorder<T>({
       // Optimistic update
       onItemsChange(normalized);
 
-      // Follow moved item if landing crosses page boundary
-      if (onPageChange && pageSize > 0) {
-        const newPage = Math.floor(toGlobalIdx / pageSize) + 1;
+      // Follow moved item if landing crosses page boundary (only in paginated mode)
+      if (!isAll && onPageChange && numericPageSize > 0) {
+        const newPage = Math.floor(toGlobalIdx / numericPageSize) + 1;
         if (newPage !== currentPage) {
           onPageChange(newPage);
         }
@@ -152,7 +157,7 @@ export function useTableReorder<T>({
       // Persist to backend
       persistSequence(normalized);
     },
-    [isReorderDisabled, onItemsChange, onPageChange, pageSize, currentPage, persistSequence, updateItemOrder]
+    [isReorderDisabled, onItemsChange, onPageChange, isAll, numericPageSize, currentPage, persistSequence, updateItemOrder]
   );
 
   // Pointer drag reorder hook
@@ -167,8 +172,8 @@ export function useTableReorder<T>({
     isClickSuppressed,
   } = usePointerDragReorder({
     totalCount: items.length,
-    startIndex: (currentPage - 1) * pageSize,
-    pageSize,
+    startIndex,
+    pageSize: numericPageSize,
     onReorder: handleReorder,
   });
 
@@ -192,13 +197,13 @@ export function useTableReorder<T>({
       onItemsChange(normalized);
 
       // Follow item if moving crosses page boundary upwards
-      if (onPageChange && pageSize > 0 && targetIdx < (currentPage - 1) * pageSize) {
+      if (!isAll && onPageChange && numericPageSize > 0 && targetIdx < (currentPage - 1) * numericPageSize) {
         onPageChange(Math.max(1, currentPage - 1));
       }
 
       await persistSequence(normalized);
     },
-    [isReorderDisabled, isSaving, onItemsChange, onPageChange, pageSize, currentPage, persistSequence, updateItemOrder]
+    [isReorderDisabled, isSaving, onItemsChange, onPageChange, isAll, numericPageSize, currentPage, persistSequence, updateItemOrder]
   );
 
   // Move Down action
@@ -221,14 +226,14 @@ export function useTableReorder<T>({
       onItemsChange(normalized);
 
       // Follow item if moving crosses page boundary downwards
-      if (onPageChange && pageSize > 0 && targetIdx >= currentPage * pageSize) {
-        const totalPages = Math.ceil(current.length / pageSize);
+      if (!isAll && onPageChange && numericPageSize > 0 && targetIdx >= currentPage * numericPageSize) {
+        const totalPages = Math.ceil(current.length / numericPageSize);
         onPageChange(Math.min(totalPages, currentPage + 1));
       }
 
       await persistSequence(normalized);
     },
-    [isReorderDisabled, isSaving, onItemsChange, onPageChange, pageSize, currentPage, persistSequence, updateItemOrder]
+    [isReorderDisabled, isSaving, onItemsChange, onPageChange, isAll, numericPageSize, currentPage, persistSequence, updateItemOrder]
   );
 
   const isFirstItem = useCallback((globalIndex: number) => globalIndex === 0, []);

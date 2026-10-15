@@ -5,7 +5,7 @@ import { isFrontendOnly } from "@/lib/frontend-mode";
 
 export interface AdminOrderQueryParams {
   page?: number;
-  per_page?: number;
+  per_page?: number | string;
   search?: string;
   status?: string;
   customer_status?: string;
@@ -84,7 +84,7 @@ export class AdminOrderService {
     current_page: number;
     last_page: number;
     total: number;
-    per_page: number;
+    per_page: number | string;
   }> {
     try {
       const res = await apiClient.get<any>("/admin/orders", { params: params as any });

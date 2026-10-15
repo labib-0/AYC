@@ -911,7 +911,7 @@ class MockStore {
     };
   }
 
-  getCouponSalesOrders(params?: { coupon_id?: number; date_filter?: string; start_date?: string; end_date?: string; search?: string; sort?: string; page?: number; per_page?: number }): any {
+  getCouponSalesOrders(params?: { coupon_id?: number; admin_id?: number; order_status?: string; date_filter?: string; start_date?: string; end_date?: string; search?: string; sort?: string; page?: number; per_page?: number | string }): any {
     const bindings = this.getCouponBindings();
     const boundCouponIds = bindings.map((b) => Number(b.coupon_id));
     const coupons = this.getCoupons();
@@ -945,10 +945,11 @@ class MockStore {
     }
 
     const page = params?.page || 1;
-    const perPage = params?.per_page || 20;
+    const isAll = params?.per_page === "all";
+    const numericPerPage = isAll ? Math.max(1, list.length) : Number(params?.per_page) || 20;
     const total = list.length;
-    const start = (page - 1) * perPage;
-    const slice = list.slice(start, start + perPage).map((o) => {
+    const start = isAll ? 0 : (page - 1) * numericPerPage;
+    const slice = (isAll ? list : list.slice(start, start + numericPerPage)).map((o) => {
       const coupon = coupons.find((c) => Number(c.id) === Number((o as any).coupon_id));
       return {
         id: String(o.id),
@@ -979,12 +980,12 @@ class MockStore {
 
     return {
       data: slice,
-      current_page: page,
-      last_page: Math.ceil(total / perPage) || 1,
-      per_page: perPage,
+      current_page: isAll ? 1 : page,
+      last_page: isAll ? 1 : (Math.ceil(total / numericPerPage) || 1),
+      per_page: params?.per_page || 20,
       total,
       from: total > 0 ? start + 1 : null,
-      to: total > 0 ? Math.min(start + perPage, total) : null,
+      to: total > 0 ? (isAll ? total : Math.min(start + numericPerPage, total)) : null,
     };
   }
 

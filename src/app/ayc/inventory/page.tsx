@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Package, Loader2 } from "lucide-react";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
+import { DEFAULT_ADMIN_PAGE_SIZE } from "@/types/admin-listing";
 
 function AdminInventoryRedirectContent() {
   const router = useRouter();

@@ -256,11 +256,14 @@ export default function AdminDocumentsHubPage() {
   }, [allDocuments, selectedType, searchQuery]);
 
   // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(filteredDocuments.length / pageSize));
+  const isAll = pageSize === "all";
+  const numericPageSize = isAll ? Math.max(1, filteredDocuments.length) : Number(pageSize) || 5;
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(filteredDocuments.length / numericPageSize));
   const paginatedDocs = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredDocuments.slice(start, start + pageSize);
-  }, [filteredDocuments, currentPage, pageSize]);
+    if (isAll) return filteredDocuments;
+    const start = (currentPage - 1) * numericPageSize;
+    return filteredDocuments.slice(start, start + numericPageSize);
+  }, [filteredDocuments, currentPage, numericPageSize, isAll]);
 
   // Counts for KPIs
   const kpiCounts = useMemo(() => {

@@ -178,7 +178,7 @@ export class AdminCouponService {
     search?: string;
     sort?: string;
     page?: number;
-    per_page?: number;
+    per_page?: number | string;
   }): Promise<CouponSalesOrdersResponse> {
     if (!isFrontendOnly()) {
       const res = await apiClient.get<any>("/admin/coupon-sales/orders", { params });

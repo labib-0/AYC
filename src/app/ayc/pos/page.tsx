@@ -295,7 +295,9 @@ export default function AdminPosPage() {
     setProductCurrentPage(1);
   }, [productSearch, selectedWarehouseId, selectedCategoryId]);
 
-  const productTotalPages = Math.max(1, Math.ceil(productResults.length / productPerPage));
+  const isProductAll = productPerPage === "all";
+  const numericProductPerPage = isProductAll ? Math.max(1, productResults.length) : Number(productPerPage) || 5;
+  const productTotalPages = isProductAll ? 1 : Math.max(1, Math.ceil(productResults.length / numericProductPerPage));
 
   useEffect(() => {
     if (productCurrentPage > productTotalPages) {
@@ -304,9 +306,10 @@ export default function AdminPosPage() {
   }, [productCurrentPage, productTotalPages]);
 
   const paginatedProducts = useMemo(() => {
-    const start = (productCurrentPage - 1) * productPerPage;
-    return productResults.slice(start, start + productPerPage);
-  }, [productResults, productCurrentPage, productPerPage]);
+    if (isProductAll) return productResults;
+    const start = (productCurrentPage - 1) * numericProductPerPage;
+    return productResults.slice(start, start + numericProductPerPage);
+  }, [productResults, productCurrentPage, numericProductPerPage, isProductAll]);
 
   // Sync activeProduct selection defaults
   useEffect(() => {

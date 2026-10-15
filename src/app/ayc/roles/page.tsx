@@ -105,7 +105,9 @@ export default function RolesPage() {
     setCurrentPage(1);
   }, [searchQuery, typeFilter, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRoles.length / perPage));
+  const isAll = perPage === "all";
+  const numericPerPage = isAll ? Math.max(1, filteredRoles.length) : Number(perPage) || 5;
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(filteredRoles.length / numericPerPage));
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -114,9 +116,10 @@ export default function RolesPage() {
   }, [currentPage, totalPages]);
 
   const paginatedRoles = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filteredRoles.slice(start, start + perPage);
-  }, [filteredRoles, currentPage, perPage]);
+    if (isAll) return filteredRoles;
+    const start = (currentPage - 1) * numericPerPage;
+    return filteredRoles.slice(start, start + numericPerPage);
+  }, [filteredRoles, currentPage, numericPerPage, isAll]);
 
   // Statistics
   const stats = useMemo(() => {

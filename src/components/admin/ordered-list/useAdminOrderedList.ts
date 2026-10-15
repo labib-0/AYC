@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { usePointerDragReorder, DragOverTarget } from "./usePointerDragReorder";
+import { AdminPageSize } from "@/types/admin-listing";
 
 export interface PaginationInfo {
   currentPage: number;
   totalPages: number;
   totalCount: number;
-  pageSize: number;
+  pageSize: AdminPageSize | number;
 }
 
 export interface UseAdminOrderedListOptions<T, C = any> {
@@ -27,7 +28,7 @@ export interface UseAdminOrderedListOptions<T, C = any> {
   fetchCatalog?: (params: {
     search: string;
     page: number;
-    pageSize: number;
+    pageSize: AdminPageSize | number;
     excludeIds: (string | number)[];
   }) => Promise<{
     items: C[];
@@ -37,7 +38,7 @@ export interface UseAdminOrderedListOptions<T, C = any> {
   }>;
   getCatalogItemId?: (item: C) => string | number;
   onAddFromCatalog?: (catalogItem: C, currentItems: T[]) => T;
-  defaultPageSize?: number;
+  defaultPageSize?: AdminPageSize | number;
 }
 
 export interface UseAdminOrderedListReturn<T, C = any> {
@@ -61,15 +62,15 @@ export interface UseAdminOrderedListReturn<T, C = any> {
   // Pinned Pagination
   pinnedPage: number;
   setPinnedPage: (page: number) => void;
-  pinnedPageSize: number;
-  setPinnedPageSize: (size: number) => void;
+  pinnedPageSize: AdminPageSize | number;
+  setPinnedPageSize: (size: AdminPageSize | number) => void;
   pinnedTotalPages: number;
   pinnedTotalCount: number;
   visiblePinnedItems: T[];
   pinnedStartIndex: number;
   pinnedEndIndex: number;
   handlePinnedPageChange: (newPage: number) => void;
-  handlePinnedPageSizeChange: (newSize: number) => void;
+  handlePinnedPageSizeChange: (newSize: AdminPageSize | number) => void;
 
   // Drag and Drop (Native Pointer Events + HTML5 Drag)
   draggedIndex: number | null;
@@ -100,9 +101,9 @@ export interface UseAdminOrderedListReturn<T, C = any> {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   handleSearchChange: (query: string) => void;
-  pageSize: number;
-  setPageSize: (size: number) => void;
-  handlePageSizeChange: (newSize: number) => void;
+  pageSize: AdminPageSize | number;
+  setPageSize: (size: AdminPageSize | number) => void;
+  handlePageSizeChange: (newSize: AdminPageSize | number) => void;
   currentPage: number;
   setCurrentPage: (page: number) => void;
   totalPages: number;
@@ -146,10 +147,11 @@ export function useAdminOrderedList<T, C = any>({
 
   // Pinned list pagination (Default page size = 5)
   const [pinnedPage, setPinnedPage] = useState<number>(1);
-  const [pinnedPageSize, setPinnedPageSize] = useState<number>(defaultPageSize);
+  const [pinnedPageSize, setPinnedPageSize] = useState<AdminPageSize | number>(defaultPageSize);
 
+  const isPinnedAll = pinnedPageSize === "all";
   const pinnedTotalCount = items.length;
-  const pinnedTotalPages = Math.max(1, Math.ceil(pinnedTotalCount / pinnedPageSize));
+  const pinnedTotalPages = isPinnedAll ? 1 : Math.max(1, Math.ceil(pinnedTotalCount / (pinnedPageSize as number)));
 
   // Ensure pinnedPage is always within valid bounds
   useEffect(() => {
@@ -160,8 +162,8 @@ export function useAdminOrderedList<T, C = any>({
     }
   }, [pinnedPage, pinnedTotalPages]);
 
-  const pinnedStartIndex = (pinnedPage - 1) * pinnedPageSize;
-  const pinnedEndIndex = Math.min(pinnedTotalCount, pinnedPage * pinnedPageSize);
+  const pinnedStartIndex = isPinnedAll ? 0 : (pinnedPage - 1) * (pinnedPageSize as number);
+  const pinnedEndIndex = isPinnedAll ? pinnedTotalCount : Math.min(pinnedTotalCount, pinnedPage * (pinnedPageSize as number));
   const visiblePinnedItems = useMemo(() => {
     return items.slice(pinnedStartIndex, pinnedEndIndex);
   }, [items, pinnedStartIndex, pinnedEndIndex]);
@@ -175,7 +177,7 @@ export function useAdminOrderedList<T, C = any>({
     [pinnedTotalPages]
   );
 
-  const handlePinnedPageSizeChange = useCallback((newSize: number) => {
+  const handlePinnedPageSizeChange = useCallback((newSize: AdminPageSize | number) => {
     setPinnedPageSize(newSize);
     setPinnedPage(1);
   }, []);
@@ -277,11 +279,11 @@ export function useAdminOrderedList<T, C = any>({
       });
 
       // If moving crosses page boundary upwards, follow the item to previous page
-      if (globalIdx === pinnedStartIndex && pinnedPage > 1) {
+      if (!isPinnedAll && globalIdx === pinnedStartIndex && pinnedPage > 1) {
         setPinnedPage((p) => Math.max(1, p - 1));
       }
     },
-    [pinnedStartIndex, pinnedEndIndex, items.length, pinnedPage, reindexItems]
+    [isPinnedAll, pinnedStartIndex, pinnedEndIndex, items.length, pinnedPage, reindexItems]
   );
 
   const moveDown = useCallback(
@@ -302,11 +304,11 @@ export function useAdminOrderedList<T, C = any>({
       });
 
       // If moving crosses page boundary downwards, follow the item to next page
-      if (globalIdx === pinnedEndIndex - 1 && pinnedPage < pinnedTotalPages) {
+      if (!isPinnedAll && globalIdx === pinnedEndIndex - 1 && pinnedPage < pinnedTotalPages) {
         setPinnedPage((p) => Math.min(pinnedTotalPages, p + 1));
       }
     },
-    [pinnedStartIndex, pinnedEndIndex, items.length, pinnedPage, pinnedTotalPages, reindexItems]
+    [isPinnedAll, pinnedStartIndex, pinnedEndIndex, items.length, pinnedPage, pinnedTotalPages, reindexItems]
   );
 
   const handleMoveUp = moveUp;
@@ -453,7 +455,7 @@ export function useAdminOrderedList<T, C = any>({
   // Catalog search and pagination state
   const [availableCatalog, setAvailableCatalog] = useState<C[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [pageSize, setPageSize] = useState<number>(defaultPageSize);
+  const [pageSize, setPageSize] = useState<AdminPageSize | number>(defaultPageSize);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -508,9 +510,11 @@ export function useAdminOrderedList<T, C = any>({
     setCurrentPage(newPage);
   }, []);
 
-  const handlePageSizeChange = useCallback((newSize: number) => {
+  const handlePageSizeChange = useCallback((newSize: AdminPageSize | number) => {
     setPageSize(newSize);
+    setPinnedPageSize(newSize);
     setCurrentPage(1);
+    setPinnedPage(1);
   }, []);
 
   const handleAddFromCatalog = useCallback(

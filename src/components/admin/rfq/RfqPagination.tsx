@@ -8,7 +8,7 @@ export interface RfqPaginationProps {
   currentPage: number;
   totalPages?: number;
   totalRfqs: number;
-  perPage: number;
+  perPage: AdminPageSize | number;
   onPageChange: (page: number) => void;
   onPerPageChange?: (perPage: AdminPageSize) => void;
   isLoading?: boolean;

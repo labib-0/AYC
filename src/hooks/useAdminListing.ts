@@ -206,8 +206,9 @@ export function useAdminListing<T, TFilter extends Record<string, any> = Record<
 
       setServerData(result.data || []);
       setServerTotal(result.total ?? 0);
+      const numericPerPage = perPage === "all" ? Math.max(1, result.total ?? 0) : Number(perPage) || 5;
       setServerTotalPages(
-        result.totalPages ?? Math.max(1, Math.ceil((result.total ?? 0) / perPage))
+        result.totalPages ?? (perPage === "all" ? 1 : Math.max(1, Math.ceil((result.total ?? 0) / numericPerPage)))
       );
     } catch (err: any) {
       if (err?.name === "AbortError" || err?.message === "AbortError") {
@@ -261,14 +262,19 @@ export function useAdminListing<T, TFilter extends Record<string, any> = Record<
     if (fetcher) {
       return serverData;
     }
-    const startIndex = (clientRange.safePage - 1) * perPage;
-    return clientFilteredItems.slice(startIndex, startIndex + perPage);
+    if (perPage === "all") {
+      return clientFilteredItems;
+    }
+    const numericPerPage = Number(perPage) || 5;
+    const startIndex = (clientRange.safePage - 1) * numericPerPage;
+    return clientFilteredItems.slice(startIndex, startIndex + numericPerPage);
   }, [fetcher, serverData, clientFilteredItems, clientRange.safePage, perPage]);
 
   const totalItems = fetcher ? serverTotal : clientTotalItems;
   const totalPages = fetcher ? serverTotalPages : clientRange.totalPages;
-  const from = fetcher ? (totalItems === 0 ? 0 : (page - 1) * perPage + 1) : clientRange.from;
-  const to = fetcher ? (totalItems === 0 ? 0 : Math.min(page * perPage, totalItems)) : clientRange.to;
+  const numericPerPage = typeof perPage === "number" ? perPage : Number(perPage) || 5;
+  const from = fetcher ? (totalItems === 0 ? 0 : perPage === "all" ? 1 : (page - 1) * numericPerPage + 1) : clientRange.from;
+  const to = fetcher ? (totalItems === 0 ? 0 : perPage === "all" ? totalItems : Math.min(page * numericPerPage, totalItems)) : clientRange.to;
 
   return {
     search,

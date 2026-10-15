@@ -144,7 +144,9 @@ export default function PermissionsPage() {
     setCurrentPage(1);
   }, [searchQuery, selectedModule]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredPermissions.length / perPage));
+  const isAll = perPage === "all";
+  const numericPerPage = isAll ? Math.max(1, filteredPermissions.length) : Number(perPage) || 5;
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(filteredPermissions.length / numericPerPage));
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -153,9 +155,10 @@ export default function PermissionsPage() {
   }, [currentPage, totalPages]);
 
   const paginatedPermissions = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filteredPermissions.slice(start, start + perPage);
-  }, [filteredPermissions, currentPage, perPage]);
+    if (isAll) return filteredPermissions;
+    const start = (currentPage - 1) * numericPerPage;
+    return filteredPermissions.slice(start, start + numericPerPage);
+  }, [filteredPermissions, currentPage, numericPerPage, isAll]);
 
   // Group paginated permissions by module
   const groupedPermissions = useMemo(() => {

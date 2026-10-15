@@ -74,7 +74,7 @@ export interface CustomerDetail extends CustomerRecord {
 
 export interface CustomerQueryParams {
   page?: number;
-  per_page?: number;
+  per_page?: number | string;
   search?: string;
   sort?: string;
   direction?: "asc" | "desc";
@@ -130,7 +130,7 @@ export class AdminCustomerService {
     current_page: number;
     last_page: number;
     total: number;
-    per_page: number;
+    per_page: number | string;
   }> {
     try {
       const res = await apiClient.get<any>("/admin/customers", { params: params as any });

@@ -1,13 +1,14 @@
 "use client";
-
 import React from "react";
-import { AlertCircle, Loader2, FilterX } from "lucide-react";
+import { AlertCircle, Loader2, FilterX, CheckCircle2 } from "lucide-react";
 
 export interface TableReorderBannerProps {
   isSaving?: boolean;
   isReorderDisabled?: boolean;
   disabledReason?: string;
   onClearFilters?: () => void;
+  isReady?: boolean;
+  readyMessage?: string;
   className?: string;
 }
 
@@ -16,6 +17,8 @@ export function TableReorderBanner({
   isReorderDisabled = false,
   disabledReason = "Reordering is disabled while search or filters are active.",
   onClearFilters,
+  isReady = false,
+  readyMessage,
   className = "",
 }: TableReorderBannerProps) {
   if (isSaving) {
@@ -51,6 +54,21 @@ export function TableReorderBanner({
             <span>Clear Filters to Reorder</span>
           </button>
         )}
+      </div>
+    );
+  }
+
+  if (isReady && readyMessage) {
+    return (
+      <div
+        className={`flex items-center justify-between gap-2.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-700 dark:text-emerald-400 font-medium ${className}`}
+        role="status"
+        aria-live="polite"
+      >
+        <div className="flex items-center gap-2">
+          <CheckCircle2 size={15} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <span>{readyMessage}</span>
+        </div>
       </div>
     );
   }

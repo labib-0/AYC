@@ -9,7 +9,7 @@ export interface AdminPaginationProps {
   currentPage: number;
   totalPages?: number;
   totalItems: number;
-  perPage: number;
+  perPage: AdminPageSize | number;
   onPageChange: (page: number) => void;
   onPerPageChange?: (perPage: AdminPageSize) => void;
   itemName?: string; // e.g. "products", "orders", "categories"
@@ -21,9 +21,9 @@ export interface AdminPaginationProps {
 /**
  * AYC Admin — Global Standard Pagination Component
  * Renders:
- * 1. Accurate record count range ("Showing 1–5 of 104 products")
- * 2. Standard page-size selector (5 default, 10, 20, 50)
- * 3. Previous/Next navigation and ellipsis-aware page buttons
+ * 1. Accurate record count range ("Showing 1–5 of 104 products" or "Showing all 101 products")
+ * 2. Standard page-size selector (5 default, 10, 20, 50, All)
+ * 3. Previous/Next navigation and ellipsis-aware page buttons (hidden when All is selected)
  */
 export default function AdminPagination({
   currentPage,
@@ -37,6 +37,8 @@ export default function AdminPagination({
   className = "",
   idPrefix = "admin-pagination",
 }: AdminPaginationProps) {
+  const isAll = perPage === "all";
+
   const { from, to, totalPages: calculatedTotalPages, safePage } = calculatePaginationRange(
     currentPage,
     perPage,
@@ -70,8 +72,6 @@ export default function AdminPagination({
     return pages;
   };
 
-  const recordCountText = formatRecordCount(from, to, totalItems, itemName);
-
   return (
     <div
       className={`flex flex-col sm:flex-row items-center justify-between gap-4 py-3 px-1 border-t border-border/50 ${className}`}
@@ -81,6 +81,10 @@ export default function AdminPagination({
         <p className="text-xs text-muted-foreground font-medium tabular-nums">
           {totalItems <= 0 ? (
             <span>Showing <span className="font-bold text-foreground">0</span> of <span className="font-bold text-foreground">0</span> {itemName}</span>
+          ) : isAll ? (
+            <span>
+              Showing all <span className="font-bold text-foreground">{totalItems.toLocaleString()}</span> {itemName}
+            </span>
           ) : (
             <span>
               Showing <span className="font-bold text-foreground">{from}</span>–
@@ -99,67 +103,69 @@ export default function AdminPagination({
         )}
       </div>
 
-      {/* Right: Navigation Controls */}
-      <div className="flex items-center gap-1">
-        {/* Previous */}
-        <button
-          type="button"
-          onClick={() => onPageChange(safePage - 1)}
-          disabled={safePage <= 1}
-          className="h-8 w-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-          aria-label="Previous page"
-        >
-          <ChevronLeft size={14} />
-        </button>
-
-        {/* Page Numbers */}
-        {effectiveTotalPages > 1 ? (
-          getPageNumbers().map((p, idx) =>
-            p === "ellipsis" ? (
-              <span
-                key={`ellipsis-${idx}`}
-                className="w-8 h-8 flex items-center justify-center text-xs text-muted-foreground select-none"
-              >
-                …
-              </span>
-            ) : (
-              <button
-                key={p}
-                type="button"
-                onClick={() => onPageChange(p)}
-                className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                  p === safePage
-                    ? "bg-foreground text-background"
-                    : "border border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
-                }`}
-                aria-current={p === safePage ? "page" : undefined}
-              >
-                {p}
-              </button>
-            )
-          )
-        ) : (
+      {/* Right: Navigation Controls (hidden in 'All' mode since every item is on the single page) */}
+      {!isAll && (
+        <div className="flex items-center gap-1">
+          {/* Previous */}
           <button
             type="button"
-            disabled
-            className="h-8 w-8 rounded-lg text-xs font-bold bg-foreground text-background cursor-default"
-            aria-current="page"
+            onClick={() => onPageChange(safePage - 1)}
+            disabled={safePage <= 1}
+            className="h-8 w-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            aria-label="Previous page"
           >
-            1
+            <ChevronLeft size={14} />
           </button>
-        )}
 
-        {/* Next */}
-        <button
-          type="button"
-          onClick={() => onPageChange(safePage + 1)}
-          disabled={safePage >= effectiveTotalPages}
-          className="h-8 w-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-          aria-label="Next page"
-        >
-          <ChevronRight size={14} />
-        </button>
-      </div>
+          {/* Page Numbers */}
+          {effectiveTotalPages > 1 ? (
+            getPageNumbers().map((p, idx) =>
+              p === "ellipsis" ? (
+                <span
+                  key={`ellipsis-${idx}`}
+                  className="w-8 h-8 flex items-center justify-center text-xs text-muted-foreground select-none"
+                >
+                  …
+                </span>
+              ) : (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => onPageChange(p)}
+                  className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                    p === safePage
+                      ? "bg-foreground text-background"
+                      : "border border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  }`}
+                  aria-current={p === safePage ? "page" : undefined}
+                >
+                  {p}
+                </button>
+              )
+            )
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="h-8 w-8 rounded-lg text-xs font-bold bg-foreground text-background cursor-default"
+              aria-current="page"
+            >
+              1
+            </button>
+          )}
+
+          {/* Next */}
+          <button
+            type="button"
+            onClick={() => onPageChange(safePage + 1)}
+            disabled={safePage >= effectiveTotalPages}
+            className="h-8 w-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            aria-label="Next page"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

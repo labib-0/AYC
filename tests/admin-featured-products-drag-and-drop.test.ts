@@ -57,11 +57,12 @@ runTest("2. Entire row is NOT draggable by default; dragging is initiated from t
   assert.ok(rowMatch, "Pinned row must have data-product-row attribute");
   assert.ok(!rowMatch[0].includes("draggable"), "Outer row element must NOT be draggable");
 
-  // Drag handle element must be draggable
+  // Drag handle element must initiate dragging
   assert.ok(
-    featuredManagerSource.includes('draggable\n                        onDragStart') ||
-    featuredManagerSource.includes("draggable") && featuredManagerSource.includes("handleDragStart"),
-    "Drag handle must have draggable attribute and onDragStart handler"
+    featuredManagerSource.includes("onPointerDown") ||
+    featuredManagerSource.includes("draggable\n                        onDragStart") ||
+    (featuredManagerSource.includes("draggable") && featuredManagerSource.includes("handleDragStart")),
+    "Drag handle must have onPointerDown or draggable attribute and onDragStart handler"
   );
 });
 

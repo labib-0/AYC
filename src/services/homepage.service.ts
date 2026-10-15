@@ -1,5 +1,6 @@
 import { apiClient } from "@/services/api-client";
 import { DEFAULT_TOP_BANNER, TopBannerConfig } from "@/config/banner";
+import { mockStore } from "@/lib/mock-data/mock-store";
 
 export interface HomepageBannerModel {
   id: number;
@@ -251,22 +252,97 @@ export class HomepageService {
    * Fetch complete landing page management settings for Admin.
    */
   async getAdminHomepageData(): Promise<AdminHomepageData> {
-    const res = await apiClient.get<any>("/admin/homepage");
-    const data = res?.data || res;
-    return {
-      banner: data?.banner || null,
-      all_banners: Array.isArray(data?.all_banners) ? data.all_banners : [],
-      site_logo: data?.site_logo || null,
-      hot_sale_visible: data?.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true,
-      google_search_console_verification: data?.google_search_console_verification || null,
-      ticker_items: Array.isArray(data?.ticker_items) ? data.ticker_items : [],
-      featured_brands: Array.isArray(data?.featured_brands) ? data.featured_brands : [],
-      all_brands: Array.isArray(data?.all_brands) ? data.all_brands : [],
-      hot_sale_categories: Array.isArray(data?.hot_sale_categories) ? data.hot_sale_categories : [],
-      all_categories: Array.isArray(data?.all_categories) ? data.all_categories : [],
-      featured_products: Array.isArray(data?.featured_products) ? data.featured_products : [],
-      counts: data?.counts || { total_categories: 0, total_products: 0 },
-    };
+    try {
+      const res = await apiClient.get<any>("/admin/homepage");
+      const data = res?.data || res;
+      return {
+        banner: data?.banner || null,
+        all_banners: Array.isArray(data?.all_banners) ? data.all_banners : [],
+        site_logo: data?.site_logo || null,
+        hot_sale_visible: data?.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true,
+        google_search_console_verification: data?.google_search_console_verification || null,
+        ticker_items: Array.isArray(data?.ticker_items) ? data.ticker_items : [],
+        featured_brands: Array.isArray(data?.featured_brands) ? data.featured_brands : [],
+        all_brands: Array.isArray(data?.all_brands) ? data.all_brands : [],
+        hot_sale_categories: Array.isArray(data?.hot_sale_categories) ? data.hot_sale_categories : [],
+        all_categories: Array.isArray(data?.all_categories) ? data.all_categories : [],
+        featured_products: Array.isArray(data?.featured_products) ? data.featured_products : [],
+        counts: data?.counts || { total_categories: 0, total_products: 0 },
+      };
+    } catch {
+      const mockBrands = mockStore.getBrands();
+      const mockCats = mockStore.getCategories();
+      const mockProducts = mockStore.getProducts();
+
+      const defaultTickers: HomepageTickerItem[] = [
+        { id: 1, text: "GLOBAL B2B WHOLESALE", sort_order: 1, is_active: true },
+        { id: 2, text: "READY STOCK EXPORT", sort_order: 2, is_active: true },
+        { id: 3, text: "CUSTOM MANUFACTURING", sort_order: 3, is_active: true },
+        { id: 4, text: "TIERED MOQ PRICING", sort_order: 4, is_active: true },
+        { id: 5, text: "WORLDWIDE FREIGHT & AIR CARGO", sort_order: 5, is_active: true },
+        { id: 6, text: "PREMIUM COMBED COTTON", sort_order: 6, is_active: true },
+        { id: 7, text: "FACTORY DIRECT SHIPMENTS", sort_order: 7, is_active: true },
+        { id: 8, text: "VERIFIED RMG STANDARDS", sort_order: 8, is_active: true },
+      ];
+
+      const defaultBrands: HomepageFeaturedBrandModel[] = mockBrands.slice(0, 5).map((b, idx) => ({
+        id: idx + 1,
+        brand_id: b.id,
+        sort_order: idx + 1,
+        is_active: true,
+        brand: b as any,
+      }));
+
+      const defaultHotCats: HomepageHotSaleCategoryModel[] = mockCats.slice(0, 5).map((c, idx) => ({
+        id: idx + 1,
+        category_id: Number(c.id),
+        sort_order: idx + 1,
+        is_active: true,
+        category: c as any,
+      }));
+
+      const defaultFeaturedProducts: HomepageFeaturedProductModel[] = mockProducts.slice(0, 5).map((p, idx) => ({
+        id: idx + 1,
+        product_id: Number(p.id),
+        sort_order: idx + 1,
+        is_active: true,
+        product: {
+          id: String(p.id),
+          name: p.name,
+          sku: p.sku || "",
+          price: p.price,
+          unit_price: p.price,
+          currency: "USD",
+          image_url: p.images?.[0] || "/placeholder.jpg",
+          brand_name: (p as any).brandName || "Ayaan",
+          category_name: (p as any).categoryName || "General",
+          is_active: true,
+        },
+      }));
+
+      return {
+        banner: {
+          id: 1,
+          headline: DEFAULT_TOP_BANNER.title,
+          subtitle: DEFAULT_TOP_BANNER.subtitle,
+          image_url: DEFAULT_TOP_BANNER.imageUrl,
+          cta_text: DEFAULT_TOP_BANNER.buttonText,
+          destination_value: DEFAULT_TOP_BANNER.target,
+          is_active: true,
+        },
+        all_banners: [],
+        site_logo: null,
+        hot_sale_visible: true,
+        google_search_console_verification: null,
+        ticker_items: defaultTickers,
+        featured_brands: defaultBrands,
+        all_brands: mockBrands as any[],
+        hot_sale_categories: defaultHotCats,
+        all_categories: mockCats as any[],
+        featured_products: defaultFeaturedProducts,
+        counts: { total_categories: mockCats.length, total_products: mockProducts.length },
+      };
+    }
   }
 
   /**
@@ -371,11 +447,11 @@ export class HomepageService {
       page?: number;
       category_id?: number;
       brand_id?: number;
-      per_page?: number;
+      per_page?: number | string;
       exclude_ids?: (number | string)[] | string;
     },
     page?: number,
-    perPage?: number,
+    perPage?: number | string,
     excludeIds?: (number | string)[]
   ): Promise<PaginatedProductSearchResults> {
     let params: Record<string, any>;
@@ -415,11 +491,11 @@ export class HomepageService {
       q?: string;
       search?: string;
       page?: number;
-      per_page?: number;
+      per_page?: number | string;
       exclude_ids?: (number | string)[] | string;
     },
     page?: number,
-    perPage?: number,
+    perPage?: number | string,
     excludeIds?: (number | string)[]
   ): Promise<PaginatedBrandSearchResults> {
     let params: Record<string, any>;
@@ -459,11 +535,11 @@ export class HomepageService {
       q?: string;
       search?: string;
       page?: number;
-      per_page?: number;
+      per_page?: number | string;
       exclude_ids?: (number | string)[] | string;
     },
     page?: number,
-    perPage?: number,
+    perPage?: number | string,
     excludeIds?: (number | string)[]
   ): Promise<PaginatedCategorySearchResults> {
     let params: Record<string, any>;

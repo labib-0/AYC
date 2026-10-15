@@ -92,6 +92,11 @@ export default function AdminCategoriesPage() {
     setSearch("");
     setStatusFilter("ALL");
     setCurrentPage(1);
+    setPerPage("all");
+    addToast(
+      "success",
+      `Filters cleared. Showing all ${categories.length} categories in manual sequence. Reordering enabled.`
+    );
   };
 
   // Filtered & Paginated Categories
@@ -119,11 +124,13 @@ export default function AdminCategoriesPage() {
   const inactiveCount = useMemo(() => categories.filter((c) => c.is_active === false).length, [categories]);
 
   // Pagination Calculations
-  const totalPages = Math.max(1, Math.ceil(filteredCategories.length / perPage));
+  const isAll = perPage === "all";
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(filteredCategories.length / (perPage as number)));
+  const startIndex = isAll ? 0 : (currentPage - 1) * (perPage as number);
   const paginatedCategories = useMemo(() => {
-    const startIndex = (currentPage - 1) * perPage;
-    return filteredCategories.slice(startIndex, startIndex + perPage);
-  }, [filteredCategories, currentPage, perPage]);
+    if (isAll) return filteredCategories;
+    return filteredCategories.slice(startIndex, startIndex + (perPage as number));
+  }, [filteredCategories, startIndex, perPage, isAll]);
 
   const isFiltered = Boolean(search.trim() || statusFilter !== "ALL");
 
@@ -241,7 +248,7 @@ export default function AdminCategoriesPage() {
         return matchesSearch && matchesStatus;
       });
 
-      const newTotalPages = Math.ceil(remainingFiltered.length / perPage);
+      const newTotalPages = perPage === "all" ? 1 : Math.ceil(remainingFiltered.length / (perPage as number));
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages);
       }
@@ -325,6 +332,8 @@ export default function AdminCategoriesPage() {
               isReorderDisabled={reorder.isReorderDisabled}
               disabledReason={reorder.disabledReason}
               onClearFilters={handleClearFilters}
+              isReady={!isFiltered && perPage === "all"}
+              readyMessage={`All ${categories.length} categories loaded in manual sequence. Drag handles and Move Up / Down actions are enabled.`}
             />
 
             {/* ── Category Table & Responsive Mobile Cards ── */}
@@ -337,7 +346,7 @@ export default function AdminCategoriesPage() {
               onDelete={handlePromptDelete}
               onAddCategory={handleOpenCreate}
               onClearFilters={handleClearFilters}
-              startIndex={(currentPage - 1) * perPage}
+              startIndex={startIndex}
               isReorderDisabled={reorder.isReorderDisabled}
               disabledReason={reorder.disabledReason}
               onPointerDown={reorder.handlePointerDown}

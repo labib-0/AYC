@@ -8,7 +8,7 @@ export interface BrandPaginationProps {
   currentPage: number;
   totalPages?: number;
   totalItems: number;
-  perPage: number;
+  perPage: AdminPageSize | number;
   onPageChange: (page: number) => void;
   onPerPageChange?: (perPage: AdminPageSize) => void;
 }

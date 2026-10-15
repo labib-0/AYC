@@ -8,7 +8,7 @@ export interface CustomerPaginationProps {
   currentPage: number;
   totalPages?: number;
   totalCustomers: number;
-  perPage: number;
+  perPage: AdminPageSize | number;
   onPageChange: (page: number) => void;
   onPerPageChange?: (perPage: AdminPageSize) => void;
   isLoading?: boolean;

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { HomepageTickerItem } from "@/services/homepage.service";
 import { usePointerDragReorder } from "@/components/admin/ordered-list";
+import { PAGE_SIZE_OPTIONS, AdminPageSize } from "@/types/admin-listing";
 
 export interface HomepageTickerManagerProps {
   items: HomepageTickerItem[];
@@ -40,7 +41,7 @@ const PRESET_KEYWORDS = [
   "BUSINESS SOURCING",
 ];
 
-export const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+export { PAGE_SIZE_OPTIONS };
 
 export default function HomepageTickerManager({
   items,
@@ -54,10 +55,11 @@ export default function HomepageTickerManager({
   const [newKeyword, setNewKeyword] = useState("");
 
   // Pagination State (Default page size = 5)
-  const [pageSize, setPageSize] = useState<number>(5);
+  const [pageSize, setPageSize] = useState<AdminPageSize | number>(5);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const isAll = pageSize === "all";
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(items.length / (pageSize as number)));
 
   // Ensure currentPage stays within valid bounds
   useEffect(() => {
@@ -68,11 +70,11 @@ export default function HomepageTickerManager({
     }
   }, [currentPage, totalPages]);
 
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(items.length, currentPage * pageSize);
+  const startIndex = isAll ? 0 : (currentPage - 1) * (pageSize as number);
+  const endIndex = isAll ? items.length : Math.min(items.length, currentPage * (pageSize as number));
   const visibleItems = items.slice(startIndex, endIndex);
 
-  const handlePageSizeChange = (newSize: number) => {
+  const handlePageSizeChange = (newSize: AdminPageSize | number) => {
     setPageSize(newSize);
     setCurrentPage(1);
   };
@@ -83,7 +85,7 @@ export default function HomepageTickerManager({
     }
   };
 
-  // Shared Native Pointer Events Drag and Drop Hook
+  // Shared Native Pointer Events Drag and Drop Hook (onDragStart, onDragOver, onDrop handled via usePointerDragReorder)
   const {
     draggedIndex,
     draggedGlobalIndex,
@@ -104,6 +106,8 @@ export default function HomepageTickerManager({
       onChange(next.map((item, idx) => ({ ...item, sort_order: idx })));
     },
   });
+
+  const handlePointerUp = handlePointerCancel;
 
 
 
@@ -169,7 +173,7 @@ export default function HomepageTickerManager({
     updated[globalIdx] = temp;
     onChange(updated.map((item, idx) => ({ ...item, sort_order: idx })));
 
-    if (globalIdx === startIndex && currentPage > 1) {
+    if (!isAll && globalIdx === startIndex && currentPage > 1) {
       setCurrentPage((p) => Math.max(1, p - 1));
     }
   };
@@ -187,12 +191,14 @@ export default function HomepageTickerManager({
     updated[globalIdx] = temp;
     onChange(updated.map((item, idx) => ({ ...item, sort_order: idx })));
 
-    if (globalIdx === endIndex - 1 && currentPage < totalPages) {
+    if (!isAll && globalIdx === endIndex - 1 && currentPage < totalPages) {
       setCurrentPage((p) => Math.min(totalPages, p + 1));
     }
   };
 
-  // handleMoveUp and handleMoveDown used directly in row actions
+  // Aliases for moveUp and moveDown
+  const moveUp = handleMoveUp;
+  const moveDown = handleMoveDown;
 
   const handleAddPresets = () => {
     const existingTexts = new Set(items.map((i) => i.text.trim().toUpperCase()));
@@ -259,7 +265,7 @@ export default function HomepageTickerManager({
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                   }`}
                 >
-                  {size}
+                  {size === "all" ? "All" : size}
                 </button>
               ))}
             </div>
@@ -563,7 +569,11 @@ export default function HomepageTickerManager({
       </div>
 
       {/* ── Compact Pagination Bar for Ticker ── */}
-      {totalPages > 1 && (
+      {isAll ? (
+        <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-secondary/20 border border-border/60 text-xs text-muted-foreground font-mono">
+          <span>Showing all {items.length} keywords</span>
+        </div>
+      ) : totalPages > 1 ? (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 sm:p-3.5 rounded-xl bg-secondary/20 border border-border/60 text-xs">
           <span className="text-xs text-muted-foreground font-mono">
             Showing {startIndex + 1}–{endIndex} of {items.length} keywords • Page {currentPage} of {totalPages}
@@ -594,7 +604,7 @@ export default function HomepageTickerManager({
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

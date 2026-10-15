@@ -65,7 +65,6 @@ export class BrandService {
         } catch {
           // Fall through
         }
-        return [];
       }
 
     let list = mockStore.getBrands();

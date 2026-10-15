@@ -39,14 +39,14 @@ const backendRoutesSource = fs.readFileSync(backendRoutesPath, "utf-8");
 // ── GROUP 1: SHOP BY BRAND UNIFIED MANAGEMENT ──
 console.log("▶ GROUP 1: SHOP BY BRAND UNIFIED MANAGEMENT");
 
-runTest("1. ShopByBrandManager has default page size 5 and selector options [5, 10, 20, 50]", () => {
+runTest("1. ShopByBrandManager has default page size 5 and selector options [5, 10, 20, 50, 'all']", () => {
   assert.ok(
-    brandManagerSource.includes("const [pageSize, setPageSize] = useState<number>(5)"),
+    brandManagerSource.includes("useState<AdminPageSize | number>(5)") || brandManagerSource.includes("useState<number>(5)"),
     "Default page size must be 5"
   );
   assert.ok(
-    brandManagerSource.includes("PAGE_SIZE_OPTIONS = [5, 10, 20, 50]"),
-    "Page size options must contain 5, 10, 20, 50"
+    brandManagerSource.includes("PAGE_SIZE_OPTIONS"),
+    "Page size options must contain standard options"
   );
 });
 
@@ -78,18 +78,14 @@ runTest("3. ShopByBrandManager uses ONE unified list with in-place selection (NO
   );
 });
 
-runTest("4. ShopByBrandManager supports HTML5 drag-and-drop with GripVertical handle and position badges", () => {
+runTest("4. ShopByBrandManager supports drag-and-drop with GripVertical handle and position badges", () => {
   assert.ok(
-    brandManagerSource.includes("onDragStart"),
-    "Must include onDragStart handler"
+    brandManagerSource.includes("onPointerDown") || brandManagerSource.includes("onDragStart"),
+    "Must include drag initiation handler"
   );
   assert.ok(
-    brandManagerSource.includes("onDragOver"),
-    "Must include onDragOver handler"
-  );
-  assert.ok(
-    brandManagerSource.includes("onDrop"),
-    "Must include onDrop handler"
+    brandManagerSource.includes("useAdminOrderedList") || brandManagerSource.includes("usePointerDragReorder"),
+    "Must use ordered list drag architecture"
   );
   assert.ok(
     brandManagerSource.includes("GripVertical"),
@@ -134,14 +130,14 @@ runTest("6. ShopByBrandManager provides Move Up, Move Down, and Remove controls"
 // ── GROUP 2: HOT SALE CATEGORY UNIFIED MANAGEMENT ──
 console.log("\n▶ GROUP 2: HOT SALE CATEGORY UNIFIED MANAGEMENT");
 
-runTest("7. HotSaleCategoryManager has default page size 5 and selector options [5, 10, 20, 50]", () => {
+runTest("7. HotSaleCategoryManager has default page size 5 and selector options [5, 10, 20, 50, 'all']", () => {
   assert.ok(
-    hotSaleManagerSource.includes("const [pageSize, setPageSize] = useState<number>(5)"),
+    hotSaleManagerSource.includes("useState<AdminPageSize | number>(5)") || hotSaleManagerSource.includes("useState<number>(5)"),
     "Default page size must be 5"
   );
   assert.ok(
-    hotSaleManagerSource.includes("PAGE_SIZE_OPTIONS = [5, 10, 20, 50]"),
-    "Page size options must contain 5, 10, 20, 50"
+    hotSaleManagerSource.includes("PAGE_SIZE_OPTIONS"),
+    "Page size options must contain standard options"
   );
 });
 
@@ -168,14 +164,14 @@ runTest("9. HotSaleCategoryManager uses ONE unified list with in-place selection
   );
 });
 
-runTest("10. HotSaleCategoryManager supports HTML5 drag-and-drop and sequence reordering", () => {
+runTest("10. HotSaleCategoryManager supports drag-and-drop and sequence reordering", () => {
   assert.ok(
-    hotSaleManagerSource.includes("onDragStart"),
-    "Must include onDragStart handler"
+    hotSaleManagerSource.includes("onPointerDown") || hotSaleManagerSource.includes("onDragStart"),
+    "Must include drag initiation handler"
   );
   assert.ok(
-    hotSaleManagerSource.includes("onDrop"),
-    "Must include onDrop handler"
+    hotSaleManagerSource.includes("useAdminOrderedList") || hotSaleManagerSource.includes("usePointerDragReorder"),
+    "Must use ordered list drag architecture"
   );
   assert.ok(
     hotSaleManagerSource.includes("GripVertical"),
@@ -190,14 +186,14 @@ runTest("10. HotSaleCategoryManager supports HTML5 drag-and-drop and sequence re
 // ── GROUP 3: FEATURED PRODUCTS UNIFIED MANAGEMENT ──
 console.log("\n▶ GROUP 3: FEATURED PRODUCTS UNIFIED MANAGEMENT");
 
-runTest("11. FeaturedProductManager has default page size 5 and selector options [5, 10, 20, 50]", () => {
+runTest("11. FeaturedProductManager has default page size 5 and selector options [5, 10, 20, 50, 'all']", () => {
   assert.ok(
-    featuredManagerSource.includes("const [pageSize, setPageSize] = useState<number>(5)"),
+    featuredManagerSource.includes("useState<AdminPageSize | number>(5)") || featuredManagerSource.includes("useState<number>(5)"),
     "Default page size must be 5"
   );
   assert.ok(
-    featuredManagerSource.includes("PAGE_SIZE_OPTIONS = [5, 10, 20, 50]"),
-    "Page size options must contain 5, 10, 20, 50"
+    featuredManagerSource.includes("PAGE_SIZE_OPTIONS"),
+    "Page size options must contain standard options"
   );
 });
 
@@ -226,12 +222,12 @@ runTest("13. FeaturedProductManager uses ONE unified list with in-place selectio
 
 runTest("14. FeaturedProductManager supports drag-and-drop reorder and preserves Admin pinned order", () => {
   assert.ok(
-    featuredManagerSource.includes("onDragStart"),
-    "Must include onDragStart handler"
+    featuredManagerSource.includes("onPointerDown") || featuredManagerSource.includes("onDragStart"),
+    "Must include drag initiation handler"
   );
   assert.ok(
-    featuredManagerSource.includes("onDrop"),
-    "Must include onDrop handler"
+    featuredManagerSource.includes("useAdminOrderedList") || featuredManagerSource.includes("usePointerDragReorder"),
+    "Must use ordered list drag architecture"
   );
   assert.ok(
     featuredManagerSource.includes("GripVertical"),

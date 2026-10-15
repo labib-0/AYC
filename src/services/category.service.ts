@@ -70,7 +70,6 @@ export class CategoryService {
         } catch {
           // Fall through to mock store
         }
-        return [];
       }
 
       let list = mockStore.getCategories();

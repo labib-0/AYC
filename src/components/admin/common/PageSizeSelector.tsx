@@ -3,9 +3,9 @@
 import { AdminPageSize, PAGE_SIZE_OPTIONS, DEFAULT_ADMIN_PAGE_SIZE } from "@/types/admin-listing";
 
 export interface PageSizeSelectorProps {
-  value: number;
+  value: AdminPageSize | number;
   onChange: (pageSize: AdminPageSize) => void;
-  options?: readonly AdminPageSize[] | readonly number[];
+  options?: readonly (AdminPageSize | number)[];
   label?: string;
   id?: string;
   disabled?: boolean;
@@ -15,7 +15,7 @@ export interface PageSizeSelectorProps {
 
 /**
  * AYC Admin — Standard Page-Size Selector
- * Mandatory options: 5 (default), 10, 20, 50 records.
+ * Mandatory options: 5 (default), 10, 20, 50, and All records.
  */
 export default function PageSizeSelector({
   value,
@@ -37,9 +37,10 @@ export default function PageSizeSelector({
       <div className="relative inline-flex items-center">
         <select
           id={generatedId}
-          value={value}
+          value={String(value)}
           onChange={(e) => {
-            const nextVal = Number(e.target.value) as AdminPageSize;
+            const raw = e.target.value;
+            const nextVal: AdminPageSize = raw === "all" ? "all" : (Number(raw) as AdminPageSize);
             onChange(nextVal);
           }}
           disabled={disabled}
@@ -48,7 +49,7 @@ export default function PageSizeSelector({
         >
           {options.map((opt) => (
             <option key={opt} value={opt}>
-              {opt}
+              {opt === "all" ? "All" : opt}
             </option>
           ))}
         </select>
