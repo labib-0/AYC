@@ -134,5 +134,39 @@ In All mode manual sequence:
 
 ---
 
+## 8. Production Deployment & Live Browser Verification
+
+### Git Synchronization
+- **Commit:** `cf260cb` (`feat(admin): extend global reordering visibility rules to categories & brands, add featured pin indicator, and enforce pinned-first priority`)
+- **Remotes Synchronized:**
+  - `origin/main` (`git@github.com:ayaanclproject26-max/ayaan.git`) -> `cf260cb`
+  - `labib/main` (`git@github.com:labib-0/AYC.git`) -> `cf260cb`
+
+### Production VPS Deployment
+- **Target Host:** `root@200.97.169.230`
+- **Application Path:** `/var/www/ayaan`
+- **Deployment Command:** `git pull labib main && npm run build && pm2 reload all`
+- **PM2 Processes:**
+  - `ayaan-customer` (id 0, port 3000): `online`
+  - `ayaan-admin` (id 1, port 3001): `online`
+
+### Live Real-Browser Verification
+- **Artifact Recording:** `live_reordering_verification_1792096075113.webp`
+- **Live URLs Tested:**
+  1. `https://ayaanclothing.com/ayc/products`:
+     - Verified green-dot indicator (`bg-emerald-500`) with tooltip `Pinned to Featured` displays for all pinned products.
+     - Confirmed pinned products appear at the top of the catalog sequence.
+     - Confirmed reorder controls are active in All mode and cleanly suppressed during search/filter without showing the orange warning banner.
+  2. `https://ayaanclothing.com/ayc/categories`:
+     - Confirmed categories display clean view without warning banner when filtered.
+     - Confirmed reordering controls and emerald banner appear only in All mode with full collection.
+  3. `https://ayaanclothing.com/ayc/brands`:
+     - Confirmed brands follow identical 6-factor visibility rules.
+  4. `https://ayaanclothing.com`:
+     - Confirmed public storefront Featured Products section serves pinned products first, followed by latest eligible items.
+
+---
+
+**Release Status:** DEPLOYED AND VERIFIED  
+**Commit:** `cf260cb`  
 **Report Prepared By:** Antigravity Agent  
-**Build Status:** Production Ready  
