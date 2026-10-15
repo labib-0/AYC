@@ -121,6 +121,21 @@ export default function ProductTableRow({
   const thumbnail = product.images?.[0] || "/placeholder.jpg";
   const brandLogo = getBrandLogoUrl(product.brand);
 
+  // Authoritative design type: "Original", "Master Copy", or neutral fallback "—"
+  const rawDesignType = product.designType || (product as any).design_type || null;
+  const designTypeUpper = rawDesignType ? String(rawDesignType).trim().toUpperCase() : "";
+  const isMasterCopy =
+    designTypeUpper === "MASTER COPY" ||
+    designTypeUpper === "MASTER_COPY" ||
+    designTypeUpper === "REPLICA" ||
+    designTypeUpper === "MC";
+  const isOriginal = designTypeUpper === "ORIGINAL";
+  const designTypeDisplay = isMasterCopy
+    ? "Master Copy"
+    : isOriginal
+    ? "Original"
+    : (rawDesignType ? String(rawDesignType).trim() : "—");
+
   const isUnderAdminPath = Boolean(pathname?.startsWith("/ayc") || pathname?.startsWith("/admin"));
   const editHref = product.id === "draft_local_new"
     ? (isUnderAdminPath ? "/ayc/products/new?resume=true" : "/products/new?resume=true")
@@ -199,42 +214,27 @@ export default function ProductTableRow({
           >
             {product.name || "(Untitled Draft)"}
           </p>
-          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-            <span className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary text-foreground/80 border border-border/50 shrink-0">
-              {(product.designType || "").toUpperCase() === "MASTER COPY"
-                ? "MASTER COPY"
-                : "ORIGINAL"}
-            </span>
-            {product.isNew && (
-              <span className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 shrink-0">
-                New
-              </span>
-            )}
-            {product.isHot && (
-              <span className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 shrink-0">
-                Hot
-              </span>
-            )}
-            {(product as any).purchasePriceUpdated === false && (
-              <span
-                className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/60 shrink-0 inline-flex items-center"
-                title="Wholesale purchase cost price pending entry"
-              >
-                Cost Pending
-              </span>
-            )}
-            {Boolean(
-              (product.supplier_name || product.supplierName || (typeof product.supplier === 'string' ? product.supplier : product.supplier?.name))?.trim()
-            ) && (
-              <span
-                className="text-[8.5px] font-medium px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border/50 shrink-0 truncate max-w-[130px]"
-                title={`Supplier: ${(product.supplier_name || product.supplierName || (typeof product.supplier === 'string' ? product.supplier : product.supplier?.name))}`}
-              >
-                Sup: {(product.supplier_name || product.supplierName || (typeof product.supplier === 'string' ? product.supplier : product.supplier?.name))}
-              </span>
-            )}
-          </div>
         </div>
+      </td>
+
+      {/* Design Type */}
+      <td className="px-2.5 py-2.5 sm:py-3 w-[100px] align-middle" style={{ width: "100px" }}>
+        {designTypeDisplay !== "—" ? (
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide ${
+              isMasterCopy
+                ? "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/70 dark:border-purple-800/60"
+                : "bg-secondary text-foreground/90 border border-border/60"
+            }`}
+            title={`Design Type: ${designTypeDisplay}`}
+          >
+            {designTypeDisplay}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground/60 select-none block" title="Design type not specified">
+            —
+          </span>
+        )}
       </td>
 
       {/* SKU */}
@@ -333,21 +333,6 @@ export default function ProductTableRow({
             </span>
           )}
         </div>
-      </td>
-
-      {/* Complete MOQs Available */}
-      <td className="px-2 py-2.5 sm:py-3 w-[90px] text-right whitespace-nowrap align-middle" style={{ width: "90px" }}>
-        <span
-          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tabular-nums ${
-            completeMoqs > 0
-              ? "bg-primary/10 text-primary border border-primary/20"
-              : isPreorder
-                ? "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-                : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-200 dark:border-red-900/40"
-          }`}
-        >
-          {completeMoqs} MOQ{completeMoqs !== 1 ? "s" : ""}
-        </span>
       </td>
 
       {/* Status */}

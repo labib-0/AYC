@@ -3,7 +3,7 @@
 import React from "react";
 import { Search, X, RefreshCw } from "lucide-react";
 
-export type BrandStatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
+export type BrandStatusFilter = "ALL" | "ACTIVE" | "INACTIVE" | "LANDING";
 
 interface BrandToolbarProps {
   search: string;
@@ -13,6 +13,7 @@ interface BrandToolbarProps {
   totalBrands: number;
   activeCount: number;
   inactiveCount: number;
+  landingCount?: number;
   onRefresh: () => void;
   isRefreshing?: boolean;
 }
@@ -25,6 +26,7 @@ export default function BrandToolbar({
   totalBrands,
   activeCount,
   inactiveCount,
+  landingCount = 0,
   onRefresh,
   isRefreshing = false,
 }: BrandToolbarProps) {
@@ -57,7 +59,7 @@ export default function BrandToolbar({
       </div>
 
       {/* Filter and Refresh Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {/* Status Filter */}
         <div className="flex items-center rounded-xl bg-secondary/60 p-0.5 border border-border/60">
           <button
@@ -92,6 +94,17 @@ export default function BrandToolbar({
             }`}
           >
             Inactive <span className="opacity-60 tabular-nums">({inactiveCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onStatusFilterChange("LANDING")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              statusFilter === "LANDING"
+                ? "bg-card text-blue-600 dark:text-blue-400 shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Shop By Brand <span className="opacity-60 tabular-nums">({landingCount})</span>
           </button>
         </div>
 

@@ -104,9 +104,19 @@ export default function CategoryRow({
         {/* 2. Category Column */}
         <td className="py-3 px-4 min-w-[160px]">
           <div>
-            <span className="text-xs font-bold text-foreground block">
-              {category.name}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-bold text-foreground">
+                {category.name}
+              </span>
+              {Boolean(category.is_featured_on_landing) && (
+                <span
+                  className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 border border-orange-200 dark:border-orange-900/40 shrink-0"
+                  title="Featured in storefront Hot Sale section"
+                >
+                  Hot Sale
+                </span>
+              )}
+            </div>
             {category.description && (
               <span className="text-[11px] text-muted-foreground line-clamp-1 max-w-[280px]">
                 {category.description}

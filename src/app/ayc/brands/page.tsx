@@ -112,7 +112,8 @@ export default function AdminBrandsPage() {
       const matchesStatus =
         statusFilter === "ALL" ||
         (statusFilter === "ACTIVE" && b.is_active !== false) ||
-        (statusFilter === "INACTIVE" && b.is_active === false);
+        (statusFilter === "INACTIVE" && b.is_active === false) ||
+        (statusFilter === "LANDING" && Boolean(b.is_featured_on_landing));
 
       return matchesSearch && matchesStatus;
     });
@@ -121,6 +122,7 @@ export default function AdminBrandsPage() {
   // Statistics for Toolbar
   const activeCount = useMemo(() => brands.filter((b) => b.is_active !== false).length, [brands]);
   const inactiveCount = useMemo(() => brands.filter((b) => b.is_active === false).length, [brands]);
+  const landingCount = useMemo(() => brands.filter((b) => Boolean(b.is_featured_on_landing)).length, [brands]);
 
   // Pagination Calculations
   const isAll = perPage === "all";
@@ -318,6 +320,7 @@ export default function AdminBrandsPage() {
               totalBrands={brands.length}
               activeCount={activeCount}
               inactiveCount={inactiveCount}
+              landingCount={landingCount}
               onRefresh={() => loadBrands(true)}
               isRefreshing={isRefreshing}
             />

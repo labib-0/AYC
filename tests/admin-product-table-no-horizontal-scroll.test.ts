@@ -68,6 +68,7 @@ const expectedKeys = [
   "thumbnail",
   "productId",
   "product",
+  "designType",
   "sku",
   "brand",
   "category",
@@ -75,7 +76,6 @@ const expectedKeys = [
   "price",
   "moq",
   "stock",
-  "availableMoqs",
   "status",
   "actions",
 ];
@@ -95,7 +95,7 @@ const fixedWidthSum = fixedColumns.reduce((sum, col) => {
   return sum + (pxMatch ? parseInt(pxMatch[1], 10) : 0);
 }, 0);
 assert(fixedWidthSum <= 1200, `Fixed columns width sum is ${fixedWidthSum}px (leaving ample balanced space across all columns)`);
-assert(fixedWidthSum === 1155, `Fixed columns width sum is exactly 1155px`);
+assert(fixedWidthSum === 1165, `Fixed columns width sum is exactly 1165px`);
 
 // 4. Action Column Visibility
 const actionCol = PRODUCT_COLUMNS.find((c) => c.key === "actions");
@@ -171,7 +171,9 @@ assert(tableMarkup.includes("WOMEN"), "Rendered table contains Audience");
 assert(tableMarkup.includes("$48.50"), "Rendered table contains formatted Wholesale Price");
 assert(tableMarkup.includes("12"), "Rendered table contains MOQ value");
 assert(tableMarkup.includes("2,400"), "Rendered table contains formatted Available Stock");
-assert(tableMarkup.includes("200 MOQs"), "Rendered table contains formatted Available MOQs");
+assert(!tableMarkup.includes("200 MOQs"), "Rendered table does NOT contain obsolete MOQs column");
+assert(tableMarkup.includes("Original"), "Rendered table contains Design Type column value ('Original')");
+assert(!tableMarkup.includes("Cost Pending"), "Rendered table does NOT show COST PENDING badge beneath product title");
 assert(tableMarkup.includes("published"), "Rendered table contains Status badge");
 assert(tableMarkup.includes("Actions"), "Rendered table contains Actions header");
 

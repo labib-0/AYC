@@ -3,7 +3,7 @@
 import React from "react";
 import { Search, X, RefreshCw } from "lucide-react";
 
-export type CategoryStatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
+export type CategoryStatusFilter = "ALL" | "ACTIVE" | "INACTIVE" | "HOT_SALE";
 
 interface CategoryToolbarProps {
   search: string;
@@ -13,6 +13,7 @@ interface CategoryToolbarProps {
   totalCategories: number;
   activeCount: number;
   inactiveCount: number;
+  hotSaleCount?: number;
   onRefresh: () => void;
   isRefreshing?: boolean;
 }
@@ -25,6 +26,7 @@ export default function CategoryToolbar({
   totalCategories,
   activeCount,
   inactiveCount,
+  hotSaleCount = 0,
   onRefresh,
   isRefreshing = false,
 }: CategoryToolbarProps) {
@@ -57,7 +59,7 @@ export default function CategoryToolbar({
       </div>
 
       {/* Filter and Refresh Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {/* Status Filter */}
         <div className="flex items-center rounded-xl bg-secondary/60 p-0.5 border border-border/60">
           <button
@@ -92,6 +94,17 @@ export default function CategoryToolbar({
             }`}
           >
             Inactive <span className="opacity-60 tabular-nums">({inactiveCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onStatusFilterChange("HOT_SALE")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              statusFilter === "HOT_SALE"
+                ? "bg-card text-orange-600 dark:text-orange-400 shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Hot Sale <span className="opacity-60 tabular-nums">({hotSaleCount})</span>
           </button>
         </div>
 

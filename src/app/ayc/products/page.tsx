@@ -289,7 +289,8 @@ function AdminProductsContent() {
         search: filters.search || undefined,
         brand: filters.brand !== "all" ? filters.brand : undefined,
         audience: filters.audience !== "all" ? filters.audience : undefined,
-        status: filters.status !== "all" ? filters.status : undefined,
+        status: filters.status !== "all" && filters.status !== "featured" ? filters.status : undefined,
+        is_featured: filters.status === "featured" ? true : undefined,
         category: filters.category !== "all" ? filters.category : undefined,
         purchase_price_status: filters.purchasePriceStatus !== "all" ? filters.purchasePriceStatus : undefined,
         availability: filters.availability && filters.availability !== "all" ? (filters.availability as any) : undefined,
@@ -300,8 +301,11 @@ function AdminProductsContent() {
         return;
       }
 
-      // Apply design type filter locally
+      // Apply featured filter locally as safeguard
       let filtered = data;
+      if (filters.status === "featured") {
+        filtered = filtered.filter((p) => Boolean(p.isFeatured));
+      }
       if (filters.designType !== "all") {
         const dtLower = filters.designType.toLowerCase();
         filtered = data.filter((p) => {

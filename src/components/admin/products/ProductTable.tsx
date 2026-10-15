@@ -82,6 +82,14 @@ export const PRODUCT_COLUMNS: ColumnDef[] = [
     thClass: "px-3 py-2.5 w-[250px] text-left align-middle",
   },
   {
+    key: "designType",
+    label: "Design Type",
+    title: "Product Design Type",
+    width: "100px",
+    colWidthClass: "w-[100px]",
+    thClass: "px-2.5 py-2.5 w-[100px] text-left align-middle",
+  },
+  {
     key: "sku",
     label: "SKU",
     title: "Stock Keeping Unit",
@@ -132,14 +140,6 @@ export const PRODUCT_COLUMNS: ColumnDef[] = [
     width: "84px",
     colWidthClass: "w-[84px]",
     thClass: "px-2 py-2.5 w-[84px] text-right align-middle",
-  },
-  {
-    key: "availableMoqs",
-    label: "MOQs",
-    title: "Available Complete MOQs",
-    width: "90px",
-    colWidthClass: "w-[90px]",
-    thClass: "px-2 py-2.5 w-[90px] text-right align-middle",
   },
   {
     key: "status",
@@ -193,7 +193,7 @@ export default function ProductTable({
     return (
       <div className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-xs">
         <div className="overflow-x-auto subtle-scrollbar">
-          <table className="w-full min-w-[1405px] table-fixed text-left">
+          <table className="w-full min-w-[1415px] table-fixed text-left">
             <colgroup>
               {PRODUCT_COLUMNS.map((col) => (
                 <col
@@ -238,6 +238,9 @@ export default function ProductTable({
                     <div className="h-3.5 w-4/5 rounded bg-secondary animate-pulse mb-2" />
                     <div className="h-2.5 w-24 rounded bg-secondary/60 animate-pulse" />
                   </td>
+                  <td className="px-2.5 py-3 w-[100px] align-middle" style={{ width: "100px" }}>
+                    <div className="h-4 w-16 rounded bg-secondary animate-pulse" />
+                  </td>
                   <td className="px-2.5 py-3 w-[125px] align-middle" style={{ width: "125px" }}>
                     <div className="h-3.5 w-20 rounded bg-secondary animate-pulse" />
                   </td>
@@ -257,9 +260,6 @@ export default function ProductTable({
                     <div className="h-3.5 w-10 rounded bg-secondary animate-pulse ml-auto" />
                   </td>
                   <td className="px-2 py-3 w-[84px] text-right align-middle" style={{ width: "84px" }}>
-                    <div className="h-3.5 w-14 rounded bg-secondary animate-pulse ml-auto" />
-                  </td>
-                  <td className="px-2 py-3 w-[90px] text-right align-middle" style={{ width: "90px" }}>
                     <div className="h-3.5 w-14 rounded bg-secondary animate-pulse ml-auto" />
                   </td>
                   <td className="px-2.5 py-3 w-[100px] align-middle" style={{ width: "100px" }}>
@@ -322,7 +322,7 @@ export default function ProductTable({
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-xs">
       <div className="overflow-x-auto subtle-scrollbar">
-        <table className="w-full min-w-[1405px] table-fixed text-left">
+        <table className="w-full min-w-[1415px] table-fixed text-left">
           <colgroup>
             {PRODUCT_COLUMNS.map((col) => (
               <col

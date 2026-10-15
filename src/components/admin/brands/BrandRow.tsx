@@ -108,10 +108,18 @@ export default function BrandRow({
 
       {/* 2. Brand Column */}
       <td className="py-3 px-4 min-w-[160px]">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-foreground block">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-bold text-foreground">
             {brand.name}
           </span>
+          {Boolean(brand.is_featured_on_landing) && (
+            <span
+              className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-900/40 shrink-0"
+              title="Featured on storefront Shop By Brand section"
+            >
+              Shop By Brand
+            </span>
+          )}
           {brand.website && (
             <a
               href={brand.website}

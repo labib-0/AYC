@@ -35,6 +35,7 @@ const STATUSES = [
   { value: "all", label: "All Statuses" },
   { value: "published", label: "Published" },
   { value: "draft", label: "Draft" },
+  { value: "featured", label: "Featured" },
 ];
 
 const AVAILABILITIES = [

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Plus, AlertCircle, RefreshCw } from "lucide-react";
+import { Plus, AlertCircle, RefreshCw, Flame } from "lucide-react";
 import { categoryService, CategoryModel } from "@/services/category.service";
+import { homepageService } from "@/services/homepage.service";
 import {
   AudienceReference,
   CategoryToolbar,
@@ -24,6 +25,10 @@ export default function AdminCategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Hot Sale Landing Section Visibility
+  const [hotSaleVisible, setHotSaleVisible] = useState<boolean>(true);
+  const [updatingHotSale, setUpdatingHotSale] = useState(false);
 
   // Filters & Pagination State
   const [search, setSearch] = useState("");
@@ -75,7 +80,29 @@ export default function AdminCategoriesPage() {
 
   useEffect(() => {
     loadCategories();
+    // Load Hot Sale visibility from homepage service
+    homepageService.getAdminHomepageData().then((data) => {
+      if (data.hot_sale_visible !== undefined) {
+        setHotSaleVisible(Boolean(data.hot_sale_visible));
+      }
+    }).catch(() => {});
   }, [loadCategories]);
+
+  const handleToggleHotSale = async (val: boolean) => {
+    setUpdatingHotSale(true);
+    try {
+      const updated = await homepageService.updateHotSaleVisibility(val);
+      setHotSaleVisible(updated);
+      addToast(
+        "success",
+        `Hot Sale promotional section is now ${updated ? "visible" : "hidden"} on the customer homepage.`
+      );
+    } catch {
+      addToast("error", "Failed to update Hot Sale section visibility.");
+    } finally {
+      setUpdatingHotSale(false);
+    }
+  };
 
   // Search & Filter Handlers (Resets page to 1)
   const handleSearchChange = (val: string) => {
@@ -113,7 +140,8 @@ export default function AdminCategoriesPage() {
       const matchesStatus =
         statusFilter === "ALL" ||
         (statusFilter === "ACTIVE" && c.is_active !== false) ||
-        (statusFilter === "INACTIVE" && c.is_active === false);
+        (statusFilter === "INACTIVE" && c.is_active === false) ||
+        (statusFilter === "HOT_SALE" && Boolean(c.is_featured_on_landing));
 
       return matchesSearch && matchesStatus;
     });
@@ -122,6 +150,7 @@ export default function AdminCategoriesPage() {
   // Statistics for Toolbar
   const activeCount = useMemo(() => categories.filter((c) => c.is_active !== false).length, [categories]);
   const inactiveCount = useMemo(() => categories.filter((c) => c.is_active === false).length, [categories]);
+  const hotSaleCount = useMemo(() => categories.filter((c) => Boolean(c.is_featured_on_landing)).length, [categories]);
 
   // Pagination Calculations
   const isAll = perPage === "all";
@@ -313,6 +342,75 @@ export default function AdminCategoriesPage() {
           </div>
         ) : (
           <>
+            {/* ── Hot Sale Promotional Section Visibility (Storefront Homepage) ── */}
+            <div className="bg-card rounded-2xl border border-border/80 p-4 sm:p-5 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+                    <Flame size={17} />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2">
+                      <span>Homepage Hot Sale Promotional Section</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                        {hotSaleCount} {hotSaleCount === 1 ? "Category" : "Categories"} Configured
+                      </span>
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Toggle whether the curated Hot Sale section is published on the customer storefront homepage.
+                    </p>
+                  </div>
+                </div>
+
+                {/* ON / OFF Segmented Switch */}
+                <div className="flex items-center gap-3 self-start sm:self-auto">
+                  <div
+                    className="inline-flex items-center p-1 rounded-full border border-border bg-secondary/50"
+                    role="group"
+                    aria-label="Hot Sale Visibility"
+                  >
+                    <button
+                      type="button"
+                      disabled={updatingHotSale}
+                      onClick={() => handleToggleHotSale(true)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+                        hotSaleVisible
+                          ? "bg-emerald-500 text-white shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      aria-pressed={hotSaleVisible}
+                      id="btn-hot-sale-visible-on"
+                    >
+                      ON
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updatingHotSale}
+                      onClick={() => handleToggleHotSale(false)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+                        !hotSaleVisible
+                          ? "bg-red-500 text-white shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      aria-pressed={!hotSaleVisible}
+                      id="btn-hot-sale-visible-off"
+                    >
+                      OFF
+                    </button>
+                  </div>
+                  <span
+                    className={`text-xs font-medium ${
+                      hotSaleVisible
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {updatingHotSale ? "Updating…" : hotSaleVisible ? "Visible" : "Hidden"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* ── Category Management Toolbar ── */}
             <CategoryToolbar
               search={search}
@@ -322,6 +420,7 @@ export default function AdminCategoriesPage() {
               totalCategories={categories.length}
               activeCount={activeCount}
               inactiveCount={inactiveCount}
+              hotSaleCount={hotSaleCount}
               onRefresh={() => loadCategories(true)}
               isRefreshing={isRefreshing}
             />

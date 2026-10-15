@@ -35,9 +35,10 @@ console.log("==================================================");
 console.log("HOT SALE VISIBILITY CONTROL AUDIT TESTS");
 console.log("==================================================");
 
-const adminHomepagePath = fs.existsSync(path.resolve(__dirname, "../src/app/ayc/homepage/page.tsx"))
-  ? path.resolve(__dirname, "../src/app/ayc/homepage/page.tsx")
-  : path.resolve(__dirname, "../src/app/admin/homepage/page.tsx");
+const adminCategoriesPath = path.resolve(__dirname, "../src/app/ayc/categories/page.tsx");
+const adminCategoriesSrc = fs.readFileSync(adminCategoriesPath, "utf-8");
+
+const adminHomepagePath = path.resolve(__dirname, "../src/app/ayc/homepage/page.tsx");
 const adminHomepageSrc = fs.readFileSync(adminHomepagePath, "utf-8");
 
 const hotSalesPath = path.resolve(__dirname, "../src/components/home/HotSales.tsx");
@@ -55,44 +56,34 @@ const publicControllerSrc = fs.readFileSync(publicControllerPath, "utf-8");
 const systemSettingPath = path.resolve(__dirname, "../backend/app/Models/SystemSetting.php");
 const systemSettingSrc = fs.readFileSync(systemSettingPath, "utf-8");
 
-// ▶ Suite 1: Admin Homepage Control UI
-console.log("\n▶ Suite 1: Admin Homepage Control UI");
+// ▶ Suite 1: Admin Hot Sale Visibility Control UI
+console.log("\n▶ Suite 1: Admin Hot Sale Visibility Control UI");
 
-test("Admin Homepage page contains 'Hot Sale Visibility' section", () => {
-  expect(adminHomepageSrc).toContain("Hot Sale Visibility");
-  expect(adminHomepageSrc).toContain("Control whether the Hot Sale promotional section is displayed on the customer homepage.");
+test("Admin Categories page contains 'Hot Sale' section visibility control", () => {
+  expect(adminCategoriesSrc).toContain("Homepage Hot Sale Promotional Section");
+  expect(adminCategoriesSrc).toContain("Toggle whether the curated Hot Sale section is published on the customer storefront homepage.");
 });
 
 test("Admin toggle uses [ ON / OFF ] buttons with distinct IDs", () => {
-  expect(adminHomepageSrc).toContain('id="btn-hot-sale-visible-on"');
-  expect(adminHomepageSrc).toContain('id="btn-hot-sale-visible-off"');
-  expect(adminHomepageSrc).toContain("ON");
-  expect(adminHomepageSrc).toContain("OFF");
+  expect(adminCategoriesSrc).toContain('id="btn-hot-sale-visible-on"');
+  expect(adminCategoriesSrc).toContain('id="btn-hot-sale-visible-off"');
+  expect(adminCategoriesSrc).toContain("ON");
+  expect(adminCategoriesSrc).toContain("OFF");
 });
 
 test("Admin toggle updates hotSaleVisible state without separate publish workflow", () => {
-  expect(adminHomepageSrc).toContain("setHotSaleVisible(true)");
-  expect(adminHomepageSrc).toContain("setHotSaleVisible(false)");
-  expect(adminHomepageSrc).notToContain("Publish Hot Sale");
-  expect(adminHomepageSrc).notToContain("Activate Hot Sale");
+  expect(adminCategoriesSrc).toContain("handleToggleHotSale(true)");
+  expect(adminCategoriesSrc).toContain("handleToggleHotSale(false)");
+  expect(adminCategoriesSrc).notToContain("Publish Hot Sale");
+  expect(adminCategoriesSrc).notToContain("Activate Hot Sale");
 });
 
 // ▶ Suite 2: Save Changes Persistence & Dirty State
-console.log("\n▶ Suite 2: Save Changes Persistence & Dirty State");
+console.log("\n▶ Suite 2: Save Changes Persistence & Direct Sync");
 
-test("Hot Sale visibility changes mark the page dirty and enable existing 'Save Changes' button", () => {
-  expect(adminHomepageSrc).toContain("const isHotSaleVisibilityDirty = hotSaleVisible !== savedHotSaleVisible;");
-  expect(adminHomepageSrc).toContain("const isPageDirty = isBannerDirty || isTickerDirty || isHotSaleVisibilityDirty;");
-});
-
-test("Existing SAVE CHANGES button handler persists Hot Sale visibility", () => {
-  expect(adminHomepageSrc).toContain("if (isHotSaleVisibilityDirty) {");
-  expect(adminHomepageSrc).toContain("await homepageService.updateHotSaleVisibility(hotSaleVisible);");
-  expect(adminHomepageSrc).toContain("setSavedHotSaleVisible(hotSaleVisible);");
-});
-
-test("Reset button discards unsaved Hot Sale visibility changes", () => {
-  expect(adminHomepageSrc).toContain("setHotSaleVisible(savedHotSaleVisible);");
+test("Hot Sale visibility changes update backend via homepageService", () => {
+  expect(adminCategoriesSrc).toContain("await homepageService.updateHotSaleVisibility(val);");
+  expect(adminCategoriesSrc).toContain("setHotSaleVisible(updated);");
 });
 
 // ▶ Suite 3: Default State & Backend Persistence

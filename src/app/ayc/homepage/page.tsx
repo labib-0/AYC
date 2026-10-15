@@ -1,14 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { AlertCircle, RefreshCw, Flame } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import {
   homepageService,
   HomepageBannerModel,
   HomepageTickerItem,
-  HomepageHotSaleCategoryModel,
-  HomepageFeaturedProductModel,
-  HomepageFeaturedBrandModel,
 } from "@/services/homepage.service";
 import {
   HomepageBannerHeader,
@@ -17,9 +14,6 @@ import {
   BannerImageUploader,
   BannerContentForm,
   HomepageTickerManager,
-  ShopByBrandManager,
-  HotSaleCategoryManager,
-  FeaturedProductManager,
   BangladeshStorefrontAccessCard,
   HomepageSeoManager,
 } from "@/components/admin/homepage";
@@ -44,11 +38,6 @@ export default function AdminHomepageManagement() {
   const [activeBanner, setActiveBanner] = useState<HomepageBannerModel | null>(null);
   const [tickerItems, setTickerItems] = useState<HomepageTickerItem[]>([]);
   const [savedTickerItems, setSavedTickerItems] = useState<HomepageTickerItem[]>([]);
-  const [featuredBrands, setFeaturedBrands] = useState<HomepageFeaturedBrandModel[]>([]);
-  const [hotSaleCategories, setHotSaleCategories] = useState<HomepageHotSaleCategoryModel[]>([]);
-  const [featuredProducts, setFeaturedProducts] = useState<HomepageFeaturedProductModel[]>([]);
-  const [hotSaleVisible, setHotSaleVisible] = useState<boolean>(true);
-  const [savedHotSaleVisible, setSavedHotSaleVisible] = useState<boolean>(true);
   const [googleVerificationCode, setGoogleVerificationCode] = useState<string | null>(null);
 
   // Banner Form Draft State
@@ -101,12 +90,6 @@ export default function AdminHomepageManagement() {
       setActiveBanner(data.banner);
       setTickerItems(data.ticker_items || []);
       setSavedTickerItems(data.ticker_items || []);
-      setFeaturedBrands(data.featured_brands || []);
-      setHotSaleCategories(data.hot_sale_categories || []);
-      setFeaturedProducts(data.featured_products || []);
-      const isHotSaleVisible = data.hot_sale_visible !== undefined ? Boolean(data.hot_sale_visible) : true;
-      setHotSaleVisible(isHotSaleVisible);
-      setSavedHotSaleVisible(isHotSaleVisible);
       setGoogleVerificationCode(data.google_search_console_verification || null);
 
       if (data.banner) {
@@ -180,8 +163,7 @@ export default function AdminHomepageManagement() {
     });
   }, [tickerItems, savedTickerItems]);
 
-  const isHotSaleVisibilityDirty = hotSaleVisible !== savedHotSaleVisible;
-  const isPageDirty = isBannerDirty || isTickerDirty || isHotSaleVisibilityDirty;
+  const isPageDirty = isBannerDirty || isTickerDirty;
 
   // Reset unsaved changes to last saved state
   const handleResetChanges = () => {
@@ -204,7 +186,6 @@ export default function AdminHomepageManagement() {
       });
     }
     setTickerItems([...savedTickerItems]);
-    setHotSaleVisible(savedHotSaleVisible);
     setFormErrors({});
   };
 
@@ -271,12 +252,6 @@ export default function AdminHomepageManagement() {
         const savedList = await homepageService.syncTickerItems(tickerItems);
         setTickerItems(savedList);
         setSavedTickerItems(savedList);
-      }
-
-      // 3. Save Hot Sale visibility if dirty
-      if (isHotSaleVisibilityDirty) {
-        await homepageService.updateHotSaleVisibility(hotSaleVisible);
-        setSavedHotSaleVisible(hotSaleVisible);
       }
 
       showToast("Homepage changes saved successfully. Active on storefront.", "success");
@@ -440,102 +415,6 @@ export default function AdminHomepageManagement() {
             isDirty={isTickerDirty}
             showToast={showToast}
             disabled={saving}
-          />
-        </section>
-
-        {/* ==================================================================== */}
-        {/* SECTION 5: SHOP BY BRAND                                             */}
-        {/* ==================================================================== */}
-        <section>
-          <ShopByBrandManager
-            initialBrands={featuredBrands}
-            onSaveSuccess={loadHomepageData}
-            showToast={showToast}
-          />
-        </section>
-
-        {/* ==================================================================== */}
-        {/* SECTION 6: HOT SALE CATEGORIES & VISIBILITY                          */}
-        {/* ==================================================================== */}
-        <section className="space-y-5">
-          <div className="bg-card rounded-2xl border border-border/80 p-4 sm:p-5 shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
-                  <Flame size={16} />
-                </div>
-                <div>
-                  <h2 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
-                    Hot Sale Visibility
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Control whether the Hot Sale promotional section is displayed on the customer homepage.
-                  </p>
-                </div>
-              </div>
-
-              {/* ON / OFF Segmented Switch */}
-              <div className="flex items-center gap-3 self-start sm:self-auto">
-                <div
-                  className="inline-flex items-center p-1 rounded-full border border-border bg-secondary/50"
-                  role="group"
-                  aria-label="Hot Sale Visibility"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setHotSaleVisible(true)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-                      hotSaleVisible
-                        ? "bg-emerald-500 text-white shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    aria-pressed={hotSaleVisible}
-                    id="btn-hot-sale-visible-on"
-                  >
-                    ON
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setHotSaleVisible(false)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-                      !hotSaleVisible
-                        ? "bg-red-500 text-white shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    aria-pressed={!hotSaleVisible}
-                    id="btn-hot-sale-visible-off"
-                  >
-                    OFF
-                  </button>
-                </div>
-                <span
-                  className={`text-xs font-medium ${
-                    hotSaleVisible
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {hotSaleVisible ? "Visible" : "Hidden"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <HotSaleCategoryManager
-            initialCategories={hotSaleCategories}
-            onSaveSuccess={loadHomepageData}
-            showToast={showToast}
-          />
-        </section>
-
-        {/* ==================================================================== */}
-        {/* SECTION 7: FEATURED PRODUCTS                                         */}
-        {/* ==================================================================== */}
-        <section>
-          <FeaturedProductManager
-            initialProducts={featuredProducts}
-            onSaveSuccess={loadHomepageData}
-            showToast={showToast}
           />
         </section>
       </div>
