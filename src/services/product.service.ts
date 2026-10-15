@@ -1441,11 +1441,20 @@ export class ProductService {
   async reorderProducts(
     orders: Array<{ id: string | number; sort_order: number }> | (string | number)[]
   ): Promise<B2BProductInput[]> {
+    const isRealId = (id: string | number) =>
+      typeof id === "number" || (!isNaN(Number(id)) && !String(id).startsWith("draft_"));
+
     if (!isFrontendOnly()) {
+      const filteredOrders = Array.isArray(orders)
+        ? typeof orders[0] === "object"
+          ? (orders as Array<{ id: string | number; sort_order: number }>).filter((o) => isRealId(o.id))
+          : (orders as (string | number)[]).filter(isRealId)
+        : orders;
+
       const payload =
-        Array.isArray(orders) && orders.length > 0 && typeof orders[0] === "object"
-          ? { orders }
-          : { ids: orders };
+        Array.isArray(filteredOrders) && filteredOrders.length > 0 && typeof filteredOrders[0] === "object"
+          ? { orders: filteredOrders }
+          : { ids: filteredOrders };
       await apiClient.put("/products/reorder", payload);
       return this.getProducts({ all: true, isAdmin: true, sort: "manual" });
     }
