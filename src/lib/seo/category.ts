@@ -7,7 +7,7 @@ import { SITE_CONFIG, absoluteUrl } from "./config";
 export function generateCategoryMetadata(categoryName: string): Metadata {
   const cleanName = categoryName.trim();
   const title = `${cleanName} Wholesale Apparel & Bulk Sourcing | ${SITE_CONFIG.name}`;
-  const description = `Explore direct manufacturer export wholesale ${cleanName} from Bangladesh. Premium quality fabrics, factory-direct wholesale pricing, and international bulk order fulfillment by Ayaan Clothing.`;
+  const description = `Explore direct manufacturer export wholesale ${cleanName} from Bangladesh. Premium quality fabrics, factory-direct wholesale pricing, and international bulk order export and delivery by Ayaan Clothing.`;
   const canonical = absoluteUrl(`/search?category=${encodeURIComponent(cleanName)}`);
 
   return {

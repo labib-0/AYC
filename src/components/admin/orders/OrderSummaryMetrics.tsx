@@ -1,6 +1,6 @@
 import React from "react";
 import { OrderRecord } from "@/services/order.service";
-import { Package, DollarSign, CreditCard, Truck } from "lucide-react";
+import { Package, DollarSign, CreditCard } from "lucide-react";
 
 export interface OrderSummaryMetricsProps {
   order: OrderRecord;
@@ -33,11 +33,9 @@ export default function OrderSummaryMetrics({ order }: OrderSummaryMetricsProps)
     : Math.max(0, totalAmount - paidAmount);
   const currency = order.currency || "USD";
 
-  const isFulfilled = ["shipped", "delivered"].includes(order.fulfillment_status);
-
   return (
     <div
-      className="grid grid-cols-2 lg:grid-cols-4 gap-3"
+      className="grid grid-cols-1 sm:grid-cols-3 gap-3"
       id="order-summary-metrics-bar"
     >
       {/* 1. Total Units */}
@@ -103,44 +101,6 @@ export default function OrderSummaryMetrics({ order }: OrderSummaryMetricsProps)
             ) : (
               <span className="text-foreground uppercase">
                 {order.payment_status}
-              </span>
-            )}
-          </span>
-        </div>
-      </div>
-
-      {/* 4. Fulfillment Status */}
-      <div className="bg-card border border-border/70 rounded-2xl p-4 shadow-xs flex items-center gap-3">
-        <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-            isFulfilled
-              ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
-              : "bg-secondary text-muted-foreground"
-          }`}
-        >
-          <Truck size={18} />
-        </div>
-        <div className="min-w-0">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
-            Fulfillment
-          </span>
-          <span className="text-sm sm:text-base font-bold font-mono block truncate uppercase">
-            {order.fulfillment_status === "unfulfilled" ? (
-              <span className="text-muted-foreground">Unfulfilled</span>
-            ) : order.fulfillment_status === "shipped" ? (
-              <span className="text-purple-600 dark:text-purple-400">
-                Dispatched
-              </span>
-            ) : order.fulfillment_status === "delivered" ? (
-              <span className="text-emerald-600 dark:text-emerald-400">
-                Delivered
-              </span>
-            ) : (
-              <span className="text-foreground">{order.fulfillment_status}</span>
-            )}
-            {order.carrier && (
-              <span className="text-xs font-normal text-muted-foreground block truncate normal-case">
-                via {order.carrier}
               </span>
             )}
           </span>

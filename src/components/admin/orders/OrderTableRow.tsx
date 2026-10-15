@@ -3,7 +3,6 @@ import Link from "next/link";
 import { OrderRecord } from "@/services/order.service";
 import OrderStatusBadge from "./OrderStatusBadge";
 import PaymentStatusBadge from "./PaymentStatusBadge";
-import FulfillmentStatusBadge from "./FulfillmentStatusBadge";
 import { Eye, FileCheck } from "lucide-react";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 
@@ -114,12 +113,7 @@ export default function OrderTableRow({
         <PaymentStatusBadge status={order.payment_status} size="sm" />
       </td>
 
-      {/* 7. Fulfillment Status */}
-      <td className="py-3 px-4">
-        <FulfillmentStatusBadge status={order.fulfillment_status} size="sm" />
-      </td>
-
-      {/* 8. Order Status & Canonical Lifecycle */}
+      {/* 7. Order Status & Canonical Lifecycle */}
       <td className="py-3 px-4">
         {order.customer_status && (
           <span className="block text-[9px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase tracking-tight pb-0.5">

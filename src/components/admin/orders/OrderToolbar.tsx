@@ -15,8 +15,6 @@ export interface OrderToolbarProps {
   onStatusChange: (val: string) => void;
   paymentStatus: string;
   onPaymentStatusChange: (val: string) => void;
-  fulfillmentStatus: string;
-  onFulfillmentStatusChange: (val: string) => void;
   onResetFilters: () => void;
   totalFiltered: number;
 }
@@ -34,8 +32,6 @@ export default function OrderToolbar({
   onStatusChange,
   paymentStatus,
   onPaymentStatusChange,
-  fulfillmentStatus,
-  onFulfillmentStatusChange,
   onResetFilters,
   totalFiltered,
 }: OrderToolbarProps) {
@@ -45,8 +41,7 @@ export default function OrderToolbar({
     Boolean(dateFrom) ||
     Boolean(dateTo) ||
     status !== "all" ||
-    paymentStatus !== "all" ||
-    fulfillmentStatus !== "all";
+    paymentStatus !== "all";
 
   return (
     <div className="bg-card border border-border/70 rounded-2xl p-4 shadow-xs flex flex-col lg:flex-row items-stretch lg:items-center gap-3 relative z-20">
@@ -135,22 +130,6 @@ export default function OrderToolbar({
           <option value="pending">Pending</option>
           <option value="failed">Failed</option>
           <option value="refunded">Refunded</option>
-        </select>
-
-        {/* Fulfillment Status */}
-        <select
-          value={fulfillmentStatus}
-          onChange={(e) => onFulfillmentStatusChange(e.target.value)}
-          className="px-3 py-2 text-xs rounded-xl border border-border bg-card text-foreground focus:ring-1 focus:ring-primary outline-none cursor-pointer"
-          id="select-fulfillment-status"
-          aria-label="Filter by Fulfillment Status"
-        >
-          <option value="all">All Fulfillment</option>
-          <option value="unfulfilled">Unfulfilled</option>
-          <option value="partial">Partial</option>
-          <option value="processing">Processing</option>
-          <option value="shipped">Shipped</option>
-          <option value="delivered">Delivered</option>
         </select>
 
         {/* Clear Filters Button */}

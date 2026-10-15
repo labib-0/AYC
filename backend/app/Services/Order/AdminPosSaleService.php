@@ -393,7 +393,7 @@ class AdminPosSaleService
         $calc = $this->calculationService->calculate(
             itemsInput: $items,
             couponCode: $couponCode,
-            shippingMethod: $shippingMethod ?? 'POS In-Store Fulfillment',
+            shippingMethod: $shippingMethod ?? 'POS In-Store Handover',
             carrier: 'POS Direct',
             shippingCostOverride: $shippingCost ?? 0.00,
             user: $customer,
@@ -590,7 +590,7 @@ class AdminPosSaleService
                 // 1. Authoritative calculation and business rule verification
                 $couponCode = $options['coupon_code'] ?? null;
                 $shippingCost = isset($options['shipping_cost']) ? (float) $options['shipping_cost'] : 0.00;
-                $shippingMethod = $options['shipping_method'] ?? 'POS In-Store Fulfillment';
+                $shippingMethod = $options['shipping_method'] ?? 'POS In-Store Handover';
 
                 $calc = $this->calculationService->calculate(
                     itemsInput: $items,

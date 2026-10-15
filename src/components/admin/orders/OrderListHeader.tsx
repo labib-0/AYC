@@ -17,7 +17,7 @@ export default function OrderListHeader({
           ORDERS
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 leading-relaxed">
-          Manage customer orders, payment status and fulfillment.
+          Manage customer commercial orders, payments, and delivery details.
         </p>
       </div>
 

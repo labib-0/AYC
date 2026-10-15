@@ -37,6 +37,7 @@ import {
   ArrowRight,
   FileText,
   Truck,
+  PackageCheck,
   Settings,
 } from "lucide-react";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
@@ -130,7 +131,7 @@ export default function AdminPosPage() {
 
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const [isApprovingPayment, setIsApprovingPayment] = useState(false);
-  const [isUpdatingFulfillment, setIsUpdatingFulfillment] = useState(false);
+  const [isUpdatingHandover, setIsUpdatingHandover] = useState(false);
   const [orderActionFeedback, setOrderActionFeedback] = useState<{
     type: "success" | "error";
     message: string;
@@ -344,7 +345,7 @@ export default function AdminPosPage() {
           customer_id: selectedCustomer.id,
           items: payloadItems,
           shipping_cost: 0,
-          shipping_method: "POS In-Store Fulfillment",
+          shipping_method: "POS In-Store Handover",
           coupon_code: appliedCouponCode || undefined,
           manual_discount: appliedManualDiscount
             ? {
@@ -667,7 +668,7 @@ export default function AdminPosPage() {
             }
           : undefined,
         shipping_cost: 0,
-        shipping_method: "POS In-Store Fulfillment",
+        shipping_method: "POS In-Store Handover",
         payment_method: paymentMethod,
       });
 
@@ -735,7 +736,7 @@ export default function AdminPosPage() {
           reason: manualDiscountReason.trim(),
         },
         shipping_cost: 0,
-        shipping_method: "POS In-Store Fulfillment",
+        shipping_method: "POS In-Store Handover",
         payment_method: paymentMethod,
       });
 
@@ -832,7 +833,7 @@ export default function AdminPosPage() {
             }
           : undefined,
         shipping_cost: 0,
-        shipping_method: "POS In-Store Fulfillment",
+        shipping_method: "POS In-Store Handover",
         notes: orderNotes.trim() || undefined,
         idempotency_key: idempotencyKey,
       });
@@ -892,30 +893,28 @@ export default function AdminPosPage() {
     }
   };
 
-  const handleMarkDispatched = async () => {
+  const handleMarkHandedOver = async () => {
     if (!createdOrder) return;
-    setIsUpdatingFulfillment(true);
+    setIsUpdatingHandover(true);
     setOrderActionFeedback(null);
     try {
-      const updated = await adminOrderService.updateFulfillment(
+      const updated = await adminOrderService.updateOrderStatus(
         createdOrder.id,
-        "shipped",
-        `POS-COUNTER-${createdOrder.order_number}`,
-        "In-Store Direct Handover",
+        "delivered",
         `Direct customer pickup/handover confirmed at POS counter by ${adminUser?.name || "Cashier Admin"}`
       );
       setCreatedOrder(updated);
       setOrderActionFeedback({
         type: "success",
-        message: "Order fulfillment updated to Dispatched / On Shipment.",
+        message: "Order marked as Handed Over / Delivered to customer.",
       });
     } catch (err: any) {
       setOrderActionFeedback({
         type: "error",
-        message: err?.response?.data?.message || err?.message || "Failed to update fulfillment.",
+        message: err?.response?.data?.message || err?.message || "Failed to update order status.",
       });
     } finally {
-      setIsUpdatingFulfillment(false);
+      setIsUpdatingHandover(false);
     }
   };
 
@@ -2237,8 +2236,8 @@ export default function AdminPosPage() {
           const paymentPresentation = getPaymentPresentation(createdOrder.payment_status || "pending");
           const StatusIcon = statusPresentation.icon;
           const isPaid = (createdOrder.payment_status || "").toLowerCase() === "paid";
-          const isShipped = ["shipped", "delivered", "fulfilled"].includes(
-            (createdOrder.fulfillment_status || "").toLowerCase()
+          const isHandedOver = ["shipped", "delivered"].includes(
+            (createdOrder.status || "").toLowerCase()
           );
 
           return (
@@ -2389,7 +2388,7 @@ export default function AdminPosPage() {
                     </p>
 
                     {/* In-Modal Lifecycle Transition Controls */}
-                    {(!isPaid || (!isShipped && isPaid)) && (
+                    {(!isPaid || (!isHandedOver && isPaid)) && (
                       <div className="pt-1 flex flex-wrap gap-2 items-center">
                         <span className="text-[11px] font-bold text-muted-foreground">
                           Next Permitted Action:
@@ -2410,17 +2409,17 @@ export default function AdminPosPage() {
                           </button>
                         )}
 
-                        {isPaid && !isShipped && (
+                        {isPaid && !isHandedOver && (
                           <button
                             type="button"
-                            onClick={handleMarkDispatched}
-                            disabled={isUpdatingFulfillment}
-                            id="btn-pos-fulfill-order"
+                            onClick={handleMarkHandedOver}
+                            disabled={isUpdatingHandover}
+                            id="btn-pos-handover-order"
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
                           >
-                            <Truck size={14} />
+                            <PackageCheck size={14} />
                             <span>
-                              {isUpdatingFulfillment ? "Updating..." : "Mark as Dispatched / Handed Over"}
+                              {isUpdatingHandover ? "Updating..." : "Mark as Handed Over"}
                             </span>
                           </button>
                         )}

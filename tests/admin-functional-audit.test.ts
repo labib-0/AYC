@@ -435,8 +435,8 @@ export async function runAllTests() {
     }
   });
 
-  // 8. Orders & Fulfillment
-  console.log("\n▶ Suite 8: Orders & Fulfillment");
+  // 8. Orders
+  console.log("\n▶ Suite 8: Orders");
   let testOrderId: number | string = "";
   await test("Orders", "Query orders list and calculate summary metrics", async () => {
     const summary = await adminOrderService.getOrderSummary();

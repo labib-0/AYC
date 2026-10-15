@@ -151,12 +151,11 @@ async function runTests() {
   console.log("  AYC ADMIN ORDER DETAILS UX (PHASE 2) TEST SUITE");
   console.log("==========================================================");
 
-  // 1. Order Header: Information Architecture & authoritativeness
-  test("1. Order Header: Authoritative single status with separate payment and fulfillment indicators", () => {
+  // 1. Order Header: Information Architecture & authoritativeness (Fulfillment indicator removed)
+  test("1. Order Header: Authoritative single status with payment indicator and no fulfillment badges", () => {
     const order = mockOrder();
     assert.strictEqual(order.status, "processing");
     assert.strictEqual(order.payment_status, "paid");
-    assert.strictEqual(order.fulfillment_status, "unfulfilled");
 
     // Header displays order number, customer name and company
     const headerTitle = `Order #${order.order_number}`;
@@ -166,23 +165,23 @@ async function runTests() {
     assert.ok(customerDisplay.includes("Laurent Garments Paris"));
   });
 
-  // 2. Dynamic Primary Next Action Resolution
-  test("2. Order Header: Dynamic next available action based on order state", () => {
-    // A. Paid and unfulfilled (air courier) -> "Create Aramex Shipment"
-    const paidOrder = mockOrder({ payment_status: "paid", status: "processing", fulfillment_status: "unfulfilled" });
-    const isPaid = paidOrder.payment_status === "paid";
-    const canShip = isPaid && paidOrder.fulfillment_status !== "shipped";
-    assert.ok(canShip, "Paid unfulfilled order should be ready for carrier dispatch");
+  // 2. Dynamic Primary Next Action Resolution (Create Aramex Shipment permanently removed)
+  test("2. Order Header: Dynamic next available action based on order state (No Aramex Shipment creation)", () => {
+    // A. Paid ocean order -> "Update Freight Quote"
+    const seaOrder = mockOrder({ payment_status: "paid", status: "processing", transport_method: "sea" });
+    const isSea = seaOrder.transport_method === "sea";
+    assert.ok(isSea, "Paid ocean orders trigger Update Freight Quote action");
 
     // B. Unpaid with payment proof -> "Review Payment Proof"
     const proofOrder = mockOrder({ payment_status: "pending", status: "pending", payment_proof_url: "https://proof.pdf" });
     const needsProofReview = proofOrder.payment_status !== "paid" && Boolean(proofOrder.payment_proof_url);
     assert.ok(needsProofReview, "Unpaid order with receipt requires proof review");
 
-    // C. Shipped order -> "Confirm Consignee Delivery"
-    const shippedOrder = mockOrder({ fulfillment_status: "shipped", status: "shipped" });
-    const canDeliver = shippedOrder.fulfillment_status === "shipped" && shippedOrder.status !== "delivered";
-    assert.ok(canDeliver, "Dispatched order allows delivery confirmation");
+    // C. Paid order -> "Confirm Consignee Delivery" (No Aramex Shipment)
+    const paidAirOrder = mockOrder({ payment_status: "paid", status: "processing", transport_method: "air" });
+    const isPaid = paidAirOrder.payment_status === "paid";
+    const canDeliver = isPaid && paidAirOrder.status !== "delivered";
+    assert.ok(canDeliver, "Paid order allows consignee delivery confirmation directly without carrier shipment creation");
   });
 
   // 3. Compact Order Summary Metrics

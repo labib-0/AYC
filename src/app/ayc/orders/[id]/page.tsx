@@ -11,10 +11,7 @@ import {
   OrderFinancialSummary,
   OrderPaymentInventoryCard,
   OrderCustomerDeliveryCard,
-  CarrierFulfillmentCard,
   OceanFreightQuoteModal,
-  FulfillmentUpdateModal,
-  AramexShipmentDialog,
   OrderCancelModal,
   OrderStatusHistory,
 } from "@/components/admin/orders";
@@ -40,8 +37,6 @@ export default function AdminOrderDetailPage({
 
   // Modal States
   const [isSeaQuoteModalOpen, setIsSeaQuoteModalOpen] = useState(false);
-  const [isFulfillmentModalOpen, setIsFulfillmentModalOpen] = useState(false);
-  const [isAramexDialogOpen, setIsAramexDialogOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   const addToast = (type: "success" | "error", message: string) => {
@@ -114,81 +109,7 @@ export default function AdminOrderDetailPage({
     }
   };
 
-  // 3. Fulfillment Details Update
-  const handleSaveFulfillment = async (data: {
-    fulfillment_status: string;
-    carrier?: string;
-    tracking_number?: string;
-    note?: string;
-  }) => {
-    if (!order) return;
-    setActionLoading(true);
-
-    try {
-      const updated = await adminOrderService.updateFulfillment(
-        order.id,
-        data.fulfillment_status,
-        data.tracking_number,
-        data.carrier,
-        data.note
-      );
-      setOrder(updated);
-      setIsFulfillmentModalOpen(false);
-      addToast("success", "Fulfillment updated successfully.");
-    } catch (err: unknown) {
-      addToast("error", (err as Error)?.message || "Failed to update fulfillment.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // 4. Aramex Shipment Creation
-  const handleConfirmAramexShipment = async () => {
-    if (!order) return;
-    setActionLoading(true);
-
-    try {
-      const result = await adminOrderService.createAramexShipment(order.id);
-      if (result.order) {
-        setOrder(result.order);
-      } else {
-        await loadOrder(true);
-      }
-      setIsAramexDialogOpen(false);
-      addToast(
-        "success",
-        `Aramex shipment created successfully! AWB: ${result.tracking_number || "Generated"}.`
-      );
-    } catch (err: unknown) {
-      addToast("error", (err as Error)?.message || "Failed to create Aramex shipment.");
-      await loadOrder(true);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // 5. Carrier Tracking Refresh
-  const handleRefreshTracking = async () => {
-    if (!order || !order.tracking_number) return;
-    setActionLoading(true);
-
-    try {
-      const result = await adminOrderService.refreshTracking(order.id);
-      if (result.order) {
-        setOrder(result.order);
-      }
-      addToast(
-        "success",
-        `Carrier tracking refreshed: ${result.tracking?.status || "Updated"}.`
-      );
-    } catch (err: unknown) {
-      addToast("error", (err as Error)?.message || "Failed to refresh live tracking.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // 6. Payment Verification Workflow (Approve / Reject)
+  // 3. Payment Verification Workflow (Approve / Reject)
   const handleApprovePayment = async (details: PaymentVerificationDetails) => {
     if (!order) return;
     setActionLoading(true);
@@ -301,20 +222,17 @@ export default function AdminOrderDetailPage({
           onRefresh={handleRefresh}
           isLoading={isRefreshing || actionLoading}
           onOpenPaymentReview={handleScrollToPaymentReview}
-          onOpenAramexModal={() => setIsAramexDialogOpen(true)}
           onOpenSeaQuoteModal={() => setIsSeaQuoteModalOpen(true)}
-          onOpenFulfillmentModal={() => setIsFulfillmentModalOpen(true)}
           onUpdateStatus={handleUpdateStatus}
           onOpenCancelModal={() => setIsCancelModalOpen(true)}
-          onRefreshTracking={handleRefreshTracking}
         />
 
-        {/* 2. Compact Order Summary: 4 scannable summary metrics */}
+        {/* 2. Compact Order Summary: scannable summary metrics */}
         <OrderSummaryMetrics order={order} />
 
         {/* 3. Main Action-Oriented Two-Column Workspace */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* LEFT / PRIMARY COLUMN (2 cols on lg): Items, Consolidated Payment & Inventory, Fulfillment & Dispatch */}
+          {/* LEFT / PRIMARY COLUMN (2 cols on lg): Items, Consolidated Payment & Inventory */}
           <div className="lg:col-span-2 space-y-6">
             {/* 3. Order Items Table */}
             <OrderItemsTable items={order.items || []} />
@@ -326,27 +244,17 @@ export default function AdminOrderDetailPage({
               onReject={handleRejectPayment}
               isLoading={actionLoading}
             />
-
-            {/* 6. Fulfillment & Dispatch Logistics */}
-            <CarrierFulfillmentCard
-              order={order}
-              onOpenSeaQuoteModal={() => setIsSeaQuoteModalOpen(true)}
-              onOpenFulfillmentModal={() => setIsFulfillmentModalOpen(true)}
-              onOpenAramexShipmentDialog={() => setIsAramexDialogOpen(true)}
-              onRefreshTracking={handleRefreshTracking}
-              actionLoading={actionLoading}
-            />
           </div>
 
           {/* RIGHT / SIDEBAR COLUMN (1 col on lg): Financial Summary, Consolidated Customer & Delivery, Expandable Audit History */}
           <div className="space-y-6">
-            {/* 7. Payment & Financial Summary */}
+            {/* 5. Payment & Financial Summary */}
             <OrderFinancialSummary order={order} />
 
-            {/* 5. Customer & Delivery (Consolidated) */}
+            {/* 6. Customer & Delivery (Consolidated) */}
             <OrderCustomerDeliveryCard order={order} />
 
-            {/* 9. Activity & Audit History (Expandable) */}
+            {/* 7. Activity & Audit History (Expandable) */}
             <OrderStatusHistory events={order.status_events || []} defaultOpen={false} />
           </div>
         </div>
@@ -361,25 +269,7 @@ export default function AdminOrderDetailPage({
           isLoading={actionLoading}
         />
 
-        {/* B. Manual Fulfillment Update Modal */}
-        <FulfillmentUpdateModal
-          isOpen={isFulfillmentModalOpen}
-          order={order}
-          onClose={() => setIsFulfillmentModalOpen(false)}
-          onSave={handleSaveFulfillment}
-          isLoading={actionLoading}
-        />
-
-        {/* C. Aramex Export Shipment Confirmation Dialog */}
-        <AramexShipmentDialog
-          isOpen={isAramexDialogOpen}
-          order={order}
-          onClose={() => setIsAramexDialogOpen(false)}
-          onConfirm={handleConfirmAramexShipment}
-          isLoading={actionLoading}
-        />
-
-        {/* D. Order Cancellation Modal */}
+        {/* B. Order Cancellation Modal */}
         <OrderCancelModal
           isOpen={isCancelModalOpen}
           order={order}

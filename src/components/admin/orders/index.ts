@@ -1,6 +1,5 @@
 export { default as OrderStatusBadge } from "./OrderStatusBadge";
 export { default as PaymentStatusBadge } from "./PaymentStatusBadge";
-export { default as FulfillmentStatusBadge } from "./FulfillmentStatusBadge";
 
 export { default as OrderListHeader } from "./OrderListHeader";
 export { default as OrderKpis } from "./OrderKpis";
@@ -19,14 +18,11 @@ export { default as OrderFinancialSummary } from "./OrderFinancialSummary";
 export { default as OrderPaymentInventoryCard } from "./OrderPaymentInventoryCard";
 export type { PaymentVerificationDetails } from "./OrderPaymentInventoryCard";
 export { default as OrderCustomerDeliveryCard } from "./OrderCustomerDeliveryCard";
-export { default as CarrierFulfillmentCard } from "./CarrierFulfillmentCard";
 export { default as OrderCancelModal } from "./OrderCancelModal";
 export { default as OrderStatusHistory } from "./OrderStatusHistory";
 
-// Fulfillment & Logistics Modals
+// Commercial Freight Modals
 export { default as OceanFreightQuoteModal } from "./OceanFreightQuoteModal";
-export { default as FulfillmentUpdateModal } from "./FulfillmentUpdateModal";
-export { default as AramexShipmentDialog } from "./AramexShipmentDialog";
 
 // Backward Compatibility Exports
 export { default as CustomerInfoCard } from "./CustomerInfoCard";

@@ -1,5 +1,5 @@
 import React from "react";
-import { ShoppingBag, Clock, PackageCheck, Truck, CheckCircle2 } from "lucide-react";
+import { ShoppingBag, Clock, PackageCheck, CheckCircle2 } from "lucide-react";
 import { OrderSummaryMetrics } from "@/services/admin";
 
 export interface OrderKpisProps {
@@ -21,8 +21,8 @@ export default function OrderKpis({
 }: OrderKpisProps) {
   if (isLoading || !metrics) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
-        {[1, 2, 3, 4, 5].map((i) => (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+        {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
             className="p-4 rounded-2xl border border-border/60 bg-card/60 animate-pulse space-y-2.5"
@@ -64,14 +64,6 @@ export default function OrderKpis({
       borderColor: "border-blue-500/30",
     },
     {
-      label: "Fulfilled / Shipped",
-      value: metrics.shipped + metrics.delivered,
-      icon: <Truck size={16} className="text-indigo-500" />,
-      active: activeStatusFilter === "shipped",
-      onClick: () => onSelectStatusFilter(activeStatusFilter === "shipped" ? "all" : "shipped"),
-      borderColor: "border-indigo-500/30",
-    },
-    {
       label: "Paid Orders",
       value: metrics.paid,
       icon: <CheckCircle2 size={16} className="text-emerald-500" />,
@@ -82,7 +74,7 @@ export default function OrderKpis({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {items.map((item, idx) => (
         <button
           key={idx}

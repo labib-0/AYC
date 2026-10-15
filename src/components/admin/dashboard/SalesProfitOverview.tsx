@@ -426,7 +426,7 @@ export default function SalesProfitOverview() {
             </div>
           )}
           <p className="text-[10px] text-muted-foreground mt-1">
-            Total commercial pieces fulfilled
+            Total commercial pieces sold
           </p>
         </div>
 

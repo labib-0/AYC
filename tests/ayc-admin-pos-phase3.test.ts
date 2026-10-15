@@ -27,7 +27,7 @@ function formatTestCurrency(amount: number | string | null | undefined, currency
  * Verifies:
  * 1. Complete removal of POS-specific thermal receipts (components, modals, width selectors, print CSS, buttons).
  * 2. Alignment of POS with the canonical AYC order workflow (statuses, authoritative payment, exactly-once inventory).
- * 3. In-terminal POS Order Management (customer profile, line items, canonical status, payment approval, fulfillment handover).
+ * 3. In-terminal POS Order Management (customer profile, line items, canonical status, payment approval, order handover).
  * 4. Standard commercial documents hub (Invoice, Order Sheet, PI, CI, Packing List) via existing document services.
  * 5. Customer integrity & synthetic email prevention.
  * 6. Dynamic currency formatting.
@@ -204,7 +204,7 @@ function runTests() {
     "Exposes payment verification and approval action directly in POS"
   );
   assert(
-    posPageCode.includes('id="btn-pos-fulfill-order"'),
+    posPageCode.includes('id="btn-pos-handover-order"') || posPageCode.includes('id="btn-pos-fulfill-order"'),
     "Exposes shipment handover control directly in POS"
   );
   assert(

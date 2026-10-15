@@ -3,19 +3,15 @@ import Link from "next/link";
 import { OrderRecord } from "@/services/order.service";
 import OrderStatusBadge from "./OrderStatusBadge";
 import PaymentStatusBadge from "./PaymentStatusBadge";
-import FulfillmentStatusBadge from "./FulfillmentStatusBadge";
 import {
   ArrowLeft,
   RefreshCw,
   FileText,
   Printer,
-  Package,
   ChevronDown,
   CheckCircle2,
   Clock,
-  Truck,
   PackageCheck,
-  Send,
   MoreHorizontal,
   DollarSign,
   Ban,
@@ -29,12 +25,9 @@ export interface OrderDetailHeaderProps {
   onRefresh: () => void;
   isLoading?: boolean;
   onOpenPaymentReview?: () => void;
-  onOpenAramexModal?: () => void;
   onOpenSeaQuoteModal?: () => void;
-  onOpenFulfillmentModal?: () => void;
   onUpdateStatus?: (newStatus: string, note?: string) => Promise<void>;
   onOpenCancelModal?: () => void;
-  onRefreshTracking?: () => void;
 }
 
 export default function OrderDetailHeader({
@@ -43,12 +36,9 @@ export default function OrderDetailHeader({
   onRefresh,
   isLoading = false,
   onOpenPaymentReview,
-  onOpenAramexModal,
   onOpenSeaQuoteModal,
-  onOpenFulfillmentModal,
   onUpdateStatus,
   onOpenCancelModal,
-  onRefreshTracking,
 }: OrderDetailHeaderProps) {
   const { can, isSuperAdmin } = useAdminAuth();
   const [docDropdownOpen, setDocDropdownOpen] = useState(false);
@@ -59,7 +49,6 @@ export default function OrderDetailHeader({
   const canViewDocs = can("document.view");
   const canUpdateStatus = isSuperAdmin || can("order.update_status");
   const canCancel = isSuperAdmin || can("order.cancel");
-  const canRefreshTracking = isSuperAdmin || can("tracking.refresh");
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -92,7 +81,6 @@ export default function OrderDetailHeader({
 
   const isPaid = order.payment_status === "paid";
   const isTerminal = ["cancelled", "refunded", "delivered"].includes(order.status);
-  const hasAwb = Boolean(order.tracking_number);
   const isSea =
     order.transport_method?.toLowerCase() === "sea" ||
     order.shipping_method?.toLowerCase().includes("sea") ||
@@ -124,25 +112,15 @@ export default function OrderDetailHeader({
         id: "btn-primary-verify-payment",
         variant: "primary",
       };
-    } else if (order.fulfillment_status !== "shipped" && order.fulfillment_status !== "delivered") {
-      if (isSea) {
-        primaryAction = {
-          label: "Update Freight Quote",
-          icon: <DollarSign size={14} />,
-          onClick: () => onOpenSeaQuoteModal?.(),
-          id: "btn-primary-sea-quote",
-          variant: "primary",
-        };
-      } else {
-        primaryAction = {
-          label: "Create Aramex Shipment",
-          icon: <Send size={14} />,
-          onClick: () => onOpenAramexModal?.(),
-          id: "btn-primary-create-shipment",
-          variant: "primary",
-        };
-      }
-    } else if (order.fulfillment_status === "shipped" && order.status !== "delivered") {
+    } else if (isSea && onOpenSeaQuoteModal) {
+      primaryAction = {
+        label: "Update Freight Quote",
+        icon: <DollarSign size={14} />,
+        onClick: () => onOpenSeaQuoteModal?.(),
+        id: "btn-primary-sea-quote",
+        variant: "primary",
+      };
+    } else if (order.status !== "delivered") {
       primaryAction = {
         label: "Confirm Consignee Delivery",
         icon: <PackageCheck size={14} />,
@@ -202,16 +180,11 @@ export default function OrderDetailHeader({
             <span className="font-mono">Placed on {formattedDate}</span>
           </div>
 
-          {/* Clearly Labeled Separate Payment and Fulfillment Badges */}
+          {/* Clearly Labeled Payment Status Badge */}
           <div className="flex items-center gap-2 flex-wrap pt-0.5">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary/50 border border-border text-[11px] font-medium">
               <span className="text-muted-foreground font-semibold uppercase">Payment:</span>
               <PaymentStatusBadge status={order.payment_status} size="sm" />
-            </div>
-
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary/50 border border-border text-[11px] font-medium">
-              <span className="text-muted-foreground font-semibold uppercase">Fulfillment:</span>
-              <FulfillmentStatusBadge status={order.fulfillment_status} size="sm" />
             </div>
           </div>
         </div>
@@ -322,53 +295,23 @@ export default function OrderDetailHeader({
                   Order Management
                 </div>
 
-                {/* Fulfillment Manual Edit */}
-                {onOpenFulfillmentModal && (
+                {/* Freight Quote Update */}
+                {isSea && onOpenSeaQuoteModal && (
                   <button
                     type="button"
                     onClick={() => {
                       setActionsDropdownOpen(false);
-                      onOpenFulfillmentModal();
+                      onOpenSeaQuoteModal();
                     }}
                     className="w-full text-left px-3 py-2 text-xs hover:bg-secondary transition-colors flex items-center gap-2 font-bold text-foreground cursor-pointer"
                   >
-                    <Truck size={14} className="text-primary" />
-                    <span>Edit Fulfillment / Carrier</span>
-                  </button>
-                )}
-
-                {/* Live Tracking Refresh */}
-                {hasAwb && canRefreshTracking && onRefreshTracking && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionsDropdownOpen(false);
-                      onRefreshTracking();
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-secondary transition-colors flex items-center gap-2 font-bold text-foreground cursor-pointer"
-                  >
-                    <RefreshCw size={14} className="text-primary" />
-                    <span>Refresh Carrier Tracking</span>
-                  </button>
-                )}
-
-                {/* Mark as Shipped (if confirmed/processing) */}
-                {canUpdateStatus && isPaid && order.fulfillment_status !== "shipped" && order.status !== "delivered" && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionsDropdownOpen(false);
-                      onUpdateStatus?.("shipped", "Order marked as dispatched by administrator.");
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-secondary transition-colors flex items-center gap-2 font-bold text-foreground cursor-pointer"
-                  >
-                    <Truck size={14} className="text-purple-600 dark:text-purple-400" />
-                    <span>Mark as Dispatched</span>
+                    <DollarSign size={14} className="text-primary" />
+                    <span>Update Freight Quote</span>
                   </button>
                 )}
 
                 {/* Mark as Delivered */}
-                {canUpdateStatus && order.fulfillment_status === "shipped" && order.status !== "delivered" && (
+                {canUpdateStatus && isPaid && order.status !== "delivered" && (
                   <button
                     type="button"
                     onClick={() => {

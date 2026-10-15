@@ -62,7 +62,7 @@ AYAAN CLOTHING collects relevant corporate and business buyer information necess
 ## 2. How We Use Information
 
 Your commercial information is strictly utilized to:
-- Process and fulfill wholesale orders and Requests for Quotations (RFQs).
+- Process and deliver wholesale orders and Requests for Quotations (RFQs).
 - Coordinate international freight forwarding, customs clearance, and shipping documentation.
 - Provide direct B2B order status updates and commercial support.
 - Comply with statutory tax, customs, and banking regulations.

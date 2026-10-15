@@ -301,7 +301,7 @@ class OrderCalculationService
         }
 
         // 6. Taxes and Final Grand Total (USD)
-        $isPos = ($carrier === 'POS Direct' || $shippingMethod === 'POS In-Store Fulfillment' || in_array(strtolower(trim((string) $shippingMethod)), ['pos in-store fulfillment', 'pos direct']));
+        $isPos = ($carrier === 'POS Direct' || $shippingMethod === 'POS In-Store Handover' || $shippingMethod === 'POS In-Store Fulfillment' || in_array(strtolower(trim((string) $shippingMethod)), ['pos in-store handover', 'pos in-store fulfillment', 'pos direct']));
         $taxRate = $isPos ? 0.0 : 0.05;
         $taxableAmount = max(0.0, $subtotal - $totalDiscountAmount);
         $taxAmount = round($taxableAmount * $taxRate, 2);

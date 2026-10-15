@@ -769,7 +769,7 @@ export default function OrderPaymentInventoryCard({
             <Building2 size={16} className="text-primary" />
             <span>
               {isDecremented
-                ? "Warehouse Inventory Allocation (Fulfilled)"
+                ? "Warehouse Inventory Allocation (Allocated & Confirmed)"
                 : "Pre-Approval Warehouse Stock Gate"}
             </span>
           </div>

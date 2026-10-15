@@ -108,9 +108,9 @@ check(
 );
 
 // =========================================================================
-// 3. SUMMARY CARDS PRESERVATION (OrderKpis)
+// 3. SUMMARY CARDS PRESERVATION (OrderKpis - 4 Balanced Cards, Fulfillment Card Removed)
 // =========================================================================
-console.log("\n▶ 3. Summary Cards Preservation:");
+console.log("\n▶ 3. Summary Cards Preservation (Fulfillment Card Removed):");
 
 const kpisPath = path.join(rootDir, "src", "components", "admin", "orders", "OrderKpis.tsx");
 const kpisContent = fs.readFileSync(kpisPath, "utf-8");
@@ -118,17 +118,13 @@ const kpisContent = fs.readFileSync(kpisPath, "utf-8");
 check(kpisContent.includes('label: "Total Orders"'), "Total Orders summary card preserved");
 check(kpisContent.includes('label: "Pending Action"'), "Pending Action summary card preserved");
 check(kpisContent.includes('label: "Processing"'), "Processing summary card preserved");
-check(kpisContent.includes('label: "Fulfilled / Shipped"'), "Fulfilled / Shipped summary card preserved");
 check(kpisContent.includes('label: "Paid Orders"'), "Paid Orders summary card preserved");
+check(!kpisContent.includes('label: "Fulfilled / Shipped"'), "Fulfilled / Shipped summary card is completely removed");
 
 // Check calculation preservation
 check(
   kpisContent.includes("metrics.processing + metrics.confirmed"),
   "Processing card correctly aggregates processing + confirmed"
-);
-check(
-  kpisContent.includes("metrics.shipped + metrics.delivered"),
-  "Fulfilled / Shipped card correctly aggregates shipped + delivered"
 );
 
 // Check interactive click behavior
@@ -142,9 +138,9 @@ check(
 );
 
 // =========================================================================
-// 4. SEARCH AND FILTERS PRESERVATION (OrderToolbar)
+// 4. SEARCH AND FILTERS PRESERVATION (OrderToolbar - Fulfillment Filter Removed)
 // =========================================================================
-console.log("\n▶ 4. Search and Dropdown Filters Preservation:");
+console.log("\n▶ 4. Search and Dropdown Filters Preservation (Fulfillment Filter Removed):");
 
 const toolbarPath = path.join(rootDir, "src", "components", "admin", "orders", "OrderToolbar.tsx");
 const toolbarContent = fs.readFileSync(toolbarPath, "utf-8");
@@ -164,8 +160,8 @@ check(
   "Payment status dropdown filter preserved"
 );
 check(
-  toolbarContent.includes('id="select-fulfillment-status"'),
-  "Fulfillment status dropdown filter preserved"
+  !toolbarContent.includes('id="select-fulfillment-status"'),
+  "Fulfillment status dropdown filter is completely removed"
 );
 check(
   toolbarContent.includes("onResetFilters"),

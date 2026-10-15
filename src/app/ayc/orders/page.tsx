@@ -39,7 +39,6 @@ export default function AdminOrdersPage() {
   const [customerStatus, setCustomerStatus] = useState("all");
   const [status, setStatus] = useState("all");
   const [paymentStatus, setPaymentStatus] = useState("all");
-  const [fulfillmentStatus, setFulfillmentStatus] = useState("all");
   const [datePreset, setDatePreset] = useState<DateFilterPreset>("all");
   const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
   const [dateTo, setDateTo] = useState<string | undefined>(undefined);
@@ -54,7 +53,6 @@ export default function AdminOrdersPage() {
     const initialSearch = params.get("search");
     const initialStatus = params.get("status");
     const initialPayment = params.get("payment_status");
-    const initialFulfillment = params.get("fulfillment_status");
     const initialPage = params.get("page");
 
     if (initialPreset && ["all", "today", "yesterday", "last_7_days", "last_30_days", "this_month", "last_month", "custom"].includes(initialPreset)) {
@@ -65,7 +63,6 @@ export default function AdminOrdersPage() {
     if (initialSearch) setSearch(initialSearch);
     if (initialStatus) setStatus(initialStatus);
     if (initialPayment) setPaymentStatus(initialPayment);
-    if (initialFulfillment) setFulfillmentStatus(initialFulfillment);
     if (initialPage && !isNaN(Number(initialPage))) setPage(Number(initialPage));
   }, []);
 
@@ -76,7 +73,6 @@ export default function AdminOrdersPage() {
     if (search.trim()) params.set("search", search.trim());
     if (status !== "all") params.set("status", status);
     if (paymentStatus !== "all") params.set("payment_status", paymentStatus);
-    if (fulfillmentStatus !== "all") params.set("fulfillment_status", fulfillmentStatus);
     if (datePreset !== "all") params.set("date_preset", datePreset);
     if (datePreset === "custom") {
       if (dateFrom) params.set("date_from", dateFrom);
@@ -86,7 +82,7 @@ export default function AdminOrdersPage() {
 
     const newUrl = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
     window.history.replaceState(null, "", newUrl);
-  }, [search, status, paymentStatus, fulfillmentStatus, datePreset, dateFrom, dateTo, page]);
+  }, [search, status, paymentStatus, datePreset, dateFrom, dateTo, page]);
 
   // Payment Proof Quick Review Modal State
   const [reviewOrder, setReviewOrder] = useState<OrderRecord | null>(null);
@@ -115,7 +111,6 @@ export default function AdminOrdersPage() {
           customer_status: customerStatus !== "all" ? customerStatus : undefined,
           status: status !== "all" ? status : undefined,
           payment_status: paymentStatus !== "all" ? paymentStatus : undefined,
-          fulfillment_status: fulfillmentStatus !== "all" ? fulfillmentStatus : undefined,
           date_preset: datePreset !== "all" ? datePreset : undefined,
           date_from: datePreset === "custom" ? dateFrom : undefined,
           date_to: datePreset === "custom" ? dateTo : undefined,
@@ -134,7 +129,7 @@ export default function AdminOrdersPage() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [page, perPage, search, customerStatus, status, paymentStatus, fulfillmentStatus, datePreset, dateFrom, dateTo]);
+  }, [page, perPage, search, customerStatus, status, paymentStatus, datePreset, dateFrom, dateTo]);
 
   useEffect(() => {
     loadData();
@@ -166,11 +161,6 @@ export default function AdminOrdersPage() {
     setPage(1);
   };
 
-  const handleFulfillmentStatusChange = (val: string) => {
-    setFulfillmentStatus(val);
-    setPage(1);
-  };
-
   const handleDateChange = (preset: DateFilterPreset, from?: string, to?: string) => {
     setDatePreset(preset);
     setDateFrom(from);
@@ -183,7 +173,6 @@ export default function AdminOrdersPage() {
     setCustomerStatus("all");
     setStatus("all");
     setPaymentStatus("all");
-    setFulfillmentStatus("all");
     setDatePreset("all");
     setDateFrom(undefined);
     setDateTo(undefined);
@@ -217,7 +206,6 @@ export default function AdminOrdersPage() {
     customerStatus !== "all" ||
     status !== "all" ||
     paymentStatus !== "all" ||
-    fulfillmentStatus !== "all" ||
     datePreset !== "all" ||
     Boolean(dateFrom) ||
     Boolean(dateTo);
@@ -252,8 +240,6 @@ export default function AdminOrdersPage() {
           onStatusChange={handleStatusChange}
           paymentStatus={paymentStatus}
           onPaymentStatusChange={handlePaymentStatusChange}
-          fulfillmentStatus={fulfillmentStatus}
-          onFulfillmentStatusChange={handleFulfillmentStatusChange}
           onResetFilters={handleResetFilters}
           totalFiltered={total}
         />

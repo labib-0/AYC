@@ -4,7 +4,6 @@ import { OrderRecord } from "@/services/order.service";
 import OrderTableRow from "./OrderTableRow";
 import OrderStatusBadge from "./OrderStatusBadge";
 import PaymentStatusBadge from "./PaymentStatusBadge";
-import FulfillmentStatusBadge from "./FulfillmentStatusBadge";
 import { ShoppingBag, AlertCircle, RefreshCw } from "lucide-react";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 
@@ -132,7 +131,6 @@ export default function OrderTable({
                 <th className="py-3 px-4">Items</th>
                 <th className="py-3 px-4">Total</th>
                 <th className="py-3 px-4">Payment</th>
-                <th className="py-3 px-4">Fulfillment</th>
                 <th className="py-3 px-4">Order Status</th>
                 <th className="py-3 px-4">Date</th>
                 <th className="py-3 px-4 text-right">Actions</th>
@@ -217,7 +215,6 @@ export default function OrderTable({
 
                 <div className="flex items-center gap-1.5 flex-wrap justify-end">
                   <PaymentStatusBadge status={order.payment_status} size="sm" />
-                  <FulfillmentStatusBadge status={order.fulfillment_status} size="sm" />
                 </div>
               </div>
 

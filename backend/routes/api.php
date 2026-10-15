@@ -133,6 +133,10 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:product.edit');
             Route::patch('/{id}/toggle-storefront-visibility', [ProductController::class, 'toggleStorefrontVisibility'])
                 ->middleware('permission:product.edit');
+            Route::post('/{id}/mark-sold-out', [ProductController::class, 'markSoldOut'])
+                ->middleware('permission:product.edit');
+            Route::get('/{id}/stock-history', [AdminInventoryController::class, 'productHistory'])
+                ->middleware('permission:inventory.audit');
             Route::delete('/{id}', [ProductController::class, 'destroy'])
                 ->middleware('permission:product.delete');
             Route::post('/{id}/images', [ProductController::class, 'uploadImage'])
@@ -372,6 +376,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/inventory', [AdminInventoryController::class, 'index'])
             ->middleware('permission:inventory.view');
         Route::get('/inventory/{id}/history', [AdminInventoryController::class, 'history'])
+            ->middleware('permission:inventory.audit');
+        Route::get('/inventory/products/{productId}/history', [AdminInventoryController::class, 'productHistory'])
             ->middleware('permission:inventory.audit');
         Route::post('/inventory/adjust', [AdminInventoryController::class, 'adjust'])
             ->middleware('permission:inventory.adjust');
