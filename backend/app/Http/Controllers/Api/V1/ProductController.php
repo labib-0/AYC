@@ -564,9 +564,6 @@ class ProductController extends ApiController
                         ->where('is_active', true)
                         ->whereHas('product', function ($pq) use ($applyStorefrontFilters) {
                             $applyStorefrontFilters($pq);
-                            $pq->where(function ($fq) {
-                                $fq->whereNull('featured_until')->orWhere('featured_until', '>', now());
-                            });
                         })
                         ->orderBy('sort_order', 'asc')
                         ->orderBy('id', 'asc')
@@ -580,9 +577,6 @@ class ProductController extends ApiController
                         $fallbackPinnedQuery = Product::query()
                             ->where(function ($q) {
                                 $q->where('is_pinned', true)->orWhere('is_featured', true);
-                            })
-                            ->where(function ($fq) {
-                                $fq->whereNull('featured_until')->orWhere('featured_until', '>', now());
                             });
                         $applyStorefrontFilters($fallbackPinnedQuery);
                         $pinnedIds = $fallbackPinnedQuery

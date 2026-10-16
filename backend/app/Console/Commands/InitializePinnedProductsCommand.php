@@ -125,11 +125,12 @@ class InitializePinnedProductsCommand extends Command
             // 4.1 Clear obsolete homepage_featured_products entries
             HomepageFeaturedProduct::query()->delete();
 
-            // 4.2 Reset is_pinned and is_featured on ALL products
+            // 4.2 Reset is_pinned, is_featured, and obsolete featured_until on ALL products
             // CRUCIAL: promotional tags (is_hot, is_new, is_sold_out, prices, stocks) are NOT touched!
             Product::query()->update([
                 'is_pinned' => false,
                 'is_featured' => false,
+                'featured_until' => null,
                 'pinned_order' => 0,
                 'featured_sort_order' => 0,
             ]);
@@ -141,6 +142,7 @@ class InitializePinnedProductsCommand extends Command
                 Product::where('id', $product->id)->update([
                     'is_pinned' => true,
                     'is_featured' => true,
+                    'featured_until' => null,
                     'pinned_order' => $order,
                     'featured_sort_order' => $order,
                     'sort_order' => $order,
