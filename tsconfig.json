@@ -30,5 +30,11 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "ayaan-clothing"]
+  "exclude": [
+    "node_modules",
+    "ayaan-clothing",
+    ".next_releases",
+    ".next_build_stage",
+    ".next_tmp"
+  ]
 }
