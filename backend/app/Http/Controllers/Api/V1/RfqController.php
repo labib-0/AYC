@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\RfqCreatedNotification;
 use App\Notifications\RfqMessageNotification;
 use App\Services\Audit\ActivityLogger;
+use App\Services\Notification\RfqNotificationService;
 use App\Services\Rbac\AdminAuthorizationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +23,8 @@ use Illuminate\Support\Facades\Notification;
 class RfqController extends ApiController
 {
     public function __construct(
-        private readonly AdminAuthorizationService $authorization
+        private readonly AdminAuthorizationService $authorization,
+        private readonly RfqNotificationService $notificationService = new RfqNotificationService()
     ) {}
     /**
      * GET /api/v1/rfq
@@ -334,9 +336,15 @@ class RfqController extends ApiController
             return $quote;
         });
 
-        // Trigger Notification
-        if ($user) {
-            $user->notify(new RfqCreatedNotification($rfq));
+        // Trigger Notifications safely (Customer confirmation + Admin alerts)
+        try {
+            $this->notificationService->notifySubmission($rfq);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to dispatch RFQ submission notifications: " . $e->getMessage(), [
+                'rfq_id' => $rfq->id,
+                'rfq_number' => $rfq->rfq_number,
+                'exception' => $e,
+            ]);
         }
 
         return $this->success(new RfqResource($rfq->load(['items', 'messages'])), 'Quotation request submitted successfully', 201);
@@ -410,6 +418,11 @@ class RfqController extends ApiController
             return $this->success(new RfqResource($rfq->load(['items', 'messages'])), 'RFQ is already approved');
         }
 
+        // Repeated rejection requests must not generate duplicate rejection events or notifications
+        if ($newStatus === 'REJECTED' && strtoupper($rfq->status) === 'REJECTED') {
+            return $this->success(new RfqResource($rfq->load(['items', 'messages'])), 'RFQ is already rejected');
+        }
+
         $rfq->update(['status' => $newStatus]);
 
         ActivityLogger::log('rfq.status_changed', $rfq, [
@@ -429,6 +442,21 @@ class RfqController extends ApiController
                 'sender_role' => $user->isAdmin() ? 'admin' : 'customer',
                 'sender_name' => $user->name,
                 'message' => $msgContent,
+            ]);
+        }
+
+        // Trigger transactional customer email notifications
+        try {
+            if ($newStatus === 'APPROVED') {
+                $this->notificationService->notifyApproval($rfq, $validated['note'] ?? null);
+            } elseif ($newStatus === 'REJECTED') {
+                $this->notificationService->notifyRejection($rfq, $validated['note'] ?? null);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to dispatch RFQ status update notification: " . $e->getMessage(), [
+                'rfq_id' => $rfq->id,
+                'status' => $newStatus,
+                'exception' => $e,
             ]);
         }
 

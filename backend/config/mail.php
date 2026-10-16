@@ -115,4 +115,17 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | RFQ Transactional Notification Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Destination email addresses for administrative RFQ notifications.
+    | Comma-separated if multiple administrators should receive alerts.
+    |
+    */
+
+    'admin_recipients' => env('RFQ_ADMIN_EMAILS', env('ADMIN_NOTIFICATION_EMAIL', '')),
+    'notifications_enabled' => (bool) env('RFQ_NOTIFICATIONS_ENABLED', true),
+
 ];

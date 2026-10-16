@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Quote;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -13,28 +14,43 @@ class RfqCreatedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 3;
+    public array $backoff = [30, 120];
+
     public function __construct(public Quote $rfq)
     {
     }
 
     public function via(object $notifiable): array
     {
-        $channels = ['database'];
-        if (config('mail.default') && config('mail.default') !== 'log') {
-            $channels[] = 'mail';
+        $channels = [];
+
+        if ($notifiable instanceof User) {
+            $channels[] = 'database';
         }
+
+        if (config('mail.notifications_enabled', true)) {
+            $targetEmail = $notifiable->routeNotificationFor('mail', $this) ?: $this->rfq->buyer_email;
+            if (!empty($targetEmail) && filter_var($targetEmail, FILTER_VALIDATE_EMAIL)) {
+                $channels[] = 'mail';
+            }
+        }
+
         return $channels;
     }
 
     public function toMail(object $notifiable): MailMessage
     {
+        $baseUrl = rtrim(config('app.customer_frontend_url', config('app.url', 'https://ayaanclothing.com')), '/');
+        $customerUrl = "{$baseUrl}/dashboard/rfq/{$this->rfq->id}";
+
         return (new MailMessage)
             ->subject("RFQ Received: {$this->rfq->rfq_number} — AYAAN CLOTHING")
-            ->greeting("Hello {$this->rfq->buyer_name},")
-            ->line("Thank you for your Request for Quotation ({$this->rfq->rfq_number}).")
-            ->line("Our export team is reviewing your requested items and quantity specifications.")
-            ->action('View RFQ Status', url("/rfq/{$this->rfq->id}"))
-            ->line('Thank you for partnering with AYAAN CLOTHING.');
+            ->view(['html' => 'emails.rfq.customer-created', 'text' => 'emails.rfq.customer-created-text'], [
+                'rfq' => $this->rfq->loadMissing('items'),
+                'viewUrl' => $customerUrl,
+                'subject' => "RFQ Received: {$this->rfq->rfq_number} — AYAAN CLOTHING",
+            ]);
     }
 
     public function toArray(object $notifiable): array
@@ -48,6 +64,16 @@ class RfqCreatedNotification extends Notification implements ShouldQueue
         ];
     }
 
+    public function failed(\Throwable $exception): void
+    {
+        Log::error("RfqCreatedNotification delivery permanently failed", [
+            'rfq_id' => $this->rfq->id,
+            'rfq_number' => $this->rfq->rfq_number,
+            'buyer_email' => $this->rfq->buyer_email,
+            'error' => $exception->getMessage(),
+        ]);
+    }
+
     /**
      * Graceful fallback if SMS channel is attempted
      */
@@ -57,6 +83,5 @@ class RfqCreatedNotification extends Notification implements ShouldQueue
             Log::info("SMS disabled: Skipping RFQ creation SMS for {$this->rfq->rfq_number}");
             return;
         }
-        // SMS integration point
     }
 }

@@ -68,7 +68,7 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', env('CUSTOMER_FRONTEND_URL', env('APP_ENV') === 'production' ? 'https://ayaanclothing.com' : 'http://localhost:3000')),
 
-    'admin_frontend_url' => env('ADMIN_FRONTEND_URL', env('APP_ENV') === 'production' ? 'https://ayaanclothing.com/admin' : 'http://localhost:3001'),
+    'admin_frontend_url' => env('ADMIN_FRONTEND_URL', env('APP_ENV') === 'production' ? 'https://ayaanclothing.com/ayc' : 'http://localhost:3001/ayc'),
 
 
     /*
