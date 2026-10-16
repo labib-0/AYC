@@ -15,6 +15,10 @@
 
 # next.js
 /.next/
+/.next_releases/
+/.next_tmp*
+/.next.bak*
+/.deploy.lock
 /out/
 
 # production

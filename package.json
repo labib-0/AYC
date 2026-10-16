@@ -15,7 +15,9 @@
     "test": "node scripts/run-storefront-regression.mjs",
     "test:storefront": "node scripts/run-storefront-regression.mjs",
     "release:gate": "node scripts/run-release-gate.mjs",
-    "release:check": "node scripts/run-release-gate.mjs"
+    "release:check": "node scripts/run-release-gate.mjs",
+    "deploy:production": "bash scripts/deploy-production.sh",
+    "verify:gate": "node scripts/verify-deployment-release-gate.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

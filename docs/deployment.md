@@ -132,56 +132,47 @@ git checkout main
 git pull origin main
 ```
 
-### Step 5.2: Install Dependencies & Run Database Migrations (If Needed)
-```bash
-# Backend dependencies & migrations (ONLY run migrate --force; NEVER fresh/wipe)
-cd /var/www/ayaan/backend
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-php artisan config:cache
-php artisan route:cache
+### Step 5.2: Execute Atomic Zero-Downtime Deployment
+Deployments run via the automated atomic deployment pipeline (`scripts/deploy-production.sh`), which guarantees:
+1. Active `.next` remains untouched during build (no asset 404/500 errors for live visitors).
+2. Builds into an isolated timestamped directory in `.next_releases/`.
+3. In-flight client continuity: previous static chunks are merged into the new release.
+4. Pre-activation sanity checks ensure manifests and chunks are complete.
+5. Atomic symlink swap (`mv -Tf`) switches traffic instantaneously.
+6. PM2 daemons (`ayaan-customer` and `ayaan-admin`) are reloaded synchronously.
+7. Mandatory release gate (`scripts/verify-deployment-release-gate.mjs`) verifies 100% of static chunks.
+8. Automatic rollback to previous release if verification fails.
 
-# Frontend dependencies & production build
+```bash
 cd /var/www/ayaan
-npm install --omit=dev
-npm run build
+
+# Run authoritative zero-downtime atomic deployment
+./scripts/deploy-production.sh
 ```
 
-### Step 5.3: Reload Application Daemons (Zero-Downtime)
+### Step 5.3: Post-Deployment Verification
+The automated deployment pipeline automatically executes `scripts/verify-deployment-release-gate.mjs`, verifying:
+1. PM2 daemons `ayaan-customer` and `ayaan-admin` are `online`.
+2. Backend API health (`/api/v1/health`) reports database and redis healthy.
+3. Every referenced JavaScript and CSS chunk across all storefront and admin pages returns HTTP 200 OK.
+
+To manually re-run the release gate at any time:
 ```bash
-# Reload PM2 Next.js daemons under user ayaan
-su - ayaan -c "pm2 reload ayaan-customer"
-su - ayaan -c "pm2 reload ayaan-admin"
-
-# Restart background queue worker
-supervisorctl restart ayaan-worker
-
-# Test and reload Nginx
-nginx -t && systemctl reload nginx
-```
-
-### Step 5.4: Post-Deployment Smoke Test
-```bash
-# 1. Verify PM2 processes online
-su - ayaan -c "pm2 list"
-
-# 2. Check health endpoint
-curl -I https://ayaanclothing.com/api/v1/health
-
-# 3. Verify sitemap HTTP 200
-curl -I https://ayaanclothing.com/sitemap.xml
+node /var/www/ayaan/scripts/verify-deployment-release-gate.mjs
 ```
 
 ---
 
 ## 6. Safe Operational Rollback
 
-If a release introduces regression issues, rollback software code without touching database state:
+If a release introduces regression issues, trigger an instantaneous atomic rollback without rebuilding:
 ```bash
 cd /var/www/ayaan
-git checkout <PREVIOUS_STABLE_SHA>
-npm run build
-su - ayaan -c "pm2 reload all"
+
+# Instant atomic rollback to previous known-good release
+./scripts/deploy-production.sh --rollback
 ```
+
 > [!CAUTION]
 > **Never** execute database rollback (`migrate:rollback`) unless a migration was explicitly reviewed and confirmed to have a reversible, non-destructive `down()` method.
+
