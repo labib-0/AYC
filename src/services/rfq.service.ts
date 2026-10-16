@@ -14,6 +14,30 @@ export function generateRfqNumber(): string {
 }
 
 function mapBackendQuoteToRfq(q: any): RfqRecord {
+  let approvalNote = q.approval_note || q.approvalNote;
+  let approvedBy = q.approved_by || q.approvedBy;
+  let approvedAt = q.approved_at || q.approvedAt;
+
+  if (!approvalNote && Array.isArray(q.history)) {
+    const approvedEvent = q.history.find((h: any) => h.status === "APPROVED");
+    if (approvedEvent) {
+      approvalNote = approvedEvent.note;
+      approvedBy = approvedBy || approvedEvent.actorName;
+      approvedAt = approvedAt || approvedEvent.createdAt;
+    }
+  }
+
+  if (!approvalNote && Array.isArray(q.messages)) {
+    const adminMsg = [...q.messages].reverse().find((m: any) => m.senderRole === "admin" || m.sender_role === "admin");
+    if (adminMsg) {
+      const raw = adminMsg.message || "";
+      const cleaned = raw.replace(/^(Approval Note:\s*|Status changed to APPROVED\.\s*|Status changed to REJECTED\.\s*)/, "");
+      approvalNote = cleaned || raw;
+      approvedBy = approvedBy || adminMsg.senderName || adminMsg.sender_name;
+      approvedAt = approvedAt || adminMsg.createdAt || adminMsg.created_at;
+    }
+  }
+
   return {
     id: String(q.id),
     rfqNumber: q.rfq_number || q.rfqNumber || `RFQ-${q.id}`,
@@ -65,6 +89,10 @@ function mapBackendQuoteToRfq(q: any): RfqRecord {
         ],
     createdAt: q.created_at || q.createdAt || new Date().toISOString(),
     updatedAt: q.updated_at || q.updatedAt || new Date().toISOString(),
+    quotationId: q.quotations?.[0]?.id ? String(q.quotations[0].id) : (q.latest_quotation?.id ? String(q.latest_quotation.id) : q.quotationId),
+    approvalNote: approvalNote || undefined,
+    approvedBy: approvedBy || undefined,
+    approvedAt: approvedAt || undefined,
   };
 }
 

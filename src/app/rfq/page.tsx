@@ -138,7 +138,7 @@ export default function RfqPage() {
         finalItems = [
           {
             id: `item_custom_${Date.now()}`,
-            productId: "custom-garment",
+            productId: "",
             productName: customItemName.trim(),
             productSlug: "custom-garment-order",
             brand: "Custom OEM/ODM",
@@ -153,12 +153,18 @@ export default function RfqPage() {
         ];
       } else {
         setErrorMsg("Please add at least one product or specify your custom garment requirement.");
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
         return;
       }
     }
 
     if (!buyerName.trim() || !buyerEmail.trim() || !companyName.trim() || !destinationCity.trim()) {
       setErrorMsg("Please fill in all required fields (Name, Email, Company, Destination City).");
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       return;
     }
 
@@ -714,6 +720,12 @@ export default function RfqPage() {
 
               {/* Submit CTA */}
               <div className="pt-4 border-t border-border/60">
+                {errorMsg && (
+                  <div className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-sans font-medium flex items-center gap-2">
+                    <AlertTriangle size={15} className="shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
                 <button
                   type="submit"
                   disabled={isSubmitting || (rfqItems.length === 0 && !customItemName.trim())}

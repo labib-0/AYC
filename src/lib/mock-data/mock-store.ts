@@ -628,10 +628,12 @@ class MockStore {
     rfq.status = status;
     rfq.updatedAt = new Date().toISOString();
 
-    if (status === "APPROVED") {
+    if (status === "APPROVED" || status === "REJECTED") {
       rfq.approvalNote = note !== undefined ? note : (rfq.approvalNote || "");
-      rfq.approvedBy = actorName || rfq.approvedBy || "Administrator";
-      rfq.approvedAt = new Date().toISOString();
+      if (status === "APPROVED") {
+        rfq.approvedBy = actorName || rfq.approvedBy || "Administrator";
+        rfq.approvedAt = new Date().toISOString();
+      }
     }
 
     if (!rfq.history) rfq.history = [];

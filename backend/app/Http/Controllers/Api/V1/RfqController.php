@@ -202,8 +202,16 @@ class RfqController extends ApiController
 
         if (is_array($rawItems)) {
             foreach ($rawItems as $item) {
+                $rawProductId = $item['product_id'] ?? $item['productId'] ?? null;
+                $cleanProductId = null;
+                if (!empty($rawProductId) && is_numeric($rawProductId) && (int) $rawProductId > 0) {
+                    if (\App\Models\Product::where('id', (int) $rawProductId)->exists()) {
+                        $cleanProductId = (int) $rawProductId;
+                    }
+                }
+
                 $formattedItems[] = [
-                    'product_id' => $item['product_id'] ?? $item['productId'] ?? null,
+                    'product_id' => $cleanProductId,
                     'product_name' => $item['product_name'] ?? $item['productName'] ?? 'Requested Garment',
                     'product_slug' => $item['product_slug'] ?? $item['productSlug'] ?? null,
                     'brand' => $item['brand'] ?? 'Ayaan',

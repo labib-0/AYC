@@ -35,7 +35,7 @@ const FILTER_TABS: { key: RfqFilter; label: string }[] = [
   { key: "submitted", label: "Submitted" },
   { key: "under_review", label: "Under Review" },
   { key: "quoted", label: "Quoted" },
-  { key: "accepted", label: "Accepted" },
+  { key: "accepted", label: "Approved / Accepted" },
   { key: "rejected", label: "Rejected" },
   { key: "closed", label: "Closed" },
 ];
@@ -72,12 +72,13 @@ function getStatusBadge(status: RfqStatus) {
           <span>NEGOTIATION</span>
         </span>
       );
+    case "APPROVED":
     case "ACCEPTED":
     case "CONVERTED_TO_ORDER":
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.6875rem] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50">
           <CheckCircle2 size={11} />
-          <span>ACCEPTED</span>
+          <span>{status === "APPROVED" ? "APPROVED" : "ACCEPTED"}</span>
         </span>
       );
     case "REJECTED":
@@ -163,7 +164,7 @@ export default function CustomerRfqListPage() {
           Boolean(rfq.quotationId)
         );
       case "accepted":
-        return rfq.status === "ACCEPTED" || rfq.status === "CONVERTED_TO_ORDER";
+        return rfq.status === "APPROVED" || rfq.status === "ACCEPTED" || rfq.status === "CONVERTED_TO_ORDER";
       case "rejected":
         return rfq.status === "REJECTED";
       case "closed":

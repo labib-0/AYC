@@ -29,6 +29,15 @@ export function isRfqApproved(status?: string): boolean {
   ].includes(s);
 }
 
+/**
+ * Determine if the RFQ status represents a rejected state.
+ */
+export function isRfqRejected(status?: string): boolean {
+  if (!status) return false;
+  const s = status.toUpperCase();
+  return ["REJECTED", "CANCELLED", "DECLINED"].includes(s);
+}
+
 export interface RfqSummaryMetrics {
   totalRfqs: number;
   pending: number;

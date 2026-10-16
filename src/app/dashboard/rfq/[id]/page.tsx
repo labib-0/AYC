@@ -72,12 +72,13 @@ function getStatusBadge(status: RfqStatus) {
           <span>IN NEGOTIATION</span>
         </span>
       );
+    case "APPROVED":
     case "ACCEPTED":
     case "CONVERTED_TO_ORDER":
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50">
           <CheckCircle2 size={12} />
-          <span>ACCEPTED</span>
+          <span>{status === "APPROVED" ? "APPROVED" : "ACCEPTED"}</span>
         </span>
       );
     case "REJECTED":
@@ -342,6 +343,44 @@ export default function CustomerRfqDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* ─── 1.5. ADMINISTRATIVE STATUS / DECISION NOTE ──────────────────────── */}
+      {(rfq.status === "APPROVED" || rfq.status === "REJECTED" || Boolean(rfq.approvalNote)) && (
+        <div
+          className={`rounded-2xl p-4 sm:p-5 border flex items-start gap-3.5 shadow-2xs ${
+            rfq.status === "REJECTED"
+              ? "bg-rose-50/80 dark:bg-rose-950/20 border-rose-200/80 dark:border-rose-800/40 text-rose-900 dark:text-rose-200"
+              : "bg-emerald-50/80 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-800/40 text-emerald-900 dark:text-emerald-200"
+          }`}
+        >
+          {rfq.status === "REJECTED" ? (
+            <XCircle size={20} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+          ) : (
+            <CheckCircle2 size={20} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          )}
+          <div className="space-y-1">
+            <h2 className="text-xs font-bold uppercase tracking-wider">
+              {rfq.status === "REJECTED" ? "Inquiry Status: Rejected" : "Inquiry Status: Approved"}
+            </h2>
+            {rfq.approvalNote ? (
+              <p className="text-xs leading-relaxed opacity-90">
+                <span className="font-semibold">Note from Export Administration:</span> &ldquo;{rfq.approvalNote}&rdquo;
+              </p>
+            ) : (
+              <p className="text-xs leading-relaxed opacity-90">
+                {rfq.status === "REJECTED"
+                  ? "This commercial inquiry could not be accommodated at this time."
+                  : "Your quotation request has been officially approved. Our export team is preparing your commercial proposal."}
+              </p>
+            )}
+            {rfq.approvedAt && (
+              <p className="text-[10px] font-mono opacity-70">
+                Decision recorded on {new Date(rfq.approvedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ─── 2. REQUEST INFORMATION ─────────────────────────────────────────── */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xs">
