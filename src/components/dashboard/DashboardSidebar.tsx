@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Package,
   FileText,
-  RefreshCw,
   FolderOpen,
   MapPin,
   Building2,
@@ -36,7 +35,6 @@ const BUYING_NAV: NavItem[] = [
   { label: "Orders", href: "/dashboard/orders", icon: Package, exact: false },
   { label: "Saved Items", href: "/dashboard/wishlist", icon: Heart, exact: false },
   { label: "RFQ", href: "/dashboard/rfq", icon: FileText, exact: false },
-  { label: "Quick Reorder", href: "/dashboard/reorder", icon: RefreshCw, exact: false },
 ];
 
 const ACCOUNT_NAV: NavItem[] = [

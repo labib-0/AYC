@@ -133,18 +133,11 @@ export default function CustomerOrdersPage() {
             Wholesale Orders
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Monitor production, export shipments, invoices, and reorder previous lots
+            Monitor production, export shipments, invoices, and delivery tracking
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-center">
-          <Link
-            href="/dashboard/reorder"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100 transition-colors"
-          >
-            <RotateCcw size={13} />
-            <span>Quick Reorder</span>
-          </Link>
           <Link
             href="/search"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-xs"

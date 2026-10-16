@@ -2,21 +2,23 @@
 
 import React from "react";
 import Link from "next/link";
-import { Package, FileText, RefreshCw, ArrowRight } from "lucide-react";
+import { Package, FileText, FolderOpen, ArrowRight } from "lucide-react";
 
 interface KPICardsProps {
   ordersCount: number;
   quotesCount: number;
-  reorderCount: number;
+  documentsCount?: number;
   loading?: boolean;
 }
 
 export function DashboardKPICards({
   ordersCount,
   quotesCount,
-  reorderCount,
+  documentsCount,
   loading = false,
 }: KPICardsProps) {
+  const resolvedDocsCount = documentsCount ?? ordersCount;
+
   const cards = [
     {
       title: "Orders",
@@ -39,14 +41,14 @@ export function DashboardKPICards({
       cta: "Review requests & quotes",
     },
     {
-      title: "Reorder Ready",
-      value: reorderCount,
-      label: reorderCount === 1 ? "Purchased Product" : "Purchased Products",
-      href: "/dashboard/reorder",
-      icon: RefreshCw,
+      title: "Documents",
+      value: resolvedDocsCount,
+      label: resolvedDocsCount === 1 ? "Commercial Document" : "Commercial Documents",
+      href: "/dashboard/documents",
+      icon: FolderOpen,
       iconBg: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400",
       accent: "hover:border-emerald-300 dark:hover:border-emerald-700",
-      cta: "Fast replenishment",
+      cta: "Access PI, CI & Invoices",
     },
   ];
 

@@ -30,6 +30,11 @@ const nextConfig: NextConfig = {
         destination: "/dashboard/quotes",
         permanent: false,
       },
+      {
+        source: "/dashboard/reorder",
+        destination: "/dashboard/orders",
+        permanent: false,
+      },
     ];
   },
   async rewrites() {

@@ -376,5 +376,110 @@ class PaymentReceiptVerificationWorkflowTest extends TestCase
         $this->assertEquals('TXN-ADMIN-CONFIRMED-88', $fresh->payment_details['transaction_id']);
         $this->assertNotNull($fresh->payment_details['receipt_url']);
     }
+
+    public function test_receipt_upload_with_file_only_succeeds(): void
+    {
+        $file = UploadedFile::fake()->image('slip_only.jpg', 600, 800);
+
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->post("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.payment_status', 'payment_submitted');
+
+        $fresh = $this->order->fresh();
+        $this->assertNotNull($fresh->payment_proof_url);
+    }
+
+    public function test_admin_can_update_payment_receipt_directly(): void
+    {
+        $file = UploadedFile::fake()->create('admin_proof.pdf', 300, 'application/pdf');
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->post("/api/v1/admin/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file,
+                'notes' => 'Admin audited receipt attachment.',
+            ]);
+
+        $response->assertOk();
+        $fresh = $this->order->fresh();
+        $this->assertNotNull($fresh->payment_proof_url);
+        // Order status must NOT automatically become paid
+        $this->assertEquals('pending', $fresh->status);
+        $this->assertNotEquals('paid', $fresh->payment_status);
+    }
+
+    public function test_receipt_upload_rejects_invalid_file_extension(): void
+    {
+        $file = UploadedFile::fake()->create('malicious.exe', 100, 'application/x-msdownload');
+
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['receipt']);
+    }
+
+    public function test_receipt_upload_rejects_oversized_file(): void
+    {
+        // 11MB is larger than 10240KB limit
+        $file = UploadedFile::fake()->create('huge_slip.pdf', 11500, 'application/pdf');
+
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['receipt']);
+    }
+
+    public function test_receipt_update_cleans_up_old_receipt_file_safely(): void
+    {
+        $file1 = UploadedFile::fake()->image('old_slip.jpg');
+        $this->actingAs($this->customer, 'sanctum')
+            ->post("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file1,
+            ])->assertOk();
+
+        $fresh = $this->order->fresh();
+        $oldPath = $fresh->payment_details['receipt_path'] ?? null;
+        $this->assertNotNull($oldPath);
+        Storage::disk('public')->assertExists($oldPath);
+
+        // Upload replacement
+        $file2 = UploadedFile::fake()->image('new_slip.png');
+        $this->actingAs($this->customer, 'sanctum')
+            ->post("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file2,
+            ])->assertOk();
+
+        $fresh2 = $this->order->fresh();
+        $newPath = $fresh2->payment_details['receipt_path'] ?? null;
+        $this->assertNotNull($newPath);
+        $this->assertNotEquals($oldPath, $newPath);
+
+        Storage::disk('public')->assertExists($newPath);
+        Storage::disk('public')->assertMissing($oldPath);
+    }
+
+    public function test_receipt_update_does_not_modify_inventory_or_mark_order_confirmed(): void
+    {
+        $product = Product::first();
+        $initialStock = $product->stock;
+
+        $file = UploadedFile::fake()->image('slip.jpg');
+        $this->actingAs($this->customer, 'sanctum')
+            ->post("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file,
+            ])->assertOk();
+
+        $this->assertEquals($initialStock, $product->fresh()->stock);
+        $this->assertEquals('pending', $this->order->fresh()->status);
+    }
 }
 

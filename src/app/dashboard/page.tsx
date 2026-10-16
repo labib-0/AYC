@@ -10,7 +10,6 @@ import { DashboardKPICards } from "@/components/dashboard/DashboardKPICards";
 import { DashboardQuickActions } from "@/components/dashboard/DashboardQuickActions";
 import { DashboardRecentOrders } from "@/components/dashboard/DashboardRecentOrders";
 import { DashboardOpenRfqs } from "@/components/dashboard/DashboardOpenRfqs";
-import { DashboardReorderPreview } from "@/components/dashboard/DashboardReorderPreview";
 
 export default function DashboardOverviewPage() {
   const { user } = useAuth();
@@ -64,17 +63,6 @@ export default function DashboardOverviewPage() {
     };
   }, [user]);
 
-  // Calculate unique past-ordered products for Reorder count
-  const uniquePurchasedProductIds = new Set<string>();
-  for (const o of orders) {
-    if (o.items) {
-      for (const item of o.items) {
-        if (item.product_id) uniquePurchasedProductIds.add(String(item.product_id));
-        else if (item.product_name) uniquePurchasedProductIds.add(item.product_name);
-      }
-    }
-  }
-
   // Calculate open / active quotes & RFQs (non-terminal status)
   const activeQuotesCount = rfqs.filter(
     (r) => r.status !== "REJECTED" && r.status !== "CANCELLED"
@@ -89,15 +77,11 @@ export default function DashboardOverviewPage() {
       <DashboardKPICards
         ordersCount={orders.length}
         quotesCount={activeQuotesCount}
-        reorderCount={uniquePurchasedProductIds.size}
         loading={loading}
       />
 
       {/* Quick Actions Shortcuts */}
       <DashboardQuickActions />
-
-      {/* Reorder Shelf Preview (if user has orders) */}
-      <DashboardReorderPreview orders={orders} />
 
       {/* Recent Orders Grid/Table */}
       <DashboardRecentOrders orders={orders} loading={loading} />

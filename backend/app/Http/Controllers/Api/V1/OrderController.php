@@ -22,6 +22,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class OrderController extends ApiController
@@ -882,11 +883,23 @@ class OrderController extends ApiController
             return $this->notFound('Order not found');
         }
 
-        if ($order->user_id !== $user->id && $user->role !== 'admin') {
-            return $this->forbidden();
+        $isAdmin = $user->isAdmin() || $user->role === 'admin';
+        if ($order->user_id !== $user->id && !$isAdmin) {
+            return $this->forbidden('You are not authorized to update payment proof for this order.');
         }
 
-        if (strtolower((string) $order->payment_status) === 'paid' || $order->payment_confirmed_at !== null) {
+        if ($isAdmin) {
+            $authorization = app(\App\Services\Rbac\AdminAuthorizationService::class);
+            if (!$user->isSuperAdmin() && !$authorization->can($user, 'payment.receipt.verify') && !$authorization->can($user, 'order.edit')) {
+                return $this->forbidden("Forbidden: you do not have permission to update payment receipts.");
+            }
+        }
+
+        if (in_array(strtolower((string) $order->status), ['cancelled', 'refunded'], true)) {
+            return $this->error("Order #{$order->order_number} is {$order->status} and payment receipt cannot be updated.", 422);
+        }
+
+        if (!$isAdmin && (strtolower((string) $order->payment_status) === 'paid' || $order->payment_confirmed_at !== null)) {
             return $this->error('Order payment has already been approved and confirmed. Resubmission is not permitted.', 422);
         }
 
@@ -903,40 +916,35 @@ class OrderController extends ApiController
             'notes'           => ['nullable', 'string', 'max:1000'],
         ]);
 
-        // ─── Resolve payment_details ─────────────────────────────────────────
-        // Primary field: payment_details (mandatory, trimmed non-empty).
-        // Backward-compat synthesis: if payment_details absent, build from legacy
-        // transaction_id / notes / bank_name so older tests stay green.
+        $hasFile = $request->hasFile('receipt');
         $rawPaymentDetails = $request->input('payment_details');
-        if ($rawPaymentDetails !== null) {
-            // Explicit field present — must be a non-blank string.
-            if (!is_string($rawPaymentDetails) || trim($rawPaymentDetails) === '') {
-                return $this->error('Please enter your payment details before submitting.', 422);
-            }
-            $resolvedPaymentDetails = trim($rawPaymentDetails);
+        $existingDetails = is_array($order->payment_details) ? $order->payment_details : (json_decode($order->payment_details, true) ?: []);
+
+        // ─── Resolve payment_details safely ──────────────────────────────────
+        if ($rawPaymentDetails !== null && trim((string) $rawPaymentDetails) !== '') {
+            $resolvedPaymentDetails = trim((string) $rawPaymentDetails);
+        } elseif ($rawPaymentDetails !== null && trim((string) $rawPaymentDetails) === '' && !$hasFile) {
+            return $this->error('Please enter your payment details before submitting.', 422);
         } else {
-            // payment_details key absent — synthesise from legacy fields.
-            $legacyTxn  = trim((string) ($request->input('transaction_id') ?? ''));
-            $legacyNotes = trim((string) ($request->input('notes') ?? ''));
-            $legacyBank  = trim((string) ($request->input('bank_name') ?? ''));
-            if ($legacyTxn === '' && $legacyNotes === '' && $legacyBank === '') {
-                // No file and no textual evidence at all.
-                if (!$request->hasFile('receipt')) {
-                    return $this->error('Please enter your payment details before submitting.', 422);
-                }
-                // File only — synthesise a minimal description.
-                $resolvedPaymentDetails = 'Payment receipt attached.';
-            } else {
+            $legacyTxn  = trim((string) ($request->input('transaction_id') ?? ($existingDetails['transaction_id'] ?? '')));
+            $legacyNotes = trim((string) ($request->input('notes') ?? ($existingDetails['notes'] ?? '')));
+            $legacyBank  = trim((string) ($request->input('bank_name') ?? ($existingDetails['bank_name'] ?? '')));
+
+            if ($legacyTxn !== '' || $legacyNotes !== '' || $legacyBank !== '') {
                 $parts = array_filter([
                     $legacyTxn  ? "Transaction Ref: {$legacyTxn}"  : null,
-                    $legacyBank ? "Bank: {$legacyBank}"              : null,
+                    $legacyBank ? "Bank: {$legacyBank}"            : null,
                     $legacyNotes ?: null,
                 ]);
                 $resolvedPaymentDetails = implode(' | ', $parts);
+            } elseif ($hasFile) {
+                $resolvedPaymentDetails = $existingDetails['payment_details'] ?? 'Payment receipt attached.';
+            } elseif (!empty($existingDetails['payment_details'])) {
+                $resolvedPaymentDetails = $existingDetails['payment_details'];
+            } else {
+                return $this->error('Please enter your payment details before submitting.', 422);
             }
         }
-
-        $hasFile = $request->hasFile('receipt');
 
         $path = null;
         $url = null;
@@ -946,46 +954,113 @@ class OrderController extends ApiController
         if ($hasFile) {
             $file = $request->file('receipt');
             $path = $file->store('order-receipts', 'public');
+            if (!$path) {
+                return $this->error('Failed to store uploaded receipt file. Please try again.', 500);
+            }
             $url = asset('storage/' . $path);
             $originalName = $file->getClientOriginalName();
             $mimeType = $file->getClientMimeType();
+
+            // Safe cleanup: Only remove the previously stored receipt if it points to order-receipts/
+            // and is NOT referenced by any other order or payment record.
+            $oldUrl = $order->payment_proof_url;
+            if ($oldUrl && $oldUrl !== $url) {
+                $oldRelativePath = null;
+                if (str_contains($oldUrl, 'storage/order-receipts/')) {
+                    $oldRelativePath = 'order-receipts/' . basename(parse_url($oldUrl, PHP_URL_PATH));
+                }
+                if ($oldRelativePath && Storage::disk('public')->exists($oldRelativePath)) {
+                    $otherOrder = Order::where('id', '!=', $order->id)->where('payment_proof_url', $oldUrl)->exists();
+                    $otherPayment = Payment::where('order_id', '!=', $order->id)
+                        ->where(function ($q) use ($oldRelativePath, $oldUrl) {
+                            $q->where('receipt_path', $oldRelativePath)->orWhere('receipt_url', $oldUrl);
+                        })->exists();
+                    if (!$otherOrder && !$otherPayment) {
+                        Storage::disk('public')->delete($oldRelativePath);
+                    }
+                }
+            }
         }
 
-        $paymentMethod = $request->input('payment_method') ?: ($order->payment_method ?: 'bank_transfer');
-        $transactionId = $request->input('transaction_id') ?: ($order->order_number . '_PAY_' . strtoupper(Str::random(6)));
-        $paymentAmount = $request->filled('payment_amount') ? (float) $request->input('payment_amount') : (float) $order->total_amount;
-        $paymentDate = $request->input('payment_date') ?: now()->toDateString();
-        $payerName = $request->input('payer_name') ?: $order->shipping_name;
-        $bankName = $request->input('bank_name');
-        $accountNumber = $request->input('account_number');
-        // Merge raw notes with resolved payment details so admin always sees the submission summary.
-        $notes = $request->input('notes') ?: $resolvedPaymentDetails;
+        $paymentMethod = $request->input('payment_method') ?: ($order->payment_method ?: ($existingDetails['payment_method'] ?? 'bank_transfer'));
+        $transactionId = $request->input('transaction_id') ?: ($existingDetails['transaction_id'] ?? ($order->order_number . '_PAY_' . strtoupper(Str::random(6))));
+        $paymentAmount = $request->filled('payment_amount') ? (float) $request->input('payment_amount') : (float) ($existingDetails['payment_amount'] ?? $order->total_amount);
+        $paymentDate = $request->input('payment_date') ?: ($existingDetails['payment_date'] ?? now()->toDateString());
+        $payerName = $request->input('payer_name') ?: ($existingDetails['payer_name'] ?? ($order->shipping_name ?: ($order->user?->name ?: 'Customer')));
+        $bankName = $request->input('bank_name') ?: ($existingDetails['bank_name'] ?? null);
+        $accountNumber = $request->input('account_number') ?: ($existingDetails['account_number'] ?? null);
+        $notes = $request->input('notes') ?: ($existingDetails['notes'] ?? $resolvedPaymentDetails);
 
-        // Create a new Payment record representing this submission attempt
-        $payment = Payment::create([
-            'order_id' => $order->id,
-            'customer_id' => $user->id,
-            'transaction_id' => $transactionId,
-            'provider' => $paymentMethod,
+        // Update or create Payment attempt record
+        $payment = $order->payments()->where('status', 'submitted')->latest()->first();
+        if ($payment) {
+            $paymentUpdates = [
+                'provider' => $paymentMethod,
+                'payment_method' => $paymentMethod,
+                'amount' => $paymentAmount,
+                'payer_name' => $payerName,
+                'bank_name' => $bankName,
+                'account_number' => $accountNumber,
+                'payment_date' => $paymentDate,
+                'notes' => $notes,
+                'submitted_at' => now(),
+            ];
+            if ($url) {
+                $paymentUpdates['receipt_path'] = $path;
+                $paymentUpdates['receipt_url'] = $url;
+                $paymentUpdates['receipt_original_name'] = $originalName;
+                $paymentUpdates['receipt_mime_type'] = $mimeType;
+            }
+            $payment->update($paymentUpdates);
+        } else {
+            $payment = Payment::create([
+                'order_id' => $order->id,
+                'customer_id' => $order->user_id,
+                'transaction_id' => $transactionId,
+                'provider' => $paymentMethod,
+                'payment_method' => $paymentMethod,
+                'amount' => $paymentAmount,
+                'currency' => $order->currency ?: 'USD',
+                'status' => 'submitted',
+                'receipt_path' => $path,
+                'receipt_url' => $url,
+                'receipt_original_name' => $originalName,
+                'receipt_mime_type' => $mimeType,
+                'payer_name' => $payerName,
+                'bank_name' => $bankName,
+                'account_number' => $accountNumber,
+                'payment_date' => $paymentDate,
+                'notes' => $notes,
+                'submitted_at' => now(),
+            ]);
+        }
+
+        // Merge snapshot into order's payment_details JSON
+        $updatedDetails = array_merge($existingDetails, [
             'payment_method' => $paymentMethod,
-            'amount' => $paymentAmount,
-            'currency' => $order->currency ?: 'USD',
-            'status' => 'submitted',
-            'receipt_path' => $path,
-            'receipt_url' => $url,
-            'receipt_original_name' => $originalName,
-            'receipt_mime_type' => $mimeType,
+            'transaction_id' => $transactionId,
             'payer_name' => $payerName,
             'bank_name' => $bankName,
             'account_number' => $accountNumber,
+            'payment_amount' => $paymentAmount,
+            'currency' => $order->currency ?: 'USD',
             'payment_date' => $paymentDate,
             'notes' => $notes,
-            'submitted_at' => now(),
+            'payment_details' => $resolvedPaymentDetails,
+            'submitted_at' => now()->toIso8601String(),
         ]);
+        if ($url) {
+            $updatedDetails['receipt_url'] = $url;
+            $updatedDetails['receipt_original_name'] = $originalName;
+            $updatedDetails['receipt_path'] = $path;
+        }
 
         $orderUpdate = [
-            'payment_status' => 'payment_submitted',
+            'payment_details' => $updatedDetails,
         ];
+        if (strtolower((string) $order->payment_status) !== 'paid') {
+            $orderUpdate['payment_status'] = 'payment_submitted';
+        }
         if ($url) {
             $orderUpdate['payment_proof_url'] = $url;
         }
@@ -994,9 +1069,10 @@ class OrderController extends ApiController
         }
         $order->update($orderUpdate);
 
+        $actorLabel = $isAdmin ? "Administrator ({$user->name})" : "Customer";
         $eventMessage = $originalName
-            ? "Buyer submitted payment receipt ('{$originalName}') & details. Awaiting admin verification."
-            : "Buyer submitted payment details without file attachment. Awaiting admin verification.";
+            ? "{$actorLabel} updated payment receipt ('{$originalName}') & details. Awaiting admin verification."
+            : "{$actorLabel} updated payment details. Awaiting admin verification.";
 
         OrderStatusEvent::create([
             'order_id' => $order->id,
@@ -1005,12 +1081,13 @@ class OrderController extends ApiController
             'message' => $eventMessage,
         ]);
 
-        // Requirement 8: Dispatch WAITING_FOR_APPROVAL lifecycle notification
-        $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_WAITING_FOR_APPROVAL);
+        if (strtolower((string) $order->payment_status) !== 'paid') {
+            $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_WAITING_FOR_APPROVAL);
+        }
 
         $order->load(['items', 'statusEvents', 'payments']);
 
-        return $this->success(new OrderResource($order), 'Payment receipt and details submitted successfully. Awaiting admin verification.');
+        return $this->success(new OrderResource($order), 'Payment receipt and details updated successfully.');
     }
 
     /**

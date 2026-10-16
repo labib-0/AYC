@@ -263,6 +263,69 @@ export class AdminOrderService {
     return order;
   }
 
+  /**
+   * Update or replace an order's payment receipt without approving payment or decrementing stock
+   */
+  async updatePaymentReceipt(
+    id: string | number,
+    file?: File | null,
+    details?: Partial<PaymentVerificationDetails>
+  ): Promise<OrderRecord> {
+    if (this.isApiEnabled) {
+      const formData = new FormData();
+      if (file) {
+        formData.append("receipt", file);
+      }
+      if (details?.payment_method) formData.append("payment_method", details.payment_method);
+      if (details?.transaction_id) formData.append("transaction_id", details.transaction_id);
+      if (details?.payer_name) formData.append("payer_name", details.payer_name);
+      if (details?.bank_name) formData.append("bank_name", details.bank_name);
+      if (details?.account_number) formData.append("account_number", details.account_number);
+      if (details?.payment_amount !== undefined) formData.append("payment_amount", String(details.payment_amount));
+      if (details?.payment_date) formData.append("payment_date", details.payment_date);
+      if (details?.note) formData.append("notes", details.note);
+
+      const res = await apiClient.post<any>(`/orders/${id}/payment-proof`, formData);
+      return (res?.data || res?.order || res) as OrderRecord;
+    }
+
+    const order = mockStore.getOrderById(String(id));
+    if (!order) throw new Error("Order not found");
+
+    if (file) {
+      order.payment_proof_url = typeof window !== "undefined" ? URL.createObjectURL(file) : "/placeholder.jpg";
+    }
+    const currentDetails = order.payment_details || {};
+    order.payment_details = {
+      ...currentDetails,
+      payment_method: details?.payment_method || currentDetails.payment_method || order.payment_method || "Bank Transfer",
+      transaction_id: details?.transaction_id || currentDetails.transaction_id || `TXN_${Date.now()}`,
+      payer_name: details?.payer_name || currentDetails.payer_name || order.shipping_name || "Customer",
+      bank_name: details?.bank_name || currentDetails.bank_name || "Pubali Bank Limited",
+      account_number: details?.account_number || currentDetails.account_number || "M/S AYAAN CLOTHING",
+      payment_amount: details?.payment_amount ?? currentDetails.payment_amount ?? order.total_amount,
+      payment_date: details?.payment_date || currentDetails.payment_date || new Date().toISOString().split("T")[0],
+      notes: details?.note || currentDetails.notes || "Receipt updated.",
+      receipt_url: order.payment_proof_url,
+    };
+    if (order.payment_status !== "paid") {
+      order.payment_status = "payment_submitted";
+    }
+    order.updated_at = new Date().toISOString();
+
+    if (!order.status_events) order.status_events = [];
+    order.status_events.push({
+      id: `ev_${Date.now()}`,
+      order_id: order.id,
+      event_type: "payment_proof_uploaded",
+      message: file ? `Admin updated payment receipt file (${file.name}).` : "Admin updated payment details.",
+      created_at: new Date().toISOString(),
+    });
+
+    mockStore.saveOrder(order);
+    return order;
+  }
+
   async createAramexShipment(id: number | string): Promise<{
     order: OrderRecord;
     tracking_number: string;

@@ -142,8 +142,6 @@ async function runTests() {
   const customerOrderDetailCode = readCode("src/app/profile/orders/[id]/page.tsx");
   const dashboardOrderDetailCode = readCode("src/app/dashboard/orders/[id]/page.tsx");
   const dashboardRfqDetailCode = readCode("src/app/dashboard/rfq/[id]/page.tsx");
-  const dashboardReorderCode = readCode("src/app/dashboard/reorder/page.tsx");
-  const dashboardPreviewCode = readCode("src/components/dashboard/DashboardReorderPreview.tsx");
 
   assert(
     miniCartCode.includes("aspect-[3/4]") && miniCartCode.includes("object-contain"),
@@ -188,16 +186,6 @@ async function runTests() {
   assert(
     dashboardRfqDetailCode.includes("aspect-[3/4]") && dashboardRfqDetailCode.includes("object-contain"),
     "Dashboard RFQ detail uses aspect-[3/4] object-contain"
-  );
-
-  assert(
-    dashboardReorderCode.includes("aspect-[3/4]") && !dashboardReorderCode.includes("aspect-[4/5]"),
-    "Dashboard reorder page and skeleton use aspect-[3/4]"
-  );
-
-  assert(
-    dashboardPreviewCode.includes("aspect-[3/4]") && dashboardPreviewCode.includes("object-contain"),
-    "Dashboard 1-click reorder preview uses aspect-[3/4] object-contain"
   );
 
   // ──────────────────────────────────────────────────────────────────────────

@@ -222,7 +222,7 @@ export async function uploadPaymentProof(
 
     const res = await apiClient.post<any>(`/orders/${orderId}/payment-proof`, formData);
     const orderData = res?.data || res?.order || res;
-    const url = res?.url || res?.data?.url || (file && typeof window !== "undefined" ? URL.createObjectURL(file) : "");
+    const url = orderData?.payment_proof_url || res?.url || res?.data?.url || (file && typeof window !== "undefined" ? URL.createObjectURL(file) : "");
     const key = res?.key || res?.data?.key || file?.name || `proof_${orderId}`;
 
     return {

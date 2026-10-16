@@ -16,8 +16,11 @@ import {
   Clock,
   Check,
   Calendar,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { adminOrderService } from "@/services/admin";
 
 export interface PaymentVerificationDetails {
   payment_method?: string;
@@ -35,6 +38,7 @@ export interface OrderPaymentInventoryCardProps {
   order: OrderRecord;
   onApprove: (details: PaymentVerificationDetails) => Promise<void>;
   onReject: (note: string) => Promise<void>;
+  onReceiptUpdated?: (updatedOrder: OrderRecord) => void;
   isLoading?: boolean;
 }
 
@@ -63,6 +67,80 @@ export default function OrderPaymentInventoryCard({
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 3));
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 0.5));
   const handleZoomReset = () => setZoomLevel(1);
+
+  // Receipt Replacement / Update Modal State
+  const [showReplaceReceiptModal, setShowReplaceReceiptModal] = useState(false);
+  const [replacementFile, setReplacementFile] = useState<File | null>(null);
+  const [replacementTxnId, setReplacementTxnId] = useState("");
+  const [replacementBank, setReplacementBank] = useState("");
+  const [replacementNotes, setReplacementNotes] = useState("");
+  const [isUploadingReplacement, setIsUploadingReplacement] = useState(false);
+  const [replacementError, setReplacementError] = useState<string | null>(null);
+  const [replacementSuccess, setReplacementSuccess] = useState<string | null>(null);
+  const replacementInputRef = useRef<HTMLInputElement>(null);
+
+  const handleReplacementFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setReplacementFile(null);
+      return;
+    }
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      setReplacementError("File exceeds 10MB limit. Please upload a smaller image or PDF.");
+      e.target.value = "";
+      setReplacementFile(null);
+      return;
+    }
+    const validMimes = ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"];
+    const extMatch = file.name.match(/\.(jpg|jpeg|png|webp|pdf)$/i);
+    if (!validMimes.includes(file.type.toLowerCase()) && !extMatch) {
+      setReplacementError("Invalid file type. Allowed formats: JPG, PNG, WebP, PDF.");
+      e.target.value = "";
+      setReplacementFile(null);
+      return;
+    }
+    setReplacementError(null);
+    setReplacementFile(file);
+  };
+
+  const handleReplaceReceiptSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const hasExisting = Boolean(order.payment_proof_url || order.payment_details?.payment_details);
+    if (!replacementFile && !replacementTxnId.trim() && !replacementNotes.trim() && !hasExisting) {
+      setReplacementError("Please select a receipt file or provide transaction details.");
+      return;
+    }
+
+    setIsUploadingReplacement(true);
+    setReplacementError(null);
+    setReplacementSuccess(null);
+
+    try {
+      const updated = await adminOrderService.updatePaymentReceipt(order.id, replacementFile, {
+        payment_method: paymentMethod,
+        transaction_id: replacementTxnId.trim() || undefined,
+        bank_name: replacementBank.trim() || undefined,
+        note: replacementNotes.trim() || undefined,
+      });
+
+      setReplacementSuccess("Payment receipt updated successfully!");
+      setReplacementFile(null);
+      setTimeout(() => {
+        setShowReplaceReceiptModal(false);
+        setReplacementSuccess(null);
+      }, 1200);
+
+      if (onReceiptUpdated) {
+        onReceiptUpdated(updated);
+      }
+    } catch (err: any) {
+      console.error("Receipt replacement error:", err);
+      setReplacementError(err.message || "Failed to update payment receipt.");
+    } finally {
+      setIsUploadingReplacement(false);
+    }
+  };
 
   const isPaid =
     order.payment_status === "paid" ||
@@ -302,6 +380,15 @@ export default function OrderPaymentInventoryCard({
                   <FileCheck size={13} />
                   <span>Inspect Verified Receipt Proof</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowReplaceReceiptModal(true); setReplacementError(null); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-xs font-bold text-foreground transition-colors cursor-pointer"
+                  id="btn-admin-replace-paid-receipt"
+                >
+                  <Upload size={12} className="text-primary" />
+                  <span>Update Receipt</span>
+                </button>
               </div>
             )}
           </div>
@@ -357,6 +444,17 @@ export default function OrderPaymentInventoryCard({
                     Reject Receipt
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => { setShowReplaceReceiptModal(true); setReplacementError(null); }}
+                  disabled={isLoading}
+                  className="px-3.5 py-2 rounded-xl border border-border text-foreground hover:bg-secondary font-bold uppercase tracking-wider text-xs transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  id="btn-admin-replace-receipt"
+                >
+                  <Upload size={13} className="text-primary" />
+                  <span>Replace / Update Receipt</span>
+                </button>
               </div>
             )}
 
@@ -591,6 +689,17 @@ export default function OrderPaymentInventoryCard({
                 >
                   <CheckCircle2 size={14} />
                   <span>Record Direct Payment &amp; Approve</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setShowReplaceReceiptModal(true); setReplacementError(null); }}
+                  disabled={isLoading}
+                  className="px-3.5 py-2 rounded-xl border border-border text-foreground hover:bg-secondary font-bold uppercase tracking-wider text-xs transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  id="btn-admin-attach-receipt"
+                >
+                  <Upload size={13} className="text-primary" />
+                  <span>Attach / Update Receipt Proof</span>
                 </button>
               </div>
             )}
@@ -961,6 +1070,156 @@ export default function OrderPaymentInventoryCard({
               <span>Zoom: {Math.round(zoomLevel * 100)}%</span>
               <span className="font-mono truncate max-w-xs">{receiptUrl}</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Modal for Updating / Replacing Payment Receipt */}
+      {showReplaceReceiptModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                  <Upload size={16} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-foreground">
+                    {order.payment_proof_url ? "Update Payment Receipt Proof" : "Attach Payment Receipt Proof"}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">Order #{order.order_number}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReplaceReceiptModal(false);
+                  setReplacementFile(null);
+                  setReplacementError(null);
+                }}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleReplaceReceiptSubmit} className="p-5 space-y-4 text-xs">
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Upload an updated receipt image or document (JPG, PNG, WebP, PDF up to 10MB).
+                This persists the receipt reference safely without automatically marking the order as paid or decrementing inventory.
+              </p>
+
+              {/* File Input */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  Select Receipt File <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="file"
+                  ref={replacementInputRef}
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={handleReplacementFileChange}
+                  className="w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary file:text-primary-foreground hover:file:opacity-90 cursor-pointer"
+                  id="admin-replacement-file-input"
+                />
+                {replacementFile && (
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                    Selected: {replacementFile.name} ({(replacementFile.size / 1024).toFixed(0)} KB)
+                  </p>
+                )}
+              </div>
+
+              {/* Optional Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                    Transaction / Wire Ref
+                  </label>
+                  <input
+                    type="text"
+                    value={replacementTxnId}
+                    onChange={(e) => setReplacementTxnId(e.target.value)}
+                    placeholder={order.payment_details?.transaction_id || "e.g. TXN-123456"}
+                    className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs font-mono outline-hidden focus:ring-1 focus:ring-primary"
+                    id="admin-replacement-txnid-input"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                    Bank / Channel
+                  </label>
+                  <input
+                    type="text"
+                    value={replacementBank}
+                    onChange={(e) => setReplacementBank(e.target.value)}
+                    placeholder={order.payment_details?.bank_name || "e.g. Pubali Bank Limited"}
+                    className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs outline-hidden focus:ring-1 focus:ring-primary"
+                    id="admin-replacement-bank-input"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                  Audit / Admin Notes
+                </label>
+                <input
+                  type="text"
+                  value={replacementNotes}
+                  onChange={(e) => setReplacementNotes(e.target.value)}
+                  placeholder="e.g. Customer resent clear slip via WhatsApp support"
+                  className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs outline-hidden focus:ring-1 focus:ring-primary"
+                  id="admin-replacement-notes-input"
+                />
+              </div>
+
+              {replacementError && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-1.5">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  <span>{replacementError}</span>
+                </div>
+              )}
+
+              {replacementSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5 font-medium">
+                  <Check size={14} className="shrink-0" />
+                  <span>{replacementSuccess}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                <button
+                  type="button"
+                  disabled={isUploadingReplacement}
+                  onClick={() => {
+                    setShowReplaceReceiptModal(false);
+                    setReplacementFile(null);
+                    setReplacementError(null);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-border hover:bg-secondary text-xs font-bold text-muted-foreground cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUploadingReplacement || (!replacementFile && !replacementTxnId.trim() && !replacementNotes.trim())}
+                  className="px-5 py-2 rounded-xl bg-primary text-primary-foreground font-bold uppercase tracking-wider text-xs hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  id="btn-admin-submit-replace-receipt"
+                >
+                  {isUploadingReplacement ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={13} />
+                      <span>Save Receipt Proof</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

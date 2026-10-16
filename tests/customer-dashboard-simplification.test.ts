@@ -2,14 +2,15 @@ import fs from "fs";
 import path from "path";
 
 /**
- * CUSTOMER DASHBOARD SIMPLIFICATION & REDUNDANCY CLEANUP AUDIT SUITE
+ * CUSTOMER DASHBOARD SIMPLIFICATION & REORDER REMOVAL AUDIT SUITE
  *
  * Verifies that the Customer Dashboard has been streamlined:
- * - Redundant entry points, cards, and duplicate actions removed.
- * - Sourcing workflows consolidated: Orders, RFQ, Quick Reorder.
- * - Primary KPI cards reduced to Orders, Active RFQs, and Reorder Ready.
- * - Quick Actions consolidated to Request RFQ and Quick Reorder.
- * - Sidebar and Mobile Nav updated to clean hierarchical grouping.
+ * - Customer Reorder / Order Same Product feature is completely removed.
+ * - Sourcing workflows consolidated: Orders, Saved Items, RFQ.
+ * - Primary KPI cards: Orders, Active RFQs, Documents.
+ * - Quick Actions: Request RFQ and Explore Catalog.
+ * - Sidebar and Mobile Nav contain no reorder links.
+ * - Reorder preview component and /dashboard/reorder route do not exist.
  * - Underlying business logic, quotation detail routes, and catalog accessibility preserved.
  */
 function runTests() {
@@ -41,6 +42,7 @@ function runTests() {
   const recentOrdersPath = path.join(cwd, "src/components/dashboard/DashboardRecentOrders.tsx");
   const openRfqsPath = path.join(cwd, "src/components/dashboard/DashboardOpenRfqs.tsx");
   const reorderPreviewPath = path.join(cwd, "src/components/dashboard/DashboardReorderPreview.tsx");
+  const reorderRoutePath = path.join(cwd, "src/app/dashboard/reorder");
   const overviewPagePath = path.join(cwd, "src/app/dashboard/page.tsx");
   const layoutPath = path.join(cwd, "src/app/dashboard/layout.tsx");
 
@@ -51,7 +53,6 @@ function runTests() {
   const mobileNavCode = fs.readFileSync(mobileNavPath, "utf-8");
   const recentOrdersCode = fs.readFileSync(recentOrdersPath, "utf-8");
   const openRfqsCode = fs.readFileSync(openRfqsPath, "utf-8");
-  const reorderPreviewCode = fs.readFileSync(reorderPreviewPath, "utf-8");
   const overviewCode = fs.readFileSync(overviewPagePath, "utf-8");
   const layoutCode = fs.readFileSync(layoutPath, "utf-8");
 
@@ -80,14 +81,14 @@ function runTests() {
     kpiCode.includes('href: "/dashboard/orders"') &&
     kpiCode.includes('title: "Active RFQs"') &&
     kpiCode.includes('href: "/dashboard/rfq"') &&
-    kpiCode.includes('title: "Reorder Ready"') &&
-    kpiCode.includes('href: "/dashboard/reorder"'),
-    "DashboardKPICards provides exactly 3 primary metrics: Orders, Active RFQs, Reorder Ready"
+    kpiCode.includes('title: "Documents"') &&
+    kpiCode.includes('href: "/dashboard/documents"'),
+    "DashboardKPICards provides primary metrics: Orders, Active RFQs, Documents"
   );
   assert(
-    !kpiCode.includes("Saved Wholesale Items") &&
-    !kpiCode.includes("Bookmark"),
-    "DashboardKPICards removes redundant 'Saved Wholesale Items' KPI"
+    !kpiCode.includes("Reorder Ready") &&
+    !kpiCode.includes("/dashboard/reorder"),
+    "DashboardKPICards removes obsolete 'Reorder Ready' metric and reorder href"
   );
   assert(
     kpiCode.includes("grid-cols-1 sm:grid-cols-3"),
@@ -101,14 +102,14 @@ function runTests() {
   assert(
     quickActionsCode.includes('title: "Request RFQ"') &&
     quickActionsCode.includes('href: "/rfq"') &&
-    quickActionsCode.includes('title: "Quick Reorder"') &&
-    quickActionsCode.includes('href: "/dashboard/reorder"'),
-    "DashboardQuickActions contains the two primary customer shortcuts: Request RFQ and Quick Reorder"
+    quickActionsCode.includes('title: "Explore Catalog"') &&
+    quickActionsCode.includes('href: "/products"'),
+    "DashboardQuickActions contains the primary customer shortcuts: Request RFQ and Explore Catalog"
   );
   assert(
-    !quickActionsCode.includes("Explore Catalog") &&
-    !quickActionsCode.includes("Manage Orders"),
-    "DashboardQuickActions removes redundant Explore Catalog and Manage Orders cards"
+    !quickActionsCode.includes("Quick Reorder") &&
+    !quickActionsCode.includes("/dashboard/reorder"),
+    "DashboardQuickActions removes customer Quick Reorder shortcut"
   );
   assert(
     quickActionsCode.includes("grid-cols-1 sm:grid-cols-2"),
@@ -116,21 +117,21 @@ function runTests() {
   );
 
   // ─────────────────────────────────────────────────────────────
-  // 4. Quick Reorder Shelf
+  // 4. Complete Removal of Customer Reorder Shelf & Page
   // ─────────────────────────────────────────────────────────────
-  console.log("\n▶ Group 4: Quick Reorder Shelf Preview");
+  console.log("\n▶ Group 4: Customer Reorder Complete Retirement");
   assert(
-    reorderPreviewCode.includes("Quick Reorder Shelf") &&
-    reorderPreviewCode.includes("All Reorder Items") &&
-    reorderPreviewCode.includes('href="/dashboard/reorder"'),
-    "DashboardReorderPreview retains verified purchase shelf and All Reorder Items destination"
+    !fs.existsSync(reorderPreviewPath),
+    "DashboardReorderPreview component file is completely deleted"
   );
   assert(
-    reorderPreviewCode.includes("Last Ordered:") &&
-    reorderPreviewCode.includes("Wholesale MOQ:") &&
-    reorderPreviewCode.includes("Current Price:") &&
-    reorderPreviewCode.includes("Reorder ("),
-    "DashboardReorderPreview displays last ordered qty, MOQ, current price, and 1-click reorder"
+    !fs.existsSync(reorderRoutePath),
+    "Dashboard reorder page route directory is completely deleted"
+  );
+  assert(
+    !overviewCode.includes("DashboardReorderPreview") &&
+    !overviewCode.includes("uniquePurchasedProductIds"),
+    "DashboardOverviewPage removes reorder shelf preview and purchase tracking"
   );
 
   // ─────────────────────────────────────────────────────────────
@@ -181,13 +182,8 @@ function runTests() {
   assert(
     sidebarCode.includes('label: "Orders"') &&
     sidebarCode.includes('label: "RFQ"') &&
-    sidebarCode.includes('label: "Quick Reorder"'),
-    "Sidebar SOURCING & BUYING contains Orders, RFQ, Quick Reorder"
-  );
-  assert(
-    !sidebarCode.includes('label: "Commercial Quotes"') &&
-    !sidebarCode.includes('label: "RFQs & Inquiries"'),
-    "Sidebar eliminates duplicate Commercial Quotes and renames RFQs & Inquiries to RFQ"
+    !sidebarCode.includes('label: "Quick Reorder"'),
+    "Sidebar SOURCING & BUYING contains Orders and RFQ without Quick Reorder"
   );
   assert(
     sidebarCode.includes('label: "Documents"') &&
@@ -205,12 +201,8 @@ function runTests() {
     mobileNavCode.includes('label: "Dashboard"') &&
     mobileNavCode.includes('label: "Orders"') &&
     mobileNavCode.includes('label: "RFQ"') &&
-    mobileNavCode.includes('label: "Quick Reorder"'),
-    "Mobile nav aligns with primary buying destinations"
-  );
-  assert(
-    !mobileNavCode.includes('label: "Quotes"'),
-    "Mobile nav removes redundant standalone Quotes chip"
+    !mobileNavCode.includes('label: "Quick Reorder"'),
+    "Mobile nav aligns with primary destinations without Quick Reorder"
   );
 
   // ─────────────────────────────────────────────────────────────
@@ -241,6 +233,10 @@ function runTests() {
     layoutCode.includes('if (pathname.startsWith("/dashboard/rfq")) return "RFQ"') &&
     layoutCode.includes('if (pathname.startsWith("/dashboard/settings")) return "Profile & Security"'),
     "Breadcrumbs reflect clean RFQ and Profile & Security naming"
+  );
+  assert(
+    !layoutCode.includes("/dashboard/reorder"),
+    "Layout breadcrumbs removes obsolete /dashboard/reorder branch"
   );
 
   console.log("\n==================================================");

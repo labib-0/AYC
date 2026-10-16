@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { RefreshCw, FilePlus, ArrowUpRight } from "lucide-react";
+import { ShoppingBag, FilePlus, ArrowUpRight } from "lucide-react";
 
 export function DashboardQuickActions() {
   const actions = [
@@ -16,11 +16,11 @@ export function DashboardQuickActions() {
       bgColor: "bg-amber-50 dark:bg-amber-950/30",
     },
     {
-      title: "Quick Reorder",
-      description: "Replenish previous wholesale purchases with 1-click MOQ and tier pricing validation.",
-      href: "/dashboard/reorder",
-      icon: RefreshCw,
-      badge: "Fast Replenish",
+      title: "Explore Catalog",
+      description: "Browse the latest ready-to-ship apparel lots, fabric selections, and production-ready lines.",
+      href: "/products",
+      icon: ShoppingBag,
+      badge: "Ready Stock",
       iconColor: "text-emerald-600 dark:text-emerald-400",
       bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
     },

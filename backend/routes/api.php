@@ -239,12 +239,12 @@ Route::prefix('v1')->group(function () {
             Route::post('/', [OrderController::class, 'store'])->middleware('throttle:checkout-order');
             Route::get('/', [OrderController::class, 'index']);
             Route::post('/{id}/cancel', [OrderController::class, 'cancel']);
-            Route::post('/{id}/payment-proof', [OrderController::class, 'uploadPaymentProof']);
         });
 
-        // Detail and document views (accessible by customer owner or admin)
+        // Detail, document, and payment-proof updates (accessible by customer owner or admin)
         Route::middleware('auth:sanctum')->group(function () {
             Route::get('/{id}', [OrderController::class, 'show']);
+            Route::post('/{id}/payment-proof', [OrderController::class, 'uploadPaymentProof']);
             Route::get('/{id}/documents/{docType}', [OrderController::class, 'document']);
             Route::get('/{id}/documents/{docType}/pdf', [OrderController::class, 'downloadDocumentPdf']);
         });
@@ -473,6 +473,7 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:order.update_fulfillment');
         Route::patch('/orders/{id}/shipping-quote', [AdminOrderController::class, 'updateShippingQuote'])
             ->middleware('permission:order.shipping.update');
+        Route::post('/orders/{id}/payment-proof', [OrderController::class, 'uploadPaymentProof']);
         Route::post('/orders/{id}/payment-proof/review', [AdminOrderController::class, 'reviewPaymentProof'])
             ->middleware('permission:payment.receipt.verify');
         Route::post('/orders/{id}/payment/verify', function ($id, \Illuminate\Http\Request $request) {

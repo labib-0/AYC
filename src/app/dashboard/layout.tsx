@@ -24,7 +24,6 @@ export function getBreadcrumbLabel(pathname: string): string {
   if (pathname.startsWith("/dashboard/rfq")) return "RFQ";
   if (pathname.startsWith("/dashboard/quotes/")) return "Quotation Details";
   if (pathname.startsWith("/dashboard/quotes")) return "Commercial Quotes";
-  if (pathname.startsWith("/dashboard/reorder")) return "Quick Reorder";
   if (pathname.startsWith("/dashboard/company")) return "Company Profile";
   if (pathname.startsWith("/dashboard/addresses")) return "Address Book";
   if (pathname.startsWith("/dashboard/documents")) return "Document Center";

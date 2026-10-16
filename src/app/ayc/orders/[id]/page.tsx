@@ -242,6 +242,10 @@ export default function AdminOrderDetailPage({
               order={order}
               onApprove={handleApprovePayment}
               onReject={handleRejectPayment}
+              onReceiptUpdated={(updated) => {
+                setOrder(updated);
+                addToast("success", "Payment receipt updated.");
+              }}
               isLoading={actionLoading}
             />
           </div>

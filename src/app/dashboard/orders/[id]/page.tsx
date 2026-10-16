@@ -40,6 +40,7 @@ import {
   ChevronRight,
   RotateCcw,
   Clock,
+  Loader2,
 } from "lucide-react";
 
 interface Props {
@@ -113,9 +114,20 @@ export default function CustomerOrderDetailPage({ params }: Props) {
       }
 
       setOrder(data);
-      if (!paymentPayer) setPaymentPayer(data.shipping_name || "");
-      if (!paymentAmount) setPaymentAmount(String(data.total_amount || ""));
-      if (!paymentDate) setPaymentDate(new Date().toISOString().split("T")[0]);
+      if (data.payment_details) {
+        if (data.payment_details.payer_name) setPaymentPayer(data.payment_details.payer_name);
+        if (data.payment_details.payment_amount !== undefined) setPaymentAmount(String(data.payment_details.payment_amount));
+        if (data.payment_details.payment_date) setPaymentDate(data.payment_details.payment_date);
+        if (data.payment_details.transaction_id) setPaymentTxnId(data.payment_details.transaction_id);
+        if (data.payment_details.bank_name) setPaymentBank(data.payment_details.bank_name);
+        if (data.payment_details.payment_method) setPaymentMethod(data.payment_details.payment_method);
+        if (data.payment_details.notes) setPaymentNotes(data.payment_details.notes);
+        if (data.payment_details.payment_details) setPaymentDetails(data.payment_details.payment_details);
+      } else {
+        if (!paymentPayer) setPaymentPayer(data.shipping_name || "");
+        if (!paymentAmount) setPaymentAmount(String(data.total_amount || ""));
+        if (!paymentDate) setPaymentDate(new Date().toISOString().split("T")[0]);
+      }
     } catch (err: any) {
       console.error("Failed to fetch order:", err);
       setError("Unable to load order details. Please try again.");
@@ -160,13 +172,49 @@ export default function CustomerOrderDetailPage({ params }: Props) {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+
+    // Client-side file size validation: max 10MB (10 * 1024 * 1024)
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      setReceiptError("File exceeds 10MB limit. Please upload a smaller receipt image or PDF.");
+      e.target.value = "";
+      setSelectedFile(null);
+      return;
+    }
+
+    // Client-side file format validation: jpg, jpeg, png, webp, pdf
+    const validMimes = ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"];
+    const extMatch = file.name.match(/\.(jpg|jpeg|png|webp|pdf)$/i);
+    if (!validMimes.includes(file.type.toLowerCase()) && !extMatch) {
+      setReceiptError("Invalid file type. Allowed formats: JPG, PNG, WebP, PDF.");
+      e.target.value = "";
+      setSelectedFile(null);
+      return;
+    }
+
+    setReceiptError(null);
+    setSelectedFile(file);
+  };
+
   const handleSubmitPaymentDetails = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!order) return;
 
-    // Frontend validation: payment_details is mandatory
-    if (!paymentDetails.trim()) {
-      setReceiptError("Please enter your payment details before submitting.");
+    // Check if user has provided either a new file, new details, or has existing details to update
+    const hasExistingEvidence = Boolean(
+      order.payment_details?.payment_details ||
+      order.payment_details?.transaction_id ||
+      order.payment_proof_url
+    );
+
+    if (!selectedFile && !paymentDetails.trim() && !paymentTxnId.trim() && !hasExistingEvidence) {
+      setReceiptError("Please select a payment receipt file or enter your payment details.");
       return;
     }
 
@@ -175,7 +223,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
 
     try {
       const details: PaymentSubmissionDetails = {
-        payment_details: paymentDetails.trim(),
+        payment_details: paymentDetails.trim() || undefined,
         payment_method: paymentMethod || "Bank Transfer",
         transaction_id: paymentTxnId.trim() || undefined,
         payer_name: paymentPayer.trim() || order.shipping_name,
@@ -189,8 +237,11 @@ export default function CustomerOrderDetailPage({ params }: Props) {
       if (result) {
         setReceiptSuccess(true);
         setSelectedFile(null);
-        setPaymentDetails("");
         setShowSubmitForm(false);
+        // Refresh immediately using returned order record or refetch
+        if (result.order) {
+          setOrder(result.order as OrderRecord);
+        }
         await fetchOrder();
       }
     } catch (err: any) {
@@ -351,14 +402,6 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               <MessageCircle size={14} />
               <span>WhatsApp Support</span>
             </a>
-
-            <Link
-              href="/dashboard/reorder"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-xs"
-            >
-              <RotateCcw size={13} />
-              <span>Reorder Items</span>
-            </Link>
           </div>
         </div>
       </div>
@@ -807,9 +850,10 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowSubmitForm(!showSubmitForm)}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 hover:bg-slate-100 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
+                  id="btn-toggle-replace-receipt"
                 >
-                  {showSubmitForm ? "Hide Form" : "Upload Additional Slip"}
+                  {showSubmitForm ? "Hide Form" : "Update / Replace Receipt"}
                 </button>
               </div>
             </div>
@@ -878,23 +922,21 @@ export default function CustomerOrderDetailPage({ params }: Props) {
           <form onSubmit={handleSubmitPaymentDetails} className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/30 space-y-4 text-xs">
             <div>
               <h3 className="font-bold text-slate-900 dark:text-white uppercase text-xs tracking-wider">
-                Submit Payment Details
+                {order.payment_proof_url ? "Update Payment Receipt & Details" : "Submit Payment Details & Receipt"}
               </h3>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Provide payment details so our finance team can verify and confirm your payment.
-                A bank receipt/slip is <span className="font-bold">optional</span> — you may submit details alone for WhatsApp-arranged payments.
+                Attach a payment receipt or bank slip (JPG, PNG, WebP, PDF up to 10MB) or enter transaction details for finance verification.
               </p>
             </div>
 
-            {/* Payment Details — MANDATORY */}
+            {/* Payment Details */}
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300 block">
-                Payment Details <span className="text-red-500">*</span>
+                Payment Details / Transfer Info {!selectedFile && !order.payment_proof_url && <span className="text-red-500">*</span>}
               </label>
               <textarea
-                required
                 rows={3}
-                placeholder="e.g. Transferred via Pubali Bank TT, Ref: TXN-987654321, Amount: $4,255.00, Date: 2026-09-25, Sender: ABC Fashion Ltd. — or describe your WhatsApp payment arrangement."
+                placeholder="e.g. Transferred via Pubali Bank TT, Ref: TXN-987654321, Amount: $4,255.00, Date: 2026-09-25, Sender: ABC Fashion Ltd. — or attach your wire receipt below."
                 value={paymentDetails}
                 onChange={(e) => setPaymentDetails(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs outline-none focus:border-amber-500 resize-none"
@@ -906,20 +948,22 @@ export default function CustomerOrderDetailPage({ params }: Props) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {/* Receipt File — OPTIONAL */}
+              {/* Receipt File */}
               <div className="space-y-1 sm:col-span-2 lg:col-span-3">
                 <label className="text-[10px] font-bold uppercase text-slate-500 block">
-                  Payment Receipt / Slip — <span className="text-slate-400 font-normal">(Optional)</span> JPG, PNG, PDF
+                  Payment Receipt / Slip — <span className="text-slate-400 font-normal">(JPG, PNG, WebP, PDF — Max 10MB)</span>
                 </label>
                 <input
                   type="file"
-                  accept="image/*,application/pdf"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={handleFileChange}
                   className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer"
                   id="input-customer-receipt-upload"
                 />
                 {selectedFile && (
-                  <p className="text-[10px] text-slate-500">Selected: {selectedFile.name}</p>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                    Selected file: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)
+                  </p>
                 )}
               </div>
 
@@ -1029,12 +1073,18 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                 )}
                 <button
                   type="submit"
-                  disabled={uploadingReceipt || !paymentDetails.trim()}
+                  disabled={uploadingReceipt || (!selectedFile && !paymentDetails.trim() && !paymentTxnId.trim() && !order.payment_details)}
                   className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold uppercase text-xs tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
                   id="btn-submit-payment-details"
                 >
-                  <Check size={14} />
-                  <span>{uploadingReceipt ? "Submitting..." : "Submit Payment Details"}</span>
+                  {uploadingReceipt ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  <span>
+                    {uploadingReceipt
+                      ? "Uploading Receipt..."
+                      : order.payment_proof_url
+                      ? "Update Payment Receipt"
+                      : "Submit Payment Details"}
+                  </span>
                 </button>
               </div>
             </div>
