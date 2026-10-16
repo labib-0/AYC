@@ -20,7 +20,15 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
         docNumber={doc.docNumber}
         date={doc.date}
         orderNumber={doc.orderNumber}
-        validUntil={doc.validUntil}
+        validUntil={doc.validUntil || "30 Days from date of issuance"}
+        shippingArrangement={
+          snapshot?.carrier
+            ? `${snapshot.carrier} (${Number(doc.shipping || 0) > 0 ? `$${Number(doc.shipping).toFixed(2)} USD` : "Freight Confirmed Separately"})`
+            : Number(doc.shipping || 0) > 0
+            ? "Air Cargo Express (Aramex)"
+            : "To Be Confirmed Separately"
+        }
+        paymentTerms={doc.paymentTerms || "100% Advance T/T Wire"}
         exporterProfile={doc.exporter}
       />
 

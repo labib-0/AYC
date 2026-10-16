@@ -141,6 +141,146 @@ function formatPackageBreakdownText(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DOCUMENT INFORMATION HEADER / REFERENCE BAR (NON-OVERLAPPING GRID)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface DocumentInformationField {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  valueColor?: [number, number, number];
+}
+
+export interface DrawDocumentInformationHeaderOptions {
+  startY: number;
+  margin?: number;
+  contentWidth?: number;
+  columns?: number;
+  fillColor?: [number, number, number];
+  borderColor?: [number, number, number];
+  fields: DocumentInformationField[];
+}
+
+export interface DrawDocumentInformationHeaderResult {
+  finalY: number;
+  boxHeight: number;
+}
+
+/**
+ * Draws a multi-column document information header (Reference Bar) with
+ * robust column isolation, explicit gutters, dynamic multi-line wrapping,
+ * and automatic vertical height expansion so that text NEVER collides horizontally
+ * or clips vertically.
+ */
+export function drawDocumentInformationHeader(
+  doc: jsPDF,
+  options: DrawDocumentInformationHeaderOptions
+): DrawDocumentInformationHeaderResult {
+  const margin = options.margin ?? 14;
+  const contentWidth =
+    options.contentWidth ?? (doc.internal.pageSize.getWidth() - margin * 2);
+  const columns = options.columns && options.columns > 0 ? options.columns : 3;
+  const fillColor = options.fillColor ?? [248, 250, 252];
+  const borderColor = options.borderColor ?? [226, 232, 240];
+  const fields = options.fields || [];
+
+  if (fields.length === 0) {
+    return { finalY: options.startY, boxHeight: 0 };
+  }
+
+  const paddingX = 4;
+  const paddingY = 3.5;
+  const gutter = 5;
+  const rowGap = 3;
+  const labelFontSize = 6.5;
+  const valueFontSize = 7.5;
+  const labelLineHeight = 3;
+  const valueLineHeight = 3.5;
+  const labelToValueGap = 1.2;
+
+  // Available width for each column strictly bounded inside contentWidth
+  const totalGutters = (columns - 1) * gutter;
+  const colWidth = Math.max(
+    10,
+    (contentWidth - paddingX * 2 - totalGutters) / columns
+  );
+
+  // Group fields into rows of `columns`
+  const rows: DocumentInformationField[][] = [];
+  for (let i = 0; i < fields.length; i += columns) {
+    rows.push(fields.slice(i, i + columns));
+  }
+
+  // Pre-calculate wrapped lines and row heights
+  const rowWrappedData = rows.map((row) => {
+    return row.map((field) => {
+      const valStr = String(field.value ?? "—").trim() || "—";
+      doc.setFontSize(valueFontSize);
+      doc.setFont("helvetica", field.highlight ? "bold" : "normal");
+      const lines: string[] = doc.splitTextToSize(valStr, colWidth);
+      return { field, lines };
+    });
+  });
+
+  const rowHeights = rowWrappedData.map((row) => {
+    const maxLines = Math.max(1, ...row.map((item) => item.lines.length));
+    return labelLineHeight + labelToValueGap + maxLines * valueLineHeight;
+  });
+
+  const totalInnerHeight =
+    rowHeights.reduce((sum, h) => sum + h, 0) +
+    Math.max(0, rows.length - 1) * rowGap;
+  const boxHeight = totalInnerHeight + paddingY * 2;
+
+  // 1. Draw background container box
+  doc.setFillColor(fillColor[0], fillColor[1], fillColor[2]);
+  doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2]);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(margin, options.startY, contentWidth, boxHeight, 1.5, 1.5, "FD");
+
+  // 2. Render each row's fields with strict horizontal bounds and stacked labels/values
+  let currentY = options.startY + paddingY;
+
+  rowWrappedData.forEach((row, rowIdx) => {
+    const rowHeight = rowHeights[rowIdx];
+
+    row.forEach((item, colIdx) => {
+      const colX = margin + paddingX + colIdx * (colWidth + gutter);
+
+      // Label (Uppercase, Slate-500, Bold 6.5pt)
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(labelFontSize);
+      doc.setTextColor(100, 116, 139);
+      doc.text(item.field.label.toUpperCase(), colX, currentY + 2.5);
+
+      // Value (Wrapped within colWidth, 7.5pt)
+      doc.setFontSize(valueFontSize);
+      if (item.field.highlight) {
+        doc.setFont("helvetica", "bold");
+        const c = item.field.valueColor ?? [194, 65, 12]; // orange-700
+        doc.setTextColor(c[0], c[1], c[2]);
+      } else {
+        doc.setFont("helvetica", "bold");
+        const c = item.field.valueColor ?? [30, 41, 59]; // slate-800
+        doc.setTextColor(c[0], c[1], c[2]);
+      }
+
+      const valStartY = currentY + 2.5 + labelToValueGap + 2.5;
+      item.lines.forEach((lineText: string, lineIdx: number) => {
+        doc.text(lineText, colX, valStartY + lineIdx * valueLineHeight);
+      });
+    });
+
+    currentY += rowHeight + rowGap;
+  });
+
+  return {
+    finalY: options.startY + boxHeight,
+    boxHeight,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 1. OFFER SHEET PDF GENERATOR (Product-Level, STRICTLY ZERO SHIPPING INFO)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -254,11 +394,7 @@ export function generateProductOfferSheetDoc(
 
   y += 28;
 
-  // 2. Metadata Card (Reference, Date, Buyer, Terms)
-  doc.setFillColor(248, 250, 252); // slate-50
-  doc.setDrawColor(226, 232, 240); // slate-200
-  doc.roundedRect(margin, y, contentWidth, 18, 1.5, 1.5, "FD");
-
+  // 2. Metadata Card (Reference, Date, Buyer, Terms) - Non-overlapping dynamic grid
   const offerDate = formatDate();
   const validUntil = getExpiryDate();
   const cleanSku = (product.sku || "PROD").toUpperCase();
@@ -266,46 +402,45 @@ export function generateProductOfferSheetDoc(
     new Date().getMonth() + 1
   ).padStart(2, "0")}`;
 
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-
-  // Left col
-  doc.setFont("helvetica", "bold");
-  doc.text("Offer Reference:", margin + 4, y + 6);
-  doc.setFont("helvetica", "normal");
-  doc.text(offerNumber, margin + 28, y + 6);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Date of Issue:", margin + 4, y + 12);
-  doc.setFont("helvetica", "normal");
-  doc.text(offerDate, margin + 28, y + 12);
-
-  // Center col
-  doc.setFont("helvetica", "bold");
-  doc.text("Validity:", margin + 68, y + 6);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(194, 65, 12); // orange-700
-  doc.text(`30 Days (${validUntil})`, margin + 82, y + 6);
-  doc.setTextColor(71, 85, 105);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Delivery Terms:", margin + 68, y + 12);
-  doc.setFont("helvetica", "normal");
-  doc.text("FOB Dhaka / Ex-Factory (Export Standard)", margin + 88, y + 12);
-
-  // Right col: Buyer info
-  doc.setFont("helvetica", "bold");
-  doc.text("Issued To:", margin + 138, y + 6);
-  doc.setFont("helvetica", "normal");
   const recipient = buyerInfo?.company || buyerInfo?.name || "Prospective Buyer";
-  doc.text(recipient.slice(0, 20), margin + 154, y + 6);
+  const orderRef =
+    (buyerInfo as any)?.orderNumber ||
+    (buyerInfo as any)?.order_number ||
+    "";
+  const orderRefOrBuyer = orderRef ? `#${orderRef} • ${recipient}` : recipient;
+  const shippingArrangement =
+    (buyerInfo as any)?.shippingArrangement ||
+    (buyerInfo as any)?.shipping_arrangement ||
+    (buyerInfo as any)?.deliveryTerms ||
+    "To Be Confirmed Separately (FOB Dhaka)";
+  const paymentTerms =
+    (buyerInfo as any)?.paymentTerms ||
+    (buyerInfo as any)?.payment_terms ||
+    "100% Advance T/T or L/C at Sight";
 
-  doc.setFont("helvetica", "bold");
-  doc.text("Destination:", margin + 138, y + 12);
-  doc.setFont("helvetica", "normal");
-  doc.text(buyerInfo?.country || "Worldwide Export", margin + 156, y + 12);
+  const offerHeaderResult = drawDocumentInformationHeader(doc, {
+    startY: y,
+    margin,
+    contentWidth,
+    columns: 3,
+    fillColor: [248, 250, 252],
+    borderColor: [226, 232, 240],
+    fields: [
+      { label: "Offer Reference", value: offerNumber },
+      { label: "Order Reference / Buyer", value: orderRefOrBuyer },
+      { label: "Date of Issue", value: offerDate },
+      {
+        label: "Validity",
+        value: `30 Days (${validUntil})`,
+        highlight: true,
+        valueColor: [194, 65, 12],
+      },
+      { label: "Shipping Arrangement", value: shippingArrangement },
+      { label: "Payment Terms", value: paymentTerms },
+    ],
+  });
 
-  y += 22;
+  y = offerHeaderResult.finalY + 4;
 
   // 3. PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES (Full-Width Multi-Image 4:5 Grid)
   // Canonical 4:5 ratio reference (4:5 ratio standard matching website product gallery)
@@ -1062,48 +1197,43 @@ export function generateProformaInvoiceDoc(
 
   y += 37;
 
-  // 3. Invoice Reference Bar
-  doc.setFillColor(241, 245, 249); // slate-100
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(margin, y, contentWidth, 12, 1.5, 1.5, "FD");
-
+  // 3. Invoice Reference Bar (Robust non-overlapping Grid with dynamic height)
   const piNumber = `PI-${order.order_number}`;
   const issueDate = formatDate(order.placed_at || order.created_at);
   const validityDate = getExpiryDate(order.placed_at || order.created_at);
+  const shippingArrangementText = isAramex
+    ? (order.shipping_cost && order.shipping_cost > 0
+        ? `Air Cargo Express (Aramex - $${Number(order.shipping_cost).toFixed(2)})`
+        : "Air Cargo Express (Aramex)")
+    : (order.shipping_snapshot?.mode_title || "To Be Confirmed Separately");
+  const paymentTermsText =
+    (options as any)?.paymentTerms ||
+    (options as any)?.payment_terms ||
+    "100% Advance T/T Wire";
 
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(51, 65, 85);
-  doc.text("P.I. Number:", margin + 3, y + 5);
-  doc.setFont("helvetica", "normal");
-  doc.text(piNumber, margin + 22, y + 5);
+  const headerResult = drawDocumentInformationHeader(doc, {
+    startY: y,
+    margin,
+    contentWidth,
+    columns: 3,
+    fillColor: [241, 245, 249],
+    borderColor: [203, 213, 225],
+    fields: [
+      { label: "P.I. Number", value: piNumber },
+      { label: "Order Reference", value: order.order_number },
+      { label: "Issue Date", value: issueDate },
+      {
+        label: "Validity",
+        value: `30 Days (${validityDate})`,
+        highlight: true,
+        valueColor: [194, 65, 12],
+      },
+      { label: "Shipping Arrangement", value: shippingArrangementText },
+      { label: "Payment Terms", value: paymentTermsText },
+    ],
+  });
 
-  doc.setFont("helvetica", "bold");
-  doc.text("Order Reference:", margin + 55, y + 5);
-  doc.setFont("helvetica", "normal");
-  doc.text(order.order_number, margin + 80, y + 5);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Issue Date:", margin + 118, y + 5);
-  doc.setFont("helvetica", "normal");
-  doc.text(issueDate, margin + 135, y + 5);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Validity:", margin + 3, y + 9.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(`30 Days (${validityDate})`, margin + 18, y + 9.5);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Shipping Arrangement:", margin + 55, y + 9.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(isAramex ? "Air Cargo Express (Aramex)" : "To Be Confirmed Separately", margin + 88, y + 9.5);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Payment Terms:", margin + 118, y + 9.5);
-  doc.setFont("helvetica", "normal");
-  doc.text("100% Advance T/T Wire", margin + 142, y + 9.5);
-
-  y += 15;
+  y = headerResult.finalY + 4;
 
   // 4. Multi-Product Items Table (Contains ALL order items)
   const items = order.items || [];

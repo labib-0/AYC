@@ -23,6 +23,7 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
         orderNumber={doc.orderNumber}
         validUntil={doc.validUntil}
         exporterProfile={doc.exporter}
+        showInformationBar={false}
       />
 
       {/* Shipper, Buyer & Shipment Parameters Grid */}

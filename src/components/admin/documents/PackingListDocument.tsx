@@ -22,6 +22,7 @@ export default function PackingListDocument({ doc }: PackingListDocumentProps) {
         orderNumber={doc.orderNumber}
         relatedInvoiceNumber={doc.related_invoice_number || doc.docNumber.replace("PL", "INV")}
         exporterProfile={doc.exporter}
+        showInformationBar={false}
       />
 
       {/* Shipper, Consignee, Notify & Routing Grid */}

@@ -19,6 +19,8 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
         date={doc.date}
         orderNumber={doc.orderNumber}
         validUntil={doc.validUntil || "30 Days from date of issuance"}
+        shippingArrangement="To Be Confirmed Separately (FOB Dhaka)"
+        paymentTerms={doc.paymentTerms || "100% Advance T/T or L/C at sight"}
         exporterProfile={doc.exporter}
       />
 
