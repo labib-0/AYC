@@ -15,6 +15,7 @@ class AdminRfqReceivedNotification extends Notification implements ShouldQueue
 
     public int $tries = 3;
     public array $backoff = [30, 120];
+    public bool $deleteWhenMissingModels = true;
 
     public function __construct(public Quote $rfq)
     {

@@ -117,10 +117,29 @@ class TestRfqEmailDeliveryCommand extends Command
                 }
 
                 if ($viaQueue) {
+                    // For queued testing, model must be saved so SerializesModels can hydrate it in the background worker
+                    $rfq->save();
+                    $item = new QuoteItem([
+                        'quote_id' => $rfq->id,
+                        'product_name' => 'Heavyweight Fleece Hoodie 450GSM (Test Spec)',
+                        'quantity' => 500,
+                        'target_price' => 19.50,
+                        'selected_color' => 'Navy Melange',
+                        'selected_size' => 'M, L, XL',
+                    ]);
+                    $item->save();
+                    $rfq->setRelation('items', collect([$item]));
+
                     Notification::route('mail', $recipient)->notify($notification);
                     $this->info("✓ Job successfully dispatched to Redis queue. Worker 'ayaan-worker' will process delivery.");
+
+                    // Allow worker time to hydrate, then purge test record completely
+                    sleep(2);
+                    $item->delete();
+                    $rfq->delete();
+                    $this->line("  (Temporary test record purged from database)");
                 } else {
-                    // Send synchronously via mail channel
+                    // Send synchronously via mail channel (zero database persistence)
                     Notification::route('mail', $recipient)->notifyNow($notification);
                     $this->info("✓ Message successfully transmitted to transport: <info>{$mailer}</info>");
                 }
