@@ -142,14 +142,17 @@ fi
 echo -e "\n▶ Step 2/6: Compiling Frontend into Isolated Release Directory..."
 cd "${APP_DIR}"
 
-# Install frontend dependencies if package.json changed
-if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -q "package.*\.json"; then
-  echo "  - Installing updated npm packages..."
-  if [[ $(id -u) -eq 0 ]]; then
-    su - ayaan -c "cd ${APP_DIR} && npm install --omit=dev --no-audit --no-fund"
-  else
-    npm install --omit=dev --no-audit --no-fund
-  fi
+# Ensure file ownership is cleanly assigned to ayaan user
+if [[ $(id -u) -eq 0 ]]; then
+  chown -R ayaan:ayaan "${APP_DIR}"
+fi
+
+# Install frontend dependencies (including TypeScript compiler needed for next build)
+echo "  - Checking and installing npm dependencies..."
+if [[ $(id -u) -eq 0 ]]; then
+  su - ayaan -c "cd ${APP_DIR} && npm install --no-audit --no-fund"
+else
+  npm install --no-audit --no-fund
 fi
 
 # Build into isolated target directory without touching the active .next
