@@ -46,7 +46,7 @@
         @if($rfq->target_delivery_date)
         <div class="info-row">
             <span class="info-label">Target Delivery:</span>
-            <span class="info-value">{{ e($rfq->target_delivery_date->format('M d, Y')) }}</span>
+            <span class="info-value">{{ e($rfq->target_delivery_date instanceof \DateTimeInterface ? $rfq->target_delivery_date->format('M d, Y') : $rfq->target_delivery_date) }}</span>
         </div>
         @endif
     </div>

@@ -26,12 +26,12 @@
         @if($rfq->target_delivery_date)
         <div class="info-row">
             <span class="info-label">Target Delivery:</span>
-            <span class="info-value">{{ e($rfq->target_delivery_date->format('M d, Y')) }}</span>
+            <span class="info-value">{{ e($rfq->target_delivery_date instanceof \DateTimeInterface ? $rfq->target_delivery_date->format('M d, Y') : $rfq->target_delivery_date) }}</span>
         </div>
         @endif
         <div class="info-row">
             <span class="info-label">Submission Date:</span>
-            <span class="info-value">{{ e($rfq->created_at->format('M d, Y H:i T')) }}</span>
+            <span class="info-value">{{ e($rfq->created_at instanceof \DateTimeInterface ? $rfq->created_at->format('M d, Y H:i T') : ($rfq->created_at ?: now()->format('M d, Y H:i T'))) }}</span>
         </div>
     </div>
 

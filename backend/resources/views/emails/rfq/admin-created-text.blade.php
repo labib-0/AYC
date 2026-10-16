@@ -17,7 +17,7 @@ BUYER PROFILE:
 - Discharge Port: {{ $rfq->shipping_port }}
 @endif
 @if($rfq->target_delivery_date)
-- Target Delivery: {{ $rfq->target_delivery_date->format('M d, Y') }}
+- Target Delivery: {{ $rfq->target_delivery_date instanceof \DateTimeInterface ? $rfq->target_delivery_date->format('M d, Y') : $rfq->target_delivery_date }}
 @endif
 
 @if($rfq->general_notes)

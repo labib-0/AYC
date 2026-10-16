@@ -9,9 +9,9 @@ INQUIRY OVERVIEW:
 - Company: {{ $rfq->company_name }}
 - Destination: {{ $rfq->destination_city ? $rfq->destination_city . ', ' . $rfq->destination_country : $rfq->destination_country }}
 @if($rfq->target_delivery_date)
-- Target Delivery: {{ $rfq->target_delivery_date->format('M d, Y') }}
+- Target Delivery: {{ $rfq->target_delivery_date instanceof \DateTimeInterface ? $rfq->target_delivery_date->format('M d, Y') : $rfq->target_delivery_date }}
 @endif
-- Submission Date: {{ $rfq->created_at->format('M d, Y H:i T') }}
+- Submission Date: {{ $rfq->created_at instanceof \DateTimeInterface ? $rfq->created_at->format('M d, Y H:i T') : ($rfq->created_at ?: now()->format('M d, Y H:i T')) }}
 
 REQUESTED ITEMS:
 @foreach($rfq->items as $item)
