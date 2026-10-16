@@ -271,11 +271,86 @@ During the initial incident investigation, a temporary API token (`qa-live-check
 
 ---
 
-## 9. Conclusion & Operator Next Steps
+## 9. Public-Domain Reachability Audit & Multi-Region Diagnostics
 
-The AYAAN CLOTHING production environment has been hardened against future Next.js deployment blank-page outages. The release process is now atomic, verified by automated test gates, and equipped with single-command rollback.
+Following deployment of the reliability improvements, public-domain reachability was audited across 5 authoritative and public resolvers, 22 independent international looking glass nodes, and direct local client connections.
 
-### Recommended Operator Actions:
-1. **Publish GoDaddy AAAA Record:** Add `AAAA @ 2a02:4780:63:21bf::1` in the GoDaddy DNS manager for `ayaanclothing.com`.
-2. **Standardize Future Releases:** Always run `./scripts/deploy-production.sh` for future code releases to ensure zero downtime and static asset continuity.
-3. **Maintain Email Pause:** Keep all MTA and email DNS modifications paused until explicit authorization is provided.
+### 9.1 Multi-Resolver DNS Publication Audit
+Queried authoritative GoDaddy nameservers and global public resolvers for `ayaanclothing.com` and `www.ayaanclothing.com`:
+
+| DNS Resolver | Server Address | `A` Record | `AAAA` Record | `CNAME` Record |
+| :--- | :--- | :---: | :---: | :---: |
+| **GoDaddy Authoritative ns11** | `ns11.domaincontrol.com` | `200.97.169.230` | *(none)* | *(none)* |
+| **GoDaddy Authoritative ns12** | `ns12.domaincontrol.com` | `200.97.169.230` | *(none)* | *(none)* |
+| **Google Public DNS** | `8.8.8.8` | `200.97.169.230` | *(none)* | *(none)* |
+| **Cloudflare Public DNS** | `1.1.1.1` | `200.97.169.230` | *(none)* | *(none)* |
+| **Quad9 Public DNS** | `9.9.9.9` | `200.97.169.230` | *(none)* | *(none)* |
+| **Carrier DNS64 Resolver** | Local ISP Resolver | `200.97.169.230` | `64:ff9b::c861:a9e6` *(synthesized)* | *(none)* |
+
+- **Findings:** GoDaddy DNS publishes **only** the IPv4 record (`200.97.169.230`). No authoritative `AAAA` record exists.
+- **Carrier Synthesis:** Mobile and dual-stack ISPs running RFC 6147 (DNS64) automatically synthesize an RFC 6052 Well-Known Prefix address (`64:ff9b::c861:a9e6`) pointing to their NAT64 gateway.
+
+### 9.2 Public-Domain Test Results by Protocol
+Tested the 5 core application endpoints using ordinary hostname resolution without IP forcing:
+
+| Target Endpoint | IPv4 (`curl -4`) | IPv6 (`curl -6` via DNS64) | Native IPv6 (`2a02:4780:63:21bf::1`) |
+| :--- | :---: | :---: | :---: |
+| `https://ayaanclothing.com/` | ❌ Timeout (8006ms)* | ❌ Timeout (8006ms)** | ✔ **200 OK (150ms)** |
+| `https://ayaanclothing.com/products` | ❌ Timeout (8005ms)* | ❌ Timeout (8006ms)** | ✔ **200 OK (145ms)** |
+| `https://ayaanclothing.com/rfq` | ❌ Timeout (8006ms)* | ❌ Timeout (8006ms)** | ✔ **200 OK (140ms)** |
+| `https://ayaanclothing.com/ayc` | ❌ Timeout (8006ms)* | ❌ Timeout (8006ms)** | ✔ **200 OK (138ms)** |
+| `https://ayaanclothing.com/api/v1/health` | ❌ Timeout (8002ms)* | ❌ Timeout (8001ms)** | ✔ **200 OK (128ms)** |
+
+*\* IPv4 timeouts occur on carrier networks whose upstream transit peering drops packets to Hostinger India's border router (`31.97.2.109`). Global Tier-1 routes connect normally.*
+*\*\* IPv6 timeouts occur because the carrier's NAT64 translator gateway cannot reach `200.97.169.230` and no authoritative native `AAAA` record is published in GoDaddy.*
+
+### 9.3 Independent Multi-Region Verification (22 Countries)
+Probes executed across independent global looking glass nodes confirm that `https://ayaanclothing.com/` is operational and serving HTTP 200 via public DNS in 22 countries:
+
+```text
+- Australia (Sydney):       HTTP 200 OK (2.52s)   - Netherlands (Amsterdam):  HTTP 200 OK (2.13s)
+- Brazil (Sao Paulo):       HTTP 200 OK (2.60s)   - Russia (St. Petersburg):  HTTP 200 OK (2.55s)
+- Bulgaria (Sofia):         HTTP 200 OK (2.50s)   - Singapore:                HTTP 200 OK (2.22s)
+- Canada (Vancouver):       HTTP 200 OK (1.35s)   - Spain (Madrid):           HTTP 200 OK (2.21s)
+- Hong Kong:                HTTP 200 OK (3.33s)   - Sweden (Stockholm):       HTTP 200 OK (0.85s)
+- India (Mumbai):           HTTP 200 OK (0.48s)   - Switzerland (Zurich):     HTTP 200 OK (2.22s)
+- Indonesia (Jakarta):      HTTP 200 OK (2.29s)   - Turkey (Istanbul):        HTTP 200 OK (2.68s)
+- Iran (Tehran & Isfahan):  HTTP 200 OK (0.95s)   - Ukraine (Khmelnytskyi):   HTTP 200 OK (0.83s)
+- Japan (Tokyo):            HTTP 200 OK (0.88s)   - USA (Dallas & Atlanta):   HTTP 200 OK (1.25s)
+```
+
+### 9.4 Browser Rendering & Critical Asset Audit
+Using headless Chrome with native IPv6 resolution:
+- **Storefront Homepage (`/`):** HTTP 200, 42 product cards, 47 category navigation links, 3919 text chars.
+- **Product Detail (`/products/ladies-spandex-tank-top`):** HTTP 200, specifications and RFQ modal active.
+- **Customer RFQ (`/rfq`):** HTTP 200, 5 form fields interactive.
+- **Admin Gateway (`/ayc`):** HTTP 200, login form rendered with email/password inputs.
+- **Admin RFQ Management (`/ayc/rfq`):** HTTP 200, protected route guard active.
+- **Static Assets:** 34 referenced JavaScript and CSS chunks tested individually: **100% returned HTTP 200 OK with zero 404/500 errors.**
+
+---
+
+## 10. Conclusion, Acceptance Criteria & Remaining Blocker
+
+### Acceptance Status: Conditionally Resolved Pending Operator DNS Action
+- **Server, Application & Deployment Infrastructure:** **100% RESOLVED.** The atomic zero-downtime deployment pipeline is active on commit `04b88a2`, guaranteeing that in-place builds cannot corrupt live runtime assets.
+- **Remaining Public Blocker:** Visitors on IPv6/DNS64 carrier networks (including in Bangladesh, Sri Lanka, and France) will continue to experience `ERR_CONNECTION_TIMED_OUT` until the domain operator publishes the verified `AAAA` record in GoDaddy DNS.
+
+### Precise Operator Action Required:
+In the **GoDaddy DNS Management Console** for `ayaanclothing.com`:
+```text
+=============================================================
+  REQUIRED GODADDY DNS CONFIGURATION
+=============================================================
+Type:    AAAA
+Name:    @
+Value:   2a02:4780:63:21bf::1
+TTL:     600 seconds (or 1/2 Hour / Default)
+=============================================================
+```
+
+*Note: Do not delete or overwrite the existing `A` record (`200.97.169.230`) or `CNAME www` record.*
+
+### Recommended Long-Term Architecture:
+To eliminate regional IPv4 transit degradation completely, proxy the apex and `www` hostnames through **Cloudflare Anycast** (orange-clouded). The origin VPS Nginx and UFW firewall are already pre-configured to receive Cloudflare proxy traffic.
+
