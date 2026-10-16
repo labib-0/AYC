@@ -145,6 +145,12 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:product.edit');
             Route::patch('/{id}/toggle-storefront-visibility', [ProductController::class, 'toggleStorefrontVisibility'])
                 ->middleware('permission:product.edit');
+            Route::match(['patch', 'post'], '/{id}/toggle-pin', [ProductController::class, 'togglePin'])
+                ->middleware('permission:product.edit');
+            Route::post('/{id}/pin', [ProductController::class, 'pin'])
+                ->middleware('permission:product.edit');
+            Route::post('/{id}/unpin', [ProductController::class, 'unpin'])
+                ->middleware('permission:product.edit');
             Route::post('/{id}/mark-sold-out', [ProductController::class, 'markSoldOut'])
                 ->middleware('permission:product.edit');
             Route::get('/{id}/stock-history', [AdminInventoryController::class, 'productHistory'])

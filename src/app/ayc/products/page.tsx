@@ -16,7 +16,7 @@ import {
 import { brandService } from "@/services/brand.service";
 import { categoryService } from "@/services/category.service";
 import { productDraftService } from "@/lib/services/product-draft.service";
-import { toggleProductStorefrontVisibility, toggleProductFeatured } from "@/services/product.service";
+import { toggleProductStorefrontVisibility, toggleProductFeatured, toggleProductPin } from "@/services/product.service";
 import { homepageService } from "@/services/homepage.service";
 import { sortBrandsAlphabetically } from "@/lib/brand-sort";
 
@@ -24,7 +24,13 @@ import { sortBrandsAlphabetically } from "@/lib/brand-sort";
 export const isProductPinned = (p: B2BProductInput): boolean => {
   const featUntil = p.featuredUntil || (p as any).featured_until;
   const isExpired = featUntil ? new Date(featUntil).getTime() <= Date.now() : false;
-  return Boolean(p.isFeatured || (p as any).is_featured || (p as any).featured) && !isExpired;
+  return Boolean(
+    (p as any).is_pinned ??
+    (p as any).isPinned ??
+    p.isFeatured ??
+    (p as any).is_featured ??
+    (p as any).featured
+  ) && !isExpired;
 };
 
 import {
@@ -179,6 +185,9 @@ function AdminProductsContent() {
 
   // ── Selection ──
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // ── Pinning in-flight tracking (prevents duplicate clicks) ──
+  const [pinningIds, setPinningIds] = useState<Set<string>>(new Set());
 
   // ── Modals ──
   const [deleteTarget, setDeleteTarget] = useState<B2BProductInput | null>(null);
@@ -530,23 +539,59 @@ function AdminProductsContent() {
     }));
   };
 
-  // ── Feature / Unfeature Product Handler ──
+  // ── Pin / Unpin Product Handler ──
   const handleToggleFeatured = async (product: B2BProductInput) => {
+    if (pinningIds.has(product.id)) {
+      return; // In-flight request protection
+    }
     const isPinned = isProductPinned(product);
-    const newFeatured = !isPinned;
+    const nextPinned = !isPinned;
+
+    setPinningIds((prev) => new Set(prev).add(product.id));
+
+    // Save previous state for rollback on error
+    const previousProducts = [...allProducts];
+
+    // Optimistically update UI
+    const updatedProducts = allProducts.map((p) => {
+      if (p.id === product.id) {
+        return {
+          ...p,
+          isPinned: nextPinned,
+          is_pinned: nextPinned,
+          isFeatured: nextPinned,
+          is_featured: nextPinned,
+        };
+      }
+      return p;
+    });
+
+    // Re-partition pinned first and non-pinned
+    const pinnedGroup = updatedProducts.filter(isProductPinned);
+    const nonPinnedGroup = updatedProducts.filter((p) => !isProductPinned(p));
+    setAllProducts([...pinnedGroup, ...nonPinnedGroup]);
+
     try {
-      await toggleProductFeatured(product.id, newFeatured);
+      await toggleProductPin(product.id, nextPinned);
       addToast(
         "success",
-        `Product "${product.name || product.productId}" is now ${newFeatured ? "pinned to Featured" : "unpinned from Featured"}.`
+        `Product "${product.name || product.productId}" is now ${nextPinned ? "pinned" : "unpinned"}.`
       );
       if (typeof window !== "undefined") {
         homepageService.invalidateStorefrontCache();
         window.dispatchEvent(new CustomEvent("ayaan:homepage-updated"));
       }
-      await Promise.all([loadProducts(), loadGlobalMetrics()]);
+      Promise.all([loadProducts(), loadGlobalMetrics()]).catch(() => {});
     } catch (err: any) {
-      addToast("error", err?.message || "Failed to update featured status.");
+      // Restore previous state on failure
+      setAllProducts(previousProducts);
+      addToast("error", err?.message || `Failed to ${nextPinned ? "pin" : "unpin"} product.`);
+    } finally {
+      setPinningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(product.id);
+        return next;
+      });
     }
   };
 
@@ -924,6 +969,7 @@ function AdminProductsContent() {
         onTogglePublish={handleTogglePublish}
         onToggleStorefrontVisibility={handleToggleStorefrontVisibility}
         onToggleFeatured={handleToggleFeatured}
+        pinningIds={pinningIds}
         onDelete={(p) => setDeleteTarget(p)}
         onMarkSoldOut={canMarkSoldOut ? (p) => setSoldOutTarget(p) : undefined}
         onAdjustStock={canAdjustStock ? handleOpenRowAdjust : undefined}

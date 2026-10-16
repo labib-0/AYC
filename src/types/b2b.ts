@@ -125,6 +125,10 @@ export interface B2BProductInput {
   package_assortment_message?: string;
   isHiddenFromStorefront?: boolean;
   is_hidden_from_storefront?: boolean;
+  isPinned?: boolean;
+  is_pinned?: boolean;
+  pinnedOrder?: number;
+  pinned_order?: number;
   isFeatured?: boolean;
   is_featured?: boolean;
   featured?: boolean;

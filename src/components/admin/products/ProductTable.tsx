@@ -15,6 +15,7 @@ interface ProductTableProps {
   onTogglePublish: (product: B2BProductInput) => void;
   onToggleStorefrontVisibility?: (product: B2BProductInput) => void;
   onToggleFeatured?: (product: B2BProductInput) => void;
+  pinningIds?: Set<string>;
   onDelete: (product: B2BProductInput) => void;
   onAdjustStock?: (product: B2BProductInput) => void;
   onViewStockHistory?: (product: B2BProductInput) => void;
@@ -168,6 +169,7 @@ export default function ProductTable({
   onTogglePublish,
   onToggleStorefrontVisibility,
   onToggleFeatured,
+  pinningIds,
   onDelete,
   onAdjustStock,
   onViewStockHistory,
@@ -394,6 +396,7 @@ export default function ProductTable({
                   onTogglePublish={onTogglePublish}
                   onToggleStorefrontVisibility={onToggleStorefrontVisibility}
                   onToggleFeatured={onToggleFeatured}
+                  isPinLoading={Boolean(pinningIds?.has(product.id))}
                   onDelete={onDelete}
                   onAdjustStock={onAdjustStock}
                   onViewStockHistory={onViewStockHistory}

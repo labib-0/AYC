@@ -149,6 +149,7 @@ class HomepageController extends ApiController
                     }
                 ])
                 ->orderBy('sort_order', 'asc') // Admin-pinned order
+                ->orderBy('id', 'asc')
                 ->get()
                 ->map(function ($item) {
                     return [
@@ -163,7 +164,7 @@ class HomepageController extends ApiController
             // Collect pinned product IDs to exclude from remaining list (prevents duplication)
             $pinnedProductIds = $selectedFeatured->pluck('product_id')->filter()->values()->toArray();
 
-            // Remaining eligible products in upload order (created_at DESC — newest upload first)
+            // Remaining eligible products in upload order (created_at DESC, id DESC — newest upload first)
             // Excludes all pinned products so each product appears exactly once
             $remainingFeatured = Product::query()
                 ->storefrontVisible()
@@ -177,8 +178,8 @@ class HomepageController extends ApiController
                     'pricingTiers',
                     'packageAllocations',
                 ])
-                ->orderBy('is_sold_out', 'asc') // 0 (active/available) first, 1 (sold out) last
-                ->orderBy('created_at', 'desc') // authoritative upload timestamp; NOT updated_at, NOT id
+                ->orderBy('created_at', 'desc') // authoritative upload timestamp: newest first
+                ->orderBy('id', 'desc')         // stable secondary key
                 ->get()
                 ->map(function ($p, $idx) use ($selectedFeatured) {
                     return [
@@ -190,15 +191,16 @@ class HomepageController extends ApiController
                     ];
                 });
 
-            // Combined: Admin-pinned selected products FIRST → remaining in created_at DESC
+            // Combined: Admin-pinned selected products FIRST → remaining in created_at DESC, id DESC
             $featuredProducts = $selectedFeatured->concat($remainingFeatured);
 
-            // Fallback: If no records in homepage_featured_products, check products with is_featured = true
-            // Apply the same ordering rule: featured_sort_order first, then created_at DESC (not id DESC)
+            // Fallback: If no records in homepage_featured_products, check products with is_pinned = true or is_featured = true
             if ($selectedFeatured->isEmpty()) {
                 $featuredProdsDirect = Product::query()
                     ->storefrontVisible()
-                    ->where('is_featured', true)
+                    ->where(function ($q) {
+                        $q->where('is_pinned', true)->orWhere('is_featured', true);
+                    })
                     ->whereNull('deleted_at')
                     ->with([
                         'images' => fn($q) => $q->orderBy('sort_order', 'asc'),
@@ -208,8 +210,8 @@ class HomepageController extends ApiController
                         'pricingTiers',
                         'packageAllocations',
                     ])
-                    ->orderBy('featured_sort_order', 'asc')
-                    ->orderBy('created_at', 'desc') // newest upload first — NOT id DESC
+                    ->orderByRaw('COALESCE(pinned_order, featured_sort_order, sort_order, 0) asc')
+                    ->orderBy('id', 'asc')
                     ->get();
 
                 if ($featuredProdsDirect->isNotEmpty()) {
@@ -219,13 +221,13 @@ class HomepageController extends ApiController
                         return [
                             'id' => $p->id,
                             'product_id' => $p->id,
-                            'sort_order' => $p->featured_sort_order ?? $idx,
+                            'sort_order' => $p->pinned_order ?: ($p->featured_sort_order ?? $idx),
                             'is_active' => true,
                             'product' => (new ProductResource($p))->resolve(),
                         ];
                     });
 
-                    // Remaining products after fallback-pinned exclusion, sorted by created_at DESC
+                    // Remaining products after fallback-pinned exclusion, sorted by created_at DESC, id DESC
                     $fallbackRemaining = Product::query()
                         ->storefrontVisible()
                         ->whereNull('deleted_at')
@@ -238,8 +240,8 @@ class HomepageController extends ApiController
                             'pricingTiers',
                             'packageAllocations',
                         ])
-                        ->orderBy('is_sold_out', 'asc') // 0 (active/available) first, 1 (sold out) last
-                        ->orderBy('created_at', 'desc') // newest upload first — NOT updated_at, NOT id
+                        ->orderBy('created_at', 'desc') // newest upload first
+                        ->orderBy('id', 'desc')         // stable secondary key
                         ->get()
                         ->map(function ($p, $idx) use ($fallbackPinned) {
                             return [

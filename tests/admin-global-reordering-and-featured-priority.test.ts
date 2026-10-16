@@ -260,8 +260,8 @@ describe("Part B & C: Featured Pin Green Dot Indicator & Priority", () => {
     assert.strictEqual(isProductPinned(expiredPinned), false, "Expired featured product is not pinned");
   });
 
-  it("ProductTableRow renders green dot indicator beside product name for pinned products", () => {
-    const pinnedProd: B2BProductInput = { ...mockProductBase, id: "pinned-1", name: "Pinned Luxury Polo", isFeatured: true };
+  it("ProductTableRow renders textual Pinned tag for pinned products and does NOT render old green dot", () => {
+    const pinnedProd: B2BProductInput = { ...mockProductBase, id: "pinned-1", name: "Pinned Luxury Polo", isFeatured: true, isPinned: true };
     const html = ReactDOMServer.renderToStaticMarkup(
       withAuth(
         React.createElement("table", null,
@@ -278,18 +278,19 @@ describe("Part B & C: Featured Pin Green Dot Indicator & Priority", () => {
       )
     );
 
-    assert.ok(html.includes("data-testid=\"featured-pin-indicator\""), "Contains green dot indicator test id");
-    assert.ok(html.includes("title=\"Pinned to Featured\""), "Contains accessible tooltip 'Pinned to Featured'");
-    assert.ok(html.includes("bg-emerald-500"), "Uses emerald/green color for indicator");
-    assert.ok(html.includes("Pinned Luxury Polo"), "Product name is rendered beside indicator");
+    assert.ok(html.includes("data-testid=\"pinned-tag\""), "Contains textual Pinned tag test id");
+    assert.ok(html.includes(">Pinned</span>"), "Renders textual Pinned tag");
+    assert.ok(!html.includes("data-testid=\"featured-pin-indicator\""), "Old green dot indicator test id is removed");
+    assert.ok(html.includes("Pinned Luxury Polo"), "Product name is rendered beside tag");
   });
 
-  it("ProductTableRow does NOT render green dot indicator for unpinned products", () => {
+  it("ProductTableRow does NOT render Pinned tag or old green dot for unpinned products", () => {
     const unpinnedProd: B2BProductInput = {
       ...mockProductBase,
       id: "unpinned-1",
       name: "Standard Linen Shirt",
       isFeatured: false,
+      isPinned: false,
       badge: "Hot",
       isBestDeal: true,
     } as any;
@@ -310,8 +311,8 @@ describe("Part B & C: Featured Pin Green Dot Indicator & Priority", () => {
       )
     );
 
+    assert.ok(!html.includes("data-testid=\"pinned-tag\""), "Pinned tag is NOT rendered for unpinned product");
     assert.ok(!html.includes("data-testid=\"featured-pin-indicator\""), "Green dot is NOT rendered for unpinned product");
-    assert.ok(!html.includes("title=\"Pinned to Featured\""), "No Pinned to Featured tooltip for unpinned product");
   });
 
   it("Admin Products sorts pinned products before non-pinned products while preserving relative order", () => {
@@ -373,13 +374,13 @@ describe("Part B & C: Featured Pin Green Dot Indicator & Priority", () => {
     );
   });
 
-  it("ProductTableRow provides Pin to Featured and Unpin from Featured in action menu", () => {
+  it("ProductTableRow provides Pin and Unpin in action menu", () => {
     const pinnedRow = ReactDOMServer.renderToStaticMarkup(
       withAuth(
         React.createElement("table", null,
           React.createElement("tbody", null,
             React.createElement(ProductTableRow, {
-              product: { ...mockProductBase, isFeatured: true },
+              product: { ...mockProductBase, id: "p-action-1", isFeatured: true, isPinned: true },
               selected: false,
               initialMenuOpen: true,
               onSelect: () => {},
@@ -391,14 +392,14 @@ describe("Part B & C: Featured Pin Green Dot Indicator & Priority", () => {
         )
       )
     );
-    assert.ok(pinnedRow.includes("Unpin from Featured"), "Action menu contains Unpin from Featured for pinned product");
+    assert.ok(pinnedRow.includes(">Unpin</span>"), "Action menu contains Unpin for pinned product");
 
     const unpinnedRow = ReactDOMServer.renderToStaticMarkup(
       withAuth(
         React.createElement("table", null,
           React.createElement("tbody", null,
             React.createElement(ProductTableRow, {
-              product: { ...mockProductBase, isFeatured: false },
+              product: { ...mockProductBase, id: "p-action-2", isFeatured: false, isPinned: false },
               selected: false,
               initialMenuOpen: true,
               onSelect: () => {},
@@ -410,7 +411,7 @@ describe("Part B & C: Featured Pin Green Dot Indicator & Priority", () => {
         )
       )
     );
-    assert.ok(unpinnedRow.includes("Pin to Featured"), "Action menu contains Pin to Featured for unpinned product");
+    assert.ok(unpinnedRow.includes(">Pin</span>"), "Action menu contains Pin for unpinned product");
   });
 });
 

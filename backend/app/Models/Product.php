@@ -75,6 +75,8 @@ class Product extends Model
         'is_featured',
         'featured_sort_order',
         'featured_until',
+        'is_pinned',
+        'pinned_order',
         'is_hot',
         'hot_until',
         'is_new',
@@ -110,6 +112,8 @@ class Product extends Model
         'is_featured' => 'boolean',
         'featured_sort_order' => 'integer',
         'featured_until' => 'datetime',
+        'is_pinned' => 'boolean',
+        'pinned_order' => 'integer',
         'is_hot' => 'boolean',
         'hot_until' => 'datetime',
         'is_new' => 'boolean',
@@ -251,6 +255,19 @@ class Product extends Model
         static::saving(function (Product $product) {
             if (array_key_exists('package_assortment_message', $product->getAttributes()) && empty(trim($product->package_assortment_message ?? ''))) {
                 $product->package_assortment_message = self::DEFAULT_PACKAGE_ASSORTMENT_MESSAGE;
+            }
+
+            // Bidirectional synchronization between is_pinned/pinned_order and is_featured/featured_sort_order
+            if ($product->isDirty('is_pinned') && !$product->isDirty('is_featured')) {
+                $product->is_featured = (bool) $product->is_pinned;
+            } elseif ($product->isDirty('is_featured') && !$product->isDirty('is_pinned')) {
+                $product->is_pinned = (bool) $product->is_featured;
+            }
+
+            if ($product->isDirty('pinned_order') && !$product->isDirty('featured_sort_order')) {
+                $product->featured_sort_order = (int) $product->pinned_order;
+            } elseif ($product->isDirty('featured_sort_order') && !$product->isDirty('pinned_order')) {
+                $product->pinned_order = (int) $product->featured_sort_order;
             }
         });
 
@@ -1002,10 +1019,30 @@ class Product extends Model
      */
     public function isFeaturedActive(): bool
     {
-        if (!$this->is_featured) {
+        if (!$this->is_featured && !$this->is_pinned) {
             return false;
         }
         return $this->featured_until === null || $this->featured_until->isFuture();
+    }
+
+    /**
+     * Determine if product is actively pinned
+     */
+    public function isPinnedActive(): bool
+    {
+        return $this->isFeaturedActive();
+    }
+
+    /**
+     * Scope to actively pinned products
+     */
+    public function scopePinned($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('is_pinned', true)->orWhere('is_featured', true);
+        })->where(function ($q) {
+            $q->whereNull('featured_until')->orWhere('featured_until', '>', now());
+        });
     }
 
     /**

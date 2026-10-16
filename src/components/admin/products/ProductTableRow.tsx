@@ -17,6 +17,8 @@ import {
   Ban,
   Package,
   Star,
+  Pin,
+  Loader2,
 } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
@@ -32,6 +34,7 @@ interface ProductTableRowProps {
   onTogglePublish: (product: B2BProductInput) => void;
   onToggleStorefrontVisibility?: (product: B2BProductInput) => void;
   onToggleFeatured?: (product: B2BProductInput) => void;
+  isPinLoading?: boolean;
   onDelete: (product: B2BProductInput) => void;
   onAdjustStock?: (product: B2BProductInput) => void;
   onViewStockHistory?: (product: B2BProductInput) => void;
@@ -57,6 +60,7 @@ export default function ProductTableRow({
   onTogglePublish,
   onToggleStorefrontVisibility,
   onToggleFeatured,
+  isPinLoading = false,
   onDelete,
   onAdjustStock,
   onViewStockHistory,
@@ -142,7 +146,13 @@ export default function ProductTableRow({
 
   const featUntil = product.featuredUntil || (product as any).featured_until;
   const isFeaturedExpired = featUntil ? new Date(featUntil).getTime() <= Date.now() : false;
-  const isPinned = Boolean(product.isFeatured || (product as any).is_featured || (product as any).featured) && !isFeaturedExpired;
+  const isPinned = Boolean(
+    (product as any).is_pinned ??
+    (product as any).isPinned ??
+    product.isFeatured ??
+    (product as any).is_featured ??
+    (product as any).featured
+  ) && !isFeaturedExpired;
 
   const isUnderAdminPath = Boolean(pathname?.startsWith("/ayc") || pathname?.startsWith("/admin"));
   const editHref = product.id === "draft_local_new"
@@ -213,15 +223,16 @@ export default function ProductTableRow({
 
       {/* Product Name */}
       <td className="px-3 py-2.5 sm:py-3 w-[250px] align-middle" style={{ width: "250px" }}>
-        <div className="min-w-0 max-w-full flex items-start gap-1.5">
+        <div className="min-w-0 max-w-full flex items-center gap-1.5 flex-wrap">
           {isPinned && (
             <span
-              data-testid="featured-pin-indicator"
-              className="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-xs shrink-0 mt-1 ring-2 ring-emerald-500/20"
-              title="Pinned to Featured"
-              aria-label="Pinned to Featured"
+              data-testid="pinned-tag"
+              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-primary/10 text-primary border border-primary/20 shrink-0"
+              title="Pinned"
               role="status"
-            />
+            >
+              Pinned
+            </span>
           )}
           <p
             className={`text-xs font-bold leading-snug line-clamp-2 block ${!product.name ? "text-muted-foreground italic font-normal" : "text-foreground"}`}
@@ -537,18 +548,26 @@ export default function ProductTableRow({
                 <button
                   type="button"
                   id={`btn-toggle-featured-${product.id}`}
+                  data-testid={`btn-toggle-pin-${product.id}`}
+                  disabled={isPinLoading}
                   onClick={() => {
                     setMenuOpen(false);
                     onToggleFeatured(product);
                   }}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
-                  title={isPinned ? "Unpin from Featured" : "Pin to Featured"}
+                  className={`flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer ${
+                    isPinLoading ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                  title={isPinned ? "Unpin" : "Pin"}
                 >
-                  <Star
-                    size={13}
-                    className={isPinned ? "text-emerald-500 fill-emerald-500" : "text-muted-foreground"}
-                  />
-                  <span>{isPinned ? "Unpin from Featured" : "Pin to Featured"}</span>
+                  {isPinLoading ? (
+                    <Loader2 size={13} className="animate-spin text-muted-foreground shrink-0" />
+                  ) : (
+                    <Pin
+                      size={13}
+                      className={isPinned ? "text-primary fill-primary shrink-0" : "text-muted-foreground shrink-0"}
+                    />
+                  )}
+                  <span>{isPinLoading ? "Updating..." : (isPinned ? "Unpin" : "Pin")}</span>
                 </button>
               )}
 

@@ -8,6 +8,7 @@ import { apiClient } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { productDraftService } from "@/lib/services/product-draft.service";
 import { normalizeImageUrl, isValidImageUrl } from "@/lib/media";
+import { homepageService } from "./homepage.service";
 
 export interface ProductQueryParams {
   page?: number;
@@ -165,7 +166,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
 
   const isHot = Boolean(p.isHot ?? p.is_hot ?? p.badge === "Hot") && !isHotExpired;
   const isNew = Boolean(p.isNew ?? p.is_new ?? p.badge === "New") && !isNewExpired;
-  const isFeatured = Boolean(p.isFeatured ?? p.is_featured ?? p.featured) && !isFeaturedExpired;
+  const isPinned = Boolean(p.isPinned ?? p.is_pinned ?? p.isFeatured ?? p.is_featured ?? p.featured) && !isFeaturedExpired;
+  const isFeatured = isPinned;
   const isLimitedDeal = Boolean(p.isLimitedDeal || p.is_limited_deal || p.isLimitedTimeOffer);
   const isBestDeal = Boolean(
     p.isBestDeal ||
@@ -459,6 +461,10 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     package_assortment_message: typeof (p.package_assortment_message ?? p.packageAssortmentMessage) === "string" && (p.package_assortment_message ?? p.packageAssortmentMessage).trim() !== "" ? (p.package_assortment_message ?? p.packageAssortmentMessage).trim() : DEFAULT_PACKAGE_ASSORTMENT_MESSAGE,
     isHiddenFromStorefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
     is_hidden_from_storefront: Boolean(p.isHiddenFromStorefront ?? p.is_hidden_from_storefront),
+    isPinned: isPinned,
+    is_pinned: isPinned,
+    pinnedOrder: (p as any).pinnedOrder ?? (p as any).pinned_order ?? (p as any).featuredSortOrder ?? (p as any).featured_sort_order,
+    pinned_order: (p as any).pinnedOrder ?? (p as any).pinned_order ?? (p as any).featuredSortOrder ?? (p as any).featured_sort_order,
     isFeatured: isFeatured,
     featuredUntil: featuredUntil,
     featured_until: featuredUntil,
@@ -1102,7 +1108,26 @@ export class ProductService {
     if (input.isHiddenFromStorefront !== undefined) payload.is_hidden_from_storefront = input.isHiddenFromStorefront;
     if (input.is_hidden_from_storefront !== undefined) payload.is_hidden_from_storefront = input.is_hidden_from_storefront;
 
-    if (input.isFeatured !== undefined) payload.is_featured = input.isFeatured;
+    if (input.isPinned !== undefined) {
+      payload.is_pinned = input.isPinned;
+      payload.is_featured = input.isPinned;
+    }
+    if ((input as any).is_pinned !== undefined) {
+      payload.is_pinned = (input as any).is_pinned;
+      payload.is_featured = (input as any).is_pinned;
+    }
+    if (input.pinnedOrder !== undefined) {
+      payload.pinned_order = input.pinnedOrder;
+      payload.featured_sort_order = input.pinnedOrder;
+    }
+    if ((input as any).pinned_order !== undefined) {
+      payload.pinned_order = (input as any).pinned_order;
+      payload.featured_sort_order = (input as any).pinned_order;
+    }
+    if (input.isFeatured !== undefined) {
+      payload.is_featured = input.isFeatured;
+      payload.is_pinned = input.isFeatured;
+    }
     if (input.featuredUntil !== undefined) payload.featured_until = input.featuredUntil;
     if (input.isHot !== undefined) payload.is_hot = input.isHot;
     if (input.hotUntil !== undefined) payload.hot_until = input.hotUntil;
@@ -1454,12 +1479,41 @@ export class ProductService {
     mockStore.reorderProducts(normalizedOrders);
     return this.getProducts({ all: true, isAdmin: true, sort: "manual" });
   }
+
+  async toggleProductPin(id: string, isPinned?: boolean): Promise<{ success: boolean; is_pinned: boolean }> {
+    if (!isFrontendOnly()) {
+      const endpoint = isPinned !== undefined
+        ? (isPinned ? `/products/${id}/pin` : `/products/${id}/unpin`)
+        : `/products/${id}/toggle-pin`;
+      const res = await apiClient.post<any>(endpoint, isPinned !== undefined ? { is_pinned: isPinned } : {});
+      const item = res?.data || res;
+      if (typeof window !== "undefined") {
+        homepageService.invalidateStorefrontCache();
+      }
+      return { success: true, is_pinned: Boolean(item?.is_pinned ?? item?.is_featured) };
+    }
+
+    const current = mockStore.getProductByIdOrSlug(id);
+    if (!current) return { success: false, is_pinned: false };
+    const nextPinned = isPinned !== undefined ? isPinned : !(current.isPinned ?? current.isFeatured ?? (current as any).is_pinned);
+    const updated: B2BProductInput = {
+      ...current,
+      isFeatured: nextPinned,
+      is_featured: nextPinned,
+      isPinned: nextPinned,
+      is_pinned: nextPinned,
+    };
+    mockStore.saveProduct(updated);
+    return { success: true, is_pinned: nextPinned };
+  }
 }
 
 export const productService = new ProductService();
 export const toggleProductStorefrontVisibility = (id: string, isHidden?: boolean) =>
   productService.toggleProductStorefrontVisibility(id, isHidden);
 export const toggleProductFeatured = (id: string, isFeatured: boolean) =>
-  productService.updateProduct(id, { isFeatured, is_featured: isFeatured });
+  productService.updateProduct(id, { isFeatured, is_featured: isFeatured, isPinned: isFeatured, is_pinned: isFeatured });
+export const toggleProductPin = (id: string, isPinned?: boolean) =>
+  productService.toggleProductPin(id, isPinned);
 export const reorderProducts = (orders: Array<{ id: string | number; sort_order: number }> | (string | number)[]) =>
   productService.reorderProducts(orders);

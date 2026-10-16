@@ -242,11 +242,13 @@ class ProductController extends ApiController
 
         // Flags (storefront only matches active, unexpired promotional badges)
         $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
-        if ($request->boolean('is_featured')) {
-            $query->where('is_featured', true)
-                ->where(function ($q) {
-                    $q->whereNull('featured_until')->orWhere('featured_until', '>', now());
-                });
+        if ($request->boolean('is_featured') || $request->boolean('is_pinned')) {
+            $query->where(function ($q) {
+                $q->where('is_featured', true)->orWhere('is_pinned', true);
+            })
+            ->where(function ($q) {
+                $q->whereNull('featured_until')->orWhere('featured_until', '>', now());
+            });
         }
         if ($request->boolean('is_hot')) {
             $query->where('is_hot', true);
@@ -319,39 +321,74 @@ class ProductController extends ApiController
         $sortBy = $request->input('sort') ?? $request->input('sort_by') ?? 'newest';
         if (!$isAdmin) {
             $query->orderBy('is_sold_out', 'asc');
-        }
-        switch ($sortBy) {
-            case 'price_asc':
-                $query->orderBy('wholesale_price', 'asc');
-                break;
-            case 'price_desc':
-                $query->orderBy('wholesale_price', 'desc');
-                break;
-            case 'popular':
-            case 'hot':
-                $query->orderBy('is_hot', 'desc')->orderBy('created_at', 'desc');
-                break;
-            case 'featured':
-                $query->orderBy('is_featured', 'desc')->orderBy('created_at', 'desc');
-                break;
-            case 'name_asc':
-                $query->orderBy('name', 'asc');
-                break;
-            case 'name_desc':
-                $query->orderBy('name', 'desc');
-                break;
-            case 'manual':
-            case 'sort_order':
-                $query->orderBy('sort_order', 'asc')->orderBy('id', 'desc');
-                break;
-            case 'newest':
-            default:
-                if ($isAdmin && ($sortBy === 'manual' || $request->input('sort') === 'manual')) {
+            switch ($sortBy) {
+                case 'price_asc':
+                    $query->orderBy('wholesale_price', 'asc');
+                    break;
+                case 'price_desc':
+                    $query->orderBy('wholesale_price', 'desc');
+                    break;
+                case 'popular':
+                case 'hot':
+                    $query->orderBy('is_hot', 'desc')->orderBy('created_at', 'desc');
+                    break;
+                case 'featured':
+                    $query->orderBy('is_featured', 'desc')->orderBy('created_at', 'desc');
+                    break;
+                case 'name_asc':
+                    $query->orderBy('name', 'asc');
+                    break;
+                case 'name_desc':
+                    $query->orderBy('name', 'desc');
+                    break;
+                case 'manual':
+                case 'sort_order':
                     $query->orderBy('sort_order', 'asc')->orderBy('id', 'desc');
-                } else {
+                    break;
+                case 'newest':
+                default:
                     $query->orderBy('created_at', 'desc');
-                }
-                break;
+                    break;
+            }
+        } else {
+            // ADMIN ORDERING RULE (Section 5):
+            // 1. Pinned products appear first across All Products and filtered admin views
+            // 2. Unpinned products follow
+            // 3. Within pinned group: saved pinned/manual order (ascending)
+            // 4. Within unpinned group: preserve selected admin sort
+            $query->orderByRaw('CASE WHEN (is_pinned = true OR is_pinned = 1 OR is_featured = true OR is_featured = 1) THEN 0 ELSE 1 END ASC');
+            $query->orderByRaw('CASE WHEN (is_pinned = true OR is_pinned = 1 OR is_featured = true OR is_featured = 1) THEN COALESCE(pinned_order, featured_sort_order, sort_order, 0) ELSE NULL END ASC');
+            $query->orderByRaw('CASE WHEN (is_pinned = true OR is_pinned = 1 OR is_featured = true OR is_featured = 1) THEN id ELSE NULL END ASC');
+
+            switch ($sortBy) {
+                case 'price_asc':
+                    $query->orderBy('wholesale_price', 'asc');
+                    break;
+                case 'price_desc':
+                    $query->orderBy('wholesale_price', 'desc');
+                    break;
+                case 'popular':
+                case 'hot':
+                    $query->orderBy('is_hot', 'desc')->orderBy('created_at', 'desc');
+                    break;
+                case 'name_asc':
+                    $query->orderBy('name', 'asc');
+                    break;
+                case 'name_desc':
+                    $query->orderBy('name', 'desc');
+                    break;
+                case 'manual':
+                case 'sort_order':
+                    $query->orderBy('sort_order', 'asc')->orderBy('id', 'desc');
+                    break;
+                case 'featured':
+                    $query->orderBy('created_at', 'desc');
+                    break;
+                case 'newest':
+                default:
+                    $query->orderBy('created_at', 'desc')->orderBy('id', 'desc');
+                    break;
+            }
         }
 
         $isAll = $request->boolean('all') || $request->input('per_page') === 'all' || (int) $request->input('per_page') === -1;
@@ -521,8 +558,8 @@ class ProductController extends ApiController
                     $newQuery->orderBy('created_at', 'desc');
                     $allOrderedIds = $newQuery->pluck('id')->toArray();
                 } else {
-                    // DEFAULT:
-                    // 1. Admin-pinned products (HomepageFeaturedProduct is authoritative)
+                    // DEFAULT (Section 7: Exact Required Ordering):
+                    // Priority 1: Pinned products in saved manual order (sort_order ASC, id ASC)
                     $pinnedIds = HomepageFeaturedProduct::query()
                         ->where('is_active', true)
                         ->whereHas('product', function ($pq) use ($applyStorefrontFilters) {
@@ -532,35 +569,38 @@ class ProductController extends ApiController
                             });
                         })
                         ->orderBy('sort_order', 'asc')
+                        ->orderBy('id', 'asc')
                         ->pluck('product_id')
                         ->filter()
                         ->values()
                         ->toArray();
 
-                    // Fallback: If no records in homepage_featured_products, check products with is_featured = true
+                    // Fallback: If no records in homepage_featured_products, check products with is_pinned = true or is_featured = true
                     if (empty($pinnedIds)) {
                         $fallbackPinnedQuery = Product::query()
-                            ->where('is_featured', true)
+                            ->where(function ($q) {
+                                $q->where('is_pinned', true)->orWhere('is_featured', true);
+                            })
                             ->where(function ($fq) {
                                 $fq->whereNull('featured_until')->orWhere('featured_until', '>', now());
                             });
                         $applyStorefrontFilters($fallbackPinnedQuery);
                         $pinnedIds = $fallbackPinnedQuery
-                            ->orderBy('featured_sort_order', 'asc')
-                            ->orderBy('created_at', 'desc')
+                            ->orderByRaw('COALESCE(pinned_order, featured_sort_order, sort_order, 0) ASC')
+                            ->orderBy('id', 'asc')
                             ->pluck('id')
                             ->toArray();
                     }
 
-                    // 2. Remaining eligible products in upload order (created_at DESC — newest upload first)
+                    // Priority 2: All remaining eligible storefront products in upload order (created_at DESC, id DESC tie-breaker)
                     $remainingQuery = Product::query();
                     $applyStorefrontFilters($remainingQuery);
                     if (!empty($pinnedIds)) {
                         $remainingQuery->whereNotIn('id', $pinnedIds);
                     }
                     $remainingIds = $remainingQuery
-                        ->orderBy('is_sold_out', 'asc') // 0 (active/available) first, 1 (sold out) last
-                        ->orderBy('created_at', 'desc') // authoritative upload timestamp
+                        ->orderBy('created_at', 'desc') // authoritative upload timestamp: newest first
+                        ->orderBy('id', 'desc')         // stable secondary key
                         ->pluck('id')
                         ->toArray();
 
@@ -739,8 +779,10 @@ class ProductController extends ApiController
             $request->merge(['cost_price' => $request->input('costPrice')]);
         }
 
-        $slugManuallyEdited = $request->boolean('slug_manually_edited');
         $rawSlug = $request->input('slug');
+        $slugManuallyEdited = $request->has('slug_manually_edited')
+            ? $request->boolean('slug_manually_edited')
+            : !empty($rawSlug);
 
         // Automatically generate deterministic unique slug (e.g. name-2, name-3) if not manually customized or if empty
         if (!$slugManuallyEdited || empty($rawSlug)) {
@@ -828,7 +870,9 @@ class ProductController extends ApiController
             'status' => ['nullable', 'string', 'in:draft,published,archived'],
             'is_hidden_from_storefront' => ['nullable', 'boolean'],
             'is_featured' => ['nullable', 'boolean'],
+            'is_pinned' => ['nullable', 'boolean'],
             'featured_sort_order' => ['nullable', 'integer'],
+            'pinned_order' => ['nullable', 'integer'],
             'featured_until' => ['nullable', 'date'],
             'featured_duration_days' => ['nullable', 'integer', 'min:1'],
             'is_hot' => ['nullable', 'boolean'],
@@ -1621,7 +1665,9 @@ class ProductController extends ApiController
             'status' => ['sometimes', 'string', 'in:draft,published,archived'],
             'is_hidden_from_storefront' => ['sometimes', 'boolean'],
             'is_featured' => ['sometimes', 'boolean'],
+            'is_pinned' => ['sometimes', 'boolean'],
             'featured_sort_order' => ['nullable', 'integer'],
+            'pinned_order' => ['nullable', 'integer'],
             'featured_until' => ['nullable', 'date'],
             'featured_duration_days' => ['nullable', 'integer', 'min:1'],
             'is_hot' => ['sometimes', 'boolean'],
@@ -1980,18 +2026,27 @@ class ProductController extends ApiController
             $product->categories()->sync(array_filter([(int) $request->input('category_id')]));
         }
 
-        if (isset($validated['is_featured'])) {
-            if ($validated['is_featured']) {
+        $targetPin = null;
+        if (array_key_exists('is_pinned', $validated)) {
+            $targetPin = (bool) $validated['is_pinned'];
+        } elseif (array_key_exists('is_featured', $validated)) {
+            $targetPin = (bool) $validated['is_featured'];
+        }
+
+        if ($targetPin !== null) {
+            if ($targetPin) {
+                $orderVal = $validated['pinned_order'] ?? $validated['featured_sort_order'] ?? $product->pinned_order ?? $product->featured_sort_order ?? 0;
                 \App\Models\HomepageFeaturedProduct::updateOrCreate(
                     ['product_id' => $product->id],
-                    ['sort_order' => $validated['featured_sort_order'] ?? $product->featured_sort_order ?? 0, 'is_active' => true]
+                    ['sort_order' => $orderVal, 'is_active' => true]
                 );
             } else {
                 \App\Models\HomepageFeaturedProduct::where('product_id', $product->id)->delete();
             }
-        } elseif (isset($validated['featured_sort_order']) && $product->is_featured) {
+        } elseif ((isset($validated['featured_sort_order']) || isset($validated['pinned_order'])) && ($product->is_featured || $product->is_pinned)) {
+            $orderVal = $validated['pinned_order'] ?? $validated['featured_sort_order'];
             \App\Models\HomepageFeaturedProduct::where('product_id', $product->id)->update([
-                'sort_order' => $validated['featured_sort_order'],
+                'sort_order' => $orderVal,
             ]);
         }
 
@@ -2799,6 +2854,7 @@ class ProductController extends ApiController
     /**
      * PUT or POST /api/v1/products/reorder
      * Reorder products persistently by updating their sort_order.
+     * Enforces that pinned products ALWAYS remain above unpinned products (Section 6).
      */
     public function reorder(Request $request): JsonResponse
     {
@@ -2820,20 +2876,205 @@ class ProductController extends ApiController
         }
 
         DB::transaction(function () use ($validated) {
+            $submittedIds = [];
+            $submittedOrdersMap = [];
             if (!empty($validated['orders'])) {
-                foreach ($validated['orders'] as $item) {
-                    Product::where('id', $item['id'])->update(['sort_order' => (int) $item['sort_order']]);
+                $items = $validated['orders'];
+                usort($items, fn($a, $b) => ((int) $a['sort_order']) <=> ((int) $b['sort_order']));
+                $submittedIds = array_column($items, 'id');
+                foreach ($items as $item) {
+                    $submittedOrdersMap[$item['id']] = (int) $item['sort_order'];
                 }
             } elseif (!empty($validated['ids'])) {
-                foreach ($validated['ids'] as $idx => $id) {
-                    Product::where('id', $id)->update(['sort_order' => (int) $idx]);
+                $submittedIds = $validated['ids'];
+            }
+
+            // Load products to partition pinned vs unpinned
+            $products = Product::whereIn('id', $submittedIds)
+                ->get(['id', 'is_pinned', 'is_featured', 'pinned_order', 'featured_sort_order'])
+                ->keyBy('id');
+
+            $pinnedIds = [];
+            $unpinnedIds = [];
+
+            foreach ($submittedIds as $id) {
+                $p = $products->get($id);
+                if ($p && ($p->is_pinned || $p->is_featured)) {
+                    $pinnedIds[] = $id;
+                } else {
+                    $unpinnedIds[] = $id;
+                }
+            }
+
+            // Check if client submitted an illegal ordering (unpinned product with sort_order <= pinned product)
+            $hasViolation = false;
+            if (!empty($pinnedIds) && !empty($unpinnedIds) && !empty($submittedOrdersMap)) {
+                $maxPinnedOrder = max(array_intersect_key($submittedOrdersMap, array_flip($pinnedIds)));
+                $minUnpinnedOrder = min(array_intersect_key($submittedOrdersMap, array_flip($unpinnedIds)));
+                if ($minUnpinnedOrder <= $maxPinnedOrder) {
+                    $hasViolation = true;
+                }
+            }
+
+            if (!$hasViolation && !empty($submittedOrdersMap)) {
+                // If submitted sort_orders obey boundary or if all products are unpinned, preserve exact sort_orders
+                foreach ($submittedOrdersMap as $id => $so) {
+                    $p = $products->get($id);
+                    $isPinned = $p && ($p->is_pinned || $p->is_featured);
+
+                    Product::where('id', $id)->update(['sort_order' => $so]);
+
+                    if ($isPinned) {
+                        $pinnedIdx = array_search($id, $pinnedIds, true);
+                        $pOrder = $pinnedIdx !== false ? $pinnedIdx + 1 : $so;
+                        Product::where('id', $id)->update([
+                            'pinned_order' => $pOrder,
+                            'featured_sort_order' => $pOrder,
+                        ]);
+                        HomepageFeaturedProduct::where('product_id', $id)->update([
+                            'sort_order' => $pOrder,
+                        ]);
+                    }
+                }
+            } else {
+                // Strict server-side invariant (Section 6):
+                // All pinned products precede all unpinned products; relative orders within both groups preserved.
+                $safeOrderedIds = array_merge($pinnedIds, $unpinnedIds);
+
+                foreach ($safeOrderedIds as $idx => $id) {
+                    $order = $idx;
+                    $p = $products->get($id);
+                    $isPinned = $p && ($p->is_pinned || $p->is_featured);
+
+                    if ($isPinned) {
+                        $pinnedIdx = array_search($id, $pinnedIds, true);
+                        $pinnedOrder = $pinnedIdx !== false ? $pinnedIdx + 1 : $order + 1;
+                        Product::where('id', $id)->update([
+                            'sort_order' => $order,
+                            'pinned_order' => $pinnedOrder,
+                            'featured_sort_order' => $pinnedOrder,
+                        ]);
+                        HomepageFeaturedProduct::where('product_id', $id)->update([
+                            'sort_order' => $pinnedOrder,
+                        ]);
+                    } else {
+                        Product::where('id', $id)->update([
+                            'sort_order' => $order,
+                        ]);
+                    }
                 }
             }
         });
 
         CatalogCacheService::invalidateAll();
+        CatalogCacheService::bumpFeaturedVersion();
         ActivityLogger::log('product.reorder', null, ['count' => count($validated['orders'] ?? $validated['ids'])]);
 
         return $this->success(null, 'Products reordered successfully');
+    }
+
+    /**
+     * PATCH /api/v1/products/{id}/toggle-pin
+     */
+    public function togglePin(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.edit')) {
+            return $this->forbidden("Forbidden: you do not have permission to pin/unpin products.");
+        }
+
+        $product = Product::where('id', $id)->first();
+        if (!$product) {
+            return $this->notFound("Product not found");
+        }
+
+        $currentPin = (bool) ($product->is_pinned || $product->is_featured);
+        $targetPinState = $request->has('is_pinned')
+            ? $request->boolean('is_pinned')
+            : ($request->has('is_featured') ? $request->boolean('is_featured') : !$currentPin);
+
+        return $this->applyPinState($product, $targetPinState);
+    }
+
+    /**
+     * POST /api/v1/products/{id}/pin
+     */
+    public function pin(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.edit')) {
+            return $this->forbidden("Forbidden: you do not have permission to pin products.");
+        }
+
+        $product = Product::where('id', $id)->first();
+        if (!$product) {
+            return $this->notFound("Product not found");
+        }
+
+        return $this->applyPinState($product, true);
+    }
+
+    /**
+     * POST /api/v1/products/{id}/unpin
+     */
+    public function unpin(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.edit')) {
+            return $this->forbidden("Forbidden: you do not have permission to unpin products.");
+        }
+
+        $product = Product::where('id', $id)->first();
+        if (!$product) {
+            return $this->notFound("Product not found");
+        }
+
+        return $this->applyPinState($product, false);
+    }
+
+    /**
+     * Helper to atomically apply pin/unpin state with cache busting
+     */
+    protected function applyPinState(Product $product, bool $targetPinState): JsonResponse
+    {
+        DB::transaction(function () use ($product, $targetPinState) {
+            if ($targetPinState) {
+                // Determine next pinned sort order (joins the pinned group without displacing existing pinned products)
+                $maxPinnedOrder = HomepageFeaturedProduct::max('sort_order')
+                    ?? Product::where('is_pinned', true)->max('pinned_order')
+                    ?? 0;
+                $nextOrder = (int) $maxPinnedOrder + 1;
+
+                HomepageFeaturedProduct::updateOrCreate(
+                    ['product_id' => $product->id],
+                    ['sort_order' => $nextOrder, 'is_active' => true]
+                );
+
+                $product->update([
+                    'is_pinned' => true,
+                    'is_featured' => true,
+                    'pinned_order' => $nextOrder,
+                    'featured_sort_order' => $nextOrder,
+                ]);
+            } else {
+                HomepageFeaturedProduct::where('product_id', $product->id)->delete();
+
+                $product->update([
+                    'is_pinned' => false,
+                    'is_featured' => false,
+                    'pinned_order' => 0,
+                    'featured_sort_order' => 0,
+                ]);
+            }
+        });
+
+        CatalogCacheService::invalidateAll();
+        CatalogCacheService::bumpFeaturedVersion();
+
+        $product->refresh();
+        return $this->success(
+            (new ProductResource($product))->resolve(),
+            $targetPinState ? "Product pinned successfully" : "Product unpinned successfully"
+        );
     }
 }
