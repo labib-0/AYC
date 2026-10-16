@@ -249,4 +249,25 @@ Per Priority 1, 2, and 7 guidelines:
 
 ---
 
-**Incident Status:** Fully Resolved. All customer and administrative pages are healthy and serving live traffic normally.
+## 8. Subsequent Incident Timeline: `ERR_CONNECTION_TIMED_OUT` (17:48 UTC+6)
+
+Following initial recovery, external browser checks reported `ERR_CONNECTION_TIMED_OUT` on `https://ayaanclothing.com/` and `/ayc`. A second deep-packet investigation was executed:
+
+### 8.1 Investigation & Evidence
+1. **Application Layer Ruled Out:** Next.js PM2 daemons (`ayaan-customer`, `ayaan-admin`) were online, healthy, and serving local requests with HTTP 200 and zero failed chunks.
+2. **Global Reachability vs Regional Timeout:** Global HTTP probes from 10 countries across North America, South America, Europe, and Asia (US, Canada, Brazil, Sweden, Ukraine, Bulgaria, India, Iran, Japan) ALL connected to `200.97.169.230:443` successfully with HTTP 200.
+3. **The DNS64 / NAT64 Mechanism:**
+   - Authoritative GoDaddy DNS publishes only `A 200.97.169.230` without an `AAAA` record.
+   - Mobile and IPv6-first carriers (in Bangladesh, Sri Lanka, France, etc.) use RFC 6147 DNS64 resolvers that synthesize a synthetic IPv6 address: `64:ff9b::c861:a9e6`.
+   - Browsers (using Happy Eyeballs RFC 8305) prioritize IPv6 and connect to `[64:ff9b::c861:a9e6]:443`.
+   - The carrier's NAT64 gateway times out attempting to reach Hostinger's `200.97.169.230` border router (`31.97.2.109`), producing `ERR_CONNECTION_TIMED_OUT`.
+4. **Controlled Proof:**
+   - When Chrome was tested with standard DNS -> `ERR_CONNECTION_TIMED_OUT`.
+   - When Chrome was tested with native IPv6 mapping (`2a02:4780:63:21bf::1`) -> **HTTP 200 OK in 1.8s** with full rendering and 0 asset failures.
+
+### 8.2 Definitive Resolution Reference
+See comprehensive report: [`AYC_CRITICAL_OUTAGE_RECOVERY_REPORT.md`](file:///Users/luhasan/Documents/ayaan/AYC_CRITICAL_OUTAGE_RECOVERY_REPORT.md) for full packet traces, multi-region probes, and operator action items.
+
+---
+
+**Incident Status:** Software and server-side infrastructure fully hardened with zero-downtime atomic deployment pipeline (`scripts/deploy-production.sh`). Immediate operator action required to publish GoDaddy `AAAA` record (`2a02:4780:63:21bf::1`) to eliminate regional carrier DNS64 timeouts.
