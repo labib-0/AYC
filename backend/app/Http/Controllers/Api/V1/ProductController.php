@@ -356,9 +356,14 @@ class ProductController extends ApiController
             // 2. Unpinned products follow
             // 3. Within pinned group: saved pinned/manual order (ascending)
             // 4. Within unpinned group: preserve selected admin sort
-            $query->orderByRaw('CASE WHEN (is_pinned = true OR is_pinned = 1 OR is_featured = true OR is_featured = 1) THEN 0 ELSE 1 END ASC');
-            $query->orderByRaw('CASE WHEN (is_pinned = true OR is_pinned = 1 OR is_featured = true OR is_featured = 1) THEN COALESCE(pinned_order, featured_sort_order, sort_order, 0) ELSE NULL END ASC');
-            $query->orderByRaw('CASE WHEN (is_pinned = true OR is_pinned = 1 OR is_featured = true OR is_featured = 1) THEN id ELSE NULL END ASC');
+            $isPg = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql';
+            $pinnedCond = $isPg
+                ? '(is_pinned IS TRUE OR is_featured IS TRUE)'
+                : '(is_pinned = 1 OR is_featured = 1 OR is_pinned = true OR is_featured = true)';
+
+            $query->orderByRaw("CASE WHEN {$pinnedCond} THEN 0 ELSE 1 END ASC");
+            $query->orderByRaw("CASE WHEN {$pinnedCond} THEN COALESCE(pinned_order, featured_sort_order, sort_order, 0) ELSE NULL END ASC");
+            $query->orderByRaw("CASE WHEN {$pinnedCond} THEN id ELSE NULL END ASC");
 
             switch ($sortBy) {
                 case 'price_asc':
