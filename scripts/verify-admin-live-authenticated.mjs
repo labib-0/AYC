@@ -6,7 +6,7 @@ const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrom
 const ARTIFACTS_DIR = "/Users/luhasan/.gemini/antigravity-ide/brain/bea71dfa-57f7-447e-a7d8-4601a55a7b91";
 const SCREENSHOT_DIR = path.join(ARTIFACTS_DIR, "browser");
 
-const ADMIN_TOKEN = "110|UDurs6XUbL8b1TUDe7JZhlPhORjFhVD3rDlBdjGGdc3ddd4a";
+const ADMIN_TOKEN = process.env.ADMIN_TEST_TOKEN || "";
 const ADMIN_USER = {
   id: 3,
   name: "Ayaan Super Admin",
