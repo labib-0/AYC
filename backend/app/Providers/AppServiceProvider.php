@@ -75,6 +75,16 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->ip());
         });
 
+        // Email Verification limits
+        RateLimiter::for('verification-resend', function (Request $request) {
+            $key = $request->user()?->id ?: (string) $request->input('email', $request->ip());
+            return Limit::perMinute(3)->by($key);
+        });
+
+        RateLimiter::for('verification-verify', function (Request $request) {
+            return Limit::perMinute(20)->by($request->ip());
+        });
+
         // B2B & Purchasing limits
         RateLimiter::for('rfq-create', function (Request $request) {
             return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());

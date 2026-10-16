@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\BrandController;
 use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CouponController;
+use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\GoogleAuthController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Admin\HomepageManagementController as AdminHomepageManagementController;
@@ -77,6 +78,16 @@ Route::prefix('v1')->group(function () {
         Route::post('/password/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
         Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
 
+        // Email Verification Endpoints
+        Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+            ->name('verification.verify')
+            ->middleware('throttle:verification-verify');
+        Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])
+            ->name('verification.send')
+            ->middleware('throttle:verification-resend');
+        Route::post('/email/verify/resend', [EmailVerificationController::class, 'resend'])
+            ->middleware('throttle:verification-resend');
+
         // Google OAuth Endpoints (Customer Only)
         Route::middleware(['web'])->group(function () {
             Route::get('/google/redirect', [GoogleAuthController::class, 'redirect'])
@@ -90,6 +101,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware('auth:sanctum')->group(function () {
             Route::post('/logout', [AuthController::class, 'logout']);
             Route::get('/me', [AuthController::class, 'me']);
+            Route::get('/email/verification-status', [EmailVerificationController::class, 'status']);
         });
     });
 

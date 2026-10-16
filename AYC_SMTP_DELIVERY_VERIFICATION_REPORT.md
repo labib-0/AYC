@@ -2,8 +2,11 @@
 
 **Date:** October 16, 2026  
 **Environment:** Production VPS (`200.97.169.230` / `https://ayaanclothing.com`)  
-**Deployment Commit:** `2e86bc0` (`feat(email): add deleteWhenMissingModels to queued RFQ notifications and safe queue hydration in test command`)  
-**Status:** **AUDITED, HARDENED, CONTROLLED DELIVERY TEST PASSED, AWAITING OPERATOR SMTP PROVIDER CREDENTIALS**  
+**Deployment Commit:** Current Working Release  
+**Status:** **SELF-HOSTED OUTBOUND MTA VERIFIED & TESTED, ACCOUNT VERIFICATION DEPLOYED, AWAITING OPERATOR GODADDY DNS PUBLICATION**  
+
+> [!IMPORTANT]
+> A complete self-hosted outbound mail server (Postfix + OpenDKIM) has been installed and tested on VPS `200.97.169.230`. Outbound port 25 is confirmed open, and direct delivery without third-party relays was accepted with `250 2.6.0 message received`. See [AYC_SELF_HOSTED_EMAIL_DEPLOYMENT_REPORT.md](file:///Users/luhasan/Documents/ayaan/AYC_SELF_HOSTED_EMAIL_DEPLOYMENT_REPORT.md) for complete details.
 
 ---
 

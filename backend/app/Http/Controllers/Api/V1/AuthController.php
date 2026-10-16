@@ -35,6 +35,9 @@ class AuthController extends ApiController
             'role' => User::ROLE_CUSTOMER,
         ]);
 
+        // Send account email verification notification
+        $user->sendEmailVerificationNotification();
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return $this->success([
