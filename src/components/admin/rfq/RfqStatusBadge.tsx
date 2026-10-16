@@ -1,5 +1,5 @@
 import React from "react";
-import { Clock, CheckCircle2 } from "lucide-react";
+import { Clock, CheckCircle2, XCircle } from "lucide-react";
 
 export interface RfqStatusBadgeProps {
   status: string;
@@ -9,8 +9,6 @@ export interface RfqStatusBadgeProps {
 
 /**
  * Determine if the RFQ status represents an approved state.
- * Any non-approved status (e.g. SUBMITTED, RFQ_RECEIVED, UNDER_REVIEW, PENDING)
- * maps to RFQ Pending.
  */
 export function isRfqApproved(status?: string): boolean {
   if (!status) return false;
@@ -26,24 +24,39 @@ export function isRfqApproved(status?: string): boolean {
   ].includes(s);
 }
 
+/**
+ * Determine if the RFQ status represents a rejected state.
+ */
+export function isRfqRejected(status?: string): boolean {
+  if (!status) return false;
+  const s = status.toUpperCase();
+  return ["REJECTED", "CANCELLED", "DECLINED"].includes(s);
+}
+
 export default function RfqStatusBadge({
   status,
   size = "md",
   showIcon = true,
 }: RfqStatusBadgeProps) {
   const approved = isRfqApproved(status);
+  const rejected = isRfqRejected(status);
 
-  const colorClasses = approved
-    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
-    : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30";
+  let colorClasses = "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30";
+  let label = "RFQ Pending";
+  let icon = <Clock size={size === "sm" ? 11 : 13} className="text-amber-600 dark:text-amber-400 shrink-0" />;
+  let dataStatus = "PENDING";
 
-  const icon = approved ? (
-    <CheckCircle2 size={size === "sm" ? 11 : 13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-  ) : (
-    <Clock size={size === "sm" ? 11 : 13} className="text-amber-600 dark:text-amber-400 shrink-0" />
-  );
-
-  const label = approved ? "RFQ Approved" : "RFQ Pending";
+  if (approved) {
+    colorClasses = "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30";
+    label = "RFQ Approved";
+    icon = <CheckCircle2 size={size === "sm" ? 11 : 13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />;
+    dataStatus = "APPROVED";
+  } else if (rejected) {
+    colorClasses = "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30";
+    label = "RFQ Rejected";
+    icon = <XCircle size={size === "sm" ? 11 : 13} className="text-rose-600 dark:text-rose-400 shrink-0" />;
+    dataStatus = "REJECTED";
+  }
 
   const sizeClasses =
     size === "sm"
@@ -54,7 +67,7 @@ export default function RfqStatusBadge({
     <span
       className={`inline-flex items-center font-bold uppercase tracking-wider rounded-full border ${colorClasses} ${sizeClasses}`}
       data-testid="rfq-status-badge"
-      data-status={approved ? "APPROVED" : "PENDING"}
+      data-status={dataStatus}
     >
       {showIcon && icon}
       <span>{label}</span>

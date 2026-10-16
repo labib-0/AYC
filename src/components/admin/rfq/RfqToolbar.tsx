@@ -97,6 +97,7 @@ export default function RfqToolbar({
           <option value="all">All RFQ Statuses</option>
           <option value="PENDING">RFQ Pending</option>
           <option value="APPROVED">RFQ Approved</option>
+          <option value="REJECTED">RFQ Rejected</option>
         </select>
 
         {/* Sort Filter */}

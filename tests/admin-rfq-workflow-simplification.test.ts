@@ -111,10 +111,11 @@ describe("RFQ Toolbar & KPI Simplification", () => {
   const toolbarPath = path.join(rootDir, "src/components/admin/rfq/RfqToolbar.tsx");
   const toolbarContent = fs.readFileSync(toolbarPath, "utf-8");
 
-  it("restricts status filter options to All, RFQ Pending, and RFQ Approved", () => {
+  it("restricts status filter options to All, RFQ Pending, RFQ Approved, and RFQ Rejected", () => {
     assert.ok(toolbarContent.includes('<option value="all">All RFQ Statuses</option>'));
     assert.ok(toolbarContent.includes('<option value="PENDING">RFQ Pending</option>'));
     assert.ok(toolbarContent.includes('<option value="APPROVED">RFQ Approved</option>'));
+    assert.ok(toolbarContent.includes('<option value="REJECTED">RFQ Rejected</option>'));
     assert.ok(!toolbarContent.includes('<option value="UNDER_REVIEW">'));
     assert.ok(!toolbarContent.includes('<option value="QUOTATION_GENERATED">'));
     assert.ok(!toolbarContent.includes('<option value="PAID">'));
@@ -123,10 +124,11 @@ describe("RFQ Toolbar & KPI Simplification", () => {
   const kpisPath = path.join(rootDir, "src/components/admin/rfq/RfqKpis.tsx");
   const kpisContent = fs.readFileSync(kpisPath, "utf-8");
 
-  it("KPI cards display Total RFQs, RFQ Pending, and RFQ Approved", () => {
+  it("KPI cards display Total RFQs, RFQ Pending, RFQ Approved, and RFQ Rejected", () => {
     assert.ok(kpisContent.includes('"Total RFQs"'));
     assert.ok(kpisContent.includes('"RFQ Pending"'));
     assert.ok(kpisContent.includes('"RFQ Approved"'));
+    assert.ok(kpisContent.includes('"RFQ Rejected"'));
     assert.ok(!kpisContent.includes('"Quotation Generated"'));
   });
 });
@@ -263,6 +265,7 @@ describe("RFQ Approval Lifecycle & Note Persistence", () => {
     assert.ok(summary.totalRfqs >= 0);
     assert.ok(summary.pending >= 0);
     assert.ok(summary.approved >= 0);
-    assert.equal(summary.totalRfqs, summary.pending + summary.approved);
+    assert.ok(summary.rejected >= 0);
+    assert.equal(summary.totalRfqs, summary.pending + summary.approved + summary.rejected);
   });
 });

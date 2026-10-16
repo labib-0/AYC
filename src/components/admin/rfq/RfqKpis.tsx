@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, Clock, CheckCircle2 } from "lucide-react";
+import { FileText, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { RfqSummaryMetrics } from "@/services/admin/rfq.service";
 
 export interface RfqKpisProps {
@@ -17,8 +17,8 @@ export default function RfqKpis({
 }: RfqKpisProps) {
   if (isLoading || !metrics) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+        {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
             className="p-4 rounded-2xl border border-border/60 bg-card/60 animate-pulse space-y-2.5"
@@ -31,9 +31,10 @@ export default function RfqKpis({
     );
   }
 
+  const rejectedCount = metrics.rejected ?? 0;
   const pendingCount = metrics.pending !== undefined 
     ? metrics.pending 
-    : (metrics.received || 0) + (metrics.underReview || 0);
+    : Math.max(0, (metrics.totalRfqs || 0) - (metrics.approved || 0) - rejectedCount);
 
   const isPendingActive =
     activeStatusFilter === "PENDING" ||
@@ -42,6 +43,7 @@ export default function RfqKpis({
     activeStatusFilter === "UNDER_REVIEW";
 
   const isApprovedActive = activeStatusFilter === "APPROVED";
+  const isRejectedActive = activeStatusFilter === "REJECTED" || activeStatusFilter === "CANCELLED";
 
   const items = [
     {
@@ -68,10 +70,18 @@ export default function RfqKpis({
       onClick: () => onSelectStatusFilter(isApprovedActive ? "all" : "APPROVED"),
       borderColor: "border-emerald-500/30",
     },
+    {
+      label: "RFQ Rejected",
+      value: rejectedCount,
+      icon: <XCircle size={16} className="text-rose-500" />,
+      active: isRejectedActive,
+      onClick: () => onSelectStatusFilter(isRejectedActive ? "all" : "REJECTED"),
+      borderColor: "border-rose-500/30",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
       {items.map((item, idx) => (
         <button
           key={idx}

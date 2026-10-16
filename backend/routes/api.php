@@ -341,6 +341,8 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:rfq.message.view');
         Route::post('/rfqs/{id}/messages', [RfqController::class, 'addMessage'])
             ->middleware('permission:rfq.message.send');
+        Route::delete('/rfqs/{id}', [RfqController::class, 'destroy'])
+            ->middleware('permission:rfq.update_status');
 
         // Admin Commercial Quotations
         Route::get('/quotations', [QuotationController::class, 'index'])

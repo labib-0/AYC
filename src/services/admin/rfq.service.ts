@@ -33,6 +33,7 @@ export interface RfqSummaryMetrics {
   totalRfqs: number;
   pending: number;
   approved: number;
+  rejected: number;
   received: number;
   underReview: number;
   quotationGenerated: number;
@@ -123,13 +124,17 @@ export class AdminRfqService {
       const res = await this.getRfqs({ per_page: 500 });
       const list = res.data || [];
       const totalCount = res.total !== undefined ? res.total : list.length;
+      const rejectedCount = list.filter(
+        (r) => r.status?.toUpperCase() === "REJECTED" || r.status?.toUpperCase() === "CANCELLED"
+      ).length;
       const approvedCount = list.filter((r) => isRfqApproved(r.status)).length;
-      const pendingCount = Math.max(0, totalCount - approvedCount);
+      const pendingCount = Math.max(0, totalCount - approvedCount - rejectedCount);
 
       return {
         totalRfqs: totalCount,
         pending: pendingCount,
         approved: approvedCount,
+        rejected: rejectedCount,
         received: list.filter((r) => r.status === "SUBMITTED" || r.status === "RFQ_RECEIVED").length,
         underReview: list.filter((r) => r.status === "UNDER_REVIEW").length,
         quotationGenerated: list.filter(
@@ -145,6 +150,7 @@ export class AdminRfqService {
         totalRfqs: 0,
         pending: 0,
         approved: 0,
+        rejected: 0,
         received: 0,
         underReview: 0,
         quotationGenerated: 0,
@@ -166,7 +172,7 @@ export class AdminRfqService {
       try {
         const queryParams: Record<string, any> = {};
         if (params?.page) queryParams.page = params.page;
-        if (params?.per_page) queryParams.per_page = params.per_page;
+        if (params?.per_page) queryParams.per_page = params.per_page === "all" ? 500 : params.per_page;
         if (params?.search) queryParams.search = params.search;
         if (params?.status && params.status !== "all") queryParams.status = params.status;
         if (params?.date_preset && params.date_preset !== "all") queryParams.date_filter = params.date_preset;
@@ -210,9 +216,15 @@ export class AdminRfqService {
     if (params?.status && params.status !== "all") {
       const reqStatus = params.status.toUpperCase();
       if (reqStatus === "PENDING") {
-        filtered = filtered.filter((r) => !isRfqApproved(r.status));
+        filtered = filtered.filter(
+          (r) => !isRfqApproved(r.status) && r.status.toUpperCase() !== "REJECTED" && r.status.toUpperCase() !== "CANCELLED"
+        );
       } else if (reqStatus === "APPROVED") {
         filtered = filtered.filter((r) => isRfqApproved(r.status));
+      } else if (reqStatus === "REJECTED") {
+        filtered = filtered.filter(
+          (r) => r.status.toUpperCase() === "REJECTED" || r.status.toUpperCase() === "CANCELLED"
+        );
       } else {
         filtered = filtered.filter((r) => r.status.toUpperCase() === reqStatus);
       }
@@ -311,6 +323,38 @@ export class AdminRfqService {
       }
     }
     return this.updateRfqStatus(id, "APPROVED", note);
+  }
+
+  /**
+   * Reject RFQ (Transitions to REJECTED)
+   */
+  async rejectRfq(id: string | number, note?: string): Promise<RfqRecord> {
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.post<any>(`/admin/rfqs/${id}/reject`, { note });
+        const data = res?.data || res;
+        return mapBackendQuoteToRfq(data);
+      } catch {
+        return this.updateRfqStatus(id, "REJECTED", note);
+      }
+    }
+    return this.updateRfqStatus(id, "REJECTED", note);
+  }
+
+  /**
+   * Permanently delete an RFQ
+   */
+  async deleteRfq(id: string | number): Promise<boolean> {
+    if (!isFrontendOnly()) {
+      try {
+        await apiClient.delete(`/admin/rfqs/${id}`);
+        mockStore.deleteRfq(String(id));
+        return true;
+      } catch (err) {
+        console.warn("Backend RFQ delete failed, falling back to local store:", err);
+      }
+    }
+    return mockStore.deleteRfq(String(id));
   }
 
   /**

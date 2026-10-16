@@ -2,9 +2,11 @@
 
 import React, { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { adminRfqService, isRfqApproved } from "@/services/admin/rfq.service";
 import { RfqRecord } from "@/types/b2b";
-import RfqStatusBadge from "@/components/admin/rfq/RfqStatusBadge";
+import RfqStatusBadge, { isRfqRejected } from "@/components/admin/rfq/RfqStatusBadge";
+import RfqShippingCard from "@/components/admin/rfq/RfqShippingCard";
 import ProductToast, { ToastMessage } from "@/components/admin/products/ProductToast";
 import { AdminPageGate } from "@/components/admin/auth/AdminPageGate";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
@@ -24,7 +26,9 @@ import {
   Image as ImageIcon,
   FileText,
   DollarSign,
-  ShieldCheck
+  ShieldCheck,
+  Trash2,
+  XCircle
 } from "lucide-react";
 
 export default function AdminRfqDetailPage({
@@ -33,6 +37,7 @@ export default function AdminRfqDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const { can } = useAdminAuth();
 
   // Core Data State
@@ -40,6 +45,12 @@ export default function AdminRfqDetailPage({
 
   // Approval Note Input State (preserved on failure or editing)
   const [approvalNoteInput, setApprovalNoteInput] = useState<string>("");
+
+  // Modal & Action State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReasonInput, setRejectReasonInput] = useState("");
 
   // UX & Loading State
   const [loading, setLoading] = useState(true);
@@ -115,6 +126,48 @@ export default function AdminRfqDetailPage({
     }
   };
 
+  // Reject RFQ Action (RFQ Pending/Approved -> RFQ Rejected)
+  const handleRejectRfq = async () => {
+    if (!rfq) return;
+
+    if (!can("rfq.update_status")) {
+      addToast("error", "You do not have permission to reject RFQs.");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const noteToSend = rejectReasonInput.trim() || approvalNoteInput.trim() || "RFQ rejected by administration";
+      const updated = await adminRfqService.rejectRfq(rfq.id, noteToSend);
+      setRfq(updated);
+      setShowRejectModal(false);
+      setRejectReasonInput("");
+      addToast("success", "RFQ has been rejected.");
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Failed to reject RFQ.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Permanently Delete RFQ Action
+  const handleDeleteRfq = async () => {
+    if (!rfq) return;
+
+    setDeleteLoading(true);
+    try {
+      await adminRfqService.deleteRfq(rfq.id);
+      addToast("success", `RFQ ${rfq.rfqNumber} permanently deleted.`);
+      setShowDeleteModal(false);
+      setTimeout(() => {
+        router.push("/ayc/rfq");
+      }, 400);
+    } catch (err: unknown) {
+      addToast("error", (err as Error)?.message || "Failed to delete RFQ.");
+      setDeleteLoading(false);
+    }
+  };
+
   // Loading State
   if (loading) {
     return (
@@ -148,6 +201,7 @@ export default function AdminRfqDetailPage({
   }
 
   const isApproved = isRfqApproved(rfq.status);
+  const isRejected = isRfqRejected(rfq.status);
 
   const createdDate = rfq.createdAt
     ? new Date(rfq.createdAt).toLocaleDateString("en-US", {
@@ -210,6 +264,18 @@ export default function AdminRfqDetailPage({
             >
               <RefreshCw size={14} className={isRefreshing ? "animate-spin text-primary" : ""} />
               <span>Refresh</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+              disabled={actionLoading || deleteLoading}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+              title="Permanently delete RFQ"
+              id="btn-delete-rfq-header"
+            >
+              <Trash2 size={14} />
+              <span>Delete RFQ</span>
             </button>
           </div>
         </div>
@@ -309,8 +375,11 @@ export default function AdminRfqDetailPage({
               </div>
             </div>
 
-            {/* Section 2: Buyer Inquiries & Request Notes */}
-            {(rfq.generalNotes || rfq.requestTitle) && (
+            {/* Section 2: Shipping & Destination Requirements */}
+            <RfqShippingCard rfq={rfq} />
+
+            {/* Section 3: Buyer Inquiries & Request Notes */}
+            {rfq.requestTitle && !rfq.generalNotes && (
               <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-3">
                 <div className="pb-3 border-b border-border/60 flex items-center justify-between">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
@@ -319,34 +388,21 @@ export default function AdminRfqDetailPage({
                   </h2>
                 </div>
 
-                {rfq.requestTitle && (
-                  <div className="text-xs">
-                    <span className="text-muted-foreground font-bold uppercase tracking-wider block text-[11px]">
-                      Request Title
-                    </span>
-                    <span className="font-medium text-foreground block mt-0.5">
-                      {rfq.requestTitle}
-                    </span>
-                  </div>
-                )}
-
-                {rfq.generalNotes && (
-                  <div className="text-xs">
-                    <span className="text-muted-foreground font-bold uppercase tracking-wider block text-[11px]">
-                      Buyer Notes
-                    </span>
-                    <p className="mt-1 p-3 rounded-2xl bg-secondary/30 border border-border/50 text-foreground text-xs leading-relaxed">
-                      {rfq.generalNotes}
-                    </p>
-                  </div>
-                )}
+                <div className="text-xs">
+                  <span className="text-muted-foreground font-bold uppercase tracking-wider block text-[11px]">
+                    Request Title
+                  </span>
+                  <span className="font-medium text-foreground block mt-0.5">
+                    {rfq.requestTitle}
+                  </span>
+                </div>
               </div>
             )}
           </div>
 
           {/* RIGHT COLUMN (1 Col on lg): RFQ Workflow Panel, Customer Info, Target Summary */}
           <div className="space-y-6">
-            {/* Section 3: Simplified RFQ Workflow Panel (Pending vs Approved Only) */}
+            {/* Section 4: RFQ Workflow Panel (Pending, Approved, Rejected) */}
             <div className="bg-card border border-border/70 rounded-3xl p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-border/60">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
@@ -356,48 +412,37 @@ export default function AdminRfqDetailPage({
                 <RfqStatusBadge status={rfq.status} size="sm" />
               </div>
 
-              {!isApproved ? (
-                /* ── PENDING STATE ── */
+              {isRejected ? (
+                /* ── REJECTED STATE ── */
                 <div className="space-y-4">
-                  <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                  <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-800 dark:text-rose-300 space-y-1">
                     <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
-                      <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                      <span>RFQ Pending Review</span>
+                      <XCircle size={14} className="text-rose-600 dark:text-rose-400 shrink-0" />
+                      <span>RFQ Rejected</span>
                     </div>
-                    <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
-                      This inquiry is awaiting administrative approval. Review requested quantities and target specifications before approving.
+                    <p className="text-[11px] leading-relaxed text-rose-700 dark:text-rose-400">
+                      This quotation inquiry has been declined by administration.
                     </p>
                   </div>
 
-                  {/* Approval Note Input Field */}
+                  {/* Recorded Rejection / Note */}
                   <div className="space-y-1.5">
-                    <label
-                      htmlFor="input-approval-note"
-                      className="block text-xs font-bold uppercase tracking-wider text-foreground"
-                    >
-                      Approval Note
-                    </label>
-                    <textarea
-                      id="input-approval-note"
-                      rows={3}
-                      value={approvalNoteInput}
-                      onChange={(e) => setApprovalNoteInput(e.target.value)}
-                      placeholder="Add an optional note about this RFQ approval..."
-                      className="w-full p-3 text-xs rounded-2xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none transition-colors resize-none"
-                    />
-                    <p className="text-[10px] text-muted-foreground">
-                      Optional note stored with approval audit records.
-                    </p>
+                    <span className="block text-xs font-bold uppercase tracking-wider text-foreground">
+                      Rejection Reason / Note
+                    </span>
+                    <div className="p-3 rounded-2xl bg-secondary/40 border border-border/70 text-xs text-foreground italic leading-relaxed whitespace-pre-wrap">
+                      &ldquo;{rfq.approvalNote || approvalNoteInput || "No rejection note recorded."}&rdquo;
+                    </div>
                   </div>
 
-                  {/* Single Approve Action Button */}
+                  {/* Re-open / Approve Button */}
                   <div className="pt-2">
                     <button
                       type="button"
                       onClick={handleApproveRfq}
                       disabled={actionLoading || !can("rfq.update_status")}
                       className="w-full py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm text-center flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      id="btn-approve-rfq"
+                      id="btn-reapprove-rfq"
                     >
                       {actionLoading ? (
                         <>
@@ -407,18 +452,13 @@ export default function AdminRfqDetailPage({
                       ) : (
                         <>
                           <CheckCircle2 size={14} />
-                          <span>Approve RFQ</span>
+                          <span>Re-evaluate & Approve RFQ</span>
                         </>
                       )}
                     </button>
-                    {!can("rfq.update_status") && (
-                      <p className="text-[10px] text-destructive text-center mt-1">
-                        You do not have permission to approve RFQs.
-                      </p>
-                    )}
                   </div>
                 </div>
-              ) : (
+              ) : isApproved ? (
                 /* ── APPROVED STATE ── */
                 <div className="space-y-4">
                   <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
@@ -464,9 +504,97 @@ export default function AdminRfqDetailPage({
                     )}
                   </div>
 
+                  {/* Reject RFQ Button if re-evaluating */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectModal(true)}
+                      disabled={actionLoading || !can("rfq.update_status")}
+                      className="w-full py-2.5 rounded-full border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer text-center flex items-center justify-center gap-2 disabled:opacity-50"
+                      id="btn-reject-rfq-approved"
+                    >
+                      <XCircle size={14} />
+                      <span>Reject This RFQ</span>
+                    </button>
+                  </div>
+
                   {/* Context Note: RFQ Separation from Commercial Orders */}
                   <div className="pt-2 border-t border-border/50 text-[11px] text-muted-foreground leading-relaxed">
                     Formal commercial quotations, Proforma Invoices, and confirmed orders are processed independently in the Quotations and Orders modules.
+                  </div>
+                </div>
+              ) : (
+                /* ── PENDING STATE ── */
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                    <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
+                      <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>RFQ Pending Review</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
+                      This inquiry is awaiting administrative approval. Review requested quantities and target specifications before approving.
+                    </p>
+                  </div>
+
+                  {/* Approval / Rejection Note Input Field */}
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="input-approval-note"
+                      className="block text-xs font-bold uppercase tracking-wider text-foreground"
+                    >
+                      Approval Note
+                    </label>
+                    <textarea
+                      id="input-approval-note"
+                      rows={3}
+                      value={approvalNoteInput}
+                      onChange={(e) => setApprovalNoteInput(e.target.value)}
+                      placeholder="Add an optional note about this RFQ approval..."
+                      className="w-full p-3 text-xs rounded-2xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary outline-none transition-colors resize-none"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Optional note stored with approval/rejection audit records.
+                    </p>
+                  </div>
+
+                  {/* Dual Action Buttons: Approve (Primary) & Reject (Secondary) */}
+                  <div className="pt-2 space-y-2">
+                    <button
+                      type="button"
+                      onClick={handleApproveRfq}
+                      disabled={actionLoading || !can("rfq.update_status")}
+                      className="w-full py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm text-center flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      id="btn-approve-rfq"
+                    >
+                      {actionLoading ? (
+                        <>
+                          <RefreshCw size={14} className="animate-spin" />
+                          <span>Approving RFQ...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={14} />
+                          <span>Approve RFQ</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectModal(true)}
+                      disabled={actionLoading || !can("rfq.update_status")}
+                      className="w-full py-2 rounded-full border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer text-center flex items-center justify-center gap-2 disabled:opacity-50"
+                      id="btn-reject-rfq"
+                    >
+                      <XCircle size={14} />
+                      <span>Reject RFQ</span>
+                    </button>
+
+                    {!can("rfq.update_status") && (
+                      <p className="text-[10px] text-destructive text-center mt-1">
+                        You do not have permission to update RFQ status.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -593,6 +721,129 @@ export default function AdminRfqDetailPage({
             </div>
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="w-full max-w-md bg-card border border-rose-500/30 rounded-3xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+                <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold uppercase tracking-tight text-foreground">
+                    Permanently Delete RFQ?
+                  </h3>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {rfq.rfqNumber}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Are you sure you want to delete this quotation inquiry? All associated line items, specifications, and history records will be permanently removed. <strong className="text-foreground">This action cannot be undone.</strong>
+              </p>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleteLoading}
+                  className="px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteRfq}
+                  disabled={deleteLoading}
+                  className="px-5 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                  id="btn-confirm-delete-rfq"
+                >
+                  {deleteLoading ? (
+                    <>
+                      <RefreshCw size={13} className="animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={13} />
+                      <span>Delete Permanently</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reject Confirmation Modal */}
+        {showRejectModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="w-full max-w-md bg-card border border-rose-500/30 rounded-3xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+                <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+                  <XCircle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold uppercase tracking-tight text-foreground">
+                    Reject Quotation Request
+                  </h3>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {rfq.rfqNumber}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Please provide an optional reason or note explaining why this quotation request is being rejected. This note will be recorded in the RFQ audit history.
+              </p>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Rejection Reason / Note
+                </label>
+                <textarea
+                  rows={3}
+                  value={rejectReasonInput}
+                  onChange={(e) => setRejectReasonInput(e.target.value)}
+                  placeholder="e.g. MOQ requirements not met, destination port unsupported, or requested garments unavailable..."
+                  className="w-full p-3 text-xs rounded-2xl border border-border bg-secondary/30 text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-rose-500 outline-none transition-colors resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRejectModal(false)}
+                  disabled={actionLoading}
+                  className="px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRejectRfq}
+                  disabled={actionLoading}
+                  className="px-5 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                  id="btn-confirm-reject-rfq"
+                >
+                  {actionLoading ? (
+                    <>
+                      <RefreshCw size={13} className="animate-spin" />
+                      <span>Rejecting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={13} />
+                      <span>Reject RFQ</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Toast Alerts */}
         <ProductToast toasts={toasts} onDismiss={removeToast} />

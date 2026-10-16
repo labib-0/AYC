@@ -687,6 +687,15 @@ class MockStore {
     return msgObj;
   }
 
+  deleteRfq(id: string): boolean {
+    const rfqs = this.getRfqs();
+    const index = rfqs.findIndex((r) => r.id === id || r.rfqNumber === id);
+    if (index < 0) return false;
+    rfqs.splice(index, 1);
+    this.setItem(STORAGE_KEYS.RFQS, rfqs);
+    return true;
+  }
+
   // ==========================================
   // QUOTATIONS
   // ==========================================

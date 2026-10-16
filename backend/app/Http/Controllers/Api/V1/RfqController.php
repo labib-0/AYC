@@ -128,7 +128,7 @@ class RfqController extends ApiController
 
         // Optional Pagination
         if ($request->has('page') || $request->has('per_page') || $request->boolean('paginate')) {
-            $perPage = max(1, min(100, (int) $request->input('per_page', 20)));
+            $perPage = max(1, min(500, (int) $request->input('per_page', 20)));
             $paginated = $query->paginate($perPage);
             return $this->success([
                 'data' => RfqResource::collection($paginated->items()),
@@ -521,5 +521,38 @@ class RfqController extends ApiController
         ]);
 
         return $this->success(new RfqMessageResource($message), 'Message posted successfully', 201);
+    }
+
+    /**
+     * DELETE /api/v1/rfq/{id} or /api/v1/rfqs/{id}
+     * Permanently delete an RFQ and its associated items and messages.
+     */
+    public function destroy(Request $request, int|string $id): JsonResponse
+    {
+        $user = $request->user() ?: auth('sanctum')->user();
+        if (!$user || !$user->isAdmin()) {
+            return $this->forbidden('Only administrators can delete RFQs.');
+        }
+
+        $query = Quote::query();
+        $rfq = is_numeric($id) ? $query->find((int) $id) : $query->where('rfq_number', $id)->first();
+
+        if (!$rfq) {
+            return $this->notFound('RFQ not found');
+        }
+
+        DB::transaction(function () use ($rfq) {
+            $rfq->items()->delete();
+            $rfq->messages()->delete();
+            $rfq->delete();
+        });
+
+        ActivityLogger::log('rfq.deleted', null, [
+            'rfq_number' => $rfq->rfq_number,
+            'id' => $rfq->id,
+            'deleted_by' => $user->name,
+        ]);
+
+        return $this->success(null, 'RFQ deleted successfully');
     }
 }

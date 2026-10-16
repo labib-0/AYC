@@ -14,11 +14,11 @@ import {
   ArrowRight, 
   Building2, 
   Globe2, 
-  Calendar, 
   Package, 
   Sparkles,
-  ShoppingBag,
-  MessageCircle
+  MessageCircle,
+  Plus,
+  X
 } from "lucide-react";
 import BUSINESS_PROFILE, { getWhatsAppUrl } from "@/config/business-profile";
 
@@ -42,7 +42,7 @@ const COUNTRIES = [
 export default function RfqPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { rfqItems, removeFromRfq, updateRfqItemQuantity, updateRfqItemNotes, clearRfq } = useRfq();
+  const { rfqItems, addToRfq, removeFromRfq, updateRfqItemQuantity, clearRfq } = useRfq();
 
   // Authentication Guard: Customers only must log in to submit or view the RFQ form
   useEffect(() => {
@@ -61,7 +61,7 @@ export default function RfqPage() {
   const [buyerPhone, setBuyerPhone] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [businessType, setBusinessType] = useState("Wholesale Distributor");
-  const [website, setWebsite] = useState("");
+  const [website] = useState("");
   const [taxNumber, setTaxNumber] = useState("");
   const [destinationCountry, setDestinationCountry] = useState("United States");
   const [destinationCity, setDestinationCity] = useState("");
@@ -69,6 +69,12 @@ export default function RfqPage() {
   const [targetDeliveryDate, setTargetDeliveryDate] = useState("");
   const [requestTitle, setRequestTitle] = useState("");
   const [generalNotes, setGeneralNotes] = useState("");
+
+  // Custom Item Specification State
+  const [customItemName, setCustomItemName] = useState("");
+  const [customItemQty, setCustomItemQty] = useState<number>(100);
+  const [customItemTargetPrice, setCustomItemTargetPrice] = useState<string>("");
+  const [showCustomModal, setShowCustomModal] = useState<boolean>(false);
 
   // Automatically prefill customer profile when signed in
   useEffect(() => {
@@ -86,6 +92,33 @@ export default function RfqPage() {
   const [submittedRfqId, setSubmittedRfqId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const handleAddCustomProduct = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!customItemName.trim()) return;
+
+    addToRfq(
+      {
+        id: `custom_${Date.now()}`,
+        name: customItemName.trim(),
+        slug: "custom-garment-order",
+        brand: "Custom OEM/ODM",
+        sku: `OEM-${Date.now().toString(36).toUpperCase()}`,
+        moq: 50,
+        wholesalePrice: customItemTargetPrice ? parseFloat(customItemTargetPrice) : 0,
+      } as any,
+      Math.max(50, customItemQty || 100),
+      {
+        targetPrice: customItemTargetPrice ? parseFloat(customItemTargetPrice) : undefined,
+        buyerNotes: "Custom buyer apparel manufacturing specification",
+      }
+    );
+
+    setCustomItemName("");
+    setCustomItemQty(100);
+    setCustomItemTargetPrice("");
+    setShowCustomModal(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
@@ -99,9 +132,29 @@ export default function RfqPage() {
       return;
     }
 
-    if (rfqItems.length === 0) {
-      setErrorMsg("Please add at least one product to your quotation request.");
-      return;
+    let finalItems = [...rfqItems];
+    if (finalItems.length === 0) {
+      if (customItemName.trim()) {
+        finalItems = [
+          {
+            id: `item_custom_${Date.now()}`,
+            productId: "custom-garment",
+            productName: customItemName.trim(),
+            productSlug: "custom-garment-order",
+            brand: "Custom OEM/ODM",
+            sku: `OEM-${Date.now().toString(36).toUpperCase()}`,
+            image: "/placeholder.jpg",
+            quantity: Math.max(50, customItemQty || 100),
+            moq: 50,
+            unitPrice: customItemTargetPrice ? parseFloat(customItemTargetPrice) : 0,
+            targetPrice: customItemTargetPrice ? parseFloat(customItemTargetPrice) : undefined,
+            buyerNotes: generalNotes.trim() || undefined,
+          },
+        ];
+      } else {
+        setErrorMsg("Please add at least one product or specify your custom garment requirement.");
+        return;
+      }
     }
 
     if (!buyerName.trim() || !buyerEmail.trim() || !companyName.trim() || !destinationCity.trim()) {
@@ -124,14 +177,15 @@ export default function RfqPage() {
         destinationCity,
         shippingPort,
         targetDeliveryDate,
-        requestTitle: requestTitle.trim() || `${rfqItems.reduce((acc, i) => acc + i.quantity, 0)} Pcs Apparel for ${destinationCity}`,
+        requestTitle: requestTitle.trim() || `${finalItems.reduce((acc, i) => acc + i.quantity, 0)} Pcs Apparel for ${destinationCity}`,
         generalNotes,
-        items: rfqItems,
+        items: finalItems,
       });
 
       setSubmittedRfqNumber(created.rfqNumber);
       setSubmittedRfqId(created.id);
       clearRfq();
+      setCustomItemName("");
     } catch (err: any) {
       if (err?.status === 401 || err?.isAuthError) {
         if (typeof window !== "undefined") {
@@ -260,22 +314,33 @@ export default function RfqPage() {
           <div className="lg:col-span-7 space-y-6">
             
             <div className="bg-card border border-border/70 rounded-2xl p-5 sm:p-6 shadow-sm">
-              <div className="flex items-center justify-between pb-4 border-b border-border/60 mb-5">
+              <div className="flex items-center justify-between pb-4 border-b border-border/60 mb-5 flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <Package size={18} className="text-foreground" />
                   <h2 className="text-sm font-display font-semibold uppercase tracking-wider text-foreground">
                     Selected Products ({rfqItems.length})
                   </h2>
                 </div>
-                {rfqItems.length > 0 && (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={clearRfq}
-                    className="text-xs font-bold text-destructive hover:underline cursor-pointer"
+                    onClick={() => setShowCustomModal(true)}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                    id="btn-add-custom-garment"
                   >
-                    Clear All
+                    <Plus size={13} />
+                    <span>Add Custom Garment</span>
                   </button>
-                )}
+                  {rfqItems.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearRfq}
+                      className="text-xs font-bold text-destructive hover:underline cursor-pointer"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
               </div>
 
               {rfqItems.length > 0 ? (
@@ -358,20 +423,90 @@ export default function RfqPage() {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-12 px-4 border border-dashed border-border rounded-xl">
-                  <ShoppingBag size={32} className="mx-auto text-muted-foreground mb-3 opacity-60" />
-                  <h3 className="text-sm font-bold uppercase text-foreground mb-1">
-                    Your RFQ Cart is Empty
-                  </h3>
-                  <p className="text-xs text-muted-foreground max-w-xs mx-auto mb-4">
-                    Submit your custom manufacturing specifications and export inquiry details in the form below.
-                  </p>
-                  <Link
-                    href="/search"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-foreground text-background text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
-                  >
-                    <span>Browse Wholesale Catalog</span>
-                  </Link>
+                <div className="space-y-5">
+                  <div className="p-5 rounded-2xl border border-dashed border-border/80 bg-secondary/15 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
+                        <Sparkles size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                          Custom Apparel or Bulk Manufacturing Requirement
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                          Do not have items from our online catalog? Enter your custom garment requirements, fabric composition, or private label specs below.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-2">
+                      <div className="sm:col-span-7 space-y-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Garment / Apparel Description *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 100% Combed Cotton T-Shirt, 240 GSM, Custom Wash"
+                          value={customItemName}
+                          onChange={(e) => setCustomItemName(e.target.value)}
+                          className="w-full px-3.5 py-2 text-xs rounded-xl border border-border bg-card text-foreground focus:ring-1 focus:ring-primary outline-none"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3 space-y-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Target Qty (PCS)
+                        </label>
+                        <input
+                          type="number"
+                          min={50}
+                          step={50}
+                          value={customItemQty}
+                          onChange={(e) => setCustomItemQty(Math.max(1, parseInt(e.target.value) || 100))}
+                          className="w-full px-3.5 py-2 text-xs rounded-xl border border-border bg-card text-foreground focus:ring-1 focus:ring-primary outline-none"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-1">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Target $/Pc
+                        </label>
+                        <input
+                          type="number"
+                          step={0.1}
+                          placeholder="$3.50"
+                          value={customItemTargetPrice}
+                          onChange={(e) => setCustomItemTargetPrice(e.target.value)}
+                          className="w-full px-3.5 py-2 text-xs rounded-xl border border-border bg-card text-foreground focus:ring-1 focus:ring-primary outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] text-muted-foreground">
+                        Minimum commercial production batch: 50 pcs
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddCustomProduct}
+                        disabled={!customItemName.trim()}
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-foreground text-background text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity cursor-pointer shadow-xs"
+                      >
+                        <Plus size={13} />
+                        <span>Add To Line Items</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-center py-4">
+                    <span className="text-xs text-muted-foreground">
+                      Prefer selecting existing styles?{" "}
+                      <Link href="/search" className="text-primary font-bold hover:underline inline-flex items-center gap-1">
+                        <span>Browse Export Catalog</span>
+                        <ArrowRight size={12} />
+                      </Link>
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -581,11 +716,17 @@ export default function RfqPage() {
               <div className="pt-4 border-t border-border/60">
                 <button
                   type="submit"
-                  disabled={isSubmitting || rfqItems.length === 0}
+                  disabled={isSubmitting || (rfqItems.length === 0 && !customItemName.trim())}
                   className="w-full py-3.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-all duration-200 cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex items-center justify-center gap-2 font-display"
                 >
                   <FileText size={16} />
-                  <span>{isSubmitting ? "Submitting Inquiry..." : "Submit Quotation Request"}</span>
+                  <span>
+                    {isSubmitting
+                      ? "Submitting Inquiry..."
+                      : rfqItems.length === 0 && customItemName.trim()
+                      ? "Submit Custom Quotation Request"
+                      : "Submit Quotation Request"}
+                  </span>
                 </button>
                 <p className="text-xs text-muted-foreground text-center mt-2.5">
                   Free non-binding B2B quote. Official commercial invoice prepared by {BUSINESS_PROFILE.name} exports.
@@ -596,6 +737,93 @@ export default function RfqPage() {
           </div>
 
         </form>
+
+        {/* Custom Item Modal */}
+        {showCustomModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="w-full max-w-md bg-card border border-border/80 rounded-3xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                <div className="flex items-center gap-2">
+                  <Package size={18} className="text-primary" />
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                    Add Custom Apparel Item
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomModal(false)}
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-full cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Garment Name / Fabric Description *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 100% Cotton Heavyweight Fleece Hoodie"
+                    value={customItemName}
+                    onChange={(e) => setCustomItemName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-xs text-foreground focus:ring-1 focus:ring-primary outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Target Quantity (PCS)
+                    </label>
+                    <input
+                      type="number"
+                      min={50}
+                      step={50}
+                      value={customItemQty}
+                      onChange={(e) => setCustomItemQty(Math.max(1, parseInt(e.target.value) || 100))}
+                      className="w-full px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-xs text-foreground focus:ring-1 focus:ring-primary outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Target Price / Pc ($)
+                    </label>
+                    <input
+                      type="number"
+                      step={0.1}
+                      placeholder="$8.50"
+                      value={customItemTargetPrice}
+                      onChange={(e) => setCustomItemTargetPrice(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-xs text-foreground focus:ring-1 focus:ring-primary outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomModal(false)}
+                  className="px-4 py-2 rounded-full border border-border bg-card hover:bg-secondary text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddCustomProduct}
+                  disabled={!customItemName.trim()}
+                  className="px-5 py-2 rounded-full bg-foreground text-background text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity cursor-pointer shadow-xs"
+                >
+                  Add Item
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
