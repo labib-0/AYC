@@ -155,28 +155,32 @@ else
   npm install --no-audit --no-fund
 fi
 
-# Build into isolated target directory without touching the active .next
-echo "  - Compiling production Next.js build into: ${NEW_REL_DIR}"
-mkdir -p "${NEW_REL_DIR}"
-if [[ $(id -u) -eq 0 ]]; then
-  chown -R ayaan:ayaan "${NEW_REL_DIR}"
-fi
+# Build into isolated staging directory without touching the active .next
+# Note: Next.js 16 type validator requires distDir to be single-depth for relative imports
+STAGE_DIR="${APP_DIR}/.next_build_stage"
+rm -rf "${STAGE_DIR}" "${NEW_REL_DIR}"
 
-export NEXT_DIST_DIR=".next_releases/${NEW_REL_ID}"
-BUILD_CMD="cd ${APP_DIR} && NEXT_DIST_DIR='${NEXT_DIST_DIR}' npm run build"
+echo "  - Compiling production Next.js build into: ${STAGE_DIR}"
+BUILD_CMD="cd ${APP_DIR} && NEXT_DIST_DIR='.next_build_stage' npm run build"
 
 if [[ $(id -u) -eq 0 ]]; then
   if ! su - ayaan -c "${BUILD_CMD}"; then
     echo "❌ [BUILD ERROR] Production Next.js build failed. Active release remains untouched." >&2
-    rm -rf "${NEW_REL_DIR}"
+    rm -rf "${STAGE_DIR}"
     exit 1
   fi
 else
   if ! eval "${BUILD_CMD}"; then
     echo "❌ [BUILD ERROR] Production Next.js build failed. Active release remains untouched." >&2
-    rm -rf "${NEW_REL_DIR}"
+    rm -rf "${STAGE_DIR}"
     exit 1
   fi
+fi
+
+# Move compiled stage into release archive
+mv "${STAGE_DIR}" "${NEW_REL_DIR}"
+if [[ $(id -u) -eq 0 ]]; then
+  chown -R ayaan:ayaan "${NEW_REL_DIR}"
 fi
 
 # ── 6. In-Flight Client Continuity (Copy Previous Chunks) ─────────────────────
