@@ -2,8 +2,9 @@
 
 **Date:** October 16, 2026  
 **Environment:** Production VPS (`200.97.169.230` / `https://ayaanclothing.com`)  
-**Deployment Commit:** `14a47f4` (`feat(email): implement transactional emails for RFQ lifecycle — customer confirmations, approval/rejection notes, and admin alerts`)  
+**Deployment Commit:** `2e86bc0` (`feat(email): add deleteWhenMissingModels to queued RFQ notifications and safe queue hydration in test command`)  
 **Status:** **IMPLEMENTED, TESTED, HARDENED & DEPLOYED**  
+**Companion Report:** [`AYC_SMTP_DELIVERY_VERIFICATION_REPORT.md`](file:///Users/luhasan/Documents/ayaan/AYC_SMTP_DELIVERY_VERIFICATION_REPORT.md)  
 
 ---
 
