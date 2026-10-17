@@ -1,97 +1,62 @@
-# AYC — Authoritative Engineering & Operational Documentation
+# AYAAN CLOTHING (AYC) — Technical Documentation Index
 
-Welcome to the definitive, source-verified documentation knowledge base for the **Ayaan Clothing (AYC)** B2B garments manufacturing and export platform.
+Welcome to the definitive, authoritative technical documentation for **AYAAN CLOTHING (AYC)**. This documentation has been reconstructed from the verified codebase, schema migrations, API routes, automated test suites, and production infrastructure running on Hostinger VPS `srv2010990` (Mumbai 2, India).
 
-This documentation suite is organized in a single, flat directory structure directly under `docs/` without nested category folders. Every document is grounded in the current codebase, migrations, and verified production environment (`200.97.169.230`).
-
----
-
-## 1. Documentation Index & Sitemap
-
-| Document | Topic & Scope | File Link |
-|---|---|---|
-| **Project Overview & Business Rules** | RMG export business model, wholesale MOQs, package assortments, actors, and platform boundaries | [`business-rules.md`](file:///Users/luhasan/Documents/ayaan/docs/business-rules.md) |
-| **System Architecture** | System topology, C4 context diagrams, container and component architecture, request lifecycles | [`architecture.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture.md) |
-| **Architecture Decisions (ADRs)** | Formal Architecture Decision Records (ADR-001 through ADR-008) covering core engineering choices | [`architecture-decisions.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture-decisions.md) |
-| **Frontend Architecture & Design System** | Next.js 16 App Router, layout isolation, proxy routing, Tailwind CSS 4 tokens, 4:5 fashion photo standard | [`frontend.md`](file:///Users/luhasan/Documents/ayaan/docs/frontend.md) |
-| **Backend Architecture** | Laravel 13 headless REST API, directory structure, domain services, database transactions, concurrency | [`backend.md`](file:///Users/luhasan/Documents/ayaan/docs/backend.md) |
-| **Database Schema Reference** | PostgreSQL 16 schema (53 tables), ERD, data dictionary, indexes, soft deletes, internal sourcing protection | [`database-schema.md`](file:///Users/luhasan/Documents/ayaan/docs/database-schema.md) |
-| **REST API Reference (v1)** | Complete API endpoint catalog, authentication, request/response envelopes, POS endpoints, error conventions | [`api-reference.md`](file:///Users/luhasan/Documents/ayaan/docs/api-reference.md) |
-| **Complete Feature Catalog** | Exhaustive technical specifications for all 25 major business and operational capabilities | [`features.md`](file:///Users/luhasan/Documents/ayaan/docs/features.md) |
-| **Requirements Specification** | Consolidated Functional Requirements (`FR-*`) and Non-Functional Requirements (`NFR-*`) | [`requirements.md`](file:///Users/luhasan/Documents/ayaan/docs/requirements.md) |
-| **Security, Roles & Permissions** | Two-role boundary (`users.role`), granular administrative RBAC matrix, atomic permissions, data ownership | [`security.md`](file:///Users/luhasan/Documents/ayaan/docs/security.md) |
-| **Caching, Queues & Media Storage** | Redis 7 caching, Supervisord queue workers, local storage disk layout, 4:5 image optimization | [`infrastructure.md`](file:///Users/luhasan/Documents/ayaan/docs/infrastructure.md) |
-| **Technical SEO & Search Console** | Dynamic XML sitemap, double-slash URL normalization in `proxy.ts`, Schema.org JSON-LD, GSC setup | [`seo.md`](file:///Users/luhasan/Documents/ayaan/docs/seo.md) |
-| **Deployment & Operations Runbook** | Runtime requirements, environment variables, local startup, Git multi-remote protocol, zero-downtime VPS deployment | [`deployment.md`](file:///Users/luhasan/Documents/ayaan/docs/deployment.md) |
-| **Operations, Backups & Monitoring** | Automated daily systemd backups, disaster recovery procedures, health checks, process supervision, triage runbooks | [`operations.md`](file:///Users/luhasan/Documents/ayaan/docs/operations.md) |
-| **Testing Strategy & Traceability Matrix**| Multi-tier testing frameworks, commands, environments, and Requirements Traceability Matrix (RTM) | [`testing.md`](file:///Users/luhasan/Documents/ayaan/docs/testing.md) |
-| **Domain & Export Glossary** | Domain-specific RMG terminology, Incoterms (FOB, DAP, DDP), commercial documents, system concepts | [`glossary.md`](file:///Users/luhasan/Documents/ayaan/docs/glossary.md) |
+All project documentation lives exclusively in this single, flat `docs/` directory.
 
 ---
 
-## 2. High-Level Architecture Overview
+## 📚 Documentation Index & Reading Order
 
-```mermaid
-graph TD
-    Client["International Buyer / POS Cashier"] -->|HTTPS / Port 443| Nginx["Nginx Reverse Proxy & SSL (Ubuntu 24.04)"]
+For engineers, operators, and architects onboarding or working on the system, the recommended reading order is structured by responsibility:
 
-    subgraph "Frontend Presentation Layer (Node 20)"
-        Nginx -->|Storefront Routes| NextCust["Next.js Storefront (Port 3000)"]
-        Nginx -->|/ayc (Admin Gateway)| AdminProxy["Node.js Proxy scripts/admin-proxy.js (Port 3001)"]
-        AdminProxy -->|x-admin-app: true| NextCust
-    end
+### 1. Fundamentals & Core Architecture
+* **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)**: Business mission, export manufacturing scope, dual customer/admin user journeys, and major system components.
+* **[ARCHITECTURE.md](ARCHITECTURE.md)**: Full-stack topology, Next.js App Router, Laravel REST API, PostgreSQL, Redis, service boundaries, network routing, and data ownership.
+* **[CODEBASE_GUIDE.md](CODEBASE_GUIDE.md)**: Repository layout, key source folders (`src/`, `backend/`, `scripts/`), execution entry points, and inter-component contracts.
+* **[LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md)**: Prerequisites, environment configuration, database seeding, running full-stack development servers, and local debugging.
+* **[CONFIGURATION_AND_SECURITY.md](CONFIGURATION_AND_SECURITY.md)**: Environment variable specifications, Sanctum token authentication, granular RBAC, customer-tenant isolation, CORS/firewall boundaries, and secrets management.
 
-    subgraph "Backend Service Layer (PHP 8.4)"
-        Nginx -->|/api/v1/*| PHPFPM["PHP-FPM Socket (/run/php/php8.4-fpm.sock)<br/>Laravel 13 REST API"]
-        NextCust -->|Internal GeoIP Check| PHPFPM
-    end
+### 2. Data Models & API Specifications
+* **[DATABASE_AND_DATA_MODEL.md](DATABASE_AND_DATA_MODEL.md)**: PostgreSQL schemas, core entities (Products, Orders, Payments, Inventories), identifier uniqueness (`PRD-xxxx`, SKU, slug), foreign keys, and migration history.
+* **[API_REFERENCE.md](API_REFERENCE.md)**: Complete catalog of verified Laravel REST API endpoints, HTTP methods, route parameters, auth gates, request/response structures, and status codes.
+* **[GLOSSARY_AND_BUSINESS_RULES.md](GLOSSARY_AND_BUSINESS_RULES.md)**: Authoritative business invariants, MOQ and package assortment rules, pricing tiers, payment transitions, and standard domain terminology.
 
-    subgraph "Data & Persistence Tier"
-        PHPFPM -->|SQL :5432| Postgres[("PostgreSQL 16.15<br/>Database: ayaan_production (53 Tables)")]
-        PHPFPM -->|Cache & Queues :6379| Redis[("Redis 7.0.15<br/>Sessions, Locks, Jobs")]
-        Supervisor["Supervisor: ayaan-worker<br/>queue:work redis"] --> Redis
-        Backup["systemd: ayaan-backup.timer<br/>Daily 02:00:31 UTC"] --> Postgres
-    end
-```
+### 3. Business Domains & Workflows
+* **[CUSTOMER_STOREFRONT.md](CUSTOMER_STOREFRONT.md)**: Customer portal, catalog discovery, faceted search, category navigation, responsive mobile filter drawer, cart calculations, and checkout.
+* **[PRODUCT_CATALOG_AND_INVENTORY.md](PRODUCT_CATALOG_AND_INVENTORY.md)**: Product lifecycle, duplicate name handling, unique SKU/slug generation, 3-tier wholesale pricing, supplier cost privacy, and immediate stock deductions.
+* **[ORDERS_PAYMENTS_AND_RECEIPTS.md](ORDERS_PAYMENTS_AND_RECEIPTS.md)**: Canonical order state machine, payment proof upload (10 MB max, WebP conversion), manual verification workflow, audit history, and receipt replacement safety.
+* **[ADMIN_POS_AND_PERMISSIONS.md](ADMIN_POS_AND_PERMISSIONS.md)**: Admin management portal (`/ayc`), Point-of-Sale (POS) terminal, walk-in customer creation, dynamic coupon application, and granular role-based access control.
+* **[RFQ_AND_NOTIFICATIONS.md](RFQ_AND_NOTIFICATIONS.md)**: Request for Quotation (RFQ) lifecycle, quote negotiations, transactional email delivery, queue workers, and self-hosted SMTP infrastructure.
+* **[COMMERCIAL_DOCUMENTS.md](COMMERCIAL_DOCUMENTS.md)**: Official export trade documentation (Offer Sheet, Proforma Invoice, Commercial Invoice), PDF generation, actual product attribute rendering, and layout non-overlap guarantees.
+* **[SEO_AND_SOCIAL_SHARING.md](SEO_AND_SOCIAL_SHARING.md)**: Dynamic Open Graph images, Twitter/X cards, JSON-LD Schema.org structured data, canonical URLs, and factual product metadata generation.
 
----
-
-## 3. Recommended Reading Order
-
-### For Full-Stack Engineers & Developers
-1. **Business Context**: [`business-rules.md`](file:///Users/luhasan/Documents/ayaan/docs/business-rules.md)
-2. **System Architecture**: [`architecture.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture.md)
-3. **Architecture Decisions**: [`architecture-decisions.md`](file:///Users/luhasan/Documents/ayaan/docs/architecture-decisions.md)
-4. **Frontend & Design System**: [`frontend.md`](file:///Users/luhasan/Documents/ayaan/docs/frontend.md)
-5. **Backend Architecture**: [`backend.md`](file:///Users/luhasan/Documents/ayaan/docs/backend.md)
-6. **Database Reference**: [`database-schema.md`](file:///Users/luhasan/Documents/ayaan/docs/database-schema.md)
-7. **API Reference**: [`api-reference.md`](file:///Users/luhasan/Documents/ayaan/docs/api-reference.md)
-8. **Testing Strategy**: [`testing.md`](file:///Users/luhasan/Documents/ayaan/docs/testing.md)
-
-### For DevOps & Release Engineers
-1. **Deployment Runbook**: [`deployment.md`](file:///Users/luhasan/Documents/ayaan/docs/deployment.md)
-2. **Operations & Backups**: [`operations.md`](file:///Users/luhasan/Documents/ayaan/docs/operations.md)
-3. **Caching & Queues**: [`infrastructure.md`](file:///Users/luhasan/Documents/ayaan/docs/infrastructure.md)
-
-### For Auditors, QA & Business Owners
-1. **Business Rules**: [`business-rules.md`](file:///Users/luhasan/Documents/ayaan/docs/business-rules.md)
-2. **Feature Reference Catalog**: [`features.md`](file:///Users/luhasan/Documents/ayaan/docs/features.md)
-3. **Requirements Specification**: [`requirements.md`](file:///Users/luhasan/Documents/ayaan/docs/requirements.md)
-4. **Security & Permissions**: [`security.md`](file:///Users/luhasan/Documents/ayaan/docs/security.md)
-5. **Technical SEO**: [`seo.md`](file:///Users/luhasan/Documents/ayaan/docs/seo.md)
-6. **Glossary**: [`glossary.md`](file:///Users/luhasan/Documents/ayaan/docs/glossary.md)
+### 4. Quality Assurance, Operations & Production Runbooks
+* **[TESTING_AND_QUALITY.md](TESTING_AND_QUALITY.md)**: Test suites (Jest, PHPUnit, Playwright, Node release gates), syntax/type audits, regression suites, and bug reproduction playbooks.
+* **[DEPLOYMENT_AND_ROLLBACK.md](DEPLOYMENT_AND_ROLLBACK.md)**: Zero-downtime deployment pipeline, `.next_releases/` directory structure, atomic symlink swap, pre-activation release gate, and automated rollback execution.
+* **[PRODUCTION_OPERATIONS.md](PRODUCTION_OPERATIONS.md)**: VPS topology (`srv2010990`), Nginx reverse proxy, PHP 8.4-FPM socket, PM2 processes (`ayaan-customer`, `ayaan-admin`), PostgreSQL, Redis, automated backup routines, and disaster recovery runbook.
+* **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**: Diagnostic playbooks for chunk desynchronization, 502 Bad Gateway, database connection exhaustion, PDF layout clipping, and network connectivity drops.
+* **[KNOWN_ISSUES_AND_OPEN_WORK.md](KNOWN_ISSUES_AND_OPEN_WORK.md)**: Active technical backlog, verified upstream regional IPv4 connectivity investigation, pending upstream resolutions, and closed historical items.
 
 ---
 
-## 4. Maintenance & Developer Guidance
+## 🏛️ System Summary
 
-When application features, APIs, database schemas, or operational procedures change, engineers must update the corresponding authoritative document directly in `docs/`:
+| Component | Technology | Production Runtime |
+| :--- | :--- | :--- |
+| **Frontend Framework** | Next.js 16 (App Router), React 19, TypeScript | Node.js v20 LTS via PM2 (`ayaan-customer`: 3000, `ayaan-admin`: 3001) |
+| **Styling & UI** | Tailwind CSS, Lucide Icons, Custom Design Tokens | Compiled static CSS with zero runtime overhead |
+| **Backend Framework** | Laravel 11.x, PHP 8.4 | PHP-FPM Unix Socket (`/run/php/php8.4-fpm.sock`) |
+| **Database** | PostgreSQL 16 | Dedicated user `ayaan_user` on database `ayaan_production` |
+| **Cache & Queues** | Redis 7.x, Laravel Queue Worker | Redis service on `127.0.0.1:6379`, Supervisor queue manager |
+| **Web Server** | Nginx 1.24+ | Dual vhost TLS terminator with Let's Encrypt SSL certificates |
+| **Host Environment** | Hostinger VPS `srv2010990` | Ubuntu 24.04 LTS (Mumbai 2, India) |
 
-- **Database Changes**: Update [`database-schema.md`](file:///Users/luhasan/Documents/ayaan/docs/database-schema.md).
-- **API Endpoint Updates**: Update [`api-reference.md`](file:///Users/luhasan/Documents/ayaan/docs/api-reference.md).
-- **Feature Additions / Modifications**: Update [`features.md`](file:///Users/luhasan/Documents/ayaan/docs/features.md) and [`requirements.md`](file:///Users/luhasan/Documents/ayaan/docs/requirements.md).
-- **Frontend / Styling Tokens**: Update [`frontend.md`](file:///Users/luhasan/Documents/ayaan/docs/frontend.md).
-- **Backend Services / Transactions**: Update [`backend.md`](file:///Users/luhasan/Documents/ayaan/docs/backend.md).
-- **Deployment & Server Changes**: Update [`deployment.md`](file:///Users/luhasan/Documents/ayaan/docs/deployment.md) and [`operations.md`](file:///Users/luhasan/Documents/ayaan/docs/operations.md).
+---
 
-All project documentation Markdown files must reside directly inside `docs/`. Do not re-create category-based subfolders.
+## 🔐 Documentation Governance & Policy
+
+1. **Source of Truth**: The active codebase, database migrations, and verified server state take absolute precedence over historical text.
+2. **Zero Fabrication**: Documentation must never invent planned features or speculative configurations. If a behavior is not yet implemented or verified, it must be labeled `Needs confirmation`.
+3. **Flat Directory Invariant**: All documentation files must reside directly under `docs/`. No subdirectories are permitted.
+4. **Security & Privacy**: Documentation must never contain real passwords, private keys, API secrets, customer personal data, or payment receipt attachments.
