@@ -53,6 +53,15 @@ export async function createProduct(input: B2BProductInput): Promise<B2BProductI
   return productService.createProduct(input);
 }
 
+export async function checkIdentifierUniqueness(params: {
+  slug?: string;
+  sku?: string;
+  excludeId?: string | number;
+  productId?: string;
+}) {
+  return productService.checkIdentifierUniqueness(params);
+}
+
 export async function updateProduct(id: string, updates: Partial<B2BProductInput>): Promise<B2BProductInput | null> {
   return productService.updateProduct(id, updates);
 }

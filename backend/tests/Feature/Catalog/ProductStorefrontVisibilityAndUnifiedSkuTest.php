@@ -84,7 +84,7 @@ class ProductStorefrontVisibilityAndUnifiedSkuTest extends TestCase
             'sku' => 'LAC-POLO-001',
         ]);
 
-        // Duplicate SKU should be rejected
+        // Duplicate SKU automatically resolves with two-digit suffix
         $dupSkuResp = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
             'product_id' => 'AYC-MANUAL-002',
             'name' => 'Duplicate SKU Product',
@@ -94,7 +94,8 @@ class ProductStorefrontVisibilityAndUnifiedSkuTest extends TestCase
             'category_id' => $this->category->id,
             'status' => 'draft',
         ]);
-        $dupSkuResp->assertStatus(422);
+        $dupSkuResp->assertStatus(201);
+        $this->assertEquals('LAC-POLO-001-01', $dupSkuResp->json('data.sku'));
 
         // Duplicate Product ID should be rejected
         $dupPidResp = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [

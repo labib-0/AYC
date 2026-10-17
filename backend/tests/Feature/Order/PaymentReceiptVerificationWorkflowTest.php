@@ -156,7 +156,7 @@ class PaymentReceiptVerificationWorkflowTest extends TestCase
     public function test_admin_can_review_and_confirm_payment_with_historical_snapshot(): void
     {
         // 1. Customer submits payment
-        $file = UploadedFile::fake()->create('wire_transfer.pdf', 500, 'application/pdf');
+        $file = UploadedFile::fake()->image('wire_transfer.jpg', 600, 800);
 
         $this->actingAs($this->customer, 'sanctum')
             ->postJson("/api/v1/orders/{$this->order->id}/payment-proof", [
@@ -395,7 +395,7 @@ class PaymentReceiptVerificationWorkflowTest extends TestCase
 
     public function test_admin_can_update_payment_receipt_directly(): void
     {
-        $file = UploadedFile::fake()->create('admin_proof.pdf', 300, 'application/pdf');
+        $file = UploadedFile::fake()->image('admin_proof.png', 500, 700);
 
         $response = $this->actingAs($this->admin, 'sanctum')
             ->post("/api/v1/admin/orders/{$this->order->id}/payment-proof", [
@@ -480,6 +480,40 @@ class PaymentReceiptVerificationWorkflowTest extends TestCase
 
         $this->assertEquals($initialStock, $product->fresh()->stock);
         $this->assertEquals('pending', $this->order->fresh()->status);
+    }
+
+    public function test_receipt_is_converted_to_webp_format_on_storage(): void
+    {
+        $file = UploadedFile::fake()->image('original_receipt.png', 400, 600);
+
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file,
+            ]);
+
+        $response->assertOk();
+
+        $fresh = $this->order->fresh();
+        $this->assertNotNull($fresh->payment_proof_url);
+        $this->assertStringEndsWith('.webp', $fresh->payment_proof_url);
+
+        $storedPath = $fresh->payment_details['receipt_path'] ?? '';
+        $this->assertStringEndsWith('.webp', $storedPath);
+        Storage::disk('public')->assertExists($storedPath);
+    }
+
+    public function test_corrupted_image_file_is_safely_rejected(): void
+    {
+        // File named .jpg but containing non-image corrupt payload
+        $corruptFile = UploadedFile::fake()->createWithContent('corrupted.jpg', 'INVALID_CORRUPTED_BINARY_DATA_NOT_AN_IMAGE');
+
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $corruptFile,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['receipt']);
     }
 }
 

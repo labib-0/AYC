@@ -22,6 +22,7 @@ const STOREFRONT_UNIT_SUITES = [
   "stf-master-regression-suite.test.ts",
   "stf-phase-g-hardening.test.ts",
   "stf-010-seo-structured-data.test.ts",
+  "product-seo-opengraph-and-share.test.ts",
   "google-search-console-and-technical-seo.test.ts",
   "stf-phase-ef-refinements.test.ts",
   "shop-by-brand-and-banner.test.ts",

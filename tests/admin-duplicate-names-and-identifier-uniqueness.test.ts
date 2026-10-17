@@ -88,10 +88,10 @@ async function runTests() {
     assert(prod3.id !== prod1.id && prod3.id !== prod2.id, "2. Third product is an independent record");
     assert(prod3.wholesalePrice === 20.0 && prod3.status === "draft", "2. Attributes remain completely independent across identical-name products");
 
-    // Scenario 6: Generate distinct slugs for identical product names
+    // Scenario 6: Generate distinct slugs for identical product names with two-digit minimum suffix
     assert(prod1.slug === "mens-classic-t-shirt", "6. First product slug generated as base slug 'mens-classic-t-shirt'");
-    assert(prod2.slug === "mens-classic-t-shirt-2", "6. Second product slug generated with deterministic suffix 'mens-classic-t-shirt-2'");
-    assert(prod3.slug === "mens-classic-t-shirt-3", "6. Third product slug generated with deterministic suffix 'mens-classic-t-shirt-3'");
+    assert(prod2.slug === "mens-classic-t-shirt-01", "6. Second product slug generated with two-digit suffix 'mens-classic-t-shirt-01'");
+    assert(prod3.slug === "mens-classic-t-shirt-02", "6. Third product slug generated with two-digit suffix 'mens-classic-t-shirt-02'");
 
     // ─────────────────────────────────────────────────────────────
     console.log("\n[GROUP 2]: ENFORCING UNIQUE IDENTIFIERS (PRODUCT ID, SKU, SLUG)");
@@ -115,20 +115,21 @@ async function runTests() {
     }
     assert(pidErrorCaught, "3. Duplicate Product ID was rejected");
 
-    // Scenario 4: Reject an already-used non-empty SKU at product level
-    let skuErrorCaught = false;
-    try {
-      await productService.createProduct({
-        name: "Different Product SKU Conflict",
-        productId: "AY-9999",
-        sku: "TSH-MEN-001", // Duplicate of prod1
-      });
-    } catch (err: any) {
-      skuErrorCaught = true;
-      assert(err.status === 422, "4. Rejecting duplicate SKU returns 422 Unprocessable Entity");
-      assert(Boolean(err.errors?.sku), "4. Field-specific validation error returned for duplicate SKU");
-    }
-    assert(skuErrorCaught, "4. Duplicate non-empty SKU was rejected");
+    // Scenario 4: Auto-resolve an already-used SKU with two-digit collision suffix
+    const skuCheck = await productService.checkIdentifierUniqueness({
+      sku: "TSH-MEN-001", // Duplicate of prod1
+    });
+    assert(skuCheck.sku?.is_available === false, "4. Duplicate SKU detected as unavailable");
+    assert(skuCheck.sku?.suggested === "TSH-MEN-001-01", "4. Next available SKU suggested as TSH-MEN-001-01");
+
+    const prodSkuConflict = await productService.createProduct({
+      name: "Different Product SKU Conflict",
+      productId: "AY-9999",
+      sku: "TSH-MEN-001", // Duplicate of prod1
+    });
+    assert(Boolean(prodSkuConflict && prodSkuConflict.id), "4. Product with colliding SKU created successfully");
+    assert(prodSkuConflict.sku === "TSH-MEN-001-01", "4. Colliding SKU auto-resolved to TSH-MEN-001-01");
+    assert(prod1.sku === "TSH-MEN-001", "4. Original product retains unchanged SKU");
 
     // Scenario 5: Allow an unchanged SKU when editing its own product
     const updatedProd1 = await productService.updateProduct(prod1.id, {
@@ -140,23 +141,25 @@ async function runTests() {
     });
     assert(Boolean(updatedProd1), "5. Updating own product with unchanged SKU, PID, and slug succeeds");
     assert(updatedProd1?.stock === 650, "5. Product updates successfully persisted without false collision");
+    assert(updatedProd1?.sku === "TSH-MEN-001", "5. Own SKU retained without adding unwanted suffix");
+    assert(updatedProd1?.slug === "mens-classic-t-shirt", "5. Own slug retained without adding unwanted suffix");
 
     // Scenario 7: Handle an explicitly entered slug that already exists
-    let slugErrorCaught = false;
-    try {
-      await productService.createProduct({
-        name: "Explicit Slug Collision",
-        productId: "AY-EXPLICIT-001",
-        sku: "EXP-001",
-        slug: "mens-classic-t-shirt", // Explicitly entered existing slug
-        slugManuallyEdited: true,
-      });
-    } catch (err: any) {
-      slugErrorCaught = true;
-      assert(err.status === 422, "7. Explicitly entered existing slug rejected with 422");
-      assert(Boolean(err.errors?.slug), "7. Validation error returned for conflicting custom slug");
-    }
-    assert(slugErrorCaught, "7. Explicit existing slug was rejected");
+    const slugCheck = await productService.checkIdentifierUniqueness({
+      slug: "mens-classic-t-shirt", // Already used
+    });
+    assert(slugCheck.slug?.is_available === false, "7. Conflicting slug detected as unavailable");
+    assert(slugCheck.slug?.suggested === "mens-classic-t-shirt-03", "7. Next available unique slug suggested as mens-classic-t-shirt-03");
+
+    const prodExplicitSlug = await productService.createProduct({
+      name: "Explicit Slug Collision",
+      productId: "AY-EXPLICIT-001",
+      sku: "EXP-001",
+      slug: "mens-classic-t-shirt", // Explicitly entered existing slug
+      slugManuallyEdited: true,
+    });
+    assert(Boolean(prodExplicitSlug && prodExplicitSlug.id), "7. Product with conflicting explicit slug saves successfully");
+    assert(prodExplicitSlug.slug === "mens-classic-t-shirt-03", "7. Conflicting explicit slug auto-resolved to next available mens-classic-t-shirt-03");
 
     // Scenario 8: Handle concurrent requests that attempt to use the same unique identifier
     const concurrentPids = ["AY-CONCURRENT-001", "AY-CONCURRENT-001"];
@@ -213,11 +216,11 @@ async function runTests() {
 
     // Scenario 12: Ensure public routes open the correct product by unique slug
     const resolvedProd1 = mockStore.getProductByIdOrSlug("mens-classic-t-shirt");
-    const resolvedProd2 = mockStore.getProductByIdOrSlug("mens-classic-t-shirt-2");
-    const resolvedProd3 = mockStore.getProductByIdOrSlug("mens-classic-t-shirt-3");
+    const resolvedProd2 = mockStore.getProductByIdOrSlug("mens-classic-t-shirt-01");
+    const resolvedProd3 = mockStore.getProductByIdOrSlug("mens-classic-t-shirt-02");
     assert(resolvedProd1?.id === prod1.id, "12. Slug 'mens-classic-t-shirt' routes exclusively to Prod1");
-    assert(resolvedProd2?.id === prod2.id, "12. Slug 'mens-classic-t-shirt-2' routes exclusively to Prod2");
-    assert(resolvedProd3?.id === prod3.id, "12. Slug 'mens-classic-t-shirt-3' routes exclusively to Prod3");
+    assert(resolvedProd2?.id === prod2.id, "12. Slug 'mens-classic-t-shirt-01' routes exclusively to Prod2");
+    assert(resolvedProd3?.id === prod3.id, "12. Slug 'mens-classic-t-shirt-02' routes exclusively to Prod3");
 
     // Scenario 13: Confirm duplicate names do not cause cart or RFQ items to resolve incorrectly
     // In Cart/RFQ, items reference product.id (foreign key)

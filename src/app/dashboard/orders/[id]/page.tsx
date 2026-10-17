@@ -73,6 +73,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
   const [receiptSuccess, setReceiptSuccess] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [paymentDetails, setPaymentDetails] = useState("");
   const [paymentTxnId, setPaymentTxnId] = useState("");
   const [paymentPayer, setPaymentPayer] = useState("");
@@ -86,9 +87,20 @@ export default function CustomerOrderDetailPage({ params }: Props) {
   // Tracking copy
   const [copiedTracking, setCopiedTracking] = useState(false);
 
-  const fetchOrder = async () => {
+  // Clean up object preview URL on unmount or URL replacement
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const fetchOrder = async (isBackground = false) => {
     if (!user) return;
-    setLoading(true);
+    if (!isBackground && !order) {
+      setLoading(true);
+    }
     setError(null);
     setUnauthorized(false);
 
@@ -114,19 +126,22 @@ export default function CustomerOrderDetailPage({ params }: Props) {
       }
 
       setOrder(data);
-      if (data.payment_details) {
-        if (data.payment_details.payer_name) setPaymentPayer(data.payment_details.payer_name);
-        if (data.payment_details.payment_amount !== undefined) setPaymentAmount(String(data.payment_details.payment_amount));
-        if (data.payment_details.payment_date) setPaymentDate(data.payment_details.payment_date);
-        if (data.payment_details.transaction_id) setPaymentTxnId(data.payment_details.transaction_id);
-        if (data.payment_details.bank_name) setPaymentBank(data.payment_details.bank_name);
-        if (data.payment_details.payment_method) setPaymentMethod(data.payment_details.payment_method);
-        if (data.payment_details.notes) setPaymentNotes(data.payment_details.notes);
-        if (data.payment_details.payment_details) setPaymentDetails(data.payment_details.payment_details);
-      } else {
-        if (!paymentPayer) setPaymentPayer(data.shipping_name || "");
-        if (!paymentAmount) setPaymentAmount(String(data.total_amount || ""));
-        if (!paymentDate) setPaymentDate(new Date().toISOString().split("T")[0]);
+      // Only initialize draft inputs if customer is not currently typing in the form
+      if (!showSubmitForm) {
+        if (data.payment_details) {
+          if (data.payment_details.payer_name) setPaymentPayer(data.payment_details.payer_name);
+          if (data.payment_details.payment_amount !== undefined) setPaymentAmount(String(data.payment_details.payment_amount));
+          if (data.payment_details.payment_date) setPaymentDate(data.payment_details.payment_date);
+          if (data.payment_details.transaction_id) setPaymentTxnId(data.payment_details.transaction_id);
+          if (data.payment_details.bank_name) setPaymentBank(data.payment_details.bank_name);
+          if (data.payment_details.payment_method) setPaymentMethod(data.payment_details.payment_method);
+          if (data.payment_details.notes) setPaymentNotes(data.payment_details.notes);
+          if (data.payment_details.payment_details) setPaymentDetails(data.payment_details.payment_details);
+        } else {
+          if (!paymentPayer) setPaymentPayer(data.shipping_name || "");
+          if (!paymentAmount) setPaymentAmount(String(data.total_amount || ""));
+          if (!paymentDate) setPaymentDate(new Date().toISOString().split("T")[0]);
+        }
       }
     } catch (err: any) {
       console.error("Failed to fetch order:", err);
@@ -139,19 +154,19 @@ export default function CustomerOrderDetailPage({ params }: Props) {
   useEffect(() => {
     fetchOrder();
 
-    // Live refresh when tab gains focus or becomes visible
+    // Live refresh when tab gains focus or becomes visible without unmounting or resetting scroll
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        fetchOrder();
+        fetchOrder(true);
       }
     };
     window.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleVisibilityChange);
 
-    // Live update interval every 15s to automatically catch Admin payment approval
+    // Live update interval every 15s to automatically catch Admin payment approval in background
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        fetchOrder();
+        fetchOrder(true);
       }
     }, 15000);
 
@@ -172,9 +187,24 @@ export default function CustomerOrderDetailPage({ params }: Props) {
     }
   };
 
+  const handleCancelReplacement = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    setSelectedFile(null);
+    setReceiptError(null);
+    const fileInput = document.getElementById("input-customer-receipt-upload") as HTMLInputElement | null;
+    if (fileInput) fileInput.value = "";
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
       setSelectedFile(null);
       return;
     }
@@ -182,24 +212,36 @@ export default function CustomerOrderDetailPage({ params }: Props) {
     // Client-side file size validation: max 10MB (10 * 1024 * 1024)
     const MAX_SIZE = 10 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      setReceiptError("File exceeds 10MB limit. Please upload a smaller receipt image or PDF.");
+      setReceiptError("File exceeds 10MB limit. Please upload a receipt image up to 10MB.");
       e.target.value = "";
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
       setSelectedFile(null);
       return;
     }
 
-    // Client-side file format validation: jpg, jpeg, png, webp, pdf
-    const validMimes = ["image/jpeg", "image/png", "image/webp", "image/jpg", "application/pdf"];
-    const extMatch = file.name.match(/\.(jpg|jpeg|png|webp|pdf)$/i);
+    // Client-side file format validation: jpg, jpeg, png, webp (Single image only)
+    const validMimes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    const extMatch = file.name.match(/\.(jpg|jpeg|png|webp)$/i);
     if (!validMimes.includes(file.type.toLowerCase()) && !extMatch) {
-      setReceiptError("Invalid file type. Allowed formats: JPG, PNG, WebP, PDF.");
+      setReceiptError("Invalid file type. Allowed formats: JPG, JPEG, PNG, WebP.");
       e.target.value = "";
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
       setSelectedFile(null);
       return;
     }
 
     setReceiptError(null);
     setSelectedFile(file);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleSubmitPaymentDetails = async (e?: React.FormEvent) => {
@@ -214,7 +256,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
     );
 
     if (!selectedFile && !paymentDetails.trim() && !paymentTxnId.trim() && !hasExistingEvidence) {
-      setReceiptError("Please select a payment receipt file or enter your payment details.");
+      setReceiptError("Please select a payment receipt image or enter your payment details.");
       return;
     }
 
@@ -236,13 +278,20 @@ export default function CustomerOrderDetailPage({ params }: Props) {
       const result = await uploadPaymentProof(selectedFile, order.id, details);
       if (result) {
         setReceiptSuccess(true);
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+          setPreviewUrl(null);
+        }
         setSelectedFile(null);
         setShowSubmitForm(false);
-        // Refresh immediately using returned order record or refetch
+        const fileInput = document.getElementById("input-customer-receipt-upload") as HTMLInputElement | null;
+        if (fileInput) fileInput.value = "";
+
+        // Refresh immediately using returned order record or refetch in background
         if (result.order) {
           setOrder(result.order as OrderRecord);
         }
-        await fetchOrder();
+        await fetchOrder(true);
       }
     } catch (err: any) {
       console.error("Receipt upload error:", err);
@@ -279,8 +328,8 @@ export default function CustomerOrderDetailPage({ params }: Props) {
     );
   };
 
-  // State: Loading
-  if (loading) {
+  // State: Loading (only on initial load before order data is loaded)
+  if (loading && !order) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
@@ -925,7 +974,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                 {order.payment_proof_url ? "Update Payment Receipt & Details" : "Submit Payment Details & Receipt"}
               </h3>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Attach a payment receipt or bank slip (JPG, PNG, WebP, PDF up to 10MB) or enter transaction details for finance verification.
+                Attach a single payment receipt image (JPG, PNG, WebP up to 10MB) or enter transaction details for finance verification. Uploaded receipts are automatically converted to high-legibility WebP.
               </p>
             </div>
 
@@ -948,23 +997,98 @@ export default function CustomerOrderDetailPage({ params }: Props) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {/* Receipt File */}
-              <div className="space-y-1 sm:col-span-2 lg:col-span-3">
-                <label className="text-[10px] font-bold uppercase text-slate-500 block">
-                  Payment Receipt / Slip — <span className="text-slate-400 font-normal">(JPG, PNG, WebP, PDF — Max 10MB)</span>
-                </label>
+              {/* Receipt File & Previews (Single Receipt Only, WebP Conversion) */}
+              <div className="space-y-3 sm:col-span-2 lg:col-span-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold uppercase text-slate-500 block">
+                    Payment Receipt Image — <span className="text-slate-400 font-normal">(JPG, PNG, WebP — Max 10MB)</span>
+                  </label>
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                    Single receipt image only
+                  </span>
+                </div>
+
+                {/* 1. Current Saved Receipt Preview (if one exists) */}
+                {order.payment_proof_url && (
+                  <div className="p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800 shrink-0">
+                        <img
+                          src={order.payment_proof_url}
+                          alt="Current Saved Receipt"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                          Current Saved Receipt
+                        </span>
+                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                          Active Receipt on File (Converted WebP)
+                        </p>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                          <Check size={11} /> Saved in cloud storage
+                        </span>
+                      </div>
+                    </div>
+                    <a
+                      href={order.payment_proof_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 self-start sm:self-center shrink-0"
+                    >
+                      <ExternalLink size={12} />
+                      <span>View Full Size</span>
+                    </a>
+                  </div>
+                )}
+
+                {/* 2. New Replacement File Preview (before submission) */}
+                {selectedFile && previewUrl && (
+                  <div className="p-3.5 rounded-xl border-2 border-amber-300 dark:border-amber-600/50 bg-amber-50/70 dark:bg-amber-950/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs animate-in fade-in">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 shrink-0 shadow-2xs">
+                        <img
+                          src={previewUrl}
+                          alt="New Receipt Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-400 block">
+                          New Receipt Preview (Will Replace Current Receipt)
+                        </span>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                          {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Auto-converts to optimized WebP on save
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleCancelReplacement}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs font-semibold cursor-pointer transition-colors shadow-2xs"
+                        id="btn-cancel-receipt-replacement"
+                      >
+                        <XCircle size={13} />
+                        <span>Cancel Replacement</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Single-image file input */}
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  onChange={handleFileChange}
-                  className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer"
                   id="input-customer-receipt-upload"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleFileChange}
+                  disabled={uploadingReceipt}
+                  className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer disabled:opacity-50"
                 />
-                {selectedFile && (
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                    Selected file: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)
-                  </p>
-                )}
               </div>
 
               {/* Transaction ID */}

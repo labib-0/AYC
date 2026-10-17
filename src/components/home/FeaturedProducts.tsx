@@ -67,6 +67,7 @@ export default function FeaturedProducts() {
   const isLoadingRef = useRef<boolean>(false);
   const isContinuousModeRef = useRef<boolean>(false);
   const isPaginationStoppedRef = useRef<boolean>(false);
+  const hasScrolledTabRef = useRef<string | null>(null);
 
   // Floating Scroll-Down button: appears IMMEDIATELY when Load More is pressed (Sections 3, 9)
   const [showScrollDownButton, setShowScrollDownButton] = useState<boolean>(false);
@@ -516,12 +517,22 @@ export default function FeaturedProducts() {
     };
 
     const tabParam = searchParams.get("tab");
-    if (tabParam === "new-arrivals" || tabParam === "featured") {
+    if (
+      (tabParam === "new-arrivals" || tabParam === "featured") &&
+      hasScrolledTabRef.current !== tabParam
+    ) {
+      hasScrolledTabRef.current = tabParam;
       scrollToFeatured();
     }
+  }, [searchParams]);
 
+  useEffect(() => {
     const handleActivateEvent = () => {
-      scrollToFeatured();
+      requestAnimationFrame(() => {
+        if (sectionRef.current) {
+          sectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
       handleModeToggle("new_arrivals");
     };
 
@@ -529,7 +540,7 @@ export default function FeaturedProducts() {
     return () => {
       window.removeEventListener("activate-new-arrivals", handleActivateEvent);
     };
-  }, [searchParams, handleModeToggle]);
+  }, [handleModeToggle]);
 
   const totalActiveFilters =
     selectedBrands.length +

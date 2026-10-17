@@ -86,7 +86,9 @@ function FullPageStockManagementContent() {
   // ── Selected Product for Adjustment & History ──
   const [selectedProduct, setSelectedProduct] = useState<B2BProductInput | null>(null);
   const selectedProductRef = useRef<B2BProductInput | null>(null);
-  selectedProductRef.current = selectedProduct;
+  useEffect(() => {
+    selectedProductRef.current = selectedProduct;
+  }, [selectedProduct]);
 
   // ── Stock Adjustment Form State ──
   const [adjustmentMode, setAdjustmentMode] = useState<"delta" | "set">("delta");
@@ -134,6 +136,47 @@ function FullPageStockManagementContent() {
     }
     loadReferenceData();
   }, []);
+
+  // ── Fetch Movement History for Selected Product ──
+  const fetchProductHistory = useCallback(async (product: B2BProductInput) => {
+    setLoadingHistory(true);
+    try {
+      const prodId = product.id || product.productId;
+      if (prodId) {
+        const hist = await adminInventoryService.getProductStockHistory(prodId);
+        setHistoryList(Array.isArray(hist) ? hist : []);
+      } else {
+        setHistoryList([]);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch product stock history:", err);
+      setHistoryList([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
+  // ── Handle Selecting a Product ──
+  const handleSelectProduct = useCallback((product: B2BProductInput, updateUrl: boolean = true) => {
+    setSelectedProduct(product);
+    const currStock = Number(product.availableStock ?? product.stock ?? 0);
+    setTargetQuantity(String(currStock));
+    setDeltaQuantity("50");
+    setDeltaSign("+");
+    setReason("");
+    setNotes("");
+    setAdjustmentError(null);
+    setIsConfirmOpen(false);
+
+    if (updateUrl) {
+      const pid = product.productId || product.id;
+      const url = new URL(window.location.href);
+      url.searchParams.set("productId", String(pid));
+      window.history.replaceState({}, "", url.toString());
+    }
+
+    fetchProductHistory(product);
+  }, [fetchProductHistory]);
 
   // ── Load Products with Stale Request Protection ──
   const loadProducts = useCallback(async () => {
@@ -222,52 +265,11 @@ function FullPageStockManagementContent() {
         setLoading(false);
       }
     }
-  }, [filters, searchParams]);
+  }, [filters, searchParams, handleSelectProduct]);
 
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
-
-  // ── Fetch Movement History for Selected Product ──
-  const fetchProductHistory = useCallback(async (product: B2BProductInput) => {
-    setLoadingHistory(true);
-    try {
-      const prodId = product.id || product.productId;
-      if (prodId) {
-        const hist = await adminInventoryService.getProductStockHistory(prodId);
-        setHistoryList(Array.isArray(hist) ? hist : []);
-      } else {
-        setHistoryList([]);
-      }
-    } catch (err) {
-      console.warn("Failed to fetch product stock history:", err);
-      setHistoryList([]);
-    } finally {
-      setLoadingHistory(false);
-    }
-  }, []);
-
-  // ── Handle Selecting a Product ──
-  const handleSelectProduct = (product: B2BProductInput, updateUrl: boolean = true) => {
-    setSelectedProduct(product);
-    const currStock = Number(product.availableStock ?? product.stock ?? 0);
-    setTargetQuantity(String(currStock));
-    setDeltaQuantity("50");
-    setDeltaSign("+");
-    setReason("");
-    setNotes("");
-    setAdjustmentError(null);
-    setIsConfirmOpen(false);
-
-    if (updateUrl) {
-      const pid = product.productId || product.id;
-      const url = new URL(window.location.href);
-      url.searchParams.set("productId", String(pid));
-      window.history.replaceState({}, "", url.toString());
-    }
-
-    fetchProductHistory(product);
-  };
 
   // ── Pagination Calculation ──
   const totalProducts = allProducts.length;

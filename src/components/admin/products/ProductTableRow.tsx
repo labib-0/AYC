@@ -145,7 +145,14 @@ export default function ProductTableRow({
     : (rawDesignType ? String(rawDesignType).trim() : "—");
 
   const featUntil = product.featuredUntil || (product as any).featured_until;
-  const isFeaturedExpired = featUntil ? new Date(featUntil).getTime() <= Date.now() : false;
+  const [isFeaturedExpired, setIsFeaturedExpired] = useState(false);
+  useEffect(() => {
+    if (featUntil) {
+      setIsFeaturedExpired(new Date(featUntil).getTime() <= Date.now());
+    } else {
+      setIsFeaturedExpired(false);
+    }
+  }, [featUntil]);
   const isPinned = Boolean(
     (product as any).is_pinned ??
     (product as any).isPinned ??

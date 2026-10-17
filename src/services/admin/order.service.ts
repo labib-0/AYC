@@ -43,6 +43,18 @@ export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
   refunded: [],
 };
 
+export interface PaymentVerificationDetails {
+  payment_method?: string;
+  transaction_id?: string;
+  payer_name?: string;
+  bank_name?: string;
+  account_number?: string;
+  payment_amount?: number;
+  payment_date?: string;
+  note?: string;
+  receipt?: File;
+}
+
 export class AdminOrderService {
   getAllowedNextStatuses(currentStatus: string): string[] {
     const normalized = (currentStatus || "").toLowerCase();
@@ -271,7 +283,7 @@ export class AdminOrderService {
     file?: File | null,
     details?: Partial<PaymentVerificationDetails>
   ): Promise<OrderRecord> {
-    if (this.isApiEnabled) {
+    if (!isFrontendOnly()) {
       const formData = new FormData();
       if (file) {
         formData.append("receipt", file);

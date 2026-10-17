@@ -29,10 +29,10 @@ describe("Commercial Offer Sheet Pricing Cleanup Regression Suite", () => {
       "pdf-generator.ts must NOT label tiers with '(Bulk Volume)'"
     );
 
-    // Must contain exact required 5-column table head
+    // Must contain exact required 4-column table head per Offer Sheet Refinement
     assert.ok(
-      content.includes('head: [["Tier", "Order Quantity Range", "Unit Price (USD)", "Min Order Value", "Incoterm"]]'),
-      "pdf-generator.ts must have exact 5-column pricing table head: Tier | Order Quantity Range | Unit Price (USD) | Min Order Value | Incoterm"
+      content.includes('head: [["Pricing Tier", "Minimum Quantity / Basis", "Unit Price (USD)", "Total Price (USD)"]]'),
+      "pdf-generator.ts must have exact 4-column pricing table head: Pricing Tier | Minimum Quantity / Basis | Unit Price (USD) | Total Price (USD)"
     );
   });
 

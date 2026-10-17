@@ -1,70 +1,167 @@
 import type { Metadata } from "next";
-import { SITE_CONFIG, absoluteUrl, canonicalUrl } from "./config";
+import { SITE_CONFIG, canonicalUrl, getCanonicalBaseUrl } from "./config";
 import { generateProductImageAlt } from "./images";
+import { resolveProductThumbnail } from "@/lib/media";
 import { B2BProductInput } from "@/types/b2b";
 import { Product } from "@/types";
+
+/**
+ * Resolves an image URL to an absolute, public HTTPS URL accessible by external
+ * social media crawlers (WhatsApp, Facebook, Twitter/X, LinkedIn, Telegram, etc.)
+ * without login, browser cookies, expiring tokens, or localhost/private IP bleed.
+ */
+export function resolveAbsolutePublicImageUrl(url?: string | null): string {
+  const defaultFallback = `${getCanonicalBaseUrl()}/og-image.jpg`;
+  if (!url || typeof url !== "string") {
+    return defaultFallback;
+  }
+
+  const trimmed = url.trim();
+  if (
+    !trimmed ||
+    trimmed === "/placeholder.jpg" ||
+    trimmed.includes("placeholder") ||
+    trimmed === "/storage" ||
+    trimmed === "/storage/" ||
+    trimmed === "storage"
+  ) {
+    return defaultFallback;
+  }
+
+  // Reject local browser preview data/blobs for crawler previews
+  if (trimmed.startsWith("blob:") || trimmed.startsWith("data:")) {
+    return defaultFallback;
+  }
+
+  // Canonical base origin (https://ayaanclothing.com)
+  const canonicalBase = getCanonicalBaseUrl();
+
+  // If already an absolute HTTPS external URL (CDN, S3, Unsplash)
+  if (/^https:\/\/(?!localhost|127\.0\.0\.1)/i.test(trimmed)) {
+    // If it points to api.ayaanclothing.com/storage or ayaanclothing.com/storage, normalize to canonicalBase/storage
+    const match = trimmed.match(/^https?:\/\/(?:www\.|api\.)?ayaanclothing\.com(?:\/ayc)?\/storage\/(.+)$/i);
+    if (match) {
+      return `${canonicalBase}/storage/${match[1]}`;
+    }
+    return trimmed;
+  }
+
+  // If localhost / 127.0.0.1 with storage path, strip local host and attach canonicalBase
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/(?:ayc\/)?storage\/(.+)$/i.test(trimmed)) {
+    const match = trimmed.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/(?:ayc\/)?storage\/(.+)$/i);
+    return `${canonicalBase}/storage/${match![3]}`;
+  }
+
+  // Upgrade external http:// to https://
+  if (/^http:\/\/(?!localhost|127\.0\.0\.1)/i.test(trimmed)) {
+    return trimmed.replace(/^http:\/\//i, "https://");
+  }
+
+  // Relative storage paths: /storage/... or storage/...
+  if (trimmed.startsWith("/storage/")) {
+    return `${canonicalBase}${trimmed}`;
+  }
+  if (trimmed.startsWith("storage/")) {
+    return `${canonicalBase}/${trimmed}`;
+  }
+  if (trimmed.startsWith("/ayc/storage/")) {
+    return `${canonicalBase}/storage/${trimmed.slice("/ayc/storage/".length)}`;
+  }
+
+  // Known storage upload subfolders: products/..., brands/..., categories/..., etc.
+  if (/^(products|brands|categories|banners|documents|branding)\//i.test(trimmed)) {
+    return `${canonicalBase}/storage/${trimmed}`;
+  }
+
+  // Absolute site paths like /og-image.jpg or /images/...
+  if (trimmed.startsWith("/")) {
+    return `${canonicalBase}${trimmed}`;
+  }
+
+  return `${canonicalBase}/${trimmed}`;
+}
+
+/**
+ * Infers valid MIME type for social preview image metadata
+ */
+export function inferImageMimeType(url: string): string {
+  const clean = url.split("?")[0].toLowerCase();
+  if (clean.endsWith(".png")) return "image/png";
+  if (clean.endsWith(".webp")) return "image/webp";
+  if (clean.endsWith(".gif")) return "image/gif";
+  if (clean.endsWith(".svg")) return "image/svg+xml";
+  if (clean.endsWith(".avif")) return "image/avif";
+  return "image/jpeg";
+}
 
 /**
  * Derives a clean, consistent product page title:
  * <Product Name> | <Brand> | AYAAN CLOTHING
  */
 export function deriveProductTitle(product: Partial<Product | B2BProductInput>): string {
-  const customTitle = product.seoTitle?.trim();
+  const customTitle = product.seoTitle?.trim() || (product as any)?.seo_title?.trim();
   if (customTitle) {
     return customTitle.includes(SITE_CONFIG.name)
       ? customTitle
       : `${customTitle} | ${SITE_CONFIG.name}`;
   }
 
-  const name = typeof product.name === "string" ? product.name.trim() : "Apparel Item";
+  const name = typeof product.name === "string" && product.name.trim() ? product.name.trim() : "Apparel Item";
   const rawBrand = product.brand;
   const brand = typeof rawBrand === "string"
     ? rawBrand.trim()
     : rawBrand && typeof rawBrand === "object" && "name" in rawBrand && typeof (rawBrand as any).name === "string"
     ? (rawBrand as any).name.trim()
-    : "Wholesale";
+    : "";
 
-  return `${name} | ${brand} | ${SITE_CONFIG.name}`;
+  if (brand && brand.toLowerCase() !== SITE_CONFIG.name.toLowerCase() && brand.toLowerCase() !== "wholesale") {
+    return `${name} | ${brand} | ${SITE_CONFIG.name}`;
+  }
+
+  return `${name} | ${SITE_CONFIG.name}`;
 }
 
 /**
  * Synthesizes a natural, high-converting B2B wholesale product description
- * Incorporates brand, category, audience, design type, and keyword context without spam.
+ * Incorporates brand, category, audience, design type, and MOQ without spam or made-up claims.
  */
 export function deriveProductDescription(
   product: Partial<Product | B2BProductInput>
 ): string {
-  if (product.seoDescription?.trim()) {
-    return product.seoDescription.trim();
+  const seoDesc = product.seoDescription?.trim() || (product as any)?.seo_description?.trim();
+  if (seoDesc) {
+    return seoDesc;
   }
-  if (product.shortDescription?.trim()) {
-    return product.shortDescription.trim();
+  const shortDesc = product.shortDescription?.trim() || (product as any)?.short_description?.trim();
+  if (shortDesc) {
+    return shortDesc;
   }
   if (product.description?.trim()) {
-    const clean = product.description.replace(/\s+/g, " ").trim();
-    if (clean.length <= 160) return clean;
-    return `${clean.slice(0, 157)}...`;
+    // Strip HTML tags if present (e.g. <p>, <br>) and normalize whitespace
+    const clean = product.description
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (clean.length > 0) {
+      if (clean.length <= 160) return clean;
+      return `${clean.slice(0, 157)}...`;
+    }
   }
 
-  const name = typeof product.name === "string" ? product.name.trim() : "Apparel Item";
+  const name = typeof product.name === "string" && product.name.trim() ? product.name.trim() : "Wholesale Apparel";
   const rawBrand = product.brand;
   const brand = typeof rawBrand === "string"
     ? rawBrand.trim()
     : rawBrand && typeof rawBrand === "object" && "name" in rawBrand && typeof (rawBrand as any).name === "string"
     ? (rawBrand as any).name.trim()
-    : "Ayaan Clothing";
-  const category = product.categoryName?.trim() || "garments";
+    : "";
+  const brandText = brand && brand.toLowerCase() !== SITE_CONFIG.name.toLowerCase() ? ` by ${brand}` : "";
+  const category = (product.categoryName?.trim() || (product as any)?.category?.trim()) || "apparel";
   const audience = product.audience ? `${product.audience.toLowerCase()} ` : "";
   const designType = product.designType ? ` (${product.designType})` : "";
-  const moqText = product.moq ? ` MOQ ${product.moq} pcs.` : "";
+  const moqText = product.moq ? ` Wholesale MOQ ${product.moq} pcs.` : "";
 
-  // Incorporate first primary keyword if naturally available
-  const keywordHint =
-    product.keywords && product.keywords.length > 0
-      ? ` Ideal for ${product.keywords[0]}.`
-      : "";
-
-  return `Direct export wholesale ${name} by ${brand}${designType}. Premium ${audience}${category} sourcing manufactured in Bangladesh with global export standards.${moqText}${keywordHint}`.slice(
+  return `Direct export wholesale ${name}${brandText}${designType}. High quality ${audience}${category} manufactured in Bangladesh with global export standards.${moqText}`.slice(
     0,
     160
   );
@@ -77,37 +174,73 @@ export function generateProductMetadata(
   product: B2BProductInput | Product | null,
   slug: string
 ): Metadata {
+  const canonical = canonicalUrl(`/products/${product?.slug || slug}`);
+  const fallbackImage = `${getCanonicalBaseUrl()}/og-image.jpg`;
+
   if (!product) {
+    const notFoundTitle = `Product Not Found | ${SITE_CONFIG.name}`;
     return {
-      title: `Product Not Found | ${SITE_CONFIG.name}`,
+      title: {
+        absolute: notFoundTitle,
+      },
       description: "The requested apparel catalog item could not be found.",
+      alternates: {
+        canonical,
+      },
+      openGraph: {
+        title: "Product Not Found",
+        description: "The requested apparel catalog item could not be found.",
+        url: canonical,
+        siteName: SITE_CONFIG.name,
+        locale: SITE_CONFIG.locale,
+        type: "website",
+        images: [
+          {
+            url: fallbackImage,
+            width: 1200,
+            height: 630,
+            type: "image/jpeg",
+            alt: `Product Not Found | ${SITE_CONFIG.name}`,
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: "Product Not Found",
+        description: "The requested apparel catalog item could not be found.",
+        images: [fallbackImage],
+      },
       robots: {
         index: false,
-        follow: true,
+        follow: false,
       },
     };
   }
 
-  const title = deriveProductTitle(product);
+  const seoTitle = deriveProductTitle(product);
+  const ogTitle = typeof product.name === "string" && product.name.trim() ? product.name.trim() : seoTitle;
   const description = deriveProductDescription(product);
-  const canonical = canonicalUrl(`/products/${product.slug || slug}`);
-  const primaryImage =
-    Array.isArray(product.images) && product.images.length > 0
-      ? product.images[0].startsWith("http")
-        ? product.images[0]
-        : absoluteUrl(product.images[0])
-      : SITE_CONFIG.ogImage;
 
+  // Authoritatively resolve primary product thumbnail using all available fields
+  const resolvedThumb = resolveProductThumbnail(product);
+  const primaryImage = resolveAbsolutePublicImageUrl(resolvedThumb);
   const imageAlt = generateProductImageAlt(product, 0);
+  const isFallback = primaryImage.includes("og-image.jpg");
+  const imageWidth = isFallback ? 1200 : 800;
+  const imageHeight = isFallback ? 630 : 1000;
+  const imageMime = inferImageMimeType(primaryImage);
 
   return {
-    title,
+    // title: { absolute: ... } ensures root layout's template "%s | Ayaan Clothing" does not duplicate the brand
+    title: {
+      absolute: seoTitle,
+    },
     description,
     alternates: {
       canonical,
     },
     openGraph: {
-      title,
+      title: ogTitle,
       description,
       url: canonical,
       siteName: SITE_CONFIG.name,
@@ -116,15 +249,16 @@ export function generateProductMetadata(
       images: [
         {
           url: primaryImage,
-          width: 800,
-          height: 1000,
+          width: imageWidth,
+          height: imageHeight,
+          type: imageMime,
           alt: imageAlt,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: ogTitle,
       description,
       images: [primaryImage],
     },

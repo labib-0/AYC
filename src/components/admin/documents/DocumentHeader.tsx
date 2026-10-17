@@ -71,9 +71,10 @@ export default function DocumentHeader({
     const isPI = badgeText.toLowerCase().includes("proforma") || title.toLowerCase().includes("proforma");
 
     if (isPI) {
+      const orderRef = orderNumber ? (orderNumber.startsWith("#") ? orderNumber : `#${orderNumber}`) : "N/A";
       return [
         { label: "P.I. Number", value: docNumber },
-        { label: "Order Reference", value: orderNumber ? `#${orderNumber}` : "N/A" },
+        { label: "Order Reference", value: orderRef },
         { label: "Issue Date", value: date },
         { label: "Validity", value: validUntil || "30 Days from date of issuance", highlight: true },
         { label: "Shipping Arrangement", value: shippingArrangement || "To Be Confirmed Separately" },
@@ -82,14 +83,19 @@ export default function DocumentHeader({
     }
 
     if (isOffer) {
-      return [
+      const offerFields: DocumentHeaderMetadataField[] = [
         { label: "Offer Reference", value: docNumber },
-        { label: "Order Reference", value: orderNumber ? `#${orderNumber}` : "Commercial Inquiry" },
-        { label: "Issue Date", value: date },
-        { label: "Validity", value: validUntil || "30 Days", highlight: true },
-        { label: "Shipping Arrangement", value: shippingArrangement || "To Be Confirmed Separately (FOB Dhaka)" },
-        { label: "Payment Terms", value: paymentTerms || "100% Advance T/T or L/C at Sight" },
+        { label: "Date of Issue", value: date },
+        { label: "Validity", value: validUntil || "30 Days from date of issuance", highlight: true },
+        { label: "Price Basis", value: "FOB Dhaka (Export)" },
       ];
+      if (shippingArrangement) {
+        offerFields.push({ label: "Shipping Arrangement", value: shippingArrangement });
+      }
+      if (paymentTerms) {
+        offerFields.push({ label: "Payment Terms", value: paymentTerms });
+      }
+      return offerFields;
     }
 
     // Default metadata fields for other commercial documents
@@ -158,7 +164,7 @@ export default function DocumentHeader({
               {relatedInvoiceNumber && (
                 <div>Related Invoice: <strong className="text-foreground font-mono">{relatedInvoiceNumber}</strong></div>
               )}
-              {orderNumber && (
+              {!badgeText.toLowerCase().includes("offer") && !title.toLowerCase().includes("offer") && orderNumber && (
                 <div>Order Ref: <strong className="text-foreground font-mono">#{orderNumber}</strong></div>
               )}
               {validUntil && (
@@ -171,15 +177,15 @@ export default function DocumentHeader({
 
       {/* Document Information Header Bar (Reference Bar) - Non-overlapping CSS Grid */}
       {effectiveFields.length > 0 && (
-        <div className="rounded-2xl bg-secondary/40 border border-border/80 p-3.5 sm:p-4 print:p-3 print:bg-slate-50 print:border-slate-300">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 print:grid-cols-3 print:gap-3">
+        <div className="rounded-2xl bg-secondary/40 border border-border/80 p-3.5 sm:p-4.5 print:p-3 print:bg-slate-50 print:border-slate-300 shadow-2xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 print:grid-cols-3 print:gap-3">
             {effectiveFields.map((field, idx) => (
-              <div key={idx} className="min-w-0 space-y-1">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted-foreground block print:text-slate-500">
+              <div key={idx} className="flex flex-col min-w-0 space-y-1 overflow-visible">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted-foreground block break-words [overflow-wrap:anywhere] print:text-slate-500">
                   {field.label}
                 </span>
                 <div
-                  className={`text-xs sm:text-sm font-semibold break-words leading-snug print:text-xs print:leading-tight ${
+                  className={`text-xs sm:text-sm font-semibold break-words [overflow-wrap:anywhere] leading-snug print:text-xs print:leading-tight ${
                     field.highlight
                       ? "text-orange-600 dark:text-orange-400 print:text-orange-700 font-bold"
                       : "text-foreground print:text-slate-900"

@@ -379,6 +379,7 @@ export interface OrderShippingSnapshot {
   mode?: "air" | "sea" | string;
   shipping_method?: string;
   carrier?: string;
+  mode_title?: string;
   tracking_number?: string;
   quoted_shipping_charge?: number | null;
   currency?: string;
@@ -566,6 +567,8 @@ export interface CommercialDocument {
   currency: string;
   paymentTerms?: string;
   shippingTerms?: string;
+  shipping_arrangement?: string;
+  shippingArrangement?: string;
   incoterm?: string;
   port_of_loading?: string;
   validUntil?: string;

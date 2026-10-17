@@ -46,6 +46,7 @@ export default function OrderPaymentInventoryCard({
   order,
   onApprove,
   onReject,
+  onReceiptUpdated,
   isLoading = false,
 }: OrderPaymentInventoryCardProps) {
   const { can, isSuperAdmin } = useAdminAuth();

@@ -73,7 +73,7 @@ export function generateMockDocument(order: OrderRecord, docType: string, isAdmi
       return {
         document_type: "ORDER_SHEET",
         doc_type: "ORDER_SHEET",
-        title: "OFFICIAL COMMERCIAL OFFER SHEET",
+        title: "OFFER SHEET",
         document_number: `OS-${order.order_number}`,
         doc_number: `OS-${order.order_number}`,
         order_number: order.order_number,

@@ -159,7 +159,7 @@ export default function CategoriesSection() {
               return (
                 <Link
                   key={cat.id || categoryName}
-                  href={`/search?category=${categoryParam}&filterOpen=true`}
+                  href={`/search?category=${categoryParam}`}
                   role="listitem"
                   title={`Browse ${categoryName}`}
                   aria-label={`Browse ${categoryName} category`}

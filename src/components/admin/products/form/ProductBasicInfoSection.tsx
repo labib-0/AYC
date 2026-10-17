@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useContext } from "react";
-import { Sparkles, Plus, AlertCircle } from "lucide-react";
+import { Sparkles, Plus, AlertCircle, Check } from "lucide-react";
 import BrandModal from "@/components/admin/BrandModal";
 import CategoryModal from "@/components/admin/CategoryModal";
 import { BrandModel } from "@/services/brand.service";
@@ -45,11 +45,19 @@ interface ProductBasicInfoSectionProps {
   isEdit?: boolean;
   errors: Record<string, string>;
   canCreateCategory?: boolean;
+  slugNotice?: string | null;
+  skuNotice?: string | null;
   onProductIdChange: (val: string) => void;
   onNameChange: (val: string) => void;
   onNameBlur?: () => void;
   onSlugChange: (val: string) => void;
+  onSlugBlur?: () => void;
   onSkuChange: (val: string) => void;
+  onSkuBlur?: () => void;
+  suggestedSlug?: string | null;
+  suggestedSku?: string | null;
+  onApplySuggestedSlug?: (val: string) => void;
+  onApplySuggestedSku?: (val: string) => void;
   onBrandChange: (brandName: string, brandId?: string, brandLogo?: string) => void;
   onCategoryChange: (catId: string, catName?: string) => void;
   onSupplierNameChange?: (name: string) => void;
@@ -101,11 +109,19 @@ export default function ProductBasicInfoSection({
   isEdit,
   errors,
   canCreateCategory,
+  slugNotice,
+  skuNotice,
   onProductIdChange,
   onNameChange,
   onNameBlur,
   onSlugChange,
+  onSlugBlur,
   onSkuChange,
+  onSkuBlur,
+  suggestedSlug,
+  suggestedSku,
+  onApplySuggestedSlug,
+  onApplySuggestedSku,
   onBrandChange,
   onCategoryChange,
   supplierName,
@@ -218,13 +234,22 @@ export default function ProductBasicInfoSection({
 
         {/* 3. Slug */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-            Slug <span className="text-red-500">*</span>
-          </label>
+          <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
+              Slug <span className="text-red-500">*</span>
+            </label>
+            {slugNotice && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                <Check size={11} className="text-emerald-500 shrink-0" />
+                {slugNotice}
+              </span>
+            )}
+          </div>
           <input
             type="text"
             value={slug}
             onChange={(e) => onSlugChange(e.target.value)}
+            onBlur={() => onSlugBlur?.()}
             placeholder="heavyweight-pullover-fleece-hoodie"
             className={`font-mono text-[11px] ${inputClass(Boolean(errors.slug))}`}
           />
@@ -234,18 +259,39 @@ export default function ProductBasicInfoSection({
               {errors.slug}
             </p>
           )}
+          {suggestedSlug && suggestedSlug !== slug && (
+            <div className="mt-1 flex items-center justify-between text-[11px] bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded px-2.5 py-1 text-blue-700 dark:text-blue-300">
+              <span>Suggested available slug: <code className="font-mono font-semibold">{suggestedSlug}</code></span>
+              <button
+                type="button"
+                onClick={() => onApplySuggestedSlug?.(suggestedSlug)}
+                className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline ml-2"
+              >
+                Apply
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 4. SKU & Supplier Selector 2-Column Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              SKU
-            </label>
+            <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
+                SKU
+              </label>
+              {skuNotice && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                  <Check size={11} className="text-emerald-500 shrink-0" />
+                  {skuNotice}
+                </span>
+              )}
+            </div>
             <input
               type="text"
               value={sku}
               onChange={(e) => onSkuChange(e.target.value)}
+              onBlur={() => onSkuBlur?.()}
               placeholder="e.g. AYC-XXXX-001"
               className={`font-mono ${inputClass(Boolean(errors.sku))}`}
             />
@@ -254,6 +300,18 @@ export default function ProductBasicInfoSection({
                 <AlertCircle size={12} />
                 {errors.sku}
               </p>
+            )}
+            {suggestedSku && suggestedSku !== sku && (
+              <div className="mt-1 flex items-center justify-between text-[11px] bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded px-2.5 py-1 text-blue-700 dark:text-blue-300">
+                <span>Suggested available SKU: <code className="font-mono font-semibold">{suggestedSku}</code></span>
+                <button
+                  type="button"
+                  onClick={() => onApplySuggestedSku?.(suggestedSku)}
+                  className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline ml-2"
+                >
+                  Apply
+                </button>
+              </div>
             )}
           </div>
 

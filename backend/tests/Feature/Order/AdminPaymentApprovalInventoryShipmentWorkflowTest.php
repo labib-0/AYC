@@ -134,7 +134,7 @@ class AdminPaymentApprovalInventoryShipmentWorkflowTest extends TestCase
     public function test_02_admin_can_inspect_payment_proof(): void
     {
         $order = $this->createTestOrder(100, 'pending', 'pending');
-        $file = UploadedFile::fake()->create('bank_slip.pdf', 300, 'application/pdf');
+        $file = UploadedFile::fake()->image('bank_slip.jpg', 600, 800);
 
         $this->actingAs($this->customer, 'sanctum')->postJson("/api/v1/orders/{$order->id}/payment-proof", [
             'receipt' => $file,
@@ -339,7 +339,7 @@ class AdminPaymentApprovalInventoryShipmentWorkflowTest extends TestCase
         $this->assertEquals(Order::CUSTOMER_STATUS_PAYMENT_PENDING, $order->fresh()->customer_status);
 
         // 2. Customer resubmits corrected proof
-        $file = UploadedFile::fake()->create('corrected_slip.pdf', 300, 'application/pdf');
+        $file = UploadedFile::fake()->image('corrected_slip.jpg', 600, 800);
         $resUpload = $this->actingAs($this->customer, 'sanctum')->postJson("/api/v1/orders/{$order->id}/payment-proof", [
             'receipt' => $file,
             'transaction_id' => 'TXN-CORRECTED-200',

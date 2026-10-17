@@ -31,7 +31,7 @@ export default function DesignTypeSection() {
             return (
               <Link
                 key={dt.value}
-                href={`/search?design_type=${param}&filterOpen=true`}
+                href={`/search?design_type=${param}`}
                 role="listitem"
                 title={`Browse ${dt.label} products`}
                 aria-label={`Browse ${dt.label} design type`}

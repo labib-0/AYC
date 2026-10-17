@@ -7,7 +7,7 @@ export default function AudienceSection() {
   const router = useRouter();
 
   const handleAudienceToggle = (audienceName: string) => {
-    router.push("/search?audience=" + encodeURIComponent(audienceName.toLowerCase()) + "&filterOpen=true");
+    router.push("/search?audience=" + encodeURIComponent(audienceName.toLowerCase()));
   };
 
   return (

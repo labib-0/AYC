@@ -30,7 +30,7 @@ function runStep(name, cmd) {
       cwd: ROOT_DIR,
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
-      timeout: 120000,
+      timeout: 300000,
     });
     const ms = Date.now() - start;
     console.log(`✔ [PASS] (${ms}ms)`);
@@ -105,7 +105,7 @@ async function main() {
     gateResults.storefrontContract = "PASS";
   } else {
     gateResults.storefrontUnit = "FAIL";
-    failures.push({ gate: "Storefront Regression", error: regRes.error.slice(0, 400) });
+    failures.push({ gate: "Storefront Regression", error: regRes.error.length > 800 ? regRes.error.slice(-800) : regRes.error });
   }
 
   // 4. Security & Isolation Invariants

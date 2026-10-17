@@ -21,11 +21,13 @@ import {
   Check, 
   Package, 
   Heart, 
+  Share2,
   MessageCircle,
   Sliders,
   FileText,
   AlertCircle,
 } from "lucide-react";
+import { getCanonicalBaseUrl } from "@/lib/seo/config";
 import { useRfq } from "@/lib/RfqContext";
 import BUSINESS_PROFILE, { getWhatsAppUrl, getProductWhatsAppUrl } from "@/config/business-profile";
 import CommerceSectionHeader from "@/components/product/CommerceSectionHeader";
@@ -57,6 +59,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   const [selectedTier, setSelectedTier] = useState<"standard" | "bulk" | "full_stock">("standard");
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [shareStatus, setShareStatus] = useState<"idle" | "success" | "copied" | "error">("idle");
+  const [shareFeedback, setShareFeedback] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -600,6 +604,73 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     }, 2500);
   };
 
+  // Handle Share Product (Web Share API with Clipboard Fallback)
+  const handleShareProduct = async () => {
+    if (!product) return;
+    const origin =
+      typeof window !== "undefined" && window.location.origin
+        ? window.location.origin
+        : getCanonicalBaseUrl();
+    const shareUrl = `${origin}/products/${product.slug || slug}`;
+    const shareTitle = product.name;
+    const shareText =
+      product.shortDescription ||
+      (product.seoDescription ? product.seoDescription : `Wholesale ${product.name} at AYAAN CLOTHING`);
+
+    // 1. Try Web Share API on supported devices/browsers
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        setShareStatus("success");
+        setShareFeedback("Shared successfully!");
+        setTimeout(() => {
+          setShareStatus("idle");
+          setShareFeedback("");
+        }, 3000);
+        return;
+      } catch (err: any) {
+        if (err?.name === "AbortError") {
+          return;
+        }
+        // Fall through to clipboard copy if Web Share API was rejected or failed
+      }
+    }
+
+    // 2. Clipboard Fallback
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = shareUrl;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setShareStatus("copied");
+      setShareFeedback("Link copied to clipboard!");
+      setTimeout(() => {
+        setShareStatus("idle");
+        setShareFeedback("");
+      }, 3000);
+    } catch {
+      setShareStatus("error");
+      setShareFeedback("Failed to copy link. Please copy the URL from your browser address bar.");
+      setTimeout(() => {
+        setShareStatus("idle");
+        setShareFeedback("");
+      }, 4000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="w-full min-h-[70vh] flex items-center justify-center">
@@ -1028,25 +1099,77 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   )}
                 </button>
 
-                <button
-                  type="button"
-                  id="wishlist-toggle-button"
-                  onClick={() => {
-                    if (product) {
-                      toggleWishlist(toStorefrontProduct(product));
-                    }
-                  }}
-                  className={`h-10 lg:h-11 w-10 lg:w-11 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-2xs self-end sm:self-auto ${
-                    product && isInWishlist(product.id)
-                      ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/30 dark:border-rose-800"
-                      : "border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/40 hover:border-border"
-                  }`}
-                  title={product && isInWishlist(product.id) ? "Saved to Wishlist" : "Add to Wishlist"}
-                  aria-label={product && isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
-                >
-                  <Heart size={18} className={product && isInWishlist(product.id) ? "fill-current text-rose-600" : ""} />
-                </button>
+                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                  <button
+                    type="button"
+                    id="wishlist-toggle-button"
+                    onClick={() => {
+                      if (product) {
+                        toggleWishlist(toStorefrontProduct(product));
+                      }
+                    }}
+                    className={`h-10 lg:h-11 w-10 lg:w-11 rounded-xl border transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-2xs ${
+                      product && isInWishlist(product.id)
+                        ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/30 dark:border-rose-800"
+                        : "border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/40 hover:border-border"
+                    }`}
+                    title={product && isInWishlist(product.id) ? "Saved to Wishlist" : "Add to Wishlist"}
+                    aria-label={product && isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
+                  >
+                    <Heart size={18} className={product && isInWishlist(product.id) ? "fill-current text-rose-600" : ""} />
+                  </button>
+
+                  <button
+                    type="button"
+                    id="share-product-button"
+                    onClick={handleShareProduct}
+                    className={`h-10 lg:h-11 px-3 sm:px-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 active:scale-95 shadow-2xs font-sans text-xs font-semibold ${
+                      shareStatus === "copied" || shareStatus === "success"
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-700 dark:text-emerald-300"
+                        : shareStatus === "error"
+                        ? "bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-950/40 dark:border-rose-700 dark:text-rose-300"
+                        : "border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/40 hover:border-border"
+                    }`}
+                    title={shareStatus === "copied" ? "Link copied to clipboard!" : shareStatus === "success" ? "Product shared!" : "Share Product"}
+                    aria-label="Share this product"
+                  >
+                    {shareStatus === "copied" || shareStatus === "success" ? (
+                      <>
+                        <Check size={18} className="text-emerald-600 dark:text-emerald-400" />
+                        <span className="hidden sm:inline text-[11px] font-bold">
+                          {shareStatus === "copied" ? "Copied!" : "Shared!"}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 size={18} />
+                        <span className="hidden sm:inline text-[11px] font-bold">Share</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+
+              {/* Share Feedback Toast / Status Indicator */}
+              {shareFeedback && (
+                <div
+                  id="share-feedback-toast"
+                  role="status"
+                  aria-live="polite"
+                  className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 animate-in fade-in transition-all ${
+                    shareStatus === "error"
+                      ? "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300"
+                      : "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
+                  }`}
+                >
+                  {shareStatus === "error" ? (
+                    <AlertCircle size={15} className="shrink-0" />
+                  ) : (
+                    <Check size={15} className="shrink-0" />
+                  )}
+                  <span>{shareFeedback}</span>
+                </div>
+              )}
 
               {/* Secondary B2B Actions (WhatsApp Inquiry & RFQ Overview Link) */}
               {product && (

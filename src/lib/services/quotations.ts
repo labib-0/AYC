@@ -533,7 +533,7 @@ export async function getCommercialDocument(
           id: `doc_offer_${prod.id}`,
           docNumber: `OS-${(prod.sku || prod.id).toUpperCase()}`,
           docType: "ORDER_SHEET",
-          title: "OFFICIAL COMMERCIAL OFFER SHEET",
+          title: "OFFER SHEET",
           date: new Date().toISOString().slice(0, 10),
           companyName: "Commercial Buyer",
           buyerName: "Prospective Consignee",

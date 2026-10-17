@@ -84,7 +84,11 @@ function SearchResultsContent() {
     searchParams.get("subcategory") || searchParams.get("subcategories") || "";
   const initialSortParam    = (searchParams.get("sort") || "newest") as SortValue;
   const initialPageParam    = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
-  const initialFilterOpen   = searchParams.get("filterOpen") === "true";
+  const hasCategorySelection = Boolean(
+    initialCategoryParam || initialAudienceParam || initialDesignTypeParam || initialBrandParam
+  );
+  // Keep filter drawer closed by default when browsing or navigating via category/audience/design-type/brand
+  const initialFilterOpen   = !hasCategorySelection && searchParams.get("filterOpen") === "true";
 
   // ── Filter state (4 Distinct Dimensions: Brand, Design Type, Audience, Category) ──
   const [selectedBrands, setSelectedBrands] = useState<string[]>(() => {
@@ -187,6 +191,13 @@ function SearchResultsContent() {
     },
     [query, router, isFilterOpen, initialSubcategoryParam]
   );
+
+  const handleFilterClose = useCallback(() => {
+    setIsFilterOpen(false);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("filterOpen");
+    router.replace(`/search?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
 
   const handleFilterToggle = () => {
     const newFilterState = !isFilterOpen;
@@ -511,15 +522,22 @@ function SearchResultsContent() {
   }, [router]);
 
   useEffect(() => {
+    // Mobile storefront safeguard: keep drawer closed by default on initial page load
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setIsFilterOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setIsFilterOpen(false);
+        handleFilterClose();
         setIsSortOpen(false);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [handleFilterClose]);
 
   // ── Derived values ────────────────────────────────────────────────────────
   const activeFilterCount =
@@ -739,7 +757,7 @@ function SearchResultsContent() {
           {isFilterOpen && (
             <GlobalFilterRail
               isOpen={isFilterOpen}
-              onClose={() => setIsFilterOpen(false)}
+              onClose={handleFilterClose}
               selectedBrands={selectedBrands}
               selectedDesignTypes={selectedDesignTypes}
               selectedAudiences={selectedAudiences}

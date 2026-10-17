@@ -123,9 +123,11 @@ export default function CustomerRfqDetailPage({ params }: Props) {
   const [messageSentSuccess, setMessageSentSuccess] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchRfqData = async () => {
+  const fetchRfqData = async (isBackground = false) => {
     if (!user) return;
-    setLoading(true);
+    if (!isBackground && !rfq) {
+      setLoading(true);
+    }
     setError(null);
     setUnauthorized(false);
 
@@ -215,8 +217,8 @@ export default function CustomerRfqDetailPage({ params }: Props) {
     }
   };
 
-  // State: Loading
-  if (loading) {
+  // State: Loading (only before initial RFQ data is loaded)
+  if (loading && !rfq) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />

@@ -49,7 +49,7 @@ class DuplicateProductNameAndIdentifierUniquenessTest extends TestCase
     }
 
     /**
-     * Test 1: Multiple products can have exactly the same product name.
+     * Test 1: Multiple products can have exactly the same product name with auto-incremented slugs.
      */
     public function test_multiple_products_can_have_identical_names(): void
     {
@@ -87,8 +87,8 @@ class DuplicateProductNameAndIdentifierUniquenessTest extends TestCase
         $resp2 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $payload2);
         $resp2->assertStatus(201);
         $prod2Id = $resp2->json('data.id');
-        // Automatically generated distinct slug
-        $this->assertEquals("mens-classic-t-shirt-2", $resp2->json('data.slug'));
+        // Automatically generated distinct slug with two-digit minimum suffix
+        $this->assertEquals("mens-classic-t-shirt-01", $resp2->json('data.slug'));
 
         $payload3 = [
             'product_id' => 'AYC-DUP-003',
@@ -105,7 +105,7 @@ class DuplicateProductNameAndIdentifierUniquenessTest extends TestCase
 
         $resp3 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', $payload3);
         $resp3->assertStatus(201);
-        $this->assertEquals("mens-classic-t-shirt-3", $resp3->json('data.slug'));
+        $this->assertEquals("mens-classic-t-shirt-02", $resp3->json('data.slug'));
 
         // Verify independent database records
         $this->assertDatabaseHas('products', ['id' => $prod1Id, 'name' => "Men's Classic T-Shirt", 'product_id' => 'AYC-DUP-001', 'sku' => 'TSH-MEN-001']);
@@ -140,20 +140,22 @@ class DuplicateProductNameAndIdentifierUniquenessTest extends TestCase
     }
 
     /**
-     * Test 3: Duplicate non-empty SKU is rejected with 422 validation error.
+     * Test 3: Duplicate non-empty SKU auto-resolves with two-digit minimum sequential suffix.
      */
-    public function test_duplicate_sku_is_rejected(): void
+    public function test_duplicate_sku_auto_resolves_with_two_digit_suffix(): void
     {
-        $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+        $r1 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
             'product_id' => 'AYC-SKU-001',
             'name' => 'First Product',
             'sku' => 'SHARED-SKU-TEST',
             'brand_id' => $this->brand->id,
             'category_id' => $this->category->id,
             'status' => 'draft',
-        ])->assertStatus(201);
+        ]);
+        $r1->assertStatus(201);
+        $this->assertEquals('SHARED-SKU-TEST', $r1->json('data.sku'));
 
-        $resp = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+        $r2 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
             'product_id' => 'AYC-SKU-002',
             'name' => 'Second Product',
             'sku' => 'SHARED-SKU-TEST',
@@ -161,13 +163,23 @@ class DuplicateProductNameAndIdentifierUniquenessTest extends TestCase
             'category_id' => $this->category->id,
             'status' => 'draft',
         ]);
+        $r2->assertStatus(201);
+        $this->assertEquals('SHARED-SKU-TEST-01', $r2->json('data.sku'));
 
-        $resp->assertStatus(422);
-        $resp->assertJsonValidationErrors(['sku']);
+        $r3 = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-SKU-003',
+            'name' => 'Third Product',
+            'sku' => 'SHARED-SKU-TEST',
+            'brand_id' => $this->brand->id,
+            'category_id' => $this->category->id,
+            'status' => 'draft',
+        ]);
+        $r3->assertStatus(201);
+        $this->assertEquals('SHARED-SKU-TEST-02', $r3->json('data.sku'));
     }
 
     /**
-     * Test 4: Unchanged Product ID, SKU, and slug pass validation when editing.
+     * Test 4: Unchanged Product ID, SKU, and slug pass validation when editing own product.
      */
     public function test_editing_own_product_allows_unchanged_identifiers(): void
     {
@@ -194,12 +206,14 @@ class DuplicateProductNameAndIdentifierUniquenessTest extends TestCase
         $update->assertStatus(200);
         $this->assertEquals('Self Test Product Renamed', $update->json('data.name'));
         $this->assertEquals('AYC-SELF-001', $update->json('data.product_id'));
+        $this->assertEquals('SELF-SKU-001', $update->json('data.sku'));
+        $this->assertEquals('self-test-product', $update->json('data.slug'));
     }
 
     /**
-     * Test 5: Explicitly entered slug that already exists is rejected with 422.
+     * Test 5: Explicitly entered duplicate slug auto-resolves with two-digit minimum suffix.
      */
-    public function test_explicitly_entered_duplicate_slug_is_rejected(): void
+    public function test_explicitly_entered_duplicate_slug_auto_resolves_with_two_digit_suffix(): void
     {
         $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
             'product_id' => 'AYC-SLUG-001',
@@ -223,12 +237,136 @@ class DuplicateProductNameAndIdentifierUniquenessTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $resp->assertStatus(422);
-        $resp->assertJsonValidationErrors(['slug']);
+        $resp->assertStatus(201);
+        $this->assertEquals('custom-unique-slug-01', $resp->json('data.slug'));
     }
 
     /**
-     * Test 6: Editing one duplicate-name product does not alter other products sharing the name.
+     * Test 6: Check uniqueness endpoint contract for slug and SKU.
+     */
+    public function test_check_uniqueness_endpoint_reports_availability_and_two_digit_suggestions(): void
+    {
+        // Create initial product
+        $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-CHK-001',
+            'name' => "Girls' Baby Dress",
+            'slug' => 'girls-baby-dress',
+            'sku' => 'CA-DRE-GIR-3918',
+            'brand_id' => $this->brand->id,
+            'category_id' => $this->category->id,
+            'status' => 'draft',
+        ])->assertStatus(201);
+
+        // Check taken slug & SKU
+        $chkResp = $this->actingAs($this->admin, 'sanctum')->getJson('/api/v1/products/check-uniqueness?slug=girls-baby-dress&sku=CA-DRE-GIR-3918');
+        $chkResp->assertStatus(200);
+        $chkResp->assertJson([
+            'success' => true,
+            'data' => [
+                'slug' => [
+                    'requested' => 'girls-baby-dress',
+                    'is_available' => false,
+                    'suggested' => 'girls-baby-dress-01',
+                    'adjusted' => true,
+                ],
+                'sku' => [
+                    'requested' => 'CA-DRE-GIR-3918',
+                    'is_available' => false,
+                    'suggested' => 'CA-DRE-GIR-3918-01',
+                    'adjusted' => true,
+                ],
+            ],
+        ]);
+
+        // Check available slug & SKU
+        $availResp = $this->actingAs($this->admin, 'sanctum')->getJson('/api/v1/products/check-uniqueness?slug=completely-unique-slug&sku=TOTALLY-UNIQUE-SKU');
+        $availResp->assertStatus(200);
+        $availResp->assertJson([
+            'success' => true,
+            'data' => [
+                'slug' => [
+                    'requested' => 'completely-unique-slug',
+                    'is_available' => true,
+                    'suggested' => 'completely-unique-slug',
+                    'adjusted' => false,
+                ],
+                'sku' => [
+                    'requested' => 'TOTALLY-UNIQUE-SKU',
+                    'is_available' => true,
+                    'suggested' => 'TOTALLY-UNIQUE-SKU',
+                    'adjusted' => false,
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Test 7: Independent resolution of slug and SKU collisions.
+     */
+    public function test_independent_resolution_of_slug_and_sku(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-IND-001',
+            'name' => 'Base Product',
+            'slug' => 'base-product-slug',
+            'sku' => 'BASE-SKU-999',
+            'brand_id' => $this->brand->id,
+            'category_id' => $this->category->id,
+            'status' => 'draft',
+        ])->assertStatus(201);
+
+        // Case A: Duplicate SKU, Unique Slug
+        $respA = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-IND-002',
+            'name' => 'Unique Slug Product',
+            'slug' => 'unique-slug-here',
+            'sku' => 'BASE-SKU-999',
+            'brand_id' => $this->brand->id,
+            'category_id' => $this->category->id,
+            'status' => 'draft',
+        ]);
+        $respA->assertStatus(201);
+        $this->assertEquals('unique-slug-here', $respA->json('data.slug'));
+        $this->assertEquals('BASE-SKU-999-01', $respA->json('data.sku'));
+
+        // Case B: Duplicate Slug, Unique SKU
+        $respB = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-IND-003',
+            'name' => 'Duplicate Slug Product',
+            'slug' => 'base-product-slug',
+            'sku' => 'UNIQUE-SKU-HERE',
+            'brand_id' => $this->brand->id,
+            'category_id' => $this->category->id,
+            'status' => 'draft',
+        ]);
+        $respB->assertStatus(201);
+        $this->assertEquals('base-product-slug-01', $respB->json('data.slug'));
+        $this->assertEquals('UNIQUE-SKU-HERE', $respB->json('data.sku'));
+    }
+
+    /**
+     * Test 8: Two-digit minimum suffix increments from -09 through -10 and beyond.
+     */
+    public function test_two_digit_minimum_suffix_increments_through_10_and_beyond(): void
+    {
+        $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
+            'product_id' => 'AYC-SUF-009',
+            'name' => 'Suffix Test Nine',
+            'slug' => 'suffix-test-09',
+            'sku' => 'SUF-TEST-09',
+            'brand_id' => $this->brand->id,
+            'category_id' => $this->category->id,
+            'status' => 'draft',
+        ])->assertStatus(201);
+
+        $chk = $this->actingAs($this->admin, 'sanctum')->getJson('/api/v1/products/check-uniqueness?slug=suffix-test-09&sku=SUF-TEST-09');
+        $chk->assertStatus(200);
+        $this->assertEquals('suffix-test-10', $chk->json('data.slug.suggested'));
+        $this->assertEquals('SUF-TEST-10', $chk->json('data.sku.suggested'));
+    }
+
+    /**
+     * Test 9: Editing one duplicate-name product does not alter other products sharing the name.
      */
     public function test_editing_one_product_does_not_affect_sibling_with_same_name(): void
     {
@@ -265,7 +403,7 @@ class DuplicateProductNameAndIdentifierUniquenessTest extends TestCase
     }
 
     /**
-     * Test 7: Duplicate endpoint does not exist.
+     * Test 10: Duplicate endpoint does not exist.
      */
     public function test_duplicate_endpoint_is_unavailable(): void
     {

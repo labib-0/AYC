@@ -167,52 +167,22 @@ class MockStore {
       }
     }
 
-    // 2. Enforce non-empty SKU uniqueness
+    // 2. Resolve non-empty SKU uniqueness with auto-suffix
     const targetSku = productInput.sku?.trim();
     if (targetSku) {
-      const conflict = products.find(
-        (p, idx) =>
-          idx !== existingIndex &&
-          Boolean(p.sku && p.sku.trim().toLowerCase() === targetSku.toLowerCase())
-      );
-      if (conflict) {
-        const err: any = new Error("The sku has already been taken.");
-        err.status = 422;
-        err.errors = { sku: ["The sku has already been taken."] };
-        throw err;
-      }
+      const resolvedSku = this.resolveUniqueSku(targetSku, existingIndex);
+      productInput.sku = resolvedSku;
     }
 
-    // 3. Enforce Slug uniqueness & auto-suffix for same-name products
+    // 3. Resolve Slug uniqueness with auto-suffix
     let targetSlug = productInput.slug?.trim().toLowerCase();
-    const isManualSlug = Boolean((productInput as any).slugManuallyEdited ?? (productInput as any).slug_manually_edited);
     if (!targetSlug && (productInput.name || existingIndex >= 0)) {
       const nameSource = productInput.name || (existingIndex >= 0 ? products[existingIndex].name : "product");
       targetSlug = nameSource.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     }
     if (targetSlug) {
-      if (isManualSlug) {
-        const conflict = products.find(
-          (p, idx) =>
-            idx !== existingIndex &&
-            Boolean(p.slug && p.slug.trim().toLowerCase() === targetSlug)
-        );
-        if (conflict) {
-          const err: any = new Error("The slug has already been taken.");
-          err.status = 422;
-          err.errors = { slug: ["The slug has already been taken."] };
-          throw err;
-        }
-      } else {
-        const baseSlug = targetSlug.replace(/-\d+$/, "");
-        let candidate = targetSlug;
-        let count = 1;
-        while (products.some((p, idx) => idx !== existingIndex && Boolean(p.slug && p.slug.trim().toLowerCase() === candidate))) {
-          candidate = `${baseSlug}-${++count}`;
-        }
-        targetSlug = candidate;
-        productInput.slug = targetSlug;
-      }
+      const resolvedSlug = this.resolveUniqueSlug(targetSlug, existingIndex);
+      productInput.slug = resolvedSlug;
     }
 
     let savedProduct: B2BProductInput;
@@ -1275,6 +1245,162 @@ class MockStore {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("ayaan:data-reset", { detail: { timestamp: Date.now() } }));
     }
+  }
+
+  formatSuffix(n: number): string {
+    return n < 10 ? `0${n}` : `${n}`;
+  }
+
+  resolveUniqueSlug(candidate: string, existingIndex: number = -1): string {
+    const trimmed = candidate.trim().toLowerCase();
+    if (!trimmed) return trimmed;
+    const products = this.getProducts();
+
+    // Check if initial candidate is free
+    const isTaken = products.some(
+      (p, idx) => idx !== existingIndex && Boolean(p.slug && p.slug.trim().toLowerCase() === trimmed)
+    );
+    if (!isTaken) return trimmed;
+
+    // Determine base slug:
+    let baseSlug = trimmed;
+    let startNum = 1;
+    const leadingZeroMatch = trimmed.match(/^(.*)-(0[1-9])$/);
+    if (leadingZeroMatch) {
+      baseSlug = leadingZeroMatch[1];
+      startNum = parseInt(leadingZeroMatch[2], 10) + 1;
+    } else {
+      const genericMatch = trimmed.match(/^(.*)-(1[0-9]|[2-9]\d+)$/);
+      if (genericMatch) {
+        const potentialBase = genericMatch[1];
+        const hasBase = products.some(
+          (p, idx) =>
+            idx !== existingIndex &&
+            Boolean(
+              (p.slug && p.slug.trim().toLowerCase() === potentialBase) ||
+              (p.slug && p.slug.trim().toLowerCase() === `${potentialBase}-01`)
+            )
+        );
+        if (hasBase) {
+          baseSlug = potentialBase;
+          startNum = parseInt(genericMatch[2], 10) + 1;
+        }
+      }
+    }
+
+    let num = startNum;
+    while (true) {
+      const candidateSlug = `${baseSlug}-${this.formatSuffix(num)}`;
+      const conflict = products.some(
+        (p, idx) => idx !== existingIndex && Boolean(p.slug && p.slug.trim().toLowerCase() === candidateSlug)
+      );
+      if (!conflict) {
+        return candidateSlug;
+      }
+      num++;
+    }
+  }
+
+  resolveUniqueSku(candidate: string, existingIndex: number = -1): string {
+    const trimmed = candidate.trim();
+    if (!trimmed) return trimmed;
+    const products = this.getProducts();
+
+    // Check if initial candidate is free
+    const isTaken = products.some(
+      (p, idx) => idx !== existingIndex && Boolean(p.sku && p.sku.trim().toLowerCase() === trimmed.toLowerCase())
+    );
+    if (!isTaken) return trimmed;
+
+    // Determine base SKU:
+    let baseSku = trimmed;
+    let startNum = 1;
+    const skuWithSuffixMatch = trimmed.match(/^(.*-[0-9]{4})-(\d+)$/i);
+    if (skuWithSuffixMatch) {
+      baseSku = skuWithSuffixMatch[1];
+      startNum = parseInt(skuWithSuffixMatch[2], 10) + 1;
+    } else {
+      const leadingZeroMatch = trimmed.match(/^(.*)-(0[1-9])$/);
+      if (leadingZeroMatch) {
+        baseSku = leadingZeroMatch[1];
+        startNum = parseInt(leadingZeroMatch[2], 10) + 1;
+      } else {
+        const genericMatch = trimmed.match(/^(.*)-(1[0-9]|[2-9]\d+)$/);
+        if (genericMatch) {
+          const potentialBase = genericMatch[1];
+          const hasBase = products.some(
+            (p, idx) =>
+              idx !== existingIndex &&
+              Boolean(
+                (p.sku && p.sku.trim().toLowerCase() === potentialBase.toLowerCase()) ||
+                (p.sku && p.sku.trim().toLowerCase() === `${potentialBase}-01`.toLowerCase())
+              )
+          );
+          if (hasBase) {
+            baseSku = potentialBase;
+            startNum = parseInt(genericMatch[2], 10) + 1;
+          }
+        }
+      }
+    }
+
+    let num = startNum;
+    while (true) {
+      const candidateSku = `${baseSku}-${this.formatSuffix(num)}`;
+      const conflict = products.some(
+        (p, idx) => idx !== existingIndex && Boolean(p.sku && p.sku.trim().toLowerCase() === candidateSku.toLowerCase())
+      );
+      if (!conflict) {
+        return candidateSku;
+      }
+      num++;
+    }
+  }
+
+  checkUniqueness(params: { slug?: string; sku?: string; excludeId?: string | number }): {
+    slug?: { requested: string; is_available: boolean; suggested: string; adjusted: boolean };
+    sku?: { requested: string; is_available: boolean; suggested: string; adjusted: boolean };
+  } {
+    const products = this.getProducts();
+    let existingIndex = -1;
+    if (params.excludeId !== undefined) {
+      const idStr = String(params.excludeId);
+      existingIndex = products.findIndex(
+        (p) => String(p.id) === idStr || String(p.productId) === idStr
+      );
+    }
+
+    const result: any = {};
+
+    if (params.slug) {
+      const requested = params.slug.trim().toLowerCase();
+      if (requested) {
+        const suggested = this.resolveUniqueSlug(requested, existingIndex);
+        const isAvailable = requested === suggested;
+        result.slug = {
+          requested,
+          is_available: isAvailable,
+          suggested,
+          adjusted: !isAvailable,
+        };
+      }
+    }
+
+    if (params.sku) {
+      const requested = params.sku.trim();
+      if (requested) {
+        const suggested = this.resolveUniqueSku(requested, existingIndex);
+        const isAvailable = requested.toLowerCase() === suggested.toLowerCase();
+        result.sku = {
+          requested,
+          is_available: isAvailable,
+          suggested,
+          adjusted: !isAvailable,
+        };
+      }
+    }
+
+    return result;
   }
 }
 

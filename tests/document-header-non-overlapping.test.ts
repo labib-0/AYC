@@ -148,7 +148,7 @@ function runTests() {
   // ── TEST 4: Extreme Long Values In Proforma Invoice ─────────────────────────
   console.log("\n▶ Test 4: Extreme Long Values In Proforma Invoice PDF");
   const longOrder: OrderRecord = {
-    id: 999,
+    id: "999",
     order_number: "AYN-2026-LONG-SAMPLE-OVERLAP-TEST",
     status: "processing",
     payment_status: "pending",

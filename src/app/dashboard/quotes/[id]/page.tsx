@@ -123,9 +123,11 @@ export default function CustomerQuotationDetailPage({ params }: Props) {
     }, 4500);
   };
 
-  const fetchQuotationData = async () => {
+  const fetchQuotationData = async (isBackground = false) => {
     if (!user) return;
-    setLoading(true);
+    if (!isBackground && !quotation) {
+      setLoading(true);
+    }
     setError(null);
     setUnauthorized(false);
 
@@ -273,8 +275,8 @@ export default function CustomerQuotationDetailPage({ params }: Props) {
     }
   };
 
-  // State: Loading
-  if (loading) {
+  // State: Loading (only before initial quotation data is loaded)
+  if (loading && !quotation) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-48 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />

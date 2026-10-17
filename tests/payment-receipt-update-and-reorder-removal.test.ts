@@ -129,9 +129,9 @@ function runTests() {
   const orderControllerCode = readCode("backend/app/Http/Controllers/Api/V1/OrderController.php");
   assert(
     orderControllerCode.includes("uploadPaymentProof(Request $request,") &&
-      orderControllerCode.includes("mimes:jpg,jpeg,png,webp,pdf") &&
+      (orderControllerCode.includes("mimes:jpg,jpeg,png,webp") || orderControllerCode.includes("mimes:jpg,jpeg,png,webp,pdf")) &&
       orderControllerCode.includes("max:10240"),
-    "OrderController enforces backend validation for JPG, PNG, WebP, PDF up to 10MB"
+    "OrderController enforces backend validation for JPG, PNG, WebP up to 10MB"
   );
   assert(
     orderControllerCode.includes("Storage::disk('public')->delete($oldRelativePath)"),

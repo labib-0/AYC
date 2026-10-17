@@ -8,7 +8,7 @@ import { B2BProductInput, B2BProductVariant, SupplierModel } from "@/types/b2b";
 import { ShippingPackageProfile, PackageAllocation } from "@/types";
 import { brandService } from "@/services/brand.service";
 import { categoryService } from "@/services/category.service";
-import { generateProductSku, createProduct, updateProduct } from "@/lib/services/products";
+import { generateProductSku, createProduct, updateProduct, checkIdentifierUniqueness } from "@/lib/services/products";
 import { productDraftService } from "@/lib/services/product-draft.service";
 import AdminAuthModal from "@/components/admin/auth/AdminAuthModal";
 import { ApiError } from "@/services/api-client";
@@ -66,8 +66,12 @@ export default function ProductForm({
   const [name, setName] = useState(initialData?.name || "");
   const [slug, setSlug] = useState(initialData?.slug || "");
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(Boolean(initialData?.slug));
+  const [slugNotice, setSlugNotice] = useState<string | null>(null);
+  const [suggestedSlug, setSuggestedSlug] = useState<string | null>(null);
   const [sku, setSku] = useState(initialData?.sku || "");
   const [skuManuallyEdited, setSkuManuallyEdited] = useState(Boolean(initialData?.sku));
+  const [skuNotice, setSkuNotice] = useState<string | null>(null);
+  const [suggestedSku, setSuggestedSku] = useState<string | null>(null);
   const [isHiddenFromStorefront, setIsHiddenFromStorefront] = useState<boolean>(
     Boolean(initialData?.isHiddenFromStorefront || (initialData as any)?.is_hidden_from_storefront)
   );
@@ -1057,9 +1061,93 @@ export default function ProductForm({
     }
   };
 
+  const resolveIdentifiers = useCallback(async (
+    candidateSlug?: string,
+    candidateSku?: string,
+    isManualSlug?: boolean,
+    isManualSku?: boolean
+  ) => {
+    const targetSlug = candidateSlug !== undefined ? candidateSlug.trim().toLowerCase() : slug.trim().toLowerCase();
+    const targetSku = candidateSku !== undefined ? candidateSku.trim() : sku.trim();
+
+    if (!targetSlug && !targetSku) return;
+
+    try {
+      const checkRes = await checkIdentifierUniqueness({
+        slug: targetSlug || undefined,
+        sku: targetSku || undefined,
+        excludeId: isEdit ? (initialData?.id || initialData?.productId) : undefined,
+      });
+
+      // Handle Slug uniqueness
+      if (checkRes?.slug && targetSlug) {
+        if (!checkRes.slug.is_available) {
+          const suggested = checkRes.slug.suggested;
+          const manual = isManualSlug !== undefined ? isManualSlug : slugManuallyEdited;
+          if (!manual) {
+            setSlug(suggested);
+            setSuggestedSlug(null);
+            setSlugNotice(`Duplicate detected — using ${suggested} instead.`);
+          } else {
+            setSuggestedSlug(suggested);
+            setSlugNotice(`Duplicate detected — using ${suggested} instead.`);
+          }
+          setErrors((prev) => {
+            if (!prev.slug) return prev;
+            const next = { ...prev };
+            delete next.slug;
+            return next;
+          });
+        } else {
+          setSuggestedSlug(null);
+          setSlugNotice(null);
+        }
+      }
+
+      // Handle SKU uniqueness
+      if (checkRes?.sku && targetSku) {
+        if (!checkRes.sku.is_available) {
+          const suggested = checkRes.sku.suggested;
+          const manual = isManualSku !== undefined ? isManualSku : skuManuallyEdited;
+          if (!manual) {
+            setSku(suggested);
+            setSuggestedSku(null);
+            setSkuNotice(`Duplicate detected — using ${suggested} instead.`);
+          } else {
+            setSuggestedSku(suggested);
+            setSkuNotice(`Duplicate detected — using ${suggested} instead.`);
+          }
+          setErrors((prev) => {
+            if (!prev.sku) return prev;
+            const next = { ...prev };
+            delete next.sku;
+            return next;
+          });
+        } else {
+          setSuggestedSku(null);
+          setSkuNotice(null);
+        }
+      }
+    } catch (err) {
+      console.warn("Identifier uniqueness check failed:", err);
+    }
+  }, [slug, sku, isEdit, initialData, slugManuallyEdited, skuManuallyEdited]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    if (!name || name.trim().length < 3) return;
+
+    const timer = setTimeout(() => {
+      resolveIdentifiers();
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [name, categoryId, brand, resolveIdentifiers, isEdit]);
+
   const handleNameBlur = () => {
     if (!isEdit && name.trim().length >= 3) {
       autoPopulateSeoDefaults(name);
+      resolveIdentifiers();
     }
   };
 
@@ -1079,6 +1167,12 @@ export default function ProductForm({
     }
   };
 
+  const handleSlugBlur = () => {
+    if (slug.trim()) {
+      resolveIdentifiers(slug, undefined, true, undefined);
+    }
+  };
+
   const handleSkuChange = (val: string) => {
     setSkuManuallyEdited(true);
     setSku(val);
@@ -1089,6 +1183,36 @@ export default function ProductForm({
         return next;
       });
     }
+  };
+
+  const handleSkuBlur = () => {
+    if (sku.trim()) {
+      resolveIdentifiers(undefined, sku, undefined, true);
+    }
+  };
+
+  const handleApplySuggestedSlug = (suggested: string) => {
+    setSlug(suggested);
+    setSuggestedSlug(null);
+    setSlugNotice(`Duplicate detected — using ${suggested} instead.`);
+    setErrors((prev) => {
+      if (!prev.slug) return prev;
+      const next = { ...prev };
+      delete next.slug;
+      return next;
+    });
+  };
+
+  const handleApplySuggestedSku = (suggested: string) => {
+    setSku(suggested);
+    setSuggestedSku(null);
+    setSkuNotice(`Duplicate detected — using ${suggested} instead.`);
+    setErrors((prev) => {
+      if (!prev.sku) return prev;
+      const next = { ...prev };
+      delete next.sku;
+      return next;
+    });
   };
 
   // Draft validation — permissive: requires Product ID and product name to save progress
@@ -1271,15 +1395,56 @@ export default function ProductForm({
       const rawPid = productId.trim() || (isEdit ? (initialData?.productId || (initialData as any)?.product_id || "") : "");
       const normalizedPid = rawPid.replace(/\s+/g, "");
       const isDraftTarget = targetStatus === "draft";
+
+      const fallbackSlug = !isEdit && !slugManuallyEdited && name.trim()
+        ? name.trim().toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+        : "";
+      let resolvedSubmitSlug = slug.trim() || fallbackSlug;
+      let resolvedSubmitSku = sku.trim() || (!isEdit && !skuManuallyEdited && name.trim() ? generatedSku : "");
+
+      if (!isEdit && (resolvedSubmitSlug || resolvedSubmitSku)) {
+        try {
+          const preCheck = await checkIdentifierUniqueness({
+            slug: resolvedSubmitSlug || undefined,
+            sku: resolvedSubmitSku || undefined,
+            excludeId: isEdit ? (initialData?.id || initialData?.productId) : undefined,
+          });
+          if (preCheck?.slug && !preCheck.slug.is_available) {
+            resolvedSubmitSlug = preCheck.slug.suggested;
+            setSlug(resolvedSubmitSlug);
+            setSlugNotice(`Duplicate detected — using ${resolvedSubmitSlug} instead.`);
+            setErrors((prev) => {
+              if (!prev.slug) return prev;
+              const next = { ...prev };
+              delete next.slug;
+              return next;
+            });
+          }
+          if (preCheck?.sku && !preCheck.sku.is_available) {
+            resolvedSubmitSku = preCheck.sku.suggested;
+            setSku(resolvedSubmitSku);
+            setSkuNotice(`Duplicate detected — using ${resolvedSubmitSku} instead.`);
+            setErrors((prev) => {
+              if (!prev.sku) return prev;
+              const next = { ...prev };
+              delete next.sku;
+              return next;
+            });
+          }
+        } catch {
+          // Continue to submit, backend/mockStore will also resolve
+        }
+      }
+
       const payload: B2BProductInput = {
         id: persistedDraftIdRef.current || initialData?.id || `prod_${Date.now()}`,
         productId: normalizedPid,
         product_id: normalizedPid,
         name: name.trim() || (isEdit ? (initialData?.name || "") : (isDraftTarget ? "" : (undefined as any))),
-        slug: slug.trim() || (isEdit ? (initialData?.slug || undefined) : (undefined as any)),
+        slug: resolvedSubmitSlug || (isEdit ? (initialData?.slug || undefined) : (undefined as any)),
         slugManuallyEdited: slugManuallyEdited,
         slug_manually_edited: slugManuallyEdited,
-        sku: sku.trim() || (isEdit ? (initialData?.sku || undefined) : (name.trim() ? generatedSku : (undefined as any))),
+        sku: resolvedSubmitSku || (isEdit ? (initialData?.sku || undefined) : (name.trim() ? generatedSku : (undefined as any))),
         isHiddenFromStorefront: isHiddenFromStorefront,
         is_hidden_from_storefront: isHiddenFromStorefront,
         supplierName: supplierName.trim() || null,
@@ -1751,11 +1916,19 @@ export default function ProductForm({
             isEdit={isEdit}
             errors={errors}
             canCreateCategory={canCreateCategory}
+            slugNotice={slugNotice}
+            skuNotice={skuNotice}
+            suggestedSlug={suggestedSlug}
+            suggestedSku={suggestedSku}
             onProductIdChange={setProductId}
             onNameChange={handleNameChange}
             onNameBlur={handleNameBlur}
             onSlugChange={handleSlugChange}
+            onSlugBlur={handleSlugBlur}
             onSkuChange={handleSkuChange}
+            onSkuBlur={handleSkuBlur}
+            onApplySuggestedSlug={handleApplySuggestedSlug}
+            onApplySuggestedSku={handleApplySuggestedSku}
             onBrandChange={(bName, bId, bLogo) => {
               setBrand(bName);
               setBrandId(bId);

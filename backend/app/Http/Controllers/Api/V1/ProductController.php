@@ -779,22 +779,20 @@ class ProductController extends ApiController
         }
 
         $rawSlug = $request->input('slug');
-        $slugManuallyEdited = $request->has('slug_manually_edited')
-            ? $request->boolean('slug_manually_edited')
-            : !empty($rawSlug);
+        if (!empty($rawSlug)) {
+            $slugCandidate = \Illuminate\Support\Str::slug($rawSlug);
+        } elseif (!empty($request->input('name'))) {
+            $slugCandidate = \Illuminate\Support\Str::slug($request->input('name'));
+        } else {
+            $slugCandidate = 'product-' . ($request->input('product_id') ?: \Illuminate\Support\Str::random(8));
+        }
+        $resolvedSlug = $this->resolveUniqueSlug($slugCandidate ?: 'product-' . \Illuminate\Support\Str::random(8));
+        $request->merge(['slug' => $resolvedSlug]);
 
-        // Automatically generate deterministic unique slug (e.g. name-2, name-3) if not manually customized or if empty
-        if (!$slugManuallyEdited || empty($rawSlug)) {
-            $slugSource = !empty($request->input('name'))
-                ? $request->input('name')
-                : (!empty($rawSlug) ? $rawSlug : ('product-' . ($request->input('product_id') ?: \Illuminate\Support\Str::random(8))));
-            $baseSlug = \Illuminate\Support\Str::slug($slugSource) ?: 'product-' . \Illuminate\Support\Str::random(8);
-            $slugCandidate = $baseSlug;
-            $sCount = 1;
-            while (Product::where('slug', $slugCandidate)->whereNull('deleted_at')->exists()) {
-                $slugCandidate = $baseSlug . '-' . (++$sCount);
-            }
-            $request->merge(['slug' => $slugCandidate]);
+        // Automatically resolve SKU collisions if SKU is provided
+        if ($request->filled('sku')) {
+            $resolvedSku = $this->resolveUniqueSku(trim((string) $request->input('sku')));
+            $request->merge(['sku' => $resolvedSku]);
         }
 
         $validated = $request->validate([
@@ -1034,24 +1032,14 @@ class ProductController extends ApiController
                 ? $validated['name']
                 : ('draft-' . ($productIdInput ?: \Illuminate\Support\Str::random(8)));
             $baseSlug = \Illuminate\Support\Str::slug($slugSource) ?: 'draft-' . \Illuminate\Support\Str::random(8);
-            $slugCandidate = $baseSlug;
-            $sCount = 1;
-            while (Product::where('slug', $slugCandidate)->whereNull('deleted_at')->exists()) {
-                $slugCandidate = $baseSlug . '-' . (++$sCount);
-            }
-            $productData['slug'] = $slugCandidate;
+            $productData['slug'] = $this->resolveUniqueSlug($baseSlug);
         }
 
         // Autogenerate unique SKU for drafts if not provided
         if (empty($productData['sku'])) {
             $cleanPid = preg_replace('/[^A-Za-z0-9]/', '', $productIdInput ?: '');
             $baseSku = $cleanPid !== '' ? 'AYN-DFT-' . strtoupper($cleanPid) : 'AYN-DFT-' . strtoupper(\Illuminate\Support\Str::random(6));
-            $candidateSku = $baseSku;
-            $skuCount = 1;
-            while (Product::where('sku', $candidateSku)->whereNull('deleted_at')->exists()) {
-                $candidateSku = $baseSku . '-' . (++$skuCount);
-            }
-            $productData['sku'] = $candidateSku;
+            $productData['sku'] = $this->resolveUniqueSku($baseSku);
         }
 
         // Standard price: do NOT fabricate fake values; keep NULL if omitted
@@ -1256,9 +1244,15 @@ class ProductController extends ApiController
             }
         }
 
-        $product = DB::transaction(function () use (
-            $productData, $validated, $request, $moq, $user, $targetWarehouseId, $initialStock, $shippingProfiles
-        ) {
+        $attempts = 0;
+        $maxAttempts = 5;
+        $product = null;
+
+        while ($attempts < $maxAttempts) {
+            try {
+                $product = DB::transaction(function () use (
+                    &$productData, $validated, $request, $moq, $user, $targetWarehouseId, $initialStock, $shippingProfiles
+                ) {
             // Set purchase_price_updated_at when cost_price > 0 is provided
             if (isset($productData['cost_price']) && (float) $productData['cost_price'] > 0) {
                 $productData['purchase_price_updated_at'] = now();
@@ -1492,6 +1486,21 @@ class ProductController extends ApiController
 
             return $product;
         });
+        break;
+    } catch (\Illuminate\Database\QueryException $e) {
+        $attempts++;
+        $msg = $e->getMessage();
+        if ($attempts < $maxAttempts && (str_contains($msg, 'products_slug_unique') || str_contains($msg, 'slug'))) {
+            $productData['slug'] = $this->resolveUniqueSlug($productData['slug']);
+            continue;
+        }
+        if ($attempts < $maxAttempts && (str_contains($msg, 'products_sku_unique') || str_contains($msg, 'sku'))) {
+            $productData['sku'] = $this->resolveUniqueSku($productData['sku']);
+            continue;
+        }
+        throw $e;
+    }
+}
 
         $product->load([
             'brand',
@@ -1595,6 +1604,15 @@ class ProductController extends ApiController
             if (!$request->filled('supplier_name') && !$request->filled('supplierName')) {
                 $request->merge(['supplier_name' => null]);
             }
+        }
+
+        if ($request->filled('slug')) {
+            $resolvedSlug = $this->resolveUniqueSlug((string) $request->input('slug'), $product->id);
+            $request->merge(['slug' => $resolvedSlug]);
+        }
+        if ($request->filled('sku')) {
+            $resolvedSku = $this->resolveUniqueSku((string) $request->input('sku'), $product->id);
+            $request->merge(['sku' => $resolvedSku]);
         }
 
         $validated = $request->validate([
@@ -3075,5 +3093,185 @@ class ProductController extends ApiController
             (new ProductResource($product))->resolve(),
             $targetPinState ? "Product pinned successfully" : "Product unpinned successfully"
         );
+    }
+
+    /**
+     * Format numeric collision suffix with at least two digits (-01 to -09, -10, etc.)
+     */
+    protected function formatSuffix(int $n): string
+    {
+        return $n < 10 ? '0' . $n : (string) $n;
+    }
+
+    /**
+     * Resolve a slug candidate to the next available unique slug with two-digit minimum suffix.
+     */
+    public function resolveUniqueSlug(string $candidate, ?int $ignoreId = null): string
+    {
+        $candidate = trim(strtolower($candidate));
+        if ($candidate === '') {
+            return $candidate;
+        }
+
+        // Check if initial candidate is free
+        $existsQuery = Product::where('slug', $candidate)->whereNull('deleted_at');
+        if ($ignoreId) {
+            $existsQuery->where('id', '!=', $ignoreId);
+        }
+        if (!$existsQuery->exists()) {
+            return $candidate;
+        }
+
+        // Determine base slug:
+        $baseSlug = $candidate;
+        $startNum = 1;
+        if (preg_match('/^(.*)-(0[1-9])$/', $candidate, $matches)) {
+            $baseSlug = $matches[1];
+            $startNum = (int) $matches[2] + 1;
+        } elseif (preg_match('/^(.*)-(1[0-9]|[2-9]\d+)$/', $candidate, $matches)) {
+            $potentialBase = $matches[1];
+            $hasBase = Product::where(function ($q) use ($potentialBase) {
+                $q->where('slug', $potentialBase)
+                  ->orWhere('slug', $potentialBase . '-01');
+            })->whereNull('deleted_at');
+            if ($ignoreId) {
+                $hasBase->where('id', '!=', $ignoreId);
+            }
+            if ($hasBase->exists()) {
+                $baseSlug = $potentialBase;
+                $startNum = (int) $matches[2] + 1;
+            }
+        }
+
+        $num = $startNum;
+        while (true) {
+            $candidateSlug = $baseSlug . '-' . $this->formatSuffix($num);
+            $check = Product::where('slug', $candidateSlug)->whereNull('deleted_at');
+            if ($ignoreId) {
+                $check->where('id', '!=', $ignoreId);
+            }
+            if (!$check->exists()) {
+                return $candidateSlug;
+            }
+            $num++;
+        }
+    }
+
+    /**
+     * Resolve a SKU candidate to the next available unique SKU with two-digit minimum suffix.
+     */
+    public function resolveUniqueSku(string $candidate, ?int $ignoreId = null): string
+    {
+        $candidate = trim($candidate);
+        if ($candidate === '') {
+            return $candidate;
+        }
+
+        // Check if initial candidate is free
+        $existsQuery = Product::where('sku', $candidate)->whereNull('deleted_at');
+        if ($ignoreId) {
+            $existsQuery->where('id', '!=', $ignoreId);
+        }
+        if (!$existsQuery->exists()) {
+            return $candidate;
+        }
+
+        // Determine base SKU:
+        $baseSku = $candidate;
+        $startNum = 1;
+        if (preg_match('/^(.*-[0-9]{4})-(\d+)$/i', $candidate, $matches)) {
+            $baseSku = $matches[1];
+            $startNum = (int) $matches[2] + 1;
+        } elseif (preg_match('/^(.*)-(0[1-9])$/', $candidate, $matches)) {
+            $baseSku = $matches[1];
+            $startNum = (int) $matches[2] + 1;
+        } elseif (preg_match('/^(.*)-(1[0-9]|[2-9]\d+)$/', $candidate, $matches)) {
+            $potentialBase = $matches[1];
+            $hasBase = Product::where(function ($q) use ($potentialBase) {
+                $q->where('sku', $potentialBase)
+                  ->orWhere('sku', $potentialBase . '-01');
+            })->whereNull('deleted_at');
+            if ($ignoreId) {
+                $hasBase->where('id', '!=', $ignoreId);
+            }
+            if ($hasBase->exists()) {
+                $baseSku = $potentialBase;
+                $startNum = (int) $matches[2] + 1;
+            }
+        }
+
+        $num = $startNum;
+        while (true) {
+            $candidateSku = $baseSku . '-' . $this->formatSuffix($num);
+            $check = Product::where('sku', $candidateSku)->whereNull('deleted_at');
+            if ($ignoreId) {
+                $check->where('id', '!=', $ignoreId);
+            }
+            if (!$check->exists()) {
+                return $candidateSku;
+            }
+            $num++;
+        }
+    }
+
+    /**
+     * Check slug and SKU uniqueness and provide resolved alternatives if duplicate.
+     * GET /api/v1/products/check-uniqueness?slug=...&sku=...&exclude_id=...
+     */
+    public function checkUniqueness(Request $request): JsonResponse
+    {
+        $ignoreId = null;
+        if ($request->filled('exclude_id')) {
+            $ex = $request->input('exclude_id');
+            if (is_numeric($ex)) {
+                $ignoreId = (int) $ex;
+            } else {
+                $p = Product::where('product_id', $ex)->orWhere('id', (int) $ex)->first();
+                if ($p) {
+                    $ignoreId = $p->id;
+                }
+            }
+        } elseif ($request->filled('productId')) {
+            $pid = $request->input('productId');
+            $p = Product::where('product_id', $pid)->first();
+            if ($p) {
+                $ignoreId = $p->id;
+            }
+        }
+
+        $response = [];
+
+        if ($request->has('slug')) {
+            $requestedSlug = trim(strtolower((string) $request->input('slug')));
+            if ($requestedSlug !== '') {
+                $resolvedSlug = $this->resolveUniqueSlug($requestedSlug, $ignoreId);
+                $isAvailable = ($requestedSlug === $resolvedSlug);
+                $response['slug'] = [
+                    'requested' => $requestedSlug,
+                    'is_available' => $isAvailable,
+                    'suggested' => $resolvedSlug,
+                    'adjusted' => !$isAvailable,
+                ];
+            }
+        }
+
+        if ($request->has('sku')) {
+            $requestedSku = trim((string) $request->input('sku'));
+            if ($requestedSku !== '') {
+                $resolvedSku = $this->resolveUniqueSku($requestedSku, $ignoreId);
+                $isAvailable = ($requestedSku === $resolvedSku);
+                $response['sku'] = [
+                    'requested' => $requestedSku,
+                    'is_available' => $isAvailable,
+                    'suggested' => $resolvedSku,
+                    'adjusted' => !$isAvailable,
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $response,
+        ]);
     }
 }

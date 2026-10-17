@@ -65,7 +65,7 @@ class ProductSlugReuseTest extends TestCase
         $createRes1->assertStatus(201);
         $productId1 = $createRes1->json('data.id');
 
-        // 2. Attempting to create duplicate slug while active fails with 422
+        // 2. Duplicate slug while active automatically resolves with two-digit suffix
         $dupRes = $this->actingAs($this->admin, 'sanctum')->postJson('/api/v1/products', [
             'product_id' => 'AYC-REUSE-002',
             'name' => 'Another Shirt',
@@ -78,8 +78,8 @@ class ProductSlugReuseTest extends TestCase
             'moq' => 20,
             'warehouse_id' => $this->warehouse->id,
         ]);
-        $dupRes->assertStatus(422);
-        $dupRes->assertJsonValidationErrors(['slug']);
+        $dupRes->assertStatus(201);
+        $this->assertEquals('test-resilience-shirt-01', $dupRes->json('data.slug'));
 
         // 3. Delete the product
         $deleteRes = $this->actingAs($this->admin, 'sanctum')->deleteJson("/api/v1/products/{$productId1}");

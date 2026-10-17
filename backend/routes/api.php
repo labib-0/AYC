@@ -129,6 +129,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('products')->group(function () {
         Route::get('/featured', [ProductController::class, 'featured']);
         Route::get('/statistics', [ProductController::class, 'statistics']);
+        Route::get('/check-uniqueness', [ProductController::class, 'checkUniqueness']);
         Route::get('/', [ProductController::class, 'index']);
         Route::get('/slug/{slug}', [ProductController::class, 'show']);
         Route::get('/{slugOrId}/shipping-specs', [ProductController::class, 'shippingSpecs']);

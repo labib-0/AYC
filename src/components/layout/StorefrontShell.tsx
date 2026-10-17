@@ -38,12 +38,12 @@ export default function StorefrontShell({
 
   // On Storefront routes: render full customer ecommerce layout
   return (
-    <>
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
       <MiniCart />
       <ProductQuickAddModal />
-      <main className="min-h-screen pb-safe">{children}</main>
+      <main className="flex-1 min-h-[60vh] pb-safe">{children}</main>
       <Footer />
-    </>
+    </div>
   );
 }

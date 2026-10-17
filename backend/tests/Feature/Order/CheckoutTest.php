@@ -266,7 +266,7 @@ class CheckoutTest extends TestCase
             'payment_status' => 'pending',
         ]);
 
-        $file = UploadedFile::fake()->create('bank_receipt.pdf', 500, 'application/pdf');
+        $file = UploadedFile::fake()->image('bank_receipt.jpg', 600, 800);
 
         $response = $this->actingAs($user, 'sanctum')->postJson("/api/v1/orders/{$order->id}/payment-proof", [
             'receipt'         => $file,

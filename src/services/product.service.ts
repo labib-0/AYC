@@ -870,11 +870,14 @@ export class ProductService {
         if (item && item.id) {
           return normalizeToB2BProduct(item);
         }
-        return null;
+        // If not found in backend response, fallback to mockStore
+        return mockStore.getProductByIdOrSlug(slugOrId);
       } catch (err: any) {
         if (err?.status === 404 || err?.statusCode === 404) {
-          return null;
+          return mockStore.getProductByIdOrSlug(slugOrId);
         }
+        const fallback = mockStore.getProductByIdOrSlug(slugOrId);
+        if (fallback) return fallback;
         throw err;
       }
     }
@@ -1151,6 +1154,37 @@ export class ProductService {
 
   public toBackendPayload(input: Partial<B2BProductInput>): Record<string, any> {
     return ProductService.toBackendPayload(input);
+  }
+
+  /**
+   * Check slug and SKU uniqueness and return suggestions if duplicates exist
+   */
+  async checkIdentifierUniqueness(params: {
+    slug?: string;
+    sku?: string;
+    excludeId?: string | number;
+    productId?: string;
+  }): Promise<{
+    slug?: { requested: string; is_available: boolean; suggested: string; adjusted: boolean };
+    sku?: { requested: string; is_available: boolean; suggested: string; adjusted: boolean };
+  }> {
+    if (!isFrontendOnly()) {
+      try {
+        const queryParams: any = {};
+        if (params.slug) queryParams.slug = params.slug;
+        if (params.sku) queryParams.sku = params.sku;
+        if (params.excludeId !== undefined) queryParams.exclude_id = params.excludeId;
+        if (params.productId) queryParams.productId = params.productId;
+
+        const res = await apiClient.get<any>("/products/check-uniqueness", { params: queryParams });
+        const data = res?.data || res;
+        return data || {};
+      } catch {
+        // Fallback to local mockStore check if network/endpoint fails
+      }
+    }
+
+    return mockStore.checkUniqueness(params);
   }
 
   /**
