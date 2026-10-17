@@ -122,6 +122,46 @@ export function deriveProductTitle(product: Partial<Product | B2BProductInput>):
 }
 
 /**
+ * Sanitizes product SEO/OG description text to eliminate unsupported GSM claims,
+ * fabricated quality phrases ("Premium 200+ GSM", "Premium export-grade"),
+ * and template boilerplate while preserving genuine administrative descriptions.
+ */
+export function sanitizeProductDescription(text?: string | null): string {
+  if (!text || typeof text !== "string") return "";
+  let clean = text.trim();
+
+  // 1. Remove legacy auto-generated template claims:
+  // e.g. "Wholesale Men's Original T-Shirt by US POLO for men. Premium 200+ GSM garments manufactured for bulk B2B orders direct from Bangladesh."
+  // or "Premium Fabric: Premium Cotton Single Jersey, 160-180 GSM garments manufactured for bulk B2B orders direct from Bangladesh."
+  // or "Premium export-grade garments manufactured for bulk B2B orders direct from Bangladesh."
+  clean = clean.replace(
+    /\s*Premium\s+(?:(?:Fabric|Material|Composition)\s*:\s*)?(?:[^\.\n]*?\b\d+(?:-\d+)?\+?\s*GSM\b[^\.\n]*?)\s+garments\s+manufactured\s+for\s+bulk\s+B2B\s+orders\s+direct\s+from\s+Bangladesh\.?/gi,
+    " Manufactured for bulk B2B orders direct from Bangladesh."
+  );
+
+  clean = clean.replace(
+    /\s*Premium\s+export-grade\s+garments\s+manufactured\s+for\s+bulk\s+B2B\s+orders\s+direct\s+from\s+Bangladesh\.?/gi,
+    " Manufactured for bulk B2B orders direct from Bangladesh."
+  );
+
+  clean = clean.replace(
+    /\s*Premium\s+(?:(?:Fabric|Material|Composition)\s*:\s*)?([^\.\n]+?)\s+garments\s+manufactured\s+for\s+bulk\s+B2B\s+orders\s+direct\s+from\s+Bangladesh\.?/gi,
+    (_match, p1) => {
+      const stripped = p1.replace(/\b\d+(?:-\d+)?\+?\s*GSM\b/gi, "").trim();
+      return stripped ? ` Available in ${stripped} for bulk B2B orders direct from Bangladesh.` : " Manufactured for bulk B2B orders direct from Bangladesh.";
+    }
+  );
+
+  // 2. Remove generic "Premium 200+ GSM" or "Premium ... GSM" phrases
+  clean = clean.replace(/Premium\s+\d+(?:-\d+)?\+?\s*GSM\s+garments/gi, "Garments");
+
+  // 3. Normalize multiple whitespace and clean punctuation
+  clean = clean.replace(/\s{2,}/g, " ").replace(/\s+\./g, ".").replace(/\.{2,}/g, ".").trim();
+
+  return clean;
+}
+
+/**
  * Synthesizes a natural, high-converting B2B wholesale product description
  * Incorporates brand, category, audience, design type, and MOQ without spam or made-up claims.
  */
@@ -130,11 +170,13 @@ export function deriveProductDescription(
 ): string {
   const seoDesc = product.seoDescription?.trim() || (product as any)?.seo_description?.trim();
   if (seoDesc) {
-    return seoDesc;
+    const sanitized = sanitizeProductDescription(seoDesc);
+    if (sanitized) return sanitized;
   }
   const shortDesc = product.shortDescription?.trim() || (product as any)?.short_description?.trim();
   if (shortDesc) {
-    return shortDesc;
+    const sanitized = sanitizeProductDescription(shortDesc);
+    if (sanitized) return sanitized;
   }
   if (product.description?.trim()) {
     // Strip HTML tags if present (e.g. <p>, <br>) and normalize whitespace
@@ -143,8 +185,9 @@ export function deriveProductDescription(
       .replace(/\s+/g, " ")
       .trim();
     if (clean.length > 0) {
-      if (clean.length <= 160) return clean;
-      return `${clean.slice(0, 157)}...`;
+      const sanitized = sanitizeProductDescription(clean);
+      if (sanitized.length <= 160) return sanitized;
+      return `${sanitized.slice(0, 157)}...`;
     }
   }
 
@@ -161,7 +204,7 @@ export function deriveProductDescription(
   const designType = product.designType ? ` (${product.designType})` : "";
   const moqText = product.moq ? ` Wholesale MOQ ${product.moq} pcs.` : "";
 
-  return `Direct export wholesale ${name}${brandText}${designType}. High quality ${audience}${category} manufactured in Bangladesh with global export standards.${moqText}`.slice(
+  return `Direct export wholesale ${name}${brandText}${designType}. Bulk ${audience}${category} manufactured in Bangladesh direct for B2B buyers.${moqText}`.slice(
     0,
     160
   );

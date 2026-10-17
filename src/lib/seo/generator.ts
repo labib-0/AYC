@@ -48,6 +48,32 @@ function truncateAtWordBoundary(str: string, maxLen: number): string {
 }
 
 /**
+ * Clean raw fabric/material attribute to extract genuine composition
+ * Strips technical prefix labels, unsupported GSM claims, and generic quality fluff.
+ */
+export function extractCleanFabricComposition(rawMaterial?: string | null): string {
+  if (!rawMaterial || typeof rawMaterial !== "string") return "";
+  let text = rawMaterial.trim();
+
+  // Strip prefixes like "Fabric / Composition:", "Fabric:", "Material:", "Shell:", etc.
+  text = text.replace(/^(?:fabric\s*(?:\/|\&)\s*composition|fabric|composition|material|shell|lining)\s*:\s*/i, "").trim();
+
+  // Strip GSM claims e.g. "200+ GSM", "160-180 GSM", "280 gsm", "GSM: 280", etc.
+  text = text.replace(/,?\s*(?:gsm\s*:?\s*)?\b\d+(?:-\d+)?\+?\s*gsm\b/gi, "").trim();
+  text = text.replace(/\b\d+(?:-\d+)?\+?\s*gsm\b/gi, "").trim();
+
+  // Strip dangling punctuation
+  text = text.replace(/^[,;:\-\s]+|[,;:\-\s]+$/g, "").trim();
+
+  // If the result is just a generic quality fluff word, discard
+  if (/^(?:export-grade|premium|high-quality|n\/a|none|standard)$/i.test(text)) {
+    return "";
+  }
+
+  return text;
+}
+
+/**
  * Generates deterministic SEO attributes from entered basic product information.
  * Used exclusively as an initial default in product creation.
  */
@@ -91,12 +117,15 @@ export function generateDeterministicProductSeo(
     seoTitle = truncateAtWordBoundary(seoTitle, 60);
   }
 
-  // 2. Meta Description (targeted <= 160 characters for SERP snippet)
+  // 2. Meta Description (strictly supported specifications, no GSM invention, <= 160 characters)
   const brandSuffix = brand && !name.toLowerCase().includes(brand.toLowerCase()) ? ` by ${brand}` : "";
   const audienceText = audience && audience !== "UNISEX" ? ` for ${audience.toLowerCase()}` : "";
-  const matText = material ? ` ${material}` : " export-grade";
+  const cleanMat = extractCleanFabricComposition(material);
 
-  let seoDesc = `Wholesale ${name}${brandSuffix}${audienceText}. Premium${matText} garments manufactured for bulk B2B orders direct from Bangladesh.`;
+  let seoDesc = cleanMat
+    ? `Wholesale ${name}${brandSuffix}${audienceText}. Available in ${cleanMat} for bulk B2B orders direct from Bangladesh.`
+    : `Wholesale ${name}${brandSuffix}${audienceText}. Manufactured for bulk B2B orders direct from Bangladesh.`;
+
   if (seoDesc.length > 160) {
     seoDesc = truncateAtWordBoundary(seoDesc, 157) + "...";
   }
@@ -129,11 +158,11 @@ export function generateDeterministicProductSeo(
     keywordSet.add(`${audience.toLowerCase()} apparel`);
   }
 
-  // Material context
-  if (material && material.toLowerCase() !== "100% cotton") {
-    const cleanMat = material.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim();
-    if (cleanMat.length >= 3) {
-      keywordSet.add(cleanMat);
+  // Material context (strictly genuine fabric, never GSM or quality claims)
+  if (cleanMat && cleanMat.toLowerCase() !== "100% cotton") {
+    const cleanMatLower = cleanMat.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim();
+    if (cleanMatLower.length >= 3 && !cleanMatLower.includes("gsm")) {
+      keywordSet.add(cleanMatLower);
     }
   }
 

@@ -515,5 +515,142 @@ class PaymentReceiptVerificationWorkflowTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['receipt']);
     }
+
+    public function test_simulated_conversion_failure_preserves_old_receipt_and_db_state(): void
+    {
+        // 1. Initial valid upload
+        $file1 = UploadedFile::fake()->image('first_receipt.jpg');
+        $this->actingAs($this->customer, 'sanctum')
+            ->post("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file1,
+            ])->assertOk();
+
+        $initialOrder = $this->order->fresh();
+        $oldPath = $initialOrder->payment_details['receipt_path'];
+        $oldUrl = $initialOrder->payment_proof_url;
+        Storage::disk('public')->assertExists($oldPath);
+
+        // 2. Mock ReceiptImageService to simulate conversion failure
+        $mockService = $this->createMock(\App\Services\ReceiptImageService::class);
+        $mockService->method('convertAndStore')
+            ->willThrowException(new \RuntimeException('Failed to encode receipt to WebP format: Memory limit exceeded'));
+        $this->app->instance(\App\Services\ReceiptImageService::class, $mockService);
+
+        // 3. Attempt replacement
+        $file2 = UploadedFile::fake()->image('replacement_receipt.png');
+        try {
+            $this->actingAs($this->customer, 'sanctum')
+                ->post("/api/v1/orders/{$this->order->id}/payment-proof", [
+                    'receipt' => $file2,
+                ]);
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Failed to encode receipt to WebP', $e->getMessage());
+        }
+
+        // 4. Verify old receipt remains completely intact
+        $afterOrder = $this->order->fresh();
+        $this->assertEquals($oldUrl, $afterOrder->payment_proof_url);
+        $this->assertEquals($oldPath, $afterOrder->payment_details['receipt_path']);
+        Storage::disk('public')->assertExists($oldPath);
+    }
+
+    public function test_simulated_storage_failure_preserves_old_receipt_and_db_state(): void
+    {
+        // 1. Initial valid upload
+        $file1 = UploadedFile::fake()->image('initial_receipt.png');
+        $this->actingAs($this->customer, 'sanctum')
+            ->post("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file1,
+            ])->assertOk();
+
+        $initialOrder = $this->order->fresh();
+        $oldPath = $initialOrder->payment_details['receipt_path'];
+        $oldUrl = $initialOrder->payment_proof_url;
+        Storage::disk('public')->assertExists($oldPath);
+
+        // 2. Mock ReceiptImageService to simulate storage failure
+        $mockService = $this->createMock(\App\Services\ReceiptImageService::class);
+        $mockService->method('convertAndStore')
+            ->willThrowException(new \RuntimeException('Failed to store converted WebP receipt to storage disk.'));
+        $this->app->instance(\App\Services\ReceiptImageService::class, $mockService);
+
+        // 3. Attempt replacement
+        $file2 = UploadedFile::fake()->image('new_receipt.jpg');
+        try {
+            $this->actingAs($this->customer, 'sanctum')
+                ->post("/api/v1/orders/{$this->order->id}/payment-proof", [
+                    'receipt' => $file2,
+                ]);
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Failed to store converted WebP receipt', $e->getMessage());
+        }
+
+        // 4. Verify old receipt remains untouched
+        $afterOrder = $this->order->fresh();
+        $this->assertEquals($oldUrl, $afterOrder->payment_proof_url);
+        Storage::disk('public')->assertExists($oldPath);
+    }
+
+    public function test_simulated_persistence_failure_rolls_back_and_removes_new_stored_file(): void
+    {
+        // 1. Initial valid upload
+        $file1 = UploadedFile::fake()->image('original_slip.jpg');
+        $this->actingAs($this->customer, 'sanctum')
+            ->post("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => $file1,
+            ])->assertOk();
+
+        $initialOrder = $this->order->fresh();
+        $oldPath = $initialOrder->payment_details['receipt_path'];
+        $oldUrl = $initialOrder->payment_proof_url;
+        Storage::disk('public')->assertExists($oldPath);
+
+        // Count files currently in storage
+        $filesBefore = Storage::disk('public')->allFiles('order-receipts');
+        $this->assertCount(1, $filesBefore);
+
+        // 2. Attach a database event listener or throw during order updating to simulate DB persistence crash
+        \App\Models\OrderStatusEvent::saving(function () {
+            throw new \PDOException('Simulated database connection loss during payment receipt persistence');
+        });
+
+        // 3. Attempt replacement
+        $file2 = UploadedFile::fake()->image('replacement_slip.png');
+        try {
+            $this->actingAs($this->customer, 'sanctum')
+                ->post("/api/v1/orders/{$this->order->id}/payment-proof", [
+                    'receipt' => $file2,
+                ]);
+        } catch (\PDOException $e) {
+            $this->assertStringContainsString('Simulated database connection loss', $e->getMessage());
+        }
+
+        // 4. Verify transactional rollback:
+        // - Old receipt file is still preserved on disk
+        Storage::disk('public')->assertExists($oldPath);
+        // - No new orphan file was left on disk
+        $filesAfter = Storage::disk('public')->allFiles('order-receipts');
+        $this->assertCount(1, $filesAfter);
+        $this->assertEquals($filesBefore, $filesAfter);
+
+        // - Order database record still references the old receipt
+        $afterOrder = $this->order->fresh();
+        $this->assertEquals($oldUrl, $afterOrder->payment_proof_url);
+        $this->assertEquals($oldPath, $afterOrder->payment_details['receipt_path']);
+    }
+
+    public function test_multiple_receipt_attachments_rejected_only_single_image_allowed(): void
+    {
+        $file1 = UploadedFile::fake()->image('slip1.jpg');
+        $file2 = UploadedFile::fake()->image('slip2.jpg');
+
+        $response = $this->actingAs($this->customer, 'sanctum')
+            ->postJson("/api/v1/orders/{$this->order->id}/payment-proof", [
+                'receipt' => [$file1, $file2],
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['receipt']);
+    }
 }
 
