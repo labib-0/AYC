@@ -4,8 +4,10 @@ import React from "react";
 import Link from "next/link";
 import { BrandModel } from "@/services/brand.service";
 import { CategoryModel } from "@/services/category.service";
-import { BreadcrumbItem } from "@/lib/seo/breadcrumbs";
+import { BreadcrumbItem, formatBreadcrumbLabel } from "@/lib/seo/breadcrumbs";
 import { absoluteUrl } from "@/lib/seo/config";
+
+export { formatBreadcrumbLabel };
 
 export interface BreadcrumbCrumb {
   label: string;
@@ -17,53 +19,7 @@ export interface StorefrontBreadcrumbsProps {
   className?: string;
 }
 
-/**
- * Humanizes any raw string or slug into a clean title-cased label.
- */
-export function formatBreadcrumbLabel(raw: string | undefined | null): string {
-  if (!raw || typeof raw !== "string") return "";
-  const trimmed = raw.trim();
-  if (!trimmed) return "";
 
-  const lower = trimmed.toLowerCase();
-  if (lower === "t-shirts" || lower === "t_shirts") return "T-Shirts";
-  if (lower === "t-shirt" || lower === "t_shirt") return "T-Shirt";
-  if (lower === "v-neck" || lower === "v_neck") return "V-Neck";
-  if (lower === "mc") return "Master Copy";
-  if (lower === "rfq") return "RFQ";
-  if (lower === "b2b") return "B2B";
-
-  // Replace underscores with spaces
-  const cleaned = trimmed.replace(/_+/g, " ");
-
-  // If raw lowercase kebab slug, e.g. "polo-shirts", convert to "Polo Shirts"
-  if (/^[a-z0-9]+(?:-[a-z0-9]+)+$/.test(cleaned)) {
-    return cleaned
-      .split("-")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(" ");
-  }
-
-  // Title-case words while preserving intentional hyphens (e.g. "T-Shirts", "Pre-Order")
-  return cleaned
-    .split(/\s+/)
-    .map((word) => {
-      const wLower = word.toLowerCase();
-      if (wLower === "mc") return "Master Copy";
-      if (wLower === "rfq") return "RFQ";
-      if (wLower === "b2b") return "B2B";
-      if (wLower === "t-shirts") return "T-Shirts";
-      if (wLower === "t-shirt") return "T-Shirt";
-      if (word.includes("-")) {
-        return word
-          .split("-")
-          .map((sub) => sub.charAt(0).toUpperCase() + sub.slice(1).toLowerCase())
-          .join("-");
-      }
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    })
-    .join(" ");
-}
 
 /**
  * Builds standard hierarchical breadcrumbs for the customer storefront listing page.

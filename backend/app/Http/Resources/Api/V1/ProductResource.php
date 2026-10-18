@@ -45,6 +45,7 @@ class ProductResource extends JsonResource
             'product_id' => $this->when($isAdmin, $this->product_id),
             'name' => $this->name,
             'slug' => $this->slug,
+            'previous_slugs' => $this->previous_slugs ?: [],
             'sku' => $this->sku,
             'brand' => $this->brand ? $this->brand->name : null,
             'brand_id' => $this->brand_id ? (string) $this->brand_id : null,

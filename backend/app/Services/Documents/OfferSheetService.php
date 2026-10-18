@@ -34,9 +34,9 @@ class OfferSheetService
             $brand = $product?->brand?->name ?? (is_string($product?->brand) ? $product->brand : 'AYAAN CLOTHING');
             $prodDesc = $product?->description ?? '';
             $designType = $product?->design_type ?? 'ORIGINAL';
-            $material = $product?->material ?? $product?->fabric ?? '—';
-            $sizeDesc = $product?->size_description ?? ($item->size ?: '—');
-            $colourDesc = $product?->colour_description ?? ($item->color ?: '—');
+            $material = $product?->material ?? $product?->fabric ?? null;
+            $sizeDesc = $product?->size_description ?? ($item->size ?: null);
+            $colourDesc = $product?->colour_description ?? ($item->color ?: null);
 
             $moqQty = $product?->moq ?: (int) $item->quantity;
             $cbmMoq = $product?->cbm ? number_format((float) $product->cbm, 3) . ' m³' : null;
@@ -86,7 +86,7 @@ class OfferSheetService
                 'cbm_moq' => $cbmMoq,
                 'gross_weight_moq' => $gwMoq,
                 'pricing_tiers' => $tiers,
-                'description' => $item->product_name . ($item->size ? " (Size: {$item->size})" : " (Assorted Package)"),
+                'description' => $item->product_name,
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? $item->product_image_url,
                 'product_images' => $gallery,
@@ -184,9 +184,9 @@ class OfferSheetService
             $brand = $product?->brand?->name ?? (is_string($product?->brand) ? $product->brand : 'AYAAN CLOTHING');
             $prodDesc = $product?->description ?? '';
             $designType = $product?->design_type ?? 'ORIGINAL';
-            $material = $product?->material ?? $product?->fabric ?? '—';
-            $sizeDesc = $product?->size_description ?? ($item->selected_size ?: '—');
-            $colourDesc = $product?->colour_description ?? '—';
+            $material = $product?->material ?? $product?->fabric ?? null;
+            $sizeDesc = $product?->size_description ?? ($item->selected_size ?: null);
+            $colourDesc = $product?->colour_description ?? null;
 
             $moqQty = $product?->moq ?: (int) $item->quantity;
             $cbmMoq = $product?->cbm ? number_format((float) $product->cbm, 3) . ' m³' : null;
@@ -236,7 +236,7 @@ class OfferSheetService
                 'cbm_moq' => $cbmMoq,
                 'gross_weight_moq' => $gwMoq,
                 'pricing_tiers' => $tiers,
-                'description' => $item->product_name . ($item->selected_size ? " (Size: {$item->selected_size})" : " (Assorted)"),
+                'description' => $item->product_name,
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? $item->product_image_url,
                 'product_images' => $gallery,

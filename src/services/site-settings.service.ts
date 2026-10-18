@@ -6,6 +6,8 @@ import {
   UpdateSettingsPayload,
   UpdateLegalPagePayload,
   BusinessSettingsPayload,
+  GoogleTagsPayload,
+  GoogleTagsResponse,
 } from "@/types/settings";
 import BUSINESS_PROFILE, {
   WHATSAPP_BUSINESS_DISPLAY,
@@ -263,6 +265,47 @@ export class SiteSettingsService {
       payload
     );
     return response.data;
+  }
+
+  /**
+   * Fetch current Google tags (Head Code & Body Code).
+   */
+  async getGoogleTags(): Promise<GoogleTagsResponse> {
+    const res = await apiClient.get<any>("/admin/homepage/google-tags");
+    const data = res?.data || res;
+    return {
+      head_code: data?.head_code ?? null,
+      body_code: data?.body_code ?? null,
+      google_tag_head_code: data?.head_code ?? null,
+      google_tag_body_code: data?.body_code ?? null,
+      is_head_configured: Boolean(data?.head_code && data.head_code.trim().length > 0),
+      is_body_configured: Boolean(data?.body_code && data.body_code.trim().length > 0),
+    };
+  }
+
+  /**
+   * Update Google tags (Head Code & Body Code).
+   */
+  async updateGoogleTags(payload: GoogleTagsPayload): Promise<GoogleTagsResponse> {
+    const res = await apiClient.post<any>("/admin/homepage/google-tags", payload);
+    const data = res?.data || res;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("ayaan:homepage-updated", {
+          detail: { type: "google_tags", data },
+        })
+      );
+      window.dispatchEvent(new CustomEvent("ayaan:data-updated", { detail: { entity: "settings" } }));
+      window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_homepage_updated" }));
+    }
+    return {
+      head_code: data?.head_code ?? null,
+      body_code: data?.body_code ?? null,
+      google_tag_head_code: data?.head_code ?? null,
+      google_tag_body_code: data?.body_code ?? null,
+      is_head_configured: Boolean(data?.head_code && data.head_code.trim().length > 0),
+      is_body_configured: Boolean(data?.body_code && data.body_code.trim().length > 0),
+    };
   }
 }
 

@@ -105,4 +105,31 @@ class SystemSetting extends Model
     {
         return static::set('google_search_console_verification', $token, 'string', 'seo');
     }
+
+    /**
+     * Get the Google tracking snippet intended for the public storefront <head> section.
+     */
+    public static function getGoogleTagHeadCode(): ?string
+    {
+        $value = static::get('google_tag_head_code');
+        return !empty($value) ? (string) $value : null;
+    }
+
+    /**
+     * Get the Google tracking snippet intended immediately after the public storefront <body> opening tag.
+     */
+    public static function getGoogleTagBodyCode(): ?string
+    {
+        $value = static::get('google_tag_body_code');
+        return !empty($value) ? (string) $value : null;
+    }
+
+    /**
+     * Persistently save or clear the Google tracking codes (head & body).
+     */
+    public static function setGoogleTags(?string $headCode, ?string $bodyCode): void
+    {
+        static::set('google_tag_head_code', !empty(trim((string)$headCode)) ? trim((string)$headCode) : null, 'string', 'seo');
+        static::set('google_tag_body_code', !empty(trim((string)$bodyCode)) ? trim((string)$bodyCode) : null, 'string', 'seo');
+    }
 }

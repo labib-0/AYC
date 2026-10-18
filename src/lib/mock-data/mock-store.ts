@@ -139,7 +139,13 @@ class MockStore {
     const clean = String(idOrSlug).toLowerCase();
     return (
       products.find(
-        (p) => String(p.id).toLowerCase() === clean || String(p.slug).toLowerCase() === clean
+        (p) =>
+          String(p.id).toLowerCase() === clean ||
+          String(p.slug).toLowerCase() === clean ||
+          String(p.productId || (p as any).product_id || "").toLowerCase() === clean ||
+          String(p.sku || "").toLowerCase() === clean ||
+          (Array.isArray(p.previousSlugs) && p.previousSlugs.some((s) => String(s).toLowerCase() === clean)) ||
+          (Array.isArray(p.previous_slugs) && p.previous_slugs.some((s) => String(s).toLowerCase() === clean))
       ) || null
     );
   }
@@ -167,22 +173,91 @@ class MockStore {
       }
     }
 
-    // 2. Resolve non-empty SKU uniqueness with auto-suffix
-    const targetSku = productInput.sku?.trim();
-    if (targetSku) {
-      const resolvedSku = this.resolveUniqueSku(targetSku, existingIndex);
-      productInput.sku = resolvedSku;
+    const existing = existingIndex >= 0 ? products[existingIndex] : null;
+    const oldName = existing?.name?.trim() || "";
+    const incomingName = productInput.name?.trim() || "";
+    const isRenamed = existing !== null && incomingName !== "" && incomingName !== oldName;
+
+    // 2. Resolve non-empty SKU uniqueness with auto-suffix (preserve SKU on rename)
+    if (existing) {
+      if (!productInput.sku) {
+        productInput.sku = existing.sku;
+      }
+    } else {
+      const targetSku = productInput.sku?.trim();
+      if (targetSku) {
+        const resolvedSku = this.resolveUniqueSku(targetSku, existingIndex);
+        productInput.sku = resolvedSku;
+      }
     }
 
     // 3. Resolve Slug uniqueness with auto-suffix
-    let targetSlug = productInput.slug?.trim().toLowerCase();
-    if (!targetSlug && (productInput.name || existingIndex >= 0)) {
-      const nameSource = productInput.name || (existingIndex >= 0 ? products[existingIndex].name : "product");
-      targetSlug = nameSource.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    }
-    if (targetSlug) {
-      const resolvedSlug = this.resolveUniqueSlug(targetSlug, existingIndex);
+    if (isRenamed) {
+      const baseCandidate = incomingName.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const resolvedSlug = this.resolveUniqueSlug(baseCandidate || "product", existingIndex);
       productInput.slug = resolvedSlug;
+
+      if (existing.slug && existing.slug !== resolvedSlug) {
+        const prevSlugs: string[] = Array.isArray(existing.previousSlugs)
+          ? [...existing.previousSlugs]
+          : (Array.isArray(existing.previous_slugs) ? [...existing.previous_slugs] : []);
+        if (!prevSlugs.includes(existing.slug)) {
+          prevSlugs.push(existing.slug);
+        }
+        const filteredPrev = prevSlugs.filter((s) => s !== resolvedSlug);
+        productInput.previousSlugs = filteredPrev;
+        productInput.previous_slugs = filteredPrev;
+      }
+
+      // Safely replace exact occurrences of oldName in editable description
+      const desc = productInput.description ?? existing.description;
+      if (oldName && desc && desc.includes(oldName)) {
+        productInput.description = desc.split(oldName).join(incomingName);
+      }
+
+      const shortDesc = productInput.shortDescription ?? existing.shortDescription;
+      if (oldName && shortDesc && shortDesc.includes(oldName)) {
+        productInput.shortDescription = shortDesc.split(oldName).join(incomingName);
+      }
+
+      // Safely replace exact occurrences of oldName in seoTitle and seoDescription
+      const seoTitle = (productInput as any).seoTitle ?? (productInput as any).seo_title ?? existing.seoTitle ?? (existing as any).seo_title;
+      if (oldName && seoTitle && seoTitle.includes(oldName)) {
+        (productInput as any).seoTitle = seoTitle.split(oldName).join(incomingName);
+        (productInput as any).seo_title = (productInput as any).seoTitle;
+      } else if (!seoTitle || seoTitle === oldName) {
+        (productInput as any).seoTitle = incomingName;
+        (productInput as any).seo_title = incomingName;
+      }
+
+      const seoDesc = (productInput as any).seoDescription ?? (productInput as any).seo_description ?? existing.seoDescription ?? (existing as any).seo_description;
+      if (oldName && seoDesc && seoDesc.includes(oldName)) {
+        (productInput as any).seoDescription = seoDesc.split(oldName).join(incomingName);
+        (productInput as any).seo_description = (productInput as any).seoDescription;
+      }
+    } else {
+      let targetSlug = productInput.slug?.trim().toLowerCase();
+      if (!targetSlug && (productInput.name || existingIndex >= 0)) {
+        const nameSource = productInput.name || (existing ? existing.name : "product");
+        targetSlug = nameSource.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      } else if (!targetSlug && existing?.slug) {
+        targetSlug = existing.slug;
+      }
+      if (targetSlug) {
+        const resolvedSlug = this.resolveUniqueSlug(targetSlug, existingIndex);
+        productInput.slug = resolvedSlug;
+        if (existing?.slug && existing.slug !== resolvedSlug) {
+          const prevSlugs: string[] = Array.isArray(existing.previousSlugs)
+            ? [...existing.previousSlugs]
+            : (Array.isArray(existing.previous_slugs) ? [...existing.previous_slugs] : []);
+          if (!prevSlugs.includes(existing.slug)) {
+            prevSlugs.push(existing.slug);
+          }
+          const filteredPrev = prevSlugs.filter((s) => s !== resolvedSlug);
+          productInput.previousSlugs = filteredPrev;
+          productInput.previous_slugs = filteredPrev;
+        }
+      }
     }
 
     let savedProduct: B2BProductInput;
@@ -1258,7 +1333,11 @@ class MockStore {
 
     // Check if initial candidate is free
     const isTaken = products.some(
-      (p, idx) => idx !== existingIndex && Boolean(p.slug && p.slug.trim().toLowerCase() === trimmed)
+      (p, idx) =>
+        idx !== existingIndex &&
+        (Boolean(p.slug && p.slug.trim().toLowerCase() === trimmed) ||
+          (Array.isArray(p.previousSlugs) && p.previousSlugs.some((s) => String(s).toLowerCase() === trimmed)) ||
+          (Array.isArray(p.previous_slugs) && p.previous_slugs.some((s) => String(s).toLowerCase() === trimmed)))
     );
     if (!isTaken) return trimmed;
 
@@ -1278,7 +1357,9 @@ class MockStore {
             idx !== existingIndex &&
             Boolean(
               (p.slug && p.slug.trim().toLowerCase() === potentialBase) ||
-              (p.slug && p.slug.trim().toLowerCase() === `${potentialBase}-01`)
+              (p.slug && p.slug.trim().toLowerCase() === `${potentialBase}-01`) ||
+              (Array.isArray(p.previousSlugs) && p.previousSlugs.some((s) => String(s).toLowerCase() === potentialBase)) ||
+              (Array.isArray(p.previous_slugs) && p.previous_slugs.some((s) => String(s).toLowerCase() === potentialBase))
             )
         );
         if (hasBase) {
@@ -1292,7 +1373,11 @@ class MockStore {
     while (true) {
       const candidateSlug = `${baseSlug}-${this.formatSuffix(num)}`;
       const conflict = products.some(
-        (p, idx) => idx !== existingIndex && Boolean(p.slug && p.slug.trim().toLowerCase() === candidateSlug)
+        (p, idx) =>
+          idx !== existingIndex &&
+          (Boolean(p.slug && p.slug.trim().toLowerCase() === candidateSlug) ||
+            (Array.isArray(p.previousSlugs) && p.previousSlugs.some((s) => String(s).toLowerCase() === candidateSlug)) ||
+            (Array.isArray(p.previous_slugs) && p.previous_slugs.some((s) => String(s).toLowerCase() === candidateSlug)))
       );
       if (!conflict) {
         return candidateSlug;

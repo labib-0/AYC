@@ -106,6 +106,8 @@ class HomepageManagementController extends ApiController
             'site_logo' => SystemSetting::get('site_logo'),
             'hot_sale_visible' => SystemSetting::isHotSaleVisible(),
             'google_search_console_verification' => SystemSetting::getGoogleSearchConsoleVerification(),
+            'google_tag_head_code' => SystemSetting::getGoogleTagHeadCode(),
+            'google_tag_body_code' => SystemSetting::getGoogleTagBodyCode(),
             'ticker_items' => $tickerItems,
             'featured_brands' => $featuredBrands,
             'all_brands' => $allBrands,
@@ -691,5 +693,87 @@ class HomepageManagementController extends ApiController
             $this->accessService->getStatus(),
             'Bangladesh storefront access setting updated successfully.'
         );
+    }
+
+    /**
+     * GET /api/v1/admin/homepage/google-tags
+     *
+     * Retrieve configured Google tracking codes (head & body).
+     */
+    public function getGoogleTags(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $canView = $user && (
+            $user->isSuperAdmin() ||
+            $this->authorization->can($user, 'settings.view') ||
+            $this->authorization->can($user, 'settings.edit') ||
+            $this->authorization->can($user, 'homepage.banner.edit')
+        );
+
+        if (!$canView) {
+            return $this->forbidden('Forbidden: you do not have permission to view tracking code settings.');
+        }
+
+        return $this->success([
+            'head_code' => SystemSetting::getGoogleTagHeadCode(),
+            'body_code' => SystemSetting::getGoogleTagBodyCode(),
+            'google_tag_head_code' => SystemSetting::getGoogleTagHeadCode(),
+            'google_tag_body_code' => SystemSetting::getGoogleTagBodyCode(),
+            'is_head_configured' => !empty(SystemSetting::getGoogleTagHeadCode()),
+            'is_body_configured' => !empty(SystemSetting::getGoogleTagBodyCode()),
+        ], 'Google tracking tags retrieved successfully.');
+    }
+
+    /**
+     * POST /api/v1/admin/homepage/google-tags
+     *
+     * Update Google tracking codes (head & body).
+     */
+    public function updateGoogleTags(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $canEdit = $user && (
+            $user->isSuperAdmin() ||
+            $this->authorization->can($user, 'settings.edit')
+        );
+
+        if (!$canEdit) {
+            return $this->forbidden('Forbidden: only authorized administrators with settings management privileges may configure website tracking codes.');
+        }
+
+        $validated = $request->validate([
+            'head_code' => ['nullable', 'string', 'max:65536'],
+            'body_code' => ['nullable', 'string', 'max:65536'],
+        ], [
+            'head_code.max' => 'Head Code must not exceed 64 KB.',
+            'body_code.max' => 'Body Code must not exceed 64 KB.',
+        ]);
+
+        $headCode = array_key_exists('head_code', $validated) ? $validated['head_code'] : null;
+        $bodyCode = array_key_exists('body_code', $validated) ? $validated['body_code'] : null;
+
+        SystemSetting::setGoogleTags($headCode, $bodyCode);
+
+        // Invalidate public caches immediately
+        Cache::forget('site_settings_public');
+        CatalogCacheService::invalidateAll();
+
+        Log::info('Google tracking tags updated by administrator', [
+            'admin_id' => $user->id,
+            'has_head_code' => !empty($headCode),
+            'head_code_bytes' => strlen($headCode ?? ''),
+            'has_body_code' => !empty($bodyCode),
+            'body_code_bytes' => strlen($bodyCode ?? ''),
+            'ip' => $request->ip(),
+        ]);
+
+        return $this->success([
+            'head_code' => SystemSetting::getGoogleTagHeadCode(),
+            'body_code' => SystemSetting::getGoogleTagBodyCode(),
+            'google_tag_head_code' => SystemSetting::getGoogleTagHeadCode(),
+            'google_tag_body_code' => SystemSetting::getGoogleTagBodyCode(),
+            'is_head_configured' => !empty(SystemSetting::getGoogleTagHeadCode()),
+            'is_body_configured' => !empty(SystemSetting::getGoogleTagBodyCode()),
+        ], 'Google tracking codes saved successfully.');
     }
 }

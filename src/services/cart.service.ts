@@ -1,6 +1,7 @@
 import { Product } from "@/types";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { apiClient } from "./api-client";
+import { mockStore } from "@/lib/mock-data/mock-store";
 
 export class InsufficientStockError extends Error {
   errorCode: string = "INSUFFICIENT_STOCK";
@@ -544,10 +545,15 @@ export class CartService {
       ? (rawProd.bulkPrice !== undefined && rawProd.bulkPrice !== null ? Number(rawProd.bulkPrice) : (rawProd.bulk_price !== undefined && rawProd.bulk_price !== null ? Number(rawProd.bulk_price) : undefined))
       : undefined;
 
+    const pid = String(rawProd.id || raw.product_id || "");
+    const canonical = typeof window !== "undefined" && pid ? mockStore.getProductByIdOrSlug(pid) : null;
+    const resolvedName = canonical?.name || rawProd.name || "Product";
+    const resolvedSlug = canonical?.slug || rawProd.slug || "product";
+
     const product: Product = {
-      id: String(rawProd.id || raw.product_id || ""),
-      name: rawProd.name || "Product",
-      slug: rawProd.slug || "product",
+      id: pid,
+      name: resolvedName,
+      slug: resolvedSlug,
       price: price,
       oldPrice: rawProd.oldPrice ?? null,
       wholesalePrice: rawProd.wholesalePrice ?? rawProd.wholesale_price ?? price,

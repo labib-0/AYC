@@ -11,6 +11,12 @@ import { headers } from "next/headers";
 import StorefrontShell from "@/components/layout/StorefrontShell";
 import GlobalNumberInputWheelGuard from "@/components/common/GlobalNumberInputWheelGuard";
 import { generateOrganizationJsonLd, generateWebSiteJsonLd, SITE_URL } from "@/lib/seo";
+import {
+  StorefrontHeadTracking,
+  StorefrontBodyTracking,
+} from "@/components/analytics/StorefrontTrackingTags";
+import { siteSettingsService } from "@/services/site-settings.service";
+import { PublicSiteSettings } from "@/types/settings";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -106,8 +112,19 @@ export default async function RootLayout({
 
   const headersList = await headers();
   const host = headersList.get("host") || "";
+  const pathname = headersList.get("x-pathname") || "";
   const isAdminHeader = headersList.get("x-is-admin-host") === "1" || headersList.get("x-admin-app") === "true";
   const isAdminHost = isAdminHeader || host.includes(":3001") || host.startsWith("admin.") || host === "admin.localhost";
+  const isAdminRoute = isAdminHost || pathname.startsWith("/ayc") || pathname.startsWith("/admin");
+
+  let publicSettings: PublicSiteSettings | null = null;
+  if (!isAdminRoute) {
+    try {
+      publicSettings = await siteSettingsService.getPublicSettings();
+    } catch {
+      publicSettings = null;
+    }
+  }
 
   return (
     <html lang="en">
@@ -120,8 +137,14 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdWebSite) }}
         />
+        {!isAdminRoute && (
+          <StorefrontHeadTracking snippet={publicSettings?.google_tag_head_code} />
+        )}
       </head>
       <body className={`${inter.variable} ${manrope.variable} font-sans bg-background text-foreground antialiased selection:bg-primary selection:text-primary-foreground`}>
+        {!isAdminRoute && (
+          <StorefrontBodyTracking snippet={publicSettings?.google_tag_body_code} />
+        )}
         <GlobalNumberInputWheelGuard />
         <AuthProvider>
           <SiteSettingsProvider>

@@ -16,6 +16,7 @@ import {
   HomepageTickerManager,
   BangladeshStorefrontAccessCard,
   HomepageSeoManager,
+  GoogleTagsManager,
 } from "@/components/admin/homepage";
 import ProductToast, {
   ToastMessage,
@@ -39,6 +40,8 @@ export default function AdminHomepageManagement() {
   const [tickerItems, setTickerItems] = useState<HomepageTickerItem[]>([]);
   const [savedTickerItems, setSavedTickerItems] = useState<HomepageTickerItem[]>([]);
   const [googleVerificationCode, setGoogleVerificationCode] = useState<string | null>(null);
+  const [googleTagHeadCode, setGoogleTagHeadCode] = useState<string | null>(null);
+  const [googleTagBodyCode, setGoogleTagBodyCode] = useState<string | null>(null);
 
   // Banner Form Draft State
   const [formState, setFormState] = useState<BannerFormState>({
@@ -91,6 +94,8 @@ export default function AdminHomepageManagement() {
       setTickerItems(data.ticker_items || []);
       setSavedTickerItems(data.ticker_items || []);
       setGoogleVerificationCode(data.google_search_console_verification || null);
+      setGoogleTagHeadCode(data.google_tag_head_code || null);
+      setGoogleTagBodyCode(data.google_tag_body_code || null);
 
       if (data.banner) {
         setFormState({
@@ -346,6 +351,18 @@ export default function AdminHomepageManagement() {
         <HomepageSeoManager
           initialVerificationCode={googleVerificationCode}
           onSaveSuccess={(token) => setGoogleVerificationCode(token)}
+          showToast={showToast}
+          disabled={saving}
+        />
+
+        {/* Google Tags & Tracking (Head Code & Body Code) */}
+        <GoogleTagsManager
+          initialHeadCode={googleTagHeadCode}
+          initialBodyCode={googleTagBodyCode}
+          onSaveSuccess={(head, body) => {
+            setGoogleTagHeadCode(head);
+            setGoogleTagBodyCode(body);
+          }}
           showToast={showToast}
           disabled={saving}
         />

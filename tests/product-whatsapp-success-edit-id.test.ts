@@ -54,7 +54,7 @@ assert(message.includes("Hello AYAAN CLOTHING,"), "Message starts with Hello AYA
 assert(message.includes("I am interested in:"), "Message contains 'I am interested in:' section");
 assert(message.includes(`Product: ${sampleProduct.name}`), "Message contains exact product name");
 assert(message.includes(`SKU: ${sampleProduct.sku}`), "Message contains exact SKU");
-assert(message.includes("Quantity: 150 pcs"), "Message contains exact quantity");
+assert(!message.includes("Quantity:"), "Quantity line completely removed from message");
 assert(message.includes(`Product Link: ${canonicalUrl}`), "Message includes public customer-facing product URL");
 assert(!message.includes("/admin"), "Message does not contain any Admin route");
 

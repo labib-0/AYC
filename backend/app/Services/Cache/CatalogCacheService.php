@@ -137,6 +137,13 @@ class CatalogCacheService
             if ($product->product_id) {
                 $identifiers[] = $product->product_id;
             }
+            if (!empty($product->previous_slugs) && is_array($product->previous_slugs)) {
+                foreach ($product->previous_slugs as $ps) {
+                    if (is_string($ps) && $ps !== '') {
+                        $identifiers[] = $ps;
+                    }
+                }
+            }
         } else {
             $identifiers[] = $product;
         }

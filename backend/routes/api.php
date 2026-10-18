@@ -625,6 +625,12 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:homepage.view');
             Route::patch('/bangladesh-storefront-access', [AdminHomepageManagementController::class, 'updateBangladeshStorefrontAccess'])
                 ->middleware('permission:homepage.banner.edit');
+
+            // Google Tags & Tracking Codes
+            Route::get('/google-tags', [AdminHomepageManagementController::class, 'getGoogleTags'])
+                ->middleware('permission:homepage.view');
+            Route::post('/google-tags', [AdminHomepageManagementController::class, 'updateGoogleTags'])
+                ->middleware('permission:settings.edit');
         });
 
         // ── RBAC Management (Phase 1 Foundation) ────────────────────────────

@@ -31,6 +31,8 @@ export interface B2BProductInput {
   product_id?: string;
   name: string;
   slug: string;
+  previousSlugs?: string[];
+  previous_slugs?: string[];
   sku: string;
   brand: string;
   brandLogo?: string;
@@ -534,8 +536,12 @@ export interface CommercialDocument {
     color?: string;
     package_breakdown?: any;
     details?: string;
+    product_id?: string;
+    [key: string]: any;
   }>;
   product_gallery?: string[];
+  products?: any[];
+  product?: any;
   packing_cartons?: Array<{
     carton_no: string;
     marks_and_numbers: string;

@@ -65,7 +65,9 @@ const STOREFRONT_UNIT_SUITES = [
   "canonical-customer-order-lifecycle.test.ts",
   "order-flow-final-regression.test.ts",
   "footer-navigation-and-contact-links.test.ts",
-  "tiktok-linkedin-social-links.test.ts"
+  "tiktok-linkedin-social-links.test.ts",
+  "product-link-copy-and-share.test.ts",
+  "product-breadcrumb-hierarchy.test.ts"
 ];
 
 // 2. Storefront Contract Suites (Mocked / Typed Fixtures)

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { RfqItem, B2BProductInput } from "@/types/b2b";
 import { Product } from "@/types";
+import { mockStore } from "@/lib/mock-data/mock-store";
 
 interface RfqContextType {
   rfqItems: RfqItem[];
@@ -33,14 +34,25 @@ export function RfqProvider({ children }: { children: React.ReactNode }) {
   const [rfqItems, setRfqItems] = useState<RfqItem[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount and synchronize with canonical product record
   useEffect(() => {
     try {
       const saved = localStorage.getItem(RFQ_CART_STORAGE);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          setRfqItems(parsed);
+          const synchronized = parsed.map((item: RfqItem) => {
+            const canonical = item.productId ? mockStore.getProductByIdOrSlug(item.productId) : null;
+            if (canonical) {
+              return {
+                ...item,
+                productName: canonical.name || item.productName,
+                productSlug: canonical.slug || item.productSlug,
+              };
+            }
+            return item;
+          });
+          setRfqItems(synchronized);
         }
       }
     } catch {
@@ -75,11 +87,15 @@ export function RfqProvider({ children }: { children: React.ReactNode }) {
     const moq = (product as any).moq || 50;
     const initialQty = Math.max(quantity, moq);
 
+    const canonical = product.id ? mockStore.getProductByIdOrSlug(product.id) : null;
+    const resolvedName = canonical?.name || product.name;
+    const resolvedSlug = canonical?.slug || product.slug;
+
     const newItem: RfqItem = {
       id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       productId: product.id || `prod_${Date.now()}`,
-      productName: product.name,
-      productSlug: product.slug,
+      productName: resolvedName,
+      productSlug: resolvedSlug,
       brand: product.brand || "Ayaan",
       sku: product.sku || `SKU-${Date.now().toString(36).toUpperCase()}`,
       image: images[0] || "/placeholder.jpg",

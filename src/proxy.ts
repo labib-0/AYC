@@ -105,6 +105,7 @@ export async function proxy(request: NextRequest) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-is-admin-host', '1');
     requestHeaders.set('x-admin-app', 'true');
+    requestHeaders.set('x-pathname', url.pathname);
 
     return NextResponse.next({
       request: {
@@ -219,7 +220,13 @@ export async function proxy(request: NextRequest) {
     console.warn('[proxy] Storefront access check warning:', (err as Error)?.message);
   }
 
-  return NextResponse.next();
+  const finalHeaders = new Headers(request.headers);
+  finalHeaders.set('x-pathname', url.pathname);
+  return NextResponse.next({
+    request: {
+      headers: finalHeaders,
+    },
+  });
 }
 
 

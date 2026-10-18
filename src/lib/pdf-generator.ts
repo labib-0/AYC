@@ -7,7 +7,10 @@ import { deduplicateMediaUrls, getCanonicalMediaKey } from "@/lib/media";
 import { OFFICIAL_AYC_SITE_LOGO_DATA_URL, OFFICIAL_AYC_SITE_LOGO_PATH } from "@/lib/site-logo";
 import {
   extractProductSpecifications,
+  extractProductSpecificationTiles,
+  extractProductLogistics,
   extractProductPricingTiers,
+  cleanOfferSheetProductTitle,
   CONSOLIDATED_OFFER_SHEET_COMMERCIAL_TERMS,
   lookupProductRecord,
   buildOfferSheetData,
@@ -349,6 +352,18 @@ export interface OfferSheetProductInput {
   netWeight?: number | string;
   cbm?: number | string;
   weight?: string | number;
+  wholesalePrice?: number;
+  bulkPricingEnabled?: boolean;
+  bulkPrice?: number;
+  bulkThreshold?: number;
+  fullStockPrice?: number;
+  availableStock?: number;
+  shippingPackageProfiles?: any;
+  designType?: string;
+  material?: string;
+  sizeDescription?: string;
+  colourDescription?: string;
+  [key: string]: any;
 }
 
 /**
@@ -382,13 +397,29 @@ export function generateOfferSheetPDFDoc(
   }
 
   const pageWidth = 210;
+  const pageHeight = 297;
   const margin = 14;
   const contentWidth = pageWidth - margin * 2; // 182mm
+  const pageBottomSafeY = 268; // Safe boundary leaving >20mm clearance before footer (289mm)
   let y = margin;
 
-  // 1. Header Background Accent Band (Deep Navy)
+  const printContinuationHeader = (subtitle?: string) => {
+    doc.setFillColor(15, 23, 42);
+    doc.rect(margin, y, contentWidth, 7, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    const titleText = subtitle
+      ? `AYAAN CLOTHING • ${subtitle} • Ref: ${offerData.docNumber}`
+      : `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`;
+    doc.text(titleText, margin + 4, y + 4.8);
+    y += 11;
+  };
+
+  // 1. Header Background Accent Band (Deep Navy) — 28mm height for balanced breathing room
+  const headerBandH = 28;
   doc.setFillColor(15, 23, 42); // slate-900 / dark corporate navy
-  doc.rect(margin, y, contentWidth, 24, "F");
+  doc.rect(margin, y, contentWidth, headerBandH, "F");
 
   // Header Title & Exporter info
   doc.setTextColor(255, 255, 255);
@@ -402,37 +433,43 @@ export function generateOfferSheetPDFDoc(
   doc.text(
     `${offerData.seller.description} • Est. ${offerData.seller.establishedYear}`,
     margin + 4,
-    y + 12.5
+    y + 13
   );
-  doc.text(`${offerData.seller.address}`, margin + 4, y + 16.5);
+  doc.text(`${offerData.seller.address}`, margin + 4, y + 18);
   doc.text(
     `Origin: Bangladesh • Export Desk: www.ayaanclothing.com • ${offerData.seller.email}`,
     margin + 4,
-    y + 20.5
+    y + 23
   );
 
-  // Document Badge on top right
-  const badgeW = 46;
+  // Document Badge on top right (Enlarged modestly in width & height with comfortable padding)
+  const badgeW = 58;
+  const badgeH = 20;
+  const badgeX = pageWidth - margin - badgeW - 2.5;
+  const badgeY = y + 4;
   doc.setFillColor(234, 88, 12); // Brand Orange
-  doc.roundedRect(pageWidth - margin - badgeW - 2, y + 4, badgeW, 16, 1.5, 1.5, "F");
+  doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1.8, 1.8, "F");
+
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(11);
+  const badgeTitle = "OFFER SHEET";
   doc.text(
-    "OFFER SHEET",
-    pageWidth - margin - badgeW - 2 + (badgeW - doc.getTextWidth("OFFER SHEET")) / 2,
-    y + 10
+    badgeTitle,
+    badgeX + (badgeW - doc.getTextWidth(badgeTitle)) / 2,
+    badgeY + 8.2
   );
+
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
+  doc.setFontSize(7);
   const badgeSub = "Direct Manufacturer Offer";
   doc.text(
     badgeSub,
-    pageWidth - margin - badgeW - 2 + (badgeW - doc.getTextWidth(badgeSub)) / 2,
-    y + 14.5
+    badgeX + (badgeW - doc.getTextWidth(badgeSub)) / 2,
+    badgeY + 14.5
   );
 
-  y += 28;
+  y += headerBandH + 4;
 
   // 2. Metadata Card (Reference, Date, Validity) - Product-based, strictly NO customer/buyer data
   const offerHeaderResult = drawDocumentInformationHeader(doc, {
@@ -456,7 +493,7 @@ export function generateOfferSheetPDFDoc(
     ],
   });
 
-  y = offerHeaderResult.finalY + 4;
+  y = offerHeaderResult.finalY + 5;
 
   const effectiveLogoDataUrl = options?.logoDataUrl || OFFICIAL_AYC_SITE_LOGO_DATA_URL;
 
@@ -470,30 +507,27 @@ export function generateOfferSheetPDFDoc(
       : "pc";
 
     // If subsequent product and not enough vertical space, start on a fresh page
-    if (pIdx > 0 && y + 115 > 297 - margin) {
+    if (pIdx > 0 && y + 90 > pageBottomSafeY) {
       doc.addPage();
       y = margin;
-      doc.setFillColor(15, 23, 42);
-      doc.rect(margin, y, contentWidth, 7, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.text(
-        `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`,
-        margin + 4,
-        y + 4.8
-      );
-      y += 11;
+      printContinuationHeader();
     }
 
-    // 3. Product Title, Brand Identifier, and SKU (Separate clean layout regions, prominent title)
-    // Product Title (Prominent: 16pt bold, clean natural wrapping)
+    // 3. Product Title, Brand Identifier, and SKU (Distinct hierarchy, target 17pt)
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
+    doc.setFontSize(17);
     doc.setTextColor(15, 23, 42);
     const splitTitle = doc.splitTextToSize(product.name, contentWidth);
-    doc.text(splitTitle, margin, y + 4.5);
-    y += splitTitle.length * 6.5 + 1.5;
+
+    // Ensure product title block fits comfortably before page bottom
+    if (y + splitTitle.length * 7 + 25 > pageBottomSafeY) {
+      doc.addPage();
+      y = margin;
+      printContinuationHeader();
+    }
+
+    doc.text(splitTitle, margin, y + 5);
+    y += splitTitle.length * 7 + 2;
 
     // Brand and SKU in a clean separate metadata row (no overlapping arrows, explicit gap)
     doc.setFont("helvetica", "bold");
@@ -517,18 +551,23 @@ export function generateOfferSheetPDFDoc(
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42); // slate-900
     doc.text(product.sku, margin + brandWidth + sepWidth + skuLabelWidth, y);
-    y += 7;
+    y += 7.5;
 
     // 4. Product Gallery — Four Images Per Row, plain background, contain-style scaling
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text("PRODUCT GALLERY", margin, y);
-    y += 3.5;
-
     const galleryImages = product.images || [];
 
     if (galleryImages.length === 0) {
+      if (y + 20 > pageBottomSafeY) {
+        doc.addPage();
+        y = margin;
+        printContinuationHeader();
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text("PRODUCT GALLERY", margin, y);
+      y += 4;
+
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
       doc.roundedRect(margin, y, contentWidth, 12, 1.5, 1.5, "FD");
@@ -544,95 +583,88 @@ export function generateOfferSheetPDFDoc(
       const tileW = (contentWidth - (cols - 1) * gap) / cols;
       const tileH = tileW * (5 / 4); // Canonical 4:5 ratio matching website gallery
 
-      let curCol = 0;
-
-      for (let i = 0; i < galleryImages.length; i++) {
-        const imgData = galleryImages[i];
-
-        if (i > 0 && i % cols === 0) {
-          if (y + tileH + gap + 30 > 297 - margin) {
-            doc.addPage();
-            y = margin;
-            doc.setFillColor(15, 23, 42);
-            doc.rect(margin, y, contentWidth, 7, "F");
-            doc.setTextColor(255, 255, 255);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(7.5);
-            doc.text(
-              `PRODUCT GALLERY (CONTINUED) • Ref: ${offerData.docNumber}`,
-              margin + 4,
-              y + 4.8
-            );
-            y += 11;
-          } else {
-            y += tileH + gap;
-          }
-          curCol = 0;
-        }
-
-        const tileX = margin + curCol * (tileW + gap);
-        const tileY = y;
-
-        // Clean document background (no decorative card borders or shadows)
-        const innerW = tileW;
-        const innerH = tileH;
-
-        try {
-          const props = (doc as any).getImageProperties(imgData);
-          const imgRatio = (props?.width || 1) / (props?.height || 1);
-          let drawW = innerW;
-          let drawH = drawW / imgRatio;
-          if (drawH > innerH) {
-            drawH = innerH;
-            drawW = drawH * imgRatio;
-          }
-          const drawX = tileX + (innerW - drawW) / 2;
-          const drawY = tileY + (innerH - drawH) / 2;
-          doc.addImage(imgData, "JPEG", drawX, drawY, drawW, drawH);
-        } catch {
-          try {
-            doc.addImage(imgData, "JPEG", tileX, tileY, innerW, innerH);
-          } catch {
-            // safe fallback
-          }
-        }
-
-        const logoInset = 1.2;
-        const logoSize = 4.2;
-        const logoX = tileX + tileW - logoInset - logoSize;
-        const logoY = tileY + logoInset;
-
-        if (effectiveLogoDataUrl) {
-          try {
-            doc.addImage(effectiveLogoDataUrl, "PNG", logoX, logoY, logoSize, logoSize);
-          } catch {
-            try {
-              doc.addImage(effectiveLogoDataUrl, logoX, logoY, logoSize, logoSize);
-            } catch {}
-          }
-        }
-
-        curCol++;
+      // Ensure gallery heading + first row fit together
+      if (y + 10 + tileH > pageBottomSafeY) {
+        doc.addPage();
+        y = margin;
+        printContinuationHeader();
       }
 
-      y += tileH + 6;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text("PRODUCT GALLERY", margin, y);
+      y += 4.5;
+
+      for (let i = 0; i < galleryImages.length; i += cols) {
+        const row = galleryImages.slice(i, i + cols);
+
+        // Move entire complete row to next page when it cannot fit within safe content area
+        if (y + tileH > pageBottomSafeY) {
+          doc.addPage();
+          y = margin;
+          printContinuationHeader();
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9.5);
+          doc.setTextColor(15, 23, 42);
+          doc.text("PRODUCT GALLERY (CONTINUED)", margin, y);
+          y += 4.5;
+        }
+
+        for (let colIdx = 0; colIdx < row.length; colIdx++) {
+          const imgData = row[colIdx];
+          const tileX = margin + colIdx * (tileW + gap);
+          const tileY = y;
+          const innerW = tileW;
+          const innerH = tileH;
+
+          try {
+            const props = (doc as any).getImageProperties(imgData);
+            const imgRatio = (props?.width || 1) / (props?.height || 1);
+            let drawW = innerW;
+            let drawH = drawW / imgRatio;
+            if (drawH > innerH) {
+              drawH = innerH;
+              drawW = drawH * imgRatio;
+            }
+            const drawX = tileX + (innerW - drawW) / 2;
+            const drawY = tileY + (innerH - drawH) / 2;
+            doc.addImage(imgData, "JPEG", drawX, drawY, drawW, drawH);
+          } catch {
+            try {
+              doc.addImage(imgData, "JPEG", tileX, tileY, innerW, innerH);
+            } catch {
+              // safe fallback
+            }
+          }
+
+          const logoInset = 1.2;
+          const logoSize = 4.2;
+          const logoX = tileX + tileW - logoInset - logoSize;
+          const logoY = tileY + logoInset;
+
+          if (effectiveLogoDataUrl) {
+            try {
+              doc.addImage(effectiveLogoDataUrl, "PNG", logoX, logoY, logoSize, logoSize);
+            } catch {
+              try {
+                doc.addImage(effectiveLogoDataUrl, logoX, logoY, logoSize, logoSize);
+              } catch {}
+            }
+          }
+        }
+
+        y += tileH + gap;
+      }
+
+      y += 3;
     }
 
     // 5. PRODUCT DESCRIPTION
-    if (y + 35 > 297 - margin) {
+    if (y + 25 > pageBottomSafeY) {
       doc.addPage();
       y = margin;
-      doc.setFillColor(15, 23, 42);
-      doc.rect(margin, y, contentWidth, 7, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.text(
-        `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`,
-        margin + 4,
-        y + 4.8
-      );
-      y += 11;
+      printContinuationHeader();
     }
 
     doc.setFont("helvetica", "bold");
@@ -660,6 +692,7 @@ export function generateOfferSheetPDFDoc(
         margin: { left: margin, right: margin },
         body: attrRows,
         theme: "plain",
+        pageBreak: "auto",
         styles: {
           fontSize: 7.2,
           cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 },
@@ -672,21 +705,11 @@ export function generateOfferSheetPDFDoc(
       y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 4.5 : y + 14;
     }
 
-    // 6. PRODUCT SPECIFICATIONS (Four Distinct Specification Tiles in a 2x2 Grid)
-    if (y + 35 > 297 - margin) {
+    // 6. PRODUCT SPECIFICATIONS (Four Clean Horizontal Rows, In Description fallback)
+    if (y + 35 > pageBottomSafeY) {
       doc.addPage();
       y = margin;
-      doc.setFillColor(15, 23, 42);
-      doc.rect(margin, y, contentWidth, 7, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.text(
-        `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`,
-        margin + 4,
-        y + 4.8
-      );
-      y += 11;
+      printContinuationHeader();
     }
 
     doc.setFont("helvetica", "bold");
@@ -695,58 +718,47 @@ export function generateOfferSheetPDFDoc(
     doc.text("PRODUCT SPECIFICATIONS", margin, y);
     y += 4;
 
-    const specTiles = [
-      { label: "DESIGN TYPE", value: product.specificationTiles?.designType || "ORIGINAL" },
-      { label: "MATERIAL", value: product.specificationTiles?.material || "—" },
-      { label: "SIZE", value: product.specificationTiles?.size || "—" },
-      { label: "COLOUR", value: product.specificationTiles?.colour || "—" },
+    const specRows = [
+      ["Design Type", product.specificationTiles?.designType || "In Description"],
+      ["Material", product.specificationTiles?.material || "In Description"],
+      ["Size", product.specificationTiles?.size || "In Description"],
+      ["Colour", product.specificationTiles?.colour || "In Description"],
     ];
 
-    const specTileGap = 3;
-    const specTileW = (contentWidth - specTileGap) / 2; // 89.5mm
-    const specTileH = 12;
+    applyAutoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      body: specRows,
+      theme: "plain",
+      styles: {
+        fontSize: 7.8,
+        cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
+        lineColor: [226, 232, 240],
+        lineWidth: 0.25,
+      },
+      columnStyles: {
+        0: {
+          cellWidth: 46,
+          fontStyle: "bold",
+          textColor: [71, 85, 105],
+          fillColor: [248, 250, 252],
+        },
+        1: {
+          cellWidth: contentWidth - 46,
+          fontStyle: "normal",
+          textColor: [15, 23, 42],
+          fillColor: [255, 255, 255],
+        },
+      },
+    });
 
-    for (let sIdx = 0; sIdx < 4; sIdx++) {
-      const colIdx = sIdx % 2;
-      const rowIdx = Math.floor(sIdx / 2);
-      const sX = margin + colIdx * (specTileW + specTileGap);
-      const sY = y + rowIdx * (specTileH + specTileGap);
-
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(sX, sY, specTileW, specTileH, 1.5, 1.5, "FD");
-
-      // Tile Label
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.setTextColor(100, 116, 139);
-      doc.text(specTiles[sIdx].label, sX + 3.5, sY + 4.2);
-
-      // Tile Value
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(15, 23, 42);
-      const splitVal = doc.splitTextToSize(specTiles[sIdx].value, specTileW - 7);
-      doc.text(splitVal[0] || "—", sX + 3.5, sY + 8.8);
-    }
-
-    y += 2 * specTileH + specTileGap + 5;
+    y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 5 : y + 26;
 
     // 7. PACKING & LOGISTICS (MOQ)
-    if (y + 26 > 297 - margin) {
+    if (y + 22 > pageBottomSafeY) {
       doc.addPage();
       y = margin;
-      doc.setFillColor(15, 23, 42);
-      doc.rect(margin, y, contentWidth, 7, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.text(
-        `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`,
-        margin + 4,
-        y + 4.8
-      );
-      y += 11;
+      printContinuationHeader();
     }
 
     doc.setFont("helvetica", "bold");
@@ -756,7 +768,8 @@ export function generateOfferSheetPDFDoc(
     y += 4;
 
     const logBoxH = 12;
-    const logColW = (contentWidth - specTileGap) / 2;
+    const logGap = 3;
+    const logColW = (contentWidth - logGap) / 2;
 
     // Left: CBM (MOQ)
     doc.setFillColor(248, 250, 252);
@@ -770,7 +783,7 @@ export function generateOfferSheetPDFDoc(
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
-    const cbmVal = product.logistics?.cbm;
+    const cbmVal = product.logistics?.cbmMoq || product.logistics?.cbm;
     if (cbmVal) {
       doc.setTextColor(15, 23, 42);
       doc.text(cbmVal, margin + 3.5, y + 9);
@@ -782,7 +795,7 @@ export function generateOfferSheetPDFDoc(
     }
 
     // Right: GROSS WEIGHT (MOQ)
-    const rightLogX = margin + logColW + specTileGap;
+    const rightLogX = margin + logColW + logGap;
     doc.setFillColor(248, 250, 252);
     doc.setDrawColor(226, 232, 240);
     doc.roundedRect(rightLogX, y, logColW, logBoxH, 1.5, 1.5, "FD");
@@ -794,7 +807,7 @@ export function generateOfferSheetPDFDoc(
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
-    const gwVal = product.logistics?.grossWeight;
+    const gwVal = product.logistics?.grossWeightMoq || product.logistics?.grossWeight;
     if (gwVal) {
       doc.setTextColor(15, 23, 42);
       doc.text(gwVal, rightLogX + 3.5, y + 9);
@@ -808,27 +821,17 @@ export function generateOfferSheetPDFDoc(
     y += logBoxH + 5;
 
     // 8. PRICING SCHEDULE (USD)
-    if (y + 36 > 297 - margin) {
+    if (y + 24 > pageBottomSafeY) {
       doc.addPage();
       y = margin;
-      doc.setFillColor(15, 23, 42);
-      doc.rect(margin, y, contentWidth, 7, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.text(
-        `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`,
-        margin + 4,
-        y + 4.8
-      );
-      y += 11;
+      printContinuationHeader();
     }
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
     doc.setTextColor(15, 23, 42);
     doc.text("PRICING SCHEDULE (USD)", margin, y);
-    y += 3;
+    y += 3.5;
 
     const pricingRows: string[][] = (product.pricingTiers || []).map((t: any) => [
       t.tierName,
@@ -844,18 +847,20 @@ export function generateOfferSheetPDFDoc(
       body:
         pricingRows.length > 0
           ? pricingRows
-          : [["Standard", `Per ${product.unit || "PCS"}`, "$0.00", "—"]],
+          : [["Standard", `Per ${product.unit || "PCS"} (Minimum Order)`, "$0.00", "—"]],
       theme: "striped",
+      showHead: "everyPage",
+      pageBreak: "auto",
       headStyles: {
         fillColor: [30, 41, 59],
         textColor: [255, 255, 255],
         fontStyle: "bold",
         fontSize: 7.5,
-        cellPadding: 1.8,
+        cellPadding: 2,
       },
       bodyStyles: {
-        fontSize: 7.2,
-        cellPadding: 1.8,
+        fontSize: 7.5,
+        cellPadding: 2,
         textColor: [30, 41, 59],
       },
       columnStyles: {
@@ -866,24 +871,14 @@ export function generateOfferSheetPDFDoc(
       },
     });
 
-    y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 6 : y + 28;
+    y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 6 : y + 26;
   }
 
   // 9. COMMERCIAL TERMS (Unified, strictly no ISO99)
-  if (y + 35 > 297 - margin) {
+  if (y + 32 > pageBottomSafeY) {
     doc.addPage();
     y = margin;
-    doc.setFillColor(15, 23, 42);
-    doc.rect(margin, y, contentWidth, 7, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.text(
-      `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`,
-      margin + 4,
-      y + 4.8
-    );
-    y += 11;
+    printContinuationHeader();
   }
 
   doc.setFillColor(248, 250, 252);
@@ -906,20 +901,10 @@ export function generateOfferSheetPDFDoc(
   y += termsBoxH + 4;
 
   // 10. AUTHORIZED REPRESENTATIVE
-  if (y + 22 > 297 - margin) {
+  if (y + 22 > pageBottomSafeY) {
     doc.addPage();
     y = margin;
-    doc.setFillColor(15, 23, 42);
-    doc.rect(margin, y, contentWidth, 7, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.text(
-      `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`,
-      margin + 4,
-      y + 4.8
-    );
-    y += 11;
+    printContinuationHeader();
   }
 
   const sigX = pageWidth - margin - 60;
@@ -939,6 +924,7 @@ export function generateOfferSheetPDFDoc(
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(148, 163, 184);
     const pgIndex =
@@ -950,7 +936,7 @@ export function generateOfferSheetPDFDoc(
     doc.text(
       `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} • Generated on ${new Date().toISOString().slice(0, 10)} • Page ${pgIndex} of ${pgTotal}`,
       margin,
-      297 - 6
+      297 - 8
     );
   }
 
@@ -1057,18 +1043,39 @@ export async function downloadProductOfferSheetPDF(
   // Deduplicate before loading data URLs
   imageSources = deduplicateMediaUrls(imageSources);
 
-  // If 0 or 1 image provided, enrich with authoritative product images from product service / store
-  if (imageSources.length <= 1 && (product.id || product.sku || product.name)) {
+  // Enrich with authoritative product details (complete pricing tiers, specifications, logistics, images)
+  if (product.id || product.sku || product.name) {
     try {
       const { getProductBySlugOrId } = await import("@/lib/services/products");
       const authoritativeProduct = await getProductBySlugOrId(product.id || product.sku || product.name);
-      if (authoritativeProduct && authoritativeProduct.images && authoritativeProduct.images.length > 0) {
-        const combined = [
-          authoritativeProduct.images[0] || imageSources[0],
-          ...authoritativeProduct.images,
-          ...imageSources,
-        ];
-        imageSources = deduplicateMediaUrls(combined);
+      if (authoritativeProduct) {
+        product = {
+          ...authoritativeProduct,
+          ...product,
+          moq: authoritativeProduct.moq ?? product.moq,
+          wholesalePrice: authoritativeProduct.wholesalePrice ?? product.wholesalePrice,
+          bulkPricingEnabled: authoritativeProduct.bulkPricingEnabled ?? product.bulkPricingEnabled,
+          bulkPrice: authoritativeProduct.bulkPrice ?? product.bulkPrice,
+          bulkThreshold: authoritativeProduct.bulkThreshold ?? product.bulkThreshold,
+          fullStockPrice: authoritativeProduct.fullStockPrice ?? product.fullStockPrice,
+          availableStock: authoritativeProduct.availableStock ?? product.availableStock,
+          pricingTiers: authoritativeProduct.pricingTiers ?? product.pricingTiers,
+          shippingPackageProfiles: authoritativeProduct.shippingPackageProfiles ?? product.shippingPackageProfiles,
+          cbm: (authoritativeProduct as any).cbm ?? product.cbm,
+          grossWeight: (authoritativeProduct as any).grossWeight ?? product.grossWeight,
+          designType: authoritativeProduct.designType ?? product.designType,
+          material: authoritativeProduct.material ?? product.material,
+          sizeDescription: authoritativeProduct.sizeDescription ?? product.sizeDescription,
+          colourDescription: authoritativeProduct.colourDescription ?? product.colourDescription,
+        };
+        if (authoritativeProduct.images && authoritativeProduct.images.length > 0) {
+          const combined = [
+            authoritativeProduct.images[0] || imageSources[0],
+            ...authoritativeProduct.images,
+            ...imageSources,
+          ];
+          imageSources = deduplicateMediaUrls(combined);
+        }
       }
     } catch {
       // Fallback: check mockStore
@@ -1079,13 +1086,34 @@ export async function downloadProductOfferSheetPDF(
             (product.sku && p.sku?.toUpperCase() === product.sku.toUpperCase()) ||
             (product.name && p.name.toLowerCase() === product.name.toLowerCase())
         );
-        if (found && found.images && found.images.length > 0) {
-          const combined = [
-            found.images[0] || imageSources[0],
-            ...found.images,
-            ...imageSources,
-          ];
-          imageSources = deduplicateMediaUrls(combined);
+        if (found) {
+          product = {
+            ...found,
+            ...product,
+            moq: found.moq ?? product.moq,
+            wholesalePrice: found.wholesalePrice ?? product.wholesalePrice,
+            bulkPricingEnabled: found.bulkPricingEnabled ?? product.bulkPricingEnabled,
+            bulkPrice: found.bulkPrice ?? product.bulkPrice,
+            bulkThreshold: found.bulkThreshold ?? product.bulkThreshold,
+            fullStockPrice: found.fullStockPrice ?? product.fullStockPrice,
+            availableStock: found.availableStock ?? product.availableStock,
+            pricingTiers: found.pricingTiers ?? product.pricingTiers,
+            shippingPackageProfiles: (found as any).shippingPackageProfiles ?? (product as any).shippingPackageProfiles,
+            cbm: (found as any).cbm ?? (product as any).cbm,
+            grossWeight: (found as any).grossWeight ?? (product as any).grossWeight,
+            designType: (found as any).designType ?? (product as any).designType,
+            material: (found as any).material ?? (product as any).material,
+            sizeDescription: (found as any).sizeDescription ?? (product as any).sizeDescription,
+            colourDescription: (found as any).colourDescription ?? (product as any).colourDescription,
+          };
+          if (found.images && found.images.length > 0) {
+            const combined = [
+              found.images[0] || imageSources[0],
+              ...found.images,
+              ...imageSources,
+            ];
+            imageSources = deduplicateMediaUrls(combined);
+          }
         }
       } catch {}
     }
@@ -1156,21 +1184,32 @@ export async function downloadCombinedProductOfferSheetsPDF(
 
     imageSources = deduplicateMediaUrls(imageSources);
 
-    // Enrich if item has <= 1 image
+    // Enrich with authoritative product details if available
     const itemProductId = (item as any).product_id || item.sku || item.product_name;
-    if (imageSources.length <= 1 && itemProductId) {
+    let authProduct: any = null;
+    if (itemProductId) {
       try {
         const { getProductBySlugOrId } = await import("@/lib/services/products");
-        const authoritativeProduct = await getProductBySlugOrId(itemProductId);
-        if (authoritativeProduct && authoritativeProduct.images && authoritativeProduct.images.length > 0) {
-          const combined = [
-            authoritativeProduct.images[0] || imageSources[0],
-            ...authoritativeProduct.images,
-            ...imageSources,
-          ];
-          imageSources = deduplicateMediaUrls(combined);
-        }
+        authProduct = await getProductBySlugOrId(itemProductId);
       } catch {}
+      if (!authProduct) {
+        try {
+          const { mockStore } = await import("@/lib/mock-data/mock-store");
+          authProduct = mockStore.getProducts().find(
+            (p) =>
+              (item.sku && p.sku?.toUpperCase() === item.sku.toUpperCase()) ||
+              (item.product_name && p.name.toLowerCase() === item.product_name.toLowerCase())
+          );
+        } catch {}
+      }
+      if (authProduct && authProduct.images && authProduct.images.length > 0) {
+        const combined = [
+          authProduct.images[0] || imageSources[0],
+          ...authProduct.images,
+          ...imageSources,
+        ];
+        imageSources = deduplicateMediaUrls(combined);
+      }
     }
 
     const loadedUrls = await Promise.all(
@@ -1182,10 +1221,25 @@ export async function downloadCombinedProductOfferSheetsPDF(
     const logoDataUrl = (await loadImageAsDataUrl(OFFICIAL_AYC_SITE_LOGO_PATH)) || OFFICIAL_AYC_SITE_LOGO_DATA_URL;
 
     const productInput: OfferSheetProductInput = {
-      name: item.product_name || "Garment",
-      sku: item.sku,
-      price: item.unit_price || 0,
-      moq: item.quantity,
+      ...(authProduct || {}),
+      name: item.product_name || authProduct?.name || "Garment",
+      sku: item.sku || authProduct?.sku,
+      price: authProduct?.wholesalePrice ?? item.unit_price ?? 0,
+      wholesalePrice: authProduct?.wholesalePrice ?? item.unit_price ?? 0,
+      moq: authProduct?.moq ?? item.quantity,
+      bulkPricingEnabled: authProduct?.bulkPricingEnabled,
+      bulkPrice: authProduct?.bulkPrice,
+      bulkThreshold: authProduct?.bulkThreshold,
+      fullStockPrice: authProduct?.fullStockPrice,
+      availableStock: authProduct?.availableStock,
+      pricingTiers: authProduct?.pricingTiers,
+      shippingPackageProfiles: authProduct?.shippingPackageProfiles,
+      cbm: authProduct?.cbm,
+      grossWeight: authProduct?.grossWeight,
+      designType: authProduct?.designType,
+      material: authProduct?.material,
+      sizeDescription: authProduct?.sizeDescription,
+      colourDescription: authProduct?.colourDescription,
       imageUrl: imageSource || undefined,
       images: imageSources,
       imageDataUrl: mainDataUrl,
@@ -2071,8 +2125,21 @@ export async function generateCommercialDocumentPDFDoc(docData: CommercialDocume
     // Generate as canonical Offer Sheet using authoritative OfferSheetData matching web preview
     const offerData = buildOfferSheetData(docData);
 
-    // Preload image data URLs for products in offerData
+    // Preload image data URLs and enrich product data for products in offerData
     for (const prod of offerData.products) {
+      if ((!prod.pricingTiers || prod.pricingTiers.length <= 1) && (prod.id || prod.sku)) {
+        try {
+          const { getProductBySlugOrId } = await import("@/lib/services/products");
+          const authProd = await getProductBySlugOrId(prod.id || prod.sku);
+          if (authProd) {
+            const tiers = extractProductPricingTiers(authProd);
+            if (tiers.length > 0) prod.pricingTiers = tiers;
+            prod.specificationTiles = extractProductSpecificationTiles(authProd);
+            prod.logistics = extractProductLogistics(authProd);
+          }
+        } catch {}
+      }
+
       if (prod.images && prod.images.length > 0) {
         const loadedUrls = await Promise.all(
           prod.images.map((s) => loadImageAsDataUrl(s))

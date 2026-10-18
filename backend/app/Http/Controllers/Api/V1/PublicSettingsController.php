@@ -112,6 +112,8 @@ class PublicSettingsController extends Controller
                 'social_links' => $socialLinks,
                 'legal_pages' => $legalPages,
                 'google_search_console_verification' => SystemSetting::getGoogleSearchConsoleVerification(),
+                'google_tag_head_code' => SystemSetting::getGoogleTagHeadCode(),
+                'google_tag_body_code' => SystemSetting::getGoogleTagBodyCode(),
             ];
         });
 

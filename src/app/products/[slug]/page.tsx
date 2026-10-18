@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { getProductBySlugOrId } from "@/lib/services/products";
 import ProductDetailView from "./ProductDetailView";
 import {
@@ -27,7 +28,7 @@ export async function generateMetadata({
     ) {
       return generateProductMetadata(null, slug);
     }
-    return generateProductMetadata(product, slug);
+    return generateProductMetadata(product, product.slug || slug);
   } catch {
     return generateProductMetadata(null, slug);
   }
@@ -51,6 +52,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
     console.warn("Server product fetch notice:", err);
   }
 
+  // If accessed by old slug or previous slug, redirect safely to canonical product URL
+  if (product && product.slug && product.slug.toLowerCase() !== slug.toLowerCase()) {
+    redirect(`/products/${product.slug}`);
+  }
+
   const jsonLdProduct = product ? generateProductJsonLd(product) : null;
   const breadcrumbs = product ? buildProductBreadcrumbs(product) : [];
   const jsonLdBreadcrumb =
@@ -70,7 +76,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdBreadcrumb) }}
         />
       )}
-      <ProductDetailView initialProduct={product} slug={slug} />
+      <ProductDetailView initialProduct={product} slug={product?.slug || slug} />
     </>
   );
 }

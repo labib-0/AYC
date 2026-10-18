@@ -4,6 +4,8 @@ export interface Product {
   product_id?: string;
   name: string;
   slug: string;
+  previousSlugs?: string[];
+  previous_slugs?: string[];
   price?: number;
   has_valid_price?: boolean;
   hasValidPrice?: boolean;

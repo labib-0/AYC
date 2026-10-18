@@ -47,6 +47,22 @@ export interface PublicSiteSettings {
   social_links: SocialLink[];
   legal_pages: PublicLegalPageSummary[];
   google_search_console_verification?: string | null;
+  google_tag_head_code?: string | null;
+  google_tag_body_code?: string | null;
+}
+
+export interface GoogleTagsPayload {
+  head_code?: string | null;
+  body_code?: string | null;
+}
+
+export interface GoogleTagsResponse {
+  head_code: string | null;
+  body_code: string | null;
+  google_tag_head_code?: string | null;
+  google_tag_body_code?: string | null;
+  is_head_configured: boolean;
+  is_body_configured: boolean;
 }
 
 export interface LegalPage {

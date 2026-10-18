@@ -2,7 +2,7 @@ import React from "react";
 import { CommercialDocument } from "@/types/b2b";
 import DocumentHeader from "./DocumentHeader";
 import DocumentSignatory from "./DocumentSignatory";
-import { buildOfferSheetData, OfferSheetData } from "@/lib/offer-sheet";
+import { buildOfferSheetData, cleanOfferSheetProductTitle, OfferSheetData } from "@/lib/offer-sheet";
 import { OFFICIAL_AYC_SITE_LOGO_PATH } from "@/lib/site-logo";
 
 export interface OfferSheetDocumentProps {
@@ -54,7 +54,7 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
               {/* 3. Product Title, Brand Identifier, and SKU */}
               <div className="space-y-2 border-b border-border/60 pb-3">
                 <h2 className="text-lg sm:text-xl font-bold text-foreground leading-snug break-words">
-                  {product.name}
+                  {cleanOfferSheetProductTitle(product.name)}
                 </h2>
                 <div className="flex items-center gap-2 flex-wrap text-xs">
                   {product.brand && (
@@ -134,44 +134,48 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
                 </div>
               </div>
 
-              {/* 6. Product Specifications - Four Distinct Specification Tiles in a 2x2 Grid */}
+              {/* 6. Product Specifications - Four Clean Horizontal Rows */}
               <div>
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2.5">
                   PRODUCT SPECIFICATIONS
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                      Design Type
-                    </span>
-                    <span className="text-xs font-bold text-foreground block">
-                      {product.specificationTiles?.designType || "ORIGINAL"}
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                      Material
-                    </span>
-                    <span className="text-xs font-bold text-foreground block">
-                      {product.specificationTiles?.material || "—"}
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                      Size
-                    </span>
-                    <span className="text-xs font-bold text-foreground block">
-                      {product.specificationTiles?.size || "—"}
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                      Colour
-                    </span>
-                    <span className="text-xs font-bold text-foreground block">
-                      {product.specificationTiles?.colour || "—"}
-                    </span>
-                  </div>
+                <div className="overflow-hidden rounded-xl border border-border/70">
+                  <table className="w-full text-left text-xs divide-y divide-border/60">
+                    <tbody className="divide-y divide-border/40">
+                      <tr className="hover:bg-secondary/10 transition-colors">
+                        <td className="py-2.5 px-3.5 font-bold text-muted-foreground bg-secondary/30 w-44">
+                          Design Type
+                        </td>
+                        <td className="py-2.5 px-3.5 font-medium text-foreground">
+                          {product.specificationTiles?.designType || "See Description"}
+                        </td>
+                      </tr>
+                      <tr className="hover:bg-secondary/10 transition-colors">
+                        <td className="py-2.5 px-3.5 font-bold text-muted-foreground bg-secondary/30 w-44">
+                          Material
+                        </td>
+                        <td className="py-2.5 px-3.5 font-medium text-foreground">
+                          {product.specificationTiles?.material || "See Description"}
+                        </td>
+                      </tr>
+                      <tr className="hover:bg-secondary/10 transition-colors">
+                        <td className="py-2.5 px-3.5 font-bold text-muted-foreground bg-secondary/30 w-44">
+                          Size
+                        </td>
+                        <td className="py-2.5 px-3.5 font-medium text-foreground">
+                          {product.specificationTiles?.size || "See Description"}
+                        </td>
+                      </tr>
+                      <tr className="hover:bg-secondary/10 transition-colors">
+                        <td className="py-2.5 px-3.5 font-bold text-muted-foreground bg-secondary/30 w-44">
+                          Colour
+                        </td>
+                        <td className="py-2.5 px-3.5 font-medium text-foreground">
+                          {product.specificationTiles?.colour || "See Description"}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -186,7 +190,7 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
                       CBM (MOQ)
                     </span>
                     <span className="text-xs font-bold text-foreground block">
-                      {product.logistics?.cbm || "Not configured"}
+                      {product.logistics?.cbmMoq || product.logistics?.cbm || "See Description"}
                     </span>
                   </div>
                   <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
@@ -194,7 +198,7 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
                       Gross Weight (MOQ)
                     </span>
                     <span className="text-xs font-bold text-foreground block">
-                      {product.logistics?.grossWeight || "Not configured"}
+                      {product.logistics?.grossWeightMoq || product.logistics?.grossWeight || "See Description"}
                     </span>
                   </div>
                 </div>

@@ -383,6 +383,7 @@ export default function ProductForm({
     colors: initialData?.colourDescription || initialData?.colors || "",
     sizes: initialData?.sizeDescription || initialData?.sizes || "",
   });
+  const previousNameRef = useRef<string>(initialData?.name || "");
 
   const syncDescriptionWithForm = useCallback(
     (overrides?: Partial<ProductDescriptionTemplateData>) => {
@@ -1035,19 +1036,37 @@ export default function ProductForm({
     loadRefs();
   }, []);
 
-  // Auto-generate slug and SKU from name in Create mode (unless manually edited)
+  // Auto-generate slug and SKU from name (and keep synchronized when edited)
   const handleNameChange = (val: string) => {
     setName(val);
     syncDescriptionWithForm({ item: val });
+
+    const generated = val
+      .toLowerCase()
+      .trim()
+      .replace(/['’]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
     if (!isEdit && !slugManuallyEdited) {
-      const generated = val
-        .toLowerCase()
-        .trim()
-        .replace(/['’]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
       setSlug(generated);
+    } else if (isEdit) {
+      // In edit mode: automatically regenerate slug from updated name
+      setSlug(generated);
+
+      // Inspect editable description and update references to the old product name safely
+      const prevName = previousNameRef.current;
+      if (prevName && prevName.trim() !== "" && val.trim() !== prevName.trim()) {
+        setDescription((prevDesc) => {
+          if (prevDesc && prevDesc.includes(prevName)) {
+            return prevDesc.split(prevName).join(val);
+          }
+          return prevDesc;
+        });
+        previousNameRef.current = val;
+      }
     }
+
     if (!isEdit && !skuManuallyEdited) {
       const activeCat = categories.find((c) => String(c.id) === String(categoryId));
       setSku(generateProductSku(brand || "AY", activeCat?.name || "APP", val || "PROD"));
@@ -1396,17 +1415,20 @@ export default function ProductForm({
       const normalizedPid = rawPid.replace(/\s+/g, "");
       const isDraftTarget = targetStatus === "draft";
 
-      const fallbackSlug = !isEdit && !slugManuallyEdited && name.trim()
-        ? name.trim().toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-        : "";
-      let resolvedSubmitSlug = slug.trim() || fallbackSlug;
-      let resolvedSubmitSku = sku.trim() || (!isEdit && !skuManuallyEdited && name.trim() ? generatedSku : "");
+      const isRenamed = isEdit && Boolean(initialData?.name) && name.trim() !== "" && name.trim() !== initialData?.name?.trim();
+      const autoSlugCandidate = name.trim().toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-      if (!isEdit && (resolvedSubmitSlug || resolvedSubmitSku)) {
+      const fallbackSlug = (!isEdit && !slugManuallyEdited && name.trim()) || isRenamed
+        ? autoSlugCandidate
+        : "";
+      let resolvedSubmitSlug = isRenamed ? (autoSlugCandidate || slug.trim()) : (slug.trim() || fallbackSlug);
+      let resolvedSubmitSku = sku.trim() || (!isEdit && !skuManuallyEdited && name.trim() ? generatedSku : (isEdit ? (initialData?.sku || "") : ""));
+
+      if ((!isEdit || isRenamed) && (resolvedSubmitSlug || resolvedSubmitSku)) {
         try {
           const preCheck = await checkIdentifierUniqueness({
             slug: resolvedSubmitSlug || undefined,
-            sku: resolvedSubmitSku || undefined,
+            sku: isEdit ? undefined : (resolvedSubmitSku || undefined),
             excludeId: isEdit ? (initialData?.id || initialData?.productId) : undefined,
           });
           if (preCheck?.slug && !preCheck.slug.is_available) {

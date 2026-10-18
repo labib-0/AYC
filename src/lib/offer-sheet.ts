@@ -119,6 +119,21 @@ export function formatPackageBreakdownText(breakdown?: any): string | null {
 }
 
 /**
+ * Cleans the product title for Offer Sheet display by removing automatically appended
+ * size and assortment suffixes (e.g., "(Size: Standard Assorted)" or "(Assorted Package)").
+ * Never alters the database product, SKU, or actual product description/attributes.
+ */
+export function cleanOfferSheetProductTitle(title: string | undefined | null): string {
+  if (!title || typeof title !== "string") return "Garment Product";
+  return title
+    .replace(/\s*\((?:Size|Assorted)[^)]*\)/gi, "")
+    .replace(/\s*-\s*Size:\s*[^-,]+/gi, "")
+    .replace(/\s*\(Assorted(?:\s+Package)?\)/gi, "")
+    .replace(/\s*-\s*Assorted(?:\s+Package)?/gi, "")
+    .trim();
+}
+
+/**
  * Extracts the product's actual saved description and populated descriptive attributes.
  * Strictly avoids inventing garment specifications, fake GSM values, or fallback claims.
  */
@@ -189,48 +204,73 @@ export function extractProductDescriptionAndAttributes(product: any): {
 }
 
 /**
- * Extracts the four canonical specification tiles shown on the product detail page:
+ * Extracts the four canonical specification rows shown on the Offer Sheet:
  * 1. Design Type
  * 2. Material
  * 3. Size
  * 4. Colour
+ *
+ * Uses actual configured value when present, or strictly "See Description" as fallback.
+ * Strictly avoids em dashes, hyphens, blank values, or "Not configured".
  */
 export function extractProductSpecificationTiles(product: any): OfferSheetSpecificationTiles {
   if (!product) {
     return {
-      designType: "ORIGINAL",
-      material: "—",
-      size: "—",
-      colour: "—",
+      designType: "See Description",
+      material: "See Description",
+      size: "See Description",
+      colour: "See Description",
     };
   }
 
-  // Design Type: e.g. "ORIGINAL" or "MASTER COPY"
+  const isMissing = (val: any): boolean => {
+    if (val === undefined || val === null) return true;
+    const str = String(val).trim();
+    if (
+      !str ||
+      str === "—" ||
+      str === "-" ||
+      str === "–" ||
+      str.toLowerCase() === "n/a" ||
+      str.toLowerCase() === "not configured" ||
+      str.toLowerCase() === "null" ||
+      str.toLowerCase() === "undefined" ||
+      str.toLowerCase() === "in description" ||
+      str.toLowerCase() === "see description"
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  // 1. Design Type: e.g. "ORIGINAL" or "MASTER COPY"
   const rawDesignType = product.designType ?? product.design_type;
-  const designType =
-    (rawDesignType || "").toUpperCase() === "MASTER COPY"
-      ? "MASTER COPY"
-      : rawDesignType || "ORIGINAL";
+  const designType = isMissing(rawDesignType)
+    ? "See Description"
+    : (String(rawDesignType).trim().toUpperCase() === "MASTER COPY"
+        ? "MASTER COPY"
+        : String(rawDesignType).trim());
 
-  // Material: e.g. "100% Cotton" or actual configured value
-  const material = product.material || product.fabric || product.composition || "—";
+  // 2. Material: e.g. "100% Cotton" or actual configured value
+  const rawMaterial = product.material || product.fabric || product.composition;
+  const material = isMissing(rawMaterial) ? "See Description" : String(rawMaterial).trim();
 
-  // Size: explicit admin entry only (e.g. "S, M, L, XL" or "Standard Assorted")
+  // 3. Size: explicit admin entry only (e.g. "S, M, L, XL" or "Standard Assorted")
   const rawSize =
     product.sizeDescription ??
     product.size_description ??
     (Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes.join(", ") : null) ??
     (typeof product.size === "string" && product.size.trim() ? product.size.trim() : null);
-  const size = rawSize && String(rawSize).trim() ? String(rawSize).trim() : "—";
+  const size = isMissing(rawSize) ? "See Description" : String(rawSize).trim();
 
-  // Colour: explicit admin entry only
+  // 4. Colour: explicit admin entry only
   const rawColour =
     product.colourDescription ??
     product.colour_description ??
     (Array.isArray(product.colors) && product.colors.length > 0 ? product.colors.join(", ") : null) ??
     (typeof product.color === "string" && product.color.trim() ? product.color.trim() : null) ??
     (product.colorName || product.color_name || null);
-  const colour = rawColour && String(rawColour).trim() ? String(rawColour).trim() : "—";
+  const colour = isMissing(rawColour) ? "See Description" : String(rawColour).trim();
 
   return {
     designType,
@@ -557,14 +597,15 @@ export function extractProductPricingTiers(product: any): OfferSheetPricingTier[
   const unit = (product.unit || product.purchaseUnit || product.purchase_unit || "PCS").trim().toUpperCase();
 
   // Check if product already has explicit pricing tiers array (e.g. custom tiers or tests)
-  if (Array.isArray(product.pricingTiers) && product.pricingTiers.length > 0) {
+  const explicitTiers = product.pricingTiers || product.pricing_tiers;
+  if (Array.isArray(explicitTiers) && explicitTiers.length > 0) {
     // If objects already follow OfferSheetPricingTier structure
-    if (product.pricingTiers[0]?.tierName && product.pricingTiers[0]?.unitPrice !== undefined) {
-      return product.pricingTiers.filter((t: any) => t.isAvailable !== false && Number(t.unitPrice) > 0);
+    if (explicitTiers[0]?.tierName && explicitTiers[0]?.unitPrice !== undefined) {
+      return explicitTiers.filter((t: any) => t.isAvailable !== false && Number(t.unitPrice) > 0);
     }
     // If objects have { minQuantity, maxQuantity?, price }
-    if (product.pricingTiers[0]?.minQuantity !== undefined && product.pricingTiers[0]?.price !== undefined) {
-      product.pricingTiers.forEach((pt: any, idx: number) => {
+    if (explicitTiers[0]?.minQuantity !== undefined && explicitTiers[0]?.price !== undefined) {
+      explicitTiers.forEach((pt: any, idx: number) => {
         const minQ = Number(pt.minQuantity) || 1;
         const price = Number(pt.price);
         if (price > 0) {
@@ -605,6 +646,12 @@ export function extractProductPricingTiers(product: any): OfferSheetPricingTier[
 
   const rawMoq = product.moq !== undefined && product.moq !== null && !isNaN(Number(product.moq)) && Number(product.moq) > 0
     ? Number(product.moq)
+    : product.minOrderQuantity !== undefined && product.minOrderQuantity !== null && !isNaN(Number(product.minOrderQuantity)) && Number(product.minOrderQuantity) > 0
+    ? Number(product.minOrderQuantity)
+    : product.min_order_quantity !== undefined && product.min_order_quantity !== null && !isNaN(Number(product.min_order_quantity)) && Number(product.min_order_quantity) > 0
+    ? Number(product.min_order_quantity)
+    : product.minimum_order_quantity !== undefined && product.minimum_order_quantity !== null && !isNaN(Number(product.minimum_order_quantity)) && Number(product.minimum_order_quantity) > 0
+    ? Number(product.minimum_order_quantity)
     : null;
 
   if (standardPrice !== null && standardPrice > 0) {
@@ -629,11 +676,17 @@ export function extractProductPricingTiers(product: any): OfferSheetPricingTier[
   }
 
   // ── 2. BULK TIER ────────────────────────────────────────────────────────────
-  const bulkEnabled = Boolean(product.bulkPricingEnabled ?? product.bulk_pricing_enabled);
   const rawBulkMin = product.bulkThreshold ?? product.bulk_threshold ?? product.bulkMinimumQuantity ?? product.bulk_minimum_quantity;
-  const bulkMin = rawBulkMin !== undefined && rawBulkMin !== null && !isNaN(Number(rawBulkMin)) ? Number(rawBulkMin) : null;
+  const bulkMin = rawBulkMin !== undefined && rawBulkMin !== null && !isNaN(Number(rawBulkMin)) && Number(rawBulkMin) > 0 ? Number(rawBulkMin) : null;
   const rawBulkPrice = product.bulkPrice ?? product.bulk_price ?? product.bulkUnitPrice ?? product.bulk_unit_price;
-  const bulkPrice = rawBulkPrice !== undefined && rawBulkPrice !== null && !isNaN(Number(rawBulkPrice)) ? Number(rawBulkPrice) : null;
+  const bulkPrice = rawBulkPrice !== undefined && rawBulkPrice !== null && !isNaN(Number(rawBulkPrice)) && Number(rawBulkPrice) > 0 ? Number(rawBulkPrice) : null;
+
+  const bulkEnabled =
+    product.bulkPricingEnabled === true ||
+    product.bulk_pricing_enabled === true ||
+    product.bulk_pricing_enabled === 1 ||
+    product.bulk_pricing_enabled === "1" ||
+    (Boolean((product.bulkThreshold || product.bulk_threshold) && (product.bulkPrice || product.bulk_price)));
 
   const isBulkValid = bulkEnabled && bulkPrice !== null && bulkPrice > 0;
   if (isBulkValid && bulkPrice !== null) {
@@ -664,17 +717,17 @@ export function extractProductPricingTiers(product: any): OfferSheetPricingTier[
     : (product.stock !== undefined && product.stock !== null ? Number(product.stock) : null);
 
   const rawFsPrice = product.configuredFullStockPrice ?? product.fullStockPrice ?? product.full_stock_price;
-  const fsPrice = rawFsPrice !== undefined && rawFsPrice !== null && !isNaN(Number(rawFsPrice)) ? Number(rawFsPrice) : null;
+  const fsPrice = rawFsPrice !== undefined && rawFsPrice !== null && !isNaN(Number(rawFsPrice)) && Number(rawFsPrice) > 0 ? Number(rawFsPrice) : null;
   const isExplicitlyEligible = product.isFullStockEligible ?? product.is_full_stock_eligible;
 
   let isFullStockValid = false;
   if (isExplicitlyEligible !== undefined) {
-    isFullStockValid = Boolean(isExplicitlyEligible) && fsPrice !== null && fsPrice > 0 && availableStock !== null && availableStock > 0;
-  } else if (fsPrice !== null && fsPrice > 0 && availableStock !== null && availableStock > 0) {
+    isFullStockValid = Boolean(isExplicitlyEligible) && fsPrice !== null && availableStock !== null && availableStock > 0;
+  } else if (fsPrice !== null && availableStock !== null && availableStock > 0) {
     isFullStockValid = true;
   }
 
-  if (isFullStockValid && fsPrice !== null && fsPrice > 0 && availableStock !== null && availableStock > 0) {
+  if (isFullStockValid && fsPrice !== null && availableStock !== null && availableStock > 0) {
     tiers.push({
       tierName: "Full Stock",
       quantityBasis: `${availableStock.toLocaleString()} ${unit} (Available Stock)`,
@@ -746,16 +799,18 @@ export function buildOfferSheetData(source: any): OfferSheetData {
   // Determine if source is an order/commercial document with items or a single product
   if (Array.isArray(source?.products) && source.products.length > 0) {
     rawProducts.push(...source.products);
+  } else if (source?.product) {
+    rawProducts.push(source.product);
   } else if (Array.isArray(source?.items) && source.items.length > 0) {
     source.items.forEach((item: any) => {
       // Look up authoritative product record if product_id or sku exists
       const prodId = item.product_id || item.productId || item.sku || item.description || item.product_name;
-      const matched = lookupProductRecord(prodId);
+      const matched = lookupProductRecord(prodId) || item.rawProduct || item.product;
       if (matched) {
         rawProducts.push({
           ...matched,
-          // preserve line item overrides if specific
-          name: matched.name || item.description || item.product_name,
+          // preserve line item overrides only for genuine line details, never override product MOQ or pricing tiers with order selected quantity
+          name: cleanOfferSheetProductTitle(matched.name || item.description || item.product_name),
           sku: matched.sku || item.sku,
           image: item.product_image_url || matched.image,
           images: matched.images && matched.images.length > 0 ? matched.images : (item.product_images || (item.product_image_url ? [item.product_image_url] : [])),
@@ -764,16 +819,22 @@ export function buildOfferSheetData(source: any): OfferSheetData {
         // Construct from item directly
         rawProducts.push({
           id: item.product_id || item.id,
-          name: item.description || item.product_name || "Garment Product",
+          name: cleanOfferSheetProductTitle(item.description || item.product_name || "Garment Product"),
           sku: item.sku || "AYN-EXP",
-          price: item.unitPrice ?? item.unit_price ?? 0,
-          wholesalePrice: item.unitPrice ?? item.unit_price ?? 0,
-          moq: item.quantity || 10,
+          price: item.price ?? item.standardPrice ?? item.standard_price ?? item.unitPrice ?? item.unit_price ?? 0,
+          wholesalePrice: item.wholesalePrice ?? item.wholesale_price ?? item.unitPrice ?? item.unit_price ?? 0,
+          moq: item.moq ?? item.minOrderQuantity ?? item.min_order_quantity ?? 10,
+          bulkPricingEnabled: item.bulkPricingEnabled ?? item.bulk_pricing_enabled,
+          bulkPrice: item.bulkPrice ?? item.bulk_price,
+          bulkThreshold: item.bulkThreshold ?? item.bulk_threshold,
+          fullStockPrice: item.fullStockPrice ?? item.full_stock_price,
+          availableStock: item.availableStock ?? item.available_stock ?? item.stock,
+          pricingTiers: item.pricingTiers || item.pricing_tiers,
           images: item.product_images || (item.product_image_url ? [item.product_image_url] : []),
           image: item.product_image_url,
           material: item.material,
-          sizeDescription: item.size,
-          colourDescription: item.color,
+          sizeDescription: item.sizeDescription || item.size,
+          colourDescription: item.colourDescription || item.color,
           packageBreakdown: item.package_breakdown,
         });
       }
@@ -786,6 +847,13 @@ export function buildOfferSheetData(source: any): OfferSheetData {
       rawProducts.push({
         ...matched,
         ...source,
+        // Crucial: preserve authoritative pricing configurations from matched if source lacks them
+        bulkPricingEnabled: source.bulkPricingEnabled ?? matched.bulkPricingEnabled,
+        bulkPrice: source.bulkPrice ?? matched.bulkPrice,
+        bulkThreshold: source.bulkThreshold ?? matched.bulkThreshold,
+        fullStockPrice: source.fullStockPrice ?? matched.fullStockPrice,
+        availableStock: source.availableStock ?? matched.availableStock,
+        pricingTiers: source.pricingTiers ?? matched.pricingTiers,
         images: (source.images && source.images.length > 0) ? source.images : (matched.images || []),
       });
     } else {
@@ -802,7 +870,7 @@ export function buildOfferSheetData(source: any): OfferSheetData {
     if (seenProductKeys.has(key)) continue;
     seenProductKeys.add(key);
 
-    const name = raw.name || raw.title || "Garment Product";
+    const name = cleanOfferSheetProductTitle(raw.name || raw.title || raw.product_name || "Garment Product");
     const sku = (raw.sku || "AYN-PROD").toUpperCase();
     const brand = raw.brand || raw.brandName || "AYAAN CLOTHING";
 

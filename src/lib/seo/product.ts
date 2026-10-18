@@ -211,13 +211,25 @@ export function deriveProductDescription(
 }
 
 /**
+ * Resolves the clean, absolute canonical product URL.
+ * Strips tracking parameters, temporary tokens, and hashes.
+ */
+export function getCanonicalProductUrl(
+  product?: { slug?: string | null } | null,
+  fallbackSlug?: string
+): string {
+  const targetSlug = product?.slug || fallbackSlug || "";
+  return canonicalUrl(`/products/${targetSlug}`);
+}
+
+/**
  * Generates comprehensive Next.js dynamic metadata for product pages
  */
 export function generateProductMetadata(
   product: B2BProductInput | Product | null,
   slug: string
 ): Metadata {
-  const canonical = canonicalUrl(`/products/${product?.slug || slug}`);
+  const canonical = getCanonicalProductUrl(product, slug);
   const fallbackImage = `${getCanonicalBaseUrl()}/og-image.jpg`;
 
   if (!product) {

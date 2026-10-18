@@ -22,12 +22,15 @@ import {
   Package, 
   Heart, 
   Share2,
+  Link2,
   MessageCircle,
   Sliders,
   FileText,
   AlertCircle,
 } from "lucide-react";
 import { getCanonicalBaseUrl } from "@/lib/seo/config";
+import { getCanonicalProductUrl } from "@/lib/seo";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { useRfq } from "@/lib/RfqContext";
 import BUSINESS_PROFILE, { getWhatsAppUrl, getProductWhatsAppUrl } from "@/config/business-profile";
 import CommerceSectionHeader from "@/components/product/CommerceSectionHeader";
@@ -37,6 +40,7 @@ import CommerceSummary from "@/components/product/CommerceSummary";
 import PackageAssortmentMatrix from "@/components/product/PackageAssortmentMatrix";
 import ProductSelectedLogisticsRow from "@/components/product/ProductSelectedLogisticsRow";
 import SpecificationCard from "@/components/product/SpecificationCard";
+import ProductBreadcrumbs from "@/components/product/ProductBreadcrumbs";
 
 interface ProductDetailViewProps {
   initialProduct?: B2BProductInput | null;
@@ -61,6 +65,10 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   const [errorMessage, setErrorMessage] = useState("");
   const [shareStatus, setShareStatus] = useState<"idle" | "success" | "copied" | "error">("idle");
   const [shareFeedback, setShareFeedback] = useState("");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+  const [copyFeedback, setCopyFeedback] = useState("");
+  const [isCopying, setIsCopying] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   // Route-aware scroll to top: Ensure product detail page opens at the top showing gallery & identity first
   useEffect(() => {
@@ -615,26 +623,55 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
     }, 2500);
   };
 
-  // Handle Share Product (Web Share API with Clipboard Fallback)
-  const handleShareProduct = async () => {
-    if (!product) return;
-    const origin =
-      typeof window !== "undefined" && window.location.origin
-        ? window.location.origin
-        : getCanonicalBaseUrl();
-    const shareUrl = `${origin}/products/${product.slug || slug}`;
-    const shareTitle = product.name;
-    const shareText =
-      product.shortDescription ||
-      (product.seoDescription ? product.seoDescription : `Wholesale ${product.name} at AYAAN CLOTHING`);
+  // ── 1. Dedicated Copy Product Link Action ──────────────────────────────
+  const handleCopyProductLink = async () => {
+    if (isCopying || !product) return;
+    setIsCopying(true);
 
-    // 1. Try Web Share API on supported devices/browsers
+    const canonicalProductUrl = getCanonicalProductUrl(product, slug);
+
+    try {
+      const copied = await copyTextToClipboard(canonicalProductUrl);
+      if (copied) {
+        setCopyStatus("copied");
+        setCopyFeedback("Link copied");
+        setTimeout(() => {
+          setCopyStatus("idle");
+          setCopyFeedback("");
+        }, 3000);
+      } else {
+        setCopyStatus("error");
+        setCopyFeedback("Failed to copy link. Please copy the URL from your browser address bar.");
+        setTimeout(() => {
+          setCopyStatus("idle");
+          setCopyFeedback("");
+        }, 4000);
+      }
+    } catch {
+      setCopyStatus("error");
+      setCopyFeedback("Failed to copy link. Please copy the URL from your browser address bar.");
+      setTimeout(() => {
+        setCopyStatus("idle");
+        setCopyFeedback("");
+      }, 4000);
+    } finally {
+      setIsCopying(false);
+    }
+  };
+
+  // ── 2. Share Product Action (URL-only payload with Clipboard Fallback) ──
+  const handleShareProduct = async () => {
+    if (isSharing || !product) return;
+    setIsSharing(true);
+
+    const canonicalProductUrl = getCanonicalProductUrl(product, slug);
+
+    // 1. Try native Web Share API with ONLY { url: canonicalProductUrl }
+    // NOTE: Title and text are intentionally omitted per requirement to ensure clean sharing without appended fluff.
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
         await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl,
+          url: canonicalProductUrl,
         });
         setShareStatus("success");
         setShareFeedback("Shared successfully!");
@@ -643,35 +680,35 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
           setShareFeedback("");
         }, 3000);
         return;
-      } catch (err: any) {
-        if (err?.name === "AbortError") {
+      } catch (err: unknown) {
+        // User cancelled/aborted native share sheet — do not treat as error or duplicate fallback
+        if ((err as Error)?.name === "AbortError") {
           return;
         }
         // Fall through to clipboard copy if Web Share API was rejected or failed
+      } finally {
+        setIsSharing(false);
       }
     }
 
-    // 2. Clipboard Fallback
+    // 2. Clipboard Fallback (copies ONLY canonical URL)
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
+      const copied = await copyTextToClipboard(canonicalProductUrl);
+      if (copied) {
+        setShareStatus("copied");
+        setShareFeedback("Link copied");
+        setTimeout(() => {
+          setShareStatus("idle");
+          setShareFeedback("");
+        }, 3000);
       } else {
-        const textArea = document.createElement("textarea");
-        textArea.value = shareUrl;
-        textArea.style.position = "fixed";
-        textArea.style.opacity = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textArea);
+        setShareStatus("error");
+        setShareFeedback("Failed to copy link. Please copy the URL from your browser address bar.");
+        setTimeout(() => {
+          setShareStatus("idle");
+          setShareFeedback("");
+        }, 4000);
       }
-      setShareStatus("copied");
-      setShareFeedback("Link copied to clipboard!");
-      setTimeout(() => {
-        setShareStatus("idle");
-        setShareFeedback("");
-      }, 3000);
     } catch {
       setShareStatus("error");
       setShareFeedback("Failed to copy link. Please copy the URL from your browser address bar.");
@@ -679,6 +716,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
         setShareStatus("idle");
         setShareFeedback("");
       }, 4000);
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -706,15 +745,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
       <div className="mx-auto w-full max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8 space-y-2.5 sm:space-y-3">
         
         {/* Breadcrumb Navigation */}
-        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <Link href="/search" className="hover:text-foreground transition-colors">Catalog</Link>
-          <span className="text-border">/</span>
-          <Link href={`/search?brand=${encodeURIComponent(product.brand)}`} className="hover:text-foreground transition-colors">
-            {product.brand}
-          </Link>
-          <span className="text-border">/</span>
-          <span className="text-foreground truncate max-w-xs">{product.name}</span>
-        </nav>
+        <ProductBreadcrumbs product={product} />
 
         {feedbackMsg && (
           <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-bold flex items-center gap-2 animate-in fade-in">
@@ -1130,10 +1161,41 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     <Heart size={18} className={product && isInWishlist(product.id) ? "fill-current text-rose-600" : ""} />
                   </button>
 
+                  {/* Dedicated Copy Link Button */}
+                  <button
+                    type="button"
+                    id="copy-product-link-button"
+                    onClick={handleCopyProductLink}
+                    disabled={isCopying}
+                    className={`h-10 lg:h-11 px-3 sm:px-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 active:scale-95 shadow-2xs font-sans text-xs font-semibold ${
+                      copyStatus === "copied"
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-700 dark:text-emerald-300"
+                        : copyStatus === "error"
+                        ? "bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-950/40 dark:border-rose-700 dark:text-rose-300"
+                        : "border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/40 hover:border-border"
+                    }`}
+                    title={copyStatus === "copied" ? "Link copied" : "Copy Product Link"}
+                    aria-label="Copy canonical product link"
+                  >
+                    {copyStatus === "copied" ? (
+                      <>
+                        <Check size={18} className="text-emerald-600 dark:text-emerald-400" />
+                        <span className="hidden sm:inline text-[11px] font-bold">Link copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Link2 size={18} />
+                        <span className="hidden sm:inline text-[11px] font-bold">Copy Link</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Share Product Button */}
                   <button
                     type="button"
                     id="share-product-button"
                     onClick={handleShareProduct}
+                    disabled={isSharing}
                     className={`h-10 lg:h-11 px-3 sm:px-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0 active:scale-95 shadow-2xs font-sans text-xs font-semibold ${
                       shareStatus === "copied" || shareStatus === "success"
                         ? "bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-700 dark:text-emerald-300"
@@ -1141,14 +1203,14 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                         ? "bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-950/40 dark:border-rose-700 dark:text-rose-300"
                         : "border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/40 hover:border-border"
                     }`}
-                    title={shareStatus === "copied" ? "Link copied to clipboard!" : shareStatus === "success" ? "Product shared!" : "Share Product"}
+                    title={shareStatus === "copied" ? "Link copied" : shareStatus === "success" ? "Product shared" : "Share Product"}
                     aria-label="Share this product"
                   >
                     {shareStatus === "copied" || shareStatus === "success" ? (
                       <>
                         <Check size={18} className="text-emerald-600 dark:text-emerald-400" />
                         <span className="hidden sm:inline text-[11px] font-bold">
-                          {shareStatus === "copied" ? "Copied!" : "Shared!"}
+                          {shareStatus === "copied" ? "Link copied" : "Shared"}
                         </span>
                       </>
                     ) : (
@@ -1161,24 +1223,24 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                 </div>
               </div>
 
-              {/* Share Feedback Toast / Status Indicator */}
-              {shareFeedback && (
+              {/* Share / Copy Feedback Toast / Status Indicator */}
+              {(copyFeedback || shareFeedback) && (
                 <div
                   id="share-feedback-toast"
                   role="status"
                   aria-live="polite"
                   className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 animate-in fade-in transition-all ${
-                    shareStatus === "error"
+                    copyStatus === "error" || shareStatus === "error"
                       ? "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300"
                       : "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300"
                   }`}
                 >
-                  {shareStatus === "error" ? (
+                  {copyStatus === "error" || shareStatus === "error" ? (
                     <AlertCircle size={15} className="shrink-0" />
                   ) : (
                     <Check size={15} className="shrink-0" />
                   )}
-                  <span>{shareFeedback}</span>
+                  <span>{copyFeedback || shareFeedback}</span>
                 </div>
               )}
 

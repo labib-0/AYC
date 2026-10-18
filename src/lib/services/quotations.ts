@@ -521,7 +521,7 @@ export async function getCommercialDocument(
   }
 
   // Check if ID is a product ID or slug for an OFFER_SHEET
-  if (docType === "ORDER_SHEET") {
+  if (docType === "ORDER_SHEET" || docType === "OFFER_SHEET") {
     try {
       const { getProductBySlugOrId } = await import("@/lib/services/products");
       const prod = await getProductBySlugOrId(cleanId);
@@ -532,7 +532,7 @@ export async function getCommercialDocument(
         return {
           id: `doc_offer_${prod.id}`,
           docNumber: `OS-${(prod.sku || prod.id).toUpperCase()}`,
-          docType: "ORDER_SHEET",
+          docType: "OFFER_SHEET",
           title: "OFFER SHEET",
           date: new Date().toISOString().slice(0, 10),
           companyName: "Commercial Buyer",
@@ -540,8 +540,12 @@ export async function getCommercialDocument(
           buyerEmail: "buyer@example.com",
           buyerCountry: "Worldwide Export",
           product_gallery: prodImages,
+          products: [prod],
+          product: prod,
           items: [
             {
+              ...prod,
+              product_id: prod.id,
               description: prod.name,
               sku: prod.sku || "AYN-SKU",
               product_image_url: prodImages[0],
@@ -549,7 +553,7 @@ export async function getCommercialDocument(
               quantity: moq,
               unitPrice: basePrice,
               total: basePrice * moq,
-              details: `Material: ${prod.material || "100% Cotton"} • MOQ: ${moq} pcs`,
+              details: `Material: ${prod.material || "In Description"} • MOQ: ${moq} pcs`,
             },
           ],
           subtotal: basePrice * moq,

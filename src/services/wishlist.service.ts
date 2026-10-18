@@ -2,6 +2,7 @@ import { Product } from "@/types";
 import { apiClient } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { cartService } from "./cart.service";
+import { mockStore } from "@/lib/mock-data/mock-store";
 
 export interface WishlistItemData {
   id: string;
@@ -65,11 +66,16 @@ export class WishlistService {
     if (!raw) {
       return {} as Product;
     }
+    const pid = String(raw.id || raw.product_id || "");
+    const canonical = typeof window !== "undefined" && pid ? mockStore.getProductByIdOrSlug(pid) : null;
+    const resolvedName = canonical?.name || raw.name || "Product";
+    const resolvedSlug = canonical?.slug || raw.slug || "";
+
     return {
       ...raw,
-      id: String(raw.id),
-      name: raw.name || "Product",
-      slug: raw.slug || "",
+      id: pid,
+      name: resolvedName,
+      slug: resolvedSlug,
       price: raw.price !== undefined && raw.price !== null ? Number(raw.price) : undefined,
       wholesalePrice: raw.wholesalePrice !== undefined && raw.wholesalePrice !== null ? Number(raw.wholesalePrice) : undefined,
       wholesale_price: raw.wholesale_price !== undefined && raw.wholesale_price !== null ? Number(raw.wholesale_price) : undefined,

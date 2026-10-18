@@ -56,14 +56,14 @@ export function getProductCanonicalUrl(productOrSlug: ProductUrlTarget | string)
  * Hello AYAAN CLOTHING,
  *
  * I am interested in:
+ *
  * Product: [Name]
  * SKU: [SKU]
- * Quantity: [Qty] pcs (if provided)
  * Product Link: [Canonical URL]
  */
 export function getProductWhatsAppMessage(
   product: { name: string; sku?: string; slug?: string; id?: string | number },
-  quantity?: number
+  _quantity?: number
 ): string {
   const canonicalUrl = getProductCanonicalUrl(product);
   const skuText = product.sku?.trim() ? product.sku.trim() : "—";
@@ -72,15 +72,11 @@ export function getProductWhatsAppMessage(
     `Hello ${BUSINESS_PROFILE.name},`,
     "",
     "I am interested in:",
+    "",
     `Product: ${product.name.trim()}`,
     `SKU: ${skuText}`,
+    `Product Link: ${canonicalUrl}`,
   ];
-
-  if (quantity !== undefined && quantity > 0) {
-    lines.push(`Quantity: ${quantity} pcs`);
-  }
-
-  lines.push(`Product Link: ${canonicalUrl}`);
 
   return lines.join("\n");
 }

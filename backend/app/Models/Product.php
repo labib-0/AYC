@@ -46,6 +46,7 @@ class Product extends Model
         'product_id',
         'name',
         'slug',
+        'previous_slugs',
         'sku',
         'short_description',
         'description',
@@ -126,6 +127,7 @@ class Product extends Model
         'weight_grams' => 'integer',
         'is_demo' => 'boolean',
         'keywords' => 'array',
+        'previous_slugs' => 'array',
     ];
 
     protected $appends = [

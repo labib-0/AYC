@@ -1,6 +1,7 @@
 import { apiClient } from "@/services/api-client";
 import { DEFAULT_TOP_BANNER, TopBannerConfig } from "@/config/banner";
 import { mockStore } from "@/lib/mock-data/mock-store";
+import { GoogleTagsPayload, GoogleTagsResponse } from "@/types/settings";
 
 export interface HomepageBannerModel {
   id: number;
@@ -85,6 +86,8 @@ export interface StorefrontHomepageData {
   featured_products: HomepageFeaturedProductModel[];
   hot_sale_visible?: boolean;
   google_search_console_verification?: string | null;
+  google_tag_head_code?: string | null;
+  google_tag_body_code?: string | null;
 }
 
 export interface BangladeshStorefrontAccessState {
@@ -102,6 +105,8 @@ export interface AdminHomepageData {
   site_logo?: string | null;
   hot_sale_visible?: boolean;
   google_search_console_verification?: string | null;
+  google_tag_head_code?: string | null;
+  google_tag_body_code?: string | null;
   ticker_items: HomepageTickerItem[];
   featured_brands: HomepageFeaturedBrandModel[];
   all_brands?: HomepageBrandRecord[];
@@ -635,6 +640,47 @@ export class HomepageService {
       driver: data?.driver,
       local_database_exists: data?.local_database_exists,
       updated_at: data?.updated_at,
+    };
+  }
+
+  /**
+   * Fetch current Google tags (Head Code & Body Code).
+   */
+  async getGoogleTags(): Promise<GoogleTagsResponse> {
+    const res = await apiClient.get<any>("/admin/homepage/google-tags");
+    const data = res?.data || res;
+    return {
+      head_code: data?.head_code ?? null,
+      body_code: data?.body_code ?? null,
+      google_tag_head_code: data?.head_code ?? null,
+      google_tag_body_code: data?.body_code ?? null,
+      is_head_configured: Boolean(data?.head_code && data.head_code.trim().length > 0),
+      is_body_configured: Boolean(data?.body_code && data.body_code.trim().length > 0),
+    };
+  }
+
+  /**
+   * Update Google tags (Head Code & Body Code).
+   */
+  async updateGoogleTags(payload: GoogleTagsPayload): Promise<GoogleTagsResponse> {
+    const res = await apiClient.post<any>("/admin/homepage/google-tags", payload);
+    const data = res?.data || res;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("ayaan:homepage-updated", {
+          detail: { type: "google_tags", data },
+        })
+      );
+      window.dispatchEvent(new CustomEvent("ayaan:data-updated", { detail: { entity: "settings" } }));
+      window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_homepage_updated" }));
+    }
+    return {
+      head_code: data?.head_code ?? null,
+      body_code: data?.body_code ?? null,
+      google_tag_head_code: data?.head_code ?? null,
+      google_tag_body_code: data?.body_code ?? null,
+      is_head_configured: Boolean(data?.head_code && data.head_code.trim().length > 0),
+      is_body_configured: Boolean(data?.body_code && data.body_code.trim().length > 0),
     };
   }
 

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { DollarSign, Package, ShieldCheck, Save, AlertCircle, Plane } from "lucide-react";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { shippingService } from "@/services/shipping.service";
+import { GoogleTagsManager } from "@/components/admin/homepage/GoogleTagsManager";
 
 export interface SystemPreferencesSettingsProps {
   onNotify: (message: string) => void;
@@ -258,6 +259,11 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
           </button>
         </div>
       </form>
+
+      {/* Google Tags & Tracking Snippets */}
+      <div className="pt-2">
+        <GoogleTagsManager showToast={(msg) => onNotify(msg)} />
+      </div>
     </div>
   );
 }
