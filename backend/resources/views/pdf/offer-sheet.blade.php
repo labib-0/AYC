@@ -3,10 +3,137 @@
 @section('content')
     @include('pdf.partials.header')
     @include('pdf.partials.parties')
-    @include('pdf.partials.items')
+
+    @foreach($doc['items'] ?? [] as $item)
+        {{-- Section 3: Product Heading & Metadata --}}
+        <div style="margin-top: 10px; margin-bottom: 8px;">
+            <div style="font-size: 14pt; font-weight: bold; color: #0f172a; line-height: 1.2;">
+                {{ $item['product_name'] ?? 'Garment Product' }}
+            </div>
+            <div style="margin-top: 4px; font-size: 8pt; color: #64748b;">
+                <span style="font-weight: bold; color: #ea580c;">{{ strtoupper($item['brand'] ?? 'AYAAN CLOTHING') }}</span>
+                <span style="color: #94a3b8;"> • </span>
+                <span style="font-weight: bold; color: #475569;">SKU:</span>
+                <span style="font-weight: bold; color: #0f172a;">{{ $item['sku'] ?? 'AYN-SKU' }}</span>
+            </div>
+        </div>
+
+        {{-- Section 4: Product Gallery (4 Images Per Row) --}}
+        @if(!empty($item['product_images']) && count($item['product_images']) > 0)
+            <div style="margin-top: 10px; margin-bottom: 12px;">
+                <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PRODUCT GALLERY</div>
+                <table style="width: 100%; border-collapse: separate; border-spacing: 4px 6px;">
+                    @foreach(array_chunk($item['product_images'], 4) as $row)
+                        <tr>
+                            @foreach($row as $imgUrl)
+                                <td style="width: 25%; text-align: center; vertical-align: middle; padding: 2px;">
+                                    <img src="{{ $imgUrl }}" style="max-width: 100%; max-height: 120px; object-fit: contain;" alt="Product Sample" />
+                                </td>
+                            @endforeach
+                            @for($k = count($row); $k < 4; $k++)
+                                <td style="width: 25%;"></td>
+                            @endfor
+                        </tr>
+                    @endforeach
+                </table>
+            </div>
+        @endif
+
+        {{-- Section 5: Product Description --}}
+        <div style="margin-top: 10px; margin-bottom: 10px;">
+            <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 3px;">PRODUCT DESCRIPTION</div>
+            <div style="font-size: 7.5pt; color: #334155; line-height: 1.4; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 8px; border-radius: 4px;">
+                {{ $item['product_description'] ?? ($item['description'] ?? 'Standard commercial garment specifications apply.') }}
+            </div>
+        </div>
+
+        {{-- Section 6: Product Specifications (Four Specification Tiles in 2x2 Grid) --}}
+        <div style="margin-top: 10px; margin-bottom: 10px;">
+            <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PRODUCT SPECIFICATIONS</div>
+            <table style="width: 100%; border-collapse: separate; border-spacing: 4px;">
+                <tr>
+                    <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
+                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">DESIGN TYPE</div>
+                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['design_type'] ?? 'ORIGINAL' }}</div>
+                    </td>
+                    <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
+                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">MATERIAL</div>
+                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['material'] ?? '—' }}</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
+                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">SIZE</div>
+                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['size_description'] ?? ($item['size'] ?? '—') }}</div>
+                    </td>
+                    <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
+                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">COLOUR</div>
+                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['colour_description'] ?? ($item['color'] ?? '—') }}</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        {{-- Section 7: Packing & Logistics (MOQ) --}}
+        <div style="margin-top: 10px; margin-bottom: 10px;">
+            <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PACKING &amp; LOGISTICS (MOQ)</div>
+            <table style="width: 100%; border-collapse: separate; border-spacing: 4px;">
+                <tr>
+                    <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
+                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">CBM (MOQ)</div>
+                        <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['cbm_moq'] ?? 'Not configured' }}</div>
+                    </td>
+                    <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
+                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">GROSS WEIGHT (MOQ)</div>
+                        <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['gross_weight_moq'] ?? 'Not configured' }}</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        {{-- Section 8: Pricing Schedule (All Configured Tiers) --}}
+        <div style="margin-top: 10px; margin-bottom: 10px;">
+            <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PRICING SCHEDULE (USD)</div>
+            <table class="items-table" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Pricing Tier</th>
+                        <th style="width: 35%;">Minimum Quantity / Basis</th>
+                        <th style="width: 20%;" class="text-right">Unit Price</th>
+                        <th style="width: 20%;" class="text-right">Total Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php
+                        $tiers = $item['pricing_tiers'] ?? [
+                            [
+                                'tierName' => 'Standard',
+                                'quantityBasis' => ($item['quantity'] ?? 1) . ' pcs (Minimum Order)',
+                                'unitPrice' => $item['unit_price'] ?? 0,
+                                'totalPrice' => ($item['unit_price'] ?? 0) * ($item['quantity'] ?? 1),
+                            ]
+                        ];
+                    @endphp
+                    @foreach($tiers as $tIdx => $tier)
+                        <tr class="{{ $tIdx % 2 === 1 ? 'alt' : '' }}">
+                            <td class="font-bold">{{ $tier['tierName'] ?? 'Standard' }}</td>
+                            <td>{{ $tier['quantityBasis'] ?? ($item['quantity'] ?? 1) . ' pcs' }}</td>
+                            <td class="text-right font-mono font-bold">${{ number_format($tier['unitPrice'] ?? 0, 2) }}</td>
+                            <td class="text-right font-mono font-bold" style="color: #c2410c;">${{ number_format($tier['totalPrice'] ?? 0, 2) }} USD</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endforeach
+
+    {{-- Section 9: Commercial Terms --}}
     @include('pdf.partials.financials', ['showBanking' => false])
+
+    {{-- Section 10: Signatory --}}
     @include('pdf.partials.signatory', [
-        'declaration' => $doc['notes'] ?? 'Commercial Merchandising Offer Sheet. Quotation valid for order placement within 30 calendar days. Production lead time: 30–45 days upon sample approval.'
+        'declaration' => $doc['notes'] ?? 'Commercial Merchandising Offer Sheet. Quotation valid for order placement within 30 calendar days.'
     ])
     @include('pdf.partials.footer')
 @endsection
+

@@ -31,11 +31,61 @@ class OfferSheetService
                 }
             }
 
+            $brand = $product?->brand?->name ?? (is_string($product?->brand) ? $product->brand : 'AYAAN CLOTHING');
+            $prodDesc = $product?->description ?? '';
+            $designType = $product?->design_type ?? 'ORIGINAL';
+            $material = $product?->material ?? $product?->fabric ?? '—';
+            $sizeDesc = $product?->size_description ?? ($item->size ?: '—');
+            $colourDesc = $product?->colour_description ?? ($item->color ?: '—');
+
+            $moqQty = $product?->moq ?: (int) $item->quantity;
+            $cbmMoq = $product?->cbm ? number_format((float) $product->cbm, 3) . ' m³' : null;
+            $gwMoq = $product?->gross_weight ? number_format((float) $product->gross_weight, 1) . ' KG' : null;
+
+            $stdPrice = (float) ($product?->standard_price ?? $product?->wholesale_price ?? $item->unit_price);
+            $tiers = [
+                [
+                    'tierName' => 'Standard',
+                    'quantityBasis' => $moqQty . ' pcs (Minimum Order)',
+                    'unitPrice' => $stdPrice,
+                    'totalPrice' => round($stdPrice * $moqQty, 2),
+                ],
+            ];
+            if ($product?->bulk_pricing_enabled && $product?->bulk_price && (float) $product->bulk_price > 0) {
+                $bQty = (int) ($product->bulk_threshold ?: ($moqQty * 2));
+                $bPrice = (float) $product->bulk_price;
+                $tiers[] = [
+                    'tierName' => 'Bulk',
+                    'quantityBasis' => $bQty . ' pcs (Minimum Quantity)',
+                    'unitPrice' => $bPrice,
+                    'totalPrice' => round($bPrice * $bQty, 2),
+                ];
+            }
+            if ($product?->full_stock_price && (float) $product->full_stock_price > 0 && $product?->available_stock && $product->available_stock > 0) {
+                $fsPrice = (float) $product->full_stock_price;
+                $fsQty = (int) $product->available_stock;
+                $tiers[] = [
+                    'tierName' => 'Full Stock',
+                    'quantityBasis' => number_format($fsQty) . ' pcs (Available Stock)',
+                    'unitPrice' => $fsPrice,
+                    'totalPrice' => round($fsPrice * $fsQty, 2),
+                ];
+            }
+
             $items[] = [
                 'id' => (string) $item->id,
                 'item_no' => $idx + 1,
                 'product_id' => (string) $item->product_id,
                 'product_name' => $item->product_name,
+                'brand' => $brand,
+                'product_description' => $prodDesc,
+                'design_type' => $designType,
+                'material' => $material,
+                'size_description' => $sizeDesc,
+                'colour_description' => $colourDesc,
+                'cbm_moq' => $cbmMoq,
+                'gross_weight_moq' => $gwMoq,
+                'pricing_tiers' => $tiers,
                 'description' => $item->product_name . ($item->size ? " (Size: {$item->size})" : " (Assorted Package)"),
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? $item->product_image_url,
@@ -131,11 +181,61 @@ class OfferSheetService
                 }
             }
 
+            $brand = $product?->brand?->name ?? (is_string($product?->brand) ? $product->brand : 'AYAAN CLOTHING');
+            $prodDesc = $product?->description ?? '';
+            $designType = $product?->design_type ?? 'ORIGINAL';
+            $material = $product?->material ?? $product?->fabric ?? '—';
+            $sizeDesc = $product?->size_description ?? ($item->selected_size ?: '—');
+            $colourDesc = $product?->colour_description ?? '—';
+
+            $moqQty = $product?->moq ?: (int) $item->quantity;
+            $cbmMoq = $product?->cbm ? number_format((float) $product->cbm, 3) . ' m³' : null;
+            $gwMoq = $product?->gross_weight ? number_format((float) $product->gross_weight, 1) . ' KG' : null;
+
+            $stdPrice = (float) ($product?->standard_price ?? $product?->wholesale_price ?? $item->unit_price);
+            $tiers = [
+                [
+                    'tierName' => 'Standard',
+                    'quantityBasis' => $moqQty . ' pcs (Minimum Order)',
+                    'unitPrice' => $stdPrice,
+                    'totalPrice' => round($stdPrice * $moqQty, 2),
+                ],
+            ];
+            if ($product?->bulk_pricing_enabled && $product?->bulk_price && (float) $product->bulk_price > 0) {
+                $bQty = (int) ($product->bulk_threshold ?: ($moqQty * 2));
+                $bPrice = (float) $product->bulk_price;
+                $tiers[] = [
+                    'tierName' => 'Bulk',
+                    'quantityBasis' => $bQty . ' pcs (Minimum Quantity)',
+                    'unitPrice' => $bPrice,
+                    'totalPrice' => round($bPrice * $bQty, 2),
+                ];
+            }
+            if ($product?->full_stock_price && (float) $product->full_stock_price > 0 && $product?->available_stock && $product->available_stock > 0) {
+                $fsPrice = (float) $product->full_stock_price;
+                $fsQty = (int) $product->available_stock;
+                $tiers[] = [
+                    'tierName' => 'Full Stock',
+                    'quantityBasis' => number_format($fsQty) . ' pcs (Available Stock)',
+                    'unitPrice' => $fsPrice,
+                    'totalPrice' => round($fsPrice * $fsQty, 2),
+                ];
+            }
+
             $items[] = [
                 'id' => (string) $item->id,
                 'item_no' => $idx + 1,
                 'product_id' => (string) $item->product_id,
                 'product_name' => $item->product_name,
+                'brand' => $brand,
+                'product_description' => $prodDesc,
+                'design_type' => $designType,
+                'material' => $material,
+                'size_description' => $sizeDesc,
+                'colour_description' => $colourDesc,
+                'cbm_moq' => $cbmMoq,
+                'gross_weight_moq' => $gwMoq,
+                'pricing_tiers' => $tiers,
                 'description' => $item->product_name . ($item->selected_size ? " (Size: {$item->selected_size})" : " (Assorted)"),
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? $item->product_image_url,

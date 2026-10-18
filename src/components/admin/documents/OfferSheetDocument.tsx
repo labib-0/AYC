@@ -51,25 +51,25 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
               key={product.id || product.sku || pIdx}
               className="space-y-5 rounded-2xl border border-border/70 bg-card p-5 shadow-xs print:border-slate-300 print:bg-white print:p-0 print:shadow-none print:break-inside-avoid"
             >
-              {/* Product Header */}
-              <div className="space-y-1.5 border-b border-border/60 pb-3">
-                <div className="flex items-center gap-2 flex-wrap">
+              {/* 3. Product Title, Brand Identifier, and SKU */}
+              <div className="space-y-2 border-b border-border/60 pb-3">
+                <h2 className="text-lg sm:text-xl font-bold text-foreground leading-snug break-words">
+                  {product.name}
+                </h2>
+                <div className="flex items-center gap-2 flex-wrap text-xs">
                   {product.brand && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary font-mono">
+                    <span className="font-bold uppercase tracking-wider text-primary font-mono">
                       {product.brand}
                     </span>
                   )}
                   {product.brand && <span className="text-muted-foreground/60">•</span>}
-                  <span className="text-[10px] text-muted-foreground font-mono">
+                  <span className="text-muted-foreground font-mono">
                     SKU: <strong className="text-foreground font-bold">{product.sku}</strong>
                   </span>
                 </div>
-                <h2 className="text-base sm:text-lg font-bold text-foreground leading-snug break-words">
-                  {product.name}
-                </h2>
               </div>
 
-              {/* Product Visual Gallery - Modestly larger 4:5 image cards with official logo */}
+              {/* 4. Product Visual Gallery - Clean 4-column layout, plain background, no card frames */}
               <div>
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2.5">
                   PRODUCT GALLERY
@@ -79,15 +79,15 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
                     <p className="text-xs text-muted-foreground font-medium">No product images available.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {product.images.map((imgUrl, iIdx) => (
                       <div
                         key={iIdx}
-                        className="group relative aspect-[4/5] rounded-xl border border-border/80 bg-secondary/30 p-2.5 flex items-center justify-center overflow-hidden transition-all hover:border-primary/50 hover:shadow-xs print:border-slate-300 print:bg-slate-50 print:p-1.5 min-h-[140px] sm:min-h-[160px]"
+                        className="group relative aspect-[4/5] flex items-center justify-center overflow-hidden"
                       >
                         {/* Official Ayaan Clothing Website Logo inside top-right corner */}
                         <div
-                          className="absolute top-2 right-2 z-10 w-6 h-6 aspect-square pointer-events-none select-none flex items-center justify-center"
+                          className="absolute top-1.5 right-1.5 z-10 w-5 h-5 aspect-square pointer-events-none select-none flex items-center justify-center"
                           aria-hidden="true"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -112,49 +112,98 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
                 )}
               </div>
 
-              {/* Product Specifications (ONLY actual non-empty attributes, NO GSM) */}
+              {/* 5. Product Description */}
               <div>
-                <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2.5">
-                  1. PRODUCT SPECIFICATION &amp; DETAILS
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2">
+                  PRODUCT DESCRIPTION
                 </h3>
-                {product.specifications.length === 0 ? (
-                  <div className="rounded-xl border border-border/60 bg-secondary/20 p-3 text-muted-foreground text-xs">
-                    Standard commercial garment specifications apply.
-                  </div>
-                ) : (
-                  <div className="overflow-hidden rounded-xl border border-border/70">
-                    <table className="w-full text-left text-xs divide-y divide-border/60">
-                      <thead className="bg-secondary/60">
-                        <tr>
-                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-foreground w-1/3">
-                            Specification Parameter
-                          </th>
-                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-foreground">
-                            Configured Value / Specification
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/40 bg-card">
-                        {product.specifications.map((spec, sIdx) => (
-                          <tr key={sIdx} className="hover:bg-secondary/20 transition-colors">
-                            <td className="py-2 px-3.5 font-bold text-muted-foreground font-mono">
-                              {spec.label}
-                            </td>
-                            <td className="py-2 px-3.5 font-medium text-foreground">
-                              {spec.value}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <div className="rounded-xl border border-border/60 bg-secondary/15 p-3.5 space-y-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap break-words">
+                    {product.description || "Standard commercial garment specifications apply."}
+                  </p>
+                  {product.descriptionAttributes && product.descriptionAttributes.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-2 border-t border-border/40 text-xs">
+                      {product.descriptionAttributes.map((attr, aIdx) => (
+                        <div key={aIdx} className="flex items-baseline gap-2">
+                          <span className="font-bold text-muted-foreground min-w-[120px]">{attr.label}:</span>
+                          <span className="text-foreground font-medium">{attr.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Complete Product Pricing Chart (Standard, Bulk, Full Stock) */}
+              {/* 6. Product Specifications - Four Distinct Specification Tiles in a 2x2 Grid */}
               <div>
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2.5">
-                  2. PRODUCT PRICING SCHEDULE (USD)
+                  PRODUCT SPECIFICATIONS
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                      Design Type
+                    </span>
+                    <span className="text-xs font-bold text-foreground block">
+                      {product.specificationTiles?.designType || "ORIGINAL"}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                      Material
+                    </span>
+                    <span className="text-xs font-bold text-foreground block">
+                      {product.specificationTiles?.material || "—"}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                      Size
+                    </span>
+                    <span className="text-xs font-bold text-foreground block">
+                      {product.specificationTiles?.size || "—"}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                      Colour
+                    </span>
+                    <span className="text-xs font-bold text-foreground block">
+                      {product.specificationTiles?.colour || "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 7. Packing & Logistics (MOQ) */}
+              <div>
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2">
+                  PACKING &amp; LOGISTICS (MOQ)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                      CBM (MOQ)
+                    </span>
+                    <span className="text-xs font-bold text-foreground block">
+                      {product.logistics?.cbm || "Not configured"}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                      Gross Weight (MOQ)
+                    </span>
+                    <span className="text-xs font-bold text-foreground block">
+                      {product.logistics?.grossWeight || "Not configured"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 8. Complete Product Pricing Chart (Standard, Bulk, Full Stock) */}
+              <div>
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2.5">
+                  PRICING SCHEDULE (USD)
                 </h3>
                 {product.pricingTiers.length === 0 ? (
                   <div className="rounded-xl border border-border/60 bg-secondary/20 p-3 text-muted-foreground text-xs">

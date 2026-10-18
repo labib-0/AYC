@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { orderService } from "@/services/order.service";
 import { getCommercialDocument } from "@/lib/services/quotations";
-import { downloadCommercialDocumentPDF } from "@/lib/pdf-generator";
+import {
+  downloadCommercialDocumentPDF,
+  generateCommercialDocumentPDFBlob,
+} from "@/lib/pdf-generator";
 import {
   CommercialDocument,
   CommercialDocType,
@@ -46,7 +49,7 @@ interface DocumentPreviewModalProps {
   loading: boolean;
   error: string | null;
   onClose: () => void;
-  onDownloadPDF: (doc: CommercialDocument) => Promise<void>;
+  onDownloadPDF: (doc: CommercialDocument, blob?: Blob, filename?: string) => Promise<void>;
   isDownloading: boolean;
 }
 
@@ -58,6 +61,44 @@ function DocumentPreviewModal({
   onDownloadPDF,
   isDownloading,
 }: DocumentPreviewModalProps) {
+  const [pdfArtifact, setPdfArtifact] = useState<{
+    blob: Blob;
+    url: string;
+    filename: string;
+  } | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+
+    if (doc) {
+      setGeneratingPdf(true);
+      generateCommercialDocumentPDFBlob(doc)
+        .then((res) => {
+          if (!active) {
+            if (res.url) URL.revokeObjectURL(res.url);
+            return;
+          }
+          objectUrl = res.url;
+          setPdfArtifact(res);
+        })
+        .catch((err) => {
+          console.error("Failed to generate authoritative preview PDF:", err);
+        })
+        .finally(() => {
+          if (active) setGeneratingPdf(false);
+        });
+    } else {
+      setPdfArtifact(null);
+    }
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [doc]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -69,12 +110,12 @@ function DocumentPreviewModal({
   }, [onClose]);
 
   const renderContent = () => {
-    if (loading) {
+    if (loading || generatingPdf) {
       return (
         <div className="py-24 flex flex-col items-center justify-center gap-3">
           <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Generating official commercial document preview...
+            Generating authoritative commercial PDF preview...
           </p>
         </div>
       );
@@ -91,6 +132,18 @@ function DocumentPreviewModal({
             {error ||
               "Unable to generate or render this document. It may require payment confirmation or export clearance."}
           </p>
+        </div>
+      );
+    }
+
+    if (pdfArtifact?.url) {
+      return (
+        <div className="w-full h-full min-h-[72vh] rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 dark:border-white/10">
+          <iframe
+            src={pdfArtifact.url}
+            title={doc.title}
+            className="w-full h-[75vh] border-0 rounded-2xl"
+          />
         </div>
       );
     }
@@ -148,7 +201,7 @@ function DocumentPreviewModal({
             {doc && (
               <button
                 type="button"
-                onClick={() => onDownloadPDF(doc)}
+                onClick={() => onDownloadPDF(doc, pdfArtifact?.blob, pdfArtifact?.filename)}
                 disabled={isDownloading}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all active:scale-[0.98] shadow-xs cursor-pointer disabled:opacity-50"
               >
@@ -928,8 +981,8 @@ export default function DocumentCenterPage() {
             setPreviewDoc(null);
             setPreviewError(null);
           }}
-          onDownloadPDF={async (doc) => {
-            await downloadCommercialDocumentPDF(doc);
+          onDownloadPDF={async (doc, blob, filename) => {
+            await downloadCommercialDocumentPDF(doc, blob, filename);
             showToast(`Downloaded ${doc.title} (${doc.docNumber}).`);
           }}
           isDownloading={downloadingId !== null}

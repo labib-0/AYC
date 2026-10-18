@@ -486,36 +486,42 @@ export function generateOfferSheetPDFDoc(
       y += 11;
     }
 
-    // Product Sub-Header (matches preview component)
+    // 3. Product Title, Brand Identifier, and SKU (Separate clean layout regions, prominent title)
+    // Product Title (Prominent: 16pt bold, clean natural wrapping)
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
+    doc.setFontSize(16);
+    doc.setTextColor(15, 23, 42);
+    const splitTitle = doc.splitTextToSize(product.name, contentWidth);
+    doc.text(splitTitle, margin, y + 4.5);
+    y += splitTitle.length * 6.5 + 1.5;
+
+    // Brand and SKU in a clean separate metadata row (no overlapping arrows, explicit gap)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
     doc.setTextColor(234, 88, 12); // Brand Orange
     const brandStr = (product.brand || "AYAAN CLOTHING").toUpperCase();
     doc.text(brandStr, margin, y);
+    const brandWidth = doc.getTextWidth(brandStr);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(100, 116, 139);
-    const brandWidth = doc.getTextWidth(brandStr);
-    doc.text(" • SKU: ", margin + brandWidth, y);
-    const skuPrefixWidth = doc.getTextWidth(" • SKU: ");
-
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(15, 23, 42);
-    doc.text(product.sku, margin + brandWidth + skuPrefixWidth, y);
-    y += 5;
-
-    // Product Title (with automatic wrapping to prevent collision or truncation)
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(15, 23, 42);
-    const splitTitle = doc.splitTextToSize(product.name, contentWidth);
-    doc.text(splitTitle, margin, y);
-    y += splitTitle.length * 4.8 + 3.5;
-
-    // Visual Gallery
-    doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text("  •  ", margin + brandWidth, y);
+    const sepWidth = doc.getTextWidth("  •  ");
+
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(100, 116, 139); // slate-500
+    doc.text("SKU: ", margin + brandWidth + sepWidth, y);
+    const skuLabelWidth = doc.getTextWidth("SKU: ");
+
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42); // slate-900
+    doc.text(product.sku, margin + brandWidth + sepWidth + skuLabelWidth, y);
+    y += 7;
+
+    // 4. Product Gallery — Four Images Per Row, plain background, contain-style scaling
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
     doc.setTextColor(15, 23, 42);
     doc.text("PRODUCT GALLERY", margin, y);
     y += 3.5;
@@ -532,9 +538,9 @@ export function generateOfferSheetPDFDoc(
       doc.text("No product images available.", margin + 4, y + 7.5);
       y += 16;
     } else {
-      // Modestly larger tiles: 3 cols if <= 3 images, 4 cols if 4 images, 5 cols if 5+ images
-      const cols = galleryImages.length <= 3 ? 3 : galleryImages.length === 4 ? 4 : 5;
-      const gap = galleryImages.length <= 3 ? 3.5 : 3;
+      // Exactly 4 columns per row maximum on standard document pages
+      const cols = 4;
+      const gap = 3;
       const tileW = (contentWidth - (cols - 1) * gap) / cols;
       const tileH = tileW * (5 / 4); // Canonical 4:5 ratio matching website gallery
 
@@ -544,7 +550,7 @@ export function generateOfferSheetPDFDoc(
         const imgData = galleryImages[i];
 
         if (i > 0 && i % cols === 0) {
-          if (y + tileH + gap + tileH > 297 - margin - 15) {
+          if (y + tileH + gap + 30 > 297 - margin) {
             doc.addPage();
             y = margin;
             doc.setFillColor(15, 23, 42);
@@ -567,13 +573,9 @@ export function generateOfferSheetPDFDoc(
         const tileX = margin + curCol * (tileW + gap);
         const tileY = y;
 
-        doc.setFillColor(248, 250, 252);
-        doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(tileX, tileY, tileW, tileH, 1.5, 1.5, "FD");
-
-        const pad = 1.2;
-        const innerW = tileW - pad * 2;
-        const innerH = tileH - pad * 2;
+        // Clean document background (no decorative card borders or shadows)
+        const innerW = tileW;
+        const innerH = tileH;
 
         try {
           const props = (doc as any).getImageProperties(imgData);
@@ -584,12 +586,12 @@ export function generateOfferSheetPDFDoc(
             drawH = innerH;
             drawW = drawH * imgRatio;
           }
-          const drawX = tileX + pad + (innerW - drawW) / 2;
-          const drawY = tileY + pad + (innerH - drawH) / 2;
+          const drawX = tileX + (innerW - drawW) / 2;
+          const drawY = tileY + (innerH - drawH) / 2;
           doc.addImage(imgData, "JPEG", drawX, drawY, drawW, drawH);
         } catch {
           try {
-            doc.addImage(imgData, "JPEG", tileX + pad, tileY + pad, innerW, innerH);
+            doc.addImage(imgData, "JPEG", tileX, tileY, innerW, innerH);
           } catch {
             // safe fallback
           }
@@ -616,8 +618,8 @@ export function generateOfferSheetPDFDoc(
       y += tileH + 6;
     }
 
-    // Specifications Section
-    if (y + 45 > 297 - margin) {
+    // 5. PRODUCT DESCRIPTION
+    if (y + 35 > 297 - margin) {
       doc.addPage();
       y = margin;
       doc.setFillColor(15, 23, 42);
@@ -634,51 +636,44 @@ export function generateOfferSheetPDFDoc(
     }
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
+    doc.setFontSize(9.5);
     doc.setTextColor(15, 23, 42);
-    doc.text("1. PRODUCT SPECIFICATION & DETAILS", margin, y);
-    y += 3;
+    doc.text("PRODUCT DESCRIPTION", margin, y);
+    y += 4;
 
-    const specsRows = product.specifications.map((s: any) => [s.label, s.value]);
+    const descText = product.description && product.description.trim().length > 0
+      ? product.description.trim()
+      : "Standard commercial garment specifications apply.";
 
-    if (specsRows.length > 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(51, 65, 85);
+    const splitDesc = doc.splitTextToSize(descText, contentWidth);
+    doc.text(splitDesc, margin, y);
+    y += splitDesc.length * 3.8 + 2.5;
+
+    // Populated descriptive attributes if present
+    if (product.descriptionAttributes && product.descriptionAttributes.length > 0) {
+      const attrRows = product.descriptionAttributes.map((a: any) => [a.label, a.value]);
       applyAutoTable(doc, {
         startY: y,
         margin: { left: margin, right: margin },
-        head: [["Specification Parameter", "Configured Value / Specification"]],
-        body: specsRows,
-        theme: "grid",
-        headStyles: {
-          fillColor: [30, 41, 59],
-          textColor: [255, 255, 255],
-          fontStyle: "bold",
-          fontSize: 7.5,
-          cellPadding: 1.6,
-        },
-        bodyStyles: {
-          fontSize: 6.8,
-          cellPadding: 1.4,
-          textColor: [30, 41, 59],
+        body: attrRows,
+        theme: "plain",
+        styles: {
+          fontSize: 7.2,
+          cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 },
         },
         columnStyles: {
-          0: { cellWidth: 46, fontStyle: "bold", textColor: [51, 65, 85] },
-          1: { cellWidth: contentWidth - 46 },
+          0: { cellWidth: 44, fontStyle: "bold", textColor: [100, 116, 139] },
+          1: { cellWidth: contentWidth - 44, fontStyle: "normal", textColor: [15, 23, 42] },
         },
       });
-      y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 5 : y + 35;
-    } else {
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(margin, y, contentWidth, 10, 1.5, 1.5, "FD");
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.setTextColor(100, 116, 139);
-      doc.text("Standard commercial garment specifications apply.", margin + 4, y + 6.5);
-      y += 14;
+      y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 4.5 : y + 14;
     }
 
-    // Pricing Schedule Section
-    if (y + 40 > 297 - margin) {
+    // 6. PRODUCT SPECIFICATIONS (Four Distinct Specification Tiles in a 2x2 Grid)
+    if (y + 35 > 297 - margin) {
       doc.addPage();
       y = margin;
       doc.setFillColor(15, 23, 42);
@@ -695,12 +690,147 @@ export function generateOfferSheetPDFDoc(
     }
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
+    doc.setFontSize(9.5);
     doc.setTextColor(15, 23, 42);
-    doc.text("2. PRODUCT PRICING SCHEDULE (USD)", margin, y);
+    doc.text("PRODUCT SPECIFICATIONS", margin, y);
+    y += 4;
+
+    const specTiles = [
+      { label: "DESIGN TYPE", value: product.specificationTiles?.designType || "ORIGINAL" },
+      { label: "MATERIAL", value: product.specificationTiles?.material || "—" },
+      { label: "SIZE", value: product.specificationTiles?.size || "—" },
+      { label: "COLOUR", value: product.specificationTiles?.colour || "—" },
+    ];
+
+    const specTileGap = 3;
+    const specTileW = (contentWidth - specTileGap) / 2; // 89.5mm
+    const specTileH = 12;
+
+    for (let sIdx = 0; sIdx < 4; sIdx++) {
+      const colIdx = sIdx % 2;
+      const rowIdx = Math.floor(sIdx / 2);
+      const sX = margin + colIdx * (specTileW + specTileGap);
+      const sY = y + rowIdx * (specTileH + specTileGap);
+
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(sX, sY, specTileW, specTileH, 1.5, 1.5, "FD");
+
+      // Tile Label
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text(specTiles[sIdx].label, sX + 3.5, sY + 4.2);
+
+      // Tile Value
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      const splitVal = doc.splitTextToSize(specTiles[sIdx].value, specTileW - 7);
+      doc.text(splitVal[0] || "—", sX + 3.5, sY + 8.8);
+    }
+
+    y += 2 * specTileH + specTileGap + 5;
+
+    // 7. PACKING & LOGISTICS (MOQ)
+    if (y + 26 > 297 - margin) {
+      doc.addPage();
+      y = margin;
+      doc.setFillColor(15, 23, 42);
+      doc.rect(margin, y, contentWidth, 7, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.text(
+        `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`,
+        margin + 4,
+        y + 4.8
+      );
+      y += 11;
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text("PACKING & LOGISTICS (MOQ)", margin, y);
+    y += 4;
+
+    const logBoxH = 12;
+    const logColW = (contentWidth - specTileGap) / 2;
+
+    // Left: CBM (MOQ)
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(margin, y, logColW, logBoxH, 1.5, 1.5, "FD");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text("CBM (MOQ)", margin + 3.5, y + 4.2);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    const cbmVal = product.logistics?.cbm;
+    if (cbmVal) {
+      doc.setTextColor(15, 23, 42);
+      doc.text(cbmVal, margin + 3.5, y + 9);
+    } else {
+      doc.setTextColor(148, 163, 184);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text("Not configured", margin + 3.5, y + 9);
+    }
+
+    // Right: GROSS WEIGHT (MOQ)
+    const rightLogX = margin + logColW + specTileGap;
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(rightLogX, y, logColW, logBoxH, 1.5, 1.5, "FD");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text("GROSS WEIGHT (MOQ)", rightLogX + 3.5, y + 4.2);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    const gwVal = product.logistics?.grossWeight;
+    if (gwVal) {
+      doc.setTextColor(15, 23, 42);
+      doc.text(gwVal, rightLogX + 3.5, y + 9);
+    } else {
+      doc.setTextColor(148, 163, 184);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text("Not configured", rightLogX + 3.5, y + 9);
+    }
+
+    y += logBoxH + 5;
+
+    // 8. PRICING SCHEDULE (USD)
+    if (y + 36 > 297 - margin) {
+      doc.addPage();
+      y = margin;
+      doc.setFillColor(15, 23, 42);
+      doc.rect(margin, y, contentWidth, 7, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.text(
+        `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`,
+        margin + 4,
+        y + 4.8
+      );
+      y += 11;
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text("PRICING SCHEDULE (USD)", margin, y);
     y += 3;
 
-    const pricingRows: string[][] = product.pricingTiers.map((t: any) => [
+    const pricingRows: string[][] = (product.pricingTiers || []).map((t: any) => [
       t.tierName,
       t.quantityBasis,
       `${fmtUSD(t.unitPrice)} / ${unitLabel}`,
@@ -724,13 +854,13 @@ export function generateOfferSheetPDFDoc(
         cellPadding: 1.8,
       },
       bodyStyles: {
-        fontSize: 7,
+        fontSize: 7.2,
         cellPadding: 1.8,
         textColor: [30, 41, 59],
       },
       columnStyles: {
-        0: { cellWidth: 28, fontStyle: "bold" },
-        1: { cellWidth: 64 },
+        0: { cellWidth: 32, fontStyle: "bold" },
+        1: { cellWidth: 60 },
         2: { cellWidth: 45, fontStyle: "bold", textColor: [15, 23, 42], halign: "right" },
         3: { cellWidth: 45, fontStyle: "bold", textColor: [194, 65, 12], halign: "right" },
       },
@@ -739,8 +869,8 @@ export function generateOfferSheetPDFDoc(
     y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 6 : y + 28;
   }
 
-  // Commercial Terms Section (Unified, strictly no ISO99)
-  if (y + 40 > 297 - margin) {
+  // 9. COMMERCIAL TERMS (Unified, strictly no ISO99)
+  if (y + 35 > 297 - margin) {
     doc.addPage();
     y = margin;
     doc.setFillColor(15, 23, 42);
@@ -764,30 +894,46 @@ export function generateOfferSheetPDFDoc(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("COMMERCIAL TERMS", margin + 3, y + 4.5);
+  doc.text("COMMERCIAL TERMS", margin + 3.5, y + 4.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.8);
   doc.setTextColor(51, 65, 85);
   offerData.commercialTerms.forEach((line: string, lineIdx: number) => {
-    doc.text(`• ${line}`, margin + 3, y + 8 + lineIdx * 3.1);
+    doc.text(`• ${line}`, margin + 3.5, y + 8 + lineIdx * 3.1);
   });
 
   y += termsBoxH + 4;
 
-  // Signatures
+  // 10. AUTHORIZED REPRESENTATIVE
+  if (y + 22 > 297 - margin) {
+    doc.addPage();
+    y = margin;
+    doc.setFillColor(15, 23, 42);
+    doc.rect(margin, y, contentWidth, 7, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.text(
+      `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`,
+      margin + 4,
+      y + 4.8
+    );
+    y += 11;
+  }
+
   const sigX = pageWidth - margin - 60;
   doc.setDrawColor(148, 163, 184);
-  doc.line(sigX, y + 10, sigX + 58, y + 10);
+  doc.line(sigX, y + 8, sigX + 58, y + 8);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(offerData.seller.signatoryTitle, sigX, y + 14);
+  doc.text(offerData.seller.signatoryTitle, sigX, y + 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
-  doc.text(offerData.seller.signatoryDivision, sigX, y + 17.5);
+  doc.text(offerData.seller.signatoryDivision, sigX, y + 15.5);
 
   // Dynamic Footer on all pages
   const pageCount = (doc as any).internal.getNumberOfPages();
@@ -1914,10 +2060,13 @@ export function downloadProformaInvoicePDF(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. GENERIC COMMERCIAL DOCUMENT PDF (For Document Viewer & Admin)
+// 3. GENERIC COMMERCIAL DOCUMENT PDF (Authoritative Pipeline for View & Download)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function downloadCommercialDocumentPDF(docData: CommercialDocument) {
+export async function generateCommercialDocumentPDFDoc(docData: CommercialDocument): Promise<{
+  doc: jsPDF;
+  filename: string;
+}> {
   if (docData.docType === "OFFER_SHEET" || docData.docType === "ORDER_SHEET") {
     // Generate as canonical Offer Sheet using authoritative OfferSheetData matching web preview
     const offerData = buildOfferSheetData(docData);
@@ -1942,65 +2091,14 @@ export async function downloadCommercialDocumentPDF(docData: CommercialDocument)
       .replace(/[^a-zA-Z0-9_-]/g, "_")
       .slice(0, 30);
     const filename = `AYAAN_Offer_Sheet_${cleanSku}.pdf`;
-    doc.save(filename);
-    return;
+    return { doc, filename };
   }
 
-  if (docData.docType === "COMMERCIAL_INVOICE" || docData.docType === "INVOICE") {
-    const pseudoOrder: OrderRecord = {
-      id: docData.order_id || docData.id,
-      order_number: docData.orderNumber || docData.docNumber.replace(/^INV-/, ""),
-      status: "processing",
-      payment_status: "paid",
-      fulfillment_status: "processing",
-      currency: docData.currency || "USD",
-      email: docData.buyerEmail || "",
-      shipping_name: docData.buyerName || "",
-      shipping_company: docData.companyName || "",
-      shipping_address1: docData.buyerAddress || "",
-      shipping_city: "",
-      shipping_postal_code: "",
-      shipping_country_code: docData.buyerCountry || "US",
-      payment_method: docData.payment_details?.payment_method || "bank_transfer",
-      payment_details: docData.payment_details,
-      subtotal: docData.subtotal || docData.goods_value || 0,
-      subtotal_cents: Math.round((docData.subtotal || 0) * 100),
-      shipping_cost: docData.shipping || 0,
-      shipping_cents: Math.round((docData.shipping || 0) * 100),
-      tax_amount: 0,
-      tax_cents: 0,
-      discount_amount: docData.discount || 0,
-      discount_cents: 0,
-      total_amount: docData.grandTotal || docData.total_payable || docData.subtotal,
-      total_cents: Math.round((docData.grandTotal || 0) * 100),
-      placed_at: docData.date || new Date().toISOString(),
-      created_at: docData.date || new Date().toISOString(),
-      updated_at: docData.date || new Date().toISOString(),
-      shipping_snapshot: docData.shipping_snapshot,
-      carrier: docData.shipping_snapshot?.carrier,
-      items: (docData.items || []).map((it, idx) => ({
-        product_name: it.description,
-        sku: it.sku || `SKU-${idx + 1}`,
-        quantity: it.quantity,
-        unit_price: it.unitPrice,
-        unit_price_cents: Math.round(it.unitPrice * 100),
-        line_total: it.total,
-        line_total_cents: Math.round(it.total * 100),
-        size: it.size,
-        color: it.color,
-        package_breakdown: it.package_breakdown,
-      })),
-    };
-    downloadCommercialInvoicePDF(pseudoOrder, docData);
-    return;
-  }
-
-  // Otherwise generate as Proforma Invoice
   const pseudoOrder: OrderRecord = {
     id: docData.order_id || docData.id,
-    order_number: docData.orderNumber || docData.docNumber.replace(/^PI-/, ""),
+    order_number: docData.orderNumber || docData.docNumber.replace(/^(INV|PI|PL|QT)-/, ""),
     status: "processing",
-    payment_status: "pending",
+    payment_status: docData.docType === "COMMERCIAL_INVOICE" || docData.docType === "INVOICE" ? "paid" : "pending",
     fulfillment_status: "processing",
     currency: docData.currency || "USD",
     email: docData.buyerEmail || "",
@@ -2010,7 +2108,8 @@ export async function downloadCommercialDocumentPDF(docData: CommercialDocument)
     shipping_city: "",
     shipping_postal_code: "",
     shipping_country_code: docData.buyerCountry || "US",
-    payment_method: "proforma_invoice",
+    payment_method: docData.payment_details?.payment_method || (docData.docType === "COMMERCIAL_INVOICE" ? "bank_transfer" : "proforma_invoice"),
+    payment_details: docData.payment_details,
     subtotal: docData.subtotal || docData.goods_value || 0,
     subtotal_cents: Math.round((docData.subtotal || 0) * 100),
     shipping_cost: docData.shipping || 0,
@@ -2040,5 +2139,62 @@ export async function downloadCommercialDocumentPDF(docData: CommercialDocument)
     })),
   };
 
-  downloadProformaInvoicePDF(pseudoOrder, docData);
+  if (docData.docType === "COMMERCIAL_INVOICE" || docData.docType === "INVOICE") {
+    const doc = generateCommercialInvoiceDoc(pseudoOrder, docData);
+    const cleanOrderNum = (pseudoOrder.order_number || "ORDER").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const filename = `AYAAN_Commercial_Invoice_${cleanOrderNum}.pdf`;
+    return { doc, filename };
+  }
+
+  // Default: Proforma Invoice
+  const doc = generateProformaInvoiceDoc(pseudoOrder, docData);
+  const cleanOrderNum = (pseudoOrder.order_number || "ORDER").replace(/[^a-zA-Z0-9_-]/g, "_");
+  const filename = `AYAAN_PI_${cleanOrderNum}.pdf`;
+  return { doc, filename };
+}
+
+export async function generateCommercialDocumentPDFBlob(docData: CommercialDocument): Promise<{
+  blob: Blob;
+  url: string;
+  filename: string;
+  doc: jsPDF;
+}> {
+  const { doc, filename } = await generateCommercialDocumentPDFDoc(docData);
+  let blob: Blob;
+  try {
+    const rawBlob = doc.output("blob");
+    if (rawBlob && rawBlob.size > 0 && rawBlob.type === "application/pdf") {
+      blob = rawBlob;
+    } else if (rawBlob && rawBlob.size > 0) {
+      blob = new Blob([rawBlob], { type: "application/pdf" });
+    } else {
+      const arr = doc.output("arraybuffer");
+      blob = new Blob([arr], { type: "application/pdf" });
+    }
+  } catch {
+    const arr = doc.output("arraybuffer");
+    blob = new Blob([arr], { type: "application/pdf" });
+  }
+  const url = typeof window !== "undefined" && window.URL ? window.URL.createObjectURL(blob) : "";
+  return { blob, url, filename, doc };
+}
+
+export async function downloadCommercialDocumentPDF(
+  docData: CommercialDocument,
+  existingBlob?: Blob,
+  filename?: string
+) {
+  if (existingBlob && filename && typeof document !== "undefined") {
+    const url = URL.createObjectURL(existingBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return;
+  }
+  const { doc, filename: outFilename } = await generateCommercialDocumentPDFDoc(docData);
+  doc.save(outFilename);
 }

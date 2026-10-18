@@ -1,6 +1,8 @@
 import BUSINESS_PROFILE from "@/config/business-profile";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { deduplicateMediaUrls } from "@/lib/media";
+import { calculateCartonCbm } from "@/lib/services/shipping-package";
+import type { ShippingPackageProfile } from "@/types";
 
 export interface OfferSheetPricingTier {
   tierName: "Standard" | "Bulk" | "Full Stock";
@@ -15,11 +17,32 @@ export interface OfferSheetSpecification {
   value: string;
 }
 
+export interface OfferSheetSpecificationTiles {
+  designType: string;
+  material: string;
+  size: string;
+  colour: string;
+}
+
+export interface OfferSheetLogistics {
+  cbm: string | null;
+  grossWeight: string | null;
+  cbmMoq: string | null;
+  grossWeightMoq: string | null;
+  moq: number | null;
+  unit: string;
+  isConfigured: boolean;
+}
+
 export interface OfferSheetProductItem {
   id?: string;
   name: string;
   sku: string;
   brand?: string;
+  description?: string;
+  descriptionAttributes?: { label: string; value: string }[];
+  specificationTiles: OfferSheetSpecificationTiles;
+  logistics: OfferSheetLogistics;
   images: string[];
   primaryImageUrl?: string;
   specifications: OfferSheetSpecification[];
@@ -93,6 +116,317 @@ export function formatPackageBreakdownText(breakdown?: any): string | null {
   }
 
   return null;
+}
+
+/**
+ * Extracts the product's actual saved description and populated descriptive attributes.
+ * Strictly avoids inventing garment specifications, fake GSM values, or fallback claims.
+ */
+export function extractProductDescriptionAndAttributes(product: any): {
+  description: string;
+  attributes: { label: string; value: string }[];
+} {
+  if (!product) return { description: "", attributes: [] };
+
+  const rawDesc = product.description || product.shortDescription || product.short_description || "";
+  const description = typeof rawDesc === "string" ? rawDesc.trim() : "";
+
+  const attributes: { label: string; value: string }[] = [];
+
+  // Brand (where genuinely configured)
+  const brand = product.brand?.name || product.brand || product.brandName || product.brand_name;
+  if (brand && typeof brand === "string" && brand.trim() && !brand.toLowerCase().includes("generic")) {
+    attributes.push({ label: "Brand", value: brand.trim() });
+  }
+
+  // Colours
+  const rawColors =
+    product.colourDescription ??
+    product.colour_description ??
+    (Array.isArray(product.colors) && product.colors.length > 0 ? product.colors.join(", ") : null) ??
+    (typeof product.color === "string" && product.color.trim() ? product.color.trim() : null);
+  if (rawColors && typeof rawColors === "string" && rawColors.trim()) {
+    attributes.push({ label: "Colours", value: rawColors.trim() });
+  }
+
+  // Available Sizes
+  const rawSizes =
+    product.sizeDescription ??
+    product.size_description ??
+    (Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes.join(", ") : null);
+  if (rawSizes && typeof rawSizes === "string" && rawSizes.trim()) {
+    attributes.push({ label: "Available Sizes", value: rawSizes.trim() });
+  }
+
+  // Fabric / Composition
+  const material = product.material || product.fabric || product.composition;
+  if (material && typeof material === "string" && material.trim()) {
+    attributes.push({ label: "Fabric / Composition", value: material.trim() });
+  }
+
+  // Fabric Type
+  const fabricType = product.fabricType ?? product.fabric_type;
+  if (fabricType && typeof fabricType === "string" && fabricType.trim()) {
+    attributes.push({ label: "Fabric Type", value: fabricType.trim() });
+  }
+
+  // GSM (ONLY when actually configured; NEVER invent)
+  const gsm = product.gsm ?? product.fabric_gsm;
+  if (gsm !== undefined && gsm !== null && String(gsm).trim() && !isNaN(Number(gsm)) && Number(gsm) > 0) {
+    attributes.push({ label: "GSM", value: `${gsm} GSM` });
+  }
+
+  // Package Assortment (if configured)
+  const assortmentMessage = product.packageAssortmentMessage ?? product.package_assortment_message;
+  if (assortmentMessage && typeof assortmentMessage === "string" && assortmentMessage.trim()) {
+    attributes.push({ label: "Package Assortment", value: assortmentMessage.trim() });
+  }
+
+  return {
+    description,
+    attributes,
+  };
+}
+
+/**
+ * Extracts the four canonical specification tiles shown on the product detail page:
+ * 1. Design Type
+ * 2. Material
+ * 3. Size
+ * 4. Colour
+ */
+export function extractProductSpecificationTiles(product: any): OfferSheetSpecificationTiles {
+  if (!product) {
+    return {
+      designType: "ORIGINAL",
+      material: "—",
+      size: "—",
+      colour: "—",
+    };
+  }
+
+  // Design Type: e.g. "ORIGINAL" or "MASTER COPY"
+  const rawDesignType = product.designType ?? product.design_type;
+  const designType =
+    (rawDesignType || "").toUpperCase() === "MASTER COPY"
+      ? "MASTER COPY"
+      : rawDesignType || "ORIGINAL";
+
+  // Material: e.g. "100% Cotton" or actual configured value
+  const material = product.material || product.fabric || product.composition || "—";
+
+  // Size: explicit admin entry only (e.g. "S, M, L, XL" or "Standard Assorted")
+  const rawSize =
+    product.sizeDescription ??
+    product.size_description ??
+    (Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes.join(", ") : null) ??
+    (typeof product.size === "string" && product.size.trim() ? product.size.trim() : null);
+  const size = rawSize && String(rawSize).trim() ? String(rawSize).trim() : "—";
+
+  // Colour: explicit admin entry only
+  const rawColour =
+    product.colourDescription ??
+    product.colour_description ??
+    (Array.isArray(product.colors) && product.colors.length > 0 ? product.colors.join(", ") : null) ??
+    (typeof product.color === "string" && product.color.trim() ? product.color.trim() : null) ??
+    (product.colorName || product.color_name || null);
+  const colour = rawColour && String(rawColour).trim() ? String(rawColour).trim() : "—";
+
+  return {
+    designType,
+    material,
+    size,
+    colour,
+  };
+}
+
+/**
+ * Dynamically computes and displays CBM and Gross Weight corresponding strictly
+ * to the MOQ basis using existing carton-based packaging logic.
+ */
+export function extractProductLogistics(product: any, moqQuantity?: number): OfferSheetLogistics {
+  if (!product) {
+    return { cbm: null, grossWeight: null, cbmMoq: null, grossWeightMoq: null, moq: null, unit: "PCS", isConfigured: false };
+  }
+
+  const unit = (product.unit || product.purchaseUnit || product.purchase_unit || "PCS").trim().toUpperCase();
+  const rawMoq = Number(moqQuantity ?? product.moq);
+  const moq = !isNaN(rawMoq) && rawMoq > 0 ? rawMoq : 1;
+
+  // 1. Direct explicit snapshot fields if already configured on product or order
+  if (product.moqCbm !== undefined && product.moqGrossWeight !== undefined) {
+    const cbmStr = `${Number(product.moqCbm).toFixed(3)} m³`;
+    const gwStr = `${Number(product.moqGrossWeight).toFixed(product.moqGrossWeight % 1 === 0 ? 0 : 1)} KG`;
+    return {
+      cbm: cbmStr,
+      grossWeight: gwStr,
+      cbmMoq: cbmStr,
+      grossWeightMoq: gwStr,
+      moq,
+      unit,
+      isConfigured: true,
+    };
+  }
+
+  // 2. Shipping Package Profiles calculation matching ProductSelectedLogisticsRow
+  const profiles: ShippingPackageProfile[] =
+    product.shippingPackageProfiles ||
+    product.shipping_package_profiles ||
+    product.shipping_packages ||
+    [];
+
+  const activeProfiles = (profiles || []).filter((p: any) => p && p.is_active !== false);
+  const validProfiles = activeProfiles.filter(
+    (p: any) =>
+      (Number(p.gross_weight) > 0 || Number(p.total_gross_weight) > 0) &&
+      (Number(p.carton_length) > 0 || Number(p.total_cbm) > 0)
+  );
+
+  if (validProfiles.length > 0) {
+    const sortedProfiles = [...validProfiles].sort(
+      (a, b) => Number(a.package_quantity || 0) - Number(b.package_quantity || 0)
+    );
+
+    // Exact MOQ match
+    const exactMatch = sortedProfiles.find(
+      (p) => Number(p.package_quantity) === moq && (p.quantity_max === undefined || p.quantity_max === null)
+    );
+
+    if (exactMatch) {
+      const cartonCount = Math.max(1, Number(exactMatch.carton_count) || 1);
+      const singleCartonCbm = calculateCartonCbm(
+        Number(exactMatch.carton_length || 0),
+        Number(exactMatch.carton_width || 0),
+        Number(exactMatch.carton_height || 0),
+        (exactMatch.dimension_unit as "cm" | "in" | "m") || "cm"
+      );
+      const totalCbm =
+        exactMatch.total_cbm && Number(exactMatch.total_cbm) > 0
+          ? Number(exactMatch.total_cbm)
+          : singleCartonCbm * cartonCount;
+      const totalGrossWeight =
+        exactMatch.total_gross_weight && Number(exactMatch.total_gross_weight) > 0
+          ? Number(exactMatch.total_gross_weight)
+          : Number(exactMatch.gross_weight || 0) * cartonCount;
+      const weightUnit = (exactMatch.weight_unit || "kg").toUpperCase();
+
+      const cbmStr = `${totalCbm.toFixed(3)} m³`;
+      const gwStr = `${totalGrossWeight % 1 === 0 ? totalGrossWeight.toFixed(0) : totalGrossWeight.toFixed(1)} ${weightUnit}`;
+      return {
+        cbm: cbmStr,
+        grossWeight: gwStr,
+        cbmMoq: cbmStr,
+        grossWeightMoq: gwStr,
+        moq,
+        unit,
+        isConfigured: true,
+      };
+    }
+
+    // Range match
+    const rangeMatch = sortedProfiles.find((p) => {
+      if (p.quantity_max !== undefined && p.quantity_max !== null) {
+        return moq >= Number(p.package_quantity) && moq <= Number(p.quantity_max);
+      }
+      return false;
+    });
+
+    if (rangeMatch) {
+      const cartonCount = Math.max(1, Number(rangeMatch.carton_count) || 1);
+      const singleCartonCbm = calculateCartonCbm(
+        Number(rangeMatch.carton_length || 0),
+        Number(rangeMatch.carton_width || 0),
+        Number(rangeMatch.carton_height || 0),
+        (rangeMatch.dimension_unit as "cm" | "in" | "m") || "cm"
+      );
+      const totalCbm =
+        rangeMatch.total_cbm && Number(rangeMatch.total_cbm) > 0
+          ? Number(rangeMatch.total_cbm)
+          : singleCartonCbm * cartonCount;
+      const totalGrossWeight =
+        rangeMatch.total_gross_weight && Number(rangeMatch.total_gross_weight) > 0
+          ? Number(rangeMatch.total_gross_weight)
+          : Number(rangeMatch.gross_weight || 0) * cartonCount;
+      const weightUnit = (rangeMatch.weight_unit || "kg").toUpperCase();
+
+      const cbmStr = `${totalCbm.toFixed(3)} m³`;
+      const gwStr = `${totalGrossWeight % 1 === 0 ? totalGrossWeight.toFixed(0) : totalGrossWeight.toFixed(1)} ${weightUnit}`;
+      return {
+        cbm: cbmStr,
+        grossWeight: gwStr,
+        cbmMoq: cbmStr,
+        grossWeightMoq: gwStr,
+        moq,
+        unit,
+        isConfigured: true,
+      };
+    }
+
+    // Base profile derivation
+    const baseProfile = sortedProfiles[0];
+    const basePkgQty = Math.max(1, Number(baseProfile.package_quantity) || moq || 1);
+    const cartonsPerPkg = Math.max(1, Number(baseProfile.carton_count) || 1);
+    const piecesPerCarton = Math.max(1, Math.round(basePkgQty / cartonsPerPkg));
+    const requiredCartons = Math.ceil(moq / piecesPerCarton);
+
+    const singleCartonCbm = calculateCartonCbm(
+      Number(baseProfile.carton_length || 0),
+      Number(baseProfile.carton_width || 0),
+      Number(baseProfile.carton_height || 0),
+      (baseProfile.dimension_unit as "cm" | "in" | "m") || "cm"
+    );
+    const grossWeightPerCarton =
+      Number(baseProfile.gross_weight) > 0
+        ? Number(baseProfile.gross_weight)
+        : Number(baseProfile.total_gross_weight || 0) / cartonsPerPkg;
+
+    const totalCbm = singleCartonCbm * requiredCartons;
+    const totalGrossWeight = grossWeightPerCarton * requiredCartons;
+    const weightUnit = (baseProfile.weight_unit || "kg").toUpperCase();
+
+    const cbmStr = `${totalCbm.toFixed(3)} m³`;
+    const gwStr = `${totalGrossWeight % 1 === 0 ? totalGrossWeight.toFixed(0) : totalGrossWeight.toFixed(1)} ${weightUnit}`;
+    return {
+      cbm: cbmStr,
+      grossWeight: gwStr,
+      cbmMoq: cbmStr,
+      grossWeightMoq: gwStr,
+      moq,
+      unit,
+      isConfigured: true,
+    };
+  }
+
+  // 3. Direct packaging/snapshot values if present
+  const directCbm = product.cbm ?? product.total_cbm ?? product.shipping_snapshot?.cbm;
+  const directWeight = product.grossWeight ?? product.gross_weight ?? product.total_gross_weight ?? product.shipping_snapshot?.gross_weight;
+
+  if (directCbm !== undefined && directCbm !== null && !isNaN(Number(directCbm)) && Number(directCbm) > 0) {
+    const formattedWeight =
+      directWeight !== undefined && directWeight !== null && !isNaN(Number(directWeight)) && Number(directWeight) > 0
+        ? `${Number(directWeight) % 1 === 0 ? Number(directWeight).toFixed(0) : Number(directWeight).toFixed(1)} KG`
+        : null;
+    const cbmStr = `${Number(directCbm).toFixed(3)} m³`;
+    return {
+      cbm: cbmStr,
+      grossWeight: formattedWeight,
+      cbmMoq: cbmStr,
+      grossWeightMoq: formattedWeight,
+      moq,
+      unit,
+      isConfigured: true,
+    };
+  }
+
+  return {
+    cbm: null,
+    grossWeight: null,
+    cbmMoq: null,
+    grossWeightMoq: null,
+    moq,
+    unit,
+    isConfigured: false,
+  };
 }
 
 /**
@@ -480,9 +814,10 @@ export function buildOfferSheetData(source: any): OfferSheetData {
     }
     const secondaryImages = raw.galleryDataUrls || raw.images || raw.product_images;
     if (Array.isArray(secondaryImages)) {
-      secondaryImages.forEach((img) => {
-        if (img && typeof img === "string" && img.trim()) {
-          rawImagesList.push(img.trim());
+      secondaryImages.forEach((img: any) => {
+        const u = typeof img === "string" ? img : (img?.url || img?.dataUrl || img?.src || img?.image_url);
+        if (u && typeof u === "string" && u.trim()) {
+          rawImagesList.push(u.trim());
         }
       });
     }
@@ -491,12 +826,19 @@ export function buildOfferSheetData(source: any): OfferSheetData {
     const specifications = extractProductSpecifications(raw);
     const pricingTiers = extractProductPricingTiers(raw);
     const unit = (raw.unit || raw.purchaseUnit || raw.purchase_unit || "PCS").trim().toUpperCase();
+    const { description, attributes: descriptionAttributes } = extractProductDescriptionAndAttributes(raw);
+    const specificationTiles = extractProductSpecificationTiles(raw);
+    const logistics = extractProductLogistics(raw);
 
     productItems.push({
       id: raw.id ? String(raw.id) : undefined,
       name,
       sku,
       brand,
+      description,
+      descriptionAttributes,
+      specificationTiles,
+      logistics,
       images,
       primaryImageUrl: images[0] || undefined,
       specifications,
