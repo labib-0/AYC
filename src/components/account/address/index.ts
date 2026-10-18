@@ -4,3 +4,4 @@ export { default as AddressSettingsSection } from "./AddressSettingsSection";
 export { default as AddressForm } from "./AddressForm";
 export type { AddressFormProps, AddressFormOptions } from "./AddressForm";
 export { default as DashboardAddressModal } from "./DashboardAddressModal";
+export { default as CountrySelect } from "./CountrySelect";

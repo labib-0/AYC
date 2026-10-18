@@ -37,7 +37,6 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
           { label: "Offer Reference", value: offerData.docNumber },
           { label: "Date of Issue", value: offerData.date },
           { label: "Validity", value: offerData.validUntil, highlight: true },
-          { label: "Price Basis", value: offerData.priceBasis },
         ]}
         exporterProfile={doc.exporter}
       />
@@ -53,31 +52,27 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
               className="space-y-5 rounded-2xl border border-border/70 bg-card p-5 shadow-xs print:border-slate-300 print:bg-white print:p-0 print:shadow-none print:break-inside-avoid"
             >
               {/* Product Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
+              <div className="space-y-1.5 border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {product.brand && (
                     <span className="text-[10px] font-bold uppercase tracking-wider text-primary font-mono">
-                      {product.brand || "AYAAN CLOTHING"}
+                      {product.brand}
                     </span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      • Style / SKU: <strong className="text-foreground">{product.sku}</strong>
-                    </span>
-                  </div>
-                  <h2 className="text-base sm:text-lg font-bold text-foreground mt-0.5">
-                    {product.name}
-                  </h2>
-                </div>
-                <div className="flex items-center gap-1.5 self-start sm:self-center">
-                  <span className="px-2.5 py-1 rounded-full bg-secondary text-foreground text-[10px] font-mono font-bold border border-border/80">
-                    {product.sku}
+                  )}
+                  {product.brand && <span className="text-muted-foreground/60">•</span>}
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    SKU: <strong className="text-foreground font-bold">{product.sku}</strong>
                   </span>
                 </div>
+                <h2 className="text-base sm:text-lg font-bold text-foreground leading-snug break-words">
+                  {product.name}
+                </h2>
               </div>
 
               {/* Product Visual Gallery - Modestly larger 4:5 image cards with official logo */}
               <div>
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2.5">
-                  PRODUCT VISUAL GALLERY &amp; PRODUCTION SAMPLES
+                  PRODUCT GALLERY
                 </h3>
                 {product.images.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-border/80 bg-secondary/20 p-4 text-center">

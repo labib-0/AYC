@@ -62,6 +62,17 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
   const [shareStatus, setShareStatus] = useState<"idle" | "success" | "copied" | "error">("idle");
   const [shareFeedback, setShareFeedback] = useState("");
 
+  // Route-aware scroll to top: Ensure product detail page opens at the top showing gallery & identity first
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+      const timer = setTimeout(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [slug]);
+
   useEffect(() => {
     async function load() {
       if (!initialProduct) {

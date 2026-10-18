@@ -935,7 +935,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
 
               <div className="mt-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 space-y-1.5">
                 <p className="font-bold text-amber-800 dark:text-amber-400 text-xs">
-                  Your order has been placed. Please complete payment and submit your payment proof for approval.
+                  Your order has been placed and is awaiting payment. Open your order to enter your payment details. You may also upload payment proof to help our team verify your payment.
                 </p>
                 <p className="text-[0.6875rem] text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
                   Please wire funds using order reference{" "}

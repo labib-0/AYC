@@ -434,12 +434,12 @@ export function generateOfferSheetPDFDoc(
 
   y += 28;
 
-  // 2. Metadata Card (Reference, Date, Validity, Basis) - Product-based, strictly NO customer/buyer data
+  // 2. Metadata Card (Reference, Date, Validity) - Product-based, strictly NO customer/buyer data
   const offerHeaderResult = drawDocumentInformationHeader(doc, {
     startY: y,
     margin,
     contentWidth,
-    columns: 4,
+    columns: 3,
     fillColor: [248, 250, 252],
     borderColor: [226, 232, 240],
     fields: [
@@ -453,7 +453,6 @@ export function generateOfferSheetPDFDoc(
         highlight: true,
         valueColor: [194, 65, 12],
       },
-      { label: "Price Basis", value: offerData.priceBasis },
     ],
   });
 
@@ -498,25 +497,27 @@ export function generateOfferSheetPDFDoc(
     doc.setFontSize(8);
     doc.setTextColor(100, 116, 139);
     const brandWidth = doc.getTextWidth(brandStr);
-    doc.text(" • Style / SKU: ", margin + brandWidth, y);
-    const skuPrefixWidth = doc.getTextWidth(" • Style / SKU: ");
+    doc.text(" • SKU: ", margin + brandWidth, y);
+    const skuPrefixWidth = doc.getTextWidth(" • SKU: ");
 
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
     doc.text(product.sku, margin + brandWidth + skuPrefixWidth, y);
-    y += 4.5;
+    y += 5;
 
+    // Product Title (with automatic wrapping to prevent collision or truncation)
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11.5);
+    doc.setFontSize(11);
     doc.setTextColor(15, 23, 42);
-    doc.text(product.name, margin, y);
-    y += 5.5;
+    const splitTitle = doc.splitTextToSize(product.name, contentWidth);
+    doc.text(splitTitle, margin, y);
+    y += splitTitle.length * 4.8 + 3.5;
 
     // Visual Gallery
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.setTextColor(15, 23, 42);
-    doc.text("PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES", margin, y);
+    doc.text("PRODUCT GALLERY", margin, y);
     y += 3.5;
 
     const galleryImages = product.images || [];
@@ -552,7 +553,7 @@ export function generateOfferSheetPDFDoc(
             doc.setFont("helvetica", "bold");
             doc.setFontSize(7.5);
             doc.text(
-              `PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES (CONTINUED) • Ref: ${offerData.docNumber}`,
+              `PRODUCT GALLERY (CONTINUED) • Ref: ${offerData.docNumber}`,
               margin + 4,
               y + 4.8
             );
@@ -1141,7 +1142,7 @@ export function generateProformaInvoiceDoc(
   doc.text("PROFORMA INVOICE", pageWidth - margin - 54, y + 10);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
-  doc.text("Official Commercial P.I. (USD)", pageWidth - margin - 54, y + 15);
+  doc.text("Official PI (USD)", pageWidth - margin - 54, y + 15);
 
   y += 28;
 

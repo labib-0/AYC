@@ -15,8 +15,9 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
     <div className="space-y-6 text-xs font-sans">
       {/* Header */}
       <DocumentHeader
-        badgeText="Proforma Invoice"
-        title={doc.title || "PROFORMA INVOICE"}
+        badgeText="PROFORMA INVOICE"
+        title="PROFORMA INVOICE"
+        subtitle="Official PI (USD)"
         docNumber={doc.docNumber}
         date={doc.date}
         orderNumber={doc.orderNumber}

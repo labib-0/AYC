@@ -109,6 +109,10 @@ const product162Archetype: B2BProductInput = {
   seoDescription: "Wholesale Men's Original T-Shirt by US POLO for men. Premium 200+ GSM garments manufactured for bulk B2B orders direct from Bangladesh.",
   shortDescription: "Wholesale Men's Original T-Shirt by US POLO for men. Premium 200+ GSM garments manufactured for bulk B2B orders direct from Bangladesh.",
   images: ["https://ayaanclothing.com/storage/products/mens-tshirt.jpg"],
+  sku: "SKU-162",
+  moq: 100,
+  stock: 500,
+  status: "published",
 };
 
 const meta162 = generateProductMetadata(product162Archetype, "mens-original-t-shirt");
@@ -128,11 +132,15 @@ const sherpaCoatArchetype: B2BProductInput = {
   material: "Material: Polyester (Sherpa)",
   shortDescription: "Wholesale Women's Plus Size Long Hooded Sherpa Coat by Kim Rogers for women. Premium Material: Polyester (Sherpa) garments manufactured for bulk B2B orders direct from Bangladesh.",
   images: ["https://ayaanclothing.com/storage/products/sherpa-coat.jpg"],
+  sku: "SKU-163",
+  moq: 50,
+  stock: 200,
+  status: "published",
 };
 
 const metaSherpa = generateProductMetadata(sherpaCoatArchetype, "womens-plus-size-long-hooded-sherpa-coat");
 assert(!metaSherpa.description?.includes("Premium Material:"), `Must clean 'Premium Material:', got: '${metaSherpa.description}'`);
-assert(metaSherpa.description?.includes("Polyester (Sherpa)"), `Must retain genuine Polyester (Sherpa) fabric`);
+assert(Boolean(metaSherpa.description?.includes("Polyester (Sherpa)")), `Must retain genuine Polyester (Sherpa) fabric`);
 console.log("  ✔ Sherpa coat metadata retains genuine Polyester (Sherpa) fabric without fluff:\n    ->", metaSherpa.description);
 
 // Level C: Minimal product with zero material, zero custom SEO (fallback test)
@@ -144,6 +152,10 @@ const minimalProduct: B2BProductInput = {
   audience: "UNISEX",
   categoryName: "T-Shirts",
   images: ["https://ayaanclothing.com/storage/products/tee.jpg"],
+  sku: "SKU-200",
+  moq: 100,
+  stock: 300,
+  status: "published",
 };
 
 const metaMinimal = generateProductMetadata(minimalProduct, "basic-crewneck-tee");

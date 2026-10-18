@@ -32,7 +32,10 @@ class AddressController extends ApiController
 
         $validated = $request->validate([
             'type' => ['nullable', 'string', 'in:shipping,billing'],
+            'label' => ['nullable', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:255'],
+            'company_name' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'address_line_1' => ['required', 'string', 'max:255'],
             'address_line_2' => ['nullable', 'string', 'max:255'],
@@ -61,7 +64,10 @@ class AddressController extends ApiController
 
         $validated = $request->validate([
             'type' => ['sometimes', 'string', 'in:shipping,billing'],
+            'label' => ['nullable', 'string', 'max:100'],
             'name' => ['sometimes', 'string', 'max:255'],
+            'company_name' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'address_line_1' => ['sometimes', 'string', 'max:255'],
             'address_line_2' => ['nullable', 'string', 'max:255'],

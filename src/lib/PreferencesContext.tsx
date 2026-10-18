@@ -2,98 +2,26 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { TRANSLATIONS, LanguageCode } from "./translations";
+import { ISO_COUNTRIES, findCountry, getCountryFlag } from "./data/countries";
 
 export interface CountryInfo {
   code: string;
   name: string;
   flag: string;
-  defaultLanguage: LanguageCode;
+  defaultLanguage?: LanguageCode;
   postalCodePlaceholder?: string;
   postalCodeRequired?: boolean;
 }
 
-export const SUPPORTED_COUNTRIES: CountryInfo[] = [
-  {
-    code: "US",
-    name: "United States",
-    flag: "🇺🇸",
-    defaultLanguage: "English",
-    postalCodePlaceholder: "e.g. 90210 or 10001",
-    postalCodeRequired: false,
-  },
-  {
-    code: "BD",
-    name: "Bangladesh",
-    flag: "🇧🇩",
-    defaultLanguage: "English",
-    postalCodePlaceholder: "e.g. 1212 or 1000",
-    postalCodeRequired: false,
-  },
-  {
-    code: "GB",
-    name: "United Kingdom",
-    flag: "🇬🇧",
-    defaultLanguage: "English",
-    postalCodePlaceholder: "e.g. SW1A 1AA",
-    postalCodeRequired: false,
-  },
-  {
-    code: "AE",
-    name: "United Arab Emirates",
-    flag: "🇦🇪",
-    defaultLanguage: "English",
-    postalCodePlaceholder: "e.g. Dubai / Abu Dhabi",
-    postalCodeRequired: false,
-  },
-  {
-    code: "CA",
-    name: "Canada",
-    flag: "🇨🇦",
-    defaultLanguage: "English",
-    postalCodePlaceholder: "e.g. M5V 2T6",
-    postalCodeRequired: false,
-  },
-  {
-    code: "SA",
-    name: "Saudi Arabia",
-    flag: "🇸🇦",
-    defaultLanguage: "Arabic",
-    postalCodePlaceholder: "e.g. 11564",
-    postalCodeRequired: false,
-  },
-  {
-    code: "AU",
-    name: "Australia",
-    flag: "🇦🇺",
-    defaultLanguage: "English",
-    postalCodePlaceholder: "e.g. 2000",
-    postalCodeRequired: false,
-  },
-  {
-    code: "DE",
-    name: "Germany",
-    flag: "🇩🇪",
-    defaultLanguage: "English",
-    postalCodePlaceholder: "e.g. 10115",
-    postalCodeRequired: false,
-  },
-  {
-    code: "FR",
-    name: "France",
-    flag: "🇫🇷",
-    defaultLanguage: "English",
-    postalCodePlaceholder: "e.g. 75001",
-    postalCodeRequired: false,
-  },
-  {
-    code: "IT",
-    name: "Italy",
-    flag: "🇮🇹",
-    defaultLanguage: "English",
-    postalCodePlaceholder: "e.g. 00100",
-    postalCodeRequired: false,
-  },
-];
+/**
+ * Authoritative complete country list populated from ISO_COUNTRIES.
+ */
+export const SUPPORTED_COUNTRIES: CountryInfo[] = ISO_COUNTRIES.map((c) => ({
+  code: c.code,
+  name: c.name,
+  flag: getCountryFlag(c.code),
+  defaultLanguage: "English",
+}));
 
 export const SUPPORTED_LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
   { code: "English", label: "English", native: "English" },
@@ -110,25 +38,28 @@ export interface UserPreferences {
   currency: "USD";
   currencySymbol: "$";
   lastUpdated: number;
+  isManual?: boolean;
 }
 
 const STORAGE_KEY = "ayaan_user_preferences";
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  country: "United States",
-  countryCode: "US",
-  flag: "🇺🇸",
+export const NEUTRAL_PREFERENCES: UserPreferences = {
+  country: "Select your country",
+  countryCode: "",
+  flag: "🌐",
   postalCode: "",
   language: "English",
   currency: "USD",
   currencySymbol: "$",
-  lastUpdated: Date.now(),
+  lastUpdated: 0,
+  isManual: false,
 };
 
 interface PreferencesContextType {
   preferences: UserPreferences;
   isLoaded: boolean;
   updateLocation: (countryCode: string, postalCode?: string) => void;
+  clearLocation: () => void;
   updateLanguage: (language: LanguageCode) => void;
   updateLanguageCurrency: (language: string, currency?: string) => void;
   updateAllPreferences: (newPrefs: Partial<UserPreferences>) => void;
@@ -137,105 +68,161 @@ interface PreferencesContextType {
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);
 
-function detectBrowserCountry(): CountryInfo {
-  try {
-    if (typeof window === "undefined") return SUPPORTED_COUNTRIES[0];
-
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    const locale = (navigator.language || "").toLowerCase();
-
-    if (timeZone.includes("Dhaka")) return SUPPORTED_COUNTRIES.find(c => c.code === "BD")!;
-    if (timeZone.includes("London")) return SUPPORTED_COUNTRIES.find(c => c.code === "GB")!;
-    if (timeZone.includes("Dubai")) return SUPPORTED_COUNTRIES.find(c => c.code === "AE")!;
-    if (timeZone.includes("Riyadh")) return SUPPORTED_COUNTRIES.find(c => c.code === "SA")!;
-    if (timeZone.includes("Toronto") || timeZone.includes("Vancouver")) return SUPPORTED_COUNTRIES.find(c => c.code === "CA")!;
-    if (timeZone.includes("Sydney") || timeZone.includes("Melbourne")) return SUPPORTED_COUNTRIES.find(c => c.code === "AU")!;
-    if (timeZone.includes("Berlin")) return SUPPORTED_COUNTRIES.find(c => c.code === "DE")!;
-    if (timeZone.includes("Paris")) return SUPPORTED_COUNTRIES.find(c => c.code === "FR")!;
-    if (timeZone.includes("Rome")) return SUPPORTED_COUNTRIES.find(c => c.code === "IT")!;
-
-    if (locale.includes("bn") || locale.includes("bd")) return SUPPORTED_COUNTRIES.find(c => c.code === "BD")!;
-    if (locale.includes("en-gb")) return SUPPORTED_COUNTRIES.find(c => c.code === "GB")!;
-    if (locale.includes("ar")) return SUPPORTED_COUNTRIES.find(c => c.code === "AE")!;
-
-    return SUPPORTED_COUNTRIES[0];
-  } catch {
-    return SUPPORTED_COUNTRIES[0];
-  }
-}
-
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
+  const [preferences, setPreferences] = useState<UserPreferences>(NEUTRAL_PREFERENCES);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.countryCode) {
-          setPreferences({
-            ...DEFAULT_PREFERENCES,
-            ...parsed,
-            currency: "USD",
-            currencySymbol: "$",
-          });
+    let isMounted = true;
+
+    async function initializePreferences() {
+      let savedPrefs: UserPreferences | null = null;
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") {
+            savedPrefs = {
+              ...NEUTRAL_PREFERENCES,
+              ...parsed,
+              currency: "USD",
+              currencySymbol: "$",
+            };
+          }
+        }
+      } catch {
+        // ignore localStorage errors
+      }
+
+      // If customer has deliberately selected a country manually, NEVER override it with IP detection!
+      if (savedPrefs && savedPrefs.isManual && savedPrefs.countryCode) {
+        if (isMounted) {
+          setPreferences(savedPrefs);
           setIsLoaded(true);
-          return;
+        }
+        return;
+      }
+
+      // If an existing auto-detected preference was saved, use it as provisional state while checking
+      if (savedPrefs && savedPrefs.countryCode) {
+        if (isMounted) {
+          setPreferences(savedPrefs);
         }
       }
-    } catch {
-      // ignore JSON parse or localStorage failure
+
+      // Query authoritative Laravel IP-based geolocation endpoint
+      try {
+        const res = await fetch("/ayc/api/v1/geolocation/detect");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.detected && data.country_code) {
+            const countryCode = String(data.country_code).toUpperCase();
+            const item = findCountry(countryCode);
+            const countryName = data.country_name || (item ? item.name : countryCode);
+            const flag = getCountryFlag(countryCode);
+
+            const detectedPrefs: UserPreferences = {
+              ...(savedPrefs || NEUTRAL_PREFERENCES),
+              country: countryName,
+              countryCode: countryCode,
+              flag: flag,
+              isManual: false,
+              lastUpdated: Date.now(),
+            };
+
+            if (isMounted) {
+              setPreferences(detectedPrefs);
+              try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(detectedPrefs));
+              } catch {}
+            }
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("[Preferences] Geolocation detection fetch error:", err);
+      }
+
+      // Fallback: If detection returned false or errored and no saved preference exists, keep neutral
+      if (isMounted) {
+        if (!savedPrefs || !savedPrefs.countryCode) {
+          setPreferences(NEUTRAL_PREFERENCES);
+        }
+      }
     }
 
-    const detected = detectBrowserCountry();
-    const detectedPrefs: UserPreferences = {
-      country: detected.name,
-      countryCode: detected.code,
-      flag: detected.flag,
-      postalCode: "",
-      language: detected.defaultLanguage,
-      currency: "USD",
-      currencySymbol: "$",
-      lastUpdated: Date.now(),
+    initializePreferences().finally(() => {
+      if (isMounted) {
+        setIsLoaded(true);
+      }
+    });
+
+    return () => {
+      isMounted = false;
     };
-
-    setPreferences(detectedPrefs);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(detectedPrefs));
-    } catch {
-      // ignore
-    }
-    setIsLoaded(true);
   }, []);
 
   const updateLocation = (countryCode: string, postalCode = "") => {
-    const countryObj = SUPPORTED_COUNTRIES.find(c => c.code === countryCode) || SUPPORTED_COUNTRIES[0];
+    const item = findCountry(countryCode);
+    const code = item ? item.code : (countryCode ? countryCode.toUpperCase() : "");
+    const name = item ? item.name : (countryCode || "Select Country");
+    const flag = code ? getCountryFlag(code) : "🌐";
 
-    setPreferences(prev => {
+    setPreferences((prev) => {
       const updated: UserPreferences = {
         ...prev,
-        country: countryObj.name,
-        countryCode: countryObj.code,
-        flag: countryObj.flag,
+        country: name,
+        countryCode: code,
+        flag: flag,
         postalCode: postalCode.trim(),
+        isManual: true, // Mark as user-selected preference to protect against IP override
         currency: "USD",
         currencySymbol: "$",
         lastUpdated: Date.now(),
       };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
+      } catch {}
       return updated;
     });
   };
 
-  const updateLanguage = (language: LanguageCode) => {
-    const langObj = SUPPORTED_LANGUAGES.find(l => l.code === language) || SUPPORTED_LANGUAGES[0];
+  const clearLocation = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
+    setPreferences(NEUTRAL_PREFERENCES);
 
-    setPreferences(prev => {
+    // Re-detect country via IP
+    fetch("/ayc/api/v1/geolocation/detect")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success && data.detected && data.country_code) {
+          const code = String(data.country_code).toUpperCase();
+          const item = findCountry(code);
+          const name = data.country_name || (item ? item.name : code);
+          const flag = getCountryFlag(code);
+          const detectedPrefs: UserPreferences = {
+            ...NEUTRAL_PREFERENCES,
+            country: name,
+            countryCode: code,
+            flag: flag,
+            isManual: false,
+            lastUpdated: Date.now(),
+          };
+          setPreferences(detectedPrefs);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(detectedPrefs));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+  };
+
+  const updateLanguage = (language: LanguageCode) => {
+    const langObj = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
+
+    setPreferences((prev) => {
       const updated: UserPreferences = {
         ...prev,
         language: langObj.code,
@@ -245,20 +232,17 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
+      } catch {}
       return updated;
     });
   };
 
-  // Backwards compatible method name
   const updateLanguageCurrency = (language: string, _currency?: string) => {
     updateLanguage(language as LanguageCode);
   };
 
   const updateAllPreferences = (newPrefs: Partial<UserPreferences>) => {
-    setPreferences(prev => {
+    setPreferences((prev) => {
       const updated: UserPreferences = {
         ...prev,
         ...newPrefs,
@@ -268,18 +252,19 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
+      } catch {}
       return updated;
     });
   };
 
-  const t = useCallback((key: string): string => {
-    const lang = preferences.language || "English";
-    const dict = TRANSLATIONS[lang] || TRANSLATIONS.English;
-    return dict[key] || TRANSLATIONS.English[key] || key;
-  }, [preferences.language]);
+  const t = useCallback(
+    (key: string): string => {
+      const lang = preferences.language || "English";
+      const dict = TRANSLATIONS[lang] || TRANSLATIONS.English;
+      return dict[key] || TRANSLATIONS.English[key] || key;
+    },
+    [preferences.language]
+  );
 
   return (
     <PreferencesContext.Provider
@@ -287,6 +272,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         preferences,
         isLoaded,
         updateLocation,
+        clearLocation,
         updateLanguage,
         updateLanguageCurrency,
         updateAllPreferences,

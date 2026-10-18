@@ -78,13 +78,13 @@ export default function CommercialProductGallery({
     <section
       className={`rounded-2xl border border-border/70 bg-card p-4 sm:p-5 text-foreground shadow-xs print:shadow-none print:bg-white print:border-slate-300 print:p-3 print:break-inside-avoid ${className}`}
       id="commercial-product-gallery"
-      aria-label="Product Visual Gallery & Production Samples"
+      aria-label="Product Gallery"
     >
       {/* Gallery Section Header & Multiple Products Tabs if applicable */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-2 mb-3.5 print:border-slate-300">
         <div>
           <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono print:text-slate-800 block">
-            PRODUCT VISUAL GALLERY &amp; PRODUCTION SAMPLES
+            PRODUCT GALLERY
           </h2>
           {hasMultipleItems && (
             <span className="text-[10px] font-semibold text-primary block mt-0.5 print:text-slate-700">

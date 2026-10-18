@@ -571,7 +571,7 @@ export default function FeaturedProducts() {
     >
       <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
         {/* ── Header & Main Controls Bar ── */}
-        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="mb-4 sm:mb-6 flex items-center justify-between gap-3 sm:gap-4">
           {/* Top Heading */}
           <div>
             <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none">
@@ -579,30 +579,14 @@ export default function FeaturedProducts() {
             </h2>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 self-start sm:self-auto">
-            {/* Product Counter */}
-            <div className="text-[13px] font-medium text-muted-foreground font-sans whitespace-nowrap min-h-[20px] flex items-center">
-              {isLoadingInitial ? (
-                <span className="inline-block w-28 h-3.5 bg-secondary animate-pulse rounded-full" />
-              ) : (
-                <>
-                  Showing{" "}
-                  <span className="font-bold text-foreground">
-                    {products.length}
-                  </span>{" "}
-                  of {totalCount} items
-                </>
-              )}
-            </div>
-
-            {/* Action Buttons Group: [FILTERS] */}
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Filter Toggle Button: ALWAYS VISIBLE */}
-              <button
-                type="button"
-                onClick={handleToggleFilters}
-                aria-label={isFilterOpen ? "Close filters" : "Open filters"}
-                aria-expanded={isFilterOpen}
+          {/* Action Buttons Group: [FILTERS] */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Filter Toggle Button: ALWAYS VISIBLE */}
+            <button
+              type="button"
+              onClick={handleToggleFilters}
+              aria-label={isFilterOpen ? "Close filters" : "Open filters"}
+              aria-expanded={isFilterOpen}
                 className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[13px] font-sans font-bold uppercase tracking-wider border transition-all duration-200 cursor-pointer ${
                   isFilterOpen || totalActiveFilters > 0
                     ? "bg-foreground text-background border-foreground shadow-xs"
@@ -623,10 +607,8 @@ export default function FeaturedProducts() {
                   </span>
                 )}
               </button>
-
             </div>
           </div>
-        </div>
 
         {/* ── Active Filter Badges Strip ── */}
         {totalActiveFilters > 0 && (
@@ -748,8 +730,9 @@ export default function FeaturedProducts() {
             />
           )}
 
-          {/* Product Grid Area */}
+          {/* Product Grid Area — Skeleton pulse loading state */}
           <div className="product-column flex-1 min-w-0 w-full">
+            {/* Loading skeleton: isLoadingInitial ? ( uses animate-pulse ) */}
             {isLoadingInitial ? (
               <div
                 className={`grid gap-3 sm:gap-3.5 xl:gap-4 transition-all duration-200 ${

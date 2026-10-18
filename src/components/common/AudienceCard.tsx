@@ -159,6 +159,7 @@ export function AudienceTiles({
     >
       {AUDIENCE_OPTIONS.map((audience) => {
         const isSelected = selectedAudiences.includes(audience.name.toUpperCase());
+        const isUnisex = audience.id === "UNISEX";
         return (
           <AudienceTile
             key={audience.id}
@@ -167,6 +168,7 @@ export function AudienceTiles({
             icon={audience.icon}
             isActive={isSelected}
             onClick={() => onToggle(audience.name)}
+            className={isUnisex && !hasCategoriesToggle ? "col-span-2 sm:col-span-1" : ""}
           />
         );
       })}

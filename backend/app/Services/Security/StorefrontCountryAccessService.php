@@ -103,6 +103,82 @@ class StorefrontCountryAccessService
     }
 
     /**
+     * Resolve full country details (country_code, country_name) for an IP address.
+     * Uses stevebauman/location (configured for local MaxMind GeoLite2 with fallbacks).
+     * Caches IP -> details for 30 minutes.
+     * Fail-safe: Returns null on any exception, private IP, or unresolvable IP.
+     *
+     * @return array{country_code: string, country_name: string}|null
+     */
+    public function resolveCountryDetails(?string $ip): ?array
+    {
+        if (empty($ip)) {
+            return null;
+        }
+
+        $ip = trim($ip);
+        if (str_starts_with($ip, '[') && str_ends_with($ip, ']')) {
+            $ip = substr($ip, 1, -1);
+        }
+
+        // Validate IP format (supports IPv4 and IPv6)
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+            return null;
+        }
+
+        // Filter out private and reserved IP addresses (localhost, 10.x, 192.168.x, ::1)
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return null;
+        }
+
+        // Cache resolution for 30 minutes with dynamic salt so database updates invalidate instantly
+        $salt = Cache::get(GeoIpDatabaseManager::CACHE_SALT_KEY, 1);
+        $cacheKey = self::CACHE_PREFIX . "details_v{$salt}:" . $ip;
+
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($ip) {
+            try {
+                $dbPath = app(GeoIpDatabaseManager::class)->getDatabasePath();
+                if (!file_exists($dbPath)) {
+                    if (Cache::add('log_geoip_missing_db', 1, 300)) {
+                        Log::warning('StorefrontCountryAccessService: Local MaxMind database file is missing', [
+                            'path' => $dbPath,
+                        ]);
+                    }
+                }
+
+                $position = Location::get($ip);
+
+                if (!$position) {
+                    return null;
+                }
+
+                $countryCode = $position->countryCode ?? $position->isoCode ?? null;
+                $countryName = $position->countryName ?? null;
+
+                if (!empty($countryCode) && is_string($countryCode)) {
+                    $code = strtoupper(trim($countryCode));
+                    $name = (!empty($countryName) && is_string($countryName)) ? trim($countryName) : $code;
+                    return [
+                        'country_code' => $code,
+                        'country_name' => $name,
+                    ];
+                }
+
+                return null;
+            } catch (\Throwable $e) {
+                $errHash = md5($e->getMessage() . $e->getFile() . $e->getLine());
+                if (Cache::add('log_geoip_err:' . $errHash, 1, 300)) {
+                    Log::warning('StorefrontCountryAccessService: GeoIP lookup failed', [
+                        'ip' => $ip,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                return null;
+            }
+        });
+    }
+
+    /**
      * Evaluate storefront access for an IP address.
      *
      * Rules:

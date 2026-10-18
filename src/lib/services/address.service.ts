@@ -19,44 +19,10 @@ export interface AddressFormData {
   is_default: boolean;
 }
 
-export const COUNTRIES = [
-  { code: "US", name: "United States", dial: "+1" },
-  { code: "GB", name: "United Kingdom", dial: "+44" },
-  { code: "DE", name: "Germany", dial: "+49" },
-  { code: "FR", name: "France", dial: "+33" },
-  { code: "CA", name: "Canada", dial: "+1" },
-  { code: "AU", name: "Australia", dial: "+61" },
-  { code: "JP", name: "Japan", dial: "+81" },
-  { code: "AE", name: "United Arab Emirates", dial: "+971" },
-  { code: "SA", name: "Saudi Arabia", dial: "+966" },
-  { code: "IN", name: "India", dial: "+91" },
-  { code: "CN", name: "China", dial: "+86" },
-  { code: "SG", name: "Singapore", dial: "+65" },
-  { code: "TR", name: "Turkey", dial: "+90" },
-  { code: "IT", name: "Italy", dial: "+39" },
-  { code: "ES", name: "Spain", dial: "+34" },
-  { code: "NL", name: "Netherlands", dial: "+31" },
-  { code: "BE", name: "Belgium", dial: "+32" },
-  { code: "SE", name: "Sweden", dial: "+46" },
-  { code: "NO", name: "Norway", dial: "+47" },
-  { code: "DK", name: "Denmark", dial: "+45" },
-  { code: "PL", name: "Poland", dial: "+48" },
-  { code: "BD", name: "Bangladesh", dial: "+880" },
-  { code: "PK", name: "Pakistan", dial: "+92" },
-  { code: "LK", name: "Sri Lanka", dial: "+94" },
-  { code: "VN", name: "Vietnam", dial: "+84" },
-  { code: "KR", name: "South Korea", dial: "+82" },
-  { code: "HK", name: "Hong Kong SAR", dial: "+852" },
-  { code: "NZ", name: "New Zealand", dial: "+64" },
-  { code: "ZA", name: "South Africa", dial: "+27" },
-  { code: "BR", name: "Brazil", dial: "+55" },
-  { code: "MX", name: "Mexico", dial: "+52" },
-].sort((a, b) => a.name.localeCompare(b.name));
+import { ISO_COUNTRIES, getFullCountryName } from "@/lib/data/countries";
 
-export function getCountryName(code: string): string {
-  const found = COUNTRIES.find((c) => c.code.toUpperCase() === code.toUpperCase());
-  return found ? found.name : code;
-}
+export const COUNTRIES = ISO_COUNTRIES;
+export const getCountryName = getFullCountryName;
 
 export const COUNTRIES_REQUIRING_POSTAL = [
   "US",
@@ -107,10 +73,10 @@ export function validateAddressFields(addr: {
     fieldErrors.name = "Contact person name is required (min 2 characters).";
   }
 
+  // Company Name is optional. Validate only if provided.
   const company = (addr.company_name || "").trim();
-  if (company.length < 2) {
-    missingFields.push("Company");
-    fieldErrors.company_name = "Company name is required for commercial consignee.";
+  if (company && company.length < 2) {
+    fieldErrors.company_name = "Company name must be at least 2 characters if provided.";
   }
 
   const email = (addr.email || "").trim();
@@ -125,7 +91,7 @@ export function validateAddressFields(addr: {
     fieldErrors.phone = "Phone number is required for carrier delivery contact.";
   } else if (!/^\+?[0-9\s\-().]{7,25}$/.test(phone)) {
     missingFields.push("Valid Phone");
-    fieldErrors.phone = "Enter a valid international phone number (e.g. +33 1 23 45 67 89 or +1 555 0192).";
+    fieldErrors.phone = "Enter a valid international phone number.";
   }
 
   const line1 = (addr.address_line_1 || "").trim();

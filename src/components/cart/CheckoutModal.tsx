@@ -28,7 +28,6 @@ import {
   FileText,
   CheckCircle2,
   AlertCircle,
-  ShieldCheck,
   ArrowRight,
   Plane,
   MessageCircle,
@@ -140,7 +139,19 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitAttempted, setIsSubmitAttempted] = useState(false);
-  const [confirmedOrder, setConfirmedOrder] = useState<OrderRecord | null>(null);
+  const [confirmedOrder, setConfirmedOrder] = useState<OrderRecord | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("ayaan_test_confirmed_order");
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return null;
+  });
 
   const [shippingMode, setShippingMode] = useState<ShippingMode>("manual");
   const [aramexEnabled, setAramexEnabled] = useState<boolean>(false);
@@ -238,7 +249,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   // Derive live validation state for UI indicators from current state/ref
   // (used by the form to show real-time field highlights)
   const isNameValid = shippingName.trim().length >= 2;
-  const isCompanyValid = shippingCompany.trim().length >= 2;
+  const isCompanyValid = shippingCompany.trim().length === 0 || shippingCompany.trim().length >= 2;
   const isEmailValid = email.trim() !== "" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isPhoneValid = phone.trim().length >= 7 && /^\+?[0-9\s\-().]{7,25}$/.test(phone.trim());
   const isCountryValid = country.trim() !== "";
@@ -300,8 +311,20 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      loadCustomerAddresses();
       setError("");
+      if (typeof window !== "undefined") {
+        const stored = sessionStorage.getItem("ayaan_test_confirmed_order");
+        if (stored) {
+          try {
+            setConfirmedOrder(JSON.parse(stored));
+            setAddressFormMode(null);
+            return;
+          } catch {
+            // ignore
+          }
+        }
+      }
+      loadCustomerAddresses();
       setConfirmedOrder(null);
       setIsSubmitAttempted(false);
     } else {
@@ -854,125 +877,122 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
             {/* Modal Body (Independently Scrollable) */}
             <div className="p-5 sm:p-6 space-y-5 flex-1 min-h-0 overflow-y-auto font-sans">
-              <div className="p-4 rounded-2xl bg-secondary/30 border border-border space-y-2 text-xs">
-                <p className="text-foreground leading-relaxed">
-                  Your order has been placed. Please complete payment and submit your payment proof for approval.
+              <div className="p-4 sm:p-5 rounded-2xl bg-secondary/30 border border-border space-y-3 text-xs">
+                <p className="text-foreground leading-relaxed text-xs sm:text-[13px]">
+                  Your order has been placed and is awaiting payment. Open your order to enter your payment details. You may also upload payment proof to help our team verify your payment.
                 </p>
 
                 {/* Consignee Snapshot Recap */}
-                <div className="pt-2.5 border-t border-border/60 text-muted-foreground space-y-1">
-                  <div className="flex justify-between font-medium">
-                    <span>Consignee:</span>
-                    <span className="font-bold text-foreground">
+                <div className="pt-2.5 border-t border-border/60 text-muted-foreground space-y-1.5">
+                  <div className="flex items-start justify-between gap-3 text-xs">
+                    <span className="text-muted-foreground font-medium shrink-0">Consignee:</span>
+                    <span className="font-bold text-foreground text-right break-words min-w-0">
                       {confirmedOrder.shipping_company ? `${confirmedOrder.shipping_company} (${confirmedOrder.shipping_name})` : confirmedOrder.shipping_name}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Destination:</span>
-                    <span className="text-foreground">
+                  <div className="flex items-start justify-between gap-3 text-xs">
+                    <span className="text-muted-foreground font-medium shrink-0">Destination:</span>
+                    <span className="text-foreground text-right break-words min-w-0">
                       {confirmedOrder.shipping_city}, {confirmedOrder.shipping_country_code}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Service &amp; Method:</span>
-                    <span className="text-foreground font-semibold">
-                      {confirmedOrder.shipping_method}
-                    </span>
-                  </div>
                   {confirmedOrder.destination_port && (
-                    <div className="flex justify-between">
-                      <span>Destination Port:</span>
-                      <span className="text-foreground font-mono font-bold">
+                    <div className="flex items-start justify-between gap-3 text-xs">
+                      <span className="text-muted-foreground font-medium shrink-0">Destination Port:</span>
+                      <span className="text-foreground font-mono font-bold text-right break-words min-w-0">
                         {confirmedOrder.destination_port}
                       </span>
                     </div>
                   )}
                 </div>
 
-                <div className="pt-2.5 border-t border-border/60 flex items-center justify-between font-bold text-foreground">
-                  <span>Merchandise Value ({confirmedOrder.items?.length || 0} items):</span>
-                  <span>${confirmedOrder.subtotal.toFixed(2)} USD</span>
-                </div>
-                {confirmedOrder.discount_amount > 0 && (
-                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                    <span>Discount ({confirmedOrder.coupon_code || confirmedOrder.promo_code || "Promo"}):</span>
-                    <span className="font-bold font-mono">-${confirmedOrder.discount_amount.toFixed(2)} USD</span>
+                {/* Financial Summary */}
+                <div className="pt-2.5 border-t border-border/60 space-y-1.5">
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-muted-foreground font-medium shrink-0">
+                      Merchandise Value ({confirmedOrder.items?.length || 0} items):
+                    </span>
+                    <span className="font-semibold text-foreground font-mono text-right shrink-0">
+                      ${confirmedOrder.subtotal.toFixed(2)} USD
+                    </span>
                   </div>
-                )}
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Shipping Arrangement:</span>
-                  <span className="font-semibold text-foreground">
-                    {isManual ? (
-                      <span className="text-amber-600 dark:text-amber-400">To be confirmed separately</span>
-                    ) : (
-                      `$${(confirmedOrder.shipping_cost || 0).toFixed(2)} USD (${confirmedOrder.shipping_method})`
-                    )}
-                  </span>
+                  {confirmedOrder.discount_amount > 0 && (
+                    <div className="flex items-center justify-between gap-3 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                      <span className="shrink-0">Discount ({confirmedOrder.coupon_code || confirmedOrder.promo_code || "Promo"}):</span>
+                      <span className="font-bold font-mono text-right shrink-0">-${confirmedOrder.discount_amount.toFixed(2)} USD</span>
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between gap-3 text-xs">
+                    <span className="text-muted-foreground font-medium shrink-0">Shipping Arrangement:</span>
+                    <span className="font-semibold text-foreground text-right break-words min-w-0">
+                      {isManual ? (
+                        <span className="text-amber-600 dark:text-amber-400">To be confirmed separately</span>
+                      ) : (
+                        `$${(confirmedOrder.shipping_cost || 0).toFixed(2)} USD (${confirmedOrder.shipping_method})`
+                      )}
+                    </span>
+                  </div>
                 </div>
-                <div className="pt-1.5 border-t border-border/40 flex items-center justify-between text-sm font-black text-foreground">
-                  <span>{isManual ? "Merchandise Total (USD):" : "Grand Total (USD):"}</span>
-                  <span className="text-primary">${confirmedOrder.total_amount.toFixed(2)} USD</span>
+
+                {/* Final Displayed Total */}
+                <div className="pt-2.5 border-t border-border flex items-center justify-between gap-3">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    {isManual ? "Merchandise Total (USD):" : "Grand Total (USD):"}
+                  </span>
+                  <span className="text-base sm:text-lg font-black text-primary font-mono text-right shrink-0">
+                    ${confirmedOrder.total_amount.toFixed(2)} USD
+                  </span>
                 </div>
               </div>
 
-              {/* Official Documents */}
-              <div className="space-y-3">
+              {/* Commercial Documents */}
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <FileText size={15} className="text-primary" />
-                    <span>Official Commercial Documents</span>
+                    <FileText size={14} className="text-primary" />
+                    <span>Commercial Documents</span>
                   </h3>
-                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <ShieldCheck size={13} />
-                    <span>Proforma Invoice issued</span>
-                  </span>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => downloadProformaInvoicePDF(confirmedOrder)}
-                  className="w-full py-3 px-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors flex items-center justify-between text-left cursor-pointer group"
+                  className="w-full h-13 px-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors flex items-center justify-between text-left cursor-pointer group"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:scale-105 transition-transform">
-                      <FileText size={18} />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <FileText size={16} />
                     </div>
-                    <div>
-                      <div className="text-xs font-bold text-foreground">
-                        Proforma Invoice (PI)
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        PDF with full consignee, Aramex SLI specifications &amp; bank wire info
-                      </div>
-                    </div>
+                    <span className="text-xs font-bold text-foreground truncate">
+                      Proforma Invoice (PI)
+                    </span>
                   </div>
-                  <Download size={16} className="text-muted-foreground group-hover:text-foreground" />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-foreground group-hover:bg-secondary transition-colors shrink-0">
+                    <Download size={16} />
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleDownloadOfferSheets}
                   disabled={isGeneratingOfferSheets}
-                  className="w-full py-3 px-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors flex items-center justify-between text-left cursor-pointer group disabled:opacity-50"
+                  className="w-full h-13 px-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors flex items-center justify-between text-left cursor-pointer group disabled:opacity-50"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:scale-105 transition-transform">
-                      {isGeneratingOfferSheets ? (
-                        <RefreshCw size={18} className="animate-spin" />
-                      ) : (
-                        <Download size={18} />
-                      )}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <FileText size={16} />
                     </div>
-                    <div>
-                      <div className="text-xs font-bold text-foreground">
-                        Product Offer Sheets
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        High-res export catalogue for ordered lines
-                      </div>
-                    </div>
+                    <span className="text-xs font-bold text-foreground truncate">
+                      Product Offer Sheets
+                    </span>
                   </div>
-                  <Download size={16} className="text-muted-foreground group-hover:text-foreground" />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-foreground group-hover:bg-secondary transition-colors shrink-0">
+                    {isGeneratingOfferSheets ? (
+                      <RefreshCw size={16} className="animate-spin text-primary" />
+                    ) : (
+                      <Download size={16} />
+                    )}
+                  </div>
                 </button>
 
                 {offerSheetError && (
@@ -1074,7 +1094,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           </div>
 
           {/* Modal Body (Independently Scrollable) */}
-          <div className="p-5 sm:p-6 space-y-5 sm:space-y-6 flex-1 min-h-0 overflow-y-auto">
+          <div className="p-5 sm:p-6 space-y-5 sm:space-y-6 flex-1 min-h-0 overflow-y-auto pb-32 sm:pb-8">
             {error && (
               <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-medium flex items-start gap-2.5 animate-in fade-in">
                 <AlertCircle size={16} className="shrink-0 mt-0.5" />
@@ -1287,7 +1307,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                   onClick={() => aramexEnabled && setShippingMode("aramex")}
                   className={`p-3.5 rounded-xl text-left transition-all relative flex flex-col justify-between ${
                     !aramexEnabled
-                      ? "border border-dashed border-border/80 bg-secondary/20 opacity-60 cursor-not-allowed select-none"
+                      ? "border border-slate-200 dark:border-white/10 bg-slate-100/60 dark:bg-white/[0.02] text-slate-400 dark:text-slate-500 cursor-not-allowed select-none"
                       : shippingMode === "aramex"
                       ? "border-2 border-foreground bg-secondary/30 cursor-pointer"
                       : "border-[1.5px] border-border/80 bg-card hover:border-foreground/50 hover:bg-secondary/10 cursor-pointer"
@@ -1296,59 +1316,48 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                   <div className="w-full space-y-1">
                     <div className="flex items-center justify-between w-full">
                       <div className="flex items-center gap-1.5">
-                        <Plane size={15} className={aramexEnabled && shippingMode === "aramex" ? "text-foreground" : "text-muted-foreground"} />
+                        <Plane size={15} className={aramexEnabled && shippingMode === "aramex" ? "text-foreground" : "text-slate-400 dark:text-slate-500"} />
                         <span className={`font-bold text-xs uppercase tracking-wide ${
-                          aramexEnabled && shippingMode === "aramex" ? "text-foreground" : "text-foreground/80"
+                          aramexEnabled && shippingMode === "aramex" ? "text-foreground" : "text-slate-400 dark:text-slate-500"
                         }`}>
                           ARAMEX
                         </span>
                       </div>
-                      {aramexEnabled && shippingMode === "aramex" && <CheckCircle2 size={15} className="text-foreground shrink-0" />}
-                      {!aramexEnabled && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground uppercase tracking-wider border border-border/60">
-                          UNAVAILABLE
+                      {!aramexEnabled ? (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-white/10 text-slate-500 dark:text-slate-400">
+                          Currently Unavailable
                         </span>
+                      ) : shippingMode === "aramex" && (
+                        <CheckCircle2 size={15} className="text-foreground shrink-0" />
                       )}
                     </div>
-                    <span className="text-[11px] text-muted-foreground block leading-snug">
-                      Priority Air Express · 3–5 business days
-                    </span>
-                    {!aramexEnabled ? (
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block pt-0.5">
-                        Service currently disabled
-                      </span>
-                    ) : aramexError ? (
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium block pt-0.5">
-                        Quote unavailable for selected country
-                      </span>
-                    ) : null}
                   </div>
 
-                  <div className="flex justify-end w-full mt-2 min-h-[20px] items-center">
-                    {!aramexEnabled ? (
-                      <span className="text-[11px] text-muted-foreground font-medium">Service Disabled</span>
-                    ) : shippingMode === "aramex" && aramexLoading ? (
-                      <span className="text-[11px] text-foreground font-semibold flex items-center gap-1">
-                        <RefreshCw size={11} className="animate-spin" /> Calculating...
-                      </span>
-                    ) : shippingMode === "aramex" && aramexError ? (
-                      <span className="text-[11px] text-muted-foreground text-right">
-                        Est. on order{" "}
-                        <span
-                          onClick={(e) => { e.stopPropagation(); fetchAramexQuote(); }}
-                          className="underline cursor-pointer"
-                        >
-                          Retry
+                  {aramexEnabled && (
+                    <div className="flex justify-end w-full mt-2 min-h-[20px] items-center">
+                      {shippingMode === "aramex" && aramexLoading ? (
+                        <span className="text-[11px] text-foreground font-semibold flex items-center gap-1">
+                          <RefreshCw size={11} className="animate-spin" /> Calculating...
                         </span>
-                      </span>
-                    ) : aramexQuote ? (
-                      <span className="font-bold text-sm text-foreground font-mono">
-                        {formatPrice(aramexQuote.amount || 0)} USD
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground">Est. on confirmation</span>
-                    )}
-                  </div>
+                      ) : shippingMode === "aramex" && aramexError ? (
+                        <span className="text-[11px] text-muted-foreground text-right">
+                          Est. on order{" "}
+                          <span
+                            onClick={(e) => { e.stopPropagation(); fetchAramexQuote(); }}
+                            className="underline cursor-pointer"
+                          >
+                            Retry
+                          </span>
+                        </span>
+                      ) : aramexQuote ? (
+                        <span className="font-bold text-sm text-foreground font-mono">
+                          {formatPrice(aramexQuote.amount || 0)} USD
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">Est. on confirmation</span>
+                      )}
+                    </div>
+                  )}
                 </button>
 
                 {/* Option 2 — DISCUSS DIRECTLY */}
@@ -1361,23 +1370,20 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       : "border-[1.5px] border-border/80 bg-card hover:border-foreground/50 hover:bg-secondary/10"
                   }`}
                 >
-                  <div className="w-full space-y-1">
+                  <div className="w-full space-y-1.5">
                     <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-1.5">
-                        <MessageCircle size={15} className={shippingMode === "manual" ? "text-foreground" : "text-muted-foreground"} />
-                        <span className={`font-bold text-xs uppercase tracking-wide ${
-                          shippingMode === "manual" ? "text-foreground" : "text-foreground/80"
-                        }`}>
-                          Discuss Directly
-                        </span>
-                      </div>
+                      <span className={`font-bold text-xs uppercase tracking-wide ${
+                        shippingMode === "manual" ? "text-foreground" : "text-foreground/80"
+                      }`}>
+                        Discuss Directly
+                      </span>
                       {shippingMode === "manual" && <CheckCircle2 size={15} className="text-foreground shrink-0" />}
                     </div>
-                    <span className="text-[11px] text-muted-foreground block leading-snug">
-                      Shipping arrangements and freight charges will be confirmed directly with our export team.
-                    </span>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Our export team will discuss shipping arrangements and freight charges with you after your order is placed.
+                    </p>
                   </div>
-                  <div className="flex justify-between w-full mt-2 min-h-[20px] items-center gap-1">
+                  <div className="flex justify-between w-full mt-2.5 min-h-[20px] items-center gap-1">
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
                       Freight to be confirmed
                     </span>
@@ -1387,9 +1393,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#25D366]/10 text-[#25D366] text-[10px] font-bold uppercase tracking-wider hover:bg-[#25D366]/20 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#25D366]/10 text-[#25D366] text-[10px] font-bold uppercase tracking-wider hover:bg-[#25D366]/20 transition-colors"
                       >
-                        <MessageCircle size={11} />
                         Inquire
                       </a>
                     )}
@@ -1414,22 +1419,19 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
             <hr className="border-border/60" />
 
-            {/* ─── 3. SPECIAL INSTRUCTIONS & THIRD PARTY NOTIFY ────────────── */}
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <label htmlFor="specialInstructions" className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
-                  <span>Special Instructions / Remarks</span>
-                  <span className="text-[10px] text-slate-400 font-normal">Optional · Aramex SLI Remarks</span>
-                </label>
-                <textarea
-                  id="specialInstructions"
-                  rows={2}
-                  value={specialInstructions}
-                  onChange={(e) => setSpecialInstructions(e.target.value)}
-                  placeholder="e.g. Delivery between 9AM-5PM, deliver to warehouse bay 4, notify receiving dock before arrival"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-border/80 bg-secondary/30 text-foreground outline-none focus:border-foreground transition-all"
-                />
-              </div>
+            {/* ─── 3. SPECIAL INSTRUCTIONS ─────────────────────────────────── */}
+            <div className="space-y-1.5">
+              <label htmlFor="specialInstructions" className="text-xs font-semibold text-foreground">
+                Special Instructions
+              </label>
+              <textarea
+                id="specialInstructions"
+                rows={2}
+                value={specialInstructions}
+                onChange={(e) => setSpecialInstructions(e.target.value)}
+                placeholder=""
+                className="w-full px-3 py-2 text-xs rounded-xl border border-border/80 bg-secondary/30 text-foreground outline-none focus:border-foreground transition-all"
+              />
             </div>
 
             <hr className="border-border/60" />
@@ -1488,7 +1490,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                         id="promoCodeInput"
                         name="promoCode"
                         type="text"
-                        placeholder="Enter promo code (e.g. AYAAN10)"
+                        placeholder=""
                         value={promoInput}
                         onChange={(e) => {
                           setPromoInput(e.target.value);
@@ -1552,63 +1554,59 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
             <hr className="border-border/60" />
 
-            {/* ─── 5. FINANCIAL SUMMARY ────────────────────────────────────── */}
-            <div className="space-y-2 text-sm font-sans pt-1">
-              <div className="flex justify-between text-muted-foreground font-medium">
-                <span className="uppercase tracking-wide text-xs">Merchandise Subtotal</span>
-                <span className="text-foreground font-semibold font-mono">{formatPrice(subtotal)} USD</span>
+            {/* ─── 5. PRICING SUMMARY ────────────────────────────────────── */}
+            <div className="space-y-2.5 text-xs font-sans pt-1">
+              {/* Merchandise Subtotal */}
+              <div className="flex justify-between items-center text-muted-foreground font-medium">
+                <span>Merchandise Subtotal</span>
+                <span className="text-foreground font-semibold font-mono text-sm">{formatPrice(subtotal)} USD</span>
               </div>
 
+              {/* Discount if applicable */}
               {discountAmount > 0 && appliedCoupon && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                  <span className="uppercase tracking-wide text-xs">
-                    {appliedCoupon.discount_type === "percentage"
-                      ? `Discount (${appliedCoupon.discount_value}%)`
-                      : `Discount ($${appliedCoupon.discount_value})`}
+                <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span>
+                    Discount ({appliedCoupon.code}
+                    {appliedCoupon.discount_type === "percentage" ? ` · ${appliedCoupon.discount_value}%` : ""})
                   </span>
-                  <span className="font-semibold font-mono text-emerald-600 dark:text-emerald-400">
-                    -{formatPrice(discountAmount)} USD
-                  </span>
+                  <span className="font-semibold font-mono text-sm">-{formatPrice(discountAmount)} USD</span>
                 </div>
               )}
 
-              <div className="flex justify-between text-muted-foreground font-medium">
-                <span className="uppercase tracking-wide text-xs">Shipping &amp; Freight</span>
-                <span className="text-foreground font-semibold">
-                  {hasConfirmedShipping ? (
-                    <span className="font-mono">{formatPrice(aramexShippingCost)} USD</span>
-                  ) : (
-                    <span className="text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
-                      To be confirmed (freight excluded)
-                    </span>
-                  )}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-end pt-3 mt-2 border-t border-border">
+              {/* Shipping & Freight */}
+              <div className="flex justify-between items-start text-muted-foreground font-medium">
                 <div>
-                  <span className="font-bold text-foreground text-sm uppercase tracking-wide block">
-                    {hasConfirmedShipping ? "Grand Total" : "Merchandise Subtotal"}
-                  </span>
-                  {!hasConfirmedShipping ? (
-                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold block mt-0.5">
-                      Freight charges excluded · Confirmed by export team
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-muted-foreground font-medium block mt-0.5">
-                      Includes {formatPrice(aramexShippingCost)} USD priority air freight
+                  <span>Shipping &amp; Freight</span>
+                  {!hasConfirmedShipping && (
+                    <span className="block text-[11px] text-muted-foreground/75 font-normal">
+                      Freight excluded from current amount
                     </span>
                   )}
                 </div>
                 <div className="text-right">
-                  <span className="font-black text-lg text-foreground font-mono">
-                    {formatPrice(hasConfirmedShipping ? total : merchandiseAfterDiscount)} USD
-                  </span>
-                  {!hasConfirmedShipping && (
-                    <span className="block text-[11px] text-muted-foreground font-medium mt-0.5">
-                      + freight charges
+                  {hasConfirmedShipping ? (
+                    <span className="text-foreground font-semibold font-mono text-sm">
+                      {formatPrice(aramexShippingCost)} USD
+                    </span>
+                  ) : (
+                    <span className="text-amber-600 dark:text-amber-400 font-semibold text-xs">
+                      To be confirmed
                     </span>
                   )}
+                </div>
+              </div>
+
+              {/* Order Total Divider & Row */}
+              <div className="pt-2.5 border-t border-border flex justify-between items-baseline">
+                <div>
+                  <span className="font-bold text-foreground text-sm uppercase tracking-wide">
+                    Order Total
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="font-bold text-base text-foreground font-mono">
+                    {formatPrice(hasConfirmedShipping ? total : merchandiseAfterDiscount)} USD
+                  </span>
                 </div>
               </div>
             </div>
@@ -1625,10 +1623,9 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               </div>
             )}
 
-            <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-              <ShieldCheck size={14} className="text-foreground opacity-70 shrink-0" />
-              <span>Commercial wholesale order · Proforma Invoice generated after confirmation</span>
-            </div>
+            <p className="text-[11px] text-muted-foreground text-center sm:text-left leading-relaxed">
+              Proforma Invoice generated after order confirmation.
+            </p>
 
             <button
               type="submit"
@@ -1643,7 +1640,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 <div className="w-5 h-5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>Confirm Order &amp; Generate Proforma</span>
+                  <span>Confirm Order</span>
                   <ArrowRight size={16} />
                 </>
               )}
@@ -1666,7 +1663,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           />
           <div className="fixed inset-0 z-[240] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6">
             <div
-              className="bg-card border border-border/80 w-full sm:w-[90vw] md:w-[88vw] lg:w-[85vw] max-w-[1200px] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+              className="bg-card border border-border/80 w-full max-w-xl rounded-t-2xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Sheet header */}
@@ -1697,7 +1694,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               </div>
 
               {/* Sheet body — scrollable */}
-              <div className="p-5 sm:p-6 md:p-8 max-h-[80vh] overflow-y-auto">
+              <div className="p-4 sm:p-6 max-h-[82vh] overflow-y-auto">
                 {addressFormError && (
                   <div className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-medium flex items-start gap-2 animate-in fade-in">
                     <AlertCircle size={14} className="shrink-0 mt-0.5" />

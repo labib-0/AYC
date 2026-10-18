@@ -11,6 +11,7 @@ export interface DocumentHeaderMetadataField {
 export interface DocumentHeaderProps {
   badgeText: string;
   title: string;
+  subtitle?: string;
   docNumber: string;
   date: string;
   orderNumber?: string;
@@ -42,6 +43,7 @@ export interface DocumentHeaderProps {
 export default function DocumentHeader({
   badgeText,
   title,
+  subtitle,
   docNumber,
   date,
   orderNumber,
@@ -87,7 +89,6 @@ export default function DocumentHeader({
         { label: "Offer Reference", value: docNumber },
         { label: "Date of Issue", value: date },
         { label: "Validity", value: validUntil || "30 Days from date of issuance", highlight: true },
-        { label: "Price Basis", value: "FOB Dhaka (Export)" },
       ];
       if (shippingArrangement) {
         offerFields.push({ label: "Shipping Arrangement", value: shippingArrangement });
@@ -155,6 +156,11 @@ export default function DocumentHeader({
           <span className="text-xl sm:text-2xl font-display font-black uppercase tracking-wider text-primary block">
             {title}
           </span>
+          {subtitle && (
+            <span className="text-xs font-semibold text-muted-foreground block mt-0.5">
+              {subtitle}
+            </span>
+          )}
           <span className="font-mono text-base font-bold text-foreground block mt-1">
             {docNumber}
           </span>

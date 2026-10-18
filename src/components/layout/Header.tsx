@@ -228,9 +228,10 @@ function HeaderContent() {
   const openSignIn = () => {
     setIsSearchOpen(false);
     if (user) {
-      router.push("/dashboard");
+      router.push("/dashboard/addresses");
     } else {
-      router.push("/login");
+      const returnPath = pathname || "/";
+      router.push(`/login?returnUrl=${encodeURIComponent(returnPath)}`);
     }
   };
 
@@ -365,7 +366,7 @@ function HeaderContent() {
               <div className="flex flex-col leading-none justify-center text-left">
                 <span className="text-[11px] text-white/50 mb-0.5 uppercase tracking-wide">Deliver to:</span>
                 <span className="font-bold tracking-wide text-[13px] truncate max-w-[90px]">
-                  {preferences.countryCode}
+                  {preferences.countryCode || "Select"}
                 </span>
               </div>
             </button>

@@ -56,7 +56,7 @@ export interface OfferSheetData {
  * Explicitly omits any mention of "ISO99" or fabricated standards.
  */
 export const CONSOLIDATED_OFFER_SHEET_COMMERCIAL_TERMS: string[] = [
-  "Price Basis: All prices quoted strictly on FOB Dhaka (Port / Airport) basis. Ocean / Air freight charges are negotiated and quoted separately.",
+  "Freight & Shipping Terms: All prices quoted on FOB Dhaka (Port / Airport) basis. Ocean / Air freight charges are negotiated and quoted separately.",
   "Document Nature: Official Offer Sheet and product presentation schedule; this document does not constitute a tax invoice.",
   "Validity: Quotation valid for order placement within 30 calendar days from the date of issuance.",
   "Payment Terms: 100% Advance Bank Wire Transfer (T/T) or Irrevocable Confirmed Letter of Credit (L/C) at sight.",

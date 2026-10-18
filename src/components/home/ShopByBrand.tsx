@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { brandService, BrandModel } from "@/services/brand.service";
 import { categoryService, CategoryModel } from "@/services/category.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
-import { ChevronDown, SlidersHorizontal, RotateCcw, X, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, SlidersHorizontal, RotateCcw, X, Loader2 } from "lucide-react";
 import BrandLogoTile from "@/components/common/BrandLogoTile";
 import ProductCard from "../product/ProductCard";
 import { ProductCardSkeleton } from "../product/ProductCardSkeleton";
@@ -28,13 +28,18 @@ export interface Brand {
   sort_order?: number;
 }
 
-const INITIAL_BRAND_TILES_DISPLAY_COUNT = 40; // 20 columns x 2 rows = 40 brands
+const MOBILE_BRAND_COLUMNS = 4;
+const MOBILE_BRAND_ROWS = 6;
+const MOBILE_INITIAL_VISIBLE_COUNT = MOBILE_BRAND_COLUMNS * MOBILE_BRAND_ROWS; // Exactly 24 brand tiles (6 rows x 4 columns)
+const DESKTOP_INITIAL_VISIBLE_COUNT = 40; // 20 columns x 2 rows = 40 brands
+const INITIAL_BRAND_TILES_DISPLAY_COUNT = 40; // Desktop default: setVisibleCount(40) (2 full rows of 20)
 const INITIAL_BRAND_PRODUCTS_LIMIT = 21; // Exactly 21 products initially
 const CONTINUOUS_BATCH_LIMIT = 21; // Next batch limit
 
 export default function ShopByBrand() {
   const [dbBrands, setDbBrands] = useState<Brand[]>([]);
-  const [visibleCount, setVisibleCount] = useState<number>(INITIAL_BRAND_TILES_DISPLAY_COUNT);
+  const [isMobileExpanded, setIsMobileExpanded] = useState<boolean>(false);
+  const [isDesktopExpanded, setIsDesktopExpanded] = useState<boolean>(false);
 
   // Shared Explorer Filter State & Cached Metadata
   const {
@@ -76,12 +81,6 @@ export default function ShopByBrand() {
   useEffect(() => {
     isContinuousModeRef.current = isContinuousMode;
   }, [isContinuousMode]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth >= 1280) {
-      setVisibleCount(40); // 20 columns x 2 rows = 40 brands on desktop
-    }
-  }, []);
 
   // Load landing brands - strictly from Laravel Backend
   const loadMetadata = useCallback(async () => {
@@ -125,9 +124,21 @@ export default function ShopByBrand() {
   // All brands for Shop By Brand section come strictly from database landing brands
   const allBrands = dbBrands;
 
-  const visibleBrands = useMemo(() => {
-    return allBrands.slice(0, visibleCount);
-  }, [allBrands, visibleCount]);
+  const handleToggleMobileBrands = () => {
+    setIsMobileExpanded((prev) => {
+      const next = !prev;
+      if (!next && typeof window !== "undefined") {
+        const brandsSection = document.getElementById("brands");
+        if (brandsSection) {
+          const rect = brandsSection.getBoundingClientRect();
+          if (rect.top < 0) {
+            brandsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+      }
+      return next;
+    });
+  };
 
   // Handle Filter Update
   const handleFilterUpdate = async (
@@ -461,9 +472,24 @@ export default function ShopByBrand() {
           - NO redirection
           - Multi-selection support with visual highlight
         */}
-        {visibleBrands.length > 0 ? (
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-[repeat(20,minmax(0,1fr))] 2xl:grid-cols-[repeat(20,minmax(0,1fr))] min-[1800px]:grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5 sm:gap-1">
-            {visibleBrands.map((brand) => {
+        {allBrands.length > 0 ? (
+          <div
+            id="brands-grid"
+            className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-[repeat(20,minmax(0,1fr))] 2xl:grid-cols-[repeat(20,minmax(0,1fr))] min-[1800px]:grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5 sm:gap-1"
+          >
+            {allBrands.map((brand, index) => {
+              const isMobileHidden = !isMobileExpanded && index >= MOBILE_INITIAL_VISIBLE_COUNT;
+              const isDesktopHidden = !isDesktopExpanded && index >= DESKTOP_INITIAL_VISIBLE_COUNT;
+
+              let visibilityClass = "";
+              if (isMobileHidden && isDesktopHidden) {
+                visibilityClass = "!hidden";
+              } else if (isMobileHidden) {
+                visibilityClass = "max-sm:!hidden";
+              } else if (isDesktopHidden) {
+                visibilityClass = "sm:!hidden";
+              }
+
               const logoUrl = brand.logo_url || brand.logo || getBrandLogoUrl(brand.name);
               const isSelected = selectedBrands.some(
                 (b) => b.toLowerCase() === brand.name.toLowerCase() || (brand.slug && b.toLowerCase() === brand.slug.toLowerCase())
@@ -479,6 +505,7 @@ export default function ShopByBrand() {
                   onClick={() => handleBrandClick(brand.name)}
                   title={brand.name}
                   ariaLabel={isSelected ? `Deselect ${brand.name}` : `Filter by ${brand.name}`}
+                  className={visibilityClass}
                 />
               );
             })}
@@ -486,21 +513,66 @@ export default function ShopByBrand() {
         ) : null}
 
         {/* 
-          Centered Minimal Down-Arrow Load More Control for Brands:
+          Mobile Compact "View All Brands" / "Show Less" Control (Below 6th row, max 24 brands):
         */}
-        {visibleCount < allBrands.length && (
-          <div className="flex justify-center mt-1.5 sm:mt-2">
+        {allBrands.length > MOBILE_INITIAL_VISIBLE_COUNT && (
+          <div className="flex sm:hidden justify-center mt-2">
             <button
               type="button"
-              onClick={() => setVisibleCount(allBrands.length)}
-              className="inline-flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors group cursor-pointer rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label="View more brands"
+              onClick={handleToggleMobileBrands}
+              className="inline-flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors group cursor-pointer rounded-lg p-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label={isMobileExpanded ? "Show Less brands" : "View All Brands"}
+              aria-expanded={isMobileExpanded}
+              aria-controls="brands-grid"
             >
               <div className="w-6.5 h-6.5 rounded-full border border-border/80 group-hover:border-foreground/50 bg-card group-hover:bg-secondary/70 flex items-center justify-center transition-all shadow-2xs group-hover:shadow-xs">
-                <ChevronDown size={13} className="transition-transform duration-200 group-hover:translate-y-0.5 text-foreground/70 group-hover:text-foreground" />
+                {isMobileExpanded ? (
+                  <ChevronUp
+                    size={13}
+                    className="transition-transform duration-200 group-hover:-translate-y-0.5 text-foreground/70 group-hover:text-foreground"
+                  />
+                ) : (
+                  <ChevronDown
+                    size={13}
+                    className="transition-transform duration-200 group-hover:translate-y-0.5 text-foreground/70 group-hover:text-foreground"
+                  />
+                )}
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest font-sans text-foreground/80 group-hover:text-foreground">
+                {isMobileExpanded ? "Show Less" : "View All Brands"}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* 
+          Desktop & Tablet Expand Control (Preserved desktop behavior):
+        */}
+        {allBrands.length > DESKTOP_INITIAL_VISIBLE_COUNT && (
+          <div className="hidden sm:flex justify-center mt-1.5 sm:mt-2">
+            <button
+              type="button"
+              onClick={() => setIsDesktopExpanded((prev) => !prev)}
+              className="inline-flex flex-col items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors group cursor-pointer rounded-lg p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              aria-label={isDesktopExpanded ? "Show Less brands" : "View More Brands"}
+              aria-expanded={isDesktopExpanded}
+              aria-controls="brands-grid"
+            >
+              <div className="w-6.5 h-6.5 rounded-full border border-border/80 group-hover:border-foreground/50 bg-card group-hover:bg-secondary/70 flex items-center justify-center transition-all shadow-2xs group-hover:shadow-xs">
+                {isDesktopExpanded ? (
+                  <ChevronUp
+                    size={13}
+                    className="transition-transform duration-200 group-hover:-translate-y-0.5 text-foreground/70 group-hover:text-foreground"
+                  />
+                ) : (
+                  <ChevronDown
+                    size={13}
+                    className="transition-transform duration-200 group-hover:translate-y-0.5 text-foreground/70 group-hover:text-foreground"
+                  />
+                )}
               </div>
               <span className="text-[9.5px] font-bold uppercase tracking-widest font-sans">
-                View More Brands
+                {isDesktopExpanded ? "Show Less" : "View More Brands"}
               </span>
             </button>
           </div>

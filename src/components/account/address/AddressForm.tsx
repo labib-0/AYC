@@ -111,12 +111,10 @@ export default function AddressForm({
       errs.name = "Name must be at least 2 characters.";
     }
 
-    // 2. Company Name Validation (B2B requirement)
+    // 2. Company Name Validation (Optional)
     const companyVal = (form.company_name || "").trim();
-    if (!companyVal) {
-      errs.company_name = "Company / business name is required for commercial consignee.";
-    } else if (companyVal.length < 2) {
-      errs.company_name = "Company name must be at least 2 characters.";
+    if (companyVal && companyVal.length < 2) {
+      errs.company_name = "Company name must be at least 2 characters if provided.";
     }
 
     // 3. Email Validation
@@ -132,7 +130,7 @@ export default function AddressForm({
     if (!phoneVal) {
       errs.phone = "Phone number is required for carrier delivery contact.";
     } else if (!/^\+?[0-9\s\-().]{7,25}$/.test(phoneVal)) {
-      errs.phone = "Enter a valid international phone number (e.g. +1 555 0192 or +44 20 7946 0912).";
+      errs.phone = "Enter a valid international phone number.";
     }
 
     // 5. Country Validation
@@ -143,7 +141,7 @@ export default function AddressForm({
     // 6. Address Line 1 Validation
     const line1Val = form.address_line_1.trim();
     if (!line1Val) {
-      errs.address_line_1 = "Address line 1 (street address / building) is required.";
+      errs.address_line_1 = "Address line 1 is required.";
     } else if (line1Val.length < 3) {
       errs.address_line_1 = "Address line 1 must be at least 3 characters.";
     }
@@ -175,7 +173,7 @@ export default function AddressForm({
     // 10. Address Label Validation
     const labelVal = form.label.trim();
     if (!labelVal) {
-      errs.label = "Address label is required (e.g. Office, Warehouse, Store).";
+      errs.label = "Address label is required.";
     }
 
     setErrors(errs);

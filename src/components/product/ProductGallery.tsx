@@ -399,11 +399,18 @@ export default function ProductGallery({
     });
   }, []);
 
-  // ── Thumbnail Auto-Scroll ──────────────────────────────────────────────
+  // ── Thumbnail Auto-Scroll (Horizontal Rail Container Only - Never scroll window) ──
   useEffect(() => {
     if (!thumbContainerRef.current) return;
-    const activeThumb = thumbContainerRef.current.children[currentIndex] as HTMLElement | undefined;
-    activeThumb?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    const container = thumbContainerRef.current;
+    const activeThumb = container.children[currentIndex] as HTMLElement | undefined;
+    if (activeThumb) {
+      const thumbLeft = activeThumb.offsetLeft;
+      const thumbWidth = activeThumb.offsetWidth;
+      const containerWidth = container.clientWidth;
+      const targetScroll = thumbLeft - (containerWidth / 2) + (thumbWidth / 2);
+      container.scrollTo({ left: Math.max(0, targetScroll), behavior: "smooth" });
+    }
   }, [currentIndex]);
 
   const hasMultiple = cleanImages.length > 1;

@@ -20,7 +20,6 @@ import {
   Search,
   AlertCircle,
   Loader2,
-  Printer,
   X,
   ExternalLink,
   Receipt,
@@ -147,29 +146,19 @@ function DocumentPreviewModal({
           {/* Action buttons */}
           <div className="flex items-center gap-2">
             {doc && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors cursor-pointer"
-                >
-                  <Printer size={13} />
-                  <span>Print</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDownloadPDF(doc)}
-                  disabled={isDownloading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all active:scale-[0.98] shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {isDownloading ? (
-                    <Loader2 size={13} className="animate-spin" />
-                  ) : (
-                    <Download size={13} />
-                  )}
-                  <span>PDF</span>
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={() => onDownloadPDF(doc)}
+                disabled={isDownloading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all active:scale-[0.98] shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isDownloading ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Download size={13} />
+                )}
+                <span>PDF</span>
+              </button>
             )}
 
             <button

@@ -398,6 +398,7 @@ console.log("\n▶ Test 13: Multi-page Offer Sheet gallery handles overflow clea
   assert(result.productImages.length === 25, "All 25 unique images rendered across page breaks without omission or duplication");
   assert(result.logoOverlays.length === 25, "All 25 images across both pages have the top-right logo overlay");
   const continuationHeader = result.capturedTexts.some((t) =>
+    t.text.includes("PRODUCT GALLERY (CONTINUED)") ||
     t.text.includes("PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES (CONTINUED)")
   );
   assert(continuationHeader, "Continuation header banner rendered on subsequent page");
@@ -412,9 +413,9 @@ console.log("\n▶ Suite 2: CommercialProductGallery.tsx Architectural Verificat
   const galleryCode = fs.readFileSync(galleryFilePath, "utf8");
 
   assert(
-    galleryCode.includes("PRODUCT VISUAL GALLERY &amp; PRODUCTION SAMPLES") ||
-    galleryCode.includes("PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES"),
-    "CommercialProductGallery preserves exact heading 'PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES'"
+    galleryCode.includes("PRODUCT GALLERY") ||
+    galleryCode.includes("PRODUCT VISUAL GALLERY &amp; PRODUCTION SAMPLES"),
+    "CommercialProductGallery preserves exact heading 'PRODUCT GALLERY'"
   );
 
   assert(

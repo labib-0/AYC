@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V1\WishlistController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\PublicSettingsController;
 use App\Http\Controllers\Api\V1\Admin\AdminSettingsController;
+use App\Http\Controllers\Api\V1\GeolocationController;
 use App\Http\Controllers\Api\V1\Internal\InternalStorefrontAccessController;
 use Illuminate\Support\Facades\Route;
 
@@ -59,6 +60,10 @@ Route::prefix('v1')->group(function () {
     // Public Storefront Settings & Legal Pages
     Route::get('/settings/public', [PublicSettingsController::class, 'getPublicSettings']);
     Route::get('/legal/{type}', [PublicSettingsController::class, 'getLegalPage']);
+
+    // Public Storefront Geolocation Detection (Reusing stevebauman/location & MaxMind GeoLite2)
+    Route::get('/geolocation/detect', [GeolocationController::class, 'detect']);
+    Route::get('/location/detect', [GeolocationController::class, 'detect']);
 
     // General-purpose Admin Media Upload
     Route::middleware(['auth:sanctum', 'role:admin'])->post('/upload', [UploadController::class, 'upload']);
@@ -671,4 +676,8 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(functi
 
 // Direct alias for /api/homepage
 Route::get('/homepage', [HomepageController::class, 'index']);
+
+// Direct aliases for /api/geolocation/detect and /api/location/detect
+Route::get('/geolocation/detect', [GeolocationController::class, 'detect']);
+Route::get('/location/detect', [GeolocationController::class, 'detect']);
 

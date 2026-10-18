@@ -14,6 +14,7 @@ export interface ProductPromotionBadgesProps {
   size?: "card" | "detail" | "modal";
   variant?: "card" | "detail" | "modal";
   className?: string;
+  hideSoldOut?: boolean;
 }
 
 /**
@@ -37,10 +38,12 @@ export default function ProductPromotionBadges({
   size,
   variant,
   className = "",
+  hideSoldOut = false,
 }: ProductPromotionBadgesProps) {
   const promo = product ? getNormalizedPromotion(product) : { isNew: false, isHot: false, isFeatured: false, isPreorder: false, isSoldOut: false };
   
-  const isSoldOut = propIsSoldOut !== undefined ? Boolean(propIsSoldOut) : promo.isSoldOut;
+  const rawIsSoldOut = propIsSoldOut !== undefined ? Boolean(propIsSoldOut) : promo.isSoldOut;
+  const isSoldOut = hideSoldOut ? false : rawIsSoldOut;
   const isPreorder = propIsPreorder !== undefined ? Boolean(propIsPreorder) : promo.isPreorder;
   const isNew = propIsNew !== undefined ? Boolean(propIsNew) : promo.isNew;
   const isHot = propIsHot !== undefined ? Boolean(propIsHot) : promo.isHot;

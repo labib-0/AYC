@@ -79,8 +79,8 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           />
         </Link>
 
-        {/* Global Normalized Promotional Badges (Top Left) */}
-        <ProductPromotionBadges product={product} variant="card" />
+        {/* Global Normalized Promotional Badges (Top Left - corner SOLD OUT moved to price row) */}
+        <ProductPromotionBadges product={product} variant="card" hideSoldOut={true} />
 
         {/* Actual Brand Logo Overlay (Top Right) */}
         <ProductBrandLogoOverlay
@@ -157,21 +157,33 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
           </h3>
         </Link>
 
-        {/* Pricing & Commercial Discovery Block (Restored Approved Typographic Scale: 17-18px bold price, 13px / pc, 13px MOQ) */}
+        {/* Pricing & Commercial Discovery Block with Prominent SOLD OUT Badge */}
         <div className="mt-1.5 flex flex-col">
-          <div className="flex items-baseline gap-1 font-body">
-            {hasValidPrice ? (
-              <>
-                <span className="text-[17px] sm:text-[18px] font-bold text-foreground tabular-nums leading-tight">
-                  {formatPrice(lowestUnitPrice)}
+          <div className="flex items-center justify-between gap-1.5 font-body flex-wrap">
+            <div className="flex items-baseline gap-1">
+              {hasValidPrice ? (
+                <>
+                  <span className="text-[17px] sm:text-[18px] font-bold text-foreground tabular-nums leading-tight">
+                    {formatPrice(lowestUnitPrice)}
+                  </span>
+                  <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
+                    / pc
+                  </span>
+                </>
+              ) : (
+                <span className="text-[14px] sm:text-[15px] font-semibold text-muted-foreground leading-tight">
+                  Price on Request
                 </span>
-                <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
-                  / pc
-                </span>
-              </>
-            ) : (
-              <span className="text-[14px] sm:text-[15px] font-semibold text-muted-foreground leading-tight">
-                Price on Request
+              )}
+            </div>
+
+            {isSoldOut && (
+              <span
+                role="status"
+                aria-label="Sold out"
+                className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-[10.5px] font-sans font-bold tracking-wider uppercase bg-red-900 text-white border border-red-700/80 dark:bg-red-950 dark:border-red-700/80 shadow-2xs leading-none select-none shrink-0"
+              >
+                SOLD OUT
               </span>
             )}
           </div>

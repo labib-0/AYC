@@ -1,12 +1,11 @@
 "use client";
 
 import React from "react";
-import { MapPin } from "lucide-react";
 import {
-  COUNTRIES,
   COUNTRIES_REQUIRING_POSTAL,
   COUNTRIES_REQUIRING_STATE,
 } from "@/lib/services/address.service";
+import CountrySelect from "./CountrySelect";
 
 interface AddressLocationSectionProps {
   addressLine1: string;
@@ -48,15 +47,14 @@ export default function AddressLocationSection({
   const isStateRequired = COUNTRIES_REQUIRING_STATE.includes(countryCode.toUpperCase());
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-white/10">
-        <MapPin size={15} className="text-amber-500" />
+    <div className="space-y-2.5">
+      <div className="pb-1 border-b border-slate-100 dark:border-white/10">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-          2. Destination Physical Address
+          Delivery Address
         </h4>
       </div>
 
-      <div className="space-y-3.5">
+      <div className="space-y-2.5">
         {/* Address Line 1 */}
         <div className="space-y-1">
           <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -68,8 +66,8 @@ export default function AddressLocationSection({
             value={addressLine1}
             onChange={(e) => onChange("address_line_1", e.target.value)}
             onBlur={() => onBlur("address_line_1")}
-            placeholder="Street address, building number, warehouse bay"
-            className={`w-full px-3 py-2.5 text-sm rounded-xl border bg-slate-50/50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 outline-none transition-all ${
+            placeholder="Street address or P.O. box"
+            className={`w-full px-3 py-2 text-sm rounded-xl border bg-slate-50/50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 outline-none transition-all ${
               isError("address_line_1")
                 ? "border-red-500 focus:ring-2 focus:ring-red-400/40"
                 : "border-slate-200 dark:border-white/10 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
@@ -93,33 +91,66 @@ export default function AddressLocationSection({
             disabled={disabled}
             value={addressLine2}
             onChange={(e) => onChange("address_line_2", e.target.value)}
-            placeholder="Suite, unit, floor, gate number, building department"
-            className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 outline-none transition-all"
+            placeholder="Apartment, suite, unit, etc. (optional)"
+            className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 outline-none transition-all"
           />
         </div>
 
-        {/* Country, City, State, Postal */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
-          {/* Country */}
+        {/* Country & Postal Code (2-column on tablet/desktop) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          {/* Country with Searchable Selector */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
               Country <span className="text-red-500">*</span>
             </label>
-            <select
+            <CountrySelect
+              id="address-country-select"
               disabled={disabled}
               value={countryCode}
-              onChange={(e) => onChange("country_code", e.target.value)}
+              onChange={(newCode) => onChange("country_code", newCode)}
               onBlur={() => onBlur("country_code")}
-              className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-slate-900 text-slate-900 dark:text-white focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 outline-none transition-all font-medium"
-            >
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name} ({c.code})
-                </option>
-              ))}
-            </select>
+              isError={isError("country_code")}
+            />
+            {isError("country_code") && (
+              <p className="text-[11px] text-red-600 dark:text-red-400 font-medium">
+                {errors.country_code}
+              </p>
+            )}
           </div>
 
+          {/* Postal / ZIP Code */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+              <span>Postal / ZIP Code</span>
+              {isPostalRequired ? (
+                <span className="text-red-500 text-[10px]">* Required</span>
+              ) : (
+                <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+              )}
+            </label>
+            <input
+              type="text"
+              disabled={disabled}
+              value={postalCode}
+              onChange={(e) => onChange("postal_code", e.target.value)}
+              onBlur={() => onBlur("postal_code")}
+              placeholder="Enter postal code"
+              className={`w-full px-3 py-2 text-sm font-mono rounded-xl border bg-slate-50/50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-sans outline-none transition-all ${
+                isError("postal_code")
+                  ? "border-red-500 focus:ring-2 focus:ring-red-400/40"
+                  : "border-slate-200 dark:border-white/10 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
+              }`}
+            />
+            {isError("postal_code") && (
+              <p className="text-[11px] text-red-600 dark:text-red-400 font-medium">
+                {errors.postal_code}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* City & State / Province (2-column on tablet/desktop) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {/* City */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -131,8 +162,8 @@ export default function AddressLocationSection({
               value={city}
               onChange={(e) => onChange("city", e.target.value)}
               onBlur={() => onBlur("city")}
-              placeholder="e.g. New York, London, Dubai"
-              className={`w-full px-3 py-2.5 text-sm rounded-xl border bg-slate-50/50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 outline-none transition-all ${
+              placeholder="Enter city"
+              className={`w-full px-3 py-2 text-sm rounded-xl border bg-slate-50/50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 outline-none transition-all ${
                 isError("city")
                   ? "border-red-500 focus:ring-2 focus:ring-red-400/40"
                   : "border-slate-200 dark:border-white/10 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
@@ -161,8 +192,8 @@ export default function AddressLocationSection({
               value={state}
               onChange={(e) => onChange("state", e.target.value)}
               onBlur={() => onBlur("state")}
-              placeholder="e.g. CA, NY, Greater London, Bavaria"
-              className={`w-full px-3 py-2.5 text-sm rounded-xl border bg-slate-50/50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 outline-none transition-all ${
+              placeholder="Enter state or region"
+              className={`w-full px-3 py-2 text-sm rounded-xl border bg-slate-50/50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 outline-none transition-all ${
                 isError("state")
                   ? "border-red-500 focus:ring-2 focus:ring-red-400/40"
                   : "border-slate-200 dark:border-white/10 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
@@ -171,36 +202,6 @@ export default function AddressLocationSection({
             {isError("state") && (
               <p className="text-[11px] text-red-600 dark:text-red-400 font-medium">
                 {errors.state}
-              </p>
-            )}
-          </div>
-
-          {/* Postal / ZIP Code */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-              <span>Postal / ZIP Code</span>
-              {isPostalRequired ? (
-                <span className="text-red-500 text-[10px]">* Required</span>
-              ) : (
-                <span className="text-[10px] text-slate-400 font-normal">Optional</span>
-              )}
-            </label>
-            <input
-              type="text"
-              disabled={disabled}
-              value={postalCode}
-              onChange={(e) => onChange("postal_code", e.target.value)}
-              onBlur={() => onBlur("postal_code")}
-              placeholder="e.g. 10001, W1D 1BS, 90210"
-              className={`w-full px-3 py-2.5 text-sm font-mono rounded-xl border bg-slate-50/50 dark:bg-white/[0.03] text-slate-900 dark:text-white placeholder:text-slate-400 outline-none transition-all ${
-                isError("postal_code")
-                  ? "border-red-500 focus:ring-2 focus:ring-red-400/40"
-                  : "border-slate-200 dark:border-white/10 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
-              }`}
-            />
-            {isError("postal_code") && (
-              <p className="text-[11px] text-red-600 dark:text-red-400 font-medium">
-                {errors.postal_code}
               </p>
             )}
           </div>

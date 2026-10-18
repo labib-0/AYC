@@ -214,10 +214,12 @@ export default function GlobalFilterRail({
     key,
     label,
     Icon,
+    className = "",
   }: {
     key: string;
     label: string;
     Icon: React.ComponentType<any>;
+    className?: string;
   }) => {
     const isSelected = selectedAudiences.includes(key);
     return (
@@ -229,7 +231,7 @@ export default function GlobalFilterRail({
           isSelected
             ? "bg-foreground text-background border-foreground shadow-xs font-bold"
             : "bg-card text-muted-foreground hover:text-foreground border-slate-900/25 dark:border-white/25 hover:border-slate-900/60 dark:hover:border-white/60 shadow-2xs"
-        }`}
+        } ${className}`}
         aria-pressed={isSelected}
         aria-label={`Audience: ${label}`}
       >
@@ -300,20 +302,30 @@ export default function GlobalFilterRail({
       {/* Divider */}
       <div className="h-px bg-border/50" />
 
-      {/* ── 2. AUDIENCE — Two Deliberate Rows with Prominent Icons ── */}
+      {/* ── 2. AUDIENCE — Two Deliberate Rows with Prominent Icons (Mobile: 2 cols + Unisex full-width) ── */}
       <div>
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans mb-2">
           AUDIENCE
         </h3>
 
-        <div className="space-y-1.5 sm:space-y-2">
+        {/* Mobile: 2 columns, Unisex spans full width across both columns */}
+        <div className="grid sm:hidden grid-cols-2 gap-1.5">
+          {AUDIENCE_ROW_1.map((item) => renderAudienceButton(item))}
+          {AUDIENCE_ROW_2.slice(0, 2).map((item) => renderAudienceButton(item))}
+          {AUDIENCE_ROW_2.slice(2).map((item) =>
+            renderAudienceButton({ ...item, className: "col-span-2 w-full" })
+          )}
+        </div>
+
+        {/* Desktop / Tablet: Preserved existing layout */}
+        <div className="hidden sm:block space-y-1.5 sm:space-y-2">
           {/* Row 1: MEN / WOMEN */}
           <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-            {AUDIENCE_ROW_1.map(renderAudienceButton)}
+            {AUDIENCE_ROW_1.map((item) => renderAudienceButton(item))}
           </div>
           {/* Row 2: BOYS / GIRLS / UNISEX */}
           <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-            {AUDIENCE_ROW_2.map(renderAudienceButton)}
+            {AUDIENCE_ROW_2.map((item) => renderAudienceButton(item))}
           </div>
         </div>
       </div>
@@ -335,7 +347,7 @@ export default function GlobalFilterRail({
                 key={value}
                 type="button"
                 onClick={() => toggleDesignType(value)}
-                className={`flex items-center justify-center py-2.5 px-3 rounded-xl border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground min-h-[40px] sm:min-h-[42px] select-none ${
+                className={`flex w-full items-center justify-center py-2.5 px-3 rounded-xl border transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground min-h-[40px] sm:min-h-[42px] select-none ${
                   isSelected
                     ? "bg-foreground text-background border-foreground shadow-xs font-bold"
                     : "bg-card text-muted-foreground hover:text-foreground border-slate-900/25 dark:border-white/25 hover:border-slate-900/60 dark:hover:border-white/60 shadow-2xs"
