@@ -328,7 +328,9 @@ class DocumentHelper
         };
 
         if ($product) {
-            $images = $product->images()->orderBy('sort_order')->get();
+            $images = $product->relationLoaded('images')
+                ? $product->images->sortBy('sort_order')
+                : $product->images()->orderBy('sort_order')->get();
             if ($images->isNotEmpty()) {
                 // 1. Authoritative primary image first
                 $primary = $images->firstWhere('is_primary', true);
@@ -453,4 +455,123 @@ class DocumentHelper
 
         return self::convertIntegerToWords((int) ($number / 1000000000)) . " Billion" . (($number % 1000000000 !== 0) ? " " . self::convertIntegerToWords($number % 1000000000) : "");
     }
+
+    /**
+     * Resolve a product gallery image to a lightweight, local cached derivative for Dompdf rendering.
+     * Prevents multi-megabyte WebP memory exhaustion and slow remote network fetches during PDF builds.
+     */
+    public static function resolvePdfImageSource(?string $url): ?string
+    {
+        if (!$url || trim($url) === '') {
+            return null;
+        }
+
+        $trimmed = trim($url);
+
+        // Already data URI
+        if (str_starts_with($trimmed, 'data:image')) {
+            return $trimmed;
+        }
+
+        // Clean URL to local relative path
+        $clean = explode('?', explode('#', $trimmed)[0])[0];
+        $clean = preg_replace('#^https?://[^/]+#i', '', $clean);
+        $clean = preg_replace('#^/ayc#i', '', $clean);
+        $clean = preg_replace('#^/?storage/#i', '', $clean);
+        $cleanRel = ltrim($clean, '/');
+
+        // Check possible local file locations
+        $candidates = [
+            storage_path("app/public/{$cleanRel}"),
+            public_path("storage/{$cleanRel}"),
+            public_path($cleanRel),
+            base_path($cleanRel),
+        ];
+
+        $sourceFile = null;
+        foreach ($candidates as $c) {
+            if (file_exists($c) && is_file($c)) {
+                $sourceFile = $c;
+                break;
+            }
+        }
+
+        if (!$sourceFile) {
+            return $trimmed;
+        }
+
+        // Generate or fetch cached derivative
+        try {
+            $mtime = filemtime($sourceFile);
+            $hash = md5($sourceFile . '_' . $mtime);
+            $cacheDir = storage_path('app/pdf_cache');
+            if (!is_dir($cacheDir)) {
+                @mkdir($cacheDir, 0755, true);
+            }
+            $targetPath = "{$cacheDir}/{$hash}.jpg";
+
+            if (file_exists($targetPath) && filesize($targetPath) > 0) {
+                return $targetPath;
+            }
+
+            // Create downscaled JPEG derivative (max 480x480, quality 85)
+            // Try Intervention Image first if available
+            if (class_exists(\Illuminate\Support\Facades\Image::class)) {
+                try {
+                    $img = \Illuminate\Support\Facades\Image::read($sourceFile);
+                    if ($img->width() > 480 || $img->height() > 480) {
+                        $img = $img->scaleDown(width: 480, height: 480);
+                    }
+                    $jpegBytes = $img->toJpeg(85)->toBytes();
+                    file_put_contents($targetPath, $jpegBytes);
+                    return $targetPath;
+                } catch (\Throwable) {
+                    // Fallback to native GD
+                }
+            }
+
+            // Native GD fallback
+            if (extension_loaded('gd')) {
+                $info = @getimagesize($sourceFile);
+                if ($info) {
+                    $mime = $info['mime'] ?? '';
+                    $srcImg = match ($mime) {
+                        'image/jpeg' => @imagecreatefromjpeg($sourceFile),
+                        'image/png' => @imagecreatefrompng($sourceFile),
+                        'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($sourceFile) : null,
+                        default => null,
+                    };
+
+                    if ($srcImg) {
+                        $origW = imagesx($srcImg);
+                        $origH = imagesy($srcImg);
+                        $maxDim = 480;
+                        if ($origW > $maxDim || $origH > $maxDim) {
+                            $ratio = min($maxDim / $origW, $maxDim / $origH);
+                            $newW = (int) round($origW * $ratio);
+                            $newH = (int) round($origH * $ratio);
+                        } else {
+                            $newW = $origW;
+                            $newH = $origH;
+                        }
+
+                        $dstImg = imagecreatetruecolor($newW, $newH);
+                        // Fill white background for transparent PNG/WebP
+                        $white = imagecolorallocate($dstImg, 255, 255, 255);
+                        imagefilledrectangle($dstImg, 0, 0, $newW, $newH, $white);
+                        imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+                        imagejpeg($dstImg, $targetPath, 85);
+                        imagedestroy($srcImg);
+                        imagedestroy($dstImg);
+                        return $targetPath;
+                    }
+                }
+            }
+
+            return $sourceFile;
+        } catch (\Throwable) {
+            return $sourceFile;
+        }
+    }
 }
+

@@ -408,7 +408,7 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
       return [];
     })(),
     material: p.material || "100% Cotton",
-    colorName: p.colorName || p.color_name || p.color || "Black",
+    colorName: p.colorName || p.color_name || p.color || "",
     colorHex: p.colorHex || p.color_hex || "#111827",
     videoUrl: rawVideoUrl || undefined,
     video_url: rawVideoUrl || undefined,
@@ -485,7 +485,7 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     estimatedDeliveryDate: estimatedDeliveryDate,
     estimated_delivery_date: estimatedDeliveryDate,
     sizes: p.sizes || ["S", "M", "L", "XL", "2XL"],
-    colors: p.colors || [p.color_name || p.color || "Black"],
+    colors: p.colors || (p.color_name || p.color ? [p.color_name || p.color] : []),
     variants: variants,
     pricingTiers: pricingTiers.length > 0 ? pricingTiers : (
       bulkPricingEnabled && bulkThreshold && bulkPrice
@@ -511,6 +511,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     updated_at: p.updated_at || p.updatedAt || undefined,
   };
 }
+
+export const normalizeProduct = normalizeToB2BProduct;
 
 /**
  * Maps B2B product or raw API product to standard Storefront Product interface

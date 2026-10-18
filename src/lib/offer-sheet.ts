@@ -69,6 +69,16 @@ export interface OfferSheetData {
     signatoryTitle: string;
     signatoryDivision: string;
   };
+  exporter?: {
+    name: string;
+    description: string;
+    address: string;
+    email: string;
+    country: string;
+    establishedYear: number | string;
+    signatoryTitle: string;
+    signatoryDivision: string;
+  };
   commercialTerms: string[];
   products: OfferSheetProductItem[];
 }
@@ -263,12 +273,12 @@ export function extractProductSpecificationTiles(product: any): OfferSheetSpecif
     (typeof product.size === "string" && product.size.trim() ? product.size.trim() : null);
   const size = isMissing(rawSize) ? "See Description" : String(rawSize).trim();
 
-  // 4. Colour: explicit admin entry only
+  // 4. Colour: explicit admin entry only (matching storefront's Product Specifications, fallback to See Description)
   const rawColour =
     product.colourDescription ??
     product.colour_description ??
-    (Array.isArray(product.colors) && product.colors.length > 0 ? product.colors.join(", ") : null) ??
     (typeof product.color === "string" && product.color.trim() ? product.color.trim() : null) ??
+    (Array.isArray(product.colors) && product.colors.length > 0 ? product.colors.join(", ") : null) ??
     (product.colorName || product.color_name || null);
   const colour = isMissing(rawColour) ? "See Description" : String(rawColour).trim();
 
@@ -928,6 +938,7 @@ export function buildOfferSheetData(source: any): OfferSheetData {
     validUntil,
     priceBasis,
     seller,
+    exporter: seller,
     commercialTerms: CONSOLIDATED_OFFER_SHEET_COMMERCIAL_TERMS,
     products: productItems,
   };

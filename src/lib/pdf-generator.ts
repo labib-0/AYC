@@ -79,12 +79,17 @@ function getExpiryDate(dateStr?: string): string {
   });
 }
 
+const imageDataUrlCache = new Map<string, string>();
+
 /**
- * Helper to safely load image data URL in browser environment for jsPDF embedding
+ * Helper to safely load image data URL in browser environment for jsPDF embedding.
+ * Sized appropriately for PDF display physical dimensions (480px max dimension)
+ * and cached in memory to avoid repeated network decoding or large memory buffers.
  */
 export async function loadImageAsDataUrl(url?: string): Promise<string | null> {
   if (!url || typeof window === "undefined") return null;
   if (url.startsWith("data:image/")) return url;
+  if (imageDataUrlCache.has(url)) return imageDataUrlCache.get(url)!;
 
   return new Promise((resolve) => {
     try {
@@ -93,12 +98,25 @@ export async function loadImageAsDataUrl(url?: string): Promise<string | null> {
       img.onload = () => {
         try {
           const canvas = document.createElement("canvas");
-          canvas.width = img.naturalWidth || img.width || 400;
-          canvas.height = img.naturalHeight || img.height || 400;
+          const MAX_DIM = 480; // High resolution on 40mm PDF cell (~300 DPI) while keeping payload < 30KB
+          let w = img.naturalWidth || img.width || 400;
+          let h = img.naturalHeight || img.height || 400;
+          if (w > MAX_DIM || h > MAX_DIM) {
+            if (w > h) {
+              h = Math.max(1, Math.round((h * MAX_DIM) / w));
+              w = MAX_DIM;
+            } else {
+              w = Math.max(1, Math.round((w * MAX_DIM) / h));
+              h = MAX_DIM;
+            }
+          }
+          canvas.width = w;
+          canvas.height = h;
           const ctx = canvas.getContext("2d");
           if (ctx) {
-            ctx.drawImage(img, 0, 0);
-            const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+            ctx.drawImage(img, 0, 0, w, h);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+            imageDataUrlCache.set(url, dataUrl);
             resolve(dataUrl);
             return;
           }
@@ -718,11 +736,26 @@ export function generateOfferSheetPDFDoc(
     doc.text("PRODUCT SPECIFICATIONS", margin, y);
     y += 4;
 
+    const isMissingVal = (v: any): boolean => {
+      if (v === undefined || v === null) return true;
+      const s = String(v).trim();
+      return (
+        !s ||
+        s === "—" ||
+        s === "-" ||
+        s === "–" ||
+        s.toLowerCase() === "n/a" ||
+        s.toLowerCase() === "in description" ||
+        s.toLowerCase() === "not configured" ||
+        s.toLowerCase() === "see description"
+      );
+    };
+
     const specRows = [
-      ["Design Type", product.specificationTiles?.designType || "In Description"],
-      ["Material", product.specificationTiles?.material || "In Description"],
-      ["Size", product.specificationTiles?.size || "In Description"],
-      ["Colour", product.specificationTiles?.colour || "In Description"],
+      ["Design Type", !isMissingVal(product.specificationTiles?.designType) ? String(product.specificationTiles?.designType).trim() : "See Description"],
+      ["Material", !isMissingVal(product.specificationTiles?.material) ? String(product.specificationTiles?.material).trim() : "See Description"],
+      ["Size", !isMissingVal(product.specificationTiles?.size) ? String(product.specificationTiles?.size).trim() : "See Description"],
+      ["Colour", !isMissingVal(product.specificationTiles?.colour) ? String(product.specificationTiles?.colour).trim() : "See Description"],
     ];
 
     applyAutoTable(doc, {
@@ -784,14 +817,14 @@ export function generateOfferSheetPDFDoc(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
     const cbmVal = product.logistics?.cbmMoq || product.logistics?.cbm;
-    if (cbmVal) {
+    if (cbmVal && !isMissingVal(cbmVal)) {
       doc.setTextColor(15, 23, 42);
       doc.text(cbmVal, margin + 3.5, y + 9);
     } else {
       doc.setTextColor(148, 163, 184);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
-      doc.text("Not configured", margin + 3.5, y + 9);
+      doc.text("See Description", margin + 3.5, y + 9);
     }
 
     // Right: GROSS WEIGHT (MOQ)
@@ -808,14 +841,14 @@ export function generateOfferSheetPDFDoc(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
     const gwVal = product.logistics?.grossWeightMoq || product.logistics?.grossWeight;
-    if (gwVal) {
+    if (gwVal && !isMissingVal(gwVal)) {
       doc.setTextColor(15, 23, 42);
       doc.text(gwVal, rightLogX + 3.5, y + 9);
     } else {
       doc.setTextColor(148, 163, 184);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
-      doc.text("Not configured", rightLogX + 3.5, y + 9);
+      doc.text("See Description", rightLogX + 3.5, y + 9);
     }
 
     y += logBoxH + 5;
@@ -1154,14 +1187,49 @@ export async function downloadProductOfferSheetPDF(
   doc.save(filename);
 }
 
+interface CachedCombinedOfferSheetsArtifact {
+  blob: Blob;
+  filename: string;
+  fingerprint: string;
+}
+
+const combinedOfferSheetsCache = new Map<string, CachedCombinedOfferSheetsArtifact>();
+
+export function clearCombinedOfferSheetsCache(orderKey?: string) {
+  if (orderKey) {
+    combinedOfferSheetsCache.delete(orderKey);
+  } else {
+    combinedOfferSheetsCache.clear();
+  }
+}
+
 /**
  * Trigger download of a combined Offer Sheets PDF containing multiple products.
+ * Reuses validated cached PDF artifact for repeated downloads to make repeat requests instant.
  */
 export async function downloadCombinedProductOfferSheetsPDF(
   order: OrderRecord,
   buyerInfo?: { name?: string; company?: string; email?: string; country?: string }
 ) {
   if (!order.items || order.items.length === 0) return;
+
+  const orderKey = String(order.id || order.order_number || "order");
+  const fingerprint = `${orderKey}_${order.updated_at || order.created_at || ""}_${order.total_amount || ""}_${order.items.length}_${order.items.map((it) => `${it.sku || it.product_name}-${it.quantity}`).join("_")}`;
+
+  const cached = combinedOfferSheetsCache.get(orderKey);
+  if (cached && cached.fingerprint === fingerprint) {
+    if (typeof document !== "undefined") {
+      const url = URL.createObjectURL(cached.blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = cached.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return;
+    }
+  }
 
   let doc: jsPDF | undefined;
   const totalItems = order.items.length;
@@ -1259,8 +1327,28 @@ export async function downloadCombinedProductOfferSheetsPDF(
   }
 
   if (doc) {
-    const filename = `AYAAN_CLOTHING_Offer_Sheets_${order.order_number}.pdf`;
-    doc.save(filename);
+    const filename = `AYAAN_CLOTHING_Offer_Sheets_${order.order_number || "ORDER"}.pdf`;
+    let blob: Blob;
+    try {
+      const rawBlob = doc.output("blob");
+      blob = rawBlob && rawBlob.size > 0 ? rawBlob : new Blob([doc.output("arraybuffer")], { type: "application/pdf" });
+    } catch {
+      blob = new Blob([doc.output("arraybuffer")], { type: "application/pdf" });
+    }
+    combinedOfferSheetsCache.set(orderKey, { blob, filename, fingerprint });
+
+    if (typeof document !== "undefined") {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } else {
+      doc.save(filename);
+    }
   }
 }
 
@@ -2220,12 +2308,51 @@ export async function generateCommercialDocumentPDFDoc(docData: CommercialDocume
   return { doc, filename };
 }
 
+interface CachedPdfBlobArtifact {
+  blob: Blob;
+  url: string;
+  filename: string;
+  doc: jsPDF;
+  fingerprint: string;
+}
+
+const commercialPdfArtifactCache = new Map<string, CachedPdfBlobArtifact>();
+
+export function getCachedCommercialPdfArtifact(docId: string): CachedPdfBlobArtifact | undefined {
+  return commercialPdfArtifactCache.get(docId);
+}
+
+export function clearCommercialPdfArtifactCache(docId?: string) {
+  if (docId) {
+    const existing = commercialPdfArtifactCache.get(docId);
+    if (existing?.url && typeof window !== "undefined" && window.URL) {
+      window.URL.revokeObjectURL(existing.url);
+    }
+    commercialPdfArtifactCache.delete(docId);
+  } else {
+    if (typeof window !== "undefined" && window.URL) {
+      for (const item of commercialPdfArtifactCache.values()) {
+        if (item.url) window.URL.revokeObjectURL(item.url);
+      }
+    }
+    commercialPdfArtifactCache.clear();
+  }
+}
+
 export async function generateCommercialDocumentPDFBlob(docData: CommercialDocument): Promise<{
   blob: Blob;
   url: string;
   filename: string;
   doc: jsPDF;
 }> {
+  const docId = docData.id || `${docData.docType}_${docData.order_id || docData.orderNumber || docData.docNumber}`;
+  const fingerprint = `${docId}_${docData.date || ""}_${docData.grandTotal || ""}_${(docData.items || []).length}_${(docData.items || []).map((it) => it.quantity).join("-")}`;
+
+  const cached = commercialPdfArtifactCache.get(docId);
+  if (cached && cached.fingerprint === fingerprint) {
+    return { blob: cached.blob, url: cached.url, filename: cached.filename, doc: cached.doc };
+  }
+
   const { doc, filename } = await generateCommercialDocumentPDFDoc(docData);
   let blob: Blob;
   try {
@@ -2243,6 +2370,10 @@ export async function generateCommercialDocumentPDFBlob(docData: CommercialDocum
     blob = new Blob([arr], { type: "application/pdf" });
   }
   const url = typeof window !== "undefined" && window.URL ? window.URL.createObjectURL(blob) : "";
+
+  const artifact = { blob, url, filename, doc, fingerprint };
+  commercialPdfArtifactCache.set(docId, artifact);
+
   return { blob, url, filename, doc };
 }
 
@@ -2251,17 +2382,33 @@ export async function downloadCommercialDocumentPDF(
   existingBlob?: Blob,
   filename?: string
 ) {
-  if (existingBlob && filename && typeof document !== "undefined") {
-    const url = URL.createObjectURL(existingBlob);
+  const docId = docData.id || `${docData.docType}_${docData.order_id || docData.orderNumber || docData.docNumber}`;
+  const cached = commercialPdfArtifactCache.get(docId);
+  const targetBlob = existingBlob || cached?.blob;
+  const targetFilename = filename || cached?.filename;
+
+  if (targetBlob && targetFilename && typeof document !== "undefined") {
+    const url = URL.createObjectURL(targetBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename;
+    a.download = targetFilename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     return;
   }
-  const { doc, filename: outFilename } = await generateCommercialDocumentPDFDoc(docData);
-  doc.save(outFilename);
+  const res = await generateCommercialDocumentPDFBlob(docData);
+  if (typeof document !== "undefined") {
+    const url = URL.createObjectURL(res.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = res.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } else {
+    res.doc.save(res.filename);
+  }
 }

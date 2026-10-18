@@ -21,8 +21,14 @@ class OfferSheetService
         $items = [];
         $allGalleryImages = [];
 
+        // Preload products with images and brand in a single query to eliminate N+1 queries
+        $productIds = $order->items->pluck('product_id')->filter()->unique()->values();
+        $products = Product::with(['images', 'brand'])->whereIn('id', $productIds)->get()->keyBy('id');
+
         foreach ($order->items as $idx => $item) {
-            $product = $item->product_id ? Product::with('images')->find($item->product_id) : null;
+            $product = ($item->product_id && isset($products[$item->product_id]))
+                ? $products[$item->product_id]
+                : ($item->product_id ? Product::with(['images', 'brand'])->find($item->product_id) : null);
             $gallery = DocumentHelper::getProductGallery($product, $item->product_image_url);
             
             foreach ($gallery as $g) {
@@ -33,14 +39,15 @@ class OfferSheetService
 
             $brand = $product?->brand?->name ?? (is_string($product?->brand) ? $product->brand : 'AYAAN CLOTHING');
             $prodDesc = $product?->description ?? '';
-            $designType = $product?->design_type ?? 'ORIGINAL';
-            $material = $product?->material ?? $product?->fabric ?? null;
-            $sizeDesc = $product?->size_description ?? ($item->size ?: null);
-            $colourDesc = $product?->colour_description ?? ($item->color ?: null);
+            $designType = !empty(trim($product?->design_type ?? '')) ? trim($product->design_type) : 'See Description';
+            $material = !empty(trim($product?->material ?? ($product?->fabric ?? ''))) ? trim($product?->material ?? $product->fabric) : 'See Description';
+            $sizeDesc = !empty(trim($product?->size_description ?? '')) ? trim($product->size_description) : 'See Description';
+            // Authoritative Colour: strictly colour_description, never fall back to item variant color or BLACK
+            $colourDesc = !empty(trim($product?->colour_description ?? '')) ? trim($product->colour_description) : 'See Description';
 
             $moqQty = $product?->moq ?: (int) $item->quantity;
-            $cbmMoq = $product?->cbm ? number_format((float) $product->cbm, 3) . ' m³' : null;
-            $gwMoq = $product?->gross_weight ? number_format((float) $product->gross_weight, 1) . ' KG' : null;
+            $cbmMoq = $product?->cbm ? number_format((float) $product->cbm, 3) . ' m³' : 'See Description';
+            $gwMoq = $product?->gross_weight ? number_format((float) $product->gross_weight, 1) . ' KG' : 'See Description';
 
             $stdPrice = (float) ($product?->standard_price ?? $product?->wholesale_price ?? $item->unit_price);
             $tiers = [
@@ -171,8 +178,14 @@ class OfferSheetService
         $items = [];
         $allGalleryImages = [];
 
+        // Preload products with images and brand in a single query to eliminate N+1 queries
+        $productIds = $quotation->items->pluck('product_id')->filter()->unique()->values();
+        $products = Product::with(['images', 'brand'])->whereIn('id', $productIds)->get()->keyBy('id');
+
         foreach ($quotation->items as $idx => $item) {
-            $product = $item->product_id ? Product::with('images')->find($item->product_id) : null;
+            $product = ($item->product_id && isset($products[$item->product_id]))
+                ? $products[$item->product_id]
+                : ($item->product_id ? Product::with(['images', 'brand'])->find($item->product_id) : null);
             $gallery = DocumentHelper::getProductGallery($product, $item->product_image_url);
 
             foreach ($gallery as $g) {
@@ -183,14 +196,15 @@ class OfferSheetService
 
             $brand = $product?->brand?->name ?? (is_string($product?->brand) ? $product->brand : 'AYAAN CLOTHING');
             $prodDesc = $product?->description ?? '';
-            $designType = $product?->design_type ?? 'ORIGINAL';
-            $material = $product?->material ?? $product?->fabric ?? null;
-            $sizeDesc = $product?->size_description ?? ($item->selected_size ?: null);
-            $colourDesc = $product?->colour_description ?? null;
+            $designType = !empty(trim($product?->design_type ?? '')) ? trim($product->design_type) : 'See Description';
+            $material = !empty(trim($product?->material ?? ($product?->fabric ?? ''))) ? trim($product?->material ?? $product->fabric) : 'See Description';
+            $sizeDesc = !empty(trim($product?->size_description ?? '')) ? trim($product->size_description) : 'See Description';
+            // Authoritative Colour: strictly colour_description, never fall back to item variant color or BLACK
+            $colourDesc = !empty(trim($product?->colour_description ?? '')) ? trim($product->colour_description) : 'See Description';
 
             $moqQty = $product?->moq ?: (int) $item->quantity;
-            $cbmMoq = $product?->cbm ? number_format((float) $product->cbm, 3) . ' m³' : null;
-            $gwMoq = $product?->gross_weight ? number_format((float) $product->gross_weight, 1) . ' KG' : null;
+            $cbmMoq = $product?->cbm ? number_format((float) $product->cbm, 3) . ' m³' : 'See Description';
+            $gwMoq = $product?->gross_weight ? number_format((float) $product->gross_weight, 1) . ' KG' : 'See Description';
 
             $stdPrice = (float) ($product?->standard_price ?? $product?->wholesale_price ?? $item->unit_price);
             $tiers = [

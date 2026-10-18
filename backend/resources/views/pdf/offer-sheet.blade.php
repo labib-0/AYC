@@ -25,9 +25,14 @@
                 <table style="width: 100%; border-collapse: separate; border-spacing: 4px 6px;">
                     @foreach(array_chunk($item['product_images'], 4) as $row)
                         <tr>
-                            @foreach($row as $imgUrl)
+                            @foreach($row as $rawImgUrl)
+                                @php
+                                    $imgSrc = \App\Services\Documents\DocumentHelper::resolvePdfImageSource($rawImgUrl);
+                                @endphp
                                 <td style="width: 25%; text-align: center; vertical-align: middle; padding: 2px;">
-                                    <img src="{{ $imgUrl }}" style="max-width: 100%; max-height: 120px; object-fit: contain;" alt="Product Sample" />
+                                    @if($imgSrc)
+                                        <img src="{{ $imgSrc }}" style="max-width: 100%; max-height: 120px; object-fit: contain;" alt="Product Sample" />
+                                    @endif
                                 </td>
                             @endforeach
                             @for($k = count($row); $k < 4; $k++)
@@ -54,21 +59,21 @@
                 <tr>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
                         <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">DESIGN TYPE</div>
-                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['design_type'] ?? 'ORIGINAL' }}</div>
+                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['design_type'] ?? '')) && !in_array($item['design_type'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['design_type'] : 'See Description' }}</div>
                     </td>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
                         <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">MATERIAL</div>
-                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['material'] ?? '—' }}</div>
+                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['material'] ?? '')) && !in_array($item['material'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['material'] : 'See Description' }}</div>
                     </td>
                 </tr>
                 <tr>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
                         <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">SIZE</div>
-                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['size_description'] ?? ($item['size'] ?? '—') }}</div>
+                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['size_description'] ?? '')) && !in_array($item['size_description'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['size_description'] : 'See Description' }}</div>
                     </td>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
                         <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">COLOUR</div>
-                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['colour_description'] ?? ($item['color'] ?? '—') }}</div>
+                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['colour_description'] ?? '')) && !in_array($item['colour_description'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['colour_description'] : 'See Description' }}</div>
                     </td>
                 </tr>
             </table>
@@ -81,11 +86,11 @@
                 <tr>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
                         <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">CBM (MOQ)</div>
-                        <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['cbm_moq'] ?? 'Not configured' }}</div>
+                        <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['cbm_moq'] ?? '')) && !in_array($item['cbm_moq'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['cbm_moq'] : 'See Description' }}</div>
                     </td>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
                         <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">GROSS WEIGHT (MOQ)</div>
-                        <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ $item['gross_weight_moq'] ?? 'Not configured' }}</div>
+                        <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['gross_weight_moq'] ?? '')) && !in_array($item['gross_weight_moq'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['gross_weight_moq'] : 'See Description' }}</div>
                     </td>
                 </tr>
             </table>
@@ -136,4 +141,3 @@
     ])
     @include('pdf.partials.footer')
 @endsection
-
