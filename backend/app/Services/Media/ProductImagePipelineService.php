@@ -206,8 +206,25 @@ class ProductImagePipelineService
 
             // Convert to canonical WebP with quality 82
             $imageInstance = $imageInstance->toWebp()->quality(self::DEFAULT_WEBP_QUALITY);
-
             $webpBytes = $imageInstance->toBytes();
+
+            // Quality stepping: if output exceeds TARGET_WEBP_BYTES (500 KB), step down quality safely
+            if (strlen($webpBytes) > self::TARGET_WEBP_BYTES) {
+                foreach (self::WEBP_QUALITY_STEPS as $stepQuality) {
+                    if ($stepQuality < self::DEFAULT_WEBP_QUALITY) {
+                        $candidateInstance = $imageInstance->toWebp()->quality($stepQuality);
+                        $candidateBytes = $candidateInstance->toBytes();
+                        if (strlen($candidateBytes) < strlen($webpBytes)) {
+                            $webpBytes = $candidateBytes;
+                            $imageInstance = $candidateInstance;
+                            if (strlen($webpBytes) <= self::TARGET_WEBP_BYTES) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             $finalW    = $imageInstance->width();
             $finalH    = $imageInstance->height();
             $finalSize = strlen($webpBytes);

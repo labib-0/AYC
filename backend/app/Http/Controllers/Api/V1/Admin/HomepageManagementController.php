@@ -148,8 +148,15 @@ class HomepageManagementController extends ApiController
 
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $imagePath = $file->store('banners', 'public');
-            $imageUrl = asset('storage/' . $imagePath);
+            $ext = strtolower($file->getClientOriginalExtension() ?: '');
+            if ($ext === 'svg' || str_contains(strtolower($file->getClientMimeType() ?: ''), 'svg')) {
+                $imagePath = $file->store('banners', 'public');
+                $imageUrl = asset('storage/' . $imagePath);
+            } else {
+                $pipeline = app(\App\Services\Media\ProductImagePipelineService::class);
+                $result = $pipeline->processAndStore($file, 'banners', ['action' => 'homepage_banner_upload']);
+                $imageUrl = $result['url'];
+            }
         }
 
         $isActive = true;

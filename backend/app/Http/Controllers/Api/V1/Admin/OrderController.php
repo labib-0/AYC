@@ -491,10 +491,13 @@ class OrderController extends ApiController
         $adminReceiptUrl  = null;
         $adminReceiptName = null;
         if ($isApprove && $request->hasFile('receipt')) {
-            $adminFile       = $request->file('receipt');
-            $adminReceiptPath = $adminFile->store('order-receipts', 'public');
-            $adminReceiptUrl  = asset('storage/' . $adminReceiptPath);
-            $adminReceiptName = $adminFile->getClientOriginalName();
+            $adminFile        = $request->file('receipt');
+            $receiptService   = app(\App\Services\ReceiptImageService::class);
+            $orderIdentifier  = is_numeric($id) ? "order_{$id}" : (string) $id;
+            $receiptData      = $receiptService->convertAndStore($adminFile, $orderIdentifier);
+            $adminReceiptPath = $receiptData['path'];
+            $adminReceiptUrl  = $receiptData['url'];
+            $adminReceiptName = $receiptData['original_name'];
         }
 
 
