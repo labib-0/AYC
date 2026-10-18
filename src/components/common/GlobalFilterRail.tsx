@@ -339,7 +339,10 @@ export default function GlobalFilterRail({
           DESIGN TYPE
         </h3>
 
-        <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+        <div
+          className="grid grid-cols-2 gap-1.5 sm:gap-2"
+          style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
+        >
           {DESIGN_TYPES.map(({ value, display, fullLabel }) => {
             const isSelected = selectedDesignTypes.includes(value);
             return (

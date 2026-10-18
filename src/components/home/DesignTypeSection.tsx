@@ -1,11 +1,48 @@
 "use client";
 
+import React, { Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export const DESIGN_TYPE_OPTIONS = [
   { label: "ORIGINAL", value: "ORIGINAL" },
   { label: "MASTER COPY", value: "MASTER COPY" },
 ] as const;
+
+function DesignTypeContent() {
+  const searchParams = useSearchParams();
+  const currentDesignType = (searchParams.get("design_type") || searchParams.get("designType") || "").toUpperCase();
+
+  return (
+    <div
+      className="grid grid-cols-2 gap-2 sm:gap-2.5 pt-0.5"
+      style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
+      role="list"
+    >
+      {DESIGN_TYPE_OPTIONS.map((dt) => {
+        const param = encodeURIComponent(dt.value);
+        const isSelected = currentDesignType === dt.value;
+        return (
+          <Link
+            key={dt.value}
+            href={`/search?design_type=${param}`}
+            role="listitem"
+            title={`Browse ${dt.label} products`}
+            aria-label={`Browse ${dt.label} design type`}
+            aria-current={isSelected ? "true" : undefined}
+            className={`group flex w-full items-center justify-center px-2 py-2 sm:px-5 sm:py-2.5 rounded-xl border text-[11px] sm:text-[12.5px] font-sans font-bold uppercase tracking-wider leading-none transition-all duration-150 cursor-pointer text-center min-h-[36px] sm:min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 select-none ${
+              isSelected
+                ? "bg-foreground text-background border-foreground shadow-xs font-bold"
+                : "border-slate-900/20 dark:border-white/20 bg-card/90 dark:bg-card/60 hover:bg-secondary/70 dark:hover:bg-secondary/60 hover:border-slate-900/60 dark:hover:border-white/60 text-foreground/85 hover:text-foreground shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:scale-[0.98]"
+            }`}
+          >
+            <span className="whitespace-nowrap">{dt.label}</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function DesignTypeSection() {
   return (
@@ -24,24 +61,34 @@ export default function DesignTypeSection() {
           </div>
         </div>
 
-        {/* Text-Only Selectable Pills (No Icons) */}
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5 pt-0.5" role="list">
-          {DESIGN_TYPE_OPTIONS.map((dt) => {
-            const param = encodeURIComponent(dt.value);
-            return (
-              <Link
-                key={dt.value}
-                href={`/search?design_type=${param}`}
-                role="listitem"
-                title={`Browse ${dt.label} products`}
-                aria-label={`Browse ${dt.label} design type`}
-                className="group flex w-full items-center justify-center px-2 py-2 sm:px-5 sm:py-2.5 rounded-xl border border-slate-900/20 dark:border-white/20 bg-card/90 dark:bg-card/60 hover:bg-secondary/70 dark:hover:bg-secondary/60 hover:border-slate-900/60 dark:hover:border-white/60 text-foreground/85 hover:text-foreground text-[11px] sm:text-[12.5px] font-sans font-bold uppercase tracking-wider leading-none shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 cursor-pointer text-center min-h-[36px] sm:min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              >
-                <span className="whitespace-nowrap">{dt.label}</span>
-              </Link>
-            );
-          })}
-        </div>
+        {/* Text-Only Selectable Pills (No Icons) in 2-Column Responsive Grid */}
+        <Suspense
+          fallback={
+            <div
+              className="grid grid-cols-2 gap-2 sm:gap-2.5 pt-0.5"
+              style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
+              role="list"
+            >
+              {DESIGN_TYPE_OPTIONS.map((dt) => {
+                const param = encodeURIComponent(dt.value);
+                return (
+                  <Link
+                    key={dt.value}
+                    href={`/search?design_type=${param}`}
+                    role="listitem"
+                    title={`Browse ${dt.label} products`}
+                    aria-label={`Browse ${dt.label} design type`}
+                    className="group flex w-full items-center justify-center px-2 py-2 sm:px-5 sm:py-2.5 rounded-xl border border-slate-900/20 dark:border-white/20 bg-card/90 dark:bg-card/60 text-foreground/85 text-[11px] sm:text-[12.5px] font-sans font-bold uppercase tracking-wider leading-none min-h-[36px] sm:min-h-[40px] select-none text-center"
+                  >
+                    <span className="whitespace-nowrap">{dt.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          }
+        >
+          <DesignTypeContent />
+        </Suspense>
       </div>
     </section>
   );
