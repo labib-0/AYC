@@ -1193,14 +1193,15 @@ class OrderController extends ApiController
 
         // Direct PDF binary streaming if format=pdf requested
         if ($request->query('format') === 'pdf' || $request->has('pdf')) {
-            $pdfService = app(\App\Services\Documents\DocumentPdfService::class);
-            $pdfContent = $pdfService->render($docPayload)->output();
-            $filename = ($docPayload['doc_number'] ?? "{$normalizedType}-{$order->order_number}") . ".pdf";
+            $artifactService = app(\App\Services\Documents\CommercialPdfArtifactService::class);
+            $artifact = $artifactService->getOrGenerateForOrder($order, $normalizedType, $docPayload, $isAdmin);
 
-            return response($pdfContent, 200, [
+            return response($artifact['content'], 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => ($request->query('download') ? 'attachment' : 'inline') . "; filename=\"{$filename}\"",
+                'Content-Disposition' => ($request->query('download') ? 'attachment' : 'inline') . "; filename=\"{$artifact['filename']}\"",
                 'Cache-Control' => 'private, max-age=3600',
+                'X-PDF-Cache' => $artifact['is_hit'] ? 'HIT' : 'MISS',
+                'X-PDF-Hash' => $artifact['hash'],
             ]);
         }
 

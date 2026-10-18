@@ -179,13 +179,45 @@ export default function ProductQuickAddModal() {
     return product.brandLogo || product.brand_logo || (product as any).brand_data?.logo_url || (product as any).brand_data?.logo;
   }, [product]);
 
-  // In-cart quantity for the current product
-  const existingCartItem = useMemo(() => {
-    if (!product || !cartItems) return null;
-    return cartItems.find((item) => String(item.product?.id) === String(product.id));
+  // In-cart quantity for the current product across all relevant cart lines
+  const existingCartQty = useMemo(() => {
+    if (!product || !cartItems || !Array.isArray(cartItems)) return 0;
+    return cartItems
+      .filter((item) => String(item.product?.id) === String(product.id))
+      .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
   }, [cartItems, product]);
 
-  const existingCartQty = existingCartItem ? existingCartItem.quantity : 0;
+  // Remaining sellable stock available to add: Sellable stock - Quantity already in cart
+  const remainingStock = useMemo<number>(() => {
+    if (isSoldOut) return 0;
+    if (isPreorder) return 999999;
+    return Math.max(0, completePackageStock - existingCartQty);
+  }, [isSoldOut, isPreorder, completePackageStock, existingCartQty]);
+
+  // Maximum complete packages permitted by remaining available stock
+  const maxAllowedPackages = useMemo<number>(() => {
+    if (isSoldOut) return 0;
+    if (isPreorder) return 9999;
+    if (moq <= 0) return 0;
+    return Math.max(0, Math.floor(remainingStock / moq));
+  }, [isSoldOut, isPreorder, remainingStock, moq]);
+
+  const maxAllowedQuantity = useMemo<number>(() => {
+    return maxAllowedPackages * moq;
+  }, [maxAllowedPackages, moq]);
+
+  // Can the customer increase or decrease the quantity?
+  const canIncreasePackages = useMemo<boolean>(() => {
+    if (isSoldOut) return false;
+    if (isPreorder) return true;
+    if (maxAllowedPackages <= 0) return false;
+    return packageCount < maxAllowedPackages;
+  }, [isSoldOut, isPreorder, maxAllowedPackages, packageCount]);
+
+  const canDecreasePackages = useMemo<boolean>(() => {
+    if (isSoldOut || maxAllowedPackages <= 0) return false;
+    return packageCount > 1;
+  }, [isSoldOut, maxAllowedPackages, packageCount]);
 
   // Authoritative client-side quantity validation against live stock and cart
   const validateQuantity = useCallback(
@@ -199,37 +231,48 @@ export default function ProductQuickAddModal() {
       if (!hasValidPrice) {
         return "This product does not have a configured customer selling price. Please request a quote.";
       }
+      if (!isPreorder && maxAllowedPackages <= 0) {
+        return null;
+      }
       if (packages < 1 || qty < moq) {
         return `Order quantity must be at least the minimum order quantity (${moq.toLocaleString()} pcs).`;
       }
       if (qty % moq !== 0) {
         return `Order quantity must be an exact multiple of the MOQ (${moq.toLocaleString()} pcs).`;
       }
-      if (!isPreorder && completePackageStock > 0 && qty > completePackageStock) {
-        return `Requested ${qty.toLocaleString()} pcs exceeds available stock of ${completePackageStock.toLocaleString()} pcs.`;
-      }
-      if (!isPreorder && completePackageStock > 0 && existingCartQty + qty > completePackageStock) {
-        return `Requested ${qty.toLocaleString()} pcs combined with ${existingCartQty.toLocaleString()} pcs already in your cart (total: ${(existingCartQty + qty).toLocaleString()} pcs) exceeds available stock of ${completePackageStock.toLocaleString()} pcs.`;
-      }
       return null;
     },
-    [product, isSoldOut, isPreorder, moq, completePackageStock, existingCartQty]
+    [product, isSoldOut, isPreorder, moq, maxAllowedPackages]
   );
 
-  // Reset state and re-validate when product opens
+  // Reset state or clamp quantity when product opens or cart/stock changes
   useEffect(() => {
     if (product) {
       activeRequestIdRef.current++;
-      setPackageCount(1);
-      setQuantityInput(String(moq));
       setAddedSuccess(false);
       setAddedRfqSuccess(false);
       setIsSubmitting(false);
 
-      const initialErr = validateQuantity(moq, 1);
-      setStockError(initialErr);
+      if (maxAllowedPackages <= 0) {
+        setPackageCount(0);
+        setQuantityInput("0");
+      } else {
+        setPackageCount((prev) => {
+          if (prev <= 0) return 1;
+          if (prev > maxAllowedPackages) return maxAllowedPackages;
+          return prev;
+        });
+        setQuantityInput((prev) => {
+          const parsed = parseInt(prev, 10);
+          if (isNaN(parsed) || parsed < moq) return String(moq);
+          const currentPkgs = Math.max(1, Math.round(parsed / moq));
+          const clampedPkgs = Math.min(maxAllowedPackages, currentPkgs);
+          return String(clampedPkgs * moq);
+        });
+      }
+      setStockError(null);
     }
-  }, [product, moq, validateQuantity]);
+  }, [product, maxAllowedPackages, moq]);
 
   // Escape key closes modal
   useEffect(() => {
@@ -243,25 +286,24 @@ export default function ProductQuickAddModal() {
   }, [product, closeProductModal]);
 
   const decreasePackages = useCallback(() => {
+    if (!canDecreasePackages) return;
     activeRequestIdRef.current++;
     const nextPackages = Math.max(1, packageCount - 1);
     const nextQty = nextPackages * moq;
     setPackageCount(nextPackages);
     setQuantityInput(String(nextQty));
-    const error = validateQuantity(nextQty, nextPackages);
-    setStockError(error);
-  }, [packageCount, moq, validateQuantity]);
+    setStockError(null);
+  }, [canDecreasePackages, packageCount, moq]);
 
   const increasePackages = useCallback(() => {
+    if (!canIncreasePackages) return;
     activeRequestIdRef.current++;
-    const maxPkgs = isPreorder ? 9999 : (maxCompletePackages > 0 ? maxCompletePackages : 9999);
-    const nextPackages = Math.min(maxPkgs, packageCount + 1);
+    const nextPackages = packageCount + 1;
     const nextQty = nextPackages * moq;
     setPackageCount(nextPackages);
     setQuantityInput(String(nextQty));
-    const error = validateQuantity(nextQty, nextPackages);
-    setStockError(error);
-  }, [packageCount, moq, maxCompletePackages, isPreorder, validateQuantity]);
+    setStockError(null);
+  }, [canIncreasePackages, packageCount, moq]);
 
   const handleQuantityInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -269,41 +311,57 @@ export default function ProductQuickAddModal() {
       const val = e.target.value;
       setQuantityInput(val);
 
+      if (maxAllowedPackages <= 0) {
+        setPackageCount(0);
+        return;
+      }
+
       const parsed = parseInt(val, 10);
       if (isNaN(parsed) || parsed <= 0) {
-        setStockError(`Please enter a valid quantity of at least ${moq.toLocaleString()} pcs.`);
         return;
       }
 
       const calculatedPackages = Math.max(1, Math.round(parsed / moq));
-      const normalizedQty = calculatedPackages * moq;
-      setPackageCount(calculatedPackages);
+      const clampedPackages = isPreorder
+        ? calculatedPackages
+        : Math.min(maxAllowedPackages, calculatedPackages);
 
-      const error = validateQuantity(normalizedQty, calculatedPackages);
-      setStockError(error);
+      setPackageCount(clampedPackages);
     },
-    [moq, validateQuantity]
+    [moq, isPreorder, maxAllowedPackages]
   );
 
   const handleQuantityInputBlur = useCallback(() => {
     activeRequestIdRef.current++;
+    if (maxAllowedPackages <= 0) {
+      setPackageCount(0);
+      setQuantityInput("0");
+      return;
+    }
+
     const parsed = parseInt(quantityInput, 10);
     if (isNaN(parsed) || parsed < moq) {
       setPackageCount(1);
       setQuantityInput(String(moq));
-      setStockError(validateQuantity(moq, 1));
       return;
     }
 
     const calculatedPackages = Math.max(1, Math.round(parsed / moq));
-    const normalizedQty = calculatedPackages * moq;
-    setPackageCount(calculatedPackages);
+    const clampedPackages = isPreorder
+      ? calculatedPackages
+      : Math.min(maxAllowedPackages, calculatedPackages);
+    const normalizedQty = clampedPackages * moq;
+
+    setPackageCount(clampedPackages);
     setQuantityInput(String(normalizedQty));
-    setStockError(validateQuantity(normalizedQty, calculatedPackages));
-  }, [quantityInput, moq, validateQuantity]);
+  }, [quantityInput, moq, isPreorder, maxAllowedPackages]);
 
   const handleAddToCart = useCallback(async () => {
     if (!product || isSubmitting) return;
+
+    if (!isPreorder && (maxAllowedPackages <= 0 || packageCount <= 0 || totalQuantity > remainingStock)) {
+      return;
+    }
 
     // Run authoritative client-side pre-validation
     const clientError = validateQuantity(totalQuantity, packageCount);
@@ -337,35 +395,40 @@ export default function ProductQuickAddModal() {
       }
       setIsSubmitting(false);
 
-      // Synchronize and format error message cleanly to the current request
-      let errorMsg = err?.message || "Failed to add product to cart.";
       if (err instanceof InsufficientStockError || err?.data?.error_code === "INSUFFICIENT_STOCK") {
         const errorData = err?.data?.data || err?.data || (err as any)?.details;
-        const avail = errorData?.available_quantity ?? (err as any)?.availableQuantity ?? completePackageStock;
-        const req = errorData?.requested_quantity ?? (err as any)?.requestedQuantity ?? totalQuantity;
-        const inCart = errorData?.existing_cart_quantity ?? (err as any)?.existingCartQuantity ?? existingCartQty;
+        const avail = Number(errorData?.available_quantity ?? (err as any)?.availableQuantity ?? completePackageStock);
+        const newlyAllowedPackages = Math.max(0, Math.floor((avail - existingCartQty) / moq));
 
-        if (inCart > 0 && req > totalQuantity) {
-          errorMsg = `Requested ${totalQuantity.toLocaleString()} pcs combined with ${inCart.toLocaleString()} pcs already in your cart (total: ${req.toLocaleString()} pcs) exceeds available stock of ${avail.toLocaleString()} pcs.`;
+        if (newlyAllowedPackages > 0) {
+          setPackageCount(newlyAllowedPackages);
+          setQuantityInput(String(newlyAllowedPackages * moq));
+          setStockError(`Available stock changed. Quantity adjusted to ${newlyAllowedPackages * moq} pcs.`);
         } else {
-          errorMsg = `Requested ${totalQuantity.toLocaleString()} pcs exceeds available stock of ${avail.toLocaleString()} pcs.`;
+          setPackageCount(0);
+          setQuantityInput("0");
+          setStockError("Available stock recently changed. No additional units can be added to your cart.");
         }
+      } else {
+        setStockError(err?.message || "Failed to add product to cart.");
       }
-
-      setStockError(errorMsg);
     }
   }, [
     product,
     isSubmitting,
-    validateQuantity,
-    totalQuantity,
+    isPreorder,
+    maxAllowedPackages,
     packageCount,
-    currentOrderBreakdown,
+    totalQuantity,
+    remainingStock,
+    validateQuantity,
     addToCart,
+    currentOrderBreakdown,
     closeProductModal,
     setIsCartOpen,
     completePackageStock,
     existingCartQty,
+    moq,
   ]);
 
   const handleAddToRfq = useCallback(() => {
@@ -582,8 +645,8 @@ export default function ProductQuickAddModal() {
                         <button
                           type="button"
                           onClick={decreasePackages}
-                          disabled={packageCount <= 1 || isSoldOut}
-                          className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-l-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+                          disabled={!canDecreasePackages}
+                          className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-l-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed cursor-pointer"
                           aria-label="Decrease quantity"
                         >
                           <Minus size={15} strokeWidth={2} />
@@ -591,20 +654,21 @@ export default function ProductQuickAddModal() {
                         <input
                           id="quick-view-quantity-input"
                           type="number"
-                          min={moq}
+                          min={maxAllowedPackages > 0 ? moq : 0}
                           step={moq}
+                          max={isPreorder ? undefined : maxAllowedQuantity}
                           value={quantityInput}
                           onChange={handleQuantityInputChange}
                           onBlur={handleQuantityInputBlur}
-                          disabled={isSoldOut}
-                          className="w-20 sm:w-24 px-2 text-center text-sm sm:text-base font-bold tabular-nums font-sans border-x border-border/50 bg-transparent text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          disabled={isSoldOut || maxAllowedPackages <= 0}
+                          className="w-20 sm:w-24 px-2 text-center text-sm sm:text-base font-bold tabular-nums font-sans border-x border-border/50 bg-transparent text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:opacity-40 disabled:cursor-not-allowed"
                           aria-label="Order Quantity in Pieces"
                         />
                         <button
                           type="button"
                           onClick={increasePackages}
-                          disabled={isSoldOut || (!isPreorder && maxCompletePackages > 0 && packageCount >= maxCompletePackages)}
-                          className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-r-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+                          disabled={!canIncreasePackages}
+                          className="w-10 sm:w-11 h-full flex items-center justify-center hover:bg-secondary rounded-r-xl transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed cursor-pointer"
                           aria-label="Increase quantity"
                         >
                           <Plus size={15} strokeWidth={2} />
@@ -616,12 +680,22 @@ export default function ProductQuickAddModal() {
                     </div>
 
                     <p className="text-[11px] text-muted-foreground mt-1.5 font-sans">
-                      <strong className="text-foreground">{totalQuantity.toLocaleString()} pcs</strong> · MOQ: {moq} pcs · {
-                        isSoldOut ? "Sold Out" : isPreorder ? "Pre-Order" : `Available: ${completePackageStock.toLocaleString()} pcs`
+                      <strong className="text-foreground">{totalQuantity.toLocaleString()} pcs</strong> · MOQ: {moq.toLocaleString()} pcs · {
+                        isSoldOut
+                          ? "Sold Out"
+                          : isPreorder
+                          ? "Pre-Order"
+                          : `Available: ${completePackageStock.toLocaleString()} pcs`
                       }
                       {existingCartQty > 0 && (
                         <span className="text-primary font-semibold ml-1.5">
                           · In Cart: {existingCartQty.toLocaleString()} pcs
+                          {!isPreorder && remainingStock < completePackageStock && (
+                            <span className="text-muted-foreground font-normal">
+                              {" "}
+                              ({remainingStock.toLocaleString()} pcs remaining)
+                            </span>
+                          )}
                         </span>
                       )}
                     </p>
@@ -644,15 +718,14 @@ export default function ProductQuickAddModal() {
                         isSubmitting ||
                         !(getLowestValidCustomerUnitPrice(product) !== null && (getLowestValidCustomerUnitPrice(product) ?? 0) > 0) ||
                         addedSuccess ||
-                        (!isPreorder && maxCompletePackages > 0 && packageCount > maxCompletePackages) ||
-                        (!isPreorder && maxCompletePackages <= 0) ||
-                        (!isPreorder && completePackageStock > 0 && totalQuantity > completePackageStock) ||
-                        (!isPreorder && completePackageStock > 0 && (totalQuantity + existingCartQty) > completePackageStock)
+                        (!isPreorder && maxAllowedPackages <= 0) ||
+                        packageCount <= 0 ||
+                        (!isPreorder && totalQuantity > remainingStock)
                       }
                       className={`w-full h-11 sm:h-12 rounded-xl text-xs sm:text-sm font-sans font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                         addedSuccess
                           ? "bg-emerald-600 text-white cursor-default"
-                          : isSoldOut
+                          : isSoldOut || (!isPreorder && maxAllowedPackages <= 0)
                           ? "bg-secondary text-muted-foreground cursor-not-allowed border border-border"
                           : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.99]"
                       }`}
@@ -668,6 +741,8 @@ export default function ProductQuickAddModal() {
                         <span>Quote Only</span>
                       ) : isSubmitting ? (
                         <span>Adding...</span>
+                      ) : !isPreorder && maxAllowedPackages <= 0 ? (
+                        <span>{existingCartQty >= completePackageStock && completePackageStock > 0 ? "Max In Cart" : "Out of Stock"}</span>
                       ) : (
                         <>
                           <ShoppingCart size={16} strokeWidth={2} />

@@ -145,6 +145,13 @@ class CartController extends ApiController
 
         $newQuantity = $cartItem ? ($cartItem->quantity + $quantity) : $quantity;
 
+        // Combined existing quantity of this product in cart (across all lines)
+        $existingProductQty = (int) $cart->items()
+            ->where('product_id', $productId)
+            ->when(!$hasAllocations && $variantId, fn($q) => $q->where('product_variant_id', $variantId))
+            ->sum('quantity');
+        $totalProductRequested = $existingProductQty + $quantity;
+
         $packageBreakdown = null;
         $variant = null;
 
@@ -172,12 +179,12 @@ class CartController extends ApiController
                         : (int) ($product->getCompletePackageStock() > 0 ? $product->getCompletePackageStock() : $product->getTotalAvailableStock()))));
 
         if ($isFullStock) {
-            if (!$product->is_preorder && $newQuantity > $availableStock) {
+            if (!$product->is_preorder && $totalProductRequested > $availableStock) {
                 $sizeLabel = $variant ? " size {$variant->size}" : (!empty($size) && $size !== 'Assorted' ? " size {$size}" : "");
-                $existingQty = $cartItem ? (int) $cartItem->quantity : 0;
+                $existingQty = $existingProductQty;
                 $stockMsg = ($existingQty > 0)
-                    ? "Insufficient stock for '{$product->name}'{$sizeLabel}. Adding {$quantity} pcs to your existing cart quantity of {$existingQty} pcs (total: {$newQuantity} pcs) exceeds available stock of {$availableStock} pcs."
-                    : "Insufficient stock for '{$product->name}'{$sizeLabel} (Requested: {$newQuantity}, Available: {$availableStock}).";
+                    ? "Insufficient stock for '{$product->name}'{$sizeLabel}. Adding {$quantity} pcs to your existing cart quantity of {$existingQty} pcs (total: {$totalProductRequested} pcs) exceeds available stock of {$availableStock} pcs."
+                    : "Insufficient stock for '{$product->name}'{$sizeLabel} (Requested: {$totalProductRequested}, Available: {$availableStock}).";
                 return response()->json([
                     'success' => false,
                     'error_code' => 'INSUFFICIENT_STOCK',
@@ -192,7 +199,7 @@ class CartController extends ApiController
                         'size' => $variant?->size ?? ($size ?: 'Assorted'),
                         'color' => $variant?->color ?? $product->color_name,
                         'sku' => $variant?->sku ?? $product->sku,
-                        'requested_quantity' => $newQuantity,
+                        'requested_quantity' => $totalProductRequested,
                         'current_request_quantity' => $quantity,
                         'existing_cart_quantity' => $existingQty,
                         'available_quantity' => $availableStock,
@@ -217,12 +224,12 @@ class CartController extends ApiController
                 ], 422);
             }
         } else {
-            if (!$hasAllocations && !$product->is_preorder && $newQuantity > $availableStock) {
+            if (!$product->is_preorder && $totalProductRequested > $availableStock) {
                 $sizeLabel = $variant ? " size {$variant->size}" : (!empty($size) && $size !== 'Assorted' ? " size {$size}" : "");
-                $existingQty = $cartItem ? (int) $cartItem->quantity : 0;
+                $existingQty = $existingProductQty;
                 $stockMsg = ($existingQty > 0)
-                    ? "Insufficient stock for '{$product->name}'{$sizeLabel}. Adding {$quantity} pcs to your existing cart quantity of {$existingQty} pcs (total: {$newQuantity} pcs) exceeds available stock of {$availableStock} pcs."
-                    : "Insufficient stock for '{$product->name}'{$sizeLabel} (Requested: {$newQuantity}, Available: {$availableStock}).";
+                    ? "Insufficient stock for '{$product->name}'{$sizeLabel}. Adding {$quantity} pcs to your existing cart quantity of {$existingQty} pcs (total: {$totalProductRequested} pcs) exceeds available stock of {$availableStock} pcs."
+                    : "Insufficient stock for '{$product->name}'{$sizeLabel} (Requested: {$totalProductRequested}, Available: {$availableStock}).";
                 return response()->json([
                     'success' => false,
                     'error_code' => 'INSUFFICIENT_STOCK',
@@ -237,7 +244,7 @@ class CartController extends ApiController
                         'size' => $variant?->size ?? ($size ?: 'Assorted'),
                         'color' => $variant?->color ?? $product->color_name,
                         'sku' => $variant?->sku ?? $product->sku,
-                        'requested_quantity' => $newQuantity,
+                        'requested_quantity' => $totalProductRequested,
                         'current_request_quantity' => $quantity,
                         'existing_cart_quantity' => $existingQty,
                         'available_quantity' => $availableStock,
@@ -418,26 +425,34 @@ class CartController extends ApiController
                     }
                 }
 
-                $isFullStock = ($pricingMode === 'full_stock' || (!$request->has('pricing_mode') && !$request->has('pricingMode') && $cartItem->pricing_mode === 'full_stock' && $quantity === $availableStock));
+                $otherLinesQty = (int) $cart->items()
+                    ->where('id', '!=', $cartItem->id)
+                    ->where('product_id', $product->id)
+                    ->when(!$hasAllocations && $cartItem->product_variant_id, fn($q) => $q->where('product_variant_id', $cartItem->product_variant_id))
+                    ->sum('quantity');
+                $totalProductRequested = $otherLinesQty + $quantity;
+
+                $eligibleFullStock = (int) $product->getEligibleFullStockQuantity();
+                $isFullStock = ($pricingMode === 'full_stock' || (!$request->has('pricing_mode') && !$request->has('pricingMode') && $cartItem->pricing_mode === 'full_stock' && $quantity === $eligibleFullStock));
                 $availableStock = $isFullStock
-                    ? (int) $product->getEligibleFullStockQuantity()
+                    ? $eligibleFullStock
                     : ($variant
                         ? (int) $variant->stock
                         : (int) ($product->getCompletePackageStock() > 0 ? $product->getCompletePackageStock() : $product->getTotalAvailableStock()));
 
                 if ($isFullStock) {
-                    if (!$product->is_preorder && $quantity > $availableStock) {
+                    if (!$product->is_preorder && $totalProductRequested > $availableStock) {
                         return response()->json([
                             'success' => false,
                             'error_code' => 'INSUFFICIENT_STOCK',
-                            'message' => "Insufficient stock for '{$product->name}' (Requested: {$quantity}, Available: {$availableStock}).",
+                            'message' => "Insufficient stock for '{$product->name}' (Requested: {$totalProductRequested}, Available: {$availableStock}).",
                             'errors' => [
-                                'stock' => ["Insufficient stock for '{$product->name}' (Requested: {$quantity}, Available: {$availableStock})."]
+                                'stock' => ["Insufficient stock for '{$product->name}' (Requested: {$totalProductRequested}, Available: {$availableStock})."]
                             ],
                             'data' => [
                                 'product_id' => $product->id,
                                 'product_name' => $product->name,
-                                'requested_quantity' => $quantity,
+                                'requested_quantity' => $totalProductRequested,
                                 'available_quantity' => $availableStock,
                             ]
                         ], 422);
@@ -499,6 +514,22 @@ class CartController extends ApiController
                 }
 
                 if ($hasAllocations) {
+                    if (!$product->is_preorder && $totalProductRequested > $availableStock) {
+                        return response()->json([
+                            'success' => false,
+                            'error_code' => 'INSUFFICIENT_STOCK',
+                            'message' => "Insufficient stock for '{$product->name}' (Requested: {$totalProductRequested}, Available: {$availableStock}).",
+                            'errors' => [
+                                'stock' => ["Insufficient stock for '{$product->name}' (Requested: {$totalProductRequested}, Available: {$availableStock})."]
+                            ],
+                            'data' => [
+                                'product_id' => $product->id,
+                                'product_name' => $product->name,
+                                'requested_quantity' => $totalProductRequested,
+                                'available_quantity' => $availableStock,
+                            ]
+                        ], 422);
+                    }
                     $packageBreakdown = $product->getPackageBreakdownForQuantity($quantity, $isFullStock);
                     if (!$product->is_preorder) {
                         foreach ($packageBreakdown as $bd) {
@@ -559,14 +590,14 @@ class CartController extends ApiController
                             ? (int) $variant->stock
                             : (int) ($product->getCompletePackageStock() > 0 ? $product->getCompletePackageStock() : $product->getTotalAvailableStock()));
                     
-                    if (!$product->is_preorder && $quantity > $availableStock) {
+                    if (!$product->is_preorder && $totalProductRequested > $availableStock) {
                         $sizeLabel = $variant ? " size {$variant->size}" : (!empty($cartItem->size) && $cartItem->size !== 'Assorted' ? " size {$cartItem->size}" : "");
                         return response()->json([
                             'success' => false,
                             'error_code' => 'INSUFFICIENT_STOCK',
-                            'message' => "Insufficient stock for '{$product->name}'{$sizeLabel} (Requested: {$quantity}, Available: {$availableStock}).",
+                            'message' => "Insufficient stock for '{$product->name}'{$sizeLabel} (Requested: {$totalProductRequested}, Available: {$availableStock}).",
                             'errors' => [
-                                'stock' => ["Insufficient stock for '{$product->name}'{$sizeLabel} (Requested: {$quantity}, Available: {$availableStock})."]
+                                'stock' => ["Insufficient stock for '{$product->name}'{$sizeLabel} (Requested: {$totalProductRequested}, Available: {$availableStock})."]
                             ],
                             'data' => [
                                 'product_id' => $product->id,
@@ -575,7 +606,7 @@ class CartController extends ApiController
                                 'size' => $variant?->size ?? $cartItem->size,
                                 'color' => $variant?->color ?? $product->color_name,
                                 'sku' => $variant?->sku ?? $product->sku,
-                                'requested_quantity' => $quantity,
+                                'requested_quantity' => $totalProductRequested,
                                 'available_quantity' => $availableStock,
                             ]
                         ], 422);
