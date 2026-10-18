@@ -82,14 +82,28 @@ export interface AdminSiteSettings {
   whatsapp_url: string;
   social_links: SocialLink[];
   footer_description?: string;
+  office_address?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  public_address?: string;
+  public_email?: string;
+  public_phone?: string;
+  faqs?: any[];
   google_search_console_verification?: string | null;
 }
 
 export interface UpdateSettingsPayload {
-  site_title: string;
-  whatsapp_display: string;
+  site_title?: string;
+  whatsapp_display?: string;
   social_links?: SocialLink[];
   footer_description?: string;
+  office_address?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  public_address?: string;
+  public_email?: string;
+  public_phone?: string;
+  faqs?: any[];
 }
 
 export interface UpdateLegalPagePayload {

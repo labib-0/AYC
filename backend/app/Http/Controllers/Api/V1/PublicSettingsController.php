@@ -94,13 +94,32 @@ class PublicSettingsController extends Controller
                 ->values()
                 ->all();
 
+            $rawFaqs = SystemSetting::get('homepage_faqs', []);
+            $activeFaqs = [];
+            if (is_array($rawFaqs)) {
+                foreach ($rawFaqs as $faq) {
+                    if (!empty($faq['is_active'])) {
+                        $activeFaqs[] = [
+                            'id' => $faq['id'] ?? null,
+                            'question' => $faq['question'] ?? '',
+                            'answer' => $faq['answer'] ?? '',
+                            'sort_order' => $faq['sort_order'] ?? 0,
+                            'is_active' => true,
+                        ];
+                    }
+                }
+                usort($activeFaqs, fn($a, $b) => ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?? 0));
+            }
+
             return [
                 'site_title' => $siteTitle,
                 'company_name' => SystemSetting::get('company_name', $siteTitle),
+                'footer_description' => SystemSetting::get('footer_description', 'Ready-made Garments Manufacturer & Exporter. Serving international retail chains and corporate apparel importers with export-grade ready-made garments.'),
                 'public_email' => SystemSetting::get('business_email', 'export@ayaanclothing.com'),
                 'public_phone' => SystemSetting::get('business_phone', '+880 1620-853502'),
                 'public_address' => SystemSetting::get('office_address_formatted', 'House #33, Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh'),
                 'site_logo' => $siteLogo,
+                'faqs' => $activeFaqs,
                 'whatsapp' => [
                     'display' => $whatsappDisplay,
                     'number' => $whatsappNumber,
@@ -120,6 +139,34 @@ class PublicSettingsController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $settings,
+        ]);
+    }
+
+    /**
+     * Get public FAQs for storefront.
+     */
+    public function getFaqs(): JsonResponse
+    {
+        $rawFaqs = SystemSetting::get('homepage_faqs', []);
+        $activeFaqs = [];
+        if (is_array($rawFaqs)) {
+            foreach ($rawFaqs as $faq) {
+                if (!empty($faq['is_active'])) {
+                    $activeFaqs[] = [
+                        'id' => $faq['id'] ?? null,
+                        'question' => $faq['question'] ?? '',
+                        'answer' => $faq['answer'] ?? '',
+                        'sort_order' => $faq['sort_order'] ?? 0,
+                        'is_active' => true,
+                    ];
+                }
+            }
+            usort($activeFaqs, fn($a, $b) => ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?? 0));
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $activeFaqs,
         ]);
     }
 

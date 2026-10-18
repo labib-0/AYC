@@ -459,7 +459,7 @@ class ProductController extends ApiController
      */
     public function featured(Request $request): JsonResponse
     {
-        $limit = max(1, min(100, (int) ($request->input('limit') ?? $request->input('per_page') ?? 21)));
+        $limit = max(1, min(100, (int) ($request->input('limit') ?? $request->input('per_page') ?? 24)));
         $offset = max(0, (int) ($request->input('offset') ?? 0));
         if ($request->has('page') && !$request->has('offset')) {
             $page = max(1, (int) $request->input('page'));

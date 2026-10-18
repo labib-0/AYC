@@ -7,6 +7,7 @@ import {
   HomepageBannerModel,
   HomepageTickerItem,
 } from "@/services/homepage.service";
+import { siteSettingsService } from "@/services/site-settings.service";
 import {
   HomepageBannerHeader,
   HomepageLogoManager,
@@ -17,7 +18,10 @@ import {
   BangladeshStorefrontAccessCard,
   HomepageSeoManager,
   GoogleTagsManager,
+  HomepageFooterManager,
+  HomepageFaqManager,
 } from "@/components/admin/homepage";
+import SocialLinksSettings from "@/components/admin/settings/social/SocialLinksSettings";
 import ProductToast, {
   ToastMessage,
 } from "@/components/admin/products/ProductToast";
@@ -42,6 +46,14 @@ export default function AdminHomepageManagement() {
   const [googleVerificationCode, setGoogleVerificationCode] = useState<string | null>(null);
   const [googleTagHeadCode, setGoogleTagHeadCode] = useState<string | null>(null);
   const [googleTagBodyCode, setGoogleTagBodyCode] = useState<string | null>(null);
+
+  // Footer & Content Management State
+  const [footerDescription, setFooterDescription] = useState<string>("");
+  const [officeAddress, setOfficeAddress] = useState<string>("");
+  const [contactEmail, setContactEmail] = useState<string>("");
+  const [contactPhone, setContactPhone] = useState<string>("");
+  const [whatsappDisplay, setWhatsappDisplay] = useState<string>("");
+  const [faqs, setFaqs] = useState<any[]>([]);
 
   // Banner Form Draft State
   const [formState, setFormState] = useState<BannerFormState>({
@@ -96,6 +108,38 @@ export default function AdminHomepageManagement() {
       setGoogleVerificationCode(data.google_search_console_verification || null);
       setGoogleTagHeadCode(data.google_tag_head_code || null);
       setGoogleTagBodyCode(data.google_tag_body_code || null);
+
+      if (data.footer_description) setFooterDescription(data.footer_description);
+      if (data.office_address) setOfficeAddress(data.office_address);
+      if (data.contact_email) setContactEmail(data.contact_email);
+      if (data.contact_phone) setContactPhone(data.contact_phone);
+      if (data.whatsapp_display) setWhatsappDisplay(data.whatsapp_display);
+      if (Array.isArray(data.faqs) && data.faqs.length > 0) setFaqs(data.faqs);
+
+      // Attempt to enrich with authoritative site settings
+      try {
+        const settings = await siteSettingsService.getAdminSettings();
+        if (settings) {
+          if (settings.footer_description) setFooterDescription(settings.footer_description);
+          if (settings.office_address || settings.public_address) {
+            setOfficeAddress(settings.office_address || settings.public_address || "");
+          }
+          if (settings.contact_email || settings.public_email) {
+            setContactEmail(settings.contact_email || settings.public_email || "");
+          }
+          if (settings.contact_phone || settings.public_phone) {
+            setContactPhone(settings.contact_phone || settings.public_phone || "");
+          }
+          if (settings.whatsapp_display) {
+            setWhatsappDisplay(settings.whatsapp_display);
+          }
+          if (Array.isArray(settings.faqs) && settings.faqs.length > 0) {
+            setFaqs(settings.faqs);
+          }
+        }
+      } catch {
+        // Continue with homepage data
+      }
 
       if (data.banner) {
         setFormState({
@@ -432,6 +476,43 @@ export default function AdminHomepageManagement() {
             isDirty={isTickerDirty}
             showToast={showToast}
             disabled={saving}
+          />
+        </section>
+
+        {/* ==================================================================== */}
+        {/* SECTION 5: FOOTER CONTENT & CONTACT DETAILS                           */}
+        {/* ==================================================================== */}
+        <section>
+          <HomepageFooterManager
+            initialAboutUs={footerDescription}
+            initialAddress={officeAddress}
+            initialEmail={contactEmail}
+            initialPhone={contactPhone}
+            initialWhatsApp={whatsappDisplay}
+            showToast={showToast}
+            disabled={saving}
+            onSaveSuccess={loadHomepageData}
+          />
+        </section>
+
+        {/* ==================================================================== */}
+        {/* SECTION 6: FREQUENTLY ASKED QUESTIONS (FAQ)                          */}
+        {/* ==================================================================== */}
+        <section>
+          <HomepageFaqManager
+            initialFaqs={faqs}
+            showToast={showToast}
+            disabled={saving}
+            onSaveSuccess={loadHomepageData}
+          />
+        </section>
+
+        {/* ==================================================================== */}
+        {/* SECTION 7: DYNAMIC SOCIAL LINKS & ICONS                              */}
+        {/* ==================================================================== */}
+        <section>
+          <SocialLinksSettings
+            onNotify={(message) => showToast(message, "success")}
           />
         </section>
       </div>

@@ -18,9 +18,9 @@ import {
 } from "@/lib/services/explorer-coordinator";
 
 
-const INITIAL_PRODUCT_LIMIT = 21; // Maximum 21 products displayed initially
-const FIRST_LOAD_MORE_LIMIT = 21; // Next batch loaded upon first explicit click
-const CONTINUOUS_BATCH_LIMIT = 21; // Batch size on every subsequent automatic pagination request
+const INITIAL_PRODUCT_LIMIT = 24; // Maximum 24 products displayed initially
+const FIRST_LOAD_MORE_LIMIT = 24; // Next batch loaded upon first explicit click
+const CONTINUOUS_BATCH_LIMIT = 24; // Batch size on every subsequent automatic pagination request
 
 export default function FeaturedProducts() {
   const searchParams = useSearchParams();

@@ -114,6 +114,10 @@ class AdminSettingsController extends Controller
         }
 
         $footerDescription = SystemSetting::get('footer_description', 'Ready-made Garments Manufacturer & Exporter. Serving international retail chains and corporate apparel importers with export-grade ready-made garments.');
+        $officeAddress = SystemSetting::get('office_address_formatted', 'House #33, Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh');
+        $contactEmail = SystemSetting::get('business_email', 'export@ayaanclothing.com');
+        $contactPhone = SystemSetting::get('business_phone', '+880 1620-853502');
+        $faqs = SystemSetting::get('homepage_faqs', []);
 
         return response()->json([
             'status' => 'success',
@@ -125,6 +129,13 @@ class AdminSettingsController extends Controller
                 'whatsapp_url' => $whatsappUrl,
                 'social_links' => $socialLinks,
                 'footer_description' => $footerDescription,
+                'office_address' => $officeAddress,
+                'public_address' => $officeAddress,
+                'contact_email' => $contactEmail,
+                'public_email' => $contactEmail,
+                'contact_phone' => $contactPhone,
+                'public_phone' => $contactPhone,
+                'faqs' => $faqs,
             ],
         ]);
     }
@@ -145,7 +156,14 @@ class AdminSettingsController extends Controller
             'social_links.*.icon' => ['nullable', 'string', 'max:50'],
             'social_links.*.is_active' => ['required', 'boolean'],
             'social_links.*.sort_order' => ['nullable', 'integer'],
-            'footer_description' => ['nullable', 'string', 'max:1000'],
+            'footer_description' => ['nullable', 'string', 'max:2000'],
+            'office_address' => ['nullable', 'string', 'max:500'],
+            'public_address' => ['nullable', 'string', 'max:500'],
+            'contact_email' => ['nullable', 'string', 'max:255'],
+            'public_email' => ['nullable', 'string', 'max:255'],
+            'contact_phone' => ['nullable', 'string', 'max:100'],
+            'public_phone' => ['nullable', 'string', 'max:100'],
+            'faqs' => ['nullable', 'array'],
         ]);
 
         $display = trim($validated['whatsapp_display']);
@@ -205,6 +223,25 @@ class AdminSettingsController extends Controller
 
         if (isset($validated['footer_description'])) {
             SystemSetting::set('footer_description', trim($validated['footer_description']), 'string', 'branding');
+        }
+
+        if ($request->has('office_address') || $request->has('public_address')) {
+            $addr = trim((string) ($request->input('office_address') ?? $request->input('public_address')));
+            SystemSetting::set('office_address_formatted', $addr, 'string', 'contact');
+        }
+
+        if ($request->has('contact_email') || $request->has('public_email')) {
+            $em = trim((string) ($request->input('contact_email') ?? $request->input('public_email')));
+            SystemSetting::set('business_email', $em, 'string', 'contact');
+        }
+
+        if ($request->has('contact_phone') || $request->has('public_phone')) {
+            $ph = trim((string) ($request->input('contact_phone') ?? $request->input('public_phone')));
+            SystemSetting::set('business_phone', $ph, 'string', 'contact');
+        }
+
+        if ($request->has('faqs')) {
+            SystemSetting::set('homepage_faqs', $request->input('faqs'), 'json', 'homepage');
         }
 
         // Process social links

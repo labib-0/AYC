@@ -60,6 +60,7 @@ Route::prefix('v1')->group(function () {
     // Public Storefront Settings & Legal Pages
     Route::get('/settings/public', [PublicSettingsController::class, 'getPublicSettings']);
     Route::get('/legal/{type}', [PublicSettingsController::class, 'getLegalPage']);
+    Route::get('/faqs', [PublicSettingsController::class, 'getFaqs']);
 
     // Public Storefront Geolocation Detection (Reusing stevebauman/location & MaxMind GeoLite2)
     Route::get('/geolocation/detect', [GeolocationController::class, 'detect']);
@@ -616,6 +617,10 @@ Route::prefix('v1')->group(function () {
             Route::post('/hot-sale-visibility', [AdminHomepageManagementController::class, 'updateHotSaleVisibility'])
                 ->middleware('permission:homepage.category.manage');
             Route::post('/settings', [AdminHomepageManagementController::class, 'updateSettings'])
+                ->middleware('permission:homepage.banner.edit');
+            Route::get('/faqs', [AdminHomepageManagementController::class, 'getFaqs'])
+                ->middleware('permission:homepage.view');
+            Route::post('/faqs', [AdminHomepageManagementController::class, 'syncFaqs'])
                 ->middleware('permission:homepage.banner.edit');
             Route::post('/seo', [AdminHomepageManagementController::class, 'updateGoogleSearchConsoleVerification'])
                 ->middleware('permission:homepage.banner.edit');

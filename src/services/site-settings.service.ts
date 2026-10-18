@@ -171,10 +171,17 @@ export class SiteSettingsService {
   }
 
   /**
-   * Update admin settings (branding, whatsapp display, social links).
+   * Update admin settings (branding, whatsapp display, social links, footer, contacts).
    */
   async updateAdminSettings(payload: UpdateSettingsPayload): Promise<void> {
     await apiClient.put("/admin/settings", payload);
+  }
+
+  /**
+   * Update settings alias for backwards/cross-component compatibility.
+   */
+  async updateSettings(payload: UpdateSettingsPayload): Promise<void> {
+    await this.updateAdminSettings(payload);
   }
 
   /**

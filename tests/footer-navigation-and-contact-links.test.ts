@@ -73,29 +73,39 @@ async function runTestSuite() {
   );
 
   // ------------------------------------------------------------------
-  // CHECKPOINT 2: Explore Buyer Capabilities Destination
+  // CHECKPOINT 2: FAQ Destination
   // ------------------------------------------------------------------
-  console.log("\n▶ 2. Explore Buyer Capabilities Navigation");
+  console.log("\n▶ 2. FAQ Navigation");
 
   assert(
-    footerContent.includes('href="/rfq"') &&
-    footerContent.includes("Explore Buyer Capabilities"),
-    "Explore Buyer Capabilities links directly to /rfq"
+    footerContent.includes('href="/faq"') &&
+    footerContent.includes("FAQ →"),
+    "FAQ links directly to /faq"
   );
-  const rfqPagePath = path.join(repoRoot, "src/app/rfq/page.tsx");
+  const faqPagePath = path.join(repoRoot, "src/app/faq/page.tsx");
   assert(
-    fs.existsSync(rfqPagePath),
-    "Target /rfq route file exists in src/app/rfq/page.tsx"
+    fs.existsSync(faqPagePath),
+    "Target /faq route file exists in src/app/faq/page.tsx"
   );
 
   // ------------------------------------------------------------------
   // CHECKPOINT 3: Compliance & Certifications Destination
   // ------------------------------------------------------------------
-  console.log("\n▶ 3. Compliance & Certifications Anchor & Header Clearance");
+  console.log("\n▶ 3. Compliance & Certifications Anchor & Dedicated Page");
 
   assert(
-    footerContent.includes('href="/#certificate"'),
-    "Compliance & Certifications links to /#certificate via semantic Link"
+    footerContent.includes('href="/compliance"') &&
+    footerContent.includes("Compliance &amp; Certifications"),
+    "Compliance & Certifications links to /compliance without (AQL 2.5) suffix"
+  );
+  const compliancePagePath = path.join(repoRoot, "src/app/compliance/page.tsx");
+  assert(
+    fs.existsSync(compliancePagePath),
+    "Dedicated /compliance page exists in src/app/compliance/page.tsx"
+  );
+  assert(
+    !footerContent.includes("(AQL 2.5)"),
+    "(AQL 2.5) suffix is removed from the footer label"
   );
   assert(
     !footerContent.includes("handleComplianceClick"),
@@ -299,11 +309,14 @@ async function runTestSuite() {
 
   assert(
     footerContent.includes('href="/search"') &&
-    footerContent.includes('href="/search?sort=newest"') &&
-    footerContent.includes('href="/search?sort=popular"') &&
     footerContent.includes('href="/search?audience=MEN"') &&
-    footerContent.includes('href="/search?audience=WOMEN"'),
-    "All Shop & Collections search filters are preserved"
+    footerContent.includes('href="/search?audience=WOMEN"') &&
+    footerContent.includes('href="/search?audience=BOYS"') &&
+    footerContent.includes('href="/search?audience=GIRLS"') &&
+    footerContent.includes('href="/search?audience=UNISEX"') &&
+    !footerContent.includes('href="/search?sort=newest"') &&
+    !footerContent.includes('href="/search?sort=popular"'),
+    "Shop & Collections preserves All Products & audience collections while removing New Arrivals & Hot Sales"
   );
   assert(
     footerContent.includes("/search?category=") &&

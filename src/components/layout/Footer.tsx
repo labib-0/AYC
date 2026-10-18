@@ -33,11 +33,11 @@ export default function Footer() {
                 (c.name || "").toLowerCase()
               )
           );
-          setCategories(filtered.slice(0, 9));
+          setCategories(filtered.slice(0, 10));
         }
         if (Array.isArray(bList)) {
           const activeBrands = bList.filter((b) => b.is_active !== false);
-          setBrands(activeBrands.slice(0, 9));
+          setBrands(activeBrands.slice(0, 10));
         }
       } catch (err) {
         console.warn("Footer taxonomy load notice:", err);
@@ -65,15 +65,27 @@ export default function Footer() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Authoritative business contact details
-  const businessAddress = settings.public_address || BUSINESS_PROFILE.address.formatted;
-  const googleMapsUrl = businessAddress
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessAddress)}`
+  // Authoritative business contact details (omits empty fields)
+  const businessAddress =
+    settings.public_address !== undefined
+      ? settings.public_address
+      : (BUSINESS_PROFILE.address.formatted || "");
+  const googleMapsUrl = businessAddress.trim()
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessAddress.trim())}`
     : null;
-  const businessEmail = settings.public_email || BUSINESS_PROFILE.contact.email;
-  const rawPhone = settings.public_phone || settings.whatsapp?.display || BUSINESS_PROFILE.contact.phone || "+880 1620-853502";
-  const telDigits = normalizeWhatsAppNumber(rawPhone);
+  const businessEmail =
+    settings.public_email !== undefined
+      ? settings.public_email.trim()
+      : (BUSINESS_PROFILE.contact.email || "");
+  const rawPhone =
+    settings.public_phone !== undefined
+      ? settings.public_phone.trim()
+      : (BUSINESS_PROFILE.contact.phone || "");
+  const telDigits = rawPhone ? normalizeWhatsAppNumber(rawPhone) : "";
+  const rawWhatsApp = settings.whatsapp?.display?.trim() || "";
   const activeSocialLinks = filterConfiguredSocialLinks(settings.social_links);
+
+  const aboutUsContent = (settings as any).footer_description || `${BUSINESS_PROFILE.description}. Established in ${BUSINESS_PROFILE.establishedYear}, serving international retail chains and corporate apparel importers with export-grade ready-made garments.`;
 
   return (
     <>
@@ -103,16 +115,16 @@ export default function Footer() {
                   <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
                 </Link>
                 <p className="text-[13px] text-white/70 leading-relaxed mt-2.5 max-w-sm">
-                  {BUSINESS_PROFILE.description}. Established in {BUSINESS_PROFILE.establishedYear}, serving international retail chains and corporate apparel importers with export-grade ready-made garments.
+                  {aboutUsContent}
                 </p>
               </div>
 
               <div className="pt-1">
                 <Link
-                  href="/rfq"
+                  href="/faq"
                   className="inline-flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wider text-white/80 hover:text-white transition-colors underline underline-offset-4"
                 >
-                  Explore Buyer Capabilities →
+                  FAQ →
                 </Link>
               </div>
             </div>
@@ -126,16 +138,6 @@ export default function Footer() {
                 <li>
                   <Link href="/search" className="hover:text-white transition-colors">
                     All Products
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/search?sort=newest" className="hover:text-white transition-colors">
-                    New Arrivals
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/search?sort=popular" className="hover:text-white transition-colors">
-                    Best Deals &amp; Hot Sales
                   </Link>
                 </li>
                 <li>
@@ -172,27 +174,25 @@ export default function Footer() {
                 CATEGORIES
               </h3>
               <ul className="flex flex-col gap-2 text-[13px] text-white/75">
-                {categories.length > 0 ? (
-                  categories.map((cat) => (
-                    <li key={cat.id}>
-                      <Link
-                        href={`/search?category=${encodeURIComponent(cat.name)}`}
-                        className="hover:text-white transition-colors"
-                      >
-                        {cat.name}
-                      </Link>
-                    </li>
-                  ))
-                ) : (
-                  <>
-                    <li><Link href="/search?category=Sweaters" className="hover:text-white transition-colors">Sweaters</Link></li>
-                    <li><Link href="/search?category=T-Shirts" className="hover:text-white transition-colors">T-Shirts</Link></li>
-                    <li><Link href="/search?category=Hoodies" className="hover:text-white transition-colors">Hoodies</Link></li>
-                    <li><Link href="/search?category=Trousers" className="hover:text-white transition-colors">Trousers</Link></li>
-                    <li><Link href="/search?category=Jackets" className="hover:text-white transition-colors">Jackets</Link></li>
-                    <li><Link href="/search?category=Pants" className="hover:text-white transition-colors">Pants</Link></li>
-                  </>
-                )}
+                {categories.slice(0, 10).map((cat) => (
+                  <li key={cat.id}>
+                    <Link
+                      href={`/search?category=${encodeURIComponent(cat.slug || cat.name)}`}
+                      className="hover:text-white transition-colors"
+                    >
+                      {cat.name}
+                    </Link>
+                  </li>
+                ))}
+                <li className="pt-1.5 border-t border-white/10 mt-1">
+                  <Link
+                    href="/search"
+                    className="hover:text-white text-amber-400 font-semibold transition-colors flex items-center gap-1 text-[13px]"
+                  >
+                    <span>All Categories</span>
+                    <span>→</span>
+                  </Link>
+                </li>
               </ul>
             </div>
 
@@ -202,27 +202,25 @@ export default function Footer() {
                 BRANDS
               </h3>
               <ul className="flex flex-col gap-2 text-[13px] text-white/75">
-                {brands.length > 0 ? (
-                  brands.map((b) => (
-                    <li key={b.id}>
-                      <Link
-                        href={`/search?brand=${encodeURIComponent(b.name)}`}
-                        className="hover:text-white transition-colors"
-                      >
-                        {b.name}
-                      </Link>
-                    </li>
-                  ))
-                ) : (
-                  <>
-                    <li><Link href="/search?brand=Nike" className="hover:text-white transition-colors">Nike</Link></li>
-                    <li><Link href="/search?brand=Adidas" className="hover:text-white transition-colors">Adidas</Link></li>
-                    <li><Link href="/search?brand=Levi%27s" className="hover:text-white transition-colors">Levi&apos;s</Link></li>
-                    <li><Link href="/search?brand=Puma" className="hover:text-white transition-colors">Puma</Link></li>
-                    <li><Link href="/search?brand=Champion" className="hover:text-white transition-colors">Champion</Link></li>
-                    <li><Link href="/search?brand=Zara" className="hover:text-white transition-colors">Zara</Link></li>
-                  </>
-                )}
+                {brands.slice(0, 10).map((b) => (
+                  <li key={b.id}>
+                    <Link
+                      href={`/search?brand=${encodeURIComponent(b.slug || b.name)}`}
+                      className="hover:text-white transition-colors"
+                    >
+                      {b.name}
+                    </Link>
+                  </li>
+                ))}
+                <li className="pt-1.5 border-t border-white/10 mt-1">
+                  <Link
+                    href="/search"
+                    className="hover:text-white text-amber-400 font-semibold transition-colors flex items-center gap-1 text-[13px]"
+                  >
+                    <span>All Brands</span>
+                    <span>→</span>
+                  </Link>
+                </li>
               </ul>
             </div>
 
@@ -240,10 +238,10 @@ export default function Footer() {
                   </li>
                   <li>
                     <Link
-                      href="/#certificate"
+                      href="/compliance"
                       className="hover:text-white transition-colors text-left"
                     >
-                      Compliance &amp; Certifications (AQL 2.5)
+                      Compliance &amp; Certifications
                     </Link>
                   </li>
                 </ul>
@@ -300,29 +298,33 @@ export default function Footer() {
                   </div>
                 ) : null}
 
-                <div className="flex items-start gap-2.5">
-                  <Phone size={15} className="text-white/60 shrink-0 mt-0.5" />
-                  <a
-                    href={`tel:+${telDigits}`}
-                    aria-label={`Call ${settings.site_title} at ${rawPhone}`}
-                    className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
-                  >
-                    Call: {rawPhone}
-                  </a>
-                </div>
+                {rawPhone ? (
+                  <div className="flex items-start gap-2.5">
+                    <Phone size={15} className="text-white/60 shrink-0 mt-0.5" />
+                    <a
+                      href={`tel:+${telDigits}`}
+                      aria-label={`Call ${settings.site_title} at ${rawPhone}`}
+                      className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
+                    >
+                      Call: {rawPhone}
+                    </a>
+                  </div>
+                ) : null}
 
-                <div className="flex items-start gap-2.5">
-                  <MessageCircle size={15} className="text-[#25D366] shrink-0 mt-0.5" />
-                  <a
-                    href={getWhatsAppUrl(`Hi ${settings.site_title}, I have an inquiry regarding wholesale apparel sourcing.`)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Chat with ${settings.site_title} on WhatsApp`}
-                    className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
-                  >
-                    WhatsApp: {settings.whatsapp?.display || "+880 1620-853502"}
-                  </a>
-                </div>
+                {rawWhatsApp ? (
+                  <div className="flex items-start gap-2.5">
+                    <MessageCircle size={15} className="text-[#25D366] shrink-0 mt-0.5" />
+                    <a
+                      href={getWhatsAppUrl(`Hi ${settings.site_title}, I have an inquiry regarding wholesale apparel sourcing.`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Chat with ${settings.site_title} on WhatsApp`}
+                      className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
+                    >
+                      WhatsApp: {rawWhatsApp}
+                    </a>
+                  </div>
+                ) : null}
               </div>
             </div>
 

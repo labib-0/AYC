@@ -114,6 +114,13 @@ class HomepageManagementController extends ApiController
             'hot_sale_categories' => $hotSaleCategories,
             'all_categories' => $allCategories,
             'featured_products' => $featuredProducts,
+            'footer_description' => SystemSetting::get('footer_description', 'Ready-made Garments Manufacturer & Exporter. Serving international retail chains and corporate apparel importers with export-grade ready-made garments.'),
+            'office_address' => SystemSetting::get('office_address_formatted', 'House #33, Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh'),
+            'contact_email' => SystemSetting::get('business_email', 'export@ayaanclothing.com'),
+            'contact_phone' => SystemSetting::get('business_phone', '+880 1620-853502'),
+            'whatsapp_display' => SystemSetting::get('whatsapp_display', '+880 1620-853502'),
+            'faqs' => SystemSetting::get('homepage_faqs', []),
+            'social_links' => SystemSetting::get('social_links', []),
             'counts' => [
                 'total_brands' => Brand::count(),
                 'landing_brands' => $featuredBrands->where('is_active', true)->count(),
@@ -591,6 +598,13 @@ class HomepageManagementController extends ApiController
         $validated = $request->validate([
             'hot_sale_visible' => ['nullable', 'boolean'],
             'google_search_console_verification' => ['nullable', 'string'],
+            'footer_description' => ['nullable', 'string', 'max:2000'],
+            'office_address' => ['nullable', 'string', 'max:500'],
+            'contact_email' => ['nullable', 'string', 'max:255'],
+            'contact_phone' => ['nullable', 'string', 'max:100'],
+            'whatsapp_display' => ['nullable', 'string', 'max:100'],
+            'faqs' => ['nullable', 'array'],
+            'social_links' => ['nullable', 'array'],
         ]);
 
         if ($request->has('hot_sale_visible')) {
@@ -605,15 +619,104 @@ class HomepageManagementController extends ApiController
                 return $this->error($parsed['error'], 422);
             }
             SystemSetting::setGoogleSearchConsoleVerification($parsed['token']);
-            Cache::forget('site_settings_public');
         }
 
+        if ($request->has('footer_description')) {
+            SystemSetting::set('footer_description', trim(strip_tags($request->input('footer_description'))), 'string', 'branding');
+        }
+
+        if ($request->has('office_address')) {
+            SystemSetting::set('office_address_formatted', trim(strip_tags($request->input('office_address'))), 'string', 'contact');
+        }
+
+        if ($request->has('contact_email')) {
+            SystemSetting::set('business_email', trim(strip_tags($request->input('contact_email'))), 'string', 'contact');
+        }
+
+        if ($request->has('contact_phone')) {
+            SystemSetting::set('business_phone', trim(strip_tags($request->input('contact_phone'))), 'string', 'contact');
+        }
+
+        if ($request->has('whatsapp_display')) {
+            $wa = trim(strip_tags($request->input('whatsapp_display')));
+            SystemSetting::set('whatsapp_display', $wa, 'string', 'contact');
+            if (!empty($wa)) {
+                $clean = preg_replace('/\D+/', '', $wa);
+                SystemSetting::set('whatsapp_number', $clean, 'string', 'contact');
+            }
+        }
+
+        if ($request->has('faqs')) {
+            SystemSetting::set('homepage_faqs', $request->input('faqs'), 'json', 'homepage');
+        }
+
+        if ($request->has('social_links')) {
+            SystemSetting::set('social_links', $request->input('social_links'), 'json', 'branding');
+        }
+
+        Cache::forget('site_settings_public');
         CatalogCacheService::invalidateAll();
 
         return $this->success([
             'hot_sale_visible' => SystemSetting::isHotSaleVisible(),
             'google_search_console_verification' => SystemSetting::getGoogleSearchConsoleVerification(),
+            'footer_description' => SystemSetting::get('footer_description'),
+            'office_address' => SystemSetting::get('office_address_formatted'),
+            'contact_email' => SystemSetting::get('business_email'),
+            'contact_phone' => SystemSetting::get('business_phone'),
+            'whatsapp_display' => SystemSetting::get('whatsapp_display'),
         ], 'Homepage settings saved successfully.');
+    }
+
+    /**
+     * GET /api/v1/admin/homepage/faqs
+     */
+    public function getFaqs(): JsonResponse
+    {
+        $faqs = SystemSetting::get('homepage_faqs', []);
+        return $this->success(is_array($faqs) ? $faqs : [], 'Homepage FAQs retrieved');
+    }
+
+    /**
+     * POST /api/v1/admin/homepage/faqs
+     */
+    public function syncFaqs(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$this->authorization->can($user, 'homepage.banner.edit') &&
+            !$this->authorization->can($user, 'homepage.view') &&
+            !$this->authorization->can($user, 'settings.edit')) {
+            return $this->forbidden("Forbidden: you do not have permission to manage FAQs.");
+        }
+
+        $validated = $request->validate([
+            'faqs' => ['present', 'array'],
+            'faqs.*.id' => ['nullable'],
+            'faqs.*.question' => ['required', 'string', 'max:500'],
+            'faqs.*.answer' => ['required', 'string', 'max:5000'],
+            'faqs.*.sort_order' => ['nullable', 'integer'],
+            'faqs.*.is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $faqs = $validated['faqs'];
+        $cleaned = [];
+        foreach ($faqs as $idx => $f) {
+            $cleaned[] = [
+                'id' => $f['id'] ?? ($idx + 1),
+                'question' => trim(strip_tags($f['question'])),
+                'answer' => trim(strip_tags($f['answer'], '<p><br><strong><em><ul><ol><li><a>')),
+                'sort_order' => isset($f['sort_order']) ? (int) $f['sort_order'] : ($idx + 1),
+                'is_active' => isset($f['is_active']) ? (bool) $f['is_active'] : true,
+            ];
+        }
+
+        usort($cleaned, fn($a, $b) => $a['sort_order'] <=> $b['sort_order']);
+        SystemSetting::set('homepage_faqs', $cleaned, 'json', 'homepage');
+
+        Cache::forget('site_settings_public');
+        CatalogCacheService::invalidateAll();
+
+        return $this->success($cleaned, 'FAQs synchronized successfully.');
     }
 
     /**

@@ -122,7 +122,7 @@ export async function getFeaturedProducts(
   const isNew = resolvedMode === "new_arrivals";
   const isBestDeals = resolvedMode === "best_deals";
   const offset = options.offset ?? 0;
-  const limit = options.limit ?? 21;
+  const limit = options.limit ?? 24;
 
   const hasSpecificFilters = Boolean(
     (options.brands && options.brands.length > 0) ||

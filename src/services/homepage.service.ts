@@ -113,6 +113,13 @@ export interface AdminHomepageData {
   hot_sale_categories: HomepageHotSaleCategoryModel[];
   all_categories?: HomepageCategoryRecord[];
   featured_products: HomepageFeaturedProductModel[];
+  footer_description?: string;
+  office_address?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  whatsapp_display?: string;
+  faqs?: any[];
+  social_links?: any[];
   counts?: {
     total_brands?: number;
     landing_brands?: number;
@@ -272,6 +279,13 @@ export class HomepageService {
         hot_sale_categories: Array.isArray(data?.hot_sale_categories) ? data.hot_sale_categories : [],
         all_categories: Array.isArray(data?.all_categories) ? data.all_categories : [],
         featured_products: Array.isArray(data?.featured_products) ? data.featured_products : [],
+        footer_description: data?.footer_description,
+        office_address: data?.office_address,
+        contact_email: data?.contact_email,
+        contact_phone: data?.contact_phone,
+        whatsapp_display: data?.whatsapp_display,
+        faqs: Array.isArray(data?.faqs) ? data.faqs : [],
+        social_links: Array.isArray(data?.social_links) ? data.social_links : [],
         counts: data?.counts || { total_categories: 0, total_products: 0 },
       };
     } catch {
@@ -588,6 +602,33 @@ export class HomepageService {
       window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_homepage_ticker_updated" }));
     }
     return Array.isArray(list) ? list : [];
+  }
+
+  /**
+   * Synchronize and persist Homepage FAQ items.
+   */
+  async syncFaqs(faqs: any[]): Promise<any[]> {
+    const res = await apiClient.post<any>("/admin/homepage/faqs", { faqs });
+    const list = (res?.data || res) as any[];
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("ayaan:homepage-updated", { detail: { type: "faqs" } }));
+      window.dispatchEvent(new CustomEvent("ayaan:data-updated", { detail: { entity: "homepage" } }));
+      window.dispatchEvent(new StorageEvent("storage", { key: "ayaan_homepage_faqs_updated" }));
+    }
+    return Array.isArray(list) ? list : [];
+  }
+
+  /**
+   * Fetch active FAQs for storefront.
+   */
+  async getFaqs(): Promise<any[]> {
+    try {
+      const res = await apiClient.get<any>("/faqs");
+      const list = (res?.data || res) as any[];
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
   }
 
   /**

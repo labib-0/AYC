@@ -30,35 +30,7 @@ import { useRfq } from "@/lib/RfqContext";
 import { useSiteSettings } from "@/lib/SiteSettingsContext";
 import BUSINESS_PROFILE from "@/config/business-profile";
 
-const AUDIENCE_MENU_ITEMS = [
-  { label: "MEN", href: "/search?audience=MEN" },
-  { label: "WOMEN", href: "/search?audience=WOMEN" },
-  { label: "BOYS", href: "/search?audience=BOYS" },
-  { label: "GIRLS", href: "/search?audience=GIRLS" },
-  { label: "UNISEX", href: "/search?audience=UNISEX" },
-];
 
-const PRODUCT_CATEGORY_MENU_ITEMS = [
-  { label: "ALL", href: "/search" },
-  { label: "SWEATERS", href: "/search?category=Sweaters" },
-  { label: "T-SHIRTS", href: "/search?category=T-Shirts" },
-  { label: "HOODIES", href: "/search?category=Hoodies" },
-  { label: "TROUSERS", href: "/search?category=Trousers" },
-  { label: "PANTS", href: "/search?category=Pants" },
-  { label: "SHORTS", href: "/search?category=Shorts" },
-  { label: "JACKETS", href: "/search?category=Jackets" },
-  { label: "POLO SHIRTS", href: "/search?category=Polo%20Shirts" },
-  { label: "ACTIVEWEAR", href: "/search?category=Activewear" },
-  { label: "KNITWEAR", href: "/search?category=Knitwear" },
-  { label: "SHIRTS", href: "/search?category=Shirts" },
-  { label: "BEACHWEAR", href: "/search?category=Beachwear" },
-  { label: "SOCKS", href: "/search?category=Socks" },
-  { label: "BLOUSE", href: "/search?category=Blouse" },
-  { label: "TANK TOP", href: "/search?category=Tank%20Top" },
-  { label: "TOPS", href: "/search?category=Tops" },
-  { label: "SPORTS", href: "/search?category=Sports" },
-  { label: "TOWELS", href: "/search?category=Towels" },
-];
 
 type HeaderState = "expanded" | "compact";
 
@@ -74,21 +46,9 @@ function HeaderContent() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [mobileAccordion, setMobileAccordion] = useState<"none" | "audience" | "category">("none");
-  const isAudienceOpen = mobileAccordion === "audience";
-  const isCategoryOpen = mobileAccordion === "category";
-
-  const toggleAudienceAccordion = () => {
-    setMobileAccordion((prev) => (prev === "audience" ? "none" : "audience"));
-  };
-
-  const toggleCategoryAccordion = () => {
-    setMobileAccordion((prev) => (prev === "category" ? "none" : "category"));
-  };
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
-    setMobileAccordion("none");
   };
   
   // Modals state
@@ -761,238 +721,174 @@ function HeaderContent() {
             </div>
           </button>
         </div>
-        <nav className="flex flex-col p-4 overflow-y-auto max-h-[calc(100vh-64px)] divide-y divide-white/10 text-white">
-          
-          {/* Section 1: AUDIENCE */}
-          <div className="py-3">
-            <button
-              type="button"
-              onClick={toggleAudienceAccordion}
-              className="w-full flex items-center justify-between py-2 text-[13px] font-display font-extrabold uppercase tracking-wider text-white/70 hover:text-white transition-colors cursor-pointer group"
-            >
-              <span>AUDIENCE</span>
-              <ChevronDown
-                size={16}
-                className={`transition-transform duration-200 text-white/50 group-hover:text-white ${
-                  isAudienceOpen ? "rotate-0" : "-rotate-90"
-                }`}
-              />
-            </button>
-
-            {isAudienceOpen && (
-              <div className="flex flex-col pl-3 pt-1 space-y-0.5 animate-in fade-in duration-200">
-                {AUDIENCE_MENU_ITEMS.map((item) => (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    onClick={closeMobileMenu}
-                    className="py-2 text-[13px] font-display font-bold uppercase tracking-wider text-white hover:text-amber-400 transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+        <nav className="flex flex-col p-4 overflow-y-auto max-h-[calc(100vh-64px)] space-y-2 text-white">
+          {/* 1. Deliver To */}
+          <button 
+            type="button"
+            id="mobile-nav-deliver-to"
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] transition-all text-white/90 w-full text-left cursor-pointer min-h-[52px]"
+            onClick={() => {
+              closeMobileMenu();
+              setIsLocationOpen(true);
+            }}
+            aria-label={`Deliver to: ${preferences.country}`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl leading-none">{preferences.flag}</span>
+              <div className="flex flex-col text-left">
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Deliver to</span>
+                <span className="font-bold text-sm tracking-wide text-white">{preferences.country || "Select Location"}</span>
               </div>
-            )}
-          </div>
+            </div>
+            <span className="text-xs text-amber-400 font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20">Change</span>
+          </button>
 
-          {/* Section 2: PRODUCT CATEGORY */}
-          <div className="py-3">
-            <button
-              type="button"
-              onClick={toggleCategoryAccordion}
-              aria-expanded={isCategoryOpen}
-              className="w-full flex items-center justify-between py-2 text-[13px] font-display font-extrabold uppercase tracking-wider text-white/70 hover:text-white transition-colors cursor-pointer group"
-            >
-              <span>PRODUCT CATEGORY</span>
-              <ChevronDown
-                size={16}
-                className={`transition-transform duration-200 text-white/50 group-hover:text-white ${
-                  isCategoryOpen ? "rotate-0" : "-rotate-90"
-                }`}
-              />
-            </button>
-
-            {isCategoryOpen && (
-              <div className="flex flex-col pl-3 pt-1 space-y-0.5 max-h-[280px] overflow-y-auto animate-in fade-in duration-200 no-scrollbar">
-                {PRODUCT_CATEGORY_MENU_ITEMS.map((item) => (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    onClick={closeMobileMenu}
-                    className="py-2 text-[13px] font-display font-semibold uppercase tracking-wider text-white/90 hover:text-amber-400 transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+          {/* 2. Language */}
+          <button 
+            type="button"
+            id="mobile-nav-language"
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] transition-all text-white/90 w-full text-left cursor-pointer min-h-[52px]"
+            onClick={() => {
+              closeMobileMenu();
+              setIsLanguageOpen(true);
+            }}
+            aria-label={`Language: ${preferences.language}`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                <Globe size={18} strokeWidth={1.75} className="text-white" />
               </div>
-            )}
-          </div>
-
-          {/* Section 3: Highlights / Specials */}
-          <div className="py-3 flex flex-col">
-            <Link
-              href="/#hot-sales"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="py-2 text-[13px] font-display font-bold uppercase tracking-wider text-red-400 hover:text-red-300 transition-colors"
-            >
-              HOT SALES
-            </Link>
-            <Link
-              href="/?tab=new-arrivals#featured"
-              onClick={(e) => {
-                setIsMobileMenuOpen(false);
-                if (pathname === "/") {
-                  e.preventDefault();
-                  window.dispatchEvent(new CustomEvent("activate-new-arrivals"));
-                  const featEl = document.getElementById("featured");
-                  if (featEl) featEl.scrollIntoView({ behavior: "smooth", block: "start" });
-                }
-              }}
-              className="py-2 text-[13px] font-display font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 transition-colors"
-            >
-              NEW ARRIVALS
-            </Link>
-          </div>
-
-          {/* Mobile Utilities */}
-          <div className="mt-8 flex flex-col gap-5 pt-4">
-
-            <button 
-              type="button"
-              className="flex items-center justify-between py-2 text-white/90"
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                setIsLocationOpen(true);
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">{preferences.flag}</span>
-                <span className="font-semibold text-sm">Deliver to: {preferences.country}</span>
+              <div className="flex flex-col text-left">
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Language</span>
+                <span className="font-bold text-sm tracking-wide text-white uppercase">{preferences.language || "English"}</span>
               </div>
-              <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Change</span>
-            </button>
+            </div>
+            <span className="text-xs text-amber-400 font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20">Change</span>
+          </button>
 
-            <button 
-              type="button"
-              className="flex items-center justify-between py-2 text-white/90"
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                setIsLanguageOpen(true);
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <Globe size={18} strokeWidth={1.5} />
-                <span className="font-semibold text-sm">Language: {preferences.language}</span>
+          {/* 3. Wishlist */}
+          <Link
+            href={user ? "/dashboard/wishlist" : "/login?returnUrl=/dashboard/wishlist&notice=Please%20log%20in%20to%20view%20your%20saved%20items."}
+            id="mobile-nav-wishlist"
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] transition-all text-white/90 min-h-[52px]"
+            onClick={closeMobileMenu}
+            aria-label={`Wishlist (${totalWishlistItems} saved items)`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                <Heart size={18} strokeWidth={1.75} className={totalWishlistItems > 0 ? "text-rose-400" : "text-white"} />
               </div>
-
-              <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Change</span>
-            </button>
-
-            {user ? (
-              <>
-                <Link 
-                  href="/dashboard"
-                  className="flex items-center justify-between py-2 text-amber-400"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <div className="flex items-center gap-3">
-                    <User size={18} strokeWidth={1.5} />
-                    <span className="font-semibold text-sm">My Dashboard ({user.name || user.email})</span>
-                  </div>
-                  <span className="text-xs uppercase font-bold tracking-wider">View</span>
-                </Link>
-                <Link 
-                  href="/dashboard/orders"
-                  className="flex items-center justify-between py-2 text-white/90"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Package size={18} strokeWidth={1.5} />
-                    <span className="font-semibold text-sm">My Orders</span>
-                  </div>
-                  <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Orders</span>
-                </Link>
-                <Link 
-                  href="/dashboard/quotes"
-                  className="flex items-center justify-between py-2 text-white/90"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText size={18} strokeWidth={1.5} />
-                    <span className="font-semibold text-sm">Quotes & RFQs</span>
-                  </div>
-                  <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Quotes</span>
-                </Link>
-                <Link 
-                  href="/dashboard/documents"
-                  className="flex items-center justify-between py-2 text-white/90"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText size={18} strokeWidth={1.5} />
-                    <span className="font-semibold text-sm">Trade Documents</span>
-                  </div>
-                  <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Docs</span>
-                </Link>
-                <Link 
-                  href="/rfq"
-                  className="flex items-center justify-between py-2 text-white/90 hover:text-white font-medium"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText size={18} strokeWidth={1.5} className="text-white/70" />
-                    <span className="text-sm">Request a Quote (RFQ)</span>
-                  </div>
-                  {totalRfqCount > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[0.6875rem] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-xs">
-                      {totalRfqCount}
-                    </span>
-                  )}
-                </Link>
-                <button 
-                  type="button"
-                  className="flex items-center justify-between py-2 text-red-400"
-                  onClick={async () => {
-                    setIsMobileMenuOpen(false);
-                    await signOut();
-                    router.push("/");
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <LogOut size={18} strokeWidth={1.5} />
-                    <span className="font-semibold text-sm">Sign Out</span>
-                  </div>
-                </button>
-              </>
+              <div className="flex flex-col text-left">
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Saved Items</span>
+                <span className="font-bold text-sm tracking-wide text-white">Wishlist</span>
+              </div>
+            </div>
+            {totalWishlistItems > 0 ? (
+              <span className="bg-rose-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm">
+                {totalWishlistItems}
+              </span>
             ) : (
-              <Link 
-                href="/login"
-                className="flex items-center justify-between py-2 text-white/90"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <div className="flex items-center gap-3">
-                  <User size={18} strokeWidth={1.5} />
-                  <span className="font-semibold text-sm">Sign In / Register</span>
-                </div>
-                <span className="text-xs text-white/50 uppercase font-bold tracking-wider">Account</span>
-              </Link>
+              <span className="text-xs text-white/40 font-medium">0 items</span>
             )}
+          </Link>
 
-            {/* Official WhatsApp Help Contact */}
-            <a 
-              href={getWhatsAppUrl(`Hi ${settings.site_title}, I need assistance with customer support.`)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between py-2 text-[#25D366]"
-              onClick={() => setIsMobileMenuOpen(false)}
+          {/* 4. Cart */}
+          <button
+            type="button"
+            id="mobile-nav-cart"
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] transition-all text-white/90 w-full text-left cursor-pointer min-h-[52px]"
+            onClick={() => {
+              closeMobileMenu();
+              setIsCartOpen(true);
+            }}
+            aria-label={`Cart (${totalItems} items)`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                <ShoppingCart size={18} strokeWidth={1.75} className="text-white" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Shopping Bag</span>
+                <span className="font-bold text-sm tracking-wide text-white">Cart</span>
+              </div>
+            </div>
+            {totalItems > 0 ? (
+              <span className="bg-amber-500 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm">
+                {totalItems}
+              </span>
+            ) : (
+              <span className="text-xs text-white/40 font-medium">0 items</span>
+            )}
+          </button>
+
+          {/* 5. RFQ */}
+          <Link
+            href="/rfq"
+            id="mobile-nav-rfq"
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] transition-all text-white/90 min-h-[52px]"
+            onClick={closeMobileMenu}
+            aria-label={`Request for Quotation (${totalRfqCount} items)`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                <FileText size={18} strokeWidth={1.75} className="text-white" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Wholesale Inquiries</span>
+                <span className="font-bold text-sm tracking-wide text-white">RFQ (Request for Quotation)</span>
+              </div>
+            </div>
+            {totalRfqCount > 0 ? (
+              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-black px-2.5 py-0.5 rounded-full">
+                {totalRfqCount}
+              </span>
+            ) : (
+              <span className="text-xs text-white/40 font-medium">Inquire</span>
+            )}
+          </Link>
+
+          {/* 6. Account / Profile */}
+          {user ? (
+            <Link
+              href="/dashboard"
+              id="mobile-nav-account"
+              className="flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 active:bg-amber-500/25 transition-all text-amber-300 min-h-[52px]"
+              onClick={closeMobileMenu}
+              aria-label={`Account Dashboard: ${user.name || user.email}`}
             >
               <div className="flex items-center gap-3">
-                <MessageCircle size={18} strokeWidth={1.5} />
-                <span className="font-semibold text-sm">WhatsApp Help</span>
+                <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <User size={18} strokeWidth={1.75} className="text-amber-400" />
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-[11px] text-amber-400/70 uppercase tracking-wider font-semibold">Account</span>
+                  <span className="font-bold text-sm tracking-wide text-white truncate max-w-[190px]">
+                    {user.name || user.email}
+                  </span>
+                </div>
               </div>
-              <span className="text-xs text-[#25D366]/70 uppercase font-bold tracking-wider">Chat Now</span>
-            </a>
-          </div>
+              <span className="text-xs uppercase font-bold tracking-wider text-amber-400 px-2.5 py-1 rounded-lg bg-amber-400/10">Dashboard →</span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              id="mobile-nav-account"
+              className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] transition-all text-white/90 min-h-[52px]"
+              onClick={closeMobileMenu}
+              aria-label="Sign In or Register"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                  <User size={18} strokeWidth={1.75} className="text-white" />
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Buyer Portal</span>
+                  <span className="font-bold text-sm tracking-wide text-white">Sign In / Register</span>
+                </div>
+              </div>
+              <span className="text-xs uppercase font-bold tracking-wider text-white/70 px-2.5 py-1 rounded-lg bg-white/10">Account →</span>
+            </Link>
+          )}
         </nav>
       </div>
 
