@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Product } from "@/types";
 import { cartService, CartItemData, CartStockViolation } from "@/services/cart.service";
 import { useAuth } from "./AuthContext";
@@ -16,6 +16,44 @@ export interface CartItem {
   unitPrice?: number;
   lineTotal?: number;
   packageBreakdown?: import("@/types").PackageBreakdown[];
+}
+
+export const CART_DESELECTED_STORAGE_KEY = "ayc_cart_deselected_keys";
+
+/**
+ * Canonical helper to reliably identify cart items across views.
+ */
+export function getCartItemKey(item: CartItem): string {
+  return item.id || `${item.product.id}-${item.size || "default"}`;
+}
+
+function getStoredDeselectedKeys(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = sessionStorage.getItem(CART_DESELECTED_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed);
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function persistDeselectedKeys(keys: Set<string>): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (keys.size === 0) {
+      sessionStorage.removeItem(CART_DESELECTED_STORAGE_KEY);
+    } else {
+      sessionStorage.setItem(CART_DESELECTED_STORAGE_KEY, JSON.stringify(Array.from(keys)));
+    }
+  } catch {
+    // ignore
+  }
 }
 
 interface CartContextType {
@@ -40,6 +78,16 @@ interface CartContextType {
   stockViolations: CartStockViolation[];
   revalidateCart: () => Promise<CartStockViolation[]>;
   refreshCart: () => Promise<void>;
+  // Selection state & helpers
+  selectedKeys: string[];
+  setSelectedKeys: React.Dispatch<React.SetStateAction<string[]>>;
+  isItemSelected: (key: string) => boolean;
+  toggleItemSelection: (key: string) => void;
+  toggleSelectAll: () => void;
+  isAllSelected: boolean;
+  isIndeterminate: boolean;
+  selectedSubtotal: number;
+  selectedItems: CartItem[];
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -54,6 +102,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [stockViolations, setStockViolations] = useState<CartStockViolation[]>([]);
   const mergedUserIdRef = useRef<string | null>(null);
+
+  // Deselected keys memory tracking (stores keys user manually deselected)
+  const deselectedKeysRef = useRef<Set<string>>(new Set());
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const hasHydratedDeselectedRef = useRef(false);
 
   const applyCartData = useCallback((data: { items: CartItemData[]; total_items: number; subtotal: number }) => {
     const formatted: CartItem[] = data.items.map((i) => ({
@@ -131,6 +184,91 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id, refreshCart]);
 
+  // Synchronize selection state whenever cart items change
+  useEffect(() => {
+    if (items.length === 0) {
+      setSelectedKeys([]);
+      deselectedKeysRef.current.clear();
+      persistDeselectedKeys(deselectedKeysRef.current);
+      return;
+    }
+
+    if (typeof window !== "undefined" && !hasHydratedDeselectedRef.current) {
+      deselectedKeysRef.current = getStoredDeselectedKeys();
+      hasHydratedDeselectedRef.current = true;
+    }
+
+    const currentKeys = items.map(getCartItemKey);
+    const validKeySet = new Set(currentKeys);
+
+    // Prune keys from deselected memory that no longer exist in the cart
+    let pruned = false;
+    for (const key of Array.from(deselectedKeysRef.current)) {
+      if (!validKeySet.has(key)) {
+        deselectedKeysRef.current.delete(key);
+        pruned = true;
+      }
+    }
+    if (pruned) {
+      persistDeselectedKeys(deselectedKeysRef.current);
+    }
+
+    // Default: Every eligible cart line is selected unless deliberately deselected
+    const newSelected = currentKeys.filter((k) => !deselectedKeysRef.current.has(k));
+    setSelectedKeys(newSelected);
+  }, [items]);
+
+  const toggleItemSelection = useCallback((key: string) => {
+    setSelectedKeys((prev) => {
+      const isSelected = prev.includes(key);
+      if (isSelected) {
+        deselectedKeysRef.current.add(key);
+        persistDeselectedKeys(deselectedKeysRef.current);
+        return prev.filter((k) => k !== key);
+      } else {
+        deselectedKeysRef.current.delete(key);
+        persistDeselectedKeys(deselectedKeysRef.current);
+        return [...prev, key];
+      }
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (items.length === 0) return;
+    const allKeys = items.map(getCartItemKey);
+    const isAll = selectedKeys.length === items.length;
+
+    if (isAll) {
+      allKeys.forEach((k) => deselectedKeysRef.current.add(k));
+      persistDeselectedKeys(deselectedKeysRef.current);
+      setSelectedKeys([]);
+    } else {
+      deselectedKeysRef.current.clear();
+      persistDeselectedKeys(deselectedKeysRef.current);
+      setSelectedKeys(allKeys);
+    }
+  }, [items, selectedKeys.length]);
+
+  const isItemSelected = useCallback(
+    (key: string) => selectedKeys.includes(key),
+    [selectedKeys]
+  );
+
+  const isAllSelected = items.length > 0 && selectedKeys.length === items.length;
+  const isIndeterminate = selectedKeys.length > 0 && selectedKeys.length < items.length;
+
+  const selectedItems = useMemo(() => {
+    const keySet = new Set(selectedKeys);
+    return items.filter((item) => keySet.has(getCartItemKey(item)));
+  }, [items, selectedKeys]);
+
+  const selectedSubtotal = useMemo(() => {
+    return selectedItems.reduce((sum, item) => {
+      const lineTotal = item.lineTotal ?? ((item.unitPrice || item.product.price || 0) * item.quantity);
+      return sum + lineTotal;
+    }, 0);
+  }, [selectedItems]);
+
   const addToCart = async (
     product: Product,
     size: string,
@@ -141,7 +279,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   ) => {
     try {
       setError(null);
+      // Remove product key from deselected memory so newly added or incremented lines are automatically selected
+      const potentialKey = `${product.id}-${size || "default"}`;
+      deselectedKeysRef.current.delete(potentialKey);
+      persistDeselectedKeys(deselectedKeysRef.current);
+
       const data = await cartService.addToCart(product, size, quantity, variantId, packageBreakdown, pricingMode);
+
+      if (data?.items) {
+        data.items.forEach((it) => {
+          if (String(it.product_id) === String(product.id) && (it.size === size || (!it.size && !size))) {
+            if (it.id) deselectedKeysRef.current.delete(it.id);
+          }
+        });
+        persistDeselectedKeys(deselectedKeysRef.current);
+      }
+
       applyCartData(data);
       revalidateCart();
     } catch (err: any) {
@@ -153,6 +306,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const removeFromCart = async (productId: string, size: string, itemId?: string) => {
     try {
       setError(null);
+      if (itemId) {
+        deselectedKeysRef.current.delete(itemId);
+      }
+      deselectedKeysRef.current.delete(`${productId}-${size || "default"}`);
+      persistDeselectedKeys(deselectedKeysRef.current);
+
       const data = await cartService.removeFromCart(productId, size, itemId);
       applyCartData(data);
       revalidateCart();
@@ -182,6 +341,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       setError(null);
       await cartService.clearCart();
+      deselectedKeysRef.current.clear();
+      persistDeselectedKeys(deselectedKeysRef.current);
+      setSelectedKeys([]);
       setItems([]);
       setTotalItems(0);
       setSubtotal(0);
@@ -208,6 +370,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         stockViolations,
         revalidateCart,
         refreshCart,
+        selectedKeys,
+        setSelectedKeys,
+        isItemSelected,
+        toggleItemSelection,
+        toggleSelectAll,
+        isAllSelected,
+        isIndeterminate,
+        selectedSubtotal,
+        selectedItems,
       }}
     >
       {children}
@@ -222,3 +393,4 @@ export function useCart() {
   }
   return context;
 }
+

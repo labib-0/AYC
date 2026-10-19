@@ -12,7 +12,7 @@ import {
   Plus,
   Loader2,
 } from "lucide-react";
-import { useCart, CartItem } from "@/lib/CartContext";
+import { useCart, CartItem, getCartItemKey } from "@/lib/CartContext";
 import { useRfq } from "@/lib/RfqContext";
 import { useAuth } from "@/lib/AuthContext";
 import { formatPrice } from "@/lib/formatters";
@@ -28,6 +28,14 @@ export default function MiniCart() {
     removeFromCart,
     subtotal,
     stockViolations,
+    selectedKeys,
+    setSelectedKeys,
+    toggleItemSelection,
+    toggleSelectAll,
+    isAllSelected,
+    isIndeterminate,
+    selectedSubtotal,
+    selectedItems,
   } = useCart();
   const { addToRfq } = useRfq();
   const { user } = useAuth();
@@ -51,12 +59,7 @@ export default function MiniCart() {
   }, [user, setIsCartOpen]);
 
   // Helper to reliably identify cart items
-  const getItemKey = (item: CartItem) =>
-    item.id || `${item.product.id}-${item.size || "default"}`;
-
-  // Selection state
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
-  const [initializedSelection, setInitializedSelection] = useState(false);
+  const getItemKey = (item: CartItem) => getCartItemKey(item);
 
   // Loading state tracking
   const [deletingKeys, setDeletingKeys] = useState<Set<string>>(new Set());
@@ -66,25 +69,6 @@ export default function MiniCart() {
   // Indeterminate Select All ref
   const selectAllRef = useRef<HTMLInputElement>(null);
 
-  // Synchronize selection with cart items
-  useEffect(() => {
-    if (items.length > 0) {
-      if (!initializedSelection) {
-        setSelectedKeys(items.map(getItemKey));
-        setInitializedSelection(true);
-      } else {
-        const validKeys = new Set(items.map(getItemKey));
-        setSelectedKeys((prev) => prev.filter((k) => validKeys.has(k)));
-      }
-    } else {
-      setSelectedKeys([]);
-      setInitializedSelection(false);
-    }
-  }, [items, initializedSelection]);
-
-  const isAllSelected = items.length > 0 && selectedKeys.length === items.length;
-  const isIndeterminate = selectedKeys.length > 0 && selectedKeys.length < items.length;
-
   useEffect(() => {
     if (selectAllRef.current) {
       selectAllRef.current.indeterminate = isIndeterminate;
@@ -92,17 +76,11 @@ export default function MiniCart() {
   }, [isIndeterminate]);
 
   const handleToggleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedKeys([]);
-    } else {
-      setSelectedKeys(items.map(getItemKey));
-    }
+    toggleSelectAll();
   };
 
   const handleToggleItem = (key: string) => {
-    setSelectedKeys((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
+    toggleItemSelection(key);
   };
 
   const handleDeleteSelected = async () => {
@@ -117,7 +95,6 @@ export default function MiniCart() {
           removeFromCart(item.product.id, item.size, item.id)
         )
       );
-      setSelectedKeys([]);
     } catch (err) {
       console.error("Bulk delete failed:", err);
     } finally {
@@ -131,7 +108,6 @@ export default function MiniCart() {
     setDeletingKeys((prev) => new Set(prev).add(key));
     try {
       await removeFromCart(item.product.id, item.size, item.id);
-      setSelectedKeys((prev) => prev.filter((k) => k !== key));
     } catch (err) {
       console.error("Delete item failed:", err);
     } finally {
@@ -161,6 +137,7 @@ export default function MiniCart() {
   };
 
   const handleProceedToCheckout = () => {
+    if (selectedKeys.length === 0) return;
     if (!user) {
       setIsCartOpen(false);
       if (typeof window !== "undefined") {
@@ -177,7 +154,8 @@ export default function MiniCart() {
   };
 
   const handleRequestQuoteFromCart = () => {
-    for (const item of items) {
+    const targetItems = selectedItems.length > 0 ? selectedItems : items;
+    for (const item of targetItems) {
       addToRfq(
         {
           id: item.product.id,
@@ -547,7 +525,7 @@ export default function MiniCart() {
             <div className="flex items-center justify-between text-xs sm:text-sm font-body font-bold uppercase tracking-wider">
               <span className="text-muted-foreground">Estimated Subtotal</span>
               <span className="text-base sm:text-lg font-bold text-foreground tabular-nums">
-                {formatPrice(subtotal)}
+                {formatPrice(selectedSubtotal)}
               </span>
             </div>
 
@@ -560,7 +538,7 @@ export default function MiniCart() {
 
             <button
               type="button"
-              disabled={stockViolations.length > 0}
+              disabled={stockViolations.length > 0 || selectedKeys.length === 0}
               onClick={handleProceedToCheckout}
               className="w-full py-3 rounded-full bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
             >

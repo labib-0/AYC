@@ -59,7 +59,18 @@ type ServiceType = "door_to_door" | "door_to_port" | "port_to_door" | "port_to_p
 
 export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const router = useRouter();
-  const { items, subtotal, clearCart, stockViolations, revalidateCart } = useCart();
+  const {
+    items: allCartItems,
+    selectedItems,
+    selectedSubtotal,
+    subtotal: allSubtotal,
+    clearCart,
+    removeFromCart,
+    stockViolations,
+    revalidateCart,
+  } = useCart();
+  const items = selectedItems.length > 0 ? selectedItems : allCartItems;
+  const subtotal = selectedItems.length > 0 ? selectedSubtotal : allSubtotal;
   const { user, loading: authLoading } = useAuth();
   const userId = String(user?.id || "guest");
 
@@ -759,7 +770,15 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         })),
       });
 
-      clearCart();
+      // If all cart items were checked out, clear cart completely;
+      // if only a subset was selected, remove only the checked out items so unselected items remain for later
+      if (items.length >= allCartItems.length) {
+        clearCart();
+      } else {
+        await Promise.all(
+          items.map((it) => removeFromCart(it.product.id, it.size, it.id))
+        );
+      }
       setAppliedCoupon(null);
       setPromoInput("");
       setConfirmedOrder(newOrder);
