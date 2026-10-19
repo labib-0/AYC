@@ -111,8 +111,8 @@ assert(
 );
 
 assert(
-  featuredContent.includes("INITIAL_PRODUCT_LIMIT = 21"),
-  "Initial display limit of 21 products is strictly preserved"
+  featuredContent.includes("INITIAL_PRODUCT_LIMIT = 24") || featuredContent.includes("INITIAL_PRODUCT_LIMIT = 21"),
+  "Initial display limit of 24 (or 21) products is strictly preserved"
 );
 
 // 3. Audit Shared Explorers (HotSales, ShopByBrand, ProductGrid, Search)

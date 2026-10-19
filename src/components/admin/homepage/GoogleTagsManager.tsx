@@ -14,6 +14,7 @@ import {
   Terminal,
 } from "lucide-react";
 import { homepageService } from "@/services/homepage.service";
+import { ApiError } from "@/services/api-client";
 
 interface GoogleTagsManagerProps {
   initialHeadCode?: string | null;
@@ -33,44 +34,50 @@ export function GoogleTagsManager({
   disabled = false,
 }: GoogleTagsManagerProps) {
   // Saved server state
-  const [savedHeadCode, setSavedHeadCode] = useState<string>("");
-  const [savedBodyCode, setSavedBodyCode] = useState<string>("");
+  const [savedHeadCode, setSavedHeadCode] = useState<string>(initialHeadCode || "");
+  const [savedBodyCode, setSavedBodyCode] = useState<string>(initialBodyCode || "");
 
   // Working draft state
-  const [headCode, setHeadCode] = useState<string>("");
-  const [bodyCode, setBodyCode] = useState<string>("");
+  const [headCode, setHeadCode] = useState<string>(initialHeadCode || "");
+  const [bodyCode, setBodyCode] = useState<string>(initialBodyCode || "");
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"head" | "body">("head");
 
-  // Load initial tags from API or props
-  const fetchTags = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const res = await homepageService.getGoogleTags();
-      const loadedHead = res.head_code || "";
-      const loadedBody = res.body_code || "";
-      setSavedHeadCode(loadedHead);
-      setSavedBodyCode(loadedBody);
-      setHeadCode(loadedHead);
-      setBodyCode(loadedBody);
-    } catch {
-      // Fallback to props if provided
-      const h = initialHeadCode || "";
-      const b = initialBodyCode || "";
-      setSavedHeadCode(h);
-      setSavedBodyCode(b);
-      setHeadCode(h);
-      setBodyCode(b);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [initialHeadCode, initialBodyCode]);
-
+  // Load initial tags from API on mount
   useEffect(() => {
+    let mounted = true;
+    const fetchTags = async () => {
+      try {
+        setIsLoading(true);
+        const res = await homepageService.getGoogleTags();
+        if (!mounted) return;
+        const loadedHead = res.head_code || "";
+        const loadedBody = res.body_code || "";
+        setSavedHeadCode(loadedHead);
+        setSavedBodyCode(loadedBody);
+        setHeadCode((prev) => (prev === (initialHeadCode || "") ? loadedHead : prev));
+        setBodyCode((prev) => (prev === (initialBodyCode || "") ? loadedBody : prev));
+      } catch {
+        if (!mounted) return;
+        const h = initialHeadCode || "";
+        const b = initialBodyCode || "";
+        setSavedHeadCode(h);
+        setSavedBodyCode(b);
+        setHeadCode((prev) => (prev === "" ? h : prev));
+        setBodyCode((prev) => (prev === "" ? b : prev));
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
     fetchTags();
-  }, [fetchTags]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [initialHeadCode, initialBodyCode]);
 
   // Byte size calculations
   const headBytes = useMemo(() => new Blob([headCode]).size, [headCode]);
@@ -91,10 +98,65 @@ export function GoogleTagsManager({
   const isAnyConfigured = isHeadConfigured || isBodyConfigured;
 
   // Reset to last saved server state
-  const handleReset = () => {
-    setHeadCode(savedHeadCode);
-    setBodyCode(savedBodyCode);
-    showToast("Unsaved changes reset to last saved state.", "success");
+  const handleReset = (scope: "all" | "head" | "body" = "all") => {
+    if (scope === "head") {
+      setHeadCode(savedHeadCode);
+      showToast("Unsaved Head Code changes reverted.", "success");
+    } else if (scope === "body") {
+      setBodyCode(savedBodyCode);
+      showToast("Unsaved Body Code changes reverted.", "success");
+    } else {
+      setHeadCode(savedHeadCode);
+      setBodyCode(savedBodyCode);
+      showToast("Unsaved changes reset to last saved state.", "success");
+    }
+  };
+
+  // Helper to extract diagnostic message from error
+  const extractErrorMessage = (err: unknown, fallback: string): string => {
+    if (err instanceof ApiError) {
+      if (err.errors) {
+        const detailMsgs = Object.values(err.errors).flat().join(" ");
+        if (detailMsgs) return detailMsgs;
+      }
+      return err.message || fallback;
+    }
+    if (err instanceof Error) {
+      return err.message || fallback;
+    }
+    return fallback;
+  };
+
+  // Clear single snippet
+  const handleClearSnippet = async (scope: "head" | "body") => {
+    const label = scope === "head" ? "Head Code" : "Body Code";
+    if (!window.confirm(`Are you sure you want to remove the ${label} tracking snippet?`)) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const payload = scope === "head" ? { head_code: null } : { body_code: null };
+      const res = await homepageService.updateGoogleTags(payload);
+      if (scope === "head") {
+        const newHead = res.head_code || "";
+        setSavedHeadCode(newHead);
+        setHeadCode(newHead);
+      } else {
+        const newBody = res.body_code || "";
+        setSavedBodyCode(newBody);
+        setBodyCode(newBody);
+      }
+
+      if (onSaveSuccess) {
+        onSaveSuccess(res.head_code, res.body_code);
+      }
+      showToast(`${label} snippet removed successfully.`, "success");
+    } catch (err: unknown) {
+      showToast(extractErrorMessage(err, `Failed to remove ${label} snippet.`), "error");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Clear all snippets
@@ -115,26 +177,48 @@ export function GoogleTagsManager({
       }
       showToast("Google tracking snippets removed successfully.", "success");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to remove Google tracking snippets.";
-      showToast(msg, "error");
+      showToast(extractErrorMessage(err, "Failed to remove Google tracking snippets."), "error");
     } finally {
       setIsSaving(false);
     }
   };
 
   // Save changes
-  const handleSave = async () => {
-    if (hasOversizedField) {
+  const handleSave = async (scope: "all" | "head" | "body" = "all") => {
+    if (scope === "head" && isHeadOversized) {
+      showToast("Head Code exceeds the maximum permitted size of 64 KB.", "error");
+      return;
+    }
+    if (scope === "body" && isBodyOversized) {
+      showToast("Body Code exceeds the maximum permitted size of 64 KB.", "error");
+      return;
+    }
+    if (scope === "all" && hasOversizedField) {
       showToast("One or more snippets exceed the maximum permitted size of 64 KB.", "error");
       return;
     }
 
     setIsSaving(true);
     try {
-      const payload = {
-        head_code: headCode.trim() ? headCode : null,
-        body_code: bodyCode.trim() ? bodyCode : null,
-      };
+      let payload: { head_code?: string | null; body_code?: string | null } = {};
+
+      if (scope === "head") {
+        payload = { head_code: headCode.trim() ? headCode : null };
+      } else if (scope === "body") {
+        payload = { body_code: bodyCode.trim() ? bodyCode : null };
+      } else {
+        // If only one field is dirty, update only that field to guarantee independent preservation
+        if (isHeadDirty && !isBodyDirty) {
+          payload = { head_code: headCode.trim() ? headCode : null };
+        } else if (isBodyDirty && !isHeadDirty) {
+          payload = { body_code: bodyCode.trim() ? bodyCode : null };
+        } else {
+          payload = {
+            head_code: headCode.trim() ? headCode : null,
+            body_code: bodyCode.trim() ? bodyCode : null,
+          };
+        }
+      }
 
       const res = await homepageService.updateGoogleTags(payload);
       const newHead = res.head_code || "";
@@ -150,8 +234,7 @@ export function GoogleTagsManager({
       }
       showToast("Google tags and tracking settings saved successfully.", "success");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to save Google tracking snippets.";
-      showToast(msg, "error");
+      showToast(extractErrorMessage(err, "Failed to save Google tracking snippets."), "error");
     } finally {
       setIsSaving(false);
     }
@@ -205,7 +288,7 @@ export function GoogleTagsManager({
             {isDirty && (
               <button
                 type="button"
-                onClick={handleReset}
+                onClick={() => handleReset("all")}
                 disabled={isSaving || disabled}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
                 title="Cancel and revert unsaved changes"
@@ -230,7 +313,7 @@ export function GoogleTagsManager({
 
             <button
               type="button"
-              onClick={handleSave}
+              onClick={() => handleSave("all")}
               disabled={isSaving || !isDirty || hasOversizedField || disabled}
               className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 isDirty && !hasOversizedField
@@ -353,6 +436,47 @@ export function GoogleTagsManager({
                 Snippet exceeds 64 KB limit ({headBytes} bytes). Please trim unnecessary whitespace or comments.
               </p>
             )}
+
+            {/* Tab-level Action Bar */}
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSave("head")}
+                  disabled={isSaving || !isHeadDirty || isHeadOversized || disabled}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    isHeadDirty && !isHeadOversized
+                      ? "bg-primary text-primary-foreground shadow-xs hover:opacity-95"
+                      : "bg-secondary text-muted-foreground opacity-60 cursor-not-allowed"
+                  }`}
+                >
+                  <Save size={12} />
+                  <span>Save Head Code</span>
+                </button>
+                {isHeadDirty && (
+                  <button
+                    type="button"
+                    onClick={() => handleReset("head")}
+                    disabled={isSaving || disabled}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-medium transition-all cursor-pointer"
+                  >
+                    <RotateCcw size={12} />
+                    <span>Revert</span>
+                  </button>
+                )}
+              </div>
+              {savedHeadCode.trim().length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleClearSnippet("head")}
+                  disabled={isSaving || disabled}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-all cursor-pointer"
+                >
+                  <Trash2 size={12} />
+                  <span>Clear Head Code</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -405,6 +529,47 @@ export function GoogleTagsManager({
                 Snippet exceeds 64 KB limit ({bodyBytes} bytes). Please trim unnecessary whitespace or comments.
               </p>
             )}
+
+            {/* Tab-level Action Bar */}
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSave("body")}
+                  disabled={isSaving || !isBodyDirty || isBodyOversized || disabled}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    isBodyDirty && !isBodyOversized
+                      ? "bg-primary text-primary-foreground shadow-xs hover:opacity-95"
+                      : "bg-secondary text-muted-foreground opacity-60 cursor-not-allowed"
+                  }`}
+                >
+                  <Save size={12} />
+                  <span>Save Body Code</span>
+                </button>
+                {isBodyDirty && (
+                  <button
+                    type="button"
+                    onClick={() => handleReset("body")}
+                    disabled={isSaving || disabled}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-medium transition-all cursor-pointer"
+                  >
+                    <RotateCcw size={12} />
+                    <span>Revert</span>
+                  </button>
+                )}
+              </div>
+              {savedBodyCode.trim().length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleClearSnippet("body")}
+                  disabled={isSaving || disabled}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-all cursor-pointer"
+                >
+                  <Trash2 size={12} />
+                  <span>Clear Body Code</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
 

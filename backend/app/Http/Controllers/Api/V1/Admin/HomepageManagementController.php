@@ -21,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class HomepageManagementController extends ApiController
@@ -852,10 +853,19 @@ class HomepageManagementController extends ApiController
             'body_code.max' => 'Body Code must not exceed 64 KB.',
         ]);
 
-        $headCode = array_key_exists('head_code', $validated) ? $validated['head_code'] : null;
-        $bodyCode = array_key_exists('body_code', $validated) ? $validated['body_code'] : null;
+        $hasHead = array_key_exists('head_code', $validated);
+        $hasBody = array_key_exists('body_code', $validated);
 
-        SystemSetting::setGoogleTags($headCode, $bodyCode);
+        if ($hasHead) {
+            SystemSetting::setGoogleTagHeadCode($validated['head_code']);
+        }
+
+        if ($hasBody) {
+            SystemSetting::setGoogleTagBodyCode($validated['body_code']);
+        }
+
+        $headCode = SystemSetting::getGoogleTagHeadCode();
+        $bodyCode = SystemSetting::getGoogleTagBodyCode();
 
         // Invalidate public caches immediately
         Cache::forget('site_settings_public');
@@ -871,12 +881,12 @@ class HomepageManagementController extends ApiController
         ]);
 
         return $this->success([
-            'head_code' => SystemSetting::getGoogleTagHeadCode(),
-            'body_code' => SystemSetting::getGoogleTagBodyCode(),
-            'google_tag_head_code' => SystemSetting::getGoogleTagHeadCode(),
-            'google_tag_body_code' => SystemSetting::getGoogleTagBodyCode(),
-            'is_head_configured' => !empty(SystemSetting::getGoogleTagHeadCode()),
-            'is_body_configured' => !empty(SystemSetting::getGoogleTagBodyCode()),
+            'head_code' => $headCode,
+            'body_code' => $bodyCode,
+            'google_tag_head_code' => $headCode,
+            'google_tag_body_code' => $bodyCode,
+            'is_head_configured' => !empty($headCode),
+            'is_body_configured' => !empty($bodyCode),
         ], 'Google tracking codes saved successfully.');
     }
 }

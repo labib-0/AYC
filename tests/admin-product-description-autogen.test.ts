@@ -5,9 +5,11 @@ import {
   DEFAULT_PRODUCT_DESCRIPTION_TEMPLATE,
   buildProductDescriptionTemplate,
   formatTemplateValue,
+  formatTemplateQuantity,
   isProductDescriptionTemplate,
   parseProductDescriptionTemplate,
   syncProductDescription,
+  regenerateProductDescriptionTemplate,
   ProductDescriptionTemplateData,
 } from "../src/lib/product-description-template";
 
@@ -46,7 +48,7 @@ console.log("\n▶ Scenario 1: Create a product with all template attributes fil
     "Item: Men's Oversized T-Shirt",
     "Brand: LEE",
     "",
-    "Quantity: 48",
+    "Quantity: 48 pcs",
     "Colors: Black, White, Navy",
     "Sizes: S, M, L, XL",
     "",
@@ -308,7 +310,7 @@ console.log("\n▶ Scenario 8: Confirm automatic updates do NOT erase manual edi
 
   // Verified: Updated form fields are synced safely
   assert(afterFormUpdate.includes("Brand: Ralph Lauren Purple Label"), "Brand updated to new form value");
-  assert(afterFormUpdate.includes("Quantity: 120"), "Quantity updated to new form value");
+  assert(afterFormUpdate.includes("Quantity: 120 pcs"), "Quantity updated to new form value with pcs");
 
   // Verified: Administrator's manual edits were NOT erased!
   assert(
@@ -351,13 +353,13 @@ console.log("\n▶ Scenario 9: Save, refresh, and reopen the product simulation"
     material: "100% Recycled Polyester",
     colors: ["Black", "Royal Blue"],
     sizes: ["S", "M", "L", "XL"],
-    packageTotalUnits: 24,
+    stock: 2400,
   };
 
   const savedDescription = buildProductDescriptionTemplate({
     item: productPayload.name,
     brand: productPayload.brand,
-    quantity: productPayload.packageTotalUnits,
+    quantity: productPayload.stock,
     colors: productPayload.colors,
     sizes: productPayload.sizes,
     fabric: productPayload.material,
@@ -379,6 +381,7 @@ console.log("\n▶ Scenario 9: Save, refresh, and reopen the product simulation"
 
   assert.strictEqual(hydratedDescription, savedDescription, "Description matches saved DB record exactly");
   assert(hydratedDescription.includes("Item: Performance Dry-Fit T-Shirt"), "Item preserved on reopen");
+  assert(hydratedDescription.includes("Quantity: 2,400 pcs"), "Quantity preserved with canonical formatting on reopen");
   assert(hydratedDescription.includes("Style: Athletic Training"), "Custom style preserved on reopen");
   assert(hydratedDescription.includes("Fit: Standard Fit"), "Custom fit preserved on reopen");
   assert.strictEqual(hydratedDescription.split("\n").length, 10, "Exact 10-line template structure preserved");
@@ -427,6 +430,216 @@ console.log("\n▶ Scenario 10: Edit an existing product — description remains
 }
 
 // -----------------------------------------------------------------------------
+// Required Test Suites (Prompt Section 5)
+// -----------------------------------------------------------------------------
+console.log("\n================================================================================");
+console.log("SECTION 5: SPECIFIC REQUIRED TESTS FOR PRODUCT DESCRIPTION QUANTITY GENERATOR");
+console.log("================================================================================");
+
+// 1. A product with configured stock quantity generates a populated Quantity line
+console.log("\n▶ Test 1: Configured stock quantity generates populated Quantity line (6,000 pcs)");
+{
+  const desc = buildProductDescriptionTemplate({
+    item: "Cotton Pique Polo Shirt",
+    brand: "Lacoste",
+    quantity: 6000,
+  });
+  assert(desc.includes("Quantity: 6,000 pcs"), "Configured stock quantity of 6000 generates 'Quantity: 6,000 pcs'");
+  console.log("  ✓ Stock quantity 6000 generated as 'Quantity: 6,000 pcs'.");
+}
+
+// 2. MOQ is not incorrectly substituted for total quantity
+console.log("\n▶ Test 2: MOQ is NOT incorrectly substituted for total quantity");
+{
+  // Assume a product has MOQ = 30 and Stock = 6000
+  const moqUnits = 30;
+  const stockUnits = 6000;
+
+  const desc = buildProductDescriptionTemplate({
+    item: "Crewneck Fleece Sweatshirt",
+    brand: "Champion",
+    quantity: stockUnits, // Canonical stock is used, NOT MOQ
+  });
+
+  assert(desc.includes("Quantity: 6,000 pcs"), "Product description contains total stock quantity");
+  assert(!desc.includes("Quantity: 30"), "MOQ (30) is NOT substituted for total quantity in description");
+  console.log("  ✓ Total stock quantity (6,000 pcs) is used; MOQ (30) is strictly not substituted.");
+}
+
+// 3. A manually entered Quantity value survives regeneration when no authoritative replacement value exists
+console.log("\n▶ Test 3: Manually entered Quantity value survives regeneration when no authoritative replacement exists");
+{
+  // Admin manually entered "5,000 pcs" in description, but form has no stock (undefined or 0)
+  const manualDesc = [
+    "Item: Classic Cotton Tee",
+    "Brand: Gildan",
+    "",
+    "Quantity: 5,000 pcs",
+    "Colors: White, Navy",
+    "Sizes: S, M, L",
+    "",
+    "Fabric: 100% Cotton",
+    "Style: Basic Crew",
+    "Fit: Regular Fit",
+  ].join("\n");
+
+  const regenerated = regenerateProductDescriptionTemplate(manualDesc, {
+    item: "Classic Cotton Tee",
+    brand: "Gildan",
+    colors: ["White", "Navy"],
+    sizes: ["S", "M", "L"],
+    fabric: "100% Cotton",
+    quantity: undefined, // No authoritative replacement in form
+  });
+
+  assert(regenerated.includes("Quantity: 5,000 pcs"), "Manually entered quantity survives regeneration when form has no stock");
+  assert(!regenerated.includes("Quantity: \n"), "Quantity line does not become blank when manual value exists");
+  console.log("  ✓ Manually entered Quantity (5,000 pcs) cleanly survives regeneration.");
+}
+
+// 4. Regeneration does not create duplicate Quantity lines
+console.log("\n▶ Test 4: Regeneration does NOT create duplicate Quantity lines");
+{
+  // Simulate description that previously accumulated duplicate Quantity lines
+  const buggyDuplicateDesc = [
+    "Item: Slim Fit Jeans",
+    "Brand: Levi's",
+    "",
+    "Quantity: 2,500 pcs",
+    "Quantity: 3,000 pcs",
+    "Colors: Dark Blue, Black",
+    "Sizes: 30, 32, 34",
+    "",
+    "Fabric: 98% Cotton 2% Elastane",
+    "Style: Slim Straight",
+    "Fit: Slim",
+  ].join("\n");
+
+  const regenerated = regenerateProductDescriptionTemplate(buggyDuplicateDesc, {
+    item: "Slim Fit Jeans",
+    brand: "Levi's",
+    quantity: 4000,
+  });
+
+  const quantityMatches = regenerated.match(/Quantity:/g);
+  assert.strictEqual(quantityMatches?.length, 1, "Regenerated template must contain exactly ONE 'Quantity:' line");
+  assert(regenerated.includes("Quantity: 4,000 pcs"), "Canonical quantity updated correctly");
+
+  // Verify position: Quantity must appear between Brand and Colors
+  const brandIndex = regenerated.indexOf("Brand: Levi's");
+  const qtyIndex = regenerated.indexOf("Quantity: 4,000 pcs");
+  const colorsIndex = regenerated.indexOf("Colors: Dark Blue, Black");
+  assert(brandIndex < qtyIndex && qtyIndex < colorsIndex, "Quantity line is in the canonical position between Brand and Colors");
+  console.log("  ✓ Duplicate Quantity lines eliminated; exactly one line present in canonical position.");
+}
+
+// 5. A populated canonical quantity generates the correct value
+console.log("\n▶ Test 5: Populated canonical quantity generates correct value and formatting");
+{
+  const testCases = [
+    { input: 1, expected: "Quantity: 1 pcs" },
+    { input: 50, expected: "Quantity: 50 pcs" },
+    { input: 6000, expected: "Quantity: 6,000 pcs" },
+    { input: 125000, expected: "Quantity: 125,000 pcs" },
+    { input: "6000", expected: "Quantity: 6,000 pcs" },
+    { input: "6,000 pcs", expected: "Quantity: 6,000 pcs" },
+  ];
+
+  for (const tc of testCases) {
+    const desc = buildProductDescriptionTemplate({
+      item: "Test Product",
+      brand: "AYC",
+      quantity: tc.input,
+    });
+    assert(desc.includes(tc.expected), `Expected ${tc.expected} for input ${tc.input}`);
+  }
+  console.log("  ✓ Populated canonical quantities format numbers with commas and 'pcs' suffix consistently.");
+}
+
+// 6. Other manually edited description text is preserved according to the existing workflow
+console.log("\n▶ Test 6: Other manually edited description text is preserved (Style, Fit, Custom Notes)");
+{
+  const customDesc = [
+    "Item: Vintage Washed Tee",
+    "Brand: Diesel",
+    "",
+    "Quantity: 1,500 pcs",
+    "Colors: Acid Wash Black",
+    "Sizes: M, L, XL",
+    "",
+    "Fabric: 100% Slub Cotton",
+    "Style: Custom Distressed Raw Edge",
+    "Fit: Relaxed Drop Shoulder",
+    "",
+    "Special Handling Instructions:",
+    "- Wash inside out in cold water",
+    "- Do not tumble dry",
+  ].join("\n");
+
+  const regenerated = regenerateProductDescriptionTemplate(customDesc, {
+    item: "Vintage Washed Tee",
+    brand: "Diesel",
+    quantity: 2000, // New canonical quantity from form
+  });
+
+  assert(regenerated.includes("Quantity: 2,000 pcs"), "New canonical quantity populated");
+  assert(regenerated.includes("Style: Custom Distressed Raw Edge"), "User-edited Style preserved");
+  assert(regenerated.includes("Fit: Relaxed Drop Shoulder"), "User-edited Fit preserved");
+  assert(regenerated.includes("Special Handling Instructions:"), "Appended custom notes preserved");
+  assert(regenerated.includes("- Wash inside out in cold water"), "Appended bullet points preserved");
+  console.log("  ✓ Style, Fit, and appended custom notes/sections preserved during regeneration.");
+}
+
+// 7. Saving and reopening a product retains the correct description
+console.log("\n▶ Test 7: Saving and reopening product retains the exact description");
+{
+  const originalDescription = [
+    "Item: Heavyweight Fleece Hoodie",
+    "Brand: Russell Athletic",
+    "",
+    "Quantity: 8,500 pcs",
+    "Colors: Heather Grey, Forest Green",
+    "Sizes: S, M, L, XL, XXL",
+    "",
+    "Fabric: 80% Cotton / 20% Polyester 380 GSM",
+    "Style: Classic Pullover Kangaroo Pocket",
+    "Fit: Athletic Boxy Fit",
+  ].join("\n");
+
+  // Simulate Laravel API JSON serialization and deserialization
+  const apiPayload = {
+    name: "Heavyweight Fleece Hoodie",
+    brand: "Russell Athletic",
+    stock: 8500,
+    description: originalDescription,
+  };
+
+  const jsonSerialized = JSON.stringify(apiPayload);
+  const jsonDeserialized = JSON.parse(jsonSerialized);
+
+  // Edit mode hydration
+  const rehydratedDescription = jsonDeserialized.description;
+  assert.strictEqual(rehydratedDescription, originalDescription, "Reopened product description matches saved description identically");
+  assert(rehydratedDescription.includes("Quantity: 8,500 pcs"), "Quantity intact upon reopen");
+  console.log("  ✓ Save and reopen retains exact formatting and quantity value.");
+}
+
+// 8. Existing product creation, editing, inventory, MOQ, and description functionality remain unchanged
+console.log("\n▶ Test 8: Existing product creation, editing, inventory, MOQ, and description unchanged");
+{
+  // A blank product still gets default template
+  const blank = buildProductDescriptionTemplate();
+  assert(blank.startsWith("Item: \nBrand: \n\nQuantity: \nColors: \nSizes: \n\nFabric: \nStyle: \nFit:"), "Default blank template unchanged");
+
+  // An existing non-template freeform description remains protected
+  const freeform = "Exclusive Italian merino wool sweater. Limited wholesale export overrun.";
+  const freeformSync = syncProductDescription(freeform, { brand: "Gucci" }, true);
+  assert.strictEqual(freeformSync, freeform, "Non-template freeform descriptions remain strictly protected");
+
+  console.log("  ✓ Existing creation, editing, free-form protection, and inventory contracts unchanged.");
+}
+
+// -----------------------------------------------------------------------------
 // Code Architecture & Integration Verifications
 // -----------------------------------------------------------------------------
 console.log("\n▶ Architecture & Integration Audits");
@@ -439,6 +652,10 @@ console.log("\n▶ Architecture & Integration Audits");
   assert(
     productFormContent.includes("syncProductDescription"),
     "ProductForm imports syncProductDescription"
+  );
+  assert(
+    productFormContent.includes("regenerateProductDescriptionTemplate"),
+    "ProductForm imports regenerateProductDescriptionTemplate"
   );
   assert(
     productFormContent.includes("isProductDescriptionTemplate"),
@@ -457,14 +674,14 @@ console.log("\n▶ Architecture & Integration Audits");
     "syncDescriptionWithForm guards against automatic mutation in edit mode"
   );
 
-  // 4. Package total units used for quantity, never warehouse stock
+  // 4. Authoritative stock quantity used for template quantity
   assert(
-    productFormContent.includes("packageTotalUnits > 0 ? packageTotalUnits : undefined"),
-    "Quantity maps strictly to packageTotalUnits (never warehouse stock)"
+    productFormContent.includes("authoritativeProductQuantity"),
+    "ProductForm computes and uses authoritativeProductQuantity"
   );
   assert(
-    !productFormContent.includes("quantity: stock"),
-    "ProductForm never incorrectly maps warehouse stock to template quantity"
+    !productFormContent.includes("quantity: overrides?.quantity !== undefined ? overrides.quantity : (packageTotalUnits > 0 ? packageTotalUnits : undefined)"),
+    "ProductForm no longer uses package carton assortment as template quantity"
   );
 
   // 5. Explicit regeneration button present with UI affordance
@@ -493,26 +710,37 @@ console.log("\n▶ Architecture & Integration Audits");
     fit: undefined,
   });
   assert(!sampleEmpty.includes("null"), "Null parameters never render as 'null'");
-  // 7. Verify helper functions formatTemplateValue, isProductDescriptionTemplate, parseProductDescriptionTemplate
+  assert(!sampleEmpty.includes("undefined"), "Undefined parameters never render as 'undefined'");
+
+  // 7. Verify helper functions formatTemplateValue, formatTemplateQuantity, isProductDescriptionTemplate, parseProductDescriptionTemplate
   assert.strictEqual(formatTemplateValue(null), "");
   assert.strictEqual(formatTemplateValue(["Red", "Blue"]), "Red, Blue");
   assert.strictEqual(formatTemplateValue(12), "12");
   assert.strictEqual(formatTemplateValue(0), "");
 
+  assert.strictEqual(formatTemplateQuantity(null), "");
+  assert.strictEqual(formatTemplateQuantity(undefined), "");
+  assert.strictEqual(formatTemplateQuantity(0), "");
+  assert.strictEqual(formatTemplateQuantity(-5), "");
+  assert.strictEqual(formatTemplateQuantity(6000), "6,000 pcs");
+  assert.strictEqual(formatTemplateQuantity("6000"), "6,000 pcs");
+  assert.strictEqual(formatTemplateQuantity("6,000 pcs"), "6,000 pcs");
+
   assert.strictEqual(isProductDescriptionTemplate(DEFAULT_PRODUCT_DESCRIPTION_TEMPLATE), true);
   assert.strictEqual(isProductDescriptionTemplate("Regular plain paragraph without template headers"), false);
 
   const parsed = parseProductDescriptionTemplate(
-    "Item: Silk Scarf\nBrand: Hermes\n\nQuantity: 10\nColors: Red\nSizes: One Size\n\nFabric: 100% Silk\nStyle: Classic\nFit: Standard"
+    "Item: Silk Scarf\nBrand: Hermes\n\nQuantity: 10 pcs\nColors: Red\nSizes: One Size\n\nFabric: 100% Silk\nStyle: Classic\nFit: Standard"
   );
   assert.strictEqual(parsed?.item, "Silk Scarf");
   assert.strictEqual(parsed?.brand, "Hermes");
-  assert.strictEqual(parsed?.quantity, "10");
+  assert.strictEqual(parsed?.quantity, "10 pcs");
   assert.strictEqual(parsed?.fabric, "100% Silk");
 
   console.log("  ✓ Architecture and integration contracts 100% verified.");
 }
 
 console.log("================================================================================");
-console.log("ALL 10 SCENARIOS & ARCHITECTURE AUDITS PASSED SUCCESSFULLY! (100% VERIFIED)");
+console.log("ALL 18 SCENARIOS & ARCHITECTURE AUDITS PASSED SUCCESSFULLY! (100% VERIFIED)");
 console.log("================================================================================");
+

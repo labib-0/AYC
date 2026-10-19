@@ -27,6 +27,8 @@ import ProductSeoSection from "./ProductSeoSection";
 import {
   buildProductDescriptionTemplate,
   syncProductDescription,
+  regenerateProductDescriptionTemplate,
+  formatTemplateQuantity,
   isProductDescriptionTemplate,
   ProductDescriptionTemplateData,
 } from "@/lib/product-description-template";
@@ -121,12 +123,14 @@ export default function ProductForm({
       return initialData.description;
     }
     if (!isEdit) {
+      const initStock = initialData?.stock !== undefined ? Number(initialData.stock) : undefined;
       return buildProductDescriptionTemplate({
         item: initialData?.name,
         brand: initialData?.brand,
         fabric: initialData?.material,
         colors: initialData?.colourDescription || initialData?.colors,
         sizes: initialData?.sizeDescription || initialData?.sizes,
+        quantity: initStock !== undefined && initStock > 0 ? initStock : undefined,
       });
     }
     return "";
@@ -376,12 +380,42 @@ export default function ProductForm({
     hasUserEditedDescriptionRef.current = isDescriptionManuallyEdited;
   }, [isDescriptionManuallyEdited]);
 
+  // Authoritative canonical product inventory quantity (distinct from package carton allocation units or MOQ)
+  const authoritativeProductQuantity = useMemo(() => {
+    if (isEdit) {
+      const candidates = [
+        availableStockState,
+        stock,
+        onHandStockState,
+        initialData?.stock,
+        (initialData as any)?.availableStock,
+        (initialData as any)?.available_stock,
+        (initialData as any)?.initialStock,
+        (initialData as any)?.initial_stock,
+        (initialData as any)?.onHandStock,
+        (initialData as any)?.on_hand_stock,
+      ];
+      for (const c of candidates) {
+        if (c !== undefined && c !== null) {
+          const n = Number(c);
+          if (!isNaN(n) && n > 0) return n;
+        }
+      }
+      return undefined;
+    }
+    // Create mode: Authoritative stock entered by administrator
+    return stock !== undefined && stock !== null && Number(stock) > 0 ? Number(stock) : undefined;
+  }, [isEdit, availableStockState, stock, onHandStockState, initialData]);
+
   const previousTemplateFieldsRef = useRef<ProductDescriptionTemplateData>({
     item: initialData?.name || "",
     brand: initialData?.brand || "",
     fabric: initialData?.material || "",
     colors: initialData?.colourDescription || initialData?.colors || "",
     sizes: initialData?.sizeDescription || initialData?.sizes || "",
+    quantity: (initialData?.stock !== undefined && Number(initialData.stock) > 0)
+      ? Number(initialData.stock)
+      : undefined,
   });
   const previousNameRef = useRef<string>(initialData?.name || "");
 
@@ -395,7 +429,7 @@ export default function ProductForm({
         fabric: overrides?.fabric !== undefined ? overrides.fabric : material,
         colors: overrides?.colors !== undefined ? overrides.colors : (colourDescription || colors),
         sizes: overrides?.sizes !== undefined ? overrides.sizes : (sizeDescription || sizes),
-        quantity: overrides?.quantity !== undefined ? overrides.quantity : (packageTotalUnits > 0 ? packageTotalUnits : undefined),
+        quantity: overrides?.quantity !== undefined ? overrides.quantity : authoritativeProductQuantity,
         style: overrides?.style,
         fit: overrides?.fit,
       };
@@ -411,7 +445,7 @@ export default function ProductForm({
 
       previousTemplateFieldsRef.current = { ...currentData };
     },
-    [isEdit, name, brand, material, colourDescription, colors, sizeDescription, sizes, packageTotalUnits]
+    [isEdit, name, brand, material, colourDescription, colors, sizeDescription, sizes, authoritativeProductQuantity]
   );
 
   const handleRegenerateTemplate = useCallback(() => {
@@ -421,14 +455,24 @@ export default function ProductForm({
       fabric: material,
       colors: colourDescription || colors,
       sizes: sizeDescription || sizes,
-      quantity: packageTotalUnits > 0 ? packageTotalUnits : undefined,
+      quantity: authoritativeProductQuantity,
     };
-    const fresh = buildProductDescriptionTemplate(currentData);
+    const merged = regenerateProductDescriptionTemplate(description, currentData);
     hasUserEditedDescriptionRef.current = false;
     setIsDescriptionManuallyEdited(false);
-    setDescription(fresh);
+    setDescription(merged);
     previousTemplateFieldsRef.current = { ...currentData };
-  }, [name, brand, material, colourDescription, colors, sizeDescription, sizes, packageTotalUnits]);
+  }, [
+    description,
+    name,
+    brand,
+    material,
+    colourDescription,
+    colors,
+    sizeDescription,
+    sizes,
+    authoritativeProductQuantity,
+  ]);
 
   const handleDescriptionChange = useCallback((val: string) => {
     hasUserEditedDescriptionRef.current = true;
@@ -2053,7 +2097,12 @@ export default function ProductForm({
             stock={stock}
             warehouseId={warehouseId}
             onMoqChange={setCustomMoq}
-            onStockChange={setStock}
+            onStockChange={(newStock) => {
+              setStock(newStock);
+              syncDescriptionWithForm({
+                quantity: newStock !== undefined && Number(newStock) > 0 ? Number(newStock) : undefined,
+              });
+            }}
             onWarehouseChange={setWarehouseId}
             errors={errors}
             onHandStock={onHandStockState}
@@ -2093,8 +2142,6 @@ export default function ProductForm({
             }}
             onAllocationsChange={(nextAllocs) => {
               handlePackageAllocationsChange(nextAllocs);
-              const sum = nextAllocs.reduce((acc, a) => acc + (Number(a.quantity) || 0), 0);
-              syncDescriptionWithForm({ quantity: sum > 0 ? sum : undefined });
             }}
           />
 

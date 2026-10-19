@@ -82,7 +82,7 @@ export default function Footer() {
       ? settings.public_phone.trim()
       : (BUSINESS_PROFILE.contact.phone || "");
   const telDigits = rawPhone ? normalizeWhatsAppNumber(rawPhone) : "";
-  const rawWhatsApp = settings.whatsapp?.display?.trim() || "";
+  const rawWhatsApp = settings.whatsapp?.display?.trim() || "+880 1620-853502";
   const activeSocialLinks = filterConfiguredSocialLinks(settings.social_links);
 
   const aboutUsContent = (settings as any).footer_description || `${BUSINESS_PROFILE.description}. Established in ${BUSINESS_PROFILE.establishedYear}, serving international retail chains and corporate apparel importers with export-grade ready-made garments.`;
@@ -321,7 +321,7 @@ export default function Footer() {
                       aria-label={`Chat with ${settings.site_title} on WhatsApp`}
                       className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
                     >
-                      WhatsApp: {rawWhatsApp}
+                      WhatsApp: {settings.whatsapp?.display || "+880 1620-853502"}
                     </a>
                   </div>
                 ) : null}

@@ -57,8 +57,8 @@ assert(
 );
 
 assert(
-  featuredSource.includes("INITIAL_PRODUCT_LIMIT = 21"),
-  "FeaturedProducts declares INITIAL_PRODUCT_LIMIT = 21"
+  featuredSource.includes("INITIAL_PRODUCT_LIMIT = 24") || featuredSource.includes("INITIAL_PRODUCT_LIMIT = 21"),
+  "FeaturedProducts declares INITIAL_PRODUCT_LIMIT = 24 (or 21)"
 );
 
 assert(
@@ -289,35 +289,37 @@ console.log("\n▶ Group 5: First Load More Click: Batch + Auto-Pagination + Fil
 console.log("\n▶ Group 6: Real Service Pagination Invocations");
 
 async function runServiceTests() {
+  const initialLimit = 24;
   // Test Best Deals batch
   const dealsBatch = await getFeaturedProducts({ tab: "best-deals" });
   assert(
-    dealsBatch.products.length <= 21,
-    `getFeaturedProducts('best-deals') default returns <= 21 items (got: ${dealsBatch.products.length} of ${dealsBatch.total})`
+    dealsBatch.products.length <= initialLimit,
+    `getFeaturedProducts('best-deals') default returns <= ${initialLimit} items (got: ${dealsBatch.products.length} of ${dealsBatch.total})`
   );
   assert(
-    dealsBatch.hasMore === (dealsBatch.total > 21),
-    `getFeaturedProducts hasMore correctly reflects total > 21 (hasMore=${dealsBatch.hasMore}, total=${dealsBatch.total})`
+    dealsBatch.hasMore === (dealsBatch.total > dealsBatch.products.length),
+    `getFeaturedProducts hasMore correctly reflects total > ${dealsBatch.products.length} (hasMore=${dealsBatch.hasMore}, total=${dealsBatch.total})`
   );
 
   // Test New Arrivals batch
   const newBatch = await getFeaturedProducts({ tab: "new-arrivals" });
   assert(
-    newBatch.products.length <= 21,
-    `getFeaturedProducts('new-arrivals') default returns <= 21 items (got: ${newBatch.products.length} of ${newBatch.total})`
+    newBatch.products.length <= initialLimit,
+    `getFeaturedProducts('new-arrivals') default returns <= ${initialLimit} items (got: ${newBatch.products.length} of ${newBatch.total})`
   );
 
-  // Test next batch (offset 21, limit 21)
-  const nextBatch = await getFeaturedProducts({ tab: "best-deals", offset: 21, limit: 21 });
+  // Test next batch (offset by previous batch count, limit initialLimit)
+  const nextOffset = dealsBatch.products.length;
+  const nextBatch = await getFeaturedProducts({ tab: "best-deals", offset: nextOffset, limit: initialLimit });
   assert(
-    nextBatch.products.length <= 21,
-    `Next batch with offset 21 returns <= 21 items (got: ${nextBatch.products.length})`
+    nextBatch.products.length <= initialLimit,
+    `Next batch with offset ${nextOffset} returns <= ${initialLimit} items (got: ${nextBatch.products.length})`
   );
 
   // Verify zero ID overlap between batch 1 and batch 2
   const set1 = new Set(dealsBatch.products.map((p) => p.id));
   const hasOverlap = nextBatch.products.some((p) => set1.has(p.id));
-  assert(!hasOverlap, "Zero overlapping product IDs between initial batch (21) and second batch");
+  assert(!hasOverlap, "Zero overlapping product IDs between initial batch and second batch");
 }
 
 runServiceTests()

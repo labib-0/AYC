@@ -132,4 +132,20 @@ class SystemSetting extends Model
         static::set('google_tag_head_code', !empty(trim((string)$headCode)) ? trim((string)$headCode) : null, 'string', 'seo');
         static::set('google_tag_body_code', !empty(trim((string)$bodyCode)) ? trim((string)$bodyCode) : null, 'string', 'seo');
     }
+
+    /**
+     * Persistently save or clear the Google tracking Head Code.
+     */
+    public static function setGoogleTagHeadCode(?string $headCode): void
+    {
+        static::set('google_tag_head_code', !empty(trim((string)$headCode)) ? trim((string)$headCode) : null, 'string', 'seo');
+    }
+
+    /**
+     * Persistently save or clear the Google tracking Body Code.
+     */
+    public static function setGoogleTagBodyCode(?string $bodyCode): void
+    {
+        static::set('google_tag_body_code', !empty(trim((string)$bodyCode)) ? trim((string)$bodyCode) : null, 'string', 'seo');
+    }
 }

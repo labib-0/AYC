@@ -127,7 +127,7 @@ describe("Phase I — Live Integration & API Contract Verification", () => {
     // Media allowlist check
     if (p.videoEmbedUrl) {
       const url = p.videoEmbedUrl.toLowerCase();
-      const isAllowed = url.includes("youtube.com") || url.includes("youtu.be") || url.includes("facebook.com") || url.startsWith("/storage");
+      const isAllowed = url.includes("youtube.com") || url.includes("youtube-nocookie.com") || url.includes("youtu.be") || url.includes("facebook.com") || url.startsWith("/storage");
       assert.ok(isAllowed, `videoEmbedUrl must only use allowlisted video providers: ${p.videoEmbedUrl}`);
     }
   });
