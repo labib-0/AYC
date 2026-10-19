@@ -23,6 +23,12 @@ class AuthController extends ApiController
      */
     public function register(RegisterRequest $request): JsonResponse
     {
+        $botError = app(\App\Services\Security\NativeBotProtectionService::class)
+            ->validateSubmission($request, 'signup', minSeconds: 2);
+        if ($botError !== null) {
+            return $this->error($botError, 422);
+        }
+
         $validated = $request->validated();
 
         $user = User::create([
@@ -84,6 +90,12 @@ class AuthController extends ApiController
      */
     public function adminLogin(LoginRequest $request): JsonResponse
     {
+        $botError = app(\App\Services\Security\NativeBotProtectionService::class)
+            ->validateSubmission($request, 'admin-login', minSeconds: 1);
+        if ($botError !== null) {
+            return $this->error($botError, 422);
+        }
+
         return $this->authenticate($request, User::ROLE_ADMIN);
     }
 
@@ -167,15 +179,18 @@ class AuthController extends ApiController
      */
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
-        $status = Password::sendResetLink($request->only('email'));
-
-        if ($status === Password::RESET_LINK_SENT) {
-            return $this->success(null, __($status));
+        $botError = app(\App\Services\Security\NativeBotProtectionService::class)
+            ->validateSubmission($request, 'forgot-password', minSeconds: 2);
+        if ($botError !== null) {
+            // Silently return generic message without triggering outbound email
+            return $this->success(null, 'If an account exists with this email address, a password reset link has been sent.');
         }
 
-        throw ValidationException::withMessages([
-            'email' => [__($status)],
-        ]);
+        // Only genuine requests trigger password reset processing
+        Password::sendResetLink($request->only('email'));
+
+        // Always return generic response to prevent account enumeration
+        return $this->success(null, 'If an account exists with this email address, a password reset link has been sent.');
     }
 
     /**

@@ -240,6 +240,9 @@ class ApiClient {
       ...(body && !(body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
       ...(activeToken ? { "Authorization": `Bearer ${activeToken}` } : {}),
       ...(sessionId ? { "X-Session-Id": sessionId } : {}),
+      ...(typeof window === "undefined" && process.env.INTERNAL_API_SECRET
+        ? { "X-Internal-Secret": process.env.INTERNAL_API_SECRET }
+        : {}),
       ...headers,
     };
 

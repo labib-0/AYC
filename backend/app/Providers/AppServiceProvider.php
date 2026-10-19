@@ -56,13 +56,39 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureRateLimiting(): void
     {
-        // Global API default limiter (120/min per user or IP; unmetered for internal SSR & health checks)
-        RateLimiter::for('api', function (Request $request) {
-            $ip = $request->ip();
-            if ($ip === '127.0.0.1' || $ip === '::1' || $request->hasHeader('x-internal-secret')) {
+        // Secure verification for internal Next.js SSR requests:
+        // 1. Must be from an internal loopback or host address
+        // 2. INTERNAL_API_SECRET must be configured and non-empty (min 16 chars)
+        // 3. X-Internal-Secret header must match via constant-time hash_equals()
+        // If the secret is missing or empty, NO request can ever be exempted.
+        $isInternalTrusted = function (Request $request): bool {
+            $configuredSecret = (string) (config('services.internal.secret') ?: env('INTERNAL_API_SECRET', ''));
+            if (empty($configuredSecret) || strlen($configuredSecret) < 16) {
+                return false;
+            }
+
+            $clientSecret = (string) $request->header('x-internal-secret', '');
+            if (empty($clientSecret) || !hash_equals($configuredSecret, $clientSecret)) {
+                return false;
+            }
+
+            $ip = (string) $request->ip();
+            $allowedIps = [
+                '127.0.0.1',
+                '::1',
+                '200.97.169.230',
+                '2a02:4780:63:21bf::1',
+            ];
+
+            return in_array($ip, $allowedIps, true);
+        };
+
+        // Global API default limiter (120/min per user or IP; unmetered only for verified internal SSR)
+        RateLimiter::for('api', function (Request $request) use ($isInternalTrusted) {
+            if ($isInternalTrusted($request)) {
                 return Limit::none();
             }
-            return Limit::perMinute(120)->by($request->user()?->id ?: $ip);
+            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
         });
 
         // Dedicated search suggestions limiter (60/min per IP)
@@ -70,13 +96,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->ip());
         });
 
-        // Dedicated product catalog browsing limiter (120/min; unmetered for internal SSR)
-        RateLimiter::for('products-browse', function (Request $request) {
-            $ip = $request->ip();
-            if ($ip === '127.0.0.1' || $ip === '::1' || $request->hasHeader('x-internal-secret')) {
+        // Dedicated product catalog browsing limiter (120/min; unmetered only for verified internal SSR)
+        RateLimiter::for('products-browse', function (Request $request) use ($isInternalTrusted) {
+            if ($isInternalTrusted($request)) {
                 return Limit::none();
             }
-            return Limit::perMinute(120)->by($request->user()?->id ?: $ip);
+            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
         });
 
         // Dedicated commercial document PDF generation/download limiter (15/min per user or IP)
@@ -111,7 +136,11 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('password-reset', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip());
+            $email = strtolower(trim((string) $request->input('email', '')));
+            return [
+                Limit::perMinute(5)->by($request->ip()),
+                Limit::perHour(5)->by($email ?: $request->ip()),
+            ];
         });
 
         // Email Verification limits

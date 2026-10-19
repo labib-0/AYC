@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\QuotationController;
 use App\Http\Controllers\Api\V1\RfqController;
 use App\Http\Controllers\Api\V1\SearchController;
+use App\Http\Controllers\Api\V1\SecurityController;
 use App\Http\Controllers\Api\V1\ShippingController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WishlistController;
@@ -68,6 +69,9 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
 
     // General-purpose Admin Media Upload
     Route::middleware(['auth:sanctum', 'role:admin'])->post('/upload', [UploadController::class, 'upload']);
+
+    // Native Bot Mitigation Nonce Provider
+    Route::get('/security/form-token', [SecurityController::class, 'getFormToken']);
 
     // Authentication Endpoints
     Route::prefix('auth')->group(function () {

@@ -198,6 +198,12 @@ class RfqController extends ApiController
             return $this->forbidden('Only customer accounts may submit quotation requests.');
         }
 
+        $botError = app(\App\Services\Security\NativeBotProtectionService::class)
+            ->validateSubmission($request, 'rfq-create', minSeconds: 2);
+        if ($botError !== null) {
+            return $this->error($botError, 422);
+        }
+
         // Support both snake_case and camelCase payloads seamlessly
         $rawItems = $request->input('items', []);
         $formattedItems = [];

@@ -184,6 +184,12 @@ class OrderController extends ApiController
             return $this->forbidden('Only customer accounts may perform checkout.');
         }
 
+        $botError = app(\App\Services\Security\NativeBotProtectionService::class)
+            ->validateSubmission($request, 'order-checkout', minSeconds: 1);
+        if ($botError !== null) {
+            return $this->error($botError, 422);
+        }
+
         // 1. Resolve Items to Purchase (from active cart or request payload)
         $itemsToProcess = [];
         $activeCart = Cart::where('user_id', $user->id)
