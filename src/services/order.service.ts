@@ -3,6 +3,7 @@ import { generateMockDocument } from "@/lib/mock-data/mock-documents";
 import { getWhatsAppUrl } from "@/config/business-profile";
 import { apiClient } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
+import { securityService } from "./security.service";
 import { OrderDocumentItem, OrderDocumentGroup } from "@/types/b2b";
 
 export interface OrderItemRecord {
@@ -159,6 +160,8 @@ export interface OrderRecord {
 
 export interface CreateOrderInput {
   idempotencyKey?: string;
+  formToken?: string;
+  website_url_hp?: string;
   userId?: string | number;
   email: string;
   shippingName: string;
@@ -257,7 +260,19 @@ export class OrderService {
       if (input.idempotencyKey) {
         headers["X-Idempotency-Key"] = input.idempotencyKey;
       }
-      const res = await apiClient.post<any>("/orders", input, { headers });
+      let tokenToUse = input.formToken;
+      if (!tokenToUse) {
+        tokenToUse = (await securityService.getFormToken("order-checkout")) || undefined;
+      }
+      if (tokenToUse) {
+        headers["X-Form-Token"] = tokenToUse;
+      }
+      const payload = {
+        ...input,
+        website_url_hp: input.website_url_hp ?? "",
+      };
+
+      const res = await apiClient.post<any>("/orders", payload, { headers });
       const data = res?.data || res;
       if (data && (data.id || data.order_number)) {
         return this.normalizeOrderRecord(data);

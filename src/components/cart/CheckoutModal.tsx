@@ -23,6 +23,7 @@ import {
 import { CouponRecord } from "@/services/admin/coupon.service";
 import { validateCoupon } from "@/lib/coupon";
 import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
+import { securityService } from "@/services/security.service";
 import { trackOrderSuccessConversion } from "@/lib/analytics/google-ads";
 import {
   X,
@@ -114,6 +115,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   // Idempotency key for order submission — generated once per checkout session and reused across retries
   const idempotencyKeyRef = useRef<string>("");
+  const formTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -122,8 +124,12 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           ? crypto.randomUUID()
           : `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 12)}`;
       }
+      securityService.getFormToken("order-checkout").then((token) => {
+        formTokenRef.current = token;
+      });
     } else {
       idempotencyKeyRef.current = "";
+      formTokenRef.current = null;
     }
   }, [isOpen]);
 
@@ -746,6 +752,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
       const newOrder = await createOrder({
         idempotencyKey: idempotencyKeyRef.current,
+        formToken: formTokenRef.current || undefined,
         userId: orderUserId,
         email: dest.email,
         shippingName: dest.name,

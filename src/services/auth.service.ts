@@ -16,6 +16,8 @@ export interface RegisterData {
   phone?: string;
   company_name?: string;
   role?: "customer" | "admin";
+  website_url_hp?: string;
+  form_token?: string;
 }
 
 // Explicit known mock admin emails for test / mock environments only. Substring matching is forbidden.
@@ -82,7 +84,11 @@ export class AuthService {
    */
   async register(data: RegisterData): Promise<AuthResponse> {
     if (!isFrontendOnly()) {
-      const res = await apiClient.post<any>("/auth/register", data);
+      const headers: Record<string, string> = {};
+      if (data.form_token) {
+        headers["X-Form-Token"] = data.form_token;
+      }
+      const res = await apiClient.post<any>("/auth/register", data, { headers });
       const authData = "data" in res && res.data ? res.data : (res as AuthResponse);
       if (authData?.token) {
         apiClient.setToken(authData.token);
@@ -187,9 +193,20 @@ export class AuthService {
   /**
    * Request password reset link
    */
-  async forgotPassword(email: string): Promise<{ message: string }> {
+  async forgotPassword(
+    email: string,
+    security?: { formToken?: string | null; honeypot?: string }
+  ): Promise<{ message: string }> {
     if (!isFrontendOnly()) {
-      const res = await apiClient.post<any>("/auth/forgot-password", { email });
+      const headers: Record<string, string> = {};
+      if (security?.formToken) {
+        headers["X-Form-Token"] = security.formToken;
+      }
+      const payload: Record<string, any> = { email };
+      if (security?.honeypot !== undefined) {
+        payload.website_url_hp = security.honeypot;
+      }
+      const res = await apiClient.post<any>("/auth/forgot-password", payload, { headers });
       return res?.data || res || { message: `Password reset instructions dispatched to ${email}.` };
     }
     return {

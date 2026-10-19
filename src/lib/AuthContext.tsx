@@ -14,7 +14,13 @@ interface AuthContextType {
     email: string,
     password: string,
     fullName: string,
-    options?: { phone?: string; company_name?: string; role?: "customer" | "admin" }
+    options?: {
+      phone?: string;
+      company_name?: string;
+      role?: "customer" | "admin";
+      website_url_hp?: string;
+      form_token?: string;
+    }
   ) => Promise<{ error?: any; user?: any; errors?: Record<string, string[]>; status?: number }>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<{ error?: any; user?: any }>;
@@ -111,7 +117,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     fullName: string,
-    options?: { phone?: string; company_name?: string; role?: "customer" | "admin" }
+    options?: {
+      phone?: string;
+      company_name?: string;
+      role?: "customer" | "admin";
+      website_url_hp?: string;
+      form_token?: string;
+    }
   ) => {
     try {
       const res = await authService.register({
@@ -121,6 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         phone: options?.phone,
         company_name: options?.company_name,
         role: options?.role,
+        website_url_hp: options?.website_url_hp,
+        form_token: options?.form_token,
       });
       if (res?.user) {
         const u = { ...res.user, id: String(res.user.id) };

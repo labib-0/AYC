@@ -7,6 +7,8 @@ import { authService } from "@/services/auth.service";
 import { apiClient } from "@/services/api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import BrandName from "@/components/common/BrandName";
+import { securityService } from "@/services/security.service";
+import HoneypotField from "@/components/common/HoneypotField";
 
 export type AuthView = "signin" | "signup" | "forgot-password";
 
@@ -34,10 +36,24 @@ export default function AuthModal({
   const [fullName, setFullName] = useState("");
   const [identifier, setIdentifier] = useState(""); // email or phone
   const [password, setPassword] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const [formToken, setFormToken] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const modalRef = useRef<HTMLDivElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch security token for sensitive actions (signup, forgot-password)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (view === "signup") {
+      securityService.getFormToken("signup").then(setFormToken);
+    } else if (view === "forgot-password") {
+      securityService.getFormToken("forgot-password").then(setFormToken);
+    } else {
+      setFormToken(null);
+    }
+  }, [isOpen, view]);
 
   // Reset state on open or view change
   useEffect(() => {
@@ -47,6 +63,7 @@ export default function AuthModal({
       setStatusMessage(null);
       setIsLoading(false);
       setShowPassword(false);
+      setHoneypot("");
       document.body.style.overflow = "hidden";
       setTimeout(() => {
         firstInputRef.current?.focus();
@@ -129,7 +146,10 @@ export default function AuthModal({
           }, 600);
         }
       } else if (view === "signup") {
-        const res = await signUp(identifier.trim(), password, fullName.trim());
+        const res = await signUp(identifier.trim(), password, fullName.trim(), {
+          website_url_hp: honeypot,
+          form_token: formToken || undefined,
+        });
         if (res.error) {
           const errMsg = typeof res.error === "string" ? res.error : res.error.message || "Could not complete registration. Please try again.";
           setStatusMessage({
@@ -146,7 +166,10 @@ export default function AuthModal({
           }, 800);
         }
       } else if (view === "forgot-password") {
-        await authService.forgotPassword(identifier.trim());
+        await authService.forgotPassword(identifier.trim(), {
+          formToken,
+          honeypot,
+        });
         setStatusMessage({
           type: "success",
           text: `A password reset link has been dispatched to ${identifier.trim()}.`,
@@ -288,6 +311,7 @@ export default function AuthModal({
 
             {/* Auth Form */}
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <HoneypotField value={honeypot} onChange={setHoneypot} />
               {/* Full Name for Sign Up */}
               {view === "signup" && (
                 <div>

@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useRfq } from "@/lib/RfqContext";
 import { useAuth } from "@/lib/AuthContext";
 import { createRfq } from "@/lib/services/rfq";
+import { securityService } from "@/services/security.service";
+import HoneypotField from "@/components/common/HoneypotField";
 import { 
   FileText, 
   Trash2, 
@@ -69,6 +71,12 @@ export default function RfqPage() {
   const [targetDeliveryDate, setTargetDeliveryDate] = useState("");
   const [requestTitle, setRequestTitle] = useState("");
   const [generalNotes, setGeneralNotes] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const [formToken, setFormToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    securityService.getFormToken("rfq-create").then(setFormToken);
+  }, []);
 
   // Custom Item Specification State
   const [customItemName, setCustomItemName] = useState("");
@@ -186,7 +194,9 @@ export default function RfqPage() {
         requestTitle: requestTitle.trim() || `${finalItems.reduce((acc, i) => acc + i.quantity, 0)} Pcs Apparel for ${destinationCity}`,
         generalNotes,
         items: finalItems,
-      });
+        formToken: formToken || undefined,
+        website_url_hp: honeypot,
+      } as any);
 
       setSubmittedRfqNumber(created.rfqNumber);
       setSubmittedRfqId(created.id);
@@ -315,6 +325,7 @@ export default function RfqPage() {
         )}
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start font-sans">
+          <HoneypotField value={honeypot} onChange={setHoneypot} />
           
           {/* LEFT COLUMN: MULTI-PRODUCT LINE ITEMS (7 Cols) */}
           <div className="lg:col-span-7 space-y-6">

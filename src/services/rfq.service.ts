@@ -2,6 +2,7 @@ import { RfqRecord, RfqStatus, RfqMessage } from "@/types/b2b";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { apiClient } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
+import { securityService } from "./security.service";
 
 export function getStoredRfqs(): RfqRecord[] {
   return mockStore.getRfqs();
@@ -119,7 +120,20 @@ export async function createRfq(
   };
 
   if (!isFrontendOnly()) {
-    const res = await apiClient.post<any>("/rfq", normalizedData);
+    let tokenToUse = (data as any)?.form_token || (data as any)?.formToken;
+    if (!tokenToUse) {
+      tokenToUse = (await securityService.getFormToken("rfq-create")) || undefined;
+    }
+    const headers: Record<string, string> = {};
+    if (tokenToUse) {
+      headers["X-Form-Token"] = tokenToUse;
+    }
+    const payload = {
+      ...normalizedData,
+      website_url_hp: (data as any)?.website_url_hp ?? "",
+    };
+
+    const res = await apiClient.post<any>("/rfq", payload, { headers });
     const backendQuote = res?.data || res;
     if (backendQuote && (backendQuote.id || backendQuote.rfq_number)) {
       return mapBackendQuoteToRfq(backendQuote);

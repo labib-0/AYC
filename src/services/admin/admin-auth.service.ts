@@ -2,6 +2,7 @@ import { User } from "@/types/api";
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { apiClient } from "@/services/api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
+import { securityService } from "@/services/security.service";
 
 export const ADMIN_STORAGE_KEYS = {
   ADMIN_SESSION: "ayaan_admin_session",
@@ -11,6 +12,8 @@ export const ADMIN_STORAGE_KEYS = {
 export interface AdminLoginCredentials {
   email: string;
   password: string;
+  website_url_hp?: string;
+  form_token?: string;
 }
 
 export interface AdminAuthResponse {
@@ -108,7 +111,20 @@ export class AdminAuthService {
     const password = credentials.password || "";
 
     if (!isFrontendOnly()) {
-      const res = await apiClient.post<any>("/auth/admin/login", { email, password });
+      let tokenToUse = credentials.form_token;
+      if (!tokenToUse) {
+        tokenToUse = (await securityService.getFormToken("admin-login")) || undefined;
+      }
+      const headers: Record<string, string> = {};
+      if (tokenToUse) {
+        headers["X-Form-Token"] = tokenToUse;
+      }
+      const payload: Record<string, any> = { email, password };
+      if (credentials.website_url_hp !== undefined) {
+        payload.website_url_hp = credentials.website_url_hp;
+      }
+
+      const res = await apiClient.post<any>("/auth/admin/login", payload, { headers });
       const authData = "data" in res && res.data ? res.data : res;
       const user = authData?.user;
       const token = authData?.token;

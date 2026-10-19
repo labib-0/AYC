@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { Lock, Mail, User, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, Phone } from "lucide-react";
 import BrandName from "@/components/common/BrandName";
 import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
+import { securityService } from "@/services/security.service";
+import HoneypotField from "@/components/common/HoneypotField";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -15,10 +17,16 @@ export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const [formToken, setFormToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [verificationSentEmail, setVerificationSentEmail] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    securityService.getFormToken("signup").then(setFormToken);
+  }, []);
 
   const maskEmail = (str: string) => {
     const [local, domain] = str.split("@");
@@ -65,7 +73,11 @@ export default function SignUpPage() {
     }
 
     setLoading(true);
-    const res = await signUp(email, password, fullName, phone ? { phone } : undefined);
+    const res = await signUp(email, password, fullName, {
+      phone: phone ? phone : undefined,
+      website_url_hp: honeypot,
+      form_token: formToken || undefined,
+    });
     setLoading(false);
 
     if (res.error) {
@@ -141,6 +153,7 @@ export default function SignUpPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <HoneypotField value={honeypot} onChange={setHoneypot} />
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
               Full Name
