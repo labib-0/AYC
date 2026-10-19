@@ -21,7 +21,7 @@ class AuthController extends ApiController
     /**
      * POST /api/v1/auth/register
      */
-    public function register(RegisterRequest $request): JsonResponse
+    public function register(Request $request): JsonResponse
     {
         $botError = app(\App\Services\Security\NativeBotProtectionService::class)
             ->validateSubmission($request, 'signup', minSeconds: 2);
@@ -29,7 +29,16 @@ class AuthController extends ApiController
             return $this->error($botError, 422);
         }
 
-        $validated = $request->validated();
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:6'],
+            'password_confirmation' => ['nullable', 'string', 'same:password'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'company_name' => ['nullable', 'string', 'max:255'],
+            'tax_id' => ['nullable', 'string', 'max:100'],
+            'role' => ['nullable', 'string', 'in:customer'],
+        ]);
 
         $user = User::create([
             'name' => $validated['name'],
