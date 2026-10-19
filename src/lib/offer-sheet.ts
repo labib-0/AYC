@@ -842,6 +842,8 @@ export function buildOfferSheetData(source: any): OfferSheetData {
           pricingTiers: item.pricingTiers || item.pricing_tiers,
           images: item.product_images || (item.product_image_url ? [item.product_image_url] : []),
           image: item.product_image_url,
+          description: item.product_description || item.description || "",
+          designType: item.designType || item.design_type,
           material: item.material,
           sizeDescription: item.sizeDescription || item.size,
           colourDescription: item.colourDescription || item.color,

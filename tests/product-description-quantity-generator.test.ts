@@ -35,7 +35,7 @@ console.log("\n▶ Requirement 1: Configured stock quantity generates populated 
     quantity: 6000,
     colors: ["Navy", "Burgundy", "White"],
     sizes: ["M", "L", "XL", "XXL"],
-    fabric: "100% Combed Cotton 240 GSM",
+    materials: "100% Combed Cotton 240 GSM",
   };
 
   const generated = buildProductDescriptionTemplate(productData);
@@ -52,10 +52,8 @@ console.log("\n▶ Requirement 1: Configured stock quantity generates populated 
   assert.strictEqual(lines[3], "Quantity: 6,000 pcs");
   assert.strictEqual(lines[4], "Colors: Navy, Burgundy, White");
   assert.strictEqual(lines[5], "Sizes: M, L, XL, XXL");
-  assert.strictEqual(lines[6], "");
-  assert.strictEqual(lines[7], "Fabric: 100% Combed Cotton 240 GSM");
-  assert.strictEqual(lines[8], "Style: ");
-  assert.strictEqual(lines[9], "Fit:");
+  assert.strictEqual(lines[6], "Materials: 100% Combed Cotton 240 GSM");
+  assert.strictEqual(lines.length, 7);
 
   console.log("  ✓ Generated description correctly formatted 'Quantity: 6,000 pcs' in exact template position.");
 }
@@ -112,10 +110,7 @@ console.log("\n▶ Requirement 3: Manually entered Quantity survives regeneratio
     "Quantity: 7,500 pcs",
     "Colors: Washed Charcoal, Olive",
     "Sizes: S, M, L, XL",
-    "",
-    "Fabric: 100% Slub Cotton",
-    "Style: Raw Hem Distressed",
-    "Fit: Relaxed Oversized",
+    "Materials: 100% Slub Cotton",
   ].join("\n");
 
   // Administrator clicks "Regenerate Template" when the form's stock input is empty/undefined
@@ -124,7 +119,7 @@ console.log("\n▶ Requirement 3: Manually entered Quantity survives regeneratio
     brand: "Lee Cooper",
     colors: ["Washed Charcoal", "Olive"],
     sizes: ["S", "M", "L", "XL"],
-    fabric: "100% Slub Cotton",
+    materials: "100% Slub Cotton",
     quantity: undefined, // No authoritative stock configured in form
   });
 
@@ -157,16 +152,14 @@ console.log("\n▶ Requirement 4: Regeneration does NOT create duplicate Quantit
     "Quantity: 4,000 pcs",
     "Colors: Khaki, Navy",
     "Sizes: 30, 32, 34, 36",
-    "",
-    "Fabric: 100% Cotton Twill",
-    "Style: Casual Summer",
-    "Fit: Regular",
+    "Materials: 100% Cotton Twill",
   ].join("\n");
 
   const cleaned = regenerateProductDescriptionTemplate(duplicateQuantityInput, {
     item: "Chino Shorts",
     brand: "Timberland",
     quantity: 5000,
+    materials: "100% Cotton Twill",
   });
 
   const matches = cleaned.match(/Quantity:/g);
@@ -239,10 +232,7 @@ console.log("\n▶ Requirement 6: Other manually edited description text is pres
     "Quantity: 3,200 pcs",
     "Colors: Camel, Charcoal, Forest Green",
     "Sizes: M, L, XL",
-    "",
-    "Fabric: 100% Extrafine Merino Wool 14GG",
-    "Style: Ribbed Shawl Collar with Horn Buttons",
-    "Fit: Tailored Modern Fit",
+    "Materials: 100% Extrafine Merino Wool 14GG",
     "",
     "Wholesale Packaging & Export Notes:",
     "- Individually polybagged with silica gel desiccant",
@@ -257,18 +247,14 @@ console.log("\n▶ Requirement 6: Other manually edited description text is pres
     quantity: 4000,
     colors: ["Camel", "Charcoal", "Forest Green"],
     sizes: ["M", "L", "XL"],
-    fabric: "100% Extrafine Merino Wool 14GG",
+    materials: "100% Extrafine Merino Wool 14GG",
   });
 
   assert(regenerated.includes("Brand: United Colors of Benetton"), "Brand updated to new form value");
   assert(regenerated.includes("Quantity: 4,000 pcs"), "Quantity updated to new form stock value");
   assert(
-    regenerated.includes("Style: Ribbed Shawl Collar with Horn Buttons"),
-    "User-authored Style line preserved"
-  );
-  assert(
-    regenerated.includes("Fit: Tailored Modern Fit"),
-    "User-authored Fit line preserved"
+    regenerated.includes("Materials: 100% Extrafine Merino Wool 14GG"),
+    "Materials specification preserved"
   );
   assert(
     regenerated.includes("Wholesale Packaging & Export Notes:"),
@@ -283,7 +269,7 @@ console.log("\n▶ Requirement 6: Other manually edited description text is pres
     "Export logistics notes preserved"
   );
 
-  console.log("  ✓ Administrator-authored Style, Fit, and appended wholesale export notes strictly preserved.");
+  console.log("  ✓ Administrator-authored Materials and appended wholesale export notes strictly preserved.");
 }
 
 // =============================================================================
@@ -298,9 +284,7 @@ console.log("\n▶ Requirement 7: Saving and reopening product retains exact des
     quantity: 5000,
     colors: ["Navy", "White", "Heather Grey"],
     sizes: ["S", "M", "L", "XL"],
-    fabric: "100% Combed Cotton 220 GSM",
-    style: "Two-Button Placket",
-    fit: "Classic Fit",
+    materials: "100% Combed Cotton 220 GSM",
   });
 
   // 2. Transmitted via JSON to backend API
@@ -338,8 +322,8 @@ console.log("\n▶ Requirement 7: Saving and reopening product retains exact des
   );
   assert.strictEqual(
     hydratedDescription.split("\n").length,
-    10,
-    "Preserves 10-line template layout without extraneous newlines"
+    7,
+    "Preserves 7-line template layout without extraneous newlines"
   );
 
   console.log("  ✓ Product description serialized, persisted, and rehydrated with 100% fidelity.");
@@ -360,12 +344,9 @@ console.log("\n▶ Requirement 8: Existing product creation, editing, inventory,
       "Quantity: ",
       "Colors: ",
       "Sizes: ",
-      "",
-      "Fabric: ",
-      "Style: ",
-      "Fit:",
+      "Materials: ",
     ].join("\n"),
-    "Canonical DEFAULT_PRODUCT_DESCRIPTION_TEMPLATE constant unchanged"
+    "Canonical DEFAULT_PRODUCT_DESCRIPTION_TEMPLATE constant updated with Materials"
   );
 
   // Verify non-template freeform text protection

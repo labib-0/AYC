@@ -21,6 +21,8 @@ export interface ProductDescriptionTemplateData {
   quantity?: string | number | null;
   colors?: string | string[] | null;
   sizes?: string | string[] | null;
+  materials?: string | null;
+  material?: string | null;
   fabric?: string | null;
   style?: string | null;
   fit?: string | null;
@@ -32,9 +34,7 @@ export const CANONICAL_TEMPLATE_LABELS = [
   "Quantity",
   "Colors",
   "Sizes",
-  "Fabric",
-  "Style",
-  "Fit",
+  "Materials",
 ] as const;
 
 export type TemplateLabel = (typeof CANONICAL_TEMPLATE_LABELS)[number];
@@ -104,10 +104,7 @@ export const DEFAULT_PRODUCT_DESCRIPTION_TEMPLATE = [
   "Quantity: ",
   "Colors: ",
   "Sizes: ",
-  "",
-  "Fabric: ",
-  "Style: ",
-  "Fit:",
+  "Materials: ",
 ].join("\n");
 
 /**
@@ -120,9 +117,9 @@ export function buildProductDescriptionTemplate(data?: ProductDescriptionTemplat
   const quantity = formatTemplateQuantity(data?.quantity);
   const colors = formatTemplateValue(data?.colors);
   const sizes = formatTemplateValue(data?.sizes);
-  const fabric = formatTemplateValue(data?.fabric);
-  const style = formatTemplateValue(data?.style);
-  const fit = formatTemplateValue(data?.fit);
+  // Authoritative Material specification only; never derive from fabric, product name, images, or unrelated data
+  const rawMaterial = data?.materials !== undefined ? data.materials : data?.material;
+  const materials = formatTemplateValue(rawMaterial);
 
   return [
     item ? `Item: ${item}` : "Item: ",
@@ -131,10 +128,7 @@ export function buildProductDescriptionTemplate(data?: ProductDescriptionTemplat
     quantity ? `Quantity: ${quantity}` : "Quantity: ",
     colors ? `Colors: ${colors}` : "Colors: ",
     sizes ? `Sizes: ${sizes}` : "Sizes: ",
-    "",
-    fabric ? `Fabric: ${fabric}` : "Fabric: ",
-    style ? `Style: ${style}` : "Style: ",
-    fit ? `Fit: ${fit}` : "Fit:",
+    materials ? `Materials: ${materials}` : "Materials: ",
   ].join("\n");
 }
 
@@ -148,10 +142,15 @@ export function isProductDescriptionTemplate(text: string | null | undefined): b
   const hasBrand = /^[ \t]*Brand:[ \t]*/m.test(text);
   const hasColors = /^[ \t]*Colors:[ \t]*/m.test(text);
   const hasSizes = /^[ \t]*Sizes:[ \t]*/m.test(text);
+  const hasMaterials = /^[ \t]*Materials:[ \t]*/m.test(text);
   const hasFabric = /^[ \t]*Fabric:[ \t]*/m.test(text);
   const hasQuantity = /^[ \t]*Quantity:[ \t]*/m.test(text);
 
-  return (hasItem && hasBrand) || ((hasItem || hasBrand) && (hasQuantity || hasColors || hasSizes || hasFabric));
+  return (
+    (hasItem && hasBrand) ||
+    ((hasItem || hasBrand) &&
+      (hasQuantity || hasColors || hasSizes || hasMaterials || hasFabric))
+  );
 }
 
 /**
@@ -178,12 +177,16 @@ export function parseProductDescriptionTemplate(
     return matches.length > 0 ? matches[0][1].trim() : "";
   };
 
+  const materialsMatch = getMatch("Materials");
+
   return {
     item: getMatch("Item"),
     brand: getMatch("Brand"),
     quantity: getMatch("Quantity"),
     colors: getMatch("Colors"),
     sizes: getMatch("Sizes"),
+    materials: materialsMatch,
+    material: materialsMatch,
     fabric: getMatch("Fabric"),
     style: getMatch("Style"),
     fit: getMatch("Fit"),
@@ -199,16 +202,18 @@ export function parseProductDescriptionTemplate(
  *    Quantity value, preserves the existing quantity value.
  * 3. Never overwrites a valid manually entered quantity with a blank value.
  * 4. Never duplicates the Quantity line.
- * 5. Strictly keeps the canonical template structure and field order:
+ * 5. Strictly keeps the canonical revised template structure and field order:
  *    - Item
  *    - Brand
+ *    (blank line)
  *    - Quantity
  *    - Colors
  *    - Sizes
- *    - Fabric
- *    - Style
- *    - Fit
- * 6. Preserves administrator manual edits to Style, Fit, and custom appended notes/sections.
+ *    - Materials (no blank line between Sizes and Materials)
+ * 6. Populates Materials strictly from the product's authoritative Material specification field;
+ *    never derives Materials from the old Fabric field, product name, images, or unrelated data.
+ * 7. Removes Style: and Fit: lines entirely from newly generated templates.
+ * 8. Preserves custom appended notes/sections following the template.
  */
 export function regenerateProductDescriptionTemplate(
   currentDescription: string | null | undefined,
@@ -234,10 +239,8 @@ export function regenerateProductDescriptionTemplate(
   const resolvedQuantity = formQtyFormatted !== "" ? formQtyFormatted : existingQtyFormatted;
 
   // 2. Resolve other canonical fields:
-  // - For form-managed fields (Item, Brand, Colors, Sizes, Fabric), formFields take precedence;
+  // - For form-managed fields (Item, Brand, Colors, Sizes), formFields take precedence;
   //   fallback to existingValues if form field is empty
-  // - For user-authored fields (Style, Fit), formFields take precedence only if non-empty,
-  //   otherwise preserve existing user-authored value
   const formItem = formatTemplateValue(formFields.item);
   const existingItem = formatTemplateValue(existingValues?.item);
   const resolvedItem = formItem || existingItem;
@@ -254,26 +257,45 @@ export function regenerateProductDescriptionTemplate(
   const existingSizes = formatTemplateValue(existingValues?.sizes);
   const resolvedSizes = formSizes || existingSizes;
 
-  const formFabric = formatTemplateValue(formFields.fabric);
-  const existingFabric = formatTemplateValue(existingValues?.fabric);
-  const resolvedFabric = formFabric || existingFabric;
+  // 3. Resolve Materials:
+  // - Authoritative source is formFields.materials or formFields.material (from the Material specification field)
+  // - If formFields has an authoritative material, use it
+  // - If formFields material is empty, but existing description already had a valid non-empty Materials value, preserve it
+  // - Never derive Materials from fabric, product name, images, or unrelated data
+  const rawFormMaterial = formFields.materials !== undefined ? formFields.materials : formFields.material;
+  const formMaterials = formatTemplateValue(rawFormMaterial);
+  const existingMaterials = formatTemplateValue(existingValues?.materials);
+  const resolvedMaterials = formMaterials !== "" ? formMaterials : existingMaterials;
 
-  const formStyle = formatTemplateValue(formFields.style);
-  const existingStyle = formatTemplateValue(existingValues?.style);
-  const resolvedStyle = formStyle || existingStyle;
-
-  const formFit = formatTemplateValue(formFields.fit);
-  const existingFit = formatTemplateValue(existingValues?.fit);
-  const resolvedFit = formFit || existingFit;
-
-  // 3. Extract any custom appended notes or content (e.g. after Fit:)
+  // 4. Extract any custom appended notes or content following the template block
   let customAppendedContent = "";
-  const fitLineMatch = currentDescription.match(/^[ \t]*Fit:[ \t]*[^\n]*(?:\n+([\s\S]*))?$/m);
-  if (fitLineMatch && fitLineMatch[1] && fitLineMatch[1].trim()) {
-    customAppendedContent = `\n\n${fitLineMatch[1].trim()}`;
+  const lines = currentDescription.split(/\r?\n/);
+  const templateHeaderRegex = /^[ \t]*(?:Item|Brand|Quantity|Colors|Sizes|Materials|Fabric|Style|Fit):[ \t]*/;
+
+  let lastTemplateLineIndex = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (templateHeaderRegex.test(lines[i])) {
+      lastTemplateLineIndex = i;
+      break;
+    }
   }
 
-  // 4. Construct canonical template ensuring exact field order and single Quantity line
+  if (lastTemplateLineIndex !== -1 && lastTemplateLineIndex < lines.length - 1) {
+    const trailingLines = lines.slice(lastTemplateLineIndex + 1);
+    const trailingText = trailingLines.join("\n").trim();
+    if (trailingText) {
+      customAppendedContent = `\n\n${trailingText}`;
+    }
+  }
+
+  // 5. Construct canonical revised template:
+  // Item
+  // Brand
+  // (blank line)
+  // Quantity
+  // Colors
+  // Sizes
+  // Materials (no blank line between Sizes and Materials; Style and Fit lines removed)
   const templateLines = [
     resolvedItem ? `Item: ${resolvedItem}` : "Item: ",
     resolvedBrand ? `Brand: ${resolvedBrand}` : "Brand: ",
@@ -281,10 +303,7 @@ export function regenerateProductDescriptionTemplate(
     resolvedQuantity ? `Quantity: ${resolvedQuantity}` : "Quantity: ",
     resolvedColors ? `Colors: ${resolvedColors}` : "Colors: ",
     resolvedSizes ? `Sizes: ${resolvedSizes}` : "Sizes: ",
-    "",
-    resolvedFabric ? `Fabric: ${resolvedFabric}` : "Fabric: ",
-    resolvedStyle ? `Style: ${resolvedStyle}` : "Style: ",
-    resolvedFit ? `Fit: ${resolvedFit}` : "Fit:",
+    resolvedMaterials ? `Materials: ${resolvedMaterials}` : "Materials: ",
   ];
 
   return templateLines.join("\n") + customAppendedContent;
@@ -297,7 +316,7 @@ export function regenerateProductDescriptionTemplate(
  * 1. If !isManuallyEdited, regenerates the clean template from current form fields.
  * 2. If isManuallyEdited:
  *    - If the current description contains template structure:
- *      Updates mapped lines without altering administrator-written fields (e.g. Style, Fit, notes)
+ *      Updates mapped lines without altering administrator-written fields (e.g. custom notes)
  *      or lines that the user explicitly edited.
  *    - If the current description does not contain template structure (free-form paragraph):
  *      Leaves the description completely untouched.
@@ -358,10 +377,9 @@ export function syncProductDescription(
     }
 
     // Determine replacement format
-    const emptyWithSpace = label !== "Fit";
     const replacement = formattedNew
       ? `${label}: ${formattedNew}`
-      : `${label}:${emptyWithSpace ? " " : ""}`;
+      : `${label}: `;
 
     const lineRegex = new RegExp(`^[ \\t]*${label}:[ \\t]*.*$`, "m");
     if (lineRegex.test(result)) {
@@ -369,13 +387,15 @@ export function syncProductDescription(
       result = result.replace(lineRegex, replacement);
       // Remove any duplicate occurrences of this label if they exist
       let seen = false;
-      result = result.replace(new RegExp(`^[ \\t]*${label}:[ \\t]*.*$`, "gm"), (match) => {
-        if (!seen) {
-          seen = true;
-          return match;
-        }
-        return "";
-      }).replace(/\n{3,}/g, "\n\n");
+      result = result
+        .replace(new RegExp(`^[ \\t]*${label}:[ \\t]*.*$`, "gm"), (match) => {
+          if (!seen) {
+            seen = true;
+            return match;
+          }
+          return "";
+        })
+        .replace(/\n{3,}/g, "\n\n");
     } else {
       // If label is missing from the template, insert it in the canonical position
       if (label === "Quantity") {
@@ -383,6 +403,10 @@ export function syncProductDescription(
           result = result.replace(/(^[ \t]*Brand:[ \t]*.*$)/m, `$1\n\n${replacement}`);
         } else if (/^[ \t]*Colors:[ \t]*.*$/m.test(result)) {
           result = result.replace(/(^[ \t]*Colors:[ \t]*.*$)/m, `${replacement}\n$1`);
+        }
+      } else if (label === "Materials") {
+        if (/^[ \t]*Sizes:[ \t]*.*$/m.test(result)) {
+          result = result.replace(/(^[ \t]*Sizes:[ \t]*.*$)/m, `$1\n${replacement}`);
         }
       }
     }
@@ -403,14 +427,10 @@ export function syncProductDescription(
   if (newFields.sizes !== undefined) {
     updateLine("Sizes", newFields.sizes, previousFormFields?.sizes);
   }
-  if (newFields.fabric !== undefined) {
-    updateLine("Fabric", newFields.fabric, previousFormFields?.fabric);
-  }
-  if (newFields.style !== undefined && formatTemplateValue(newFields.style)) {
-    updateLine("Style", newFields.style, previousFormFields?.style);
-  }
-  if (newFields.fit !== undefined && formatTemplateValue(newFields.fit)) {
-    updateLine("Fit", newFields.fit, previousFormFields?.fit);
+  const matVal = newFields.materials !== undefined ? newFields.materials : newFields.material;
+  const prevMatVal = previousFormFields?.materials !== undefined ? previousFormFields.materials : previousFormFields?.material;
+  if (matVal !== undefined) {
+    updateLine("Materials", matVal, prevMatVal);
   }
 
   return result;

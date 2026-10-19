@@ -47,8 +47,8 @@
         {{-- Section 5: Product Description --}}
         <div style="margin-top: 10px; margin-bottom: 10px;">
             <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 3px;">PRODUCT DESCRIPTION</div>
-            <div style="font-size: 7.5pt; color: #334155; line-height: 1.4; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 8px; border-radius: 4px;">
-                {{ $item['product_description'] ?? ($item['description'] ?? 'Standard commercial garment specifications apply.') }}
+            <div style="font-size: 7.5pt; color: #334155; line-height: 1.4; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 8px; border-radius: 4px; white-space: pre-line;">
+                {!! nl2br(e($item['product_description'] ?? ($item['description'] ?? 'Standard commercial garment specifications apply.'))) !!}
             </div>
         </div>
 

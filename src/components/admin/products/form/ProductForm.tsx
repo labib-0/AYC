@@ -410,7 +410,8 @@ export default function ProductForm({
   const previousTemplateFieldsRef = useRef<ProductDescriptionTemplateData>({
     item: initialData?.name || "",
     brand: initialData?.brand || "",
-    fabric: initialData?.material || "",
+    materials: initialData?.material || "",
+    material: initialData?.material || "",
     colors: initialData?.colourDescription || initialData?.colors || "",
     sizes: initialData?.sizeDescription || initialData?.sizes || "",
     quantity: (initialData?.stock !== undefined && Number(initialData.stock) > 0)
@@ -423,15 +424,18 @@ export default function ProductForm({
     (overrides?: Partial<ProductDescriptionTemplateData>) => {
       if (isEdit) return;
 
+      const currentMaterial = overrides?.materials !== undefined
+        ? overrides.materials
+        : (overrides?.material !== undefined ? overrides.material : material);
+
       const currentData: ProductDescriptionTemplateData = {
         item: overrides?.item !== undefined ? overrides.item : name,
         brand: overrides?.brand !== undefined ? overrides.brand : brand,
-        fabric: overrides?.fabric !== undefined ? overrides.fabric : material,
+        materials: currentMaterial,
+        material: currentMaterial,
         colors: overrides?.colors !== undefined ? overrides.colors : (colourDescription || colors),
         sizes: overrides?.sizes !== undefined ? overrides.sizes : (sizeDescription || sizes),
         quantity: overrides?.quantity !== undefined ? overrides.quantity : authoritativeProductQuantity,
-        style: overrides?.style,
-        fit: overrides?.fit,
       };
 
       setDescription((prev) => {
@@ -452,7 +456,8 @@ export default function ProductForm({
     const currentData: ProductDescriptionTemplateData = {
       item: name,
       brand: brand,
-      fabric: material,
+      materials: material,
+      material: material,
       colors: colourDescription || colors,
       sizes: sizeDescription || sizes,
       quantity: authoritativeProductQuantity,
@@ -2043,7 +2048,7 @@ export default function ProductForm({
             }}
             onMaterialChange={(val) => {
               setMaterial(val);
-              syncDescriptionWithForm({ fabric: val });
+              syncDescriptionWithForm({ materials: val, material: val });
               if (!isEdit) {
                 autoPopulateSeoDefaults(name, brand, categoryName, audience, val);
               }

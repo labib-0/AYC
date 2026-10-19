@@ -37,9 +37,7 @@ console.log("\n▶ Scenario 1: Create a product with all template attributes fil
     quantity: 48,
     colors: ["Black", "White", "Navy"],
     sizes: ["S", "M", "L", "XL"],
-    fabric: "100% Combed Cotton Single Jersey 220 GSM",
-    style: "Urban Streetwear",
-    fit: "Oversized Fit",
+    materials: "100% Combed Cotton Single Jersey 220 GSM",
   };
 
   const generated = buildProductDescriptionTemplate(fullData);
@@ -51,16 +49,13 @@ console.log("\n▶ Scenario 1: Create a product with all template attributes fil
     "Quantity: 48 pcs",
     "Colors: Black, White, Navy",
     "Sizes: S, M, L, XL",
-    "",
-    "Fabric: 100% Combed Cotton Single Jersey 220 GSM",
-    "Style: Urban Streetwear",
-    "Fit: Oversized Fit",
+    "Materials: 100% Combed Cotton Single Jersey 220 GSM",
   ].join("\n");
 
   assert.strictEqual(generated, expected, "All template fields populate with accurate labels and values");
   assert(!generated.includes("undefined"), "Output must never contain 'undefined'");
   assert(!generated.includes("null"), "Output must never contain 'null'");
-  console.log("  ✓ All 8 template fields populated seamlessly with preserved line spacing.");
+  console.log("  ✓ All 7 template fields populated seamlessly with preserved line spacing.");
 }
 
 // -----------------------------------------------------------------------------
@@ -82,10 +77,7 @@ console.log("\n▶ Scenario 2: Create a product with only a name and brand");
     "Quantity: ",
     "Colors: ",
     "Sizes: ",
-    "",
-    "Fabric: ",
-    "Style: ",
-    "Fit:",
+    "Materials: ",
   ].join("\n");
 
   assert.strictEqual(generated, expected, "Name and brand populated; all missing values retain labels with blank values");
@@ -106,17 +98,14 @@ console.log("\n▶ Scenario 3: Create a product with all optional attributes bla
     "Quantity: ",
     "Colors: ",
     "Sizes: ",
-    "",
-    "Fabric: ",
-    "Style: ",
-    "Fit:",
+    "Materials: ",
   ].join("\n");
 
   assert.strictEqual(blankTemplate, expectedCanonical, "Blank template matches canonical layout exactly");
   assert.strictEqual(blankTemplate, DEFAULT_PRODUCT_DESCRIPTION_TEMPLATE, "Matches DEFAULT_PRODUCT_DESCRIPTION_TEMPLATE constant");
 
   // Verify all canonical labels are present
-  const requiredLabels = ["Item:", "Brand:", "Quantity:", "Colors:", "Sizes:", "Fabric:", "Style:", "Fit:"];
+  const requiredLabels = ["Item:", "Brand:", "Quantity:", "Colors:", "Sizes:", "Materials:"];
   for (const label of requiredLabels) {
     assert(blankTemplate.includes(label), `Canonical label '${label}' must be present in blank template`);
   }
@@ -140,7 +129,7 @@ console.log("\n▶ Scenario 4: Change the product name after entering other valu
   const prevFields: ProductDescriptionTemplateData = {
     item: "Original Crew Neck",
     brand: "Zara Man",
-    fabric: "Cotton Blend",
+    materials: "Cotton Blend",
     colors: ["Charcoal", "Olive"],
     sizes: ["M", "L"],
   };
@@ -151,7 +140,7 @@ console.log("\n▶ Scenario 4: Change the product name after entering other valu
     {
       item: "Premium Heavyweight Crew Neck",
       brand: "Zara Man",
-      fabric: "Cotton Blend",
+      materials: "Cotton Blend",
       colors: ["Charcoal", "Olive"],
       sizes: ["M", "L"],
     },
@@ -161,7 +150,7 @@ console.log("\n▶ Scenario 4: Change the product name after entering other valu
 
   assert(updatedDesc.includes("Item: Premium Heavyweight Crew Neck"), "Item line is updated with new name");
   assert(updatedDesc.includes("Brand: Zara Man"), "Brand line is preserved");
-  assert(updatedDesc.includes("Fabric: Cotton Blend"), "Fabric line is preserved");
+  assert(updatedDesc.includes("Materials: Cotton Blend"), "Materials line is preserved");
   assert(updatedDesc.includes("Colors: Charcoal, Olive"), "Colors line is preserved");
   assert(updatedDesc.includes("Sizes: M, L"), "Sizes line is preserved");
   assert(!updatedDesc.includes("Original Crew Neck"), "Old item name is completely replaced");
@@ -176,13 +165,13 @@ console.log("\n▶ Scenario 5: Change the selected brand");
   const currentDesc = buildProductDescriptionTemplate({
     item: "Slim Fit Chino Trousers",
     brand: "Old Brand",
-    fabric: "Stretch Twill",
+    materials: "Stretch Twill",
   });
 
   const prevFields: ProductDescriptionTemplateData = {
     item: "Slim Fit Chino Trousers",
     brand: "Old Brand",
-    fabric: "Stretch Twill",
+    materials: "Stretch Twill",
   };
 
   // Administrator changes selected brand in dropdown
@@ -191,7 +180,7 @@ console.log("\n▶ Scenario 5: Change the selected brand");
     {
       item: "Slim Fit Chino Trousers",
       brand: "Tommy Hilfiger",
-      fabric: "Stretch Twill",
+      materials: "Stretch Twill",
     },
     false,
     prevFields
@@ -200,7 +189,7 @@ console.log("\n▶ Scenario 5: Change the selected brand");
   assert(updatedDesc.includes("Brand: Tommy Hilfiger"), "Brand is updated to newly selected brand");
   assert(!updatedDesc.includes("Old Brand"), "Old brand is completely replaced");
   assert(updatedDesc.includes("Item: Slim Fit Chino Trousers"), "Item title remains intact");
-  assert(updatedDesc.includes("Fabric: Stretch Twill"), "Fabric remains intact");
+  assert(updatedDesc.includes("Materials: Stretch Twill"), "Materials remains intact");
   console.log("  ✓ Brand changed seamlessly across synchronization.");
 }
 
@@ -249,19 +238,17 @@ console.log("\n▶ Scenario 7: Manually edit the generated description");
   const initialGenerated = buildProductDescriptionTemplate({
     item: "Vintage Washed Polo",
     brand: "Polo Ralph Lauren",
-    fabric: "100% Pique Cotton",
+    material: "100% Pique Cotton",
     colors: ["Navy", "White"],
     sizes: ["M", "L"],
   });
 
-  // Admin modifies Style, Fit, and appends bespoke washing instructions
+  // Admin modifies Materials, and appends bespoke washing instructions
   const manuallyEdited = initialGenerated
-    .replace("Style: ", "Style: Vintage Pique / Tennis Collar")
-    .replace("Fit:", "Fit: Custom Slim Fit") +
+    .replace("Materials: 100% Pique Cotton", "Materials: 100% Organic Pique Cotton") +
     "\n\nAdditional Notes:\n- Enzyme washed for soft handfeel\n- Ribbed collar and cuffs";
 
-  assert(manuallyEdited.includes("Style: Vintage Pique / Tennis Collar"), "Admin can edit Style line");
-  assert(manuallyEdited.includes("Fit: Custom Slim Fit"), "Admin can edit Fit line");
+  assert(manuallyEdited.includes("Materials: 100% Organic Pique Cotton"), "Admin can edit Materials line");
   assert(manuallyEdited.includes("Additional Notes:"), "Admin can append custom sections");
   console.log("  ✓ Administrator manual edits successfully applied and retained.");
 }
@@ -274,7 +261,7 @@ console.log("\n▶ Scenario 8: Confirm automatic updates do NOT erase manual edi
   const initialGenerated = buildProductDescriptionTemplate({
     item: "Vintage Washed Polo",
     brand: "Polo Ralph Lauren",
-    fabric: "100% Pique Cotton",
+    material: "100% Pique Cotton",
     colors: ["Navy", "White"],
     sizes: ["M", "L"],
   });
@@ -282,15 +269,14 @@ console.log("\n▶ Scenario 8: Confirm automatic updates do NOT erase manual edi
   const prevFields: ProductDescriptionTemplateData = {
     item: "Vintage Washed Polo",
     brand: "Polo Ralph Lauren",
-    fabric: "100% Pique Cotton",
+    material: "100% Pique Cotton",
     colors: ["Navy", "White"],
     sizes: ["M", "L"],
   };
 
-  // Administrator manually customized Style, Fit, and custom footer note in description
+  // Administrator manually customized Materials and custom footer note in description
   const manuallyEdited = initialGenerated
-    .replace("Style: ", "Style: Vintage Pique / Tennis Collar")
-    .replace("Fit:", "Fit: Custom Slim Fit") +
+    .replace("Materials: 100% Pique Cotton", "Materials: 100% Organic Pique Cotton") +
     "\n\nWholesale Notes: Minimum 2 cartons per order.";
 
   // Now administrator modifies the product form fields (e.g. changes Brand and adds Quantity)
@@ -299,7 +285,7 @@ console.log("\n▶ Scenario 8: Confirm automatic updates do NOT erase manual edi
     {
       item: "Vintage Washed Polo",
       brand: "Ralph Lauren Purple Label",
-      fabric: "100% Pique Cotton",
+      material: "100% Pique Cotton",
       colors: ["Navy", "White"],
       sizes: ["M", "L"],
       quantity: 120,
@@ -314,12 +300,8 @@ console.log("\n▶ Scenario 8: Confirm automatic updates do NOT erase manual edi
 
   // Verified: Administrator's manual edits were NOT erased!
   assert(
-    afterFormUpdate.includes("Style: Vintage Pique / Tennis Collar"),
-    "Administrator custom Style edit must NOT be erased"
-  );
-  assert(
-    afterFormUpdate.includes("Fit: Custom Slim Fit"),
-    "Administrator custom Fit edit must NOT be erased"
+    afterFormUpdate.includes("Materials: 100% Organic Pique Cotton"),
+    "Administrator custom Materials edit must NOT be erased"
   );
   assert(
     afterFormUpdate.includes("Wholesale Notes: Minimum 2 cartons per order."),
@@ -362,9 +344,7 @@ console.log("\n▶ Scenario 9: Save, refresh, and reopen the product simulation"
     quantity: productPayload.stock,
     colors: productPayload.colors,
     sizes: productPayload.sizes,
-    fabric: productPayload.material,
-    style: "Athletic Training",
-    fit: "Standard Fit",
+    material: productPayload.material,
   });
 
   // Simulate saving into DB (persists with newlines intact)
@@ -382,9 +362,8 @@ console.log("\n▶ Scenario 9: Save, refresh, and reopen the product simulation"
   assert.strictEqual(hydratedDescription, savedDescription, "Description matches saved DB record exactly");
   assert(hydratedDescription.includes("Item: Performance Dry-Fit T-Shirt"), "Item preserved on reopen");
   assert(hydratedDescription.includes("Quantity: 2,400 pcs"), "Quantity preserved with canonical formatting on reopen");
-  assert(hydratedDescription.includes("Style: Athletic Training"), "Custom style preserved on reopen");
-  assert(hydratedDescription.includes("Fit: Standard Fit"), "Custom fit preserved on reopen");
-  assert.strictEqual(hydratedDescription.split("\n").length, 10, "Exact 10-line template structure preserved");
+  assert(hydratedDescription.includes("Materials: 100% Recycled Polyester"), "Material preserved on reopen");
+  assert.strictEqual(hydratedDescription.split("\n").length, 7, "Exact 7-line template structure preserved");
   console.log("  ✓ Description persists across simulated save, page reload, and reopening.");
 }
 
@@ -477,10 +456,7 @@ console.log("\n▶ Test 3: Manually entered Quantity value survives regeneration
     "Quantity: 5,000 pcs",
     "Colors: White, Navy",
     "Sizes: S, M, L",
-    "",
-    "Fabric: 100% Cotton",
-    "Style: Basic Crew",
-    "Fit: Regular Fit",
+    "Materials: 100% Cotton",
   ].join("\n");
 
   const regenerated = regenerateProductDescriptionTemplate(manualDesc, {
@@ -488,7 +464,7 @@ console.log("\n▶ Test 3: Manually entered Quantity value survives regeneration
     brand: "Gildan",
     colors: ["White", "Navy"],
     sizes: ["S", "M", "L"],
-    fabric: "100% Cotton",
+    materials: "100% Cotton",
     quantity: undefined, // No authoritative replacement in form
   });
 
@@ -509,10 +485,7 @@ console.log("\n▶ Test 4: Regeneration does NOT create duplicate Quantity lines
     "Quantity: 3,000 pcs",
     "Colors: Dark Blue, Black",
     "Sizes: 30, 32, 34",
-    "",
-    "Fabric: 98% Cotton 2% Elastane",
-    "Style: Slim Straight",
-    "Fit: Slim",
+    "Materials: 98% Cotton 2% Elastane",
   ].join("\n");
 
   const regenerated = regenerateProductDescriptionTemplate(buggyDuplicateDesc, {
@@ -557,7 +530,7 @@ console.log("\n▶ Test 5: Populated canonical quantity generates correct value 
 }
 
 // 6. Other manually edited description text is preserved according to the existing workflow
-console.log("\n▶ Test 6: Other manually edited description text is preserved (Style, Fit, Custom Notes)");
+console.log("\n▶ Test 6: Other manually edited description text is preserved (Materials, Custom Notes)");
 {
   const customDesc = [
     "Item: Vintage Washed Tee",
@@ -566,10 +539,7 @@ console.log("\n▶ Test 6: Other manually edited description text is preserved (
     "Quantity: 1,500 pcs",
     "Colors: Acid Wash Black",
     "Sizes: M, L, XL",
-    "",
-    "Fabric: 100% Slub Cotton",
-    "Style: Custom Distressed Raw Edge",
-    "Fit: Relaxed Drop Shoulder",
+    "Materials: 100% Slub Cotton",
     "",
     "Special Handling Instructions:",
     "- Wash inside out in cold water",
@@ -583,11 +553,10 @@ console.log("\n▶ Test 6: Other manually edited description text is preserved (
   });
 
   assert(regenerated.includes("Quantity: 2,000 pcs"), "New canonical quantity populated");
-  assert(regenerated.includes("Style: Custom Distressed Raw Edge"), "User-edited Style preserved");
-  assert(regenerated.includes("Fit: Relaxed Drop Shoulder"), "User-edited Fit preserved");
+  assert(regenerated.includes("Materials: 100% Slub Cotton"), "Materials preserved");
   assert(regenerated.includes("Special Handling Instructions:"), "Appended custom notes preserved");
   assert(regenerated.includes("- Wash inside out in cold water"), "Appended bullet points preserved");
-  console.log("  ✓ Style, Fit, and appended custom notes/sections preserved during regeneration.");
+  console.log("  ✓ Materials and appended custom notes/sections preserved during regeneration.");
 }
 
 // 7. Saving and reopening a product retains the correct description
@@ -600,10 +569,7 @@ console.log("\n▶ Test 7: Saving and reopening product retains the exact descri
     "Quantity: 8,500 pcs",
     "Colors: Heather Grey, Forest Green",
     "Sizes: S, M, L, XL, XXL",
-    "",
-    "Fabric: 80% Cotton / 20% Polyester 380 GSM",
-    "Style: Classic Pullover Kangaroo Pocket",
-    "Fit: Athletic Boxy Fit",
+    "Materials: 80% Cotton / 20% Polyester 380 GSM",
   ].join("\n");
 
   // Simulate Laravel API JSON serialization and deserialization
@@ -629,7 +595,7 @@ console.log("\n▶ Test 8: Existing product creation, editing, inventory, MOQ, a
 {
   // A blank product still gets default template
   const blank = buildProductDescriptionTemplate();
-  assert(blank.startsWith("Item: \nBrand: \n\nQuantity: \nColors: \nSizes: \n\nFabric: \nStyle: \nFit:"), "Default blank template unchanged");
+  assert(blank.startsWith("Item: \nBrand: \n\nQuantity: \nColors: \nSizes: \nMaterials: "), "Default blank template updated to 7-line layout with Materials");
 
   // An existing non-template freeform description remains protected
   const freeform = "Exclusive Italian merino wool sweater. Limited wholesale export overrun.";

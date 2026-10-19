@@ -70,7 +70,8 @@ const STOREFRONT_UNIT_SUITES = [
   "product-link-copy-and-share.test.ts",
   "product-breadcrumb-hierarchy.test.ts",
   "google-ads-order-conversion.test.ts",
-  "google-tags-tracking-persistence.test.ts"
+  "google-tags-tracking-persistence.test.ts",
+  "cart-default-selection.test.ts"
 ];
 
 // 2. Storefront Contract Suites (Mocked / Typed Fixtures)
