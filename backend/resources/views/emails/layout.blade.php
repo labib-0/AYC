@@ -233,8 +233,7 @@
                         WhatsApp Export Desk: <a href="https://wa.me/8801620853502">+880 1620-853502</a> &bull; Web: <a href="https://ayaanclothing.com">www.ayaanclothing.com</a>
                     </div>
                     <div class="footer-disclaimer">
-                        This is an automated transactional notification regarding your Request for Quotation at AYAAN CLOTHING.
-                        Please do not reply directly to this automated email. For inquiries, contact your assigned export merchandiser.
+                        {{ $footerNotice ?? 'This is an automated transactional notification from AYAAN CLOTHING. Please do not reply directly to this email. For inquiries, contact our export team.' }}
                     </div>
                 </td>
             </tr>

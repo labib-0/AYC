@@ -124,6 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (res?.user) {
         const u = { ...res.user, id: String(res.user.id) };
+        if ((res as any)?.requires_verification) {
+          return { user: u, requires_verification: true, email: (res as any)?.email || u.email };
+        }
         setUser(u);
         return { user: u };
       }

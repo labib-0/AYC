@@ -3,42 +3,72 @@
 import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { CheckCircle2, AlertCircle, Mail, ArrowRight, RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  AlertCircle,
+  Mail,
+  ArrowRight,
+  RefreshCw,
+  ShieldCheck,
+  ShieldAlert,
+  Lock,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import BrandName from "@/components/common/BrandName";
 import { apiClient } from "@/services/api-client";
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const statusParam = searchParams.get("status");
   const idParam = searchParams.get("id");
   const hashParam = searchParams.get("hash");
+  const tokenParam = searchParams.get("token");
   const expiresParam = searchParams.get("expires");
   const signatureParam = searchParams.get("signature");
+  const emailParam = searchParams.get("email");
 
-  const [status, setStatus] = useState<"loading" | "success" | "already_verified" | "invalid_or_expired" | "error">(
+  const [status, setStatus] = useState<
+    "loading" | "success" | "already_verified" | "different_browser" | "invalid_or_expired" | "unverified" | "error"
+  >(
     statusParam === "success"
       ? "success"
       : statusParam === "already_verified"
       ? "already_verified"
+      : statusParam === "different_browser"
+      ? "different_browser"
+      : statusParam === "unverified"
+      ? "unverified"
       : statusParam
       ? "invalid_or_expired"
-      : idParam && hashParam
+      : idParam && (hashParam || tokenParam)
       ? "loading"
       : "invalid_or_expired"
   );
 
-  const [resendEmail, setResendEmail] = useState("");
+  const [resendEmail, setResendEmail] = useState(emailParam || "");
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
 
+  // Cross-browser password verification state
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
   useEffect(() => {
     // If URL contains signed parameters, verify via API directly
-    if (idParam && hashParam && expiresParam && signatureParam && status === "loading") {
-      const verifyUrl = `/auth/email/verify/${idParam}/${hashParam}?expires=${encodeURIComponent(
+    if (idParam && expiresParam && signatureParam && status === "loading") {
+      let verifyUrl = `/auth/email/verify/${idParam}/${hashParam || "hash"}?expires=${encodeURIComponent(
         expiresParam
       )}&signature=${encodeURIComponent(signatureParam)}`;
+
+      if (tokenParam) {
+        verifyUrl += `&token=${encodeURIComponent(tokenParam)}`;
+      }
 
       apiClient
         .get<{ data?: { already_verified?: boolean } }>(verifyUrl)
@@ -49,11 +79,18 @@ function VerifyEmailContent() {
             setStatus("success");
           }
         })
-        .catch(() => {
-          setStatus("invalid_or_expired");
+        .catch((err: any) => {
+          if (err?.status === 403 && (err?.data?.status === "different_browser" || err?.message?.includes("different browser"))) {
+            setStatus("different_browser");
+            if (err?.data?.email && !resendEmail) {
+              setResendEmail(err.data.email);
+            }
+          } else {
+            setStatus("invalid_or_expired");
+          }
         });
     }
-  }, [idParam, hashParam, expiresParam, signatureParam, status]);
+  }, [idParam, hashParam, tokenParam, expiresParam, signatureParam, status, resendEmail]);
 
   const handleResend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +115,40 @@ function VerifyEmailContent() {
       setResendError(msg);
     } finally {
       setResending(false);
+    }
+  };
+
+  const handlePasswordVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password) {
+      setPasswordError("Please enter your account password.");
+      return;
+    }
+    if (!tokenParam || !idParam) {
+      setPasswordError("Missing verification challenge. Please request a new link.");
+      return;
+    }
+
+    setVerifyingPassword(true);
+    setPasswordError(null);
+
+    try {
+      const res = await apiClient.post<any>("/auth/email/verify-with-credentials", {
+        id: idParam,
+        token: tokenParam,
+        password,
+      });
+
+      if (res?.data?.verified || res?.status === 200 || res?.success) {
+        setStatus("success");
+      } else {
+        setStatus("success");
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Password verification failed. Please try again.";
+      setPasswordError(msg);
+    } finally {
+      setVerifyingPassword(false);
     }
   };
 
@@ -126,14 +197,81 @@ function VerifyEmailContent() {
         </div>
       )}
 
-      {status === "invalid_or_expired" && (
+      {status === "different_browser" && (
+        <div className="py-4">
+          <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/60 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-600 dark:text-amber-400">
+            <ShieldAlert size={36} />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Different Browser Detected</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
+            For your security, verification links are bound to the browser used to create your account. Please open the link in your original browser, or verify on this device using your password:
+          </p>
+
+          {passwordError && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs text-left">
+              {passwordError}
+            </div>
+          )}
+
+          <form onSubmit={handlePasswordVerification} className="space-y-3 text-left mb-6">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                Account Password
+              </label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={verifyingPassword}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-white bg-slate-900 hover:bg-slate-800 dark:bg-amber-600 dark:hover:bg-amber-500 transition-colors text-sm disabled:opacity-50"
+            >
+              {verifyingPassword ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck size={16} />}
+              <span>{verifyingPassword ? "Verifying..." : "Verify on This Device"}</span>
+            </button>
+          </form>
+
+          <div className="pt-4 border-t border-slate-200 dark:border-white/10 text-xs text-slate-500 space-y-2">
+            <p>Alternatively, open the link in the browser where you started registration.</p>
+            <Link
+              href="/login"
+              className="inline-block text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white underline"
+            >
+              Return to Sign In
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {(status === "invalid_or_expired" || status === "unverified") && (
         <div className="py-4">
           <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/60 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-600 dark:text-amber-400">
             <AlertCircle size={36} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Link Expired or Invalid</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+            {status === "unverified" ? "Email Verification Required" : "Link Expired or Invalid"}
+          </h1>
           <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
-            This verification link is invalid or has expired (links expire after 60 minutes for security). Enter your email below to receive a fresh verification link.
+            {status === "unverified"
+              ? "Please verify your email address to access your complete customer account. Enter your email below to request a new link."
+              : "This verification link is invalid or has expired (links expire after 60 minutes for security). Enter your email below to receive a fresh verification link."}
           </p>
 
           {resendMessage && (

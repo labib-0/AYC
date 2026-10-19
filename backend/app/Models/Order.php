@@ -140,6 +140,11 @@ class Order extends Model
         return $this->belongsTo(User::class, 'payment_confirmed_by');
     }
 
+    public function emailDispatches(): HasMany
+    {
+        return $this->hasMany(OrderEmailDispatch::class);
+    }
+
     /**
      * Scope query to qualifying orders attributed to coupons bound to the given admin.
      * Enforces strict server-side scoping:

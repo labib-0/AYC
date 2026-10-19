@@ -22,10 +22,11 @@ class CustomerVerifyEmailNotification extends Notification implements ShouldQueu
     /**
      * Create a new notification instance.
      */
-    public function __construct()
-    {
-        //
-    }
+    public function __construct(
+        public ?string $verificationUrl = null,
+        public ?string $rawToken = null,
+        public ?int $expiresInMinutes = null
+    ) {}
 
     /**
      * Get the notification's delivery channels.
@@ -42,11 +43,11 @@ class CustomerVerifyEmailNotification extends Notification implements ShouldQueu
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $verificationUrl = $this->verificationUrl($notifiable);
-        $expiresInMinutes = Config::get('auth.verification.expire', 60);
+        $verificationUrl = $this->verificationUrl ?: $this->defaultVerificationUrl($notifiable);
+        $expiresInMinutes = $this->expiresInMinutes ?: (int) Config::get('auth.verification.expire', 60);
 
         return (new MailMessage)
-            ->subject('Verify Your AYAAN CLOTHING Account')
+            ->subject('Verify your AYAAN CLOTHING account')
             ->view('emails.auth.verify-email', [
                 'recipientName' => $notifiable->name ?? 'Valued Customer',
                 'verificationUrl' => $verificationUrl,
@@ -62,17 +63,23 @@ class CustomerVerifyEmailNotification extends Notification implements ShouldQueu
     }
 
     /**
-     * Generate the signed verification URL for the given notifiable.
+     * Generate the default fallback signed verification URL for the given notifiable.
      */
-    protected function verificationUrl(object $notifiable): string
+    protected function defaultVerificationUrl(object $notifiable): string
     {
+        $params = [
+            'id' => $notifiable->getKey(),
+            'hash' => sha1($notifiable->getEmailForVerification()),
+        ];
+
+        if ($this->rawToken) {
+            $params['token'] = $this->rawToken;
+        }
+
         return URL::temporarySignedRoute(
             'verification.verify',
-            Carbon::now()->addMinutes(Config::get('auth.verification.expire', 60)),
-            [
-                'id' => $notifiable->getKey(),
-                'hash' => sha1($notifiable->getEmailForVerification()),
-            ]
+            Carbon::now()->addMinutes($this->expiresInMinutes ?: (int) Config::get('auth.verification.expire', 60)),
+            $params
         );
     }
 

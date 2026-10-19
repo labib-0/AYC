@@ -35,7 +35,28 @@ class AuthController extends ApiController
             'role' => User::ROLE_CUSTOMER,
         ]);
 
-        // Send account email verification notification
+        // When verification is enabled, send challenge and attach browser-binding cookie
+        $verificationService = app(\App\Services\Auth\EmailVerificationService::class);
+        if ($verificationService->isEnabled()) {
+            $challenge = $verificationService->sendVerificationNotification(
+                $user,
+                $request->cookie($verificationService->getCookieName())
+            );
+
+            $response = $this->success([
+                'user' => $user,
+                'requires_verification' => true,
+                'email' => $user->email,
+            ], 'Registration successful. A verification link has been sent to your email address.', 201);
+
+            if (! empty($challenge['cookie'])) {
+                $response->withCookie($challenge['cookie']);
+            }
+
+            return $response;
+        }
+
+        // Default production behavior (100% preserved when EMAIL_VERIFICATION_ENABLED is false)
         $user->sendEmailVerificationNotification();
 
         $token = $user->createToken('auth_token')->plainTextToken;

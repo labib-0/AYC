@@ -128,4 +128,16 @@ return [
     'admin_recipients' => env('RFQ_ADMIN_EMAILS', env('ADMIN_NOTIFICATION_EMAIL', '')),
     'notifications_enabled' => (bool) env('RFQ_NOTIFICATIONS_ENABLED', true),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Order Emails Feature Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Production default is strictly false until all email system stages complete.
+    |
+    */
+    'order_emails' => [
+        'enabled' => (bool) env('ORDER_EMAILS_ENABLED', false),
+    ],
+
 ];

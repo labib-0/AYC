@@ -373,6 +373,13 @@ class OrderController extends ApiController
             $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_ON_SHIPMENT);
         } elseif ($newStatus === 'confirmed') {
             $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_ORDER_CONFIRMED);
+
+            // Transactional Email: Queue order confirmed notification (safely post-commit)
+            try {
+                app(\App\Services\Mail\OrderEmailService::class)->queueOrderConfirmed($order);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to queue order confirmed email for Order #{$order->order_number}: " . $e->getMessage());
+            }
         }
 
         return $this->success(new OrderResource($order->fresh(['items', 'payments', 'statusEvents'])), 'Order status updated successfully');
@@ -685,6 +692,13 @@ class OrderController extends ApiController
         // Requirement 8: Dispatch canonical lifecycle notification
         if ($isApprove) {
             $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_ORDER_CONFIRMED);
+
+            // Transactional Email: Queue order confirmed notification (safely post-commit)
+            try {
+                app(\App\Services\Mail\OrderEmailService::class)->queueOrderConfirmed($order);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to queue order confirmed email for Order #{$order->order_number}: " . $e->getMessage());
+            }
         } else {
             $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_PAYMENT_PENDING, "Payment review notice: {$note}. Please resubmit your payment proof.");
         }

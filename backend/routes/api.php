@@ -88,6 +88,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
             ->name('verification.verify')
             ->middleware('throttle:verification-verify');
+        Route::post('/email/verify-with-credentials', [EmailVerificationController::class, 'verifyWithCredentials'])
+            ->middleware('throttle:verification-verify');
         Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])
             ->name('verification.send')
             ->middleware('throttle:verification-resend');

@@ -756,6 +756,14 @@ class OrderController extends ApiController
                 $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_PAYMENT_PENDING);
             }
 
+            // Step 3: Transactional Order Confirmation Email with PI & Offer Sheet attachments
+            try {
+                app(\App\Services\Mail\OrderEmailService::class)->queueOrderConfirmation($order);
+            } catch (\Throwable $e) {
+                // Critical Safety: Mail dispatch failure must NEVER roll back or disrupt a committed order
+                \Illuminate\Support\Facades\Log::error("Failed to queue order confirmation email for Order #{$order->order_number}: " . $e->getMessage());
+            }
+
             return $this->success(new OrderResource($order), 'Order placed successfully', 201);
         } catch (InsufficientStockException $e) {
             return response()->json([
@@ -1097,6 +1105,17 @@ class OrderController extends ApiController
 
         if (strtolower((string) $order->payment_status) !== 'paid') {
             $order->notifyCustomerOfLifecycleTransition(Order::CUSTOMER_STATUS_WAITING_FOR_APPROVAL);
+
+            // Transactional Email: Queue payment proof received notification (safely post-commit)
+            try {
+                app(\App\Services\Mail\OrderEmailService::class)->queuePaymentProofReceived(
+                    $order,
+                    $originalName,
+                    $paymentMethod
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to queue payment proof received email for Order #{$order->order_number}: " . $e->getMessage());
+            }
         }
 
         $order->load(['items', 'statusEvents', 'payments']);

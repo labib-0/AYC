@@ -18,6 +18,14 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [verificationSentEmail, setVerificationSentEmail] = useState<string | null>(null);
+
+  const maskEmail = (str: string) => {
+    const [local, domain] = str.split("@");
+    if (!domain) return str;
+    if (local.length <= 2) return `${local}***@${domain}`;
+    return `${local[0]}***${local[local.length - 1]}@${domain}`;
+  };
 
   const getRedirectUrl = (_targetUser?: any) => {
     if (typeof window !== "undefined") {
@@ -63,10 +71,52 @@ export default function SignUpPage() {
     if (res.error) {
       const errMsg = typeof res.error === "string" ? res.error : res.error.message || "Failed to create account. Please try again.";
       setError(errMsg);
+    } else if ((res as any)?.requires_verification) {
+      setVerificationSentEmail((res as any)?.email || email);
     } else {
       router.push(getRedirectUrl(res.user));
     }
   };
+
+  if (verificationSentEmail) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl p-8 text-center">
+          <div className="mb-6">
+            <Link href="/" className="inline-block mb-3">
+              <BrandName className="text-2xl font-bold tracking-wider text-foreground" />
+            </Link>
+          </div>
+          <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/60 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-600 dark:text-amber-400">
+            <Mail size={32} />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Verify Your Email</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
+            We sent a secure verification link to{" "}
+            <strong className="text-slate-900 dark:text-white font-semibold">
+              {maskEmail(verificationSentEmail)}
+            </strong>
+            . Please open the link in <strong className="text-amber-600 dark:text-amber-400">this browser</strong> to complete your account setup.
+          </p>
+
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs text-slate-500 dark:text-slate-400 text-left mb-6 space-y-1.5">
+            <p className="font-semibold text-slate-700 dark:text-slate-300">Quick Tips:</p>
+            <p>&bull; The verification link is time-limited and valid for 60 minutes.</p>
+            <p>&bull; For security, please keep this browser open while checking your inbox.</p>
+          </div>
+
+          <div className="space-y-3">
+            <Link
+              href="/login"
+              className="w-full inline-block py-3 px-4 rounded-xl font-medium text-white bg-slate-900 hover:bg-slate-800 dark:bg-amber-600 dark:hover:bg-amber-500 transition-colors shadow-md text-sm"
+            >
+              Sign In to Your Account
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">

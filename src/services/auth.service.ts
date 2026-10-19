@@ -87,7 +87,7 @@ export class AuthService {
       if (authData?.token) {
         apiClient.setToken(authData.token);
       }
-      if (authData?.user) {
+      if (authData?.user && !authData?.requires_verification) {
         mockStore.setActiveUser(authData.user);
       }
       return authData;

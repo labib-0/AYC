@@ -114,4 +114,22 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Verification Settings
+    |--------------------------------------------------------------------------
+    |
+    | Safe default leaves current production behavior untouched unless explicitly
+    | enabled in test/staging/production via EMAIL_VERIFICATION_ENABLED=true.
+    |
+    */
+
+    'verification' => [
+        'enabled' => (bool) env('EMAIL_VERIFICATION_ENABLED', false),
+        'expire' => (int) env('EMAIL_VERIFICATION_EXPIRE_MINUTES', 60),
+        'same_browser_required' => (bool) env('EMAIL_VERIFICATION_SAME_BROWSER', true),
+        'cookie_name' => env('EMAIL_VERIFICATION_COOKIE_NAME', 'ayc_reg_binding'),
+        'enforce_from' => env('EMAIL_VERIFICATION_ENFORCE_FROM', '2026-10-18 00:00:00'),
+    ],
+
 ];

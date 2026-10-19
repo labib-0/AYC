@@ -212,10 +212,51 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Associated email verification challenge tokens.
+     */
+    public function emailVerificationTokens(): HasMany
+    {
+        return $this->hasMany(EmailVerificationToken::class);
+    }
+
+    /**
+     * Check if user is either verified or exempt as an existing legacy customer.
+     * Prevents locking out historical accounts when verification is activated.
+     */
+    public function isVerifiedOrLegacyExempt(): bool
+    {
+        if ($this->hasVerifiedEmail()) {
+            return true;
+        }
+
+        // When verification is disabled, all accounts are permitted
+        if (! config('auth.verification.enabled', false)) {
+            return true;
+        }
+
+        // Legacy accounts registered before verification cutoff are grandfathered in
+        $enforceFrom = config('auth.verification.enforce_from');
+        if ($enforceFrom && $this->created_at) {
+            $cutoff = \Carbon\Carbon::parse($enforceFrom);
+            if ($this->created_at->lt($cutoff)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Send the email verification notification using our branded template.
      */
     public function sendEmailVerificationNotification(): void
     {
+        if (config('auth.verification.enabled', false)) {
+            app(\App\Services\Auth\EmailVerificationService::class)->sendVerificationNotification($this);
+            return;
+        }
+
         $this->notify(new \App\Notifications\CustomerVerifyEmailNotification());
     }
 }
+
