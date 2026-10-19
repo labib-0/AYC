@@ -14,7 +14,12 @@ interface AdminAuthContextType {
   can: (permissionSlug: string) => boolean;
   canAny: (permissionSlugs: string[]) => boolean;
   canAll: (permissionSlugs: string[]) => boolean;
-  signInAdmin: (email: string, password: string) => Promise<{ error?: string; user?: User }>;
+  signInAdmin: (
+    email: string,
+    password: string,
+    honeypot?: string,
+    formToken?: string
+  ) => Promise<{ error?: string; user?: User }>;
   signOutAdmin: () => Promise<void>;
   refreshAdminSession: () => Promise<void>;
 }
@@ -94,9 +99,19 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     return permissionSlugs.every((slug) => effectiveSet.has(slug));
   }, [adminUser, isSuperAdmin, effectiveSet]);
 
-  const signInAdmin = async (email: string, password: string) => {
+  const signInAdmin = async (
+    email: string,
+    password: string,
+    honeypot?: string,
+    formToken?: string
+  ) => {
     try {
-      const res = await adminAuthService.loginAdmin({ email, password });
+      const res = await adminAuthService.loginAdmin({
+        email,
+        password,
+        website_url_hp: honeypot,
+        form_token: formToken,
+      });
       if (res?.user) {
         setAdminUser(res.user);
         try {

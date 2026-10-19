@@ -119,10 +119,11 @@ export class AdminAuthService {
       if (tokenToUse) {
         headers["X-Form-Token"] = tokenToUse;
       }
-      const payload: Record<string, any> = { email, password };
-      if (credentials.website_url_hp !== undefined) {
-        payload.website_url_hp = credentials.website_url_hp;
-      }
+      const payload: Record<string, any> = {
+        email,
+        password,
+        website_url_hp: credentials.website_url_hp ?? "",
+      };
 
       const res = await apiClient.post<any>("/auth/admin/login", payload, { headers });
       const authData = "data" in res && res.data ? res.data : res;

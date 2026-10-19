@@ -185,7 +185,7 @@ class OrderController extends ApiController
         }
 
         $botError = app(\App\Services\Security\NativeBotProtectionService::class)
-            ->validateSubmission($request, 'order-checkout', minSeconds: 1);
+            ->validateSubmission($request, 'order-checkout', minSeconds: 1, requireToken: true);
         if ($botError !== null) {
             return $this->error($botError, 422);
         }

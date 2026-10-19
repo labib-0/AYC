@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { Lock, Mail, AlertCircle, KeyRound, Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
+import { securityService } from "@/services/security.service";
+import HoneypotField from "@/components/common/HoneypotField";
 
 interface AdminAuthModalProps {
   isOpen: boolean;
@@ -22,8 +24,17 @@ export default function AdminAuthModal({
   const { signInAdmin } = useAdminAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const [formToken, setFormToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      securityService.getFormToken("admin-login").then(setFormToken);
+      setHoneypot("");
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -33,7 +44,7 @@ export default function AdminAuthModal({
     setLoading(true);
 
     try {
-      const res = await signInAdmin(email, password);
+      const res = await signInAdmin(email, password, honeypot, formToken || undefined);
       if (res?.error) {
         setError(res.error);
       } else {
@@ -78,6 +89,7 @@ export default function AdminAuthModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3.5">
+          <HoneypotField value={honeypot} onChange={setHoneypot} />
           <div>
             <label className="text-[11px] font-semibold text-foreground uppercase tracking-wider block mb-1">
               Admin Email

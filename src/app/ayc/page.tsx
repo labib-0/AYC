@@ -15,16 +15,24 @@ import {
 } from "lucide-react";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { getCustomerAppUrl } from "@/config/site-urls";
+import { securityService } from "@/services/security.service";
+import HoneypotField from "@/components/common/HoneypotField";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const { signInAdmin, isAdmin } = useAdminAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const [formToken, setFormToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const storefrontUrl = getCustomerAppUrl();
+
+  React.useEffect(() => {
+    securityService.getFormToken("admin-login").then(setFormToken);
+  }, []);
 
   const getRedirectTarget = () => {
     if (typeof window !== "undefined") {
@@ -56,7 +64,7 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const res = await signInAdmin(email, password);
+      const res = await signInAdmin(email, password, honeypot, formToken || undefined);
       if (res?.error) {
         setError(res.error);
       } else {
@@ -124,6 +132,7 @@ export default function AdminLoginPage() {
 
           {/* Login Form */}
           <form onSubmit={handleAdminLogin} className="space-y-4">
+            <HoneypotField value={honeypot} onChange={setHoneypot} />
             <div>
               <label className="text-xs font-semibold text-foreground block mb-1.5">
                 Admin Email

@@ -24,7 +24,7 @@ class AuthController extends ApiController
     public function register(Request $request): JsonResponse
     {
         $botError = app(\App\Services\Security\NativeBotProtectionService::class)
-            ->validateSubmission($request, 'signup', minSeconds: 2);
+            ->validateSubmission($request, 'signup', minSeconds: 2, requireToken: true);
         if ($botError !== null) {
             return $this->error($botError, 422);
         }
@@ -100,7 +100,7 @@ class AuthController extends ApiController
     public function adminLogin(LoginRequest $request): JsonResponse
     {
         $botError = app(\App\Services\Security\NativeBotProtectionService::class)
-            ->validateSubmission($request, 'admin-login', minSeconds: 1);
+            ->validateSubmission($request, 'admin-login', minSeconds: 1, requireToken: true);
         if ($botError !== null) {
             return $this->error($botError, 422);
         }
@@ -189,7 +189,7 @@ class AuthController extends ApiController
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
         $botError = app(\App\Services\Security\NativeBotProtectionService::class)
-            ->validateSubmission($request, 'forgot-password', minSeconds: 2);
+            ->validateSubmission($request, 'forgot-password', minSeconds: 2, requireToken: true);
         if ($botError !== null) {
             // Silently return generic message without triggering outbound email
             return $this->success(null, 'If an account exists with this email address, a password reset link has been sent.');

@@ -122,8 +122,26 @@ const adminAuthContent = fs.readFileSync(adminAuthPath, "utf-8");
 assert(
   adminAuthContent.includes('securityService.getFormToken("admin-login")') &&
   adminAuthContent.includes('headers["X-Form-Token"] = tokenToUse') &&
-  adminAuthContent.includes('payload.website_url_hp = credentials.website_url_hp'),
+  adminAuthContent.includes('website_url_hp: credentials.website_url_hp'),
   "adminAuthService.loginAdmin attaches X-Form-Token header and forwards honeypot"
+);
+
+const adminPagePath = path.join(srcDir, "app", "ayc", "page.tsx");
+const adminPageContent = fs.readFileSync(adminPagePath, "utf-8");
+assert(
+  adminPageContent.includes('securityService.getFormToken("admin-login")') &&
+  adminPageContent.includes('<HoneypotField') &&
+  adminPageContent.includes('signInAdmin(email, password, honeypot, formToken'),
+  "AdminLoginPage pre-fetches admin-login token, renders HoneypotField, and passes both"
+);
+
+const adminModalPath = path.join(srcDir, "components", "admin", "auth", "AdminAuthModal.tsx");
+const adminModalContent = fs.readFileSync(adminModalPath, "utf-8");
+assert(
+  adminModalContent.includes('securityService.getFormToken("admin-login")') &&
+  adminModalContent.includes('<HoneypotField') &&
+  adminModalContent.includes('signInAdmin(email, password, honeypot, formToken'),
+  "AdminAuthModal pre-fetches admin-login token, renders HoneypotField, and passes both"
 );
 
 // Flow D: RFQ Submission
@@ -161,9 +179,11 @@ const checkoutModalPath = path.join(srcDir, "components", "cart", "CheckoutModal
 const checkoutModalContent = fs.readFileSync(checkoutModalPath, "utf-8");
 assert(
   checkoutModalContent.includes('securityService.getFormToken("order-checkout")') &&
+  checkoutModalContent.includes('<HoneypotField') &&
+  checkoutModalContent.includes('website_url_hp: honeypot') &&
   checkoutModalContent.includes('idempotencyKey: idempotencyKeyRef.current') &&
   checkoutModalContent.includes('formToken: formTokenRef.current'),
-  "CheckoutModal pre-fetches order-checkout token and passes idempotency key + token"
+  "CheckoutModal pre-fetches order-checkout token, renders HoneypotField, and passes idempotency key + token"
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -264,35 +284,39 @@ assert(resLegit.ok, "Legitimate human submission (4s elapsed, empty honeypot) pa
 
 // Test 2: Honeypot populated by spam bot
 const resHoneypot = simulateBackendValidation(legitToken, "https://spam-bot.online", "signup", now, 2);
-assert(!resHoneypot.ok && resHoneypot.error?.includes("Automated form submission"), "Populated honeypot is immediately rejected with spam error");
+assert(Boolean(!resHoneypot.ok && resHoneypot.error?.includes("Automated form submission")), "Populated honeypot is immediately rejected with spam error");
 
 // Test 3: Sub-second submission (< minSeconds)
 const fastToken = generateSignedToken("signup", now, "nonce_fast_001");
 const resFast = simulateBackendValidation(fastToken, "", "signup", now, 2);
-assert(!resFast.ok && resFast.error?.includes("too quickly"), "Sub-second submission (0s elapsed) is rejected as too fast");
+assert(Boolean(!resFast.ok && resFast.error?.includes("too quickly")), "Sub-second submission (0s elapsed) is rejected as too fast");
 
 // Test 4: Action mismatch (order-checkout token submitted to signup)
 const rfqToken = generateSignedToken("order-checkout", now - 5, "nonce_action_001");
 const resMismatch = simulateBackendValidation(rfqToken, "", "signup", now, 2);
-assert(!resMismatch.ok && resMismatch.error?.includes("was issued for 'order-checkout'"), "Token issued for 'order-checkout' is rejected on 'signup'");
+assert(Boolean(!resMismatch.ok && resMismatch.error?.includes("was issued for 'order-checkout'")), "Token issued for 'order-checkout' is rejected on 'signup'");
 
 // Test 5: Replay attack (re-submitting same token)
 const resReplay = simulateBackendValidation(legitToken, "", "signup", now + 1, 2);
-assert(!resReplay.ok && resReplay.error?.includes("already been used"), "Replaying previously consumed token is rejected by nonce cache");
+assert(Boolean(!resReplay.ok && resReplay.error?.includes("already been used")), "Replaying previously consumed token is rejected by nonce cache");
 
 // Test 6: Expired token (> 15 minutes)
 const expiredToken = generateSignedToken("signup", now - 1000, "nonce_exp_001");
 const resExpired = simulateBackendValidation(expiredToken, "", "signup", now, 2);
-assert(!resExpired.ok && resExpired.error?.includes("expired"), "Token older than 15 minutes is rejected as expired");
+assert(Boolean(!resExpired.ok && resExpired.error?.includes("expired")), "Token older than 15 minutes is rejected as expired");
 
 // Test 7: Tampered signature
 const tamperedToken = legitToken.slice(0, -4) + "abcd";
 const resTampered = simulateBackendValidation(tamperedToken, "", "signup", now, 2);
-assert(!resTampered.ok && resTampered.error?.includes("signature"), "Tampered token signature is rejected");
+assert(Boolean(!resTampered.ok && resTampered.error?.includes("signature")), "Tampered token signature is rejected");
 
-// Test 8: Missing token graceful fallback (when requireToken = false)
-const resMissing = simulateBackendValidation(null, "", "signup", now, 2, 900, false);
-assert(resMissing.ok, "Missing token falls back gracefully when requireToken = false to protect edge-case users");
+// Test 8: Missing token when requireToken = true is strictly rejected
+const resMissingMandatory = simulateBackendValidation(null, "", "signup", now, 2, 900, true);
+assert(Boolean(!resMissingMandatory.ok && resMissingMandatory.error?.includes("Missing security verification token")), "Missing token is strictly rejected when requireToken = true");
+
+// Test 9: Missing token optional fallback for internal/testing policy
+const resMissingOptional = simulateBackendValidation(null, "", "signup", now, 2, 900, false);
+assert(resMissingOptional.ok, "Missing token falls back gracefully when requireToken = false (internal/testing policy)");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. Effective Nginx Configuration Verification

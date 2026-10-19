@@ -24,6 +24,7 @@ import { CouponRecord } from "@/services/admin/coupon.service";
 import { validateCoupon } from "@/lib/coupon";
 import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
 import { securityService } from "@/services/security.service";
+import HoneypotField from "@/components/common/HoneypotField";
 import { trackOrderSuccessConversion } from "@/lib/analytics/google-ads";
 import {
   X,
@@ -116,9 +117,11 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   // Idempotency key for order submission — generated once per checkout session and reused across retries
   const idempotencyKeyRef = useRef<string>("");
   const formTokenRef = useRef<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
 
   useEffect(() => {
     if (isOpen) {
+      setHoneypot("");
       if (!idempotencyKeyRef.current) {
         idempotencyKeyRef.current = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
           ? crypto.randomUUID()
@@ -130,6 +133,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     } else {
       idempotencyKeyRef.current = "";
       formTokenRef.current = null;
+      setHoneypot("");
     }
   }, [isOpen]);
 
@@ -753,6 +757,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       const newOrder = await createOrder({
         idempotencyKey: idempotencyKeyRef.current,
         formToken: formTokenRef.current || undefined,
+        website_url_hp: honeypot,
         userId: orderUserId,
         email: dest.email,
         shippingName: dest.name,
@@ -1120,6 +1125,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           className="bg-card border border-border/80 w-full max-w-2xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,840px)] animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
+          <HoneypotField value={honeypot} onChange={setHoneypot} />
           {/* Modal Header (Pinned) */}
           <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-border bg-card shrink-0">
             <div>
