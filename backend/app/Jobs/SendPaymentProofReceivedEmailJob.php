@@ -31,6 +31,7 @@ class SendPaymentProofReceivedEmailJob implements ShouldQueue
         public ?string $paymentMethod = null
     ) {
         $this->onQueue(config('order.emails.queue', 'default'));
+        $this->afterCommit();
     }
 
     /**

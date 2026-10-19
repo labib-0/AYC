@@ -32,6 +32,7 @@ class SendOrderConfirmationEmailJob implements ShouldQueue
         public ?int $dispatchId = null
     ) {
         $this->onQueue(config('order.emails.queue', 'default'));
+        $this->afterCommit();
     }
 
     /**

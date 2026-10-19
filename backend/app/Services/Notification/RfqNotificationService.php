@@ -9,96 +9,103 @@ use App\Notifications\RfqApprovedNotification;
 use App\Notifications\RfqCreatedNotification;
 use App\Notifications\RfqRejectedNotification;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class RfqNotificationService
 {
     /**
-     * Notify customer and administrators upon new RFQ submission.
+     * Notify customer and administrators upon new RFQ submission after transaction commit.
      */
     public function notifySubmission(Quote $rfq): void
     {
-        try {
-            $this->sendCustomerSubmissionConfirmation($rfq);
-            $this->sendAdminNewRfqAlert($rfq);
-        } catch (\Throwable $e) {
-            Log::error("Failed to dispatch RFQ submission notifications: " . $e->getMessage(), [
-                'rfq_id' => $rfq->id,
-                'rfq_number' => $rfq->rfq_number,
-                'exception' => $e,
-            ]);
-        }
+        DB::afterCommit(function () use ($rfq) {
+            try {
+                $this->sendCustomerSubmissionConfirmation($rfq);
+                $this->sendAdminNewRfqAlert($rfq);
+            } catch (\Throwable $e) {
+                Log::error("Failed to dispatch RFQ submission notifications: " . $e->getMessage(), [
+                    'rfq_id' => $rfq->id,
+                    'rfq_number' => $rfq->rfq_number,
+                    'exception' => $e,
+                ]);
+            }
+        });
     }
 
     /**
-     * Notify customer when RFQ is approved by administration.
+     * Notify customer when RFQ is approved by administration after transaction commit.
      */
     public function notifyApproval(Quote $rfq, ?string $approvalNote = null): void
     {
-        try {
-            // Idempotency: prevent duplicate approval notification
-            $cacheKey = "rfq_notified_approval_{$rfq->id}";
-            if (!Cache::add($cacheKey, true, now()->addHours(24))) {
-                Log::info("Skipping duplicate RFQ approval notification for {$rfq->rfq_number}");
-                return;
+        DB::afterCommit(function () use ($rfq, $approvalNote) {
+            try {
+                $customerEmail = $this->resolveCustomerEmail($rfq);
+                if (!$this->isValidCustomerEmail($customerEmail)) {
+                    Log::info("Skipping customer approval email: no valid customer email for RFQ {$rfq->rfq_number}");
+                    return;
+                }
+
+                // Idempotency: prevent duplicate approval notification
+                $cacheKey = "rfq_notified_approval_{$rfq->id}";
+                if (!Cache::add($cacheKey, true, now()->addHours(24))) {
+                    Log::info("Skipping duplicate RFQ approval notification for {$rfq->rfq_number}");
+                    return;
+                }
+
+                $notifiable = $rfq->user && strtolower($rfq->user->email) === strtolower($customerEmail)
+                    ? $rfq->user
+                    : Notification::route('mail', $customerEmail);
+
+                $notifiable->notify(new RfqApprovedNotification($rfq, $approvalNote));
+
+                Log::info("Dispatched RFQ approval notification for {$rfq->rfq_number} to {$customerEmail}");
+            } catch (\Throwable $e) {
+                Log::error("Failed to dispatch RFQ approval notification: " . $e->getMessage(), [
+                    'rfq_id' => $rfq->id,
+                    'rfq_number' => $rfq->rfq_number,
+                    'exception' => $e,
+                ]);
             }
-
-            $customerEmail = $this->resolveCustomerEmail($rfq);
-            if (!$this->isValidCustomerEmail($customerEmail)) {
-                Log::info("Skipping customer approval email: no valid customer email for RFQ {$rfq->rfq_number}");
-                return;
-            }
-
-            $notifiable = $rfq->user && strtolower($rfq->user->email) === strtolower($customerEmail)
-                ? $rfq->user
-                : Notification::route('mail', $customerEmail);
-
-            $notifiable->notify(new RfqApprovedNotification($rfq, $approvalNote));
-
-            Log::info("Dispatched RFQ approval notification for {$rfq->rfq_number} to {$customerEmail}");
-        } catch (\Throwable $e) {
-            Log::error("Failed to dispatch RFQ approval notification: " . $e->getMessage(), [
-                'rfq_id' => $rfq->id,
-                'rfq_number' => $rfq->rfq_number,
-                'exception' => $e,
-            ]);
-        }
+        });
     }
 
     /**
-     * Notify customer when RFQ is rejected by administration.
+     * Notify customer when RFQ is rejected by administration after transaction commit.
      */
     public function notifyRejection(Quote $rfq, ?string $rejectionReason = null): void
     {
-        try {
-            // Idempotency: prevent duplicate rejection notification
-            $cacheKey = "rfq_notified_rejection_{$rfq->id}";
-            if (!Cache::add($cacheKey, true, now()->addHours(24))) {
-                Log::info("Skipping duplicate RFQ rejection notification for {$rfq->rfq_number}");
-                return;
+        DB::afterCommit(function () use ($rfq, $rejectionReason) {
+            try {
+                $customerEmail = $this->resolveCustomerEmail($rfq);
+                if (!$this->isValidCustomerEmail($customerEmail)) {
+                    Log::info("Skipping customer rejection email: no valid customer email for RFQ {$rfq->rfq_number}");
+                    return;
+                }
+
+                // Idempotency: prevent duplicate rejection notification
+                $cacheKey = "rfq_notified_rejection_{$rfq->id}";
+                if (!Cache::add($cacheKey, true, now()->addHours(24))) {
+                    Log::info("Skipping duplicate RFQ rejection notification for {$rfq->rfq_number}");
+                    return;
+                }
+
+                $notifiable = $rfq->user && strtolower($rfq->user->email) === strtolower($customerEmail)
+                    ? $rfq->user
+                    : Notification::route('mail', $customerEmail);
+
+                $notifiable->notify(new RfqRejectedNotification($rfq, $rejectionReason));
+
+                Log::info("Dispatched RFQ rejection notification for {$rfq->rfq_number} to {$customerEmail}");
+            } catch (\Throwable $e) {
+                Log::error("Failed to dispatch RFQ rejection notification: " . $e->getMessage(), [
+                    'rfq_id' => $rfq->id,
+                    'rfq_number' => $rfq->rfq_number,
+                    'exception' => $e,
+                ]);
             }
-
-            $customerEmail = $this->resolveCustomerEmail($rfq);
-            if (!$this->isValidCustomerEmail($customerEmail)) {
-                Log::info("Skipping customer rejection email: no valid customer email for RFQ {$rfq->rfq_number}");
-                return;
-            }
-
-            $notifiable = $rfq->user && strtolower($rfq->user->email) === strtolower($customerEmail)
-                ? $rfq->user
-                : Notification::route('mail', $customerEmail);
-
-            $notifiable->notify(new RfqRejectedNotification($rfq, $rejectionReason));
-
-            Log::info("Dispatched RFQ rejection notification for {$rfq->rfq_number} to {$customerEmail}");
-        } catch (\Throwable $e) {
-            Log::error("Failed to dispatch RFQ rejection notification: " . $e->getMessage(), [
-                'rfq_id' => $rfq->id,
-                'rfq_number' => $rfq->rfq_number,
-                'exception' => $e,
-            ]);
-        }
+        });
     }
 
     /**
@@ -106,15 +113,15 @@ class RfqNotificationService
      */
     protected function sendCustomerSubmissionConfirmation(Quote $rfq): void
     {
-        $cacheKey = "rfq_notified_submission_{$rfq->id}";
-        if (!Cache::add($cacheKey, true, now()->addHours(24))) {
-            Log::info("Skipping duplicate customer submission confirmation for {$rfq->rfq_number}");
-            return;
-        }
-
         $customerEmail = $this->resolveCustomerEmail($rfq);
         if (!$this->isValidCustomerEmail($customerEmail)) {
             Log::info("Skipping customer submission confirmation: no valid email address for RFQ {$rfq->rfq_number}");
+            return;
+        }
+
+        $cacheKey = "rfq_notified_submission_{$rfq->id}";
+        if (!Cache::add($cacheKey, true, now()->addHours(24))) {
+            Log::info("Skipping duplicate customer submission confirmation for {$rfq->rfq_number}");
             return;
         }
 
@@ -132,16 +139,16 @@ class RfqNotificationService
      */
     protected function sendAdminNewRfqAlert(Quote $rfq): void
     {
-        $cacheKey = "rfq_notified_admin_alert_{$rfq->id}";
-        if (!Cache::add($cacheKey, true, now()->addHours(24))) {
-            Log::info("Skipping duplicate admin RFQ alert for {$rfq->rfq_number}");
-            return;
-        }
-
         $recipients = $this->getAdminRecipients();
 
         if (empty($recipients)) {
             Log::info("No administrator recipients configured for RFQ notifications. Configure RFQ_ADMIN_EMAILS in .env.");
+            return;
+        }
+
+        $cacheKey = "rfq_notified_admin_alert_{$rfq->id}";
+        if (!Cache::add($cacheKey, true, now()->addHours(24))) {
+            Log::info("Skipping duplicate admin RFQ alert for {$rfq->rfq_number}");
             return;
         }
 

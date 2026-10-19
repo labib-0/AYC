@@ -22,6 +22,7 @@ class RfqRejectedNotification extends Notification implements ShouldQueue
         public Quote $rfq,
         public ?string $rejectionReason = null
     ) {
+        $this->afterCommit();
     }
 
     public function via(object $notifiable): array

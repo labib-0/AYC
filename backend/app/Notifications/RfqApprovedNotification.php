@@ -22,6 +22,7 @@ class RfqApprovedNotification extends Notification implements ShouldQueue
         public Quote $rfq,
         public ?string $approvalNote = null
     ) {
+        $this->afterCommit();
     }
 
     public function via(object $notifiable): array

@@ -20,6 +20,7 @@ class RfqCreatedNotification extends Notification implements ShouldQueue
 
     public function __construct(public Quote $rfq)
     {
+        $this->afterCommit();
     }
 
     public function via(object $notifiable): array

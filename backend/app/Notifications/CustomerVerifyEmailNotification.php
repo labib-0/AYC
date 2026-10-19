@@ -26,7 +26,9 @@ class CustomerVerifyEmailNotification extends Notification implements ShouldQueu
         public ?string $verificationUrl = null,
         public ?string $rawToken = null,
         public ?int $expiresInMinutes = null
-    ) {}
+    ) {
+        $this->afterCommit();
+    }
 
     /**
      * Get the notification's delivery channels.
