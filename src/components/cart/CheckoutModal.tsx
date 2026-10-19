@@ -23,6 +23,7 @@ import {
 import { CouponRecord } from "@/services/admin/coupon.service";
 import { validateCoupon } from "@/lib/coupon";
 import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
+import { trackOrderSuccessConversion } from "@/lib/analytics/google-ads";
 import {
   X,
   FileText,
@@ -762,6 +763,10 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       setAppliedCoupon(null);
       setPromoInput("");
       setConfirmedOrder(newOrder);
+
+      // Google Ads Conversion Tracking (Canonical order success state)
+      // Note: Configured as "Submit lead form conversion page" (AW-18504838697/kNbLCMPd86EdEKnc5fdE).
+      trackOrderSuccessConversion(newOrder);
     } catch (err: any) {
       if (err?.status === 401 || err?.isAuthError) {
         setError("Please log in to continue to checkout.");
