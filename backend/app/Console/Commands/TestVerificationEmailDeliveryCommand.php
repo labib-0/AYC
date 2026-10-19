@@ -46,17 +46,21 @@ class TestVerificationEmailDeliveryCommand extends Command
         $this->line("Target Recipient: <comment>{$recipient}</comment>");
         $this->line("Delivery Mode   : <comment>" . ($viaQueue ? "Queued (Redis)" : "Synchronous") . "</comment>");
 
-        // In-memory ephemeral user instance
-        $user = new User();
-        $user->id = 999998;
-        $user->name = 'Authorized QA Recipient';
-        $user->email = $recipient;
-        $user->role = User::ROLE_CUSTOMER;
+        // In-memory or persisted ephemeral user instance
+        $user = User::where('email', $recipient)->first();
+        if (!$user) {
+            $user = new User();
+            $user->name = 'Authorized QA Recipient';
+            $user->email = $recipient;
+            $user->role = User::ROLE_CUSTOMER;
+            $user->password = bcrypt('qa-test-ephemeral-' . bin2hex(random_bytes(8)));
 
-        if ($viaQueue) {
-            // Persist ephemeral record so queue worker can hydrate via SerializesModels
-            $user->save();
+            if ($viaQueue) {
+                // Persist ephemeral record so queue worker can hydrate via SerializesModels
+                $user->save();
+            }
         }
+
 
         try {
             $notification = new CustomerVerifyEmailNotification();
