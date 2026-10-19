@@ -308,6 +308,7 @@ class BrandController extends ApiController
         CatalogCacheService::invalidateBrands();
         CatalogCacheService::invalidateAll();
         Cache::forget('storefront_brands');
+        Cache::forget('storefront_landing_brands');
         Cache::forget('active_brands_list');
 
         if ($brand) {
@@ -344,11 +345,25 @@ class BrandController extends ApiController
         \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
             if (!empty($validated['orders'])) {
                 foreach ($validated['orders'] as $item) {
-                    Brand::where('id', $item['id'])->update(['sort_order' => (int) $item['sort_order']]);
+                    $order = (int) $item['sort_order'];
+                    Brand::where('id', $item['id'])->update([
+                        'sort_order' => $order,
+                        'landing_sort_order' => $order,
+                    ]);
+                    HomepageFeaturedBrand::where('brand_id', $item['id'])->update([
+                        'sort_order' => $order,
+                    ]);
                 }
             } elseif (!empty($validated['ids'])) {
                 foreach ($validated['ids'] as $idx => $id) {
-                    Brand::where('id', $id)->update(['sort_order' => (int) $idx]);
+                    $order = (int) $idx;
+                    Brand::where('id', $id)->update([
+                        'sort_order' => $order,
+                        'landing_sort_order' => $order,
+                    ]);
+                    HomepageFeaturedBrand::where('brand_id', $id)->update([
+                        'sort_order' => $order,
+                    ]);
                 }
             }
         });

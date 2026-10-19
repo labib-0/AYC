@@ -7,43 +7,64 @@ import HeaderBranding from "../common/HeaderBranding";
 import SocialIcon from "../common/SocialIcon";
 import { useSiteSettings } from "@/lib/SiteSettingsContext";
 import BUSINESS_PROFILE, { normalizeWhatsAppNumber } from "@/config/business-profile";
-import { categoryService, CategoryModel } from "@/services/category.service";
+import { categoryService } from "@/services/category.service";
 import { brandService, BrandModel } from "@/services/brand.service";
+import {
+  getStorefrontCategories,
+  getStorefrontLandingBrands,
+  StorefrontCategoryItem,
+} from "@/lib/storefront-taxonomies";
 import { filterConfiguredSocialLinks } from "@/lib/social-links";
 
 export default function Footer() {
   const { settings, getWhatsAppUrl } = useSiteSettings();
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const [categories, setCategories] = useState<CategoryModel[]>([]);
+  const [categories, setCategories] = useState<StorefrontCategoryItem[]>([]);
   const [brands, setBrands] = useState<BrandModel[]>([]);
 
-  // Load active categories and brands for dynamic crawlable links
+  // Load active storefront categories and landing brands matching homepage ordering
   useEffect(() => {
+    let isMounted = true;
+
     async function loadTaxonomies() {
       try {
-        const [cList, bList] = await Promise.all([
-          categoryService.getCategories(),
-          brandService.getBrands(),
+        const [rawCats, landingBrands] = await Promise.all([
+          categoryService.getCategories({ is_active: true, all: true }),
+          getStorefrontLandingBrands(),
         ]);
-        if (Array.isArray(cList)) {
-          const filtered = cList.filter(
-            (c) =>
-              c.is_active !== false &&
-              !["men", "women", "boys", "girls", "unisex"].includes(
-                (c.name || "").toLowerCase()
-              )
-          );
-          setCategories(filtered.slice(0, 10));
-        }
-        if (Array.isArray(bList)) {
-          const activeBrands = bList.filter((b) => b.is_active !== false);
-          setBrands(activeBrands.slice(0, 10));
+
+        if (isMounted) {
+          if (Array.isArray(rawCats)) {
+            const storefrontCats = getStorefrontCategories(rawCats);
+            setCategories(storefrontCats.slice(0, 10));
+          }
+          if (Array.isArray(landingBrands)) {
+            setBrands(landingBrands.slice(0, 10));
+          }
         }
       } catch (err) {
         console.warn("Footer taxonomy load notice:", err);
       }
     }
+
     loadTaxonomies();
+
+    const handleUpdate = () => {
+      brandService.invalidateCache();
+      categoryService.invalidateCache();
+      loadTaxonomies();
+    };
+
+    window.addEventListener("ayaan:homepage-updated", handleUpdate);
+    window.addEventListener("ayaan:data-updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("ayaan:homepage-updated", handleUpdate);
+      window.removeEventListener("ayaan:data-updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
   }, []);
 
   // Monitor scroll for back-to-top visibility
@@ -175,9 +196,9 @@ export default function Footer() {
               </h3>
               <ul className="flex flex-col gap-2 text-[13px] text-white/75">
                 {categories.slice(0, 10).map((cat) => (
-                  <li key={cat.id}>
+                  <li key={cat.id || cat.name}>
                     <Link
-                      href={`/search?category=${encodeURIComponent(cat.slug || cat.name)}`}
+                      href={`/search?category=${encodeURIComponent((cat.slug || cat.name).toLowerCase())}`}
                       className="hover:text-white transition-colors"
                     >
                       {cat.name}
@@ -203,7 +224,7 @@ export default function Footer() {
               </h3>
               <ul className="flex flex-col gap-2 text-[13px] text-white/75">
                 {brands.slice(0, 10).map((b) => (
-                  <li key={b.id}>
+                  <li key={b.id || b.name}>
                     <Link
                       href={`/search?brand=${encodeURIComponent(b.slug || b.name)}`}
                       className="hover:text-white transition-colors"

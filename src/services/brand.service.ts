@@ -153,7 +153,8 @@ export class BrandService {
         }
         return [];
       }
-      const list = mockStore.getBrands().filter((b) => b.is_featured_on_landing && b.is_active !== false);
+      const featured = mockStore.getBrands().filter((b) => b.is_featured_on_landing && b.is_active !== false);
+      const list = featured.length > 0 ? featured : mockStore.getBrands().filter((b) => b.is_active !== false);
       this.cachedLandingBrands = { data: list, timestamp: Date.now() };
       return list;
     })();

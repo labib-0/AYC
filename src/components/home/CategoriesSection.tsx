@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { categoryService, CategoryModel } from "@/services/category.service";
 
-const AUDIENCE_IDS = new Set([
+export const AUDIENCE_IDS = new Set([
   "c_men",
   "c_women",
   "c_boys",
@@ -16,9 +16,9 @@ const AUDIENCE_IDS = new Set([
   "girls",
   "unisex",
 ]);
-const AUDIENCE_NAMES = new Set(["MEN", "WOMEN", "BOYS", "GIRLS", "UNISEX"]);
+export const AUDIENCE_NAMES = new Set(["MEN", "WOMEN", "BOYS", "GIRLS", "UNISEX"]);
 
-function normalizeCategoryLabel(name: string): string {
+export function normalizeCategoryLabel(name: string): string {
   const trimmed = name.trim();
   const lower = trimmed.toLowerCase();
   if (lower === "sweter" || lower === "sweater") return "Sweaters";
@@ -36,6 +36,58 @@ function normalizeCategoryLabel(name: string): string {
     return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
   }
   return trimmed;
+}
+
+export interface StorefrontCategoryItem {
+  id: string | number;
+  name: string;
+  slug?: string;
+  sort_order: number;
+}
+
+/**
+ * Authoritative shared selector that produces the exact ordered collection of
+ * product categories displayed on the customer storefront (both homepage category chips
+ * and footer category links).
+ */
+export function getStorefrontCategories(categories: CategoryModel[]): StorefrontCategoryItem[] {
+  const seen = new Set<string>();
+  const list: StorefrontCategoryItem[] = [];
+
+  for (const c of categories) {
+    if (
+      AUDIENCE_IDS.has(String(c.id).toLowerCase()) ||
+      AUDIENCE_IDS.has(String(c.slug || "").toLowerCase()) ||
+      AUDIENCE_NAMES.has((c.name || "").toUpperCase()) ||
+      c.is_active === false
+    ) {
+      continue;
+    }
+    const rawName = (c.name || "").trim();
+    if (!rawName) continue;
+    const cleanLabel = normalizeCategoryLabel(rawName);
+    const norm = cleanLabel.toLowerCase();
+    if (!norm || seen.has(norm)) continue;
+    seen.add(norm);
+
+    // Order resolution: respects admin-configured sequence
+    const sortOrder = c.landing_sort_order ?? c.sort_order ?? 99;
+
+    list.push({
+      id: c.id,
+      name: cleanLabel,
+      slug: c.slug,
+      sort_order: sortOrder,
+    });
+  }
+
+  // Sort by sort_order ascending, then alphabetical by name
+  return list.sort((a, b) => {
+    if (a.sort_order !== b.sort_order) {
+      return a.sort_order - b.sort_order;
+    }
+    return a.name.localeCompare(b.name);
+  });
 }
 
 export default function CategoriesSection() {
@@ -76,41 +128,9 @@ export default function CategoriesSection() {
     };
   }, []);
 
-  // Filter out any audience items, consolidate labels, and sort cleanly
+  // Filter out any audience items, consolidate labels, and sort cleanly using shared authoritative selector
   const productCategories = useMemo(() => {
-    const seen = new Set<string>();
-    const list: Array<{ id: string | number; name: string; sort_order: number }> = [];
-
-    for (const c of categories) {
-      if (
-        AUDIENCE_IDS.has(String(c.id).toLowerCase()) ||
-        AUDIENCE_IDS.has(String(c.slug || "").toLowerCase()) ||
-        AUDIENCE_NAMES.has((c.name || "").toUpperCase()) ||
-        c.is_active === false
-      ) {
-        continue;
-      }
-      const rawName = (c.name || "").trim();
-      if (!rawName) continue;
-      const cleanLabel = normalizeCategoryLabel(rawName);
-      const norm = cleanLabel.toLowerCase();
-      if (!norm || seen.has(norm)) continue;
-      seen.add(norm);
-
-      list.push({
-        id: c.id,
-        name: cleanLabel,
-        sort_order: c.landing_sort_order ?? c.sort_order ?? 99,
-      });
-    }
-
-    // Sort by sort_order ascending, then alphabetical by name
-    return list.sort((a, b) => {
-      if (a.sort_order !== b.sort_order) {
-        return a.sort_order - b.sort_order;
-      }
-      return a.name.localeCompare(b.name);
-    });
+    return getStorefrontCategories(categories);
   }, [categories]);
 
   return (

@@ -356,6 +356,7 @@ class MockStore {
       const order = orderMap.get(String(c.id));
       if (order !== undefined) {
         c.sort_order = order;
+        c.landing_sort_order = order;
       }
     });
     categories.sort((a, b) => ((a.sort_order ?? 0) - (b.sort_order ?? 0)));
@@ -423,6 +424,7 @@ class MockStore {
       const order = orderMap.get(String(b.id));
       if (order !== undefined) {
         b.sort_order = order;
+        b.landing_sort_order = order;
       }
     });
     brands.sort((a, b) => ((a.sort_order ?? 0) - (b.sort_order ?? 0)));

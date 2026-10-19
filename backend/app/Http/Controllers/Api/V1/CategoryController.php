@@ -341,6 +341,7 @@ class CategoryController extends ApiController
         CatalogCacheService::invalidateCategories();
         CatalogCacheService::invalidateAll();
         Cache::forget('storefront_categories');
+        Cache::forget('storefront_landing_categories');
         Cache::forget('active_categories_list');
 
         if ($category) {
@@ -377,11 +378,25 @@ class CategoryController extends ApiController
         \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
             if (!empty($validated['orders'])) {
                 foreach ($validated['orders'] as $item) {
-                    Category::where('id', $item['id'])->update(['sort_order' => (int) $item['sort_order']]);
+                    $order = (int) $item['sort_order'];
+                    Category::where('id', $item['id'])->update([
+                        'sort_order' => $order,
+                        'landing_sort_order' => $order,
+                    ]);
+                    HomepageHotSaleCategory::where('category_id', $item['id'])->update([
+                        'sort_order' => $order,
+                    ]);
                 }
             } elseif (!empty($validated['ids'])) {
                 foreach ($validated['ids'] as $idx => $id) {
-                    Category::where('id', $id)->update(['sort_order' => (int) $idx]);
+                    $order = (int) $idx;
+                    Category::where('id', $id)->update([
+                        'sort_order' => $order,
+                        'landing_sort_order' => $order,
+                    ]);
+                    HomepageHotSaleCategory::where('category_id', $id)->update([
+                        'sort_order' => $order,
+                    ]);
                 }
             }
         });
