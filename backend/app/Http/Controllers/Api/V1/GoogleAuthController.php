@@ -33,7 +33,16 @@ class GoogleAuthController extends ApiController
             $request->session()->put('google_oauth_redirect', $safeTarget);
         }
 
-        return Socialite::driver('google')->redirect();
+        $prompt = $request->query('prompt');
+        $driver = Socialite::driver('google');
+
+        if ($prompt === 'consent') {
+            $driver->with(['prompt' => 'consent select_account']);
+        } else {
+            $driver->with(['prompt' => 'select_account']);
+        }
+
+        return $driver->redirect();
     }
 
     /**

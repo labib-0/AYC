@@ -65,14 +65,29 @@ class GoogleAuthTest extends TestCase
     public function test_google_redirect_initiates_oauth_flow(): void
     {
         $provider = Mockery::mock(GoogleProvider::class);
-        $provider->shouldReceive('redirect')->once()->andReturn(new RedirectResponse('https://accounts.google.com/o/oauth2/auth?client_id=test'));
+        $provider->shouldReceive('with')->once()->with(['prompt' => 'select_account'])->andReturnSelf();
+        $provider->shouldReceive('redirect')->once()->andReturn(new RedirectResponse('https://accounts.google.com/o/oauth2/auth?client_id=test&prompt=select_account'));
 
         Socialite::shouldReceive('driver')->with('google')->once()->andReturn($provider);
 
         $response = $this->get('/api/v1/auth/google/redirect?redirect=/dashboard/orders');
 
         $response->assertStatus(302);
-        $this->assertEquals('https://accounts.google.com/o/oauth2/auth?client_id=test', $response->headers->get('Location'));
+        $this->assertEquals('https://accounts.google.com/o/oauth2/auth?client_id=test&prompt=select_account', $response->headers->get('Location'));
+    }
+
+    public function test_google_redirect_supports_deliberate_reconsent_prompt(): void
+    {
+        $provider = Mockery::mock(GoogleProvider::class);
+        $provider->shouldReceive('with')->once()->with(['prompt' => 'consent select_account'])->andReturnSelf();
+        $provider->shouldReceive('redirect')->once()->andReturn(new RedirectResponse('https://accounts.google.com/o/oauth2/auth?client_id=test&prompt=consent+select_account'));
+
+        Socialite::shouldReceive('driver')->with('google')->once()->andReturn($provider);
+
+        $response = $this->get('/api/v1/auth/google/redirect?prompt=consent');
+
+        $response->assertStatus(302);
+        $this->assertEquals('https://accounts.google.com/o/oauth2/auth?client_id=test&prompt=consent+select_account', $response->headers->get('Location'));
     }
 
     public function test_google_redirect_returns_error_if_not_configured(): void

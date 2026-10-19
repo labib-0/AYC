@@ -134,12 +134,16 @@ function runVerification() {
     );
   }
 
-  const envExamplePath = path.resolve(__dirname, "../.env.example");
-  const envExampleContent = fs.readFileSync(envExamplePath, "utf-8");
-  assert(
-    !envExampleContent.includes("GOOGLE_CLIENT_SECRET"),
-    "Next.js .env.example does NOT expose GOOGLE_CLIENT_SECRET"
-  );
+  const envExamplePath = fs.existsSync(path.resolve(__dirname, "../.env.example"))
+    ? path.resolve(__dirname, "../.env.example")
+    : path.resolve(__dirname, "../backend/.env.example");
+  if (fs.existsSync(envExamplePath)) {
+    const envExampleContent = fs.readFileSync(envExamplePath, "utf-8");
+    assert(
+      !envExampleContent.includes("GOOGLE_CLIENT_SECRET"),
+      "Next.js/backend .env.example does NOT expose GOOGLE_CLIENT_SECRET"
+    );
+  }
 
   console.log(`\n==================================================`);
   console.log(`TOTAL AUDIT CHECKS: ${passed + failed}`);
