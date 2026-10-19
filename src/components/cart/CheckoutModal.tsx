@@ -112,6 +112,21 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   // individual field state values.
   const selectedAddressRef = useRef<UserAddress | null>(null);
 
+  // Idempotency key for order submission — generated once per checkout session and reused across retries
+  const idempotencyKeyRef = useRef<string>("");
+
+  useEffect(() => {
+    if (isOpen) {
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 12)}`;
+      }
+    } else {
+      idempotencyKeyRef.current = "";
+    }
+  }, [isOpen]);
+
   // Saved Addresses State
   const [savedAddresses, setSavedAddresses] = useState<UserAddress[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
@@ -730,6 +745,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       };
 
       const newOrder = await createOrder({
+        idempotencyKey: idempotencyKeyRef.current,
         userId: orderUserId,
         email: dest.email,
         shippingName: dest.name,

@@ -26,6 +26,9 @@ class CreateOrderRequest extends FormRequest
         }
 
         // Map camelCase fields from frontend payloads to standard snake_case
+        if ($this->has('idempotencyKey') && !$this->has('idempotency_key')) {
+            $merge['idempotency_key'] = $this->input('idempotencyKey');
+        }
         if ($this->has('shippingName') && !$this->has('shipping_name')) {
             $merge['shipping_name'] = $this->input('shippingName');
         }
@@ -85,6 +88,7 @@ class CreateOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'idempotency_key' => ['nullable', 'string', 'max:64'],
             'email' => ['required', 'email', 'max:255'],
             'shipping_name' => ['required', 'string', 'max:255'],
             'shipping_phone' => ['nullable', 'string', 'max:50'],

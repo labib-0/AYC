@@ -52,7 +52,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/health', [HealthController::class, 'check']);
 
-Route::prefix('v1')->group(function () {
+Route::prefix('v1')->middleware('throttle:api')->group(function () {
 
     // Health & System Info
     Route::get('/health', [HealthController::class, 'check']);
@@ -76,7 +76,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])->name('login')->middleware('throttle:auth-login');
         Route::post('/customer/login', [AuthController::class, 'login'])->middleware('throttle:auth-login');
         // Dedicated Administrator Login
-        Route::post('/admin/login', [AuthController::class, 'adminLogin'])->name('admin.login')->middleware('throttle:auth-login');
+        Route::post('/admin/login', [AuthController::class, 'adminLogin'])->name('admin.login')->middleware('throttle:admin-login');
         
         // Password Reset Endpoints
         Route::post('/password/forgot', [AuthController::class, 'forgotPassword'])->middleware('throttle:password-reset');
@@ -128,7 +128,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Search Suggestions
-    Route::get('/search/suggestions', [SearchController::class, 'suggestions']);
+    Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->middleware('throttle:search-suggestions');
 
     // Homepage / Landing Page Configuration (Public Storefront)
     Route::get('/homepage', [HomepageController::class, 'index']);
@@ -138,7 +138,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/featured', [ProductController::class, 'featured']);
         Route::get('/statistics', [ProductController::class, 'statistics']);
         Route::get('/check-uniqueness', [ProductController::class, 'checkUniqueness']);
-        Route::get('/', [ProductController::class, 'index']);
+        Route::get('/', [ProductController::class, 'index'])->middleware('throttle:products-browse');
         Route::get('/slug/{slug}', [ProductController::class, 'show']);
         Route::get('/{slugOrId}/shipping-specs', [ProductController::class, 'shippingSpecs']);
         Route::get('/{slugOrId}', [ProductController::class, 'show']);
@@ -216,7 +216,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Cart (Session / Authenticated)
-    Route::prefix('cart')->group(function () {
+    Route::prefix('cart')->middleware('throttle:cart-mutations')->group(function () {
         Route::get('/', [CartController::class, 'index']);
         Route::post('/', [CartController::class, 'addItem']);
         Route::post('/items', [CartController::class, 'addItem']);
@@ -253,9 +253,9 @@ Route::prefix('v1')->group(function () {
         // Detail, document, and payment-proof updates (accessible by customer owner or admin)
         Route::middleware('auth:sanctum')->group(function () {
             Route::get('/{id}', [OrderController::class, 'show']);
-            Route::post('/{id}/payment-proof', [OrderController::class, 'uploadPaymentProof']);
+            Route::post('/{id}/payment-proof', [OrderController::class, 'uploadPaymentProof'])->middleware('throttle:payment-proof-upload');
             Route::get('/{id}/documents/{docType}', [OrderController::class, 'document']);
-            Route::get('/{id}/documents/{docType}/pdf', [OrderController::class, 'downloadDocumentPdf']);
+            Route::get('/{id}/documents/{docType}/pdf', [OrderController::class, 'downloadDocumentPdf'])->middleware('throttle:documents-pdf');
         });
     });
 
@@ -330,8 +330,8 @@ Route::prefix('v1')->group(function () {
     // ADMIN ROUTES (Protected by Sanctum Auth and role:admin)
     // ==========================================
     // Dedicated Admin Login Aliases
-    Route::post('/admin/login', [AuthController::class, 'adminLogin'])->middleware('throttle:auth-login');
-    Route::post('/admin/auth/login', [AuthController::class, 'adminLogin'])->middleware('throttle:auth-login');
+    Route::post('/admin/login', [AuthController::class, 'adminLogin'])->middleware('throttle:admin-login');
+    Route::post('/admin/auth/login', [AuthController::class, 'adminLogin'])->middleware('throttle:admin-login');
 
     // ==========================================
     // Dedicated Admin Management Suite
@@ -381,7 +381,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/quotations/{id}/documents/{docType}', [QuotationController::class, 'document'])
             ->middleware('permission:document.view');
         Route::get('/quotations/{id}/documents/{docType}/pdf', [QuotationController::class, 'document'])
-            ->middleware('permission:document.download');
+            ->middleware(['permission:document.download', 'throttle:documents-pdf']);
         Route::get('/quotations/{id}/document/{docType}', [QuotationController::class, 'document'])
             ->middleware('permission:document.view');
         Route::put('/quotations/{id}', [QuotationController::class, 'update'])

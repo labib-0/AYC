@@ -20,7 +20,27 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->trustProxies(at: '*');
+        // Trusted Proxies Configuration:
+        // When directly exposed to the internet without an upstream reverse proxy/CDN,
+        // trust ZERO proxies ($middleware->trustProxies(at: [])).
+        // This ensures client-supplied X-Forwarded-For and X-Real-IP headers are strictly
+        // ignored, and the real socket address (REMOTE_ADDR) is used for rate limiting.
+        // If an upstream CDN (e.g., Cloudflare) is later enabled, configure its IP ranges in TRUSTED_PROXIES.
+        $rawTrustedProxies = (string) env('TRUSTED_PROXIES', '');
+        $trustedProxies = array_values(array_filter(array_map('trim', explode(',', $rawTrustedProxies))));
+
+        if (!empty($trustedProxies)) {
+            $middleware->trustProxies(
+                at: $trustedProxies,
+                headers: Request::HEADER_X_FORWARDED_FOR |
+                         Request::HEADER_X_FORWARDED_HOST |
+                         Request::HEADER_X_FORWARDED_PORT |
+                         Request::HEADER_X_FORWARDED_PROTO
+            );
+        } else {
+            $middleware->trustProxies(at: []);
+        }
+
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') || $request->is('ayc/api/*') || $request->expectsJson() ? null : '/login');
         $middleware->append(\App\Http\Middleware\SecurityHeadersMiddleware::class);
         $middleware->validateCsrfTokens(except: [
@@ -78,10 +98,16 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (ThrottleRequestsException $e, Request $request) use ($isApi) {
             if ($isApi($request)) {
-                return response()->json([
+                $headers = $e->getHeaders();
+                $retryAfter = $headers['Retry-After'] ?? null;
+                $payload = [
                     'success' => false,
                     'message' => 'Too many requests. Please slow down and try again later.',
-                ], 429);
+                ];
+                if ($retryAfter !== null) {
+                    $payload['retry_after'] = (int) $retryAfter;
+                }
+                return response()->json($payload, 429, $headers);
             }
         });
 

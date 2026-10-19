@@ -56,9 +56,48 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureRateLimiting(): void
     {
-        // Global API limiter
+        // Global API default limiter (120/min per user or IP; unmetered for internal SSR & health checks)
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+            $ip = $request->ip();
+            if ($ip === '127.0.0.1' || $ip === '::1' || $request->hasHeader('x-internal-secret')) {
+                return Limit::none();
+            }
+            return Limit::perMinute(120)->by($request->user()?->id ?: $ip);
+        });
+
+        // Dedicated search suggestions limiter (60/min per IP)
+        RateLimiter::for('search-suggestions', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
+
+        // Dedicated product catalog browsing limiter (120/min; unmetered for internal SSR)
+        RateLimiter::for('products-browse', function (Request $request) {
+            $ip = $request->ip();
+            if ($ip === '127.0.0.1' || $ip === '::1' || $request->hasHeader('x-internal-secret')) {
+                return Limit::none();
+            }
+            return Limit::perMinute(120)->by($request->user()?->id ?: $ip);
+        });
+
+        // Dedicated commercial document PDF generation/download limiter (15/min per user or IP)
+        RateLimiter::for('documents-pdf', function (Request $request) {
+            return Limit::perMinute(15)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Dedicated cart mutation limiter (60/min per user or IP)
+        RateLimiter::for('cart-mutations', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Dedicated payment proof upload limiter (10/min per user or IP)
+        RateLimiter::for('payment-proof-upload', function (Request $request) {
+            return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Dedicated administrator login limiter (5/min per email + IP)
+        RateLimiter::for('admin-login', function (Request $request) {
+            $email = (string) $request->input('email', '');
+            return Limit::perMinute(5)->by(strtolower($email) . '|' . $request->ip());
         });
 
         // Authentication limits

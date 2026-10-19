@@ -9,6 +9,7 @@ use App\Models\Cart;
 use App\Models\Coupon;
 use App\Models\Inventory;
 use App\Models\Order;
+use App\Models\OrderIdempotencyKey;
 use App\Models\OrderItem;
 use App\Models\OrderStatusEvent;
 use App\Models\Payment;
@@ -271,6 +272,85 @@ class OrderController extends ApiController
         $otherChargesReq = (float) $request->input('other_charges', 0.0);
         $couponCodeReq = $request->input('coupon_code');
         $discountAmountReq = $request->input('discount_amount');
+
+        // Idempotency Protection:
+        // Support client-supplied idempotency key (via X-Idempotency-Key header or idempotency_key parameter)
+        // to prevent duplicate order submissions and double inventory deductions upon connection retries.
+        $idempotencyKey = $request->header('X-Idempotency-Key') ?: $request->input('idempotency_key');
+        $idempotencyRecord = null;
+
+        if (!empty($idempotencyKey)) {
+            $payloadHash = OrderIdempotencyKey::computePayloadHash(
+                userId: $user->id,
+                items: $itemsToProcess,
+                shipping: [
+                    'country_code' => $shippingCountryCode,
+                    'postal_code' => $shippingPostalCode,
+                    'address1' => $shippingAddress1,
+                ],
+                paymentMethod: $paymentMethod,
+                couponCode: $couponCodeReq,
+            );
+
+            $existing = OrderIdempotencyKey::where('key', $idempotencyKey)->first();
+
+            if ($existing) {
+                if ((int) $existing->user_id !== (int) $user->id) {
+                    return $this->forbidden('Idempotency key does not belong to the authenticated user.');
+                }
+
+                if ($existing->request_hash !== $payloadHash) {
+                    return $this->error('Idempotency key was already used with a different order payload.', 422);
+                }
+
+                if ($existing->status === OrderIdempotencyKey::STATUS_COMPLETED) {
+                    return response()->json($existing->response_payload, $existing->response_code ?: 200);
+                }
+
+                if ($existing->status === OrderIdempotencyKey::STATUS_PROCESSING) {
+                    if ($existing->locked_at && $existing->locked_at->gt(now()->subSeconds(60))) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'An order submission with this idempotency key is currently being processed. Please wait.',
+                        ], 409, ['Retry-After' => '3']);
+                    }
+                    $existing->update(['locked_at' => now()]);
+                } else {
+                    $existing->update([
+                        'status' => OrderIdempotencyKey::STATUS_PROCESSING,
+                        'locked_at' => now(),
+                        'error_message' => null,
+                    ]);
+                }
+                $idempotencyRecord = $existing;
+            } else {
+                try {
+                    $idempotencyRecord = OrderIdempotencyKey::create([
+                        'key' => $idempotencyKey,
+                        'user_id' => $user->id,
+                        'request_hash' => $payloadHash,
+                        'status' => OrderIdempotencyKey::STATUS_PROCESSING,
+                        'locked_at' => now(),
+                        'expires_at' => now()->addHours(24),
+                    ]);
+                } catch (\Illuminate\Database\UniqueConstraintViolationException|\Illuminate\Database\QueryException $e) {
+                    $idempotencyRecord = OrderIdempotencyKey::where('key', $idempotencyKey)->first();
+                    if ($idempotencyRecord && (int) $idempotencyRecord->user_id !== (int) $user->id) {
+                        return $this->forbidden('Idempotency key does not belong to the authenticated user.');
+                    }
+                    if ($idempotencyRecord && $idempotencyRecord->request_hash !== $payloadHash) {
+                        return $this->error('Idempotency key was already used with a different order payload.', 422);
+                    }
+                    if ($idempotencyRecord && $idempotencyRecord->status === OrderIdempotencyKey::STATUS_COMPLETED) {
+                        return response()->json($idempotencyRecord->response_payload, $idempotencyRecord->response_code ?: 200);
+                    }
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'An order submission with this idempotency key is currently being processed. Please wait.',
+                    ], 409, ['Retry-After' => '3']);
+                }
+            }
+        }
 
         // 2. Execute Order Creation in a Database Transaction
         try {
@@ -764,8 +844,32 @@ class OrderController extends ApiController
                 \Illuminate\Support\Facades\Log::error("Failed to queue order confirmation email for Order #{$order->order_number}: " . $e->getMessage());
             }
 
-            return $this->success(new OrderResource($order), 'Order placed successfully', 201);
+            $responseData = [
+                'success' => true,
+                'message' => 'Order placed successfully',
+                'data' => (new OrderResource($order))->resolve($request),
+            ];
+
+            if ($idempotencyRecord) {
+                try {
+                    $idempotencyRecord->update([
+                        'order_id' => $order->id,
+                        'status' => OrderIdempotencyKey::STATUS_COMPLETED,
+                        'response_code' => 201,
+                        'response_payload' => $responseData,
+                        'completed_at' => now(),
+                    ]);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Failed to record idempotency completion for Order #{$order->order_number}: " . $e->getMessage());
+                }
+            }
+
+            return response()->json($responseData, 201);
         } catch (InsufficientStockException $e) {
+            $idempotencyRecord?->update([
+                'status' => OrderIdempotencyKey::STATUS_FAILED,
+                'error_message' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error_code' => 'INSUFFICIENT_STOCK',
@@ -776,6 +880,10 @@ class OrderController extends ApiController
                 'data' => $e->getData(),
             ], 422);
         } catch (InvalidMoqMultipleException $e) {
+            $idempotencyRecord?->update([
+                'status' => OrderIdempotencyKey::STATUS_FAILED,
+                'error_message' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'error_code' => $e->getData()['code'] ?? 'INVALID_MOQ_MULTIPLE',
@@ -785,7 +893,11 @@ class OrderController extends ApiController
                 ],
                 'data' => $e->getData(),
             ], 422);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $idempotencyRecord?->update([
+                'status' => OrderIdempotencyKey::STATUS_FAILED,
+                'error_message' => $e->getMessage(),
+            ]);
             $status = $e->getCode() >= 400 && $e->getCode() < 500 ? $e->getCode() : 422;
             return $this->error($e->getMessage(), $status);
         }

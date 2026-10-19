@@ -158,6 +158,7 @@ export interface OrderRecord {
 }
 
 export interface CreateOrderInput {
+  idempotencyKey?: string;
   userId?: string | number;
   email: string;
   shippingName: string;
@@ -252,7 +253,11 @@ export class OrderService {
    */
   async createOrder(input: CreateOrderInput): Promise<OrderRecord> {
     if (!isFrontendOnly()) {
-      const res = await apiClient.post<any>("/orders", input);
+      const headers: Record<string, string> = {};
+      if (input.idempotencyKey) {
+        headers["X-Idempotency-Key"] = input.idempotencyKey;
+      }
+      const res = await apiClient.post<any>("/orders", input, { headers });
       const data = res?.data || res;
       if (data && (data.id || data.order_number)) {
         return this.normalizeOrderRecord(data);
