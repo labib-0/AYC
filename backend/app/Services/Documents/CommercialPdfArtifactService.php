@@ -3,6 +3,7 @@
 namespace App\Services\Documents;
 
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\Quotation;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -27,7 +28,7 @@ class CommercialPdfArtifactService
         // 1. Fast path: check if valid cached artifact exists
         if (Storage::disk('local')->exists($cacheFile)) {
             $content = Storage::disk('local')->get($cacheFile);
-            if (!empty($content)) {
+            if (!empty($content) && str_starts_with($content, '%PDF-') && str_contains($content, '%%EOF')) {
                 $timeMs = round((microtime(true) - $startTime) * 1000, 2);
                 $hash = hash('sha256', $content);
                 Log::info('Commercial PDF retrieved from disk cache', [
@@ -58,7 +59,7 @@ class CommercialPdfArtifactService
             // Double check cache in case concurrent process completed generation
             if (Storage::disk('local')->exists($cacheFile)) {
                 $content = Storage::disk('local')->get($cacheFile);
-                if (!empty($content)) {
+                if (!empty($content) && str_starts_with($content, '%PDF-') && str_contains($content, '%%EOF')) {
                     $timeMs = round((microtime(true) - $startTime) * 1000, 2);
                     $hash = hash('sha256', $content);
                     return [
@@ -71,14 +72,22 @@ class CommercialPdfArtifactService
                 }
             }
 
-            // Render PDF via DocumentPdfService
+            // Render PDF via DocumentPdfService with native Dompdf stream compression enabled
             $renderStartTime = microtime(true);
             $pdfService = app(DocumentPdfService::class);
-            $content = $pdfService->render($docPayload)->output();
+            $content = $pdfService->render($docPayload)->output(['compress' => 1]);
             $renderMs = round((microtime(true) - $renderStartTime) * 1000, 2);
 
-            // Persist artifact privately on local storage
-            Storage::disk('local')->put($cacheFile, $content);
+            // Persist artifact atomically to prevent partial or corrupted reads by concurrent requests
+            $tempFile = "{$cacheFile}.tmp." . uniqid('', true);
+            Storage::disk('local')->put($tempFile, $content);
+            $fullTempPath = Storage::disk('local')->path($tempFile);
+            $fullCachePath = Storage::disk('local')->path($cacheFile);
+            $targetDir = dirname($fullCachePath);
+            if (!is_dir($targetDir)) {
+                @mkdir($targetDir, 0755, true);
+            }
+            @rename($fullTempPath, $fullCachePath);
 
             // Safely prune older cached revisions of this document type for this order
             $this->pruneOldArtifacts($cacheDir, "{$normalizedDocType}_", $cacheFile);
@@ -86,7 +95,7 @@ class CommercialPdfArtifactService
             $totalTimeMs = round((microtime(true) - $startTime) * 1000, 2);
             $hash = hash('sha256', $content);
 
-            Log::info('Commercial PDF generated and cached', [
+            Log::info('Commercial PDF generated and cached with native compression', [
                 'order_id' => $order->id,
                 'doc_type' => $normalizedDocType,
                 'cache_hit' => false,
@@ -122,7 +131,7 @@ class CommercialPdfArtifactService
 
         if (Storage::disk('local')->exists($cacheFile)) {
             $content = Storage::disk('local')->get($cacheFile);
-            if (!empty($content)) {
+            if (!empty($content) && str_starts_with($content, '%PDF-') && str_contains($content, '%%EOF')) {
                 $timeMs = round((microtime(true) - $startTime) * 1000, 2);
                 $hash = hash('sha256', $content);
                 Log::info('Commercial Quotation PDF retrieved from disk cache', [
@@ -151,7 +160,7 @@ class CommercialPdfArtifactService
 
             if (Storage::disk('local')->exists($cacheFile)) {
                 $content = Storage::disk('local')->get($cacheFile);
-                if (!empty($content)) {
+                if (!empty($content) && str_starts_with($content, '%PDF-') && str_contains($content, '%%EOF')) {
                     $timeMs = round((microtime(true) - $startTime) * 1000, 2);
                     $hash = hash('sha256', $content);
                     return [
@@ -164,18 +173,29 @@ class CommercialPdfArtifactService
                 }
             }
 
+            // Render PDF via DocumentPdfService with native Dompdf stream compression enabled
             $renderStartTime = microtime(true);
             $pdfService = app(DocumentPdfService::class);
-            $content = $pdfService->render($docPayload)->output();
+            $content = $pdfService->render($docPayload)->output(['compress' => 1]);
             $renderMs = round((microtime(true) - $renderStartTime) * 1000, 2);
 
-            Storage::disk('local')->put($cacheFile, $content);
+            // Persist artifact atomically to prevent partial or corrupted reads by concurrent requests
+            $tempFile = "{$cacheFile}.tmp." . uniqid('', true);
+            Storage::disk('local')->put($tempFile, $content);
+            $fullTempPath = Storage::disk('local')->path($tempFile);
+            $fullCachePath = Storage::disk('local')->path($cacheFile);
+            $targetDir = dirname($fullCachePath);
+            if (!is_dir($targetDir)) {
+                @mkdir($targetDir, 0755, true);
+            }
+            @rename($fullTempPath, $fullCachePath);
+
             $this->pruneOldArtifacts($cacheDir, "{$normalizedDocType}_", $cacheFile);
 
             $totalTimeMs = round((microtime(true) - $startTime) * 1000, 2);
             $hash = hash('sha256', $content);
 
-            Log::info('Commercial Quotation PDF generated and cached', [
+            Log::info('Commercial Quotation PDF generated and cached with native compression', [
                 'quotation_id' => $quotation->id,
                 'doc_type' => $normalizedDocType,
                 'cache_hit' => false,
@@ -198,18 +218,90 @@ class CommercialPdfArtifactService
 
     /**
      * Compute a deterministic source-data fingerprint for an Order document.
+     * Incorporates all displayed order fields, line items, product attributes,
+     * saved descriptions, specifications, brand, and gallery image state.
      */
     public function computeOrderFingerprint(Order $order, string $normalizedDocType, bool $isAdmin): string
     {
-        $itemsPart = $order->items->map(function ($it) {
-            $updated = $it->updated_at ? $it->updated_at->timestamp : '';
-            return "{$it->id}_{$it->product_id}_{$it->quantity}_{$it->unit_price}_{$updated}";
+        $rolePart = $isAdmin ? 'admin' : 'cust';
+
+        $orderCore = implode('|', [
+            $order->id,
+            $order->order_number,
+            $order->currency ?: 'USD',
+            (float) $order->subtotal,
+            (float) $order->shipping_cost,
+            (float) $order->tax_amount,
+            (float) $order->discount_amount,
+            (float) $order->total_amount,
+            $order->payment_method ?? '',
+            $order->shipping_name ?? '',
+            $order->shipping_address1 ?? '',
+            $order->shipping_address2 ?? '',
+            $order->shipping_phone ?? '',
+            $order->shipping_country_code ?? '',
+            $order->user?->company_name ?? '',
+            $isAdmin ? ($order->financials['manual_discount_reason'] ?? '') : '',
+        ]);
+
+        $productIds = $order->items->pluck('product_id')->filter()->unique()->values();
+        $products = Product::with(['images', 'brand'])->whereIn('id', $productIds)->get()->keyBy('id');
+
+        $itemsPart = $order->items->map(function ($it) use ($products) {
+            $product = ($it->product_id && isset($products[$it->product_id])) ? $products[$it->product_id] : null;
+
+            $productFingerprint = '';
+            if ($product) {
+                $brandName = $product->brand?->name ?? (is_string($product->brand) ? $product->brand : '');
+
+                $images = $product->relationLoaded('images') ? $product->images : $product->images()->get();
+                $galleryFingerprint = $images->map(function ($img) {
+                    $mtime = $this->resolveLocalImageMtime($img->image_url);
+                    return "{$img->id}_{$img->image_url}_{$img->is_primary}_{$img->sort_order}_{$mtime}";
+                })->join(',');
+
+                $primaryMtime = $this->resolveLocalImageMtime($product->primary_image_url);
+
+                $productFingerprint = implode('~', [
+                    $product->id,
+                    $product->title ?? $product->name,
+                    $product->description ?? '',
+                    $product->design_type ?? '',
+                    $product->material ?? ($product->fabric ?? ''),
+                    $product->size_description ?? '',
+                    $product->colour_description ?? '',
+                    is_array($product->specifications) ? json_encode($product->specifications) : ($product->specifications ?? ''),
+                    $product->cbm ?? '',
+                    $product->gross_weight ?? '',
+                    $product->moq ?? '',
+                    $product->standard_price ?? '',
+                    $product->wholesale_price ?? '',
+                    $product->bulk_pricing_enabled ? "bulk:{$product->bulk_price}:{$product->bulk_threshold}" : 'no_bulk',
+                    $product->full_stock_price ? "stock:{$product->full_stock_price}:{$product->available_stock}" : 'no_stock',
+                    $brandName,
+                    $galleryFingerprint,
+                    $primaryMtime,
+                ]);
+            }
+
+            $itemMtime = $this->resolveLocalImageMtime($it->product_image_url);
+
+            return implode(':', [
+                $it->id,
+                $it->product_id,
+                (int) $it->quantity,
+                (float) $it->unit_price,
+                (float) $it->line_total,
+                $it->product_name ?? '',
+                $it->sku ?? '',
+                $it->variant_title ?? '',
+                is_array($it->package_breakdown) ? json_encode($it->package_breakdown) : ($it->package_breakdown ?? ''),
+                $itemMtime,
+                $productFingerprint,
+            ]);
         })->join('-');
 
-        $rolePart = $isAdmin ? 'admin' : 'cust';
-        $updatedAt = $order->updated_at ? $order->updated_at->timestamp : ($order->created_at ? $order->created_at->timestamp : '');
-
-        return hash('sha256', "order_{$order->id}_{$normalizedDocType}_{$rolePart}_{$updatedAt}_{$order->total_amount}_{$itemsPart}");
+        return hash('sha256', "order_{$order->id}_{$normalizedDocType}_{$rolePart}_{$orderCore}_{$itemsPart}");
     }
 
     /**
@@ -217,15 +309,120 @@ class CommercialPdfArtifactService
      */
     public function computeQuotationFingerprint(Quotation $quotation, string $normalizedDocType, bool $isAdmin): string
     {
-        $itemsPart = $quotation->items->map(function ($it) {
-            $updated = $it->updated_at ? $it->updated_at->timestamp : '';
-            return "{$it->id}_{$it->product_id}_{$it->quantity}_{$it->unit_price}_{$updated}";
+        $rolePart = $isAdmin ? 'admin' : 'cust';
+
+        $quoteCore = implode('|', [
+            $quotation->id,
+            $quotation->quotation_number,
+            $quotation->currency ?: 'USD',
+            (float) $quotation->subtotal,
+            (float) $quotation->shipping_cost,
+            (float) $quotation->tax_amount,
+            (float) $quotation->discount_amount,
+            (float) $quotation->grand_total,
+            $quotation->payment_status ?? '',
+            $quotation->company_name ?? '',
+            $quotation->customer_name ?? '',
+            $quotation->customer_email ?? '',
+            $quotation->customer_phone ?? '',
+            $quotation->shipping_address ?? '',
+        ]);
+
+        $productIds = $quotation->items->pluck('product_id')->filter()->unique()->values();
+        $products = Product::with(['images', 'brand'])->whereIn('id', $productIds)->get()->keyBy('id');
+
+        $itemsPart = $quotation->items->map(function ($it) use ($products) {
+            $product = ($it->product_id && isset($products[$it->product_id])) ? $products[$it->product_id] : null;
+
+            $productFingerprint = '';
+            if ($product) {
+                $brandName = $product->brand?->name ?? (is_string($product->brand) ? $product->brand : '');
+
+                $images = $product->relationLoaded('images') ? $product->images : $product->images()->get();
+                $galleryFingerprint = $images->map(function ($img) {
+                    $mtime = $this->resolveLocalImageMtime($img->image_url);
+                    return "{$img->id}_{$img->image_url}_{$img->is_primary}_{$img->sort_order}_{$mtime}";
+                })->join(',');
+
+                $primaryMtime = $this->resolveLocalImageMtime($product->primary_image_url);
+
+                $productFingerprint = implode('~', [
+                    $product->id,
+                    $product->title ?? $product->name,
+                    $product->description ?? '',
+                    $product->design_type ?? '',
+                    $product->material ?? ($product->fabric ?? ''),
+                    $product->size_description ?? '',
+                    $product->colour_description ?? '',
+                    is_array($product->specifications) ? json_encode($product->specifications) : ($product->specifications ?? ''),
+                    $product->cbm ?? '',
+                    $product->gross_weight ?? '',
+                    $product->moq ?? '',
+                    $product->standard_price ?? '',
+                    $product->wholesale_price ?? '',
+                    $product->bulk_pricing_enabled ? "bulk:{$product->bulk_price}:{$product->bulk_threshold}" : 'no_bulk',
+                    $product->full_stock_price ? "stock:{$product->full_stock_price}:{$product->available_stock}" : 'no_stock',
+                    $brandName,
+                    $galleryFingerprint,
+                    $primaryMtime,
+                ]);
+            }
+
+            $itemMtime = $this->resolveLocalImageMtime($it->product_image_url);
+
+            return implode(':', [
+                $it->id,
+                $it->product_id,
+                (int) $it->quantity,
+                (float) $it->unit_price,
+                (float) $it->line_total,
+                $it->product_name ?? '',
+                $it->sku ?? '',
+                $it->variant_title ?? '',
+                is_array($it->package_breakdown) ? json_encode($it->package_breakdown) : ($it->package_breakdown ?? ''),
+                $itemMtime,
+                $productFingerprint,
+            ]);
         })->join('-');
 
-        $rolePart = $isAdmin ? 'admin' : 'cust';
-        $updatedAt = $quotation->updated_at ? $quotation->updated_at->timestamp : ($quotation->created_at ? $quotation->created_at->timestamp : '');
+        return hash('sha256', "quotation_{$quotation->id}_{$normalizedDocType}_{$rolePart}_{$quoteCore}_{$itemsPart}");
+    }
 
-        return hash('sha256', "quotation_{$quotation->id}_{$normalizedDocType}_{$rolePart}_{$updatedAt}_{$quotation->grand_total}_{$itemsPart}");
+    /**
+     * Resolve the last modification time of a local image asset for cache fingerprinting.
+     * Fast stat check without image decoding.
+     */
+    protected function resolveLocalImageMtime(?string $url): int
+    {
+        if (!$url || trim($url) === '') {
+            return 0;
+        }
+
+        $trimmed = trim($url);
+        if (str_starts_with($trimmed, 'data:image')) {
+            return crc32($trimmed);
+        }
+
+        $clean = explode('?', explode('#', $trimmed)[0])[0];
+        $clean = preg_replace('#^https?://[^/]+#i', '', $clean);
+        $clean = preg_replace('#^/ayc#i', '', $clean);
+        $clean = preg_replace('#^/?storage/#i', '', $clean);
+        $cleanRel = ltrim($clean, '/');
+
+        $candidates = [
+            storage_path("app/public/{$cleanRel}"),
+            public_path("storage/{$cleanRel}"),
+            public_path($cleanRel),
+            base_path($cleanRel),
+        ];
+
+        foreach ($candidates as $c) {
+            if (file_exists($c) && is_file($c)) {
+                return (int) @filemtime($c);
+            }
+        }
+
+        return 0;
     }
 
     /**
