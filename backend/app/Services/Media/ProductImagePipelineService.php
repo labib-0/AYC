@@ -70,6 +70,8 @@ class ProductImagePipelineService
         'image/bmp',
         'image/x-bmp',
         'image/avif',
+        'image/svg+xml',
+        'image/svg',
     ];
 
     // -------------------------------------------------------------------------
@@ -133,6 +135,13 @@ class ProductImagePipelineService
         }
 
         $detectedMime = $this->detectMime($realPath, $file);
+
+        $isSvg = in_array($detectedMime, ['image/svg+xml', 'image/svg'], true)
+            || strtolower($file->getClientOriginalExtension()) === 'svg';
+
+        if ($isSvg) {
+            return $this->processAndStoreSvg($file, $folder, $context);
+        }
 
         if (!in_array($detectedMime, self::DECLARED_MIMES, true)) {
             Log::warning('Unsupported MIME type uploaded', [
@@ -509,4 +518,83 @@ class ProductImagePipelineService
                 'The file failed to upload. Please verify the file and try again.',
         };
     }
+
+    /**
+     * Safely validate, sanitize, and store an SVG vector image directly.
+     *
+     * @param  UploadedFile $file
+     * @param  string       $folder  Subfolder on the public disk ('brands', 'categories', etc.)
+     * @param  array<string, mixed> $context Optional audit context
+     * @return array{url:string,path:string,key:string,name:string,size:int,mime:string,width:int,height:int}
+     *
+     * @throws \InvalidArgumentException Validation or safety failure
+     */
+    public function processAndStoreSvg(UploadedFile $file, string $folder = 'brands', array $context = []): array
+    {
+        $adminId = auth('sanctum')->id() ?? auth()->id();
+        $originalName = $file->getClientOriginalName();
+        $realPath = $file->getRealPath();
+
+        $content = @file_get_contents($realPath);
+        if ($content === false || empty(trim($content))) {
+            throw new \InvalidArgumentException('Uploaded SVG file is empty or unreadable.');
+        }
+
+        // Basic SVG structure verification
+        if (!str_contains($content, '<svg') || !str_contains($content, '</svg>')) {
+            throw new \InvalidArgumentException('Uploaded file is not a valid SVG document.');
+        }
+
+        // Security sanitization: reject scripts, external entities, or active executable vectors
+        $disallowed = [
+            '/<script[\s>]/i',
+            '/<\/script>/i',
+            '/javascript\s*:/i',
+            '/onload\s*=/i',
+            '/onerror\s*=/i',
+            '/onclick\s*=/i',
+            '/<iframe[\s>]/i',
+            '/<embed[\s>]/i',
+            '/<object[\s>]/i',
+            '/<!ENTITY/i',
+        ];
+
+        foreach ($disallowed as $pattern) {
+            if (preg_match($pattern, $content)) {
+                Log::warning('SVG upload rejected: unsafe content detected', [
+                    'admin_id' => $adminId,
+                    'filename' => $originalName,
+                    'pattern'  => $pattern,
+                ]);
+                throw new \InvalidArgumentException('SVG contains disallowed script or active content.');
+            }
+        }
+
+        $filename = Str::random(24) . '.svg';
+        $relativePath = "{$folder}/{$filename}";
+
+        Storage::disk('public')->put($relativePath, $content);
+        $canonicalUrl = $this->generateCanonicalPublicUrl($relativePath);
+
+        Log::info('SVG processed and stored successfully', [
+            'admin_id'    => $adminId,
+            'original'    => $originalName,
+            'stored_path' => $relativePath,
+            'size'        => strlen($content),
+            'mime'        => 'image/svg+xml',
+            'context'     => $context,
+        ]);
+
+        return [
+            'url'    => $canonicalUrl,
+            'path'   => $relativePath,
+            'key'    => $relativePath,
+            'name'   => $filename,
+            'size'   => strlen($content),
+            'mime'   => 'image/svg+xml',
+            'width'  => 0,
+            'height' => 0,
+        ];
+    }
 }
+

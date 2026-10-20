@@ -12,6 +12,7 @@ use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class BrandController extends ApiController
@@ -146,6 +147,8 @@ class BrandController extends ApiController
             $validated['logo_url'] = $validated['logo'];
         }
 
+        $validated['logo_url'] = $this->normalizeAndPersistLogo($validated['logo_url'] ?? null);
+
         // Auto-generate collision-resistant unique slug if not provided or collision
         $baseSlug = !empty($validated['slug'])
             ? Str::slug($validated['slug'])
@@ -208,6 +211,10 @@ class BrandController extends ApiController
 
         if (empty($validated['logo_url']) && !empty($validated['logo'])) {
             $validated['logo_url'] = $validated['logo'];
+        }
+
+        if (array_key_exists('logo_url', $validated)) {
+            $validated['logo_url'] = $this->normalizeAndPersistLogo($validated['logo_url']);
         }
 
         // Handle slug collision safely if updated
@@ -376,5 +383,45 @@ class BrandController extends ApiController
             ->get();
 
         return $this->success(BrandResource::collection($brands), 'Brands reordered successfully');
+    }
+
+    /**
+     * If logo is a base64 Data URI, decode, sanitize, and persist it to public disk.
+     */
+    private function normalizeAndPersistLogo(?string $logo): ?string
+    {
+        if (empty($logo)) {
+            return null;
+        }
+
+        if (preg_match('/^data:image\/([a-zA-Z0-9\+\-]+);base64,(.+)$/s', $logo, $matches)) {
+            $mimeType = strtolower($matches[1]);
+            $base64Data = $matches[2];
+            $binary = base64_decode($base64Data, true);
+
+            if ($binary !== false) {
+                $ext = match ($mimeType) {
+                    'svg+xml', 'svg' => 'svg',
+                    'png' => 'png',
+                    'jpeg', 'jpg' => 'jpg',
+                    'webp' => 'webp',
+                    'gif' => 'gif',
+                    default => 'png',
+                };
+
+                $filename = 'brand_' . Str::random(24) . '.' . $ext;
+                $relativePath = "brands/{$filename}";
+                Storage::disk('public')->put($relativePath, $binary);
+
+                if (app()->environment('production')) {
+                    return "https://ayaanclothing.com/storage/{$relativePath}";
+                }
+
+                $appUrl = rtrim(config('app.url', 'http://127.0.0.1:8000'), '/');
+                return "{$appUrl}/storage/{$relativePath}";
+            }
+        }
+
+        return $logo;
     }
 }

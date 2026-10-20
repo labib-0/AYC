@@ -65,22 +65,28 @@ class UploadController extends ApiController
 
         $folder = $request->input('folder', 'products');
 
-        // Laravel validation: broad MIME list, 20 MB max
+        // Laravel validation: broad format list including SVG, 20 MB max
         // The pipeline service performs deeper content-level validation.
         $request->validate([
             'file'   => [
                 'required',
                 'file',
-                'image',
-                'mimes:jpeg,jpg,png,webp,gif,bmp,avif',
                 'max:' . self::MAX_KB,
+                function ($attribute, $value, $fail) {
+                    if (!$value instanceof \Illuminate\Http\UploadedFile) {
+                        return $fail('The uploaded item must be a valid file.');
+                    }
+                    $ext = strtolower($value->getClientOriginalExtension());
+                    $allowedExts = ['jpeg', 'jpg', 'png', 'webp', 'gif', 'bmp', 'avif', 'svg'];
+                    if (!in_array($ext, $allowedExts, true)) {
+                        return $fail('Unsupported image format. Supported formats: SVG, PNG, JPG, WebP, GIF, BMP, AVIF.');
+                    }
+                },
             ],
             'folder' => ['nullable', 'string', 'in:products,brands,categories,banners'],
         ], [
             'file.required' => 'Please select an image file to upload.',
             'file.file'     => 'The uploaded item must be a valid file.',
-            'file.image'    => 'The file must be a valid image.',
-            'file.mimes'    => 'Unsupported image format. Supported formats: JPG, PNG, WebP, GIF, BMP, AVIF.',
             'file.max'      => 'Image exceeds the 20 MB upload limit. Please select a smaller file.',
         ]);
 

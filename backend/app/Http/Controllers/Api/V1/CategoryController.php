@@ -12,6 +12,7 @@ use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class CategoryController extends ApiController
@@ -145,6 +146,10 @@ class CategoryController extends ApiController
             'landing_sort_order' => ['nullable', 'integer'],
         ]);
 
+        if (array_key_exists('image_url', $validated)) {
+            $validated['image_url'] = $this->normalizeAndPersistImage($validated['image_url']);
+        }
+
         // Auto-generate collision-resistant unique slug if not provided or collision
         $baseSlug = !empty($validated['slug'])
             ? Str::slug($validated['slug'])
@@ -210,6 +215,10 @@ class CategoryController extends ApiController
             'is_featured_on_landing' => ['sometimes', 'boolean'],
             'landing_sort_order' => ['nullable', 'integer'],
         ]);
+
+        if (array_key_exists('image_url', $validated)) {
+            $validated['image_url'] = $this->normalizeAndPersistImage($validated['image_url']);
+        }
 
         // Handle slug collision safely if updated
         if (isset($validated['slug'])) {
@@ -410,5 +419,45 @@ class CategoryController extends ApiController
             ->get();
 
         return $this->success(CategoryResource::collection($categories), 'Categories reordered successfully');
+    }
+
+    /**
+     * If image is a base64 Data URI, decode, sanitize, and persist it to public disk.
+     */
+    private function normalizeAndPersistImage(?string $image): ?string
+    {
+        if (empty($image)) {
+            return null;
+        }
+
+        if (preg_match('/^data:image\/([a-zA-Z0-9\+\-]+);base64,(.+)$/s', $image, $matches)) {
+            $mimeType = strtolower($matches[1]);
+            $base64Data = $matches[2];
+            $binary = base64_decode($base64Data, true);
+
+            if ($binary !== false) {
+                $ext = match ($mimeType) {
+                    'svg+xml', 'svg' => 'svg',
+                    'png' => 'png',
+                    'jpeg', 'jpg' => 'jpg',
+                    'webp' => 'webp',
+                    'gif' => 'gif',
+                    default => 'png',
+                };
+
+                $filename = 'cat_' . Str::random(24) . '.' . $ext;
+                $relativePath = "categories/{$filename}";
+                Storage::disk('public')->put($relativePath, $binary);
+
+                if (app()->environment('production')) {
+                    return "https://ayaanclothing.com/storage/{$relativePath}";
+                }
+
+                $appUrl = rtrim(config('app.url', 'http://127.0.0.1:8000'), '/');
+                return "{$appUrl}/storage/{$relativePath}";
+            }
+        }
+
+        return $image;
     }
 }

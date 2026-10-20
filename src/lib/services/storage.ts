@@ -81,10 +81,10 @@ export async function uploadProductImage(file: File): Promise<UploadResult> {
  */
 export async function uploadBrandLogo(file: File): Promise<UploadResult> {
   const validTypes = ["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"];
-  const isImage = validTypes.includes(file.type) || file.type.startsWith("image/");
+  const isImage = validTypes.includes(file.type) || file.type.startsWith("image/") || file.name.toLowerCase().endsWith(".svg");
 
   if (!isImage) {
-    throw new Error("Invalid file format. Please upload a valid image file (PNG preferred).");
+    throw new Error("Invalid file format. Please upload a valid image file (SVG, PNG, JPG, or WebP).");
   }
 
   // Attempt REST API upload if available
@@ -101,8 +101,18 @@ export async function uploadBrandLogo(file: File): Promise<UploadResult> {
         key: res.key || res.data?.key || file.name,
       };
     }
-  } catch {
-    // Graceful fallback for offline / frontend mode
+    throw new Error(res?.message || "Upload succeeded but server returned an invalid URL.");
+  } catch (err: any) {
+    if (!isFrontendOnly()) {
+      const errorMsg =
+        err?.errors?.file?.[0] ||
+        (err?.errors && typeof err.errors === "object"
+          ? (Object.values(err.errors).flat()[0] as string | undefined)
+          : null) ||
+        err?.message ||
+        "Brand logo upload failed. Please try again.";
+      throw new Error(String(errorMsg));
+    }
   }
 
   // In offline / mock mode, convert to persistent base64 Data URL so it saves to localStorage
@@ -132,7 +142,7 @@ export async function uploadBrandLogo(file: File): Promise<UploadResult> {
  */
 export async function uploadCategoryImage(file: File): Promise<UploadResult> {
   const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"];
-  const isImage = validTypes.includes(file.type) || file.type.startsWith("image/");
+  const isImage = validTypes.includes(file.type) || file.type.startsWith("image/") || file.name.toLowerCase().endsWith(".svg");
 
   if (!isImage) {
     throw new Error("Invalid file format. Please upload a valid image file (SVG, PNG, JPG, or WebP).");
@@ -152,8 +162,18 @@ export async function uploadCategoryImage(file: File): Promise<UploadResult> {
         key: res.key || res.data?.key || file.name,
       };
     }
-  } catch {
-    // Graceful fallback for offline / frontend mode
+    throw new Error(res?.message || "Upload succeeded but server returned an invalid URL.");
+  } catch (err: any) {
+    if (!isFrontendOnly()) {
+      const errorMsg =
+        err?.errors?.file?.[0] ||
+        (err?.errors && typeof err.errors === "object"
+          ? (Object.values(err.errors).flat()[0] as string | undefined)
+          : null) ||
+        err?.message ||
+        "Category image upload failed. Please try again.";
+      throw new Error(String(errorMsg));
+    }
   }
 
   // In offline / mock mode, convert to persistent base64 Data URL so it saves to localStorage
