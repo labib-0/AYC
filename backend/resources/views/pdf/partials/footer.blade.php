@@ -1,18 +1,19 @@
 @php
     $exporter = $doc['exporter'] ?? [];
     $company = $exporter['company_name'] ?? 'AYAAN CLOTHING';
+    $address = $exporter['address'] ?? ($exporter['office_address'] ?? 'Uttara, Dhaka-1230, Bangladesh');
     $docNumber = $doc['doc_number'] ?? ($doc['docNumber'] ?? '');
 @endphp
-<div class="pdf-footer">
-    <table style="width: 100%; border-collapse: collapse;">
+<div style="border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 4px; font-size: 6pt; color: #94a3b8;">
+    <table style="width: 100%;">
         <tr>
-            <td style="width: 72%; padding: 0; vertical-align: top;">
-                <div style="font-weight: bold; color: #334155;">{{ $company }} &bull; Ready-Made Garments Manufacturer &amp; Exporter &bull; Uttara, Dhaka-1230, Bangladesh</div>
-                <div style="color: #64748b; margin-top: 2px;">Computer-generated commercial document. Authoritative for accounting and customs export records.</div>
+            <td style="width: 70%; padding: 0;">
+                {{ $company }} • Ready-Made Garments Manufacturer &amp; Exporter • {{ $address }}
+                <br>
+                Computer-generated commercial document. Authoritative for accounting and customs export records.
             </td>
-            <td style="width: 28%; text-align: right; padding: 0; vertical-align: top;">
-                <div style="font-weight: bold; color: #334155;">Doc Ref: {{ $docNumber }}</div>
-                <div style="color: #64748b; margin-top: 2px;">Page <span class="page-number"></span></div>
+            <td style="width: 30%; text-align: right; padding: 0;">
+                Document Ref: {{ $docNumber }}
             </td>
         </tr>
     </table>

@@ -9,7 +9,7 @@
     <table class="header-table" style="width: 100%;">
         <tr>
             <td style="vertical-align: middle;">
-                <div class="company-title" style="white-space: nowrap; font-size: 14pt;">{{ $companyName }}</div>
+                <div class="company-title" style="white-space: nowrap; font-size: 13pt;">{{ $companyName }}</div>
                 <div class="company-tagline">{{ $tagline }} • Dhaka, Bangladesh</div>
             </td>
             <td style="text-align: right; vertical-align: middle; white-space: nowrap; width: 180px;">
