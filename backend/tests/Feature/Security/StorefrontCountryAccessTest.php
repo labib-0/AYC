@@ -784,4 +784,138 @@ class StorefrontCountryAccessTest extends TestCase
 
         $reader->close();
     }
+
+    /**
+     * End-to-End Regression Test: Public catalog APIs are blocked for Bangladesh IP when restriction is ON
+     */
+    public function test_public_catalog_apis_are_blocked_for_bangladesh_ip_when_restriction_is_on(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        $endpoints = [
+            '/api/v1/homepage',
+            '/api/v1/products',
+            '/api/v1/products/featured',
+            '/api/v1/categories',
+            '/api/v1/brands',
+            '/api/v1/search/suggestions?q=denim',
+        ];
+
+        foreach ($endpoints as $endpoint) {
+            $response = $this->withServerVariables([
+                'REMOTE_ADDR' => self::BD_IPV4,
+            ])->getJson($endpoint);
+
+            $response->assertStatus(403);
+            $response->assertJson([
+                'success' => false,
+                'message' => 'Storefront access is restricted in Bangladesh.',
+                'error_code' => 'GEO_BLOCKED_BANGLADESH',
+            ]);
+            $this->assertEquals('no-store, no-cache, must-revalidate', $response->headers->get('Cache-Control'));
+        }
+    }
+
+    /**
+     * End-to-End Regression Test: Public catalog APIs are allowed for Bangladesh IP when restriction is OFF
+     */
+    public function test_public_catalog_apis_are_allowed_for_bangladesh_ip_when_restriction_is_off(): void
+    {
+        $this->service->setBlockEnabled(false);
+
+        $endpoints = [
+            '/api/v1/homepage',
+            '/api/v1/products',
+            '/api/v1/categories',
+            '/api/v1/brands',
+        ];
+
+        foreach ($endpoints as $endpoint) {
+            $response = $this->withServerVariables([
+                'REMOTE_ADDR' => self::BD_IPV4,
+            ])->getJson($endpoint);
+
+            $this->assertNotEquals(403, $response->getStatusCode(), "Endpoint {$endpoint} should not return 403 when restriction is OFF");
+        }
+    }
+
+    /**
+     * End-to-End Regression Test: Public catalog APIs remain allowed for other countries when restriction is ON
+     */
+    public function test_public_catalog_apis_remain_allowed_for_other_countries_when_restriction_is_on(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        $otherCountryIps = [
+            self::US_IPV4,
+            self::IN_IPV4,
+            self::GB_IPV4,
+        ];
+
+        foreach ($otherCountryIps as $ip) {
+            $response = $this->withServerVariables([
+                'REMOTE_ADDR' => $ip,
+            ])->getJson('/api/v1/homepage');
+
+            $this->assertNotEquals(403, $response->getStatusCode(), "IP {$ip} should not be blocked when restriction is ON");
+        }
+    }
+
+    /**
+     * End-to-End Regression Test: Authenticated admin can access catalog APIs even from Bangladesh when restriction is ON
+     */
+    public function test_authenticated_admin_can_access_catalog_apis_even_from_bangladesh_when_restriction_is_on(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->withServerVariables([
+                'REMOTE_ADDR' => self::BD_IPV4,
+            ])->getJson('/api/v1/homepage');
+
+        $this->assertNotEquals(403, $response->getStatusCode(), 'Admin should not be blocked by storefront restriction');
+    }
+
+    /**
+     * End-to-End Regression Test: Unauthenticated request cannot bypass with spoofed headers or parameters
+     */
+    public function test_unauthenticated_request_cannot_bypass_with_spoofed_headers_or_parameters(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        // Attempting to spoof admin or bypass headers
+        $response = $this->withHeaders([
+            'X-Admin-App' => 'true',
+            'X-Is-Admin-Host' => '1',
+            'X-Forwarded-For' => self::US_IPV4,
+        ])->withServerVariables([
+            'REMOTE_ADDR' => self::BD_IPV4,
+        ])->getJson('/api/v1/homepage?bypass=1&ip=' . self::US_IPV4);
+
+        $response->assertStatus(403);
+        $response->assertJson([
+            'success' => false,
+            'error_code' => 'GEO_BLOCKED_BANGLADESH',
+        ]);
+    }
+
+    /**
+     * End-to-End Regression Test: Buyer operational routes remain accessible from Bangladesh when restriction is ON
+     */
+    public function test_buyer_operational_routes_remain_accessible_from_bangladesh_when_restriction_is_on(): void
+    {
+        $this->service->setBlockEnabled(true);
+
+        // Public settings & legal routes
+        $respSettings = $this->withServerVariables(['REMOTE_ADDR' => self::BD_IPV4])->getJson('/api/v1/settings/public');
+        $this->assertNotEquals(403, $respSettings->getStatusCode());
+
+        // Geolocation detection
+        $respGeo = $this->withServerVariables(['REMOTE_ADDR' => self::BD_IPV4])->getJson('/api/v1/geolocation/detect');
+        $this->assertNotEquals(403, $respGeo->getStatusCode());
+
+        // Shipping settings
+        $respShip = $this->withServerVariables(['REMOTE_ADDR' => self::BD_IPV4])->getJson('/api/v1/shipping/settings');
+        $this->assertNotEquals(403, $respShip->getStatusCode());
+    }
 }

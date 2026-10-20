@@ -159,7 +159,14 @@ export async function proxy(request: NextRequest) {
   // Check if Bangladesh storefront blocking is active via internal Laravel API.
   // Storefront routes: /, /products, /products/*, /search, /privacy-policy, /terms-and-conditions
   try {
-    const rawApiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+    // Internal server-to-server check requires direct loopback connection.
+    // If configured with an external HTTPS URL or domain, Nginx intentionally strips X-Internal-Secret.
+    // Always use local loopback port 8000 for internal access checks to avoid header stripping.
+    let rawApiUrl = process.env.INTERNAL_API_URL || 'http://127.0.0.1:8000/api/v1';
+    if (rawApiUrl.startsWith('https://') || rawApiUrl.includes('ayaanclothing.com')) {
+      rawApiUrl = 'http://127.0.0.1:8000/api/v1';
+    }
+
     const internalSecret =
       process.env.INTERNAL_API_SECRET ||
       (process.env.NODE_ENV === 'production' ? '' : 'ayc_internal_country_lock_secret_2026');
@@ -214,6 +221,8 @@ export async function proxy(request: NextRequest) {
           },
         });
       }
+    } else {
+      console.warn(`[proxy] Storefront access check returned non-200 status: ${res.status}`);
     }
   } catch (err) {
     // Fail-safe: Always preserve normal storefront access if check fails or times out

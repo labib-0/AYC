@@ -143,9 +143,46 @@ Although filenames incorporate a cryptographically random 6-byte token (`receipt
 
 ---
 
-## 9. Related Technical Documentation
+## 9. Storefront Country Access Control (Bangladesh Storefront Restriction)
+
+The platform provides an authoritative geographic access control toggle on the administrator Homepage management dashboard (`/ayc/homepage`), allowing administrators to restrict customer-facing storefront access from visitors in Bangladesh.
+
+### A. Authoritative Setting & Persistence
+* **Key**: `bangladesh_storefront_block_enabled` stored in PostgreSQL `system_settings` table.
+* **Control Endpoint**: `PATCH /api/v1/admin/homepage/bangladesh-storefront-access` (authorized via `isSuperAdmin()`, `settings.edit`, or `homepage.banner.edit` permissions).
+* **Cache Invalidation**: Toggling this setting immediately calls `CatalogCacheService::invalidateAll()` to purge cached catalog objects.
+
+### B. Dual-Tier Enforcement Path
+1. **Next.js 16 Edge / Server Proxy (`src/proxy.ts`)**:
+   - Intercepts all public storefront page requests (`/`, `/products`, `/categories`, `/brands`, etc.).
+   - Dispatches a server-to-server HTTP request with `X-Internal-Secret` and `X-Internal-Client-IP` directly to the local daemon: `http://127.0.0.1:8000/api/v1/internal/storefront/access-check`.
+   - **Loopback Invariant**: Next.js strictly queries the loopback port 8000 daemon. It avoids external HTTPS domain calls (`https://ayaanclothing.com`) because Nginx intentionally strips `HTTP_X_INTERNAL_SECRET` on public-facing endpoints.
+   - If blocked, returns a lightweight self-contained HTTP 403 `GEO_BLOCKED_HTML` response with `Cache-Control: no-store, no-cache, must-revalidate`.
+2. **Laravel Public API Guard (`EnforceStorefrontCountryAccess`)**:
+   - Middleware alias: `storefront.country.access`.
+   - Protects public catalog APIs: `/homepage`, `/products/*`, `/categories/*`, `/brands/*`, and `/search/suggestions`.
+   - Resolves visitor IP from request TCP socket address (`REMOTE_ADDR`) and queries the local MaxMind GeoLite2 binary database (`GeoLite2-Country.mmdb`) via `StorefrontCountryAccessService`.
+   - Returns structured HTTP 403 JSON:
+     ```json
+     {
+       "success": false,
+       "message": "Storefront access is restricted in Bangladesh.",
+       "error_code": "GEO_BLOCKED_BANGLADESH"
+     }
+     ```
+
+### C. Admin & Buyer Safety Invariants
+* **Admin Portal Unrestricted**: The `/ayc` admin gateway and authenticated administrators (`$user->isAdmin()`) are strictly exempt from storefront country restrictions.
+* **Buyer Fulfillment Services Preserved**: Routes essential for buyer operations (`/login`, `/signup`, `/auth/*`, `/rfq`, `/orders/*`, `/dashboard`, `/order-access`, `/settings/public`) remain globally reachable.
+* **Fail-Open Policy**: If GeoIP resolution fails, the IP is unresolvable, or the MaxMind database is unavailable, access fails open safely to guarantee uninterrupted international storefront availability.
+* **Zero Client Bypass**: External query parameters (e.g. `?bypass=1`, `?ip=8.8.8.8`) and spoofed client headers (`X-Forwarded-For`, `X-Admin-App`) are strictly rejected.
+
+---
+
+## 10. Related Technical Documentation
 
 * **[AUTHENTICATION_AND_VERIFICATION.md](AUTHENTICATION_AND_VERIFICATION.md)**: Verification challenge token cryptography.
 * **[GOOGLE_OAUTH.md](GOOGLE_OAUTH.md)**: Google OAuth security boundary and customer isolation.
 * **[PAYMENTS_AND_INVENTORY.md](PAYMENTS_AND_INVENTORY.md)**: Payment proof upload security.
 * **[CONFIGURATION_AND_SECURITY.md](CONFIGURATION_AND_SECURITY.md)**: Environment variable permissions and file upload rules.
+* **[GLOSSARY_AND_BUSINESS_RULES.md](GLOSSARY_AND_BUSINESS_RULES.md)**: Invariant 6 (Bangladesh Storefront Geo-Restriction).

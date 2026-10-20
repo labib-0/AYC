@@ -189,6 +189,47 @@ test("StorefrontCountryAccessService only blocks confirmed Bangladesh and allows
   expect(accessServiceSrc).toContain("$blocked = $isBangladesh");
 });
 
+// ▶ Suite 6: Public API Protection & Proxy Loopback Enforcement (End-to-End Fix)
+console.log("\n▶ Suite 6: Public API Protection & Proxy Loopback Enforcement (End-to-End Fix)");
+
+const middlewarePath = path.resolve(__dirname, "../backend/app/Http/Middleware/EnforceStorefrontCountryAccess.php");
+const middlewareSrc = fs.readFileSync(middlewarePath, "utf-8");
+
+const bootstrapPath = path.resolve(__dirname, "../backend/bootstrap/app.php");
+const bootstrapSrc = fs.readFileSync(bootstrapPath, "utf-8");
+
+const routesApiPath = path.resolve(__dirname, "../backend/routes/api.php");
+const routesApiSrc = fs.readFileSync(routesApiPath, "utf-8");
+
+test("Proxy enforces local loopback port 8000 for internal access checks to prevent Nginx secret stripping", () => {
+  expect(proxySrc).toContain("rawApiUrl.startsWith('https://') || rawApiUrl.includes('ayaanclothing.com')");
+  expect(proxySrc).toContain("rawApiUrl = 'http://127.0.0.1:8000/api/v1'");
+});
+
+test("EnforceStorefrontCountryAccess middleware exists and evaluates StorefrontCountryAccessService", () => {
+  expect(middlewareSrc).toContain("class EnforceStorefrontCountryAccess");
+  expect(middlewareSrc).toContain("isBlockEnabled");
+  expect(middlewareSrc).toContain("checkAccess");
+  expect(middlewareSrc).toContain("GEO_BLOCKED_BANGLADESH");
+  expect(middlewareSrc).toContain("Response::HTTP_FORBIDDEN");
+});
+
+test("EnforceStorefrontCountryAccess middleware preserves authenticated administrative access", () => {
+  expect(middlewareSrc).toContain("isAdmin()");
+  expect(middlewareSrc).toContain("user('sanctum')");
+});
+
+test("Bootstrap app.php registers storefront.country.access middleware alias", () => {
+  expect(bootstrapSrc).toContain("'storefront.country.access' => \\App\\Http\\Middleware\\EnforceStorefrontCountryAccess::class");
+});
+
+test("Routes api.php protects public homepage, search, products, categories, and brands routes with storefront.country.access", () => {
+  expect(routesApiSrc).toContain("->middleware('storefront.country.access')");
+  expect(routesApiSrc).toContain("Route::middleware('storefront.country.access')->group(function ()");
+  expect(routesApiSrc).toContain("Route::get('/homepage'");
+  expect(routesApiSrc).toContain("Route::get('/search/suggestions'");
+});
+
 console.log("\n==================================================");
 console.log("ALL BANGLADESH STOREFRONT ACCESS AUDIT TESTS PASSED!");
 console.log("==================================================");

@@ -133,23 +133,28 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
     });
 
     // Search Suggestions
-    Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->middleware('throttle:search-suggestions');
+    Route::get('/search/suggestions', [SearchController::class, 'suggestions'])
+        ->middleware(['throttle:search-suggestions', 'storefront.country.access']);
 
     // Homepage / Landing Page Configuration (Public Storefront)
-    Route::get('/homepage', [HomepageController::class, 'index']);
+    Route::get('/homepage', [HomepageController::class, 'index'])
+        ->middleware('storefront.country.access');
 
     // Products (Public + Admin)
     Route::prefix('products')->group(function () {
-        Route::get('/featured', [ProductController::class, 'featured']);
-        Route::get('/statistics', [ProductController::class, 'statistics']);
-        Route::get('/check-uniqueness', [ProductController::class, 'checkUniqueness']);
-        Route::post('/bulk-offer-sheet', [ProductController::class, 'bulkOfferSheet']);
-        Route::get('/', [ProductController::class, 'index'])->middleware('throttle:products-browse');
-        Route::get('/slug/{slug}', [ProductController::class, 'show']);
-        Route::get('/{slugOrId}/shipping-specs', [ProductController::class, 'shippingSpecs']);
-        Route::get('/{slugOrId}/offer-sheet', [ProductController::class, 'offerSheet']);
-        Route::get('/{slugOrId}/offer-sheet/pdf', [ProductController::class, 'offerSheet']);
-        Route::get('/{slugOrId}', [ProductController::class, 'show']);
+        // Public Catalog Endpoints (Enforce Storefront Country Access)
+        Route::middleware('storefront.country.access')->group(function () {
+            Route::get('/featured', [ProductController::class, 'featured']);
+            Route::get('/statistics', [ProductController::class, 'statistics']);
+            Route::get('/check-uniqueness', [ProductController::class, 'checkUniqueness']);
+            Route::post('/bulk-offer-sheet', [ProductController::class, 'bulkOfferSheet']);
+            Route::get('/', [ProductController::class, 'index'])->middleware('throttle:products-browse');
+            Route::get('/slug/{slug}', [ProductController::class, 'show']);
+            Route::get('/{slugOrId}/shipping-specs', [ProductController::class, 'shippingSpecs']);
+            Route::get('/{slugOrId}/offer-sheet', [ProductController::class, 'offerSheet']);
+            Route::get('/{slugOrId}/offer-sheet/pdf', [ProductController::class, 'offerSheet']);
+            Route::get('/{slugOrId}', [ProductController::class, 'show']);
+        });
 
         Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
             Route::put('/reorder', [ProductController::class, 'reorder'])
@@ -185,9 +190,12 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
 
     // Categories
     Route::prefix('categories')->group(function () {
-        Route::get('/landing', [CategoryController::class, 'landing']);
-        Route::get('/', [CategoryController::class, 'index']);
-        Route::get('/{slug}', [CategoryController::class, 'show']);
+        // Public Catalog Endpoints (Enforce Storefront Country Access)
+        Route::middleware('storefront.country.access')->group(function () {
+            Route::get('/landing', [CategoryController::class, 'landing']);
+            Route::get('/', [CategoryController::class, 'index']);
+            Route::get('/{slug}', [CategoryController::class, 'show']);
+        });
 
         Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
             Route::put('/reorder', [CategoryController::class, 'reorder'])
@@ -205,9 +213,12 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
 
     // Brands
     Route::prefix('brands')->group(function () {
-        Route::get('/landing', [BrandController::class, 'landing']);
-        Route::get('/', [BrandController::class, 'index']);
-        Route::get('/{slug}', [BrandController::class, 'show']);
+        // Public Catalog Endpoints (Enforce Storefront Country Access)
+        Route::middleware('storefront.country.access')->group(function () {
+            Route::get('/landing', [BrandController::class, 'landing']);
+            Route::get('/', [BrandController::class, 'index']);
+            Route::get('/{slug}', [BrandController::class, 'show']);
+        });
 
         Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
             Route::put('/reorder', [BrandController::class, 'reorder'])

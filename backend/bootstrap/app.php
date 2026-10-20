@@ -48,9 +48,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'ayc/api/*',
         ]);
         $middleware->alias([
-            'role'       => \App\Http\Middleware\EnsureUserHasRole::class,
-            'permission' => \App\Http\Middleware\RequirePermission::class,
-            'verified'   => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'role'                      => \App\Http\Middleware\EnsureUserHasRole::class,
+            'permission'                => \App\Http\Middleware\RequirePermission::class,
+            'verified'                  => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'storefront.country.access' => \App\Http\Middleware\EnforceStorefrontCountryAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
