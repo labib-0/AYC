@@ -5,7 +5,7 @@
     <title>{{ $doc['title'] ?? 'COMMERCIAL DOCUMENT' }} - {{ $doc['doc_number'] ?? ($doc['docNumber'] ?? '') }}</title>
     <style>
         @page {
-            margin: 10mm 12mm 22mm 12mm;
+            margin: 10mm 12mm 24mm 12mm;
             size: a4 portrait;
         }
         * {
@@ -32,15 +32,15 @@
         /* Fixed Footer on all pages */
         .pdf-footer {
             position: fixed;
-            bottom: -16mm;
+            bottom: 2mm;
             left: 0;
             right: 0;
-            height: 12mm;
+            height: 14mm;
             border-top: 1px solid #cbd5e1;
             padding-top: 2.5mm;
             font-size: 7pt;
             color: #64748b;
-            line-height: 1.3;
+            line-height: 1.35;
         }
         .page-number:before {
             content: counter(page);
