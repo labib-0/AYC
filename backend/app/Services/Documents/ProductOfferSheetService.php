@@ -91,10 +91,18 @@ class ProductOfferSheetService
         // 1. Fast path: check DB and disk cache
         if (!$force) {
             $sheetRecord = ProductOfferSheet::where('product_id', $product->id)->first();
-            if ($sheetRecord && $sheetRecord->isReady() && $sheetRecord->fingerprint === $fingerprint) {
+            if ($sheetRecord && $sheetRecord->fingerprint === $fingerprint) {
                 if ($storageDisk->exists($canonicalPath)) {
                     $content = $storageDisk->get($canonicalPath);
                     if ($this->isPdfValid($content)) {
+                        if (!$sheetRecord->isReady()) {
+                            $sheetRecord->update([
+                                'status' => ProductOfferSheet::STATUS_READY,
+                                'filesize_bytes' => strlen($content),
+                                'checksum_sha256' => hash('sha256', $content),
+                                'generated_at' => $sheetRecord->generated_at ?: now(),
+                            ]);
+                        }
                         $timeMs = round((microtime(true) - $startTime) * 1000, 2);
                         return [
                             'content' => $content,
@@ -119,10 +127,18 @@ class ProductOfferSheetService
             // Double check cache in case concurrent worker completed generation
             if (!$force) {
                 $sheetRecord = ProductOfferSheet::where('product_id', $product->id)->first();
-                if ($sheetRecord && $sheetRecord->isReady() && $sheetRecord->fingerprint === $fingerprint) {
+                if ($sheetRecord && $sheetRecord->fingerprint === $fingerprint) {
                     if ($storageDisk->exists($canonicalPath)) {
                         $content = $storageDisk->get($canonicalPath);
                         if ($this->isPdfValid($content)) {
+                            if (!$sheetRecord->isReady()) {
+                                $sheetRecord->update([
+                                    'status' => ProductOfferSheet::STATUS_READY,
+                                    'filesize_bytes' => strlen($content),
+                                    'checksum_sha256' => hash('sha256', $content),
+                                    'generated_at' => $sheetRecord->generated_at ?: now(),
+                                ]);
+                            }
                             $timeMs = round((microtime(true) - $startTime) * 1000, 2);
                             return [
                                 'content' => $content,
@@ -180,9 +196,11 @@ class ProductOfferSheetService
             $fullTarget = $storageDisk->path($canonicalPath);
             $targetDir = dirname($fullTarget);
             if (!is_dir($targetDir)) {
-                @mkdir($targetDir, 0755, true);
+                @mkdir($targetDir, 0775, true);
             }
             @rename($fullTemp, $fullTarget);
+            @chmod($fullTarget, 0664);
+            @chmod($targetDir, 0775);
 
             // Prune obsolete older revisions of Offer Sheets for this product
             $this->pruneOldArtifacts($relativeDir, "OFFER_SHEET_", $canonicalPath);
@@ -308,9 +326,11 @@ class ProductOfferSheetService
         $fullTarget = $storageDisk->path($cacheFile);
         $targetDir = dirname($fullTarget);
         if (!is_dir($targetDir)) {
-            @mkdir($targetDir, 0755, true);
+            @mkdir($targetDir, 0775, true);
         }
         @rename($fullTemp, $fullTarget);
+        @chmod($fullTarget, 0664);
+        @chmod($targetDir, 0775);
 
         $totalTimeMs = round((microtime(true) - $startTime) * 1000, 2);
 
