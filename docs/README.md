@@ -3,7 +3,7 @@
 **Document Purpose**: Definitive master index, navigation guide, and architectural source-of-truth matrix for the AYAAN CLOTHING platform.  
 **Audience**: Software Engineers, System Architects, DevOps Operators, Database Administrators, Security Auditors, and AI Pair-Programming Agents.  
 **Last Verified Date**: October 20, 2026  
-**Environment Baseline**: Production Release `release_20261020_074747_c83a2f0` on Hostinger VPS `srv2010990` (Ubuntu 24.04 LTS, Mumbai 2, India).
+**Environment Baseline**: Production Release `release_20261020_092617_e680570` on Hostinger VPS `srv2010990` (Ubuntu 24.04 LTS, Mumbai 2, India).
 
 ---
 

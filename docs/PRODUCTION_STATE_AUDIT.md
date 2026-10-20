@@ -4,8 +4,8 @@
 **Audit Date & Time**: October 20, 2026, 07:50:00 UTC (13:50:00 Local/Asia/Dhaka)  
 **Auditor / Pair-Programming Agent**: Antigravity (Google DeepMind Advanced Agentic Coding)  
 **Host / Deployment Target**: Hostinger VPS `srv2010990` (Host Node AS47583, Mumbai 2, India) — Ubuntu 24.04.5 LTS (noble)  
-**Active Deployed Release**: Commit `c83a2f02d8fbf3fc9c6e82d7628edea583520e3e` (Local working tree matches deployed revision exactly)  
-**Frontend Release Symlink**: `/var/www/ayaan/.next` -> `/var/www/ayaan/.next_releases/release_20261020_074747_c83a2f0`  
+**Active Deployed Release**: Commit `e680570a25603833777f9fe20b2207b8b4293f9c` (`e680570`) (Local working tree matches deployed revision exactly)  
+**Frontend Release Symlink**: `/var/www/ayaan/.next` -> `/var/www/ayaan/.next_releases/release_20261020_092617_e680570`  
 **Safety & Compliance Confirmation**: **STRICTLY READ-ONLY**. Zero production application files, database records, schema definitions, system configurations, caches, or service states were modified during this interrogation. Zero secrets, credentials, or customer PII are disclosed in this report.
 
 ---
