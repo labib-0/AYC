@@ -1,5 +1,8 @@
 # RFQ & Notifications — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Documentation Notice:** This document is preserved for historical context. The canonical, actively maintained technical documentation for RFQ workflows and transactional notifications can be found in [APPLICATION_MODULES.md](APPLICATION_MODULES.md) and [EMAIL_AND_NOTIFICATIONS.md](EMAIL_AND_NOTIFICATIONS.md).
+
 ## 1. Request for Quotation (RFQ) Lifecycle
 
 While the public catalog handles ready-to-ship export overruns and factory stock lots, overseas retail brands and bulk importers frequently require **Custom OEM Garment Manufacturing** (custom fabrics, private labeling, specific sizing curves, and branded packaging). This is managed via the **Request for Quotation (RFQ)** system.

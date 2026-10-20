@@ -1,87 +1,110 @@
-# Commercial Documents — AYAAN CLOTHING (AYC)
+# AYAAN CLOTHING (AYC) — Commercial Export Trade Documents
 
-## 1. Export Trade Documentation Overview
+**Document Purpose**: Comprehensive architectural specification for official B2B export documents (Offer Sheets, Proforma Invoices, Commercial Invoices, Packing Lists), document lifecycles, and layout standards.  
+**Audience**: International Trade Specialists, Backend Developers, Financial Auditors, Legal Compliance Officers.  
+**Last Verified Date**: October 20, 2026  
+**Environment Baseline**: Production Release `release_20261020_052638_a8d2fef` on Hostinger VPS `srv2010990`.
 
-In the international ready-made garment (RMG) export industry, commercial documents serve as legal financial instruments required by central banks, customs authorities, and freight carriers. The AYC platform automatically generates and compiles three standardized commercial documents:
+---
+
+## 1. Trade Documents Matrix
+
+AYAAN CLOTHING generates four authoritative trade documents complying with international apparel export standards:
+
+| Document Type | Code Identifier | Target Scope | Availability Stage | Gating / Authorization Rule | Primary Service |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Product Offer Sheet** | `OFFER_SHEET` | Product & Multi-Product Order | Instant (Pre-generated) | Public (Catalog) / Owner (Order) | `ProductOfferSheetService` |
+| **Proforma Invoice** | `PROFORMA_INVOICE` | Specific Order | Upon Order Placement | Customer Owner or Admin | `ProformaInvoiceService` |
+| **Commercial Invoice** | `COMMERCIAL_INVOICE` | Specific Order | After Payment Confirmation | **Gated**: Requires `payment_status = 'paid'` | `CommercialInvoiceService` |
+| **Packing List** | `PACKING_LIST` | Specific Order | After Payment Confirmation | **Gated**: Requires `payment_status = 'paid'` | `CommercialInvoiceService` |
+
+---
+
+## 2. Document Purpose & Data Elements
+
+### A. Product Offer Sheet (`OFFER_SHEET`)
+* **Purpose**: Comprehensive commercial presentation of garments for buyer review and purchase approval.
+* **Core Elements**: Product title, SKU, brand identity, multi-angle photography, fabric composition, GSM, wash care, packaging breakdown, MOQ, 3-tier wholesale pricing, exporter contact info, and legal commercial export terms.
+* **Lifecycle**: Pre-generated and cached per product ($\le 1.5$ MB); dynamically merged in order item sequence for multi-product orders.
+
+### B. Proforma Invoice (`PROFORMA_INVOICE`)
+* **Purpose**: Preliminary commercial bill used by international buyers to obtain import permits, open Letters of Credit (L/C), or initiate SWIFT telegraphic transfers (T/T).
+* **Core Elements**: Unique PI number (`AYC_PI_{number}.pdf`), order creation date, consignee name/company, destination port, transport mode (Air/Sea/Manual), itemized unit pricing, shipping freight, discounts, grand total, and exporter banking remittance coordinates.
+
+### C. Commercial Invoice (`COMMERCIAL_INVOICE`)
+* **Purpose**: Authoritative legal customs document accompanying the physical shipment for international customs clearance, duty assessment, and foreign exchange reporting.
+* **Core Elements**: Commercial Invoice number (`AYC_CI_{number}.pdf`), Harmonized System (HS) export tariff codes, country of origin (Bangladesh), confirmed payment reference, and port of lading / discharge.
+* **Gating**: Strictly gated. If an unverified or unpaid order requests a Commercial Invoice, the API returns HTTP 403.
+
+### D. Export Packing List (`PACKING_LIST`)
+* **Purpose**: Physical cargo breakdown for freight forwarders, shipping lines, and port customs inspectors.
+* **Core Elements**: Carton-by-carton breakdown, size ratio breakdown per carton, total carton count, gross weight (kg), net weight (kg), and total cubic meters (CBM).
+
+---
+
+## 3. Architecture & Service Hierarchy
+
+Document processing is divided into dedicated specialized services:
 
 ```mermaid
-flowchart LR
-    A[Order Inquiry / Negotiation] -->|Generates| B[Offer Sheet / Quotation]
-    B -->|Order Placed / Pre-Payment| C[Proforma Invoice / PI]
-    C -->|Payment Verified / Dispatched| D[Commercial Invoice / CI]
+graph TD
+    API["OrderController / ProductController"]
+    
+    subgraph Services ["Document Service Architecture"]
+        ProductOfferSheetSvc["ProductOfferSheetService<br/>Pre-generation, size enforcement, order merge"]
+        PdfMergerSvc["PdfMergerService<br/>Pure PHP multi-product PDF combining"]
+        PISvc["ProformaInvoiceService<br/>Order-specific PI generation"]
+        CISvc["CommercialInvoiceService<br/>Customs CI & Packing Lists"]
+        ArtifactSvc["CommercialPdfArtifactService<br/>Order-level disk caching & byte parity"]
+        Helper["DocumentHelper<br/>Company profile, bank coordinates, Dompdf config"]
+    end
+
+    API --> ProductOfferSheetSvc
+    API --> PISvc
+    API --> CISvc
+
+    ProductOfferSheetSvc --> PdfMergerSvc
+    PISvc --> ArtifactSvc
+    CISvc --> ArtifactSvc
+    ProductOfferSheetSvc --> Helper
+    PISvc --> Helper
+    CISvc --> Helper
 ```
 
-### Document Types & Legal Functions
-1. **Offer Sheet (Quotation)**:
-   * **Purpose**: Issued during initial buyer negotiations to formalize unit wholesale pricing, package carton breakdowns, validity dates, and export shipping terms.
-   * **Access**: Available immediately upon product configuration or quote generation.
-2. **Proforma Invoice (PI)**:
-   * **Purpose**: Legally binding pre-shipment invoice required by foreign exchange banks to authorize international wire transfers (T/T in advance) or open documentary Letters of Credit (L/C).
-   * **Access**: Issued immediately upon order placement (`status: pending`).
-3. **Commercial Invoice (CI)**:
-   * **Purpose**: Authoritative shipping invoice required for customs clearance at export ports (Dhaka DAC airport, Chittagong Port) and destination customs at the port of entry for duty calculation.
-   * **Access**: Available once payment is approved (`payment_status: paid`) or order is confirmed.
+---
+
+## 4. PDF Layout & Formatting Standards
+
+PDF rendering is powered by **Dompdf 3.1.6** with strict design rules enforced in `DocumentHelper`:
+
+1. **Page Geometry**: Standard ISO A4 format (`210mm x 297mm`) with consistent 12mm–14mm margins.
+2. **Typography**: Embedded Helvetica / Arial fonts with fixed line heights to guarantee text never collides across columns or clips vertically.
+3. **Branding & Layout Non-Overlap**:
+   - Company profile, registered address, and WhatsApp contact in top left header.
+   - Brand logo and official document title right-aligned.
+   - Reference bar with isolated columns and explicit gutters.
+4. **Image Handling**:
+   - High-resolution product images are processed through Intervention Image and resized to 1200px max dimensions.
+   - Images are embedded as standard RGB JPEGs to prevent Dompdf transparency/color rendering anomalies.
+5. **Privacy Protection**: Administrative operator notes, internal wholesale margins, and supplier purchase costs are stripped before rendering for customer requests.
 
 ---
 
-## 2. Core Rule: Actual Product Data Only (Zero Fabrication)
+## 5. API Delivery Endpoints
 
-A foundational architectural requirement enforced across the document pipeline:
-
-* **Strict Prohibition of Synthetic Data**: Document generators must **never** invent, assume, hardcode, or inject dummy specifications to fill empty space.
-* **Authentic Specifications**: Only attributes explicitly present in the product database record (`products.specifications`) are rendered (e.g. Fabric Composition, Sizing, Colors, Package Assortments).
-* **Missing Fields Omission**: If a specification (such as Fabric Weight / GSM) is not present in the product record, the corresponding row or field is omitted cleanly from the table rather than printing fabricated values or generic placeholders.
-* **Price Parity**: Document prices reflect the exact unit prices, volume tier discounts, freight fees, and line totals stored in `order_items`.
-
----
-
-## 3. Parity Between Preview and PDF Download
-
-The system guarantees 100% visual and numerical consistency between the browser preview modal and the downloaded PDF binary:
-
-```mermaid
-flowchart TD
-    API[Backend API: Order & Document Service] --> DocData[Normalized Document Payload JSON]
-    DocData --> Preview[React Browser Preview: OfferSheetDocument.tsx]
-    DocData --> PDF[PDF Engine: Canvas / SVG / html2pdf Engine]
-    Preview -.->|Exact Visual & Numerical Match| PDF
-```
-
-### A. Shared Document Components (`src/components/admin/documents/`)
-* **`DocumentHeader.tsx`**: Renders exporter credentials, document badges, reference numbers, and dates.
-* **`OfferSheetDocument.tsx`**: Renders wholesale quotation details, validity terms, and package size-curve tables.
-* **`ProformaInvoiceDocument.tsx`**: Renders pre-shipment banking details, SWIFT routing codes, and freight terms.
-* **`CommercialInvoiceDocument.tsx`**: Renders customs declaration, final packaging counts, and shipping marks.
-
-### B. Header Layout & Non-Overlap Fixes
-Historical releases experienced CSS layout overlap between the company logo and the document badge when printed on narrow pages. In commit `85b8bed`, the header was re-engineered using an explicit flexbox grid:
-* Left column: Exporter legal entity, physical factory address, and registration numbers.
-* Right column: Document badge (`PROFORMA INVOICE`), reference number, issue date, and payment terms.
-* Both columns use explicit CSS `min-height` and isolated z-indexing, guaranteeing zero visual overlap across desktop displays, mobile previews, and printed A4 paper sheets.
+| Endpoint | Method | Format | Content-Disposition | Authorization |
+| :--- | :---: | :---: | :--- | :--- |
+| `/api/v1/products/{id}/offer-sheet/pdf` | `GET` | Binary PDF | `attachment; filename="AYC_Offer_Sheet_{SKU}.pdf"` | Public Storefront |
+| `/api/v1/products/bulk-offer-sheet` | `POST` | Binary PDF | `attachment; filename="AYC_Bulk_Offer_Sheets.pdf"` | Public Storefront |
+| `/api/v1/orders/{id}/documents/OFFER_SHEET/pdf` | `GET` | Binary PDF | `attachment; filename="AYC_Offer_Sheet_{order_no}.pdf"` | Customer Owner / Admin |
+| `/api/v1/orders/{id}/documents/PROFORMA_INVOICE/pdf` | `GET` | Binary PDF | `attachment; filename="AYC_PI_{pi_no}.pdf"` | Customer Owner / Admin |
+| `/api/v1/orders/{id}/documents/COMMERCIAL_INVOICE/pdf` | `GET` | Binary PDF | `attachment; filename="AYC_CI_{ci_no}.pdf"` | Customer Owner (Paid) / Admin |
+| `/api/v1/orders/{id}/documents/PACKING_LIST/pdf` | `GET` | Binary PDF | `attachment; filename="AYC_PL_{order_no}.pdf"` | Customer Owner (Paid) / Admin |
 
 ---
 
-## 4. Standard Exporter & Beneficiary Details
+## 6. Related Technical Documentation
 
-Every generated trade document embeds the verified corporate identity:
-
-* **Exporter / Beneficiary**: `AYAAN CLOTHING`
-* **Address**: House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka - 1230, Bangladesh
-* **Official Phone**: `+880 1620-853502`
-* **Official Email**: `info@ayaanclothing.com`
-* **Beneficiary Bank**: The City Bank Limited, Principal Branch, Dhaka, Bangladesh
-* **Country of Origin**: Bangladesh
-* **Standard Shipping Terms**: FOB Hazrat Shahjalal International Airport (DAC) or FOB Chittagong Port (CGP), unless CIF is explicitly quoted.
-
----
-
-## 5. Automated Document Verification Suite
-
-The document generation pipeline is continuously verified using an automated script:
-```bash
-node scripts/verify-offer-sheet-pdf.mjs
-```
-This test renders live product data, compiles the PDF binary in headless Chromium, and verifies:
-1. All rendered specifications match the database record.
-2. Fabricated fields (such as unverified GSM claims) do not appear.
-3. Text bounding boxes do not collide or clip table borders.
+* **[PRODUCT_OFFER_SHEETS.md](PRODUCT_OFFER_SHEETS.md)**: Deep dive into the canonical Offer Sheet architecture.
+* **[PROFORMA_INVOICES.md](PROFORMA_INVOICES.md)**: Proforma Invoice generation and banking details.
+* **[DOCUMENT_STORAGE_AND_DELIVERY.md](DOCUMENT_STORAGE_AND_DELIVERY.md)**: Disk caching and byte parity.

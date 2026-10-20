@@ -1,5 +1,8 @@
 # Customer Storefront — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Notice**: This historical document has been modernized and superseded by the authoritative canonical references at **[docs/FRONTEND.md](FRONTEND.md)** and **[docs/APPLICATION_MODULES.md](APPLICATION_MODULES.md)**. Please consult those guides for current App Router architecture, UI components, and discovery modules.
+
 ## 1. Storefront Architecture & Design Philosophy
 
 The AYC Customer Storefront is engineered for international B2B wholesale buyers, fashion retail sourcing agents, and commercial apparel importers. It balances fast, responsive product discovery with the complex data requirements of garment export trade (tiered pricing, minimum order quantities, and carton size-curve breakdowns).

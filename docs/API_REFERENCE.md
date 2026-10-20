@@ -1,160 +1,209 @@
-# API Reference — AYAAN CLOTHING (AYC)
+# AYAAN CLOTHING (AYC) — REST API Reference
 
-## 1. Overview & Conventions
+**Document Purpose**: Comprehensive technical reference for the public and administrative REST API endpoints, request schemas, headers, authorization gates, and status responses.  
+**Audience**: Frontend Developers, Integration Partners, API Engineers, QA Automation.  
+**Last Verified Date**: October 20, 2026  
+**Environment Baseline**: Production Release `release_20261020_052638_a8d2fef` on Hostinger VPS `srv2010990`.
 
-The AYAAN CLOTHING Core REST API is exposed under `/api/v1/`. All requests and responses use JSON formatting unless explicitly requesting binary downloads (such as PDF generation or receipt images).
+---
 
-* **Base URL**: `https://ayaanclothing.com/api/v1` (Production) or `http://localhost:8000/api/v1` (Local)
+## 1. Global API Conventions
+
+* **Base URLs**:
+  - Customer API: `https://ayaanclothing.com/api/v1`
+  - Admin API: `https://ayaanclothing.com/ayc/api/v1` (or `/api/v1/admin/*`)
 * **Headers**:
-  * `Accept: application/json`
-  * `Content-Type: application/json`
-  * `Authorization: Bearer <sanctum_token>` (for authenticated routes)
-* **Standard Response Envelope**:
+  - `Accept: application/json` (or `application/pdf` for binary document streams)
+  - `Content-Type: application/json` (or `multipart/form-data` for uploads)
+  - `Authorization: Bearer <sanctum_personal_access_token>`
+* **Standard Status Codes**:
+  - `200 OK`: Request succeeded.
+  - `201 Created`: Resource successfully persisted.
+  - `401 Unauthorized`: Missing or invalid Bearer token.
+  - `403 Forbidden`: Insufficient role or `EMAIL_VERIFICATION_REQUIRED`.
+  - `422 Unprocessable Entity`: Form validation failed.
+  - `429 Too Many Requests`: Rate limit threshold exceeded.
+
+---
+
+## 2. Authentication & Verification Endpoints
+
+### `POST /api/v1/auth/register`
+* **Purpose**: Register a new customer account and initiate an email verification challenge.
+* **Auth**: Public.
+* **Request Body**:
+  ```json
+  {
+    "name": "Jane Buyer",
+    "email": "jane@retailchain.com",
+    "password": "SecurePassword123!",
+    "password_confirmation": "SecurePassword123!"
+  }
+  ```
+* **Success Response (201 Created)**:
   ```json
   {
     "success": true,
-    "message": "Operation completed successfully",
-    "data": { ... }
+    "message": "Account registered successfully. Please verify your email.",
+    "token": "137|Ww48AE...",
+    "user": {
+      "id": 55,
+      "name": "Jane Buyer",
+      "email": "jane@retailchain.com",
+      "role": "customer",
+      "email_verified_at": null
+    }
   }
   ```
-* **Error Response Format (e.g. 422 Unprocessable Entity)**:
+
+### `POST /api/v1/auth/login`
+* **Purpose**: Authenticate credentials and receive a Sanctum token.
+* **Auth**: Public. Throttled (`throttle:auth`).
+* **Request Body**:
   ```json
   {
-    "success": false,
-    "message": "The given data was invalid.",
-    "errors": {
-      "field_name": ["Specific validation error message"]
-    }
+    "email": "jane@retailchain.com",
+    "password": "SecurePassword123!"
+  }
+  ```
+
+### `GET /api/v1/auth/verify-email`
+* **Purpose**: Verify a cryptographic email challenge link.
+* **Auth**: Public (Validates query parameters).
+* **Query Parameters**:
+  - `email`: Customer email address.
+  - `token`: 256-bit hexadecimal challenge secret.
+* **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "message": "Your email address has been successfully verified.",
+    "verified": true
+  }
+  ```
+
+### `POST /api/v1/auth/email/verification-notification`
+* **Purpose**: Resend a fresh verification challenge email.
+* **Auth**: `auth:sanctum`. Throttled (`throttle:email-verification`).
+
+### `GET /api/v1/auth/google/redirect`
+* **Purpose**: Initiate Google OAuth 2.0 consent flow.
+* **Auth**: Public (Customer role only). Returns 302 Redirect to Google.
+
+### `GET /api/v1/auth/google/callback`
+* **Purpose**: Handle incoming Google OAuth token callback.
+* **Auth**: Public. Exchanges authorization code, creates or links customer user, and redirects to frontend `/auth/callback`.
+
+---
+
+## 3. Product Catalog & Offer Sheets
+
+### `GET /api/v1/products`
+* **Purpose**: Browse and filter published products.
+* **Auth**: Public. Throttled (`throttle:products-browse`).
+* **Query Parameters**: `category`, `brand`, `search`, `min_price`, `max_price`, `page`, `per_page`.
+
+### `GET /api/v1/products/slug/{slug}`
+* **Purpose**: Retrieve full product specifications, package assortments, volume tiers, and gallery.
+* **Auth**: Public.
+
+### `GET /api/v1/products/{id}/offer-sheet/pdf`
+* **Purpose**: Direct binary download of the pre-generated, compressed product Offer Sheet PDF.
+* **Auth**: Public.
+* **Response**: Binary `application/pdf` with `Content-Disposition: attachment; filename="AYC_Offer_Sheet_{SKU}.pdf"`.
+
+### `POST /api/v1/products/bulk-offer-sheet`
+* **Purpose**: Retrieve a single combined PDF merging multiple product Offer Sheets.
+* **Auth**: Public.
+* **Request Body**:
+  ```json
+  {
+    "product_ids": [177, 152, 23]
   }
   ```
 
 ---
 
-## 2. Public Endpoints (Unauthenticated)
+## 4. Orders & Checkout Endpoints
 
-### System & Health
-* **`GET /health`**
-  * **Description**: Infrastructure health probe returning database, Redis, and application status.
-  * **Response `200 OK`**:
-    ```json
-    {
-      "success": true,
-      "message": "API is healthy",
-      "data": {
-        "status": "ok",
-        "app_name": "AYAAN CLOTHING",
-        "environment": "production",
-        "services": { "database": "ok", "cache": "ok" },
-        "timestamp": "2026-10-17T15:56:12+00:00"
-      }
-    }
-    ```
-* **`GET /settings/public`**: Returns official corporate identity, WhatsApp sales contact (`+880 1620-853502`), physical address in Uttara, and supported currencies.
-* **`GET /legal/{type}`**: Returns published legal policies (`privacy-policy`, `terms-and-conditions`).
+### `POST /api/v1/orders/calculate-checkout`
+* **Purpose**: Preview checkout calculations (subtotal, volume discounts, freight estimate, total).
+* **Auth**: `auth:sanctum`, `role:customer`.
+* **Guard**: Enforces `$user->hasVerifiedEmail()`. Returns 403 `EMAIL_VERIFICATION_REQUIRED` if unverified.
 
-### Public Catalog & Discovery
-* **`GET /homepage`**: Returns active promotional banners, marquee ticker items, featured export brands, and hot sale categories.
-* **`GET /search/suggestions?q={query}`**: Returns fast typeahead product and category suggestions.
-* **`GET /products`**: Paginated wholesale catalog.
-  * **Query Parameters**:
-    * `category_id` (integer): Filter by category.
-    * `brand_id` (integer): Filter by brand.
-    * `min_price`, `max_price` (numeric): Price range filter.
-    * `sort_by` (string): `price_asc`, `price_desc`, `latest`, `sort_order`.
-    * `page` (integer), `per_page` (integer): Pagination controls.
-* **`GET /products/{slugOrId}`**: Detailed product information, including variant curves, image galleries, 3-tier wholesale pricing tables, MOQ, carton package allocations, and garment specifications.
-* **`GET /products/{slugOrId}/shipping-specs`**: Logistics metadata (carton dimensions, gross weight, volumetric weight) for freight estimation.
-* **`GET /categories`**: Complete active category tree.
-* **`GET /brands`**: Verified export apparel brands.
+### `POST /api/v1/orders`
+* **Purpose**: Place an official export order under idempotency protection.
+* **Auth**: `auth:sanctum`, `role:customer`, `verified`.
+* **Headers**: `X-Idempotency-Key: <unique_uuid>`
+* **Request Body**:
+  ```json
+  {
+    "items": [
+      { "product_id": 177, "quantity": 1000, "pricing_mode": "tier" },
+      { "product_id": 152, "quantity": 500, "pricing_mode": "tier" }
+    ],
+    "shipping_name": "John Smith",
+    "shipping_company": "Global Retail Ltd",
+    "shipping_address1": "Hafenstrasse 12",
+    "shipping_city": "Hamburg",
+    "shipping_country_code": "DE",
+    "destination_port": "DEHAM",
+    "shipping_method": "sea_freight",
+    "payment_method": "wire_transfer"
+  }
+  ```
+* **Success Response (201 Created)**: Returns confirmed order record with `order_number` and `customer_status: "ORDER_PLACED"`.
 
----
+### `GET /api/v1/orders/{id}`
+* **Purpose**: Fetch detailed order snapshot and tracking status.
+* **Auth**: `auth:sanctum` (Customer owner or Admin).
 
-## 3. Customer Account & Order Endpoints
-
-Protected by `auth:sanctum`. Tokens must belong to an authenticated customer.
-
-### Authentication
-* **`POST /auth/register`**: Customer registration (name, email, password, company name, country code).
-* **`POST /auth/login`**: Customer login returning Sanctum personal access token.
-* **`POST /auth/logout`**: Revokes current access token.
-* **`GET /auth/me`**: Returns authenticated user profile, company details, and verified status.
-
-### Customer Order Lifecycle
-* **`POST /orders`**: Places a canonical wholesale order.
-  * **Request Body**:
-    ```json
-    {
-      "customer_name": "John Doe",
-      "company_name": "Acme Apparel Imports Ltd",
-      "shipping_phone": "+14155552671",
-      "shipping_address1": "100 Industrial Parkway",
-      "shipping_city": "Los Angeles",
-      "shipping_country_code": "US",
-      "payment_method": "wire_transfer",
-      "currency": "USD",
-      "items": [
-        { "product_id": 42, "sku": "AYC-HOOD-BLK-M", "quantity": 120 }
-      ],
-      "coupon_code": "SAVE10"
-    }
-    ```
-  * **Behavior**: Validates MOQ, computes wholesale pricing tiers, verifies uncommitted inventory, executes stock deduction, and returns `ORD-YYYY-XXXX`.
-* **`GET /orders`**: Paginated order history for the authenticated buyer.
-* **`GET /orders/{id}`**: Detailed order breakdown, including line items, status progression timeline, applied discounts, and carrier tracking.
-* **`POST /orders/{id}/payment-proof`**: Uploads wire transfer receipt / deposit slip.
-  * **Content-Type**: `multipart/form-data`
-  * **Form Fields**: `payment_proof` (File: JPG, PNG, WebP; max 10 MB).
-  * **Behavior**: Transcodes image to WebP, sanitizes metadata, updates order status to `pending_verification`.
-
-### Commercial Document Generation
-* **`GET /orders/{id}/documents/{docType}`**: Returns structured JSON for export documents (`OFFER_SHEET`, `PROFORMA_INVOICE`, `COMMERCIAL_INVOICE`).
-* **`GET /orders/{id}/documents/{docType}/pdf`**: Generates and streams official PDF binary with correct HTTP headers (`Content-Type: application/pdf`).
-
-### Custom OEM & RFQ
-* **`POST /rfq`**: Submits a Request for Quotation for custom garment manufacturing.
-* **`GET /rfq`**: Lists historical RFQ inquiries submitted by the buyer.
+### `POST /api/v1/orders/{id}/payment-proof`
+* **Purpose**: Upload scanned wire transfer receipt / SWIFT slip.
+* **Auth**: `auth:sanctum` (Customer owner or Admin).
+* **Request**: Multipart form-data with `file` (up to 20 MB).
 
 ---
 
-## 4. Administrative Endpoints (`/ayc/api/`)
+## 5. Commercial Documents Endpoints
 
-Protected by `auth:sanctum`, `role:admin`, and granular `permission:<slug>`.
-
-### Product & Inventory Management
-* **`POST /products`** (`permission:catalog.manage`): Creates a new product, validating uniqueness of SKU and slug, and generating visible `PRD-xxxx` identifier.
-* **`PUT /products/{id}`** (`permission:catalog.manage`): Updates product specifications, images, and tiered pricing.
-* **`POST /products/{id}/pin`** (`permission:catalog.manage`): Pins product to the top of featured catalog lists.
-* **`PATCH /products/{id}/toggle-storefront-visibility`** (`permission:catalog.manage`): Hides or reveals product on the public storefront.
-* **`GET /products/{id}/stock-history`** (`permission:inventory.adjust`): Audit log of warehouse stock adjustments.
-
-### Order Processing & Payment Verification
-* **`GET /orders`** (`permission:orders.manage`): Global admin orders table with faceted filtering by status, payment state, and date range.
-* **`POST /orders/{id}/payment/verify`** (`permission:orders.verify_payment`):
-  * Approves the buyer's wire transfer receipt.
-  * Transitions order status from `pending_verification` to `paid`.
-  * Logs immutable verification event in `order_status_events`.
-* **`POST /orders/{id}/payment/reject`** (`permission:orders.verify_payment`):
-  * Rejects uploaded receipt.
-  * Transitions status to `payment_rejected`.
-  * Stores rejection reason and notifies the buyer to upload a replacement proof.
-* **`PATCH /orders/{id}/fulfillment`** (`permission:orders.manage`): Assigns carrier name (`Aramex`, `DHL`, `Ocean Freight`) and tracking AWB number.
-
-### Point-of-Sale (POS) API
-* **`GET /pos/customers/walkin`** (`permission:pos.access`): Returns default walk-in customer object.
-* **`POST /pos/customers`** (`permission:pos.access`): Quick-creates a customer requiring only name and phone number.
-* **`POST /pos/calculate`** (`permission:pos.access`): Dry-runs tax, bulk discounts, and coupon deductions without placing an order.
-* **`POST /pos/orders`** (`permission:pos.access`): Finalizes POS transaction, creates order record with `order_source: pos`, and deducts stock immediately.
-
-### Role-Based Access Control (RBAC)
-* **`GET /rbac/roles`** (`permission:rbac.manage`): Lists all custom roles and their assigned permissions.
-* **`POST /rbac/roles`** (`permission:rbac.manage`): Creates a custom administrative role.
-* **`PUT /rbac/roles/{id}/permissions`** (`permission:rbac.manage`): Syncs permission matrix for a role.
-* **`POST /rbac/admins/{adminId}/roles`** (`permission:rbac.manage`): Assigns role to an admin user.
+### `GET /api/v1/orders/{id}/documents/{docType}/pdf`
+* **Purpose**: Direct binary download of an official order commercial trade document.
+* **Auth**: `auth:sanctum` (Customer owner or Admin).
+* **Supported `docType` Values**:
+  - `OFFER_SHEET`: Merged product Offer Sheets in order item sequence.
+  - `PROFORMA_INVOICE`: Order billing document with export banking coordinates.
+  - `COMMERCIAL_INVOICE`: Gated export customs invoice (requires `payment_status = 'paid'`).
+  - `PACKING_LIST`: Gated cargo packing list (requires `payment_status = 'paid'`).
+* **Headers Returned**:
+  ```http
+  Content-Type: application/pdf
+  Content-Disposition: attachment; filename="AYC_Offer_Sheet_AYN-20261020-WYUWFB.pdf"
+  X-PDF-Cache: HIT
+  X-PDF-Hash: c8fa85f7b9611d6e175eda8860ac048147e124ef0c00e925fc924c19b402a3f1
+  ```
 
 ---
 
-## 5. Internal Server-to-Server Endpoints
+## 6. Point-of-Sale (POS) Endpoints
 
-* **`GET /internal/storefront/access-check`**
-  * **Headers**: `X-Internal-Secret: <INTERNAL_API_SECRET>`, `X-Internal-Client-IP: <client_ip>`
-  * **Description**: Evaluates client IP against MaxMind GeoIP database or fallback provider. Returns whether the visitor is located in Bangladesh to enforce export pricing security.
+### `POST /api/v1/pos/checkout`
+* **Purpose**: Complete an in-person factory showroom wholesale sale.
+* **Auth**: `auth:sanctum`, `role:admin`, `permission:pos.operate`.
+* **Request Body**:
+  ```json
+  {
+    "items": [{ "variant_id": 412, "quantity": 100, "unit_price": 3.85 }],
+    "payment_method": "cash",
+    "customer_name": "Walk-In Buyer",
+    "customer_phone": "+8801700000000"
+  }
+  ```
+
+---
+
+## 7. Related Technical Documentation
+
+* **[AUTHENTICATION_AND_VERIFICATION.md](AUTHENTICATION_AND_VERIFICATION.md)**: Token parameters and verification rules.
+* **[ORDERS_AND_CHECKOUT.md](ORDERS_AND_CHECKOUT.md)**: Checkout pipeline parameters.
+* **[COMMERCIAL_DOCUMENTS.md](COMMERCIAL_DOCUMENTS.md)**: Document parameters and response headers.

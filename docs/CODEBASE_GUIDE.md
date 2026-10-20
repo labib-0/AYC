@@ -1,5 +1,8 @@
 # Codebase Guide — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Documentation Notice:** This document is preserved for historical context. The canonical, actively maintained technical architecture and codebase specifications can be found in [FRONTEND.md](FRONTEND.md), [BACKEND.md](BACKEND.md), and [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## 1. Repository Layout Overview
 
 The AYC repository is structured as a full-stack monorepo containing the Next.js frontend application, Laravel REST API backend, deployment automation scripts, test suites, and documentation.

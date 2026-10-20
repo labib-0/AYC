@@ -1,5 +1,8 @@
 # Production Operations & Runbook — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Notice**: This historical document has been modernized and superseded by the authoritative canonical references at **[docs/OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md)** and **[docs/BACKUP_AND_RECOVERY.md](BACKUP_AND_RECOVERY.md)**. Please consult those guides for active operations, health diagnostics, and disaster recovery procedures.
+
 ## 1. Production Topology & Environment Specifications
 
 The production system runs on a high-performance cloud Virtual Private Server hosted in Mumbai, India:

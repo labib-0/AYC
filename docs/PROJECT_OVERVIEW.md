@@ -1,5 +1,8 @@
 # Project Overview — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Notice**: This historical document has been modernized and superseded by the authoritative canonical reference at **[docs/SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md)**. Please consult `SYSTEM_OVERVIEW.md` for current production architecture, workflows, and specifications.
+
 ## 1. Business Purpose & Mission
 
 **AYAAN CLOTHING (AYC)** is a premier Bangladesh garment manufacturer and export trading enterprise based in Uttara, Dhaka. Established in 2010, the company specializes in supplying bulk apparel, factory surplus stock lots, original-branded overruns, and custom Original Equipment Manufacturing (OEM) production to international B2B wholesale buyers, boutique retail chains, and commercial importers worldwide.

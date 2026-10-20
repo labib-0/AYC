@@ -1,5 +1,8 @@
 # Orders, Payments & Receipts — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Documentation Notice:** This document is preserved for historical context. The canonical, actively maintained technical documentation for orders, checkout, payments, and inventory can be found in [ORDERS_AND_CHECKOUT.md](ORDERS_AND_CHECKOUT.md) and [PAYMENTS_AND_INVENTORY.md](PAYMENTS_AND_INVENTORY.md).
+
 ## 1. Canonical Order State Machine
 
 The order lifecycle coordinates wholesale commercial commitments, payment verification, and export logistics. Orders progress through three decoupled status dimensions:

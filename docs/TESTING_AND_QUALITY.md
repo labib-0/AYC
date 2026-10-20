@@ -1,5 +1,8 @@
 # Testing & Quality Assurance — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Notice**: This historical document has been modernized and superseded by the authoritative canonical reference at **[docs/TESTING.md](TESTING.md)**. Please consult `TESTING.md` for current test suites, release gates, and QA verification protocols.
+
 ## 1. Quality Engineering Standards
 
 The AYC platform manages international export transactions, wholesale volume calculations, and warehouse inventory. Software defects can directly disrupt factory production schedules, lead to overselling, or violate international trade documentation standards. 

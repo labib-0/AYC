@@ -1,5 +1,8 @@
 # Database & Data Model — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Notice**: This historical document has been modernized and superseded by the authoritative canonical reference at **[docs/DATABASE.md](DATABASE.md)**. Please consult `DATABASE.md` for current PostgreSQL schemas, ERDs, indexes, and migration standards.
+
 ## 1. Database Architecture & Conventions
 
 The AYC platform utilizes **PostgreSQL 16** as its authoritative, ACID-compliant relational datastore. The production database is named `ayaan_production`, owned by `ayaan_user`.

@@ -1,5 +1,8 @@
 # Product Catalog & Inventory — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Documentation Notice:** This document is preserved for historical context. The canonical, actively maintained technical documentation for product catalog and inventory management can be found in [PRODUCTS_AND_CATALOG.md](PRODUCTS_AND_CATALOG.md) and [PAYMENTS_AND_INVENTORY.md](PAYMENTS_AND_INVENTORY.md).
+
 ## 1. Product Lifecycle & Creation Workflow
 
 Managing export garment stock lots and OEM production styles requires precision across physical specifications, volume pricing structures, and inventory tracking. Products are authored and maintained through the Admin Portal (`/ayc/products`).

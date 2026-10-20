@@ -1,5 +1,8 @@
 # Configuration and Security — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Notice**: This historical document has been modernized and superseded by the authoritative canonical references at **[docs/SECURITY.md](SECURITY.md)** and **[docs/CONFIGURATION_REFERENCE.md](CONFIGURATION_REFERENCE.md)**. Please consult those guides for active security boundaries, rate limiting, and environment variable references.
+
 ## 1. Security Architecture & Threat Model
 
 The AYC platform manages wholesale commercial contracts, proprietary garment designs, buyer banking documents, and customer transactions. The security model enforces strict tenant isolation, role-based administrative boundaries, defensive file upload handling, and network-level ingress controls.

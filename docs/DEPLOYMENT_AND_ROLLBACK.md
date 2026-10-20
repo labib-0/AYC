@@ -1,5 +1,8 @@
 # Deployment & Rollback — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Notice**: This historical document has been modernized and superseded by the authoritative canonical reference at **[docs/DEPLOYMENT.md](DEPLOYMENT.md)**. Please consult `DEPLOYMENT.md` for current production deployment pipelines, release gates, and rollback runbooks.
+
 ## 1. Zero-Downtime Deployment Philosophy
 
 Deploying updates to a live e-commerce and wholesale manufacturing platform cannot tolerate service interruptions. In particular, Next.js applications are prone to **chunk desynchronization outages** if builds overwrite live assets while existing clients are mid-session.

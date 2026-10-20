@@ -18,8 +18,8 @@ Before setting up the project locally, verify that your environment has the foll
 
 ### A. Clone & Frontend Dependencies
 ```bash
-git clone https://github.com/ayaanclproject26-max/ayaan.git
-cd ayaan
+git clone https://github.com/labib-0/AYC.git
+cd AYC
 
 # Install Node.js dependencies
 npm install

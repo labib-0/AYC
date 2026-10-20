@@ -1,5 +1,8 @@
 # Admin, POS & Permissions — AYAAN CLOTHING (AYC)
 
+> [!NOTE]
+> **Canonical Notice**: This historical document has been modernized and superseded by the authoritative canonical reference at **[docs/CUSTOMERS_AND_ADMINISTRATION.md](CUSTOMERS_AND_ADMINISTRATION.md)**. Please consult `CUSTOMERS_AND_ADMINISTRATION.md` for current administrative portals, RBAC, and POS terminal architectures.
+
 ## 1. Administrative Architecture (`/ayc`)
 
 The AYC Management Portal is hosted under the unified `/ayc` namespace and served via an isolated Node.js gateway process (`scripts/admin-proxy.js`) running on port 3001. This guarantees that intensive administrative tasks (batch inventory adjustments, PDF compilations, POS transactions) do not impact customer storefront performance.

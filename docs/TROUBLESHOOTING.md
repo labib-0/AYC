@@ -1,137 +1,120 @@
-# Troubleshooting & Incident Diagnostics — AYAAN CLOTHING (AYC)
+# AYAAN CLOTHING (AYC) — Troubleshooting & Maintenance Guide
 
-## 1. Quick Diagnostic Decision Tree
-
-When responding to an alert or customer report, use this triage hierarchy:
-
-```mermaid
-flowchart TD
-    Alert[Customer Alert / Incident] --> ScopeCheck{Is the error HTTP or Network Transport?}
-    
-    ScopeCheck -->|TCP Timeout / Connection Refused| NetTriage[Network & Ingress Triage: Section 2]
-    ScopeCheck -->|HTTP 502 / 504 Gateway Error| FpmNodeTriage[Process & Socket Triage: Section 3]
-    ScopeCheck -->|HTTP 500 Internal Server Error| AppLogTriage[Laravel & Next.js Log Triage: Section 4]
-    ScopeCheck -->|HTTP 403 Forbidden| AuthGeoTriage[Auth & Geo-Block Triage: Section 5]
-    ScopeCheck -->|PDF Blank / Layout Overlap| DocTriage[Document Engine Triage: Section 6]
-```
+**Document Purpose**: Diagnostic matrix, root-cause analyses, and resolution runbooks for common operational, architectural, and development issues.  
+**Audience**: DevOps Engineers, Support Developers, On-Call Operators, AI Coding Assistants.  
+**Last Verified Date**: October 20, 2026  
+**Environment Baseline**: Production Release `release_20261020_052638_a8d2fef` on Hostinger VPS `srv2010990`.
 
 ---
 
-## 2. Network & Ingress Diagnostic Playbook
+## 1. Quick Diagnostic Symptom Matrix
 
-### Symptom: Client Times Out Over IPv4 (`curl: (28) Connection timed out`)
-* **Context**: Inbound connection from certain regional networks times out during the initial TCP handshake (`HTTP 000`).
-* **Diagnostic Steps**:
-  1. Capture packets on VPS interface during a coordinated client request:
-     ```bash
-     tcpdump -nn -vv -c 6 -i eth0 'host <client_ip> and tcp port 443'
-     ```
-  2. Analyze the packet capture:
-     * **If Inbound SYN arrives (`Flags [S]`) and server kernel replies with SYN-ACK (`Flags [S.]` or `[S.E]`):**
-       * The local server and Nginx are fully operational.
-       * The packet loss occurs upstream on the return path between Hostinger Mumbai (AS47583) and the destination network transit provider.
-  3. Verify whether IPv6 connects from the same client:
-     ```bash
-     curl -6 -I https://ayaanclothing.com/api/v1/health
-     ```
-  4. **Action**: Refer to [docs/KNOWN_ISSUES_AND_OPEN_WORK.md](KNOWN_ISSUES_AND_OPEN_WORK.md) for the active Hostinger network escalation runbook. Do not alter local server routing or firewall rules speculatively.
+| Symptom / Error | Root Cause | Immediate Diagnostic Step | Remediation Runbook |
+| :--- | :--- | :--- | :--- |
+| **`EMAIL_VERIFICATION_REQUIRED` (HTTP 403)** | Customer account email is unverified | Check `users.email_verified_at` | [Runbook 1](#issue-1-customer-blocked-at-checkout) |
+| **ChunkLoadError / 404 on `_next/static`** | Obsolete client cache after deployment | Inspect Nginx chunk mirror | [Runbook 2](#issue-2-nextjs-chunkloaderror-404-on-static-assets) |
+| **HTTP 502 Bad Gateway** | PHP-FPM socket down or PM2 daemon crashed | Check socket & PM2 status | [Runbook 3](#issue-3-502-bad-gateway-on-api-or-storefront) |
+| **Offer Sheet Download Failed** | Missing artifact or Dompdf memory limit | Run CLI pre-generation | [Runbook 4](#issue-4-product-offer-sheet-download-failure) |
+| **Transactional Emails Not Sending** | Supervisor worker stopped or SMTP error | Check `worker.log` & Supervisor | [Runbook 5](#issue-5-transactional-emails-not-arriving) |
+| **Google Sign-In Callback Error** | `redirect_uri_mismatch` or state error | Check Google Cloud Console URI | [Runbook 6](#issue-6-google-oauth-callback-failure) |
+| **Database Connection Refused** | PostgreSQL service stopped or maxed out | `pg_isready` & status check | [Runbook 7](#issue-7-postgresql-connection-refused) |
+| **Disk Space Exhaustion** | Unpruned release directories or log buildup | `df -h` & check storage | [Runbook 8](#issue-8-disk-space-exhaustion) |
 
 ---
 
-## 3. Web Server & FastCGI Socket Playbook (502 / 504 Bad Gateway)
+## 2. Issue Resolution Runbooks
 
-### Symptom: Nginx returns `502 Bad Gateway` on `/api/*`
-* **Root Cause**: PHP-FPM socket crash, worker starvation, or permissions error on the unix socket.
-* **Diagnostic Steps**:
-  1. Inspect Nginx error log:
+### Issue 1: Customer Blocked at Checkout (`EMAIL_VERIFICATION_REQUIRED`)
+* **Symptom**: When attempting to checkout, customer sees *"Email verification is required before placing an order."*
+* **Root Cause**: The customer account has `email_verified_at = null`. Under AYC security policy, no customer can place orders without verifying their email address through AYC's challenge link.
+* **Resolution**:
+  1. Guide customer to check their inbox or click **"Resend Verification Link"** in the checkout modal.
+  2. For urgent enterprise accounts, an administrator can manually verify via artisan tinker:
      ```bash
-     tail -n 20 /var/log/nginx/error.log
-     ```
-  2. Check if PHP 8.4-FPM socket exists and has correct permissions:
-     ```bash
-     ls -la /run/php/php8.4-fpm.sock
-     # Expected: srw-rw---- 1 www-data www-data
-     ```
-  3. Check PHP-FPM service status:
-     ```bash
-     systemctl status php8.4-fpm
-     ```
-  4. **Resolution**:
-     ```bash
-     systemctl restart php8.4-fpm
-     systemctl reload nginx
+     cd /var/www/ayaan/backend
+     php artisan tinker --execute="App\Models\User::where('email', 'buyer@example.com')->update(['email_verified_at' => now()]);"
      ```
 
-### Symptom: Nginx returns `502 Bad Gateway` on `/` or `/ayc`
-* **Root Cause**: Node.js customer (`:3000`) or admin (`:3001`) daemon crashed or failed to bind.
-* **Diagnostic Steps**:
-  1. Check PM2 status:
-     ```bash
-     su - ayaan -c "pm2 status"
-     ```
-  2. Inspect PM2 crash logs:
-     ```bash
-     tail -n 30 /home/ayaan/.pm2/logs/ayaan-customer-error.log
-     tail -n 30 /home/ayaan/.pm2/logs/ayaan-admin-error.log
-     ```
-  3. **Resolution**:
-     ```bash
-     su - ayaan -c "pm2 reload all"
-     ```
+### Issue 2: Next.js ChunkLoadError (404 on Static Assets)
+* **Symptom**: Browser console logs `ChunkLoadError: Loading chunk xxx failed` after a new release.
+* **Root Cause**: Client had an active tab open referencing hashed script chunks from the previous release.
+* **Resolution**:
+  - The production deployment pipeline (`deploy-production.sh`) automatically copies previous chunks into the new release.
+  - If a manual build bypassed this script, run `deploy-production.sh` to properly re-activate with chunk continuity.
+
+### Issue 3: 502 Bad Gateway on API or Storefront
+* **Symptom**: Nginx returns HTTP 502 Bad Gateway.
+* **Root Cause**: PHP-FPM socket died or PM2 daemons crashed.
+* **Diagnostic & Fix**:
+  ```bash
+  # Check PHP-FPM
+  systemctl status php8.4-fpm
+  systemctl restart php8.4-fpm
+
+  # Check PM2
+  su - ayaan -c "pm2 status"
+  su - ayaan -c "pm2 restart all"
+  ```
+
+### Issue 4: Product Offer Sheet Download Failure
+* **Symptom**: Downloading an Offer Sheet fails or times out.
+* **Root Cause**: Missing pre-generated artifact and Dompdf memory exhaustion during on-demand fallback.
+* **Resolution**:
+  - Pre-generate the artifact via CLI:
+    ```bash
+    cd /var/www/ayaan/backend
+    php artisan ayaan:pregenerate-offer-sheets --product={SKU_OR_ID} --force
+    ```
+  - If oversized, optimize media: `php artisan ayaan:optimize-media`.
+
+### Issue 5: Transactional Emails Not Arriving
+* **Symptom**: Buyers report not receiving verification links or order confirmation attachments.
+* **Diagnostic & Fix**:
+  ```bash
+  # 1. Verify queue worker is running
+  supervisorctl status ayaan-worker
+
+  # 2. Check failed jobs log
+  cd /var/www/ayaan/backend
+  php artisan queue:failed
+
+  # 3. Test SMTP delivery directly
+  php artisan ayaan:test-verification-email test@example.com
+  ```
+
+### Issue 6: Google OAuth Callback Failure
+* **Symptom**: User encounters `redirect_uri_mismatch` or `Invalid callback state`.
+* **Root Cause**: Callback URL mismatch between Google Cloud Console and `GOOGLE_REDIRECT_URI`.
+* **Resolution**: Ensure Google Cloud Console has exact authorized URI: `https://ayaanclothing.com/api/v1/auth/google/callback`.
+
+### Issue 7: PostgreSQL Connection Refused
+* **Symptom**: Backend logs `Connection refused` or `SQLSTATE[08006]`.
+* **Diagnostic & Fix**:
+  ```bash
+  pg_isready -h 127.0.0.1 -p 5432
+  systemctl status postgresql
+  systemctl restart postgresql
+  ```
+
+### Issue 8: Disk Space Exhaustion
+* **Symptom**: Server reports `No space left on device`.
+* **Resolution**:
+  ```bash
+  # Check disk usage
+  df -h
+
+  # Clean up temporary generation files
+  cd /var/www/ayaan/backend && php artisan ayaan:cleanup-temporary-files
+
+  # Prune old Next.js releases (retain last 3)
+  cd /var/www/ayaan/.next_releases && ls -dt release_* | tail -n +4 | xargs -r rm -rf
+  ```
 
 ---
 
-## 4. Application & Database Playbook (HTTP 500)
+## 3. Essential Architectural Invariants for Future Maintainers & AI Agents
 
-### Symptom: API returns `500 Internal Server Error`
-* **Diagnostic Steps**:
-  1. Inspect Laravel application error log:
-     ```bash
-     tail -n 50 /var/www/ayaan/backend/storage/logs/laravel.log
-     ```
-  2. Verify storage directory write permissions:
-     ```bash
-     ls -ld /var/www/ayaan/backend/storage
-     ls -ld /var/www/ayaan/backend/bootstrap/cache
-     ```
-  3. **Fix Permissions**:
-     ```bash
-     chown -R www-data:www-data /var/www/ayaan/backend/storage /var/www/ayaan/backend/bootstrap/cache
-     chmod -R 775 /var/www/ayaan/backend/storage /var/www/ayaan/backend/bootstrap/cache
-     ```
-  4. Verify PostgreSQL connectivity:
-     ```bash
-     su - ayaan -c "php /var/www/ayaan/backend/artisan db:monitor"
-     ```
-
----
-
-## 5. Storefront Access & Receipt Upload Playbook (HTTP 403 / 422)
-
-### Symptom: Visitor receives `HTTP 403 Forbidden` on Storefront Homepage
-* **Root Cause**: Intentional Bangladesh Storefront Access Restriction (`src/proxy.ts`).
-* **Verification**:
-  * Check the response body: Displays the official `403 Restricted Access` landing template stating that B2B export pricing is restricted to international wholesale buyers.
-  * Verify that buyer operational endpoints (`/login`, `/dashboard`, `/order-access`, `/rfq`) and `/ayc` admin portal remain accessible.
-
-### Symptom: Buyer receives `HTTP 422 Unprocessable Entity` when Uploading Wire Receipt
-* **Causes & Solutions**:
-  1. **File Exceeds 10 MB**: Inform the buyer to compress high-resolution phone scans.
-  2. **Unsupported Format**: Verify file is JPG, PNG, or WebP. PDFs are not accepted.
-  3. **Order Already Paid**: If `payment_status = paid`, receipt replacement is locked by security design to preserve audit trails.
-
----
-
-## 6. Commercial Document & PDF Playbook
-
-### Symptom: PDF Output is Blank or Missing Text
-* **Diagnostic Steps**:
-  1. Verify headless browser rendering fonts are installed on the host:
-     ```bash
-     fc-list : family | grep -iE 'dejavu|liberation|roboto'
-     ```
-  2. Run the automated PDF verification suite:
-     ```bash
-     node scripts/verify-offer-sheet-pdf.mjs
-     ```
-  3. Confirm that product records in the database contain real attribute values in `specifications`. Remember: Document generators strictly omit missing attributes rather than fabricating dummy values.
+1. **Reuse Canonical Services**: Do **NOT** create duplicate PDF generators, email-specific document builders, or client-side `jsPDF` loops. Always consume `ProductOfferSheetService` and `ProformaInvoiceService`.
+2. **Never Bypass Email Verification**: Never remove or bypass `EnsureEmailIsVerified` middleware on the checkout pipeline.
+3. **Preserve Atomic Deployments**: Never compile Next.js directly into `.next` on the production server. Always use `/var/www/ayaan/scripts/deploy-production.sh`.
+4. **Never Commit Secrets**: Never commit `.env` files, Google OAuth secrets, or SMTP passwords to version control.

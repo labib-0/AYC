@@ -1,148 +1,200 @@
-# System Architecture — AYAAN CLOTHING (AYC)
+# AYAAN CLOTHING (AYC) — System Architecture
 
-## 1. High-Level Architecture Topology
+**Document Purpose**: Comprehensive technical reference for the platform's infrastructure, network routing, process model, service boundaries, and data persistence layers.  
+**Audience**: DevOps Engineers, System Architects, Backend/Frontend Developers, Security Auditors.  
+**Last Verified Date**: October 20, 2026  
+**Environment Baseline**: Production Release `release_20261020_052638_a8d2fef` on Hostinger VPS `srv2010990`.
 
-The AYAAN CLOTHING platform employs a decoupled, high-performance architecture combining a **Next.js 16 App Router** frontend with a **Laravel 11 / PHP 8.4** REST API backend, backed by **PostgreSQL 16** and **Redis 7**.
+---
+
+## 1. Full-Stack Infrastructure Topology
+
+The production platform is hosted on an isolated, hardened Ubuntu 24.04 LTS VPS (`srv2010990`, IP: `200.97.169.230`) in Mumbai, India.
 
 ```mermaid
-flowchart TD
-    subgraph Internet & Clients
-        ClientStorefront[International Buyer Browser]
-        ClientAdmin[Administrator Browser]
+graph TB
+    subgraph Internet ["Public Network"]
+        Clients["Web Browsers & Mobile Clients<br/>Storefront / Admin / API"]
     end
 
-    subgraph Edge Layer [Nginx Reverse Proxy & TLS 1.3]
-        Nginx[Nginx Web Server :443]
+    subgraph Edge ["Edge & Reverse Proxy Layer"]
+        Nginx["Nginx 1.24+ Web Server<br/>Ports 80 & 443 (Let's Encrypt TLS 1.3)<br/>Rate Limiting Zones & Body Limits"]
     end
 
-    subgraph Application Tier
-        NodeCustomer[Next.js Customer Instance :3000]
-        NodeAdmin[Next.js Admin Gateway / Proxy :3001]
-        PhpFpm[PHP 8.4-FPM FastCGI Unix Socket]
+    subgraph ApplicationLayer ["Application Execution Tier"]
+        subgraph PM2Cluster ["PM2 Process Supervisor (User: ayaan)"]
+            CustNode["ayaan-customer (Port 3000)<br/>Next.js 16 Storefront"]
+            AdminNode["ayaan-admin (Port 3001)<br/>Next.js 16 Admin Suite"]
+            ApiNode["ayaan-api-8000 (Port 8000)<br/>Internal Artisan Daemon"]
+        end
+
+        subgraph PHPCluster ["PHP-FPM Execution Engine"]
+            PHPFPM["PHP 8.4-FPM Unix Socket<br/>/run/php/php8.4-fpm.sock<br/>Laravel 11.x Core"]
+        end
+
+        subgraph AsyncWorkers ["Asynchronous Queue Process (Supervisor)"]
+            Worker["ayaan-worker<br/>php artisan queue:work redis<br/>Queues: default, high"]
+        end
     end
 
-    subgraph Data & Cache Tier
-        Postgres[(PostgreSQL 16 Database)]
-        Redis[(Redis 7 In-Memory Cache & Queue)]
-        DiskStorage[Local Disk: /storage/app/public]
+    subgraph StorageLayer ["Data Persistence & Caching Tier"]
+        Postgres[("PostgreSQL 16 Engine<br/>Port 5432 (Local Unix/TCP)<br/>Database: ayaan_production")]
+        Redis[("Redis 7.x In-Memory Store<br/>Port 6379 (Local TCP)<br/>DB 0: Cache, DB 1: Queues")]
+        DiskStorage["Local Persistent Filesystem<br/>/var/www/ayaan/backend/storage/app/<br/>Media, PDFs, Wire Receipts"]
     end
 
-    ClientStorefront -->|HTTPS /| Nginx
-    ClientAdmin -->|HTTPS /ayc| Nginx
+    Clients -->|HTTPS| Nginx
+    Nginx -->|Proxy Pass /| CustNode
+    Nginx -->|Proxy Pass /ayc| AdminNode
+    Nginx -->|FastCGI Pass /api & /ayc/api| PHPFPM
+    Nginx -->|Static Alias /storage/| DiskStorage
 
-    Nginx -->|/ & /_next/*| NodeCustomer
-    Nginx -->|/ayc*| NodeAdmin
-    Nginx -->|/api/* & /ayc/api/*| PhpFpm
-    Nginx -->|/storage/*| DiskStorage
+    PHPFPM -->|SQL Queries| Postgres
+    PHPFPM -->|Cache & Session Keys| Redis
+    PHPFPM -->|Dispatch Jobs| Redis
+    PHPFPM -->|Read/Write Files| DiskStorage
 
-    NodeCustomer -->|Server-Side Internal API Fetch| PhpFpm
-    NodeAdmin -->|Server-Side Internal API Fetch| PhpFpm
-
-    PhpFpm -->|ACID Queries| Postgres
-    PhpFpm -->|Sessions, Cache, Jobs| Redis
-    PhpFpm -->|File Uploads / WebP| DiskStorage
+    Worker -->|Process Jobs| Redis
+    Worker -->|DB Transactions| Postgres
+    Worker -->|Persist Generated PDFs| DiskStorage
 ```
 
 ---
 
-## 2. Network Routing & Ingress Rules (Nginx)
+## 2. Network Routing & Reverse Proxy Configuration
 
-The production Nginx configuration (`/etc/nginx/sites-enabled/ayaanclothing.com`) acts as the single ingress controller:
+Nginx acts as the single public entry point for all HTTP/HTTPS traffic. It provides TLS termination, header sanitization, IP connection limits, endpoint-specific request rate limiting, and static file offloading.
 
-| Route Pattern | Target Destination | Protocol / Header Handling |
-| :--- | :--- | :--- |
-| `https://ayaanclothing.com/` | `http://127.0.0.1:3000` | Customer Storefront; passes `X-Real-IP`, `X-Forwarded-Proto`, WebSocket upgrades. |
-| `https://ayaanclothing.com/ayc` | `http://127.0.0.1:3001` | Admin Portal Gateway; injects `X-Admin-App: true`, `X-Is-Admin-Host: 1`. |
-| `https://ayaanclothing.com/api/` | `unix:/run/php/php8.4-fpm.sock` | Customer REST API; handled by Laravel `index.php`. |
-| `https://ayaanclothing.com/ayc/api/` | `unix:/run/php/php8.4-fpm.sock` | Admin REST API; rewrites `/ayc/api/(.*)` to `/api/$1`. |
-| `https://ayaanclothing.com/storage/` | `/var/www/ayaan/backend/storage/app/public/` | Direct static file delivery for images/documents; 30-day client cache. |
-| `https://ayaanclothing.com/_next/static/` | `http://127.0.0.1:3000` | Next.js compiled chunks; served with `Cache-Control: public, immutable` (1 year). |
-| `https://ayaanclothing.com/admin*` | Returns `HTTP 404 Not Found` | Retired legacy namespace; blocked to prevent security enumeration. |
+### A. Virtual Host & Domain Mapping
+* **Canonical Domain**: `https://ayaanclothing.com` (with automatic 301 redirect from `http://` and `www.ayaanclothing.com`).
+* **SSL/TLS**: Let's Encrypt automated certificates with TLS 1.2 and TLS 1.3, ECDHE ciphers, and HTTP Strict Transport Security (`Strict-Transport-Security: max-age=31536000; includeSubDomains`).
+* **Security Headers**: Injected globally on all responses:
+  ```nginx
+  add_header X-Frame-Options SAMEORIGIN always;
+  add_header X-Content-Type-Options nosniff always;
+  add_header Referrer-Policy strict-origin-when-cross-origin always;
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  ```
 
----
+### B. Path Routing Architecture
+| Public Path | Target Service / Handler | Timeout & Body Limits | Rate Limit Policy |
+| :--- | :--- | :--- | :--- |
+| `/` (Storefront routes) | Reverse Proxy to `http://127.0.0.1:3000` (`ayaan-customer`) | 60s, `client_max_body_size 2M` | Connection limit: 25 conns/IP |
+| `/ayc` (Admin routes) | Reverse Proxy to `http://127.0.0.1:3001` (`ayaan-admin`) | 60s, `client_max_body_size 2M` | Connection limit: 25 conns/IP |
+| `/api/*` (Customer API) | FastCGI to `/run/php/php8.4-fpm.sock` via `@laravel` | 120s, `client_max_body_size 2M` | `zone=req_api_general` (30 r/s) |
+| `/ayc/api/*` (Admin API) | Rewritten to `/api/*` and sent to `@laravel_ayc` | 120s, `client_max_body_size 2M` | `zone=req_api_general` (30 r/s) |
+| `/api/v1/auth/*` | FastCGI to `/run/php/php8.4-fpm.sock` | 60s, `client_max_body_size 2M` | `zone=req_api_auth` (5 r/m, burst 5) |
+| `/api/v1/orders` (Checkout) | FastCGI to `/run/php/php8.4-fpm.sock` | 120s, `client_max_body_size 2M` | `zone=req_api_heavy` (5 r/m, burst 5) |
+| `/api/v1/orders/*/documents/*/pdf` | FastCGI to `/run/php/php8.4-fpm.sock` | 120s, `client_max_body_size 2M` | `zone=req_api_heavy` (5 r/m, burst 5) |
+| `/api/v1/orders/*/payment-proof` | FastCGI to `/run/php/php8.4-fpm.sock` | 120s, **`client_max_body_size 20M`** | `zone=req_api_upload` (5 r/m, burst 3) |
+| `/api/v1/rfq` (Tech-packs) | FastCGI to `/run/php/php8.4-fpm.sock` | 120s, **`client_max_body_size 20M`** | `zone=req_api_upload` (5 r/m, burst 5) |
+| `/api/v1/upload` (Admin media) | FastCGI to `/run/php/php8.4-fpm.sock` | 120s, **`client_max_body_size 20M`** | `zone=req_api_upload` (5 r/m, burst 5) |
+| `/storage/*` | Direct static disk alias to `backend/storage/app/public/` | Unmetered, `expires 30d` | Cache-Control: public |
 
-## 3. Frontend Architecture (Next.js 16 App Router)
-
-The frontend uses Next.js 16, React 19, and TypeScript with the modern App Router paradigm:
-
-### A. Route Groups & Portal Separation
-* `src/app/(customer)/`: Public storefront layouts, catalog routes, search, cart, checkout, and authenticated customer dashboard (`/dashboard`).
-* `src/app/(admin)/`: Administrative interfaces (`/ayc/*`) including product catalog management, order verification, inventory controls, POS terminals, and RBAC administration.
-* `src/proxy.ts`: Next.js 16 proxy middleware running on edge requests:
-  * Intercepts incoming requests and handles internal rewrite rules.
-  * Enforces the Bangladesh Storefront Geo-Block on `/` and `/products/*` via an internal sub-request to `/api/v1/internal/storefront/access-check`.
-  * Leaves administrative routes (`/ayc`), customer service routes (`/login`, `/signup`, `/dashboard`, `/order-access`, `/rfq`), and static assets completely unrestricted.
-
-### B. Admin Proxy Architecture (`scripts/admin-proxy.js`)
-To guarantee complete isolation between customer storefront traffic and heavy administrative operations (e.g., POS calculations, bulk inventory edits, PDF rendering):
-* A dedicated Node.js process runs on port `3001` managed by PM2 (`ayaan-admin`).
-* It handles administrative requests routed under `/ayc`, injecting required security headers and isolating memory footprints.
-
----
-
-## 4. Backend Architecture (Laravel 11 REST API)
-
-The backend is built on Laravel 11 running on PHP 8.4-FPM:
-
-### A. Architectural Patterns
-* **Controller-Service Layer**: Controllers handle HTTP request validation and status response formatting, while business logic resides in dedicated domain services:
-  * `OrderService`: Order creation, pricing calculations, status transitions, and stock adjustments.
-  * `PaymentVerificationService`: Receipt upload processing, WebP transcoding, and admin review audit logging.
-  * `InventoryService`: Warehouse stock synchronization and SKU-level inventory updates.
-  * `DocumentService`: Calculation of line items, freight, and terms for Offer Sheets, PIs, and CIs.
-  * `RbacService`: Dynamic role permissions resolution and role assignments.
-* **FormRequest Validation**: Every mutating endpoint uses an explicit `FormRequest` class enforcing strict type casting, minimums, maximums, and custom business rules before reaching controllers.
-* **Database Transactions**: All financial, order, payment, and inventory mutations execute inside `DB::transaction()` blocks to guarantee strict ACID compliance.
-
-### B. Authentication & Authorization
-* **Laravel Sanctum**: Token-based authentication using personal access tokens for both customer web sessions and admin interfaces.
-* **Granular RBAC**: Role-Based Access Control allowing custom administrative roles (e.g., `Super Admin`, `Catalog Manager`, `Order Verifier`, `POS Cashier`) with fine-grained permissions checked via `permission:<slug>` middleware.
-* **Customer Tenant Isolation**: Customer endpoints enforce ownership checks (`$order->user_id === $request->user()->id`), preventing horizontal privilege escalation.
+### C. Security Hardening at Nginx
+* **Header Stripping**: Nginx explicitly forces `fastcgi_param HTTP_X_INTERNAL_SECRET "";` to prevent external clients from spoofing internal communication bypass tokens.
+* **Sensitive File Blocking**: Direct matching rules return HTTP 404 for any attempt to access `/.env`, `/.git`, or `/vendor/`.
+* **Zero Trust Proxies**: Laravel is configured with `$middleware->trustProxies(at: [])`, meaning client-supplied `X-Forwarded-For` headers are strictly ignored unless `TRUSTED_PROXIES` is explicitly configured.
 
 ---
 
-## 5. Storage & Asset Pipeline
+## 3. Application Process Architecture
 
-* **Product & Brand Media**: Uploaded via the Admin Portal, processed using PHP GD/Imagick, and stored in `storage/app/public/products` and `storage/app/public/brands`.
-* **Payment Receipts**: Uploaded by buyers to `storage/app/public/receipts`. Receipts are validated for MIME type (`image/jpeg`, `image/png`, `image/webp`), restricted to 10 MB input, transcoded to high-efficiency WebP, and served via public storage with sanitized filenames.
-* **Static Assets**: Web fonts, icons, and Next.js JavaScript chunks are pre-compiled and served directly through Nginx reverse-proxy caching.
+The system segregates responsibilities across isolated system processes operating under the dedicated non-root service user `ayaan`:
+
+### A. PM2 Daemons (Node.js & SSR)
+```text
+┌────┬───────────────────┬─────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name              │ mode    │ port     │ memory   │ user     │ status   │
+├────┼───────────────────┼─────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ ayaan-customer    │ fork    │ 3000     │ ~60 MB   │ ayaan    │ online   │
+│ 1  │ ayaan-admin       │ fork    │ 3001     │ ~48 MB   │ ayaan    │ online   │
+│ 2  │ ayaan-api-8000    │ fork    │ 8000     │ ~48 MB   │ ayaan    │ online   │
+└────┴───────────────────┴─────────┴──────────┴──────────┴──────────┴──────────┘
+```
+1. **`ayaan-customer`**: Serves the Next.js storefront, faceted search, user cart, checkout wizard, and customer portal.
+2. **`ayaan-admin`**: Serves the administrative back-office, catalog management, quotation editor, user administration, and POS interface.
+3. **`ayaan-api-8000`**: Internal Laravel artisan daemon providing local auxiliary services.
+
+### B. PHP-FPM Daemon (Laravel REST API)
+* **Runtime**: PHP 8.4-FPM socket at `/run/php/php8.4-fpm.sock`.
+* **Pool Configuration**: Dynamic process manager with opcache enabled and preloading configured for production performance.
+* **Execution Boundary**: Executes all REST API endpoints, business calculation services, PDF rendering via Dompdf, and database migrations.
+
+### C. Supervisor Daemon (Background Workers)
+* **Configuration**: `/etc/supervisor/conf.d/ayaan-worker.conf`
+* **Process**: `ayaan-worker` running:
+  ```bash
+  php /var/www/ayaan/backend/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --timeout=180
+  ```
+* **Responsibilities**:
+  - Pre-generating and compressing product Offer Sheet PDFs (`GenerateProductOfferSheetJob`).
+  - Assembling and delivering transactional emails with attachments (`SendOrderConfirmationEmailJob`).
+  - Processing payment confirmation notices (`SendOrderConfirmedEmailJob`).
+  - Purging expired challenge tokens and old temporary exports.
 
 ---
 
-## 6. Service Boundaries & Data Ownership
+## 4. Data Persistence & Storage Architecture
+
+Data persistence is partitioned cleanly into relational storage, fast in-memory key-value storage, and structured filesystem directories:
+
+```text
+/var/www/ayaan/backend/storage/app/
+├── public/                       # Publicly accessible assets (/storage/ alias)
+│   ├── products/                 # High-resolution catalog imagery & thumbnails
+│   ├── brands/                   # Brand vector & PNG logos
+│   └── payment_proofs/           # Scanned customer wire transfer receipts
+├── product_offer_sheets/         # Pre-generated product Offer Sheet artifacts
+│   └── {sku}_{fingerprint}.pdf   # Compressed individual product PDFs (<=1.5 MB)
+├── documents_cache/              # Merged order documents and PI artifacts
+│   └── order_{id}/               # Order-specific artifact storage
+│       ├── OFFER_SHEET_{hash}.pdf # Merged multi-product order Offer Sheet
+│       └── PROFORMA_INVOICE_{hash}.pdf # Authoritative order Proforma Invoice
+└── temp/                         # Temporary working directory for PDF assembly
+```
+
+### Relational Database (PostgreSQL 16)
+* Database name: `ayaan_production`
+* Connection: Local Unix socket / TCP `127.0.0.1:5432`
+* Character set: UTF-8 with standard collation
+* Integrity: Full foreign-key enforcement, cascading delete rules on child items, and atomic transaction boundaries around all order mutations.
+
+### In-Memory Cache & Queues (Redis 7.x)
+* Host: `127.0.0.1:6379`
+* Client: PhpRedis / Predis
+* Database partitioning:
+  - **DB 0**: Application caching (catalog counts, settings, fingerprint lookups).
+  - **DB 1**: Laravel queue worker job payloads and failed job records.
+
+---
+
+## 5. Release Activation & Zero-Downtime Deployment
+
+To prevent asset 404 outages during continuous updates, the platform deploys using an atomic release pipeline:
 
 ```mermaid
-classDiagram
-    class CustomerStorefront {
-        +Browse Products
-        +Configure Cart
-        +Place Order
-        +Upload Wire Receipt
-    }
-
-    class AdminPortal {
-        +Manage Products & Stock
-        +Verify Payments
-        +Run POS Sales
-        +Manage RBAC Roles
-    }
-
-    class CoreAPI {
-        +Validate Requests
-        +Enforce RBAC
-        +Execute Transactions
-        +Issue Documents
-    }
-
-    class PostgreSQL {
-        +products
-        +orders
-        +payments
-        +inventories
-        +rbac_permissions
-    }
-
-    CustomerStorefront --> CoreAPI : REST API (Sanctum User Token)
-    AdminPortal --> CoreAPI : REST API (Sanctum Admin Token)
-    CoreAPI --> PostgreSQL : Read / Write Transactions
+graph LR
+    BuildStage[".next_build_stage<br/>Next.js Turbopack compilation"] --> SanityCheck{"Artifact Sanity Check<br/>100% of static chunks present?"}
+    SanityCheck -- Yes --> MoveToRelease[".next_releases/release_YYYYMMDD_HHMMSS_<commit>"]
+    MoveToRelease --> CopyPrevChunks["Copy previous static chunks<br/>Prevents cached client 404s"]
+    CopyPrevChunks --> AtomicSymlink["mv -Tf .next_releases/current .next<br/>Atomic symlink activation"]
+    AtomicSymlink --> PM2Reload["pm2 reload ayaan-customer ayaan-admin<br/>Zero-downtime cluster reload"]
+    PM2Reload --> ReleaseGate{"Mandatory Release Gate<br/>Probe 6 routes + 32 static chunks"}
+    ReleaseGate -- Pass --> PruneReleases["Prune old releases<br/>Keep last 5 deployments"]
+    ReleaseGate -- Fail --> Rollback["Atomic rollback to PREVIOUS_RELEASE"]
 ```
+
+1. **Active Release Isolation**: Active release remains completely untouched while Next.js compiles into `.next_build_stage`.
+2. **Chunk Merging**: Previous static chunks are mirrored into the new build to protect in-flight browser sessions.
+3. **Atomic Symlink**: `mv -Tf` executes an atomic filesystem pointer swap pointing `.next` to the new release.
+4. **Automated Verification Gate**: Script tests all major customer and admin routes and issues HTTP requests for 100% of compiled static chunks before confirming success.
+
+---
+
+## 6. Related Technical References
+
+* **[FRONTEND.md](FRONTEND.md)**: Next.js App Router, state management, and styling.
+* **[BACKEND.md](BACKEND.md)**: Laravel service architecture and controller layers.
+* **[DOCUMENT_STORAGE_AND_DELIVERY.md](DOCUMENT_STORAGE_AND_DELIVERY.md)**: Storage paths, atomic writes, and SHA-256 byte parity.
+* **[DEPLOYMENT.md](DEPLOYMENT.md)**: Deployment script runbook and automated release gates.
