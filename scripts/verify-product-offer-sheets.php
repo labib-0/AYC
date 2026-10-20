@@ -278,6 +278,7 @@ $testOrder = Order::create([
     'email' => 'buyer_test_' . time() . '@example.com',
     'shipping_address1' => '456 Export Blvd',
     'shipping_city' => 'Hamburg',
+    'shipping_postal_code' => '20095',
     'shipping_country_code' => 'DE',
 ]);
 
