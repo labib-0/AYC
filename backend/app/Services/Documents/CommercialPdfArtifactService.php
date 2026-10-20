@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Storage;
 
 class CommercialPdfArtifactService
 {
+    public const LAYOUT_VERSION = 'v3_reference_rebuild';
+
     /**
      * Retrieve a cached commercial PDF artifact or render and persist it atomically.
      * Guarantees 100% identical byte parity for View and Download.
@@ -335,7 +337,7 @@ class CommercialPdfArtifactService
             ]);
         })->join('-');
 
-        return hash('sha256', "order_{$order->id}_{$normalizedDocType}_{$rolePart}_{$orderCore}_{$itemsPart}");
+        return hash('sha256', "order_" . self::LAYOUT_VERSION . "_{$order->id}_{$normalizedDocType}_{$rolePart}_{$orderCore}_{$itemsPart}");
     }
 
     /**
@@ -423,7 +425,7 @@ class CommercialPdfArtifactService
             ]);
         })->join('-');
 
-        return hash('sha256', "quotation_{$quotation->id}_{$normalizedDocType}_{$rolePart}_{$quoteCore}_{$itemsPart}");
+        return hash('sha256', "quotation_" . self::LAYOUT_VERSION . "_{$quotation->id}_{$normalizedDocType}_{$rolePart}_{$quoteCore}_{$itemsPart}");
     }
 
     /**

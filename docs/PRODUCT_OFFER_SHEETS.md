@@ -125,6 +125,7 @@ public function computeFingerprint(Product $product): string
     ]));
 
     return hash('sha256', implode('~', [
+        self::LAYOUT_VERSION, // 'v3_reference_rebuild'
         $product->id, $product->sku, $product->name, $product->base_price,
         $product->moq, $specsFingerprint, $primaryChecksum, $galleryFingerprint,
         $brandName, $brandLogoChecksum, $exporterFingerprint
@@ -133,13 +134,25 @@ public function computeFingerprint(Product $product): string
 ```
 
 ### Invalidation Rules:
-* **Invalidates & Regenerates**: Updates to product title, SKU, base price, wholesale price, bulk pricing tiers, full stock price, MOQ, specifications (GSM, fabric, wash care, CBM, weight), primary photo, gallery photos, brand name, brand logo, or company exporter profile.
+* **Invalidates & Regenerates**: Updates to `LAYOUT_VERSION`, product title, SKU, base price, wholesale price, bulk pricing tiers, full stock price, MOQ, specifications (GSM, fabric, wash care, CBM, weight), primary photo, gallery photos, brand name, brand logo, or company exporter profile.
 * **Does NOT Invalidate**: Updates to stock quantities, inventory warehouse balances, or order history (these do not appear on product Offer Sheets).
+* **Automated Template Versioning**: `ProductOfferSheetService::LAYOUT_VERSION = 'v3_reference_rebuild'` ensures template revisions trigger instantaneous cache misses and regeneration without requiring destructive manual disk purges.
 
-### Documented Cache Fingerprint Gaps & Limitations:
-1. **Blade Template File Hash Omission**: The Blade view `resources/views/documents/offer-sheet.blade.php` (and associated partials/stylesheets) is **not** hashed in `computeFingerprint()`. Changes to HTML structure, styling, or static disclaimers do not invalidate existing disk caches. Modifying template designs requires a manual cache purge (`storage/app/product_offer_sheets/`).
-2. **Package Assortment Text Omission**: The product field `package_assortment_message` is rendered in the document if present, but is omitted from the fingerprint payload.
-3. **Absence of Template-Version Invalidation**: The fingerprint string does not incorporate a template version constant (e.g. `v1`, `v2`), meaning server-side layout updates cannot programmatically invalidate earlier caches without wiping storage.
+### Two-Page Visual Reference Standards (v3 Rebuild):
+* **Page 1 (Product Profile)**:
+  - Dark navy company header with registered address and export contacts.
+  - Orange rectangular badge (`#ea580c`, `OFFER SHEET / Direct Manufacturer Offer`) with preserved position, dimensions, and centered text.
+  - 3-column metadata strip: Offer Reference, Date of Issue, Validity (in red).
+  - Product Title & SKU/Brand subtitle.
+  - 4-column product image gallery maintaining aspect ratio in uniform boxes.
+  - Product description and summary specification rows (Brand, Colours, Available Sizes, Fabric / Composition, Package Assortment).
+* **Page 2 (Specifications, Logistics & Pricing)**:
+  - Dark navy continuation header bar (`AYAAN CLOTHING · Offer Sheet Reference: ... (Continued)`).
+  - 2-column Product Specifications table (Design Type, Material, Size, Colour).
+  - Paired Packing & Logistics cards: CBM (MOQ) and Gross Weight (MOQ).
+  - 4-column Pricing Schedule (USD): Pricing Tier, Minimum Quantity / Basis, Unit Price (USD), Total Price (USD).
+  - Light blue Commercial Terms panel (Freight terms, Document nature, Validity, Payment terms, Inspection).
+  - Authorized Representative signature section and clean footer (`Page 1 of 2`, `Page 2 of 2` without decimal indexing errors).
 
 ---
 

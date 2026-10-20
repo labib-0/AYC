@@ -16,6 +16,8 @@ class ProductOfferSheetService
     public const TARGET_SIZE_BYTES = 1572864; // 1.5 MB target
     public const MAX_SIZE_BYTES = 2097152;    // 2.0 MB hard limit
 
+    public const LAYOUT_VERSION = 'v3_reference_rebuild';
+
     public function __construct(
         protected OfferSheetService $offerSheetService,
         protected DocumentPdfService $pdfService,
@@ -79,7 +81,7 @@ class ProductOfferSheetService
             $exporterFingerprint,
         ]);
 
-        return hash('sha256', "product_offer_sheet_{$product->id}_{$corePayload}");
+        return hash('sha256', "product_offer_sheet_" . self::LAYOUT_VERSION . "_{$product->id}_{$corePayload}");
     }
 
     /**

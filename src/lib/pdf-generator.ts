@@ -723,12 +723,11 @@ export function generateOfferSheetPDFDoc(
       y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 4.5 : y + 14;
     }
 
-    // 6. PRODUCT SPECIFICATIONS (Four Clean Horizontal Rows, In Description fallback)
-    if (y + 35 > pageBottomSafeY) {
-      doc.addPage();
-      y = margin;
-      printContinuationHeader();
-    }
+    // 6. Page 2: Continuation Header and Product Specifications
+    // Strictly matches the approved two-page Offer Sheet reference structure
+    doc.addPage();
+    y = margin;
+    printContinuationHeader();
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
@@ -962,10 +961,10 @@ export function generateOfferSheetPDFDoc(
     doc.setTextColor(148, 163, 184);
     const pgIndex =
       options?.pageIndex !== undefined && options?.totalPages !== undefined
-        ? `${options.pageIndex}.${i}`
-        : `${i}`;
+        ? options.pageIndex + (i - 1)
+        : i;
     const pgTotal =
-      options?.totalPages !== undefined ? `${options.totalPages}` : `${pageCount}`;
+      options?.totalPages !== undefined ? options.totalPages : pageCount;
     doc.text(
       `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} • Generated on ${new Date().toISOString().slice(0, 10)} • Page ${pgIndex} of ${pgTotal}`,
       margin,
@@ -1526,16 +1525,23 @@ export function generateProformaInvoiceDoc(
     y + 20.5
   );
 
-  // Document Badge
+  // Document Badge (Preserve exact position and dimensions: x = pageWidth - margin - 56, y = y + 4, w = 52, h = 16)
+  const badgeX = pageWidth - margin - 56;
+  const badgeY = y + 4;
+  const badgeW = 52;
+  const badgeH = 16;
   doc.setFillColor(30, 58, 138); // blue-900 / dark corporate blue
-  doc.roundedRect(pageWidth - margin - 56, y + 4, 52, 16, 1.5, 1.5, "F");
+  doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1.5, 1.5, "F");
+
+  // Center title and subtitle horizontally and vertically inside the unchanged blue box
+  const badgeCenterX = badgeX + badgeW / 2;
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("PROFORMA INVOICE", pageWidth - margin - 54, y + 10);
+  doc.setFontSize(9.5);
+  doc.text("PROFORMA INVOICE", badgeCenterX, badgeY + 6.6, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.text("Official PI (USD)", pageWidth - margin - 54, y + 15);
+  doc.setFontSize(6.8);
+  doc.text("Official PI (USD)", badgeCenterX, badgeY + 11.6, { align: "center" });
 
   y += 28;
 

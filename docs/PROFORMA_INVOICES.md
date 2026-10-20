@@ -107,8 +107,29 @@ While `CommercialPdfArtifactService` and Dompdf 3.1 serve as the canonical gener
 
 ---
 
-## 5. Related Technical Documentation
+## 5. Approved Reference Rebuild & Single-Page A4 Layout Standards
+
+As part of the v3 commercial document overhaul, the Proforma Invoice was completely rebuilt across both the Dompdf backend template (`backend/resources/views/pdf/proforma-invoice.blade.php`) and the jsPDF client fallback (`src/lib/pdf-generator.ts`) to match the approved visual reference:
+
+* **Page Geometry**: Strict A4 portrait (`210 mm x 297 mm`, `595.28 x 841.89 pt`) with 12–14 mm content margins and outer border box.
+* **Header Layout**:
+  - Full-width dark navy block (`#0f172a`).
+  - Left side: Authoritative exporter branding, address, origin, export desk email/WhatsApp, and BGMEA certification.
+  - Right side: Preserved blue rectangular box (`#1d4ed8`, `w = 52 mm`, `h = 16 mm`, `x = right - 56 mm`, `y = 4 mm`). The box coordinates and dimensions are strictly preserved.
+  - **Internal Alignment**: Title `PROFORMA INVOICE` and subtitle `Official PI (USD)` are precisely centered horizontally and vertically within the blue box as a balanced composition.
+* **Parties Panels**: Side-by-side Exporter/Beneficiary card and Consignee/Buyer card.
+* **Commercial Metadata Strip**: 6-item grid displaying P.I. Number, Order Reference, Issue Date, Validity (calculated from approved business rules), Shipping Arrangement, and Payment Terms.
+* **Goods Table**: 7 columns (`#`, Description of Goods & Package Assortment, SKU / Style, HS Code, Quantity, Unit Price, Amount USD) with compact row heights and proper text alignments.
+* **Shipping & Delivery vs Financial Summary**: Paired lower section. Left: Shipping arrangements note, scheduled packaging summary, logistics desk contact. Right: Goods Value / Subtotal, Estimated Tax (B2B Export Zero-Rated), and Merchandise Total in bold USD.
+* **Beneficiary Bank Details**: Full-width light grey/blue card with authoritative bank name, account title, account number, SWIFT code, and branch address.
+* **Signatory & Footer**: Authorized Signatory & Export Seal line, followed by understated footer with exact page count (`Page 1 of 1` for standard single-page commercial orders).
+* **Deterministic Layout Invalidation**: `CommercialPdfArtifactService::LAYOUT_VERSION = 'v3_reference_rebuild'` is incorporated into `computeOrderFingerprint()`, ensuring all previously cached PDFs are automatically invalidated upon deployment.
+
+---
+
+## 6. Related Technical Documentation
 
 * **[PRODUCT_OFFER_SHEETS.md](PRODUCT_OFFER_SHEETS.md)**: Product Offer Sheet pre-generation and merger.
 * **[COMMERCIAL_DOCUMENTS.md](COMMERCIAL_DOCUMENTS.md)**: General commercial export documents catalog.
 * **[DOCUMENT_STORAGE_AND_DELIVERY.md](DOCUMENT_STORAGE_AND_DELIVERY.md)**: Disk caching and byte parity mechanics.
+

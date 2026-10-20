@@ -1,12 +1,512 @@
-@extends('pdf.layouts.document')
+@php
+    $exporter = $doc['exporter'] ?? [];
+    $companyName = strtoupper($exporter['company_name'] ?? 'AYAAN CLOTHING');
+    $tagline = $exporter['business_type'] ?? ($exporter['tagline'] ?? 'Original-Branded Garments Manufacturer & Exporter • Est. 2010');
+    $address = $exporter['address'] ?? ($exporter['office_address'] ?? 'House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh');
+    $exporterEmail = $exporter['email'] ?? 'export@ayaanclothing.com';
+    $exporterWhatsapp = $exporter['whatsapp_display'] ?? ($exporter['phone'] ?? '+880 1620-853502');
+    $exporterReg = $exporter['reg_number'] ?? ($exporter['tin_number'] ?? 'BGMEA Certified');
 
-@section('content')
-    @include('pdf.partials.header')
-    @include('pdf.partials.parties')
-    @include('pdf.partials.items')
-    @include('pdf.partials.financials', ['showBanking' => true])
-    @include('pdf.partials.signatory', [
-        'declaration' => $doc['notes'] ?? 'Proforma Invoice issued for buyer remittance, export clearance, or Letter of Credit (L/C) opening. Prices valid for 30 calendar days from issue date.'
-    ])
-    @include('pdf.partials.footer')
-@endsection
+    $buyer = $doc['buyer'] ?? [];
+    $buyerName = $buyer['company_name'] ?? ($buyer['name'] ?? ($doc['companyName'] ?? ($doc['buyerName'] ?? 'Valued Customer')));
+    $buyerAttn = $buyer['name'] ?? ($doc['buyerName'] ?? 'Authorized Buyer');
+    $buyerAddress = $buyer['address'] ?? ($doc['buyerAddress'] ?? 'Destination Address');
+    $buyerCity = $buyer['city'] ?? ($doc['shipping_city'] ?? '');
+    $buyerPostal = $buyer['postal_code'] ?? ($doc['shipping_postal_code'] ?? '');
+    $buyerCountry = $buyer['country'] ?? ($doc['buyerCountry'] ?? 'US');
+    $buyerCityStateCountry = trim("{$buyerCity}, {$buyerPostal}, {$buyerCountry}", ", ");
+    if (empty($buyerCityStateCountry)) {
+        $buyerCityStateCountry = $buyerCountry ?: 'International';
+    }
+    $buyerEmail = $buyer['email'] ?? ($doc['buyerEmail'] ?? 'N/A');
+    $buyerPhone = $buyer['phone'] ?? ($doc['buyerPhone'] ?? 'N/A');
+
+    $fin = $doc['financials'] ?? [];
+    $piNumber = $doc['docNumber'] ?? ($doc['doc_number'] ?? 'PI-' . ($doc['orderNumber'] ?? '000000'));
+    $orderNumber = $doc['orderNumber'] ?? ($doc['order_number'] ?? 'ORD-000000');
+    $issueDate = date('M d, Y', strtotime($doc['date'] ?? now()));
+    $validityDate = date('M d, Y', strtotime($doc['validUntil'] ?? '+30 days'));
+
+    $items = $doc['items'] ?? [];
+    $totalQty = 0;
+    foreach ($items as $it) {
+        $totalQty += (int) ($it['quantity'] ?? 1);
+    }
+
+    $subtotal = (float) ($fin['subtotal'] ?? ($fin['goods_value'] ?? ($doc['subtotal'] ?? 0)));
+    $discount = (float) ($fin['discount_amount'] ?? ($doc['discount'] ?? 0));
+    $couponCode = $fin['coupon_code'] ?? ($doc['coupon_code'] ?? null);
+    $shipping = (float) ($fin['shipping_charge'] ?? ($doc['shipping'] ?? 0));
+    $tax = (float) ($fin['tax_amount'] ?? ($doc['tax'] ?? 0));
+    $grandTotal = (float) ($fin['grand_total'] ?? ($fin['total_payable'] ?? ($doc['grandTotal'] ?? ($subtotal - $discount + $shipping + $tax))));
+
+    $isAramex = ($shipping > 0) || (isset($doc['estimated_shipping_data']['carrier']) && str_contains(strtolower($doc['estimated_shipping_data']['carrier']), 'aramex'));
+    $shippingArrangement = $isAramex ? 'Air Cargo Express (Aramex)' : 'To Be Confirmed Separately';
+    $paymentTerms = $doc['paymentTerms'] ?? ($doc['payment_terms'] ?? '100% Advance T/T Wire');
+
+    $bank = $doc['bank_details'] ?? ($doc['bankDetails'] ?? []);
+    $bankName = $bank['bank_name'] ?? 'Pubali Bank Limited';
+    $accountTitle = $bank['account_name'] ?? 'M/S AYAAN CLOTHING';
+    $accountNo = $bank['account_no'] ?? ($bank['account_number'] ?? '1788-901-044316');
+    $swiftCode = $bank['swift_code'] ?? 'PUBABDDH210';
+    $bankAddress = $bank['branch'] ? ($bank['branch'] . ', Dhaka, Bangladesh') : 'Nawabpur Road Branch., 125 Nawabpur Road., Dhaka-1100., Bangladesh';
+
+    $generatedDate = date('Y-m-d', strtotime($doc['date'] ?? now()));
+@endphp
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PROFORMA INVOICE - {{ $piNumber }}</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 14mm 14mm 12mm 14mm;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 7.5pt;
+            color: #1e293b;
+            line-height: 1.35;
+            background: #ffffff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        /* Header Banner */
+        .header-banner {
+            background-color: #0f172a;
+            color: #ffffff;
+            padding: 12px 14px;
+            border-radius: 4px;
+            margin-bottom: 9px;
+        }
+        .company-title {
+            font-size: 14pt;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            color: #ffffff;
+            line-height: 1.1;
+        }
+        .company-meta {
+            font-size: 7.2pt;
+            color: #cbd5e1;
+            margin-top: 2px;
+            line-height: 1.35;
+        }
+        /* Blue Box (Exact Dimensions & Centered Title/Subtitle) */
+        .pi-badge-box {
+            width: 195px;
+            height: 56px;
+            background-color: #1e3a8a;
+            border-radius: 4px;
+            text-align: center;
+            vertical-align: middle;
+            padding: 10px 8px;
+        }
+        .pi-badge-title {
+            font-size: 9.5pt;
+            font-weight: bold;
+            color: #ffffff;
+            letter-spacing: 0.4px;
+            text-align: center;
+            line-height: 1.1;
+        }
+        .pi-badge-sub {
+            font-size: 6.8pt;
+            color: #e2e8f0;
+            margin-top: 4px;
+            text-align: center;
+        }
+        /* Two-Column Parties */
+        .party-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 6.8pt;
+            min-height: 82px;
+        }
+        .card-label {
+            font-size: 6.8pt;
+            font-weight: bold;
+            color: #64748b;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+        .card-name {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 2px;
+        }
+        .card-text {
+            color: #475569;
+            line-height: 1.35;
+        }
+        /* Metadata Strip */
+        .meta-strip {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 6px 10px;
+            margin-top: 8px;
+            margin-bottom: 9px;
+        }
+        .meta-label {
+            font-size: 6.2pt;
+            font-weight: bold;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .meta-val {
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        .meta-val-red {
+            color: #c2410c;
+        }
+        /* Goods Table */
+        .goods-table {
+            width: 100%;
+            margin-bottom: 9px;
+            border-collapse: collapse;
+        }
+        .goods-table th {
+            background-color: #1e293b;
+            color: #ffffff;
+            font-size: 7pt;
+            font-weight: bold;
+            padding: 5px 6px;
+            text-align: left;
+        }
+        .goods-table td {
+            font-size: 6.8pt;
+            padding: 4px 6px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+        .goods-table tr.alt {
+            background-color: #f8fafc;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-bold { font-weight: bold; }
+        .font-mono { font-family: 'Courier New', Courier, monospace; }
+        /* Shipping Info & Totals */
+        .summary-wrapper {
+            margin-bottom: 9px;
+        }
+        .shipping-title {
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+        .shipping-bullet {
+            font-size: 6.8pt;
+            color: #475569;
+            margin-bottom: 2.5px;
+            line-height: 1.3;
+        }
+        .shipping-alert {
+            color: #c2410c;
+            font-weight: bold;
+        }
+        .totals-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 6px 10px;
+        }
+        .totals-line {
+            font-size: 7.2pt;
+            padding: 1.5px 0;
+        }
+        .totals-divider {
+            border-top: 1px solid #cbd5e1;
+            margin: 3px 0;
+        }
+        .totals-grand {
+            font-size: 8pt;
+            font-weight: bold;
+            padding-top: 2px;
+        }
+        /* Bank Details */
+        .bank-card {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 6px 10px;
+            margin-bottom: 9px;
+        }
+        .bank-title {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+        .bank-table td {
+            font-size: 7pt;
+            padding: 2px 0;
+            vertical-align: top;
+        }
+        /* Signatory */
+        .sig-section {
+            margin-top: 6px;
+            margin-bottom: 8px;
+        }
+        .sig-line {
+            border-top: 1px solid #94a3b8;
+            width: 170px;
+            margin-left: auto;
+            margin-bottom: 3px;
+        }
+        .sig-title {
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #0f172a;
+            text-align: right;
+        }
+        .sig-sub {
+            font-size: 6.5pt;
+            color: #64748b;
+            text-align: right;
+        }
+        /* Footer */
+        .footer-bar {
+            position: fixed;
+            bottom: -6mm;
+            left: 0;
+            right: 0;
+            font-size: 6.5pt;
+            color: #94a3b8;
+            line-height: 1.2;
+        }
+    </style>
+</head>
+<body>
+
+    {{-- SECTION A: HEADER BANNER --}}
+    <div class="header-banner">
+        <table>
+            <tr>
+                <td style="vertical-align: middle;">
+                    <div class="company-title">{{ $companyName }}</div>
+                    <div class="company-meta">{{ $tagline }}</div>
+                    <div class="company-meta">{{ $address }}</div>
+                    <div class="company-meta">Port of Loading: Dhaka Airport (DAC) / Chittagong Port • Web: www.ayaanclothing.com</div>
+                </td>
+                <td style="width: 195px; text-align: right; vertical-align: middle;">
+                    <div class="pi-badge-box">
+                        <div class="pi-badge-title">PROFORMA INVOICE</div>
+                        <div class="pi-badge-sub">Official PI (USD)</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    {{-- SECTION B: EXPORTER & BUYER CARDS --}}
+    <table class="parties-table">
+        <tr>
+            <td style="width: 49.5%; vertical-align: top;">
+                <div class="party-card">
+                    <div class="card-label">EXPORTER / BENEFICIARY:</div>
+                    <div class="card-name">{{ $companyName }}</div>
+                    <div class="card-text">House #33 (2nd floor), Road #12, Sector #11,</div>
+                    <div class="card-text">Country of Origin: Bangladesh</div>
+                    <div class="card-text">Contact: {{ $exporterEmail }} • WA: {{ $exporterWhatsapp }}</div>
+                    <div class="card-text">Reg: {{ $exporterReg }}</div>
+                </div>
+            </td>
+            <td style="width: 1%;"></td>
+            <td style="width: 49.5%; vertical-align: top;">
+                <div class="party-card">
+                    <div class="card-label">CONSIGNEE / BUYER:</div>
+                    <div class="card-name">{{ $buyerName }}</div>
+                    <div class="card-text">Attn: {{ $buyerAttn }}</div>
+                    <div class="card-text">{{ $buyerAddress }}</div>
+                    <div class="card-text">{{ $buyerCityStateCountry }}</div>
+                    <div class="card-text">Email: {{ $buyerEmail }}</div>
+                    <div class="card-text">Phone: {{ $buyerPhone }}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    {{-- SECTION C: PI IDENTIFICATION & COMMERCIAL SUMMARY --}}
+    <div class="meta-strip">
+        <table>
+            <tr>
+                <td style="width: 33.33%; padding: 2px 4px 4px 0;">
+                    <div class="meta-label">P.I. NUMBER</div>
+                    <div class="meta-val">{{ $piNumber }}</div>
+                </td>
+                <td style="width: 33.33%; padding: 2px 4px 4px 4px;">
+                    <div class="meta-label">ORDER REFERENCE</div>
+                    <div class="meta-val">{{ $orderNumber }}</div>
+                </td>
+                <td style="width: 33.33%; padding: 2px 0 4px 4px;">
+                    <div class="meta-label">ISSUE DATE</div>
+                    <div class="meta-val">{{ $issueDate }}</div>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 33.33%; padding: 4px 4px 2px 0;">
+                    <div class="meta-label">VALIDITY</div>
+                    <div class="meta-val meta-val-red">30 Days ({{ $validityDate }})</div>
+                </td>
+                <td style="width: 33.33%; padding: 4px 4px 2px 4px;">
+                    <div class="meta-label">SHIPPING ARRANGEMENT</div>
+                    <div class="meta-val">{{ $shippingArrangement }}</div>
+                </td>
+                <td style="width: 33.33%; padding: 4px 0 2px 4px;">
+                    <div class="meta-label">PAYMENT TERMS</div>
+                    <div class="meta-val">{{ $paymentTerms }}</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    {{-- SECTION D: GOODS TABLE --}}
+    <table class="goods-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;" class="text-center">#</th>
+                <th style="width: 44%;">Description of Goods &amp; Package Assortment</th>
+                <th style="width: 17%;">SKU / Style</th>
+                <th style="width: 10%;" class="text-center">HS Code</th>
+                <th style="width: 8%;" class="text-right">Quantity</th>
+                <th style="width: 7%;" class="text-right">Unit Price</th>
+                <th style="width: 9%;" class="text-right">Amount (USD)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($items as $idx => $item)
+                @php
+                    $qty = (int) ($item['quantity'] ?? 1);
+                    $uPrice = (float) ($item['unit_price'] ?? 0);
+                    $lTotal = (float) ($item['line_total'] ?? ($uPrice * $qty));
+                    $pkg = $item['package_breakdown'] ?? null;
+                    $pkgText = '';
+                    if (!empty($pkg)) {
+                        $pkgText = is_array($pkg) ? implode(', ', array_map(fn($k, $v) => is_numeric($k) ? (is_array($v) ? json_encode($v) : $v) : "$v", array_keys($pkg), $pkg)) : (string) $pkg;
+                    }
+                    if (empty($pkgText)) {
+                        $pkgText = "{$qty} pcs standard export assortment";
+                    }
+                @endphp
+                <tr class="{{ $idx % 2 === 1 ? 'alt' : '' }}">
+                    <td class="text-center" style="color: #64748b;">{{ $idx + 1 }}</td>
+                    <td>
+                        <div class="font-bold" style="color: #0f172a;">{{ $item['product_name'] ?? ($item['description'] ?? 'Garment Item') }}</div>
+                        <div style="font-size: 6.2pt; color: #64748b; margin-top: 1px;">Assortment: {{ $pkgText }}</div>
+                    </td>
+                    <td class="font-bold" style="color: #0f172a;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
+                    <td class="text-center font-mono" style="color: #475569;">{{ $item['hs_code'] ?? '6109.10.00' }}</td>
+                    <td class="text-right font-bold">{{ number_format($qty) }} pcs</td>
+                    <td class="text-right font-mono">${{ number_format($uPrice, 2) }}</td>
+                    <td class="text-right font-bold font-mono">${{ number_format($lTotal, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    {{-- SECTIONS E & F: SHIPPING & TOTALS --}}
+    <table class="summary-wrapper">
+        <tr>
+            {{-- Left Side: Shipping Information --}}
+            <td style="width: 54%; vertical-align: top; padding-right: 12px;">
+                <div class="shipping-title">Shipping &amp; Delivery Information:</div>
+                @if($isAramex)
+                    <div class="shipping-bullet">• Selected Carrier: {{ $doc['estimated_shipping_data']['carrier'] ?? 'Aramex Priority Air Express' }}</div>
+                    <div class="shipping-bullet">• Total Items: {{ $totalQty }} pcs scheduled for export air cargo.</div>
+                    <div class="shipping-bullet">• Estimated Gross Weight: ~{{ $doc['estimated_shipping_data']['gross_weight'] ?? round($totalQty * 0.35, 1) }} kg</div>
+                    <div class="shipping-bullet">• Air Shipping charge is itemized in the Proforma Invoice total.</div>
+                @else
+                    <div class="shipping-bullet shipping-alert">• Shipping arrangements to be confirmed separately.</div>
+                    <div class="shipping-bullet">• Total Order Items: {{ $totalQty }} pcs scheduled for export packaging.</div>
+                    <div class="shipping-bullet">• Shipping charges are NOT included in the merchandise total below.</div>
+                    <div class="shipping-bullet">• Contact our export logistics desk to arrange carrier booking.</div>
+                @endif
+            </td>
+
+            {{-- Right Side: Order Amount Summary --}}
+            <td style="width: 46%; vertical-align: top;">
+                <div class="totals-card">
+                    <table style="width: 100%;">
+                        <tr>
+                            <td class="totals-line" style="color: #475569;">Goods Value / Subtotal:</td>
+                            <td class="totals-line text-right font-bold font-mono" style="color: #0f172a;">${{ number_format($subtotal, 2) }}</td>
+                        </tr>
+                        @if($discount > 0)
+                            <tr>
+                                <td class="totals-line" style="color: #15803d;">Discount {{ $couponCode ? "({$couponCode})" : "Applied" }}:</td>
+                                <td class="totals-line text-right font-bold font-mono" style="color: #15803d;">-${{ number_format($discount, 2) }}</td>
+                            </tr>
+                        @endif
+                        @if($isAramex && $shipping > 0)
+                            <tr>
+                                <td class="totals-line" style="color: #475569;">Air Shipping — Aramex:</td>
+                                <td class="totals-line text-right font-bold font-mono" style="color: #0f172a;">${{ number_format($shipping, 2) }}</td>
+                            </tr>
+                        @endif
+                        <tr>
+                            <td class="totals-line" style="color: #475569;">Estimated Tax (B2B Export):</td>
+                            <td class="totals-line text-right font-bold" style="color: #0f172a;">$0.00 (Zero Rated)</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><div class="totals-divider"></div></td>
+                        </tr>
+                        <tr>
+                            <td class="totals-grand" style="color: #0f172a;">{{ $isAramex ? 'TOTAL PAYABLE:' : 'MERCHANDISE TOTAL:' }}</td>
+                            <td class="totals-grand text-right font-bold font-mono" style="color: #1e3a8a;">${{ number_format($grandTotal, 2) }} USD</td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    {{-- SECTION G: BENEFICIARY BANK DETAILS --}}
+    <div class="bank-card">
+        <div class="bank-title">BENEFICIARY BANK DETAILS</div>
+        <table class="bank-table">
+            <tr>
+                <td style="width: 48%;"><strong style="color: #475569;">Bank Name:</strong> &nbsp;{{ $bankName }}</td>
+                <td style="width: 52%;"><strong style="color: #475569;">Account Title:</strong> &nbsp;{{ $accountTitle }}</td>
+            </tr>
+            <tr>
+                <td><strong style="color: #475569;">Account No:</strong> &nbsp;<span class="font-bold" style="color: #0f172a;">{{ $accountNo }}</span></td>
+                <td><strong style="color: #475569;">SWIFT CODE:</strong> &nbsp;<span class="font-bold" style="color: #0f172a;">{{ $swiftCode }}</span></td>
+            </tr>
+            <tr>
+                <td colspan="2"><strong style="color: #475569;">Bank Address:</strong> &nbsp;{{ $bankAddress }}</td>
+            </tr>
+        </table>
+    </div>
+
+    {{-- SECTION H: AUTHORIZED SIGNATORY & SEAL --}}
+    <div class="sig-section">
+        <div class="sig-line"></div>
+        <div class="sig-title">Authorized Signatory &amp; Export Seal</div>
+        <div class="sig-sub">Ayaan Clothing Ltd • Dhaka, Bangladesh</div>
+    </div>
+
+    {{-- FOOTER --}}
+    <div class="footer-bar">
+        AYAAN CLOTHING • Proforma Invoice Ref: {{ $piNumber }} • Generated on {{ $generatedDate }} • Page 1 of 1
+    </div>
+
+</body>
+</html>
