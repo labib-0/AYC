@@ -1,7 +1,15 @@
 # Database & Data Model — AYAAN CLOTHING (AYC)
 
-> [!NOTE]
-> **Canonical Notice**: This historical document has been modernized and superseded by the authoritative canonical reference at **[docs/DATABASE.md](DATABASE.md)**. Please consult `DATABASE.md` for current PostgreSQL schemas, ERDs, indexes, and migration standards.
+> [!WARNING]
+> **Historical Predecessor Document — Explicitly Superseded:**
+> This document is preserved solely for schema design history. The canonical, actively maintained database specifications are documented in:
+> - **[DATABASE.md](DATABASE.md)** (Authoritative PostgreSQL schemas, migrations, column types, and constraints)
+> - **[PAYMENTS_AND_INVENTORY.md](PAYMENTS_AND_INVENTORY.md)** (Inventory mutation models and payment confirmation rules)
+> 
+> **Explicitly Superseded Historical Claims in This Document**:
+> 1. *Checkout Stock Deduction*: Line 188 notes that inventory `quantity` is deducted immediately within the checkout transaction. In the canonical production architecture, storefront order placement (`OrderController::store`) does **not** deduct inventory; physical stock is decremented only upon administrator payment confirmation or in-person POS counter sale.
+> 2. *Fulfillment Column*: The physical orders table column is `fulfillment_status` (not `shipping_status`).
+> 3. *Customer Status*: `customer_status` is an appended Eloquent accessor (`getCustomerStatusAttribute`) mapping to 5 canonical states; it is not a physical database column.
 
 ## 1. Database Architecture & Conventions
 

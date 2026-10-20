@@ -73,7 +73,7 @@
 * **Backend Implementation**:
   - Controllers: `AuthController`, `GoogleAuthController`
   - Service: `App\Services\Auth\EmailVerificationService`
-  - Routes: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/verify-email`, `GET /api/v1/auth/google/redirect`, `GET /api/v1/auth/google/callback`
+  - Routes: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/email/verify/{id}/{hash}`, `POST /api/v1/auth/email/verify-with-credentials`, `POST /api/v1/auth/email/verification-notification`, `GET /api/v1/auth/google/redirect`, `GET /api/v1/auth/google/callback`
   - Models: `User`, `EmailVerificationToken`, `PersonalAccessToken`
 * **Key Invariant**: **Mandatory Verified-Only Ordering**. Customers cannot place orders without verifying their email address through AYC's verification challenge. Google OAuth does NOT bypass this requirement.
 * **Associated Tests**: `tests/Feature/Auth/CustomerAuthWorkflowTest.php`, `tests/Feature/Auth/GoogleCustomerAuthenticationWorkflowTest.php`, `tests/Feature/Auth/EmailVerificationDeliveryTest.php`.
@@ -126,13 +126,13 @@
 
 ## 7. Payment Processing & Wire Proof Verification
 
-* **Purpose**: Facilitates B2B international bank wire payments (TT / SWIFT), accepts uploaded scanned deposit receipts/PDFs (up to 20 MB), triggers administrative audit workflows, and updates order status upon confirmation.
+* **Purpose**: Facilitates B2B international bank wire payments (TT / SWIFT), accepts uploaded scanned bank deposit receipts (JPG, JPEG, PNG, WebP up to 10 MB; PDFs are rejected), triggers administrative audit workflows, and updates order status upon confirmation.
 * **Frontend Components**:
   - Wire Submission Form: `src/components/orders/PaymentProofUploadModal.tsx`
   - Admin Payment Verification: `src/components/admin/orders/PaymentAuditPanel.tsx`
 * **Backend Implementation**:
-  - Controller: `OrderController::uploadPaymentProof`, `AdminOrderController::verifyPayment`
-  - Routes: `POST /api/v1/orders/{id}/payment-proof`, `POST /api/v1/orders/{id}/verify-payment`
+  - Controller: `OrderController::uploadPaymentProof`, `AdminOrderController::reviewPaymentProof`
+  - Routes: `POST /api/v1/orders/{id}/payment-proof`, `POST /api/v1/admin/orders/{id}/payment/verify`, `POST /api/v1/admin/orders/{id}/payment/reject`, `POST /api/v1/admin/orders/{id}/payment-proof/review`
   - Models: `Payment`, `Order`, `OrderStatusEvent`
 * **Associated Tests**: `tests/Feature/Order/PaymentProofUploadTest.php`.
 
@@ -184,8 +184,10 @@
 * **Purpose**: High-speed in-person wholesale ordering terminal at factory showrooms supporting barcode scanners, walk-in customer accounts, cash/wire payments, coupon applications, and direct inventory depletion.
 * **Frontend Page**: `src/app/ayc/pos/page.tsx`
 * **Backend Implementation**:
+  - Controller: `App\Http\Controllers\Api\V1\Admin\PosController`
   - Service: `App\Services\Order\AdminPosSaleService`
-  - Route: `POST /api/v1/pos/checkout`
+  - Routes: `POST /api/v1/admin/pos/orders`, `POST /api/v1/admin/pos/calculate`, `GET /api/v1/admin/pos/products`, `GET /api/v1/admin/pos/warehouses`, `GET /api/v1/admin/pos/customers/walkin`, `POST /api/v1/admin/pos/customers`
+  - Permissions: `pos.view`, `pos.create`, `pos.discount`
   - Models: `Order`, `OrderItem`, `Inventory`, `CouponAdminBinding`
 * **Associated Tests**: `tests/Feature/Pos/AdminPosSaleWorkflowTest.php`.
 

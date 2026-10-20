@@ -34,9 +34,9 @@ sequenceDiagram
     UI-->>User: Session active, displays "Email Verification Required" banner
 
     Note over User, Mail: Buyer receives branded verification email
-    User->>UI: Clicks verification link in email (/auth/verify-email?token=...&email=...)
-    UI->>API: GET /api/v1/auth/verify-email?token=...&email=...
-    API->>VerifySvc: verifyChallenge($email, $token)
+    User->>UI: Clicks signed verification link in email (/auth/verify-email?id=...&hash=...&expires=...&signature=...)
+    UI->>API: GET /api/v1/auth/email/verify/{id}/{hash}?expires=...&signature=...
+    API->>VerifySvc: verify($request, $id, $token)
     VerifySvc->>DB: Query token by SHA-256 hash & active scope
     VerifySvc->>DB: Update user: email_verified_at = now()
     VerifySvc->>DB: Mark token: used_at = now() (Replay Prevention)
@@ -118,6 +118,13 @@ Token generation and verification are encapsulated in `App\Services\Auth\EmailVe
 ### B. Same-Browser Binding (Optional Hardening)
 * Controlled by configuration `auth.verification.same_browser_required` (default: `false` for enterprise international buyer convenience).
 * When enabled, a secure HTTP-only cookie (`ayc_reg_binding`) is set during registration, and its SHA-256 hash is bound to the token challenge to ensure the email is verified from the exact same browser session.
+
+### C. Cross-Browser Challenge Recovery (`verify-with-credentials`)
+* If a customer opens their verification link in a different browser or device when browser binding is active, the API returns status `different_browser` (HTTP 403).
+* The landing page (`/auth/verify-email`) displays a password challenge, prompting the buyer to enter their account credentials.
+* The frontend submits:
+  `POST /api/v1/auth/email/verify-with-credentials` (`{ id, token, password }`).
+* Upon validating the account password and unexpired token hash, the account is verified successfully without requiring the original browser cookie.
 
 ---
 

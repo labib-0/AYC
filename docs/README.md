@@ -3,7 +3,7 @@
 **Document Purpose**: Definitive master index, navigation guide, and architectural source-of-truth matrix for the AYAAN CLOTHING platform.  
 **Audience**: Software Engineers, System Architects, DevOps Operators, Database Administrators, Security Auditors, and AI Pair-Programming Agents.  
 **Last Verified Date**: October 20, 2026  
-**Environment Baseline**: Production Release `release_20261020_052638_a8d2fef` on Hostinger VPS `srv2010990` (Ubuntu 24.04 LTS, Mumbai 2, India).
+**Environment Baseline**: Production Release `release_20261020_074747_c83a2f0` on Hostinger VPS `srv2010990` (Ubuntu 24.04 LTS, Mumbai 2, India).
 
 ---
 
@@ -74,6 +74,16 @@ This matrix establishes which implementation file, service, or configuration gov
 * **[GLOSSARY_AND_BUSINESS_RULES.md](GLOSSARY_AND_BUSINESS_RULES.md)**: Authoritative business invariants, MOQ guidelines, and apparel trade terms.
 * **[SEO_AND_SOCIAL_SHARING.md](SEO_AND_SOCIAL_SHARING.md)**: Open Graph meta tags, Twitter/X cards, JSON-LD Schema.org structured data, and canonical URL handling.
 * **[KNOWN_ISSUES_AND_OPEN_WORK.md](KNOWN_ISSUES_AND_OPEN_WORK.md)**: Technical debt log, ongoing infrastructure investigations, and verified upstream notes.
+
+### 7. Historical Predecessors (Superseded & Preserved for Context)
+The following files represent historical documentation compiled prior to the October 20, 2026 production audit. They contain legacy specifications superseded by the canonical documents above and [PRODUCTION_STATE_AUDIT.md](PRODUCTION_STATE_AUDIT.md):
+* **[ADMIN_POS_AND_PERMISSIONS.md](ADMIN_POS_AND_PERMISSIONS.md)**: Historical POS routes and RBAC permissions (superseded by [CUSTOMERS_AND_ADMINISTRATION.md](CUSTOMERS_AND_ADMINISTRATION.md) and [API_REFERENCE.md](API_REFERENCE.md)).
+* **[ORDERS_PAYMENTS_AND_RECEIPTS.md](ORDERS_PAYMENTS_AND_RECEIPTS.md)**: Historical order states, receipt uploads, and legacy checkout stock deduction claims (superseded by [ORDERS_AND_CHECKOUT.md](ORDERS_AND_CHECKOUT.md) and [PAYMENTS_AND_INVENTORY.md](PAYMENTS_AND_INVENTORY.md)).
+* **[DATABASE_AND_DATA_MODEL.md](DATABASE_AND_DATA_MODEL.md)**: Historical data model with deprecated columns like `shipping_status` (superseded by [DATABASE.md](DATABASE.md)).
+* **[PRODUCT_CATALOG_AND_INVENTORY.md](PRODUCT_CATALOG_AND_INVENTORY.md)**: Historical catalog and pricing specifications (superseded by [PRODUCTS_AND_CATALOG.md](PRODUCTS_AND_CATALOG.md)).
+* **[CONFIGURATION_AND_SECURITY.md](CONFIGURATION_AND_SECURITY.md)**: Historical security runbook and upload limits (superseded by [SECURITY.md](SECURITY.md)).
+* **[DEPLOYMENT_AND_ROLLBACK.md](DEPLOYMENT_AND_ROLLBACK.md)**: Historical deployment notes (superseded by [DEPLOYMENT.md](DEPLOYMENT.md)).
+* **[TESTING_AND_QUALITY.md](TESTING_AND_QUALITY.md)**: Historical test catalog (superseded by [TESTING.md](TESTING.md)).
 
 ---
 

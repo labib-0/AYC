@@ -1,7 +1,17 @@
 # Orders, Payments & Receipts — AYAAN CLOTHING (AYC)
 
-> [!NOTE]
-> **Canonical Documentation Notice:** This document is preserved for historical context. The canonical, actively maintained technical documentation for orders, checkout, payments, and inventory can be found in [ORDERS_AND_CHECKOUT.md](ORDERS_AND_CHECKOUT.md) and [PAYMENTS_AND_INVENTORY.md](PAYMENTS_AND_INVENTORY.md).
+> [!WARNING]
+> **Historical Predecessor Document — Explicitly Superseded:**
+> This document is preserved solely for historical context and architectural evolution records. The canonical, actively maintained technical specifications are documented in:
+> - **[ORDERS_AND_CHECKOUT.md](ORDERS_AND_CHECKOUT.md)** (Canonical order state machine, computed `customer_status` mapping, checkout invariants)
+> - **[PAYMENTS_AND_INVENTORY.md](PAYMENTS_AND_INVENTORY.md)** (Verified inventory deduction rules, payment verification workflows, WebP receipt storage)
+> - **[DATABASE.md](DATABASE.md)** (Exact PostgreSQL schema definitions, `fulfillment_status`, table constraints)
+> 
+> **Explicitly Superseded Historical Claims in This Document**:
+> 1. *Stock Deduction Timing*: Stock is **not** deducted at initial order placement (`OrderController::store`). Physical stock is deducted across `product_variants`, `products`, and `inventories` only when an administrator confirms payment (`AdminOrderController::reviewPaymentProof`) or at the counter during POS checkout (`AdminPosSaleService`).
+> 2. *Cancellation Restoration*: Stock is restored upon cancellation **only if** `inventory_decremented === true` on the order; unpaid or non-decremented cancelled orders do not trigger stock restoration.
+> 3. *Database Enums*: The physical database columns are `orders.status`, `orders.payment_status` (default: `pending`), and `orders.fulfillment_status`. The state labels `PendingVerification` and `PaymentRejected` were early architectural placeholders; actual payment statuses are `payment_submitted` and `failed`.
+> 4. *Permissions*: Administrative review uses `permission:payment.receipt.verify` and `permission:payment.receipt.reject` (legacy `orders.verify_payment` does not exist).
 
 ## 1. Canonical Order State Machine
 

@@ -9,7 +9,7 @@
 
 ## 1. Full-Stack Infrastructure Topology
 
-The production platform is hosted on an isolated, hardened Ubuntu 24.04 LTS VPS (`srv2010990`, IP: `200.97.169.230`) in Mumbai, India.
+The production platform is hosted on an isolated, hardened Ubuntu 24.04 LTS VPS (`srv2010990`) in Mumbai, India.
 
 ```mermaid
 graph TB

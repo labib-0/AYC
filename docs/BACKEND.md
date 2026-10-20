@@ -125,7 +125,7 @@ graph LR
 
 ### Registered Middleware Aliases:
 * `'role' => \App\Http\Middleware\EnsureUserHasRole::class`: Enforces strict separation between customer actions and admin back-office actions.
-* `'permission' => \App\Http\Middleware\RequirePermission::class`: Enforces granular RBAC permissions for administrative staff (e.g. `product.edit`, `order.verify_payment`).
+* `'permission' => \App\Http\Middleware\RequirePermission::class`: Enforces granular RBAC permissions for administrative staff (e.g. `product.edit`, `payment.receipt.verify`).
 * `'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class`: Blocks unverified customer accounts from placing orders or creating checkouts, returning HTTP 403 `EMAIL_VERIFICATION_REQUIRED`.
 
 ---

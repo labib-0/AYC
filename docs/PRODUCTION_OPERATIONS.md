@@ -9,7 +9,7 @@ The production system runs on a high-performance cloud Virtual Private Server ho
 
 * **Host Node Identifier**: `srv2010990` (Hostinger Mumbai 2 Data Center)
 * **Operating System**: Ubuntu 24.04 LTS (Linux Kernel 6.8.0)
-* **Public IPv4**: `200.97.169.230` (Hostinger AS47583)
+* **Network Gateway**: Production VPS network interface (Hostinger AS47583)
 * **Public IPv6**: `2a02:4780:63:21bf::1` (Hostinger AS47583)
 * **Primary Domain**: `ayaanclothing.com` (Authoritative A and AAAA records active)
 * **Application Directory**: `/var/www/ayaan`
@@ -48,7 +48,7 @@ flowchart TD
 
 ## 2. Service Management & Daily Health Checks
 
-Execute these commands via SSH (`ssh 200.97.169.230`) to verify all system services:
+Execute these commands via SSH (`ssh srv2010990`) to verify all system services:
 
 ### A. PM2 Process Status (Customer & Admin Daemons)
 ```bash

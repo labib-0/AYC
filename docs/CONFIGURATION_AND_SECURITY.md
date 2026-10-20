@@ -56,8 +56,8 @@ The administrative system implements a multi-tenant dynamic RBAC system stored i
 
 ### A. Database Tables
 * `roles`: Custom named roles (`super_admin`, `catalog_manager`, `order_verifier`, `pos_cashier`).
-* `permissions`: Discrete granular permission slugs.
-* `role_permission`: Many-to-many pivot mapping permissions to roles.
+* `permissions`: Discrete granular permission slugs (143 seeded permissions).
+* `role_permissions`: Many-to-many pivot mapping permissions to roles.
 * `admin_roles`: Many-to-many pivot assigning roles to admin users.
 
 ### B. Standard Granular Permissions
@@ -65,20 +65,35 @@ The administrative system implements a multi-tenant dynamic RBAC system stored i
 | :--- | :--- |
 | `catalog.manage` | Create, edit, and delete products, categories, brands, and pricing tiers. |
 | `inventory.adjust` | Adjust warehouse stock levels, edit allocations, and view cost metrics. |
-| `orders.manage` | View all customer orders, update tracking numbers, and manage fulfillment. |
-| `orders.verify_payment`| Inspect uploaded wire transfer receipts, approve payments, or reject proofs. |
-| `pos.access` | Access the in-showroom POS terminal and issue walk-in orders. |
-| `pos.discounts` | Apply custom percentage or flat monetary discounts in POS checkout. |
+| `order.view` | View administrative orders, customer details, and audit trails. |
+| `order.update_status` | Advance lifecycle status of orders (restores stock if cancelled). |
+| `payment.receipt.verify` | Inspect uploaded wire transfer receipts, approve payments, and trigger inventory deduction. |
+| `payment.receipt.reject` | Reject wire transfer receipts and mark payment failed to allow customer re-upload. |
+| `pos.view` | Access the in-showroom POS terminal, view stock balances, and calculate cart totals. |
+| `pos.create` | Execute showroom counter sales with instant physical stock deduction. |
+| `pos.discount` | Apply custom percentage or flat monetary discounts in POS checkout. |
 | `users.manage` | View registered customer profiles, companies, and contact information. |
 | `administrators.manage`| Create admin accounts, assign roles, and modify system access. |
 | `rbac.manage` | Create custom roles, adjust permission matrix, and revoke access. |
 | `settings.manage` | Update business addresses, banking instructions, and legal policies. |
 
+*(Note: Legacy permission labels `orders.verify_payment`, `pos.access`, `pos.operate`, and `pos.discounts` are superseded by the canonical slugs above).*
+
 ### C. Route Enforcement
 Endpoints are protected using middleware chaining:
 ```php
-Route::middleware(['auth:sanctum', 'role:admin', 'permission:orders.verify_payment'])->group(function () {
-    Route::post('/orders/{id}/payment/verify', [AdminOrderController::class, 'verifyPayment']);
+Route::middleware(['auth:sanctum', 'permission:payment.receipt.verify'])->group(function () {
+    Route::post('/orders/{id}/payment/verify', [AdminOrderController::class, 'reviewPaymentProof']);
+    Route::post('/orders/{id}/payment-proof/review', [AdminOrderController::class, 'reviewPaymentProof']);
+});
+
+Route::middleware(['auth:sanctum', 'permission:payment.receipt.reject'])->group(function () {
+    Route::post('/orders/{id}/payment/reject', [AdminOrderController::class, 'reviewPaymentProof']);
+});
+
+Route::prefix('pos')->group(function () {
+    Route::get('/products', [AdminPosController::class, 'products'])->middleware('permission:pos.view');
+    Route::post('/orders', [AdminPosController::class, 'store'])->middleware('permission:pos.create');
 });
 ```
 
@@ -93,7 +108,7 @@ To eliminate horizontal privilege escalation (IDOR vulnerabilities):
                  ->where('user_id', $request->user()->id)
                  ->firstOrFail();
    ```
-2. **Guest Order Access**: Unregistered or guest buyers accessing order tracking must provide both the exact Order Number (`ORD-YYYY-XXXX`) and matching contact email or phone number.
+2. **Guest Order Access**: Unregistered or guest buyers accessing order tracking must provide both the exact Order Number (`AYN-YYYYMMDD-XXXXXX`) and matching contact email or phone number.
 3. **Internal Data Sanitization**: Purchase costs (`buying_price`), internal supplier identities (`supplier_id`, `supplier_name`), and admin operational notes are stripped from public API resources via dedicated Eloquent serialization transforms.
 
 ---
@@ -102,17 +117,20 @@ To eliminate horizontal privilege escalation (IDOR vulnerabilities):
 
 The receipt upload pipeline (`/api/v1/orders/{id}/payment-proof`) enforces defense-in-depth sanitization:
 
-1. **Input Size Limit**: Strictly limited to **10 MB** (10,485,760 bytes). Larger files are rejected by both Nginx (`client_max_body_size 32M` ceiling, app-level 10M) and Laravel validator (`max:10240`).
-2. **MIME Type Whitelist**: Only `image/jpeg`, `image/png`, and `image/webp` are permitted. Executables, PDFs, SVGs, and scriptable files are blocked.
+1. **Input Size Limit**: Strictly limited to **10 MB** (10,485,760 bytes). Larger files are rejected by both Nginx (`client_max_body_size 20M;` ceiling, app-level 10 MB via `ReceiptImageService::MAX_SOURCE_BYTES`) and Laravel validator (`max:10240`).
+2. **MIME Type Whitelist**: Only `image/jpeg`, `image/jpg`, `image/png`, and `image/webp` are permitted. Executables, PDFs, SVGs, and scriptable files are blocked (PDFs are explicitly rejected with HTTP 422).
 3. **WebP Transcoding & Metadata Stripping**:
-   * Every uploaded image is loaded into memory, validated for real image headers, and transcoded into optimized WebP format.
+   * Every uploaded image is loaded into memory, validated for real image headers, and transcoded into optimized WebP format at quality 85.
    * All EXIF metadata, GPS camera tags, and embedded device information are stripped during transcoding.
-4. **Sanitized Storage**:
-   * Files are stored with cryptographically random UUID names: `storage/app/public/receipts/{uuid}.webp`.
+4. **Current Storage Location**:
+   * Files are stored with cryptographically secure tokens: `storage/app/public/order-receipts/receipt_{order}_{token}_{timestamp}.webp`.
    * Stored permissions are restricted to `0644` (non-executable).
 5. **State-Locked Replacement**:
-   * Buyers can only upload or replace receipts when the order is in `pending` or `payment_rejected` status.
-   * Once an order is verified and marked `paid`, receipt replacement is strictly forbidden to preserve financial audit integrity.
+   * Buyers can upload or replace receipts when `payment_status` is `pending`, `payment_submitted`, or `failed` (or legacy `unpaid`).
+   * Once an order payment is approved and marked `paid` (or `payment_confirmed_at !== null`), customer resubmission is strictly forbidden with HTTP 422 to preserve financial audit integrity.
+6. **Outstanding Security Remediation (High Priority)**:
+   * Storing receipts under `storage/app/public/order-receipts/` allows unauthenticated access if the exact URL is known or leaked.
+   * The target safe architecture requires migrating receipt storage to an unexposed private disk (`storage/app/private/order-receipts/`) served exclusively through an authenticated streaming controller route that verifies order ownership or admin permissions.
 
 ---
 

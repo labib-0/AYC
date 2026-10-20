@@ -59,7 +59,7 @@ git commit -am "feat: description of verified changes"
 git push origin main
 
 # 2. Connect to the production server
-ssh root@200.97.169.230
+ssh srv2010990
 
 # 3. Pull latest commit in repository working tree
 cd /var/www/ayaan
@@ -101,7 +101,7 @@ If any release gate fails during deployment, the script automatically triggers r
 If unexpected runtime bugs are discovered after a successful deployment:
 ```bash
 # Connect to production
-ssh root@200.97.169.230
+ssh srv2010990
 
 # Trigger standalone rollback
 /var/www/ayaan/scripts/deploy-production.sh --rollback

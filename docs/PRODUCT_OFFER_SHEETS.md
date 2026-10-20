@@ -133,8 +133,13 @@ public function computeFingerprint(Product $product): string
 ```
 
 ### Invalidation Rules:
-* **Invalidates & Regenerates**: Updates to product title, SKU, base price, MOQ, specifications (GSM, fabric, wash care), primary photo, gallery photos, brand name, brand logo, or company exporter profile.
+* **Invalidates & Regenerates**: Updates to product title, SKU, base price, wholesale price, bulk pricing tiers, full stock price, MOQ, specifications (GSM, fabric, wash care, CBM, weight), primary photo, gallery photos, brand name, brand logo, or company exporter profile.
 * **Does NOT Invalidate**: Updates to stock quantities, inventory warehouse balances, or order history (these do not appear on product Offer Sheets).
+
+### Documented Cache Fingerprint Gaps & Limitations:
+1. **Blade Template File Hash Omission**: The Blade view `resources/views/documents/offer-sheet.blade.php` (and associated partials/stylesheets) is **not** hashed in `computeFingerprint()`. Changes to HTML structure, styling, or static disclaimers do not invalidate existing disk caches. Modifying template designs requires a manual cache purge (`storage/app/product_offer_sheets/`).
+2. **Package Assortment Text Omission**: The product field `package_assortment_message` is rendered in the document if present, but is omitted from the fingerprint payload.
+3. **Absence of Template-Version Invalidation**: The fingerprint string does not incorporate a template version constant (e.g. `v1`, `v2`), meaning server-side layout updates cannot programmatically invalidate earlier caches without wiping storage.
 
 ---
 
@@ -171,8 +176,12 @@ When an order contains multiple products, or when an administrative user request
 | **Order Confirmation Email** | `SendOrderConfirmationEmailJob` | Order Combined Offer Sheet | Attached directly from `documents_cache/` |
 | **Admin Documents Viewer** | `/ayc/orders/[id]` | Order Combined Offer Sheet | `GET /ayc/api/orders/{id}/documents/OFFER_SHEET/pdf` |
 
-### Elimination of Client-Side jsPDF Fallbacks:
-In the past, `CheckoutModal.tsx` maintained a client-side jsPDF fallback that attempted to re-render product pages in the browser if the backend call failed. This resulted in visual discrepancies, uncompressed images, and layout collisions. This fallback has been **completely eradicated**. All downloads now exclusively consume the canonical backend binary.
+### Client-Side vs Server-Side PDF Generation Reality:
+* **Checkout Modal Offer Sheets**: In `CheckoutModal.tsx`, the legacy client-side jsPDF fallback for Offer Sheets was eradicated in commit `a8d2fef`. Offer Sheet downloads strictly consume the canonical backend binary. If generation fails, a retry banner is shown.
+* **Client-Side jsPDF Generator Implementation (`src/lib/pdf-generator.ts`)**: Client-side PDF generation remains active in the codebase and is utilized for:
+  1. Instant in-browser iframe document previews in `/dashboard/documents` (`generateCommercialDocumentPDFBlob`).
+  2. Emergency Proforma Invoice download fallback in `CheckoutModal.tsx` (`downloadProformaInvoicePDF`) if the backend service is temporarily unreachable.
+  3. Secondary fallback downloads in `/dashboard/orders/[id]` and `DocumentViewer.tsx`.
 
 ---
 

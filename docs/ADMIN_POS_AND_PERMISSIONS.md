@@ -49,7 +49,7 @@ flowchart LR
 
 ### B. Inventory & Discount Safeguards
 * **Zero Negative Stock**: POS lookups validate physical warehouse inventory in real time. Items with 0 units cannot be added to the POS cart.
-* **Granular Discount Authorization**: Cashiers can only enter custom line discounts if their assigned role contains the `pos.discounts` permission. Standard cashiers are restricted to system-configured coupon codes.
+* **Granular Discount Authorization**: Cashiers can only enter custom line discounts if their assigned role contains the `pos.discount` permission. Standard cashiers are restricted to system-configured coupon codes.
 * **Immediate Settlement**: POS orders are created with `order_source: pos`, `payment_status: paid`, and `status: confirmed` (or `delivered`), ensuring cash drawers reconcile with stock movements.
 
 ---

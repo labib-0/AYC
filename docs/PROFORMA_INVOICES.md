@@ -102,6 +102,9 @@ Extracted authoritatively from `DocumentHelper::getBankingProfile()`:
 * **Typical File Size**: ~16 KB – 48 KB (vector typography, lightweight formatting).
 * **Byte Parity Guarantee**: Because `OrderController::downloadDocumentPdf` and `SendOrderConfirmationEmailJob` both call `CommercialPdfArtifactService::getOrGenerateForOrder()`, the customer downloads the exact byte-for-byte identical file that is attached to their confirmation email.
 
+### Client-Side Download Fallback in Checkout Modal:
+While `CommercialPdfArtifactService` and Dompdf 3.1 serve as the canonical generator for all PI downloads and email attachments, `CheckoutModal.tsx` retains an emergency client-side fallback in its catch block (`downloadProformaInvoicePDF(confirmedOrder)` via `src/lib/pdf-generator.ts`). If the backend request fails or times out, the browser renders an emergency client-side Proforma Invoice so the customer is not stranded without payment instructions.
+
 ---
 
 ## 5. Related Technical Documentation

@@ -124,10 +124,11 @@ erDiagram
    - `order_number`: `varchar(100) UNIQUE` (`AYN-YYYYMMDD-XXXXXX`)
    - `user_id`: `bigint FK -> users.id nullable` (null for walk-in accounts)
    - `order_source`: `varchar(50) default 'storefront'` (`storefront`, `pos`)
-   - `status`: `varchar(50) default 'pending'` (`pending`, `processing`, `confirmed`, `fulfilled`, `cancelled`, `shipped`, `delivered`)
-   - `payment_status`: `varchar(50) default 'unpaid'` (`unpaid`, `pending`, `payment_submitted`, `paid`, `failed`, `refunded`)
-   - `shipping_status`: `varchar(50) default 'unfulfilled'` (`unfulfilled`, `processing`, `shipped`, `delivered`)
-   - `customer_status`: *(Computed Eloquent model accessor `$order->customer_status`, not a raw database column; maps to `ORDER_PLACED`, `PAYMENT_PENDING`, `WAITING_FOR_APPROVAL`, `ORDER_CONFIRMED`, `ON_SHIPMENT`, `DELIVERED`).*
+   - `status`: `varchar(30) default 'pending'` (`pending`, `order_placed`, `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`, `refunded`)
+   - `payment_status`: `varchar(30) default 'pending'` (`pending`, `payment_submitted`, `paid`, `failed`, `refunded`)
+   - `fulfillment_status`: `varchar(30) default 'unfulfilled'` (`unfulfilled`, `processing`, `shipped`, `delivered`, `returned`, `partially_shipped`)
+   - `carrier_status`: `varchar(50) nullable` (Third-party logistics / Aramex tracking state)
+   - `customer_status`: *(Computed Eloquent model accessor `$order->customer_status`, not a raw database column; maps to 5 canonical customer states: `ORDER_PLACED`, `PAYMENT_PENDING`, `WAITING_FOR_APPROVAL`, `ORDER_CONFIRMED`, `ON_SHIPMENT`. Note: `delivered` fulfillment maps into `ON_SHIPMENT`; there is no standalone `DELIVERED` customer state enum).*
    - `subtotal`: `decimal(12,2)`
    - `shipping_cost`: `decimal(12,2)`
    - `discount_amount`: `decimal(12,2)`

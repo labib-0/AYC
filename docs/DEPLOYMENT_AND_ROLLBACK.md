@@ -86,7 +86,7 @@ git push origin main
 git push labib main
 
 # 4. Trigger deployment on production VPS
-ssh 200.97.169.230 "cd /var/www/ayaan && git pull origin main && ./scripts/deploy-production.sh"
+ssh srv2010990 "cd /var/www/ayaan && git pull origin main && ./scripts/deploy-production.sh"
 ```
 
 ---
@@ -97,7 +97,7 @@ If unexpected regressions, network faults, or critical exceptions occur in produ
 
 ### Executing Standalone Rollback
 ```bash
-ssh 200.97.169.230 "cd /var/www/ayaan && ./scripts/deploy-production.sh --rollback"
+ssh srv2010990 "cd /var/www/ayaan && ./scripts/deploy-production.sh --rollback"
 ```
 
 ### What the Rollback Does Automatically:

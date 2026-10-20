@@ -111,8 +111,41 @@ To protect international buyers against duplicate credit charges or repeated inv
 
 ---
 
-## 8. Related Technical Documentation
+## 8. Outstanding High-Priority Security Remediation: Private Payment Receipt Storage
+
+### Current Security Finding
+Currently, `ReceiptImageService` stores converted WebP receipts under `storage/app/public/order-receipts/`. Because Nginx maps `/storage/` directly to `backend/storage/app/public/`, receipt images are publicly accessible via HTTP without authentication headers if the filename is known or obtained.
+
+Although filenames incorporate a cryptographically random 6-byte token (`receipt_{order}_{token}_{timestamp}.webp`) and directory listing (`autoindex`) is strictly disabled, public storage remains a security risk for sensitive B2B financial documents (e.g. SWIFT remittance slips containing corporate bank accounts, branch codes, and transaction amounts).
+
+### Target Safe Architecture (Planned Remediation)
+1. **Private Filesystem Disk**:
+   - Move storage target from `Storage::disk('public')` to an unexposed private disk (`storage/app/private/order-receipts/` or non-symlinked local disk).
+   - Nginx must not have any location block serving this directory.
+2. **Authorized Streaming Controller**:
+   - Provide an authenticated endpoint: `GET /api/v1/orders/{id}/payment-receipt`.
+   - Gate access through authorization policies:
+     * **Buyer**: User must be authenticated and own the order (`$order->user_id === $request->user()->id`).
+     * **Admin**: Staff must possess `permission:payment.receipt.verify` or `permission:order.view`.
+     * **Guest Access**: Signed, time-limited temporary URLs (`URL::temporarySignedRoute`).
+3. **Response Headers**:
+   - Serve files with `Cache-Control: private, no-store, must-revalidate` and `X-Content-Type-Options: nosniff`.
+
+### Migration Plan for Existing Receipts
+1. **Pre-Migration Backup**: Create a full archive of `storage/app/public/order-receipts/` in `/var/backups/ayaan/receipts/`.
+2. **Artisan Migration Command (`php artisan receipts:migrate-to-private`)**:
+   - Iterate over all records in `payments` and `orders` containing `receipt_path` or `payment_proof_url`.
+   - Move physical WebP files from `storage/app/public/order-receipts/` to `storage/app/private/order-receipts/`.
+   - Update database records (`payments.receipt_path`, `payments.receipt_url`, `orders.payment_proof_url`, `orders.payment_details`) to point to the secure streaming route.
+3. **Post-Migration Audit**:
+   - Confirm zero files remain in `storage/app/public/order-receipts/`.
+   - Issue public unauthenticated HTTP requests to previous URLs to confirm HTTP 404 / 403 responses.
+
+---
+
+## 9. Related Technical Documentation
 
 * **[AUTHENTICATION_AND_VERIFICATION.md](AUTHENTICATION_AND_VERIFICATION.md)**: Verification challenge token cryptography.
 * **[GOOGLE_OAUTH.md](GOOGLE_OAUTH.md)**: Google OAuth security boundary and customer isolation.
 * **[PAYMENTS_AND_INVENTORY.md](PAYMENTS_AND_INVENTORY.md)**: Payment proof upload security.
+* **[CONFIGURATION_AND_SECURITY.md](CONFIGURATION_AND_SECURITY.md)**: Environment variable permissions and file upload rules.

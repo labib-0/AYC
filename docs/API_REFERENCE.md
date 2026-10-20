@@ -67,18 +67,48 @@
   }
   ```
 
-### `GET /api/v1/auth/verify-email`
-* **Purpose**: Verify a cryptographic email challenge link.
-* **Auth**: Public (Validates query parameters).
+### `GET /api/v1/auth/email/verify/{id}/{hash}`
+* **Purpose**: Verify a signed email challenge URL.
+* **Auth**: Public with signed URL query parameters.
+* **Route Parameters**:
+  - `id`: Customer user ID.
+  - `hash`: SHA-1 hash of user email address.
 * **Query Parameters**:
-  - `email`: Customer email address.
-  - `token`: 256-bit hexadecimal challenge secret.
+  - `expires`: Unix timestamp after which URL expires.
+  - `signature`: HMAC SHA-256 URL signature.
+  - `token`: (Optional) 256-bit hexadecimal challenge secret.
 * **Success Response (200 OK)**:
   ```json
   {
     "success": true,
     "message": "Your email address has been successfully verified.",
-    "verified": true
+    "data": {
+      "verified": true,
+      "email_verified_at": "2026-10-20T06:30:00Z"
+    }
+  }
+  ```
+
+### `POST /api/v1/auth/email/verify-with-credentials`
+* **Purpose**: Cross-device / cross-browser challenge response verification requiring account password.
+* **Auth**: Public. Throttled (`throttle:verification-verify`).
+* **Request Body**:
+  ```json
+  {
+    "id": 42,
+    "token": "7a9e3d...",
+    "password": "SecurePassword123!"
+  }
+  ```
+* **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "message": "Your email address has been successfully verified.",
+    "data": {
+      "verified": true,
+      "email_verified_at": "2026-10-20T06:30:00Z"
+    }
   }
   ```
 
@@ -161,7 +191,39 @@
 ### `POST /api/v1/orders/{id}/payment-proof`
 * **Purpose**: Upload scanned wire transfer receipt / SWIFT slip.
 * **Auth**: `auth:sanctum` (Customer owner or Admin).
-* **Request**: Multipart form-data with `file` (up to 20 MB).
+* **Request**: Multipart form-data with:
+  - `receipt`: File (JPG, JPEG, PNG, WebP up to 10 MB; PDFs are rejected with HTTP 422).
+  - `payment_details`: (Optional string) Remittance summary or transaction reference.
+  - `payment_method`: (Optional string) e.g. `bank_transfer`, `swift_tt`.
+  - `transaction_id`: (Optional string) Wire transfer transaction reference.
+  - `payer_name`: (Optional string) Name on remitting bank account.
+  - `bank_name`: (Optional string) Originating bank.
+  - `account_number`: (Optional string) Originating account number.
+  - `payment_amount`: (Optional numeric) Remitted amount in USD.
+  - `payment_date`: (Optional date) Transfer execution date (`YYYY-MM-DD`).
+* **Success Response (200 OK)**: Returns updated order with `payment_status: "payment_submitted"` and customer status `"WAITING_FOR_APPROVAL"`.
+
+### `POST /api/v1/admin/orders/{id}/payment/verify`
+* **Purpose**: Approve wire receipt, deduct physical inventory, and advance payment status to `paid`.
+* **Auth**: `auth:sanctum`, `role:admin`, `permission:payment.receipt.verify`.
+* **Request Body**:
+  ```json
+  {
+    "action": "verify",
+    "note": "Wire deposit confirmed in Pubali Bank account."
+  }
+  ```
+
+### `POST /api/v1/admin/orders/{id}/payment/reject`
+* **Purpose**: Reject wire receipt and allow customer re-submission.
+* **Auth**: `auth:sanctum`, `role:admin`, `permission:payment.receipt.reject`.
+* **Request Body**:
+  ```json
+  {
+    "action": "reject",
+    "note": "Illegible receipt image. Please upload a clear photo of the bank slip."
+  }
+  ```
 
 ---
 
@@ -187,18 +249,28 @@
 
 ## 6. Point-of-Sale (POS) Endpoints
 
-### `POST /api/v1/pos/checkout`
-* **Purpose**: Complete an in-person factory showroom wholesale sale.
-* **Auth**: `auth:sanctum`, `role:admin`, `permission:pos.operate`.
+### `POST /api/v1/admin/pos/orders`
+* **Purpose**: Complete an in-person factory showroom wholesale sale with instant physical stock deduction.
+* **Auth**: `auth:sanctum`, `role:admin`, `permission:pos.create` (and `permission:pos.discount` if custom line discount is applied).
 * **Request Body**:
   ```json
   {
-    "items": [{ "variant_id": 412, "quantity": 100, "unit_price": 3.85 }],
+    "customer_id": 15,
+    "items": [{ "product_id": 177, "variant_id": 412, "quantity": 100, "unit_price": 3.85 }],
     "payment_method": "cash",
-    "customer_name": "Walk-In Buyer",
-    "customer_phone": "+8801700000000"
+    "payment_amount": 385.00,
+    "warehouse_id": 1
   }
   ```
+
+### Related POS Endpoints
+* `GET /api/v1/admin/pos/customers/walkin` (`permission:pos.view`): Retrieve default walk-in customer profile.
+* `POST /api/v1/admin/pos/customers` (`permission:pos.create`): Quick-create counter buyer.
+* `GET /api/v1/admin/pos/products` (`permission:pos.view`): Fast POS product catalog search.
+* `GET /api/v1/admin/pos/warehouses` (`permission:pos.view`): List active inventory warehouses.
+* `POST /api/v1/admin/pos/calculate` (`permission:pos.view`): Calculate cart totals, discounts, and taxes.
+
+*(Note: Legacy references to `/api/v1/pos/checkout` and permissions `pos.access`, `pos.operate`, and `pos.discounts` are superseded).*
 
 ---
 

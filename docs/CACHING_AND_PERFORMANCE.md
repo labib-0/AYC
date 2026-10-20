@@ -56,7 +56,7 @@ Because rendering complex multi-page PDFs using Dompdf consumes significant CPU 
 
 ## 4. Benchmarked Production Performance Metrics
 
-*Measured on live VPS (`200.97.169.230`) under production load on October 20, 2026:*
+*Measured on live VPS (`srv2010990`) under production load on October 20, 2026:*
 
 | Operation / Endpoint | Cold Execution | Warm Cached Execution | Performance Gain |
 | :--- | :---: | :---: | :---: |
