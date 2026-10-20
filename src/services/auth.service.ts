@@ -236,6 +236,19 @@ export class AuthService {
       message: "Your password has been successfully reset. You may now sign in.",
     };
   }
+
+  /**
+   * Resend email verification notification
+   */
+  async resendVerificationEmail(email?: string): Promise<{ message: string }> {
+    if (!isFrontendOnly()) {
+      const res = await apiClient.post<any>("/auth/email/verification-notification", email ? { email } : {});
+      return res?.data || res || { message: "A new verification link has been sent to your email." };
+    }
+    return {
+      message: "A new verification link has been sent to your email.",
+    };
+  }
 }
 
 export const authService = new AuthService();

@@ -181,15 +181,21 @@ function VerifyEmailContent() {
           </p>
           <div className="space-y-3">
             <Link
-              href="/dashboard"
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-white bg-slate-900 hover:bg-slate-800 dark:bg-amber-600 dark:hover:bg-amber-500 transition-colors shadow-md"
+              href="/cart?openCheckout=true"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors shadow-md text-sm font-semibold"
             >
-              <span>Go to Customer Dashboard</span>
+              <span>Continue to Checkout</span>
               <ArrowRight size={16} />
             </Link>
             <Link
+              href="/dashboard"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-white bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors shadow-sm text-sm"
+            >
+              <span>Go to Customer Dashboard</span>
+            </Link>
+            <Link
               href="/login"
-              className="w-full inline-block py-2.5 px-4 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+              className="w-full inline-block py-2 px-4 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               Sign In to Your Account
             </Link>

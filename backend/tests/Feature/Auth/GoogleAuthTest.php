@@ -153,7 +153,7 @@ class GoogleAuthTest extends TestCase
         $this->assertEquals(User::ROLE_CUSTOMER, $user->role);
         $this->assertEquals('active', $user->status);
         $this->assertFalse((bool) $user->is_super_admin);
-        $this->assertNotNull($user->email_verified_at);
+        $this->assertNull($user->email_verified_at);
         $this->assertEquals('https://images.example.com/avatar.png', $user->avatar_url);
     }
 

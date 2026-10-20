@@ -279,7 +279,7 @@ class GoogleCustomerAuthenticationWorkflowTest extends TestCase
         $this->assertNotNull($createdUser);
         $this->assertEquals('google-brand-new-user-7788', $createdUser->google_id);
         $this->assertEquals(User::ROLE_CUSTOMER, $createdUser->role);
-        $this->assertNotNull($createdUser->email_verified_at);
+        $this->assertNull($createdUser->email_verified_at);
     }
 
     /**

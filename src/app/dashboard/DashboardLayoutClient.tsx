@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { ChevronRight, Home } from "lucide-react";
+import { ChevronRight, Home, AlertCircle, Mail, RefreshCw } from "lucide-react";
+import { authService } from "@/services/auth.service";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardMobileNav } from "@/components/dashboard/DashboardMobileNav";
 function getBreadcrumbLabel(pathname: string): string {
@@ -28,6 +29,26 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
+
+  const handleResend = async () => {
+    if (!user?.email) return;
+    setResending(true);
+    setResendMessage(null);
+    setResendError(null);
+    try {
+      const res = await authService.resendVerificationEmail(user.email);
+      setResendMessage(res?.message || "Verification link sent! Please check your inbox.");
+      setTimeout(() => setResendMessage(null), 8000);
+    } catch (err: any) {
+      setResendError(err?.message || "Failed to resend verification link. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && (!user || user.role !== "customer")) {
@@ -95,6 +116,35 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
 
         {/* Mobile nav bar (< lg) */}
         <DashboardMobileNav />
+
+        {user && !user.email_verified_at && (
+          <div className="mb-5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle size={18} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white">Email Verification Required Before Placing Orders</p>
+                <p className="text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                  Your account email (<strong>{user.email}</strong>) has not been verified yet. You can browse the catalog and save items, but email verification is required before placing an order.
+                </p>
+                {resendMessage && (
+                  <p className="text-emerald-600 dark:text-emerald-400 font-semibold mt-1">{resendMessage}</p>
+                )}
+                {resendError && (
+                  <p className="text-destructive font-semibold mt-1">{resendError}</p>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+            >
+              {resending ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />}
+              <span>{resending ? "Sending..." : "Resend Link"}</span>
+            </button>
+          </div>
+        )}
 
         {/* Main 2-column B2B workspace layout */}
         <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-start">

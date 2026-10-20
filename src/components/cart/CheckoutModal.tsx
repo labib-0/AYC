@@ -25,6 +25,7 @@ import { CouponRecord } from "@/services/admin/coupon.service";
 import { validateCoupon } from "@/lib/coupon";
 import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
 import { securityService } from "@/services/security.service";
+import { authService } from "@/services/auth.service";
 import HoneypotField from "@/components/common/HoneypotField";
 import { trackOrderSuccessConversion } from "@/lib/analytics/google-ads";
 import {
@@ -37,6 +38,7 @@ import {
   MessageCircle,
   Package,
   RefreshCw,
+  Mail,
   ChevronDown,
   ChevronUp,
   Download,
@@ -177,6 +179,27 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitAttempted, setIsSubmitAttempted] = useState(false);
+
+  // Email Verification States
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [resendVerificationSuccess, setResendVerificationSuccess] = useState<string | null>(null);
+  const [resendVerificationError, setResendVerificationError] = useState<string | null>(null);
+
+  const handleResendVerification = async () => {
+    if (!user?.email) return;
+    setResendingVerification(true);
+    setResendVerificationSuccess(null);
+    setResendVerificationError(null);
+    try {
+      const res = await authService.resendVerificationEmail(user.email);
+      setResendVerificationSuccess(res?.message || "Verification link sent to your email! Please check your inbox.");
+      setTimeout(() => setResendVerificationSuccess(null), 8000);
+    } catch (err: any) {
+      setResendVerificationError(err?.message || "Failed to resend verification link. Please try again.");
+    } finally {
+      setResendingVerification(false);
+    }
+  };
   const [confirmedOrder, setConfirmedOrder] = useState<OrderRecord | null>(() => {
     if (typeof window !== "undefined") {
       const stored = sessionStorage.getItem("ayaan_test_confirmed_order");
@@ -699,6 +722,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}&notice=${encodeURIComponent("Please log in to continue to checkout.")}`);
         return;
       }
+
+      if (user && !user.email_verified_at) {
+        setError("Email verification is required before placing an order. Please click the verification link sent to your inbox, or use Resend Link above.");
+        setLoading(false);
+        isSubmittingRef.current = false;
+        return;
+      }
       const orderUserId = String(user.id);
 
       // Build shipping title based on selected option (ARAMEX or DISCUSS DIRECTLY)
@@ -849,6 +879,12 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         const moq = errData?.moq;
         setError(`Order quantity for ${prod} is below the minimum order quantity (${moq} pcs).`);
         revalidateCart();
+      } else if (
+        err?.data?.error_code === "EMAIL_VERIFICATION_REQUIRED" ||
+        err?.error_code === "EMAIL_VERIFICATION_REQUIRED" ||
+        (err?.status === 403 && (err?.message?.includes("verification") || err?.data?.message?.includes("verification")))
+      ) {
+        setError("Email verification is required before placing an order. Please verify your email via the link sent to your inbox, or click Resend Link above.");
       } else {
         setError(err?.message || "Failed to confirm order. Please try again.");
       }
@@ -1189,6 +1225,39 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs font-medium flex items-start gap-2.5 animate-in fade-in">
                 <AlertCircle size={16} className="shrink-0 mt-0.5" />
                 <span>{error}</span>
+              </div>
+            )}
+
+            {user && !user.email_verified_at && (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle size={18} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-slate-900 dark:text-white">Email Verification Required Before Ordering</p>
+                    <p className="text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                      Your account email (<strong className="text-slate-800 dark:text-slate-200">{user.email}</strong>) has not been verified yet. Please click the verification link in your email to enable order placement.
+                    </p>
+                    {resendVerificationSuccess && (
+                      <p className="text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+                        {resendVerificationSuccess}
+                      </p>
+                    )}
+                    {resendVerificationError && (
+                      <p className="text-destructive font-semibold mt-1">
+                        {resendVerificationError}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendingVerification}
+                  className="shrink-0 px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {resendingVerification ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />}
+                  <span>{resendingVerification ? "Sending..." : "Resend Link"}</span>
+                </button>
               </div>
             )}
 
@@ -1717,24 +1786,42 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               Proforma Invoice generated after order confirmation.
             </p>
 
-            <button
-              type="submit"
-              disabled={loading || stockViolations.length > 0}
-              className={`w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                loading || stockViolations.length > 0
-                  ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60"
-                  : "bg-foreground text-background hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
-              }`}
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>Confirm Order</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
+            {user && !user.email_verified_at ? (
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendingVerification}
+                className="w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md bg-amber-600 hover:bg-amber-700 text-white active:translate-y-0"
+              >
+                {resendingVerification ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Mail size={16} />
+                    <span>Verify Email to Place Order (Resend Link)</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading || stockViolations.length > 0}
+                className={`w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
+                  loading || stockViolations.length > 0
+                    ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60"
+                    : "bg-foreground text-background hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
+                }`}
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>Confirm Order</span>
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </form>
       </div>

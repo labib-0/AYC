@@ -149,16 +149,15 @@ class GoogleAuthController extends ApiController
 
                 // Safely link Google identity to existing customer account
                 // CRITICAL: Do NOT modify existing password, role, or permissions!
+                // CRITICAL: Do NOT auto-verify! Verification must be completed via AYAAN CLOTHING's own verification link.
                 $user->google_id = $googleId;
                 if (empty($user->avatar_url) && !empty($avatar)) {
                     $user->avatar_url = $avatar;
                 }
-                if (empty($user->email_verified_at)) {
-                    $user->email_verified_at = now();
-                }
                 $user->save();
             } else {
                 // Case C: No matching account exists — create a new CUSTOMER account
+                // Email verification is mandatory: account remains unverified until AYAAN verification link is clicked.
                 try {
                     $user = User::create([
                         'name' => $name,
@@ -168,8 +167,11 @@ class GoogleAuthController extends ApiController
                         'role' => User::ROLE_CUSTOMER,
                         'status' => 'active',
                         'avatar_url' => $avatar,
-                        'email_verified_at' => now(),
+                        'email_verified_at' => null,
                     ]);
+
+                    // Send branded verification email to the new Google customer
+                    app(\App\Services\Auth\EmailVerificationService::class)->sendVerificationNotification($user);
                 } catch (\Illuminate\Database\QueryException $e) {
                     Log::warning('Duplicate identity detected during Google account registration', [
                         'error' => $e->getMessage(),

@@ -237,7 +237,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
     // Checkout & Orders (Customer)
     Route::post('/coupons/validate', [CouponController::class, 'validateCoupon'])->middleware('throttle:coupons-validate');
 
-    Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
+    Route::middleware(['auth:sanctum', 'role:customer', 'verified'])->group(function () {
         Route::post('/checkout/validate', [OrderController::class, 'validateCheckout'])->middleware('throttle:checkout-order');
     });
 
@@ -249,7 +249,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
 
         // Strictly customer mutations & customer personal order listing
         Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
-            Route::post('/', [OrderController::class, 'store'])->middleware('throttle:checkout-order');
+            Route::post('/', [OrderController::class, 'store'])->middleware(['throttle:checkout-order', 'verified']);
             Route::get('/', [OrderController::class, 'index']);
             Route::post('/{id}/cancel', [OrderController::class, 'cancel']);
         });

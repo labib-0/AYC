@@ -18,11 +18,10 @@ class EmailVerificationService
 {
     /**
      * Check if email verification is enabled.
-     * Safe default is false (current production behavior).
      */
     public function isEnabled(): bool
     {
-        return (bool) Config::get('auth.verification.enabled', false);
+        return (bool) Config::get('auth.verification.enabled', true);
     }
 
     /**
@@ -30,7 +29,7 @@ class EmailVerificationService
      */
     public function isSameBrowserRequired(): bool
     {
-        return (bool) Config::get('auth.verification.same_browser_required', true);
+        return (bool) Config::get('auth.verification.same_browser_required', false);
     }
 
     /**
@@ -341,11 +340,18 @@ class EmailVerificationService
     {
         $challenge = $this->createChallenge($user, $existingBindingSecret);
 
-        $user->notify(new CustomerVerifyEmailNotification(
-            verificationUrl: $challenge['verification_url'],
-            rawToken: $challenge['raw_token'],
-            expiresInMinutes: $this->getExpirationMinutes()
-        ));
+        try {
+            $user->notify(new CustomerVerifyEmailNotification(
+                verificationUrl: $challenge['verification_url'],
+                rawToken: $challenge['raw_token'],
+                expiresInMinutes: $this->getExpirationMinutes()
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send customer email verification notification: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
+        }
 
         return $challenge;
     }

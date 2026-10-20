@@ -16,7 +16,7 @@
     </p>
 
     <p style="margin: 0 0 16px 0; color: #334155; font-size: 14.5px; line-height: 1.6;">
-        Thank you for creating an account with <strong>AYAAN CLOTHING</strong>. Please verify your email address to complete your account setup.
+        Thank you for creating an account with <strong>AYAAN CLOTHING</strong>. Please verify your email address to complete your account setup. <strong>Email verification is required before you can place an order.</strong>
     </p>
 
     <div class="btn-container" style="text-align: center; margin: 28px 0;">
@@ -25,15 +25,15 @@
         </a>
     </div>
 
-    <div class="card" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px 20px; margin: 24px 0;">
+    <div class="card" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 18px 24px; margin: 24px 0;">
         <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 600; color: #334155;">
             Important Security Notice:
         </p>
         <p style="margin: 0 0 8px 0; font-size: 13px; color: #475569; line-height: 1.5;">
-            Open the link in the same browser you used to register. The verification link expires after <strong>{{ $expiresInMinutes }} minutes</strong>.
+            This verification link is valid for <strong>{{ $expiresInMinutes }} minutes</strong>. Once verified, you will be able to complete checkout and manage orders.
         </p>
         <p style="margin: 0; font-size: 12px; color: #64748b; word-break: break-all; line-height: 1.5;">
-            Having trouble clicking the button? Copy and paste this link into your original browser: <br>
+            Having trouble clicking the button? Copy and paste this link into your browser: <br>
             <a href="{{ $verificationUrl }}" style="color: #d97706; text-decoration: underline;">{{ $verificationUrl }}</a>
         </p>
     </div>

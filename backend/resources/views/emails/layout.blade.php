@@ -36,7 +36,8 @@
             padding: 30px 10px;
         }
         .main-container {
-            max-width: 600px;
+            width: 100%;
+            max-width: 760px;
             margin: 0 auto;
             background-color: #ffffff;
             border-radius: 8px;
@@ -46,7 +47,7 @@
         }
         .header {
             background-color: #0f172a;
-            padding: 26px 30px;
+            padding: 28px 36px;
             text-align: left;
             border-bottom: 3px solid #d97706;
         }
@@ -66,7 +67,7 @@
             text-transform: uppercase;
         }
         .body-content {
-            padding: 30px 32px;
+            padding: 32px 36px;
         }
         .badge {
             display: inline-block;
@@ -99,7 +100,7 @@
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 6px;
-            padding: 16px 20px;
+            padding: 18px 24px;
             margin: 20px 0;
         }
         .card-title {
@@ -118,7 +119,7 @@
             color: #64748b;
             font-weight: 500;
             display: inline-block;
-            width: 130px;
+            width: 140px;
         }
         .info-value {
             color: #0f172a;
@@ -175,7 +176,7 @@
         .footer {
             background-color: #0f172a;
             color: #94a3b8;
-            padding: 24px 30px;
+            padding: 26px 36px;
             font-size: 12px;
             line-height: 1.5;
             text-align: center;
@@ -189,9 +190,12 @@
             margin: 8px 0 0 0;
             color: #64748b;
         }
-        @media only screen and (max-width: 620px) {
-            .body-content { padding: 20px 18px !important; }
-            .header { padding: 20px !important; }
+        @media only screen and (max-width: 780px) {
+            .wrapper { padding: 12px 6px !important; }
+            .main-container { width: 100% !important; max-width: 100% !important; }
+            .body-content { padding: 22px 18px !important; }
+            .header { padding: 22px 18px !important; }
+            .footer { padding: 22px 18px !important; }
             .info-label { width: 100% !important; display: block !important; margin-bottom: 2px; }
             .info-value { display: block !important; margin-bottom: 8px; }
         }
@@ -199,7 +203,7 @@
 </head>
 <body>
     <div class="wrapper">
-        <table class="main-container" width="100%" cellpadding="0" cellspacing="0">
+        <table class="main-container" width="100%" cellpadding="0" cellspacing="0" style="max-width: 760px; width: 100%; margin: 0 auto;">
             <!-- Header -->
             <tr>
                 <td class="header">

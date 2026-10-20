@@ -125,11 +125,11 @@ return [
     */
 
     'verification' => [
-        'enabled' => (bool) env('EMAIL_VERIFICATION_ENABLED', false),
+        'enabled' => (bool) env('EMAIL_VERIFICATION_ENABLED', true),
         'expire' => (int) env('EMAIL_VERIFICATION_EXPIRE_MINUTES', 60),
-        'same_browser_required' => (bool) env('EMAIL_VERIFICATION_SAME_BROWSER', true),
+        'same_browser_required' => (bool) env('EMAIL_VERIFICATION_SAME_BROWSER', false),
         'cookie_name' => env('EMAIL_VERIFICATION_COOKIE_NAME', 'ayc_reg_binding'),
-        'enforce_from' => env('EMAIL_VERIFICATION_ENFORCE_FROM', '2026-10-18 00:00:00'),
+        'enforce_from' => env('EMAIL_VERIFICATION_ENFORCE_FROM', null),
     ],
 
 ];
