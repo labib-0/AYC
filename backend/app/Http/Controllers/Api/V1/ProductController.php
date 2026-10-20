@@ -1527,6 +1527,10 @@ class ProductController extends ApiController
             'warehouse_id' => $targetWarehouseId,
         ]);
 
+        if ($product->status === 'published') {
+            \App\Jobs\GenerateProductOfferSheetJob::dispatch($product->id);
+        }
+
         return $this->success(new ProductResource($product), 'Product created successfully', 201);
     }
 
@@ -1542,6 +1546,9 @@ class ProductController extends ApiController
         if (!$product) {
             return $this->notFound('Product not found');
         }
+
+        $offerSheetService = app(\App\Services\Documents\ProductOfferSheetService::class);
+        $oldOfferSheetFingerprint = $product->status === 'published' ? $offerSheetService->computeFingerprint($product) : null;
 
         $effectivePreorder = $request->has('is_preorder')
             ? $request->boolean('is_preorder')
@@ -2471,6 +2478,13 @@ class ProductController extends ApiController
             'cost_price' => $product->cost_price,
         ]);
 
+        if ($product->status === 'published') {
+            $newOfferSheetFingerprint = $offerSheetService->computeFingerprint($product);
+            if ($oldOfferSheetFingerprint !== $newOfferSheetFingerprint) {
+                \App\Jobs\GenerateProductOfferSheetJob::dispatch($product->id);
+            }
+        }
+
         return $this->success(new ProductResource($product), 'Product updated successfully');
     }
 
@@ -2601,6 +2615,10 @@ class ProductController extends ApiController
         $product->save();
 
         CatalogCacheService::invalidateProduct($product);
+
+        if ($product->status === 'published') {
+            \App\Jobs\GenerateProductOfferSheetJob::dispatch($product->id);
+        }
 
         ActivityLogger::log('product.storefront_visibility_toggled', $product, [
             'name' => $product->name,
@@ -2860,6 +2878,10 @@ class ProductController extends ApiController
 
         CatalogCacheService::invalidateProduct($product);
 
+        if ($product->status === 'published') {
+            \App\Jobs\GenerateProductOfferSheetJob::dispatch($product->id);
+        }
+
         return $this->success(new \App\Http\Resources\Api\V1\ProductImageResource($productImage), 'Image uploaded successfully', 201);
     }
 
@@ -2898,6 +2920,10 @@ class ProductController extends ApiController
 
         CatalogCacheService::invalidateProduct($product);
 
+        if ($product->status === 'published') {
+            \App\Jobs\GenerateProductOfferSheetJob::dispatch($product->id);
+        }
+
         return $this->success(null, 'Image deleted successfully');
     }
 
@@ -2928,6 +2954,10 @@ class ProductController extends ApiController
         }
 
         CatalogCacheService::invalidateProduct($product);
+
+        if ($product->status === 'published') {
+            \App\Jobs\GenerateProductOfferSheetJob::dispatch($product->id);
+        }
 
         $product->load('images');
         return $this->success(\App\Http\Resources\Api\V1\ProductImageResource::collection($product->images), 'Images reordered successfully');
@@ -3384,5 +3414,118 @@ class ProductController extends ApiController
             'success' => true,
             'data' => $response,
         ]);
+    }
+
+    /**
+     * GET /api/v1/products/{slugOrId}/offer-sheet
+     * Retrieve or download canonical pre-generated product Offer Sheet PDF.
+     */
+    public function offerSheet(Request $request, string $slugOrId): \Illuminate\Http\Response|JsonResponse
+    {
+        $user = $request->user() ?: auth('sanctum')->user();
+        $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
+
+        $query = Product::with(['brand', 'images', 'pricingTiers']);
+        $product = is_numeric($slugOrId)
+            ? $query->where('id', (int) $slugOrId)->first()
+            : $query->where('slug', $slugOrId)->orWhere('sku', $slugOrId)->first();
+
+        if (!$product) {
+            return $this->notFound('Product not found');
+        }
+
+        if (!$isAdmin && $product->status !== 'published') {
+            return $this->notFound('Product not found');
+        }
+
+        $service = app(\App\Services\Documents\ProductOfferSheetService::class);
+        $artifact = $service->getOrGenerate($product, $request->boolean('force'));
+
+        if ($request->query('format') === 'pdf' || $request->has('pdf') || $request->has('download') || !$request->wantsJson()) {
+            return response($artifact['content'], 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => ($request->query('download') ? 'attachment' : 'inline') . "; filename=\"{$artifact['filename']}\"",
+                'Cache-Control' => 'private, max-age=3600',
+                'X-PDF-Cache' => $artifact['is_hit'] ? 'HIT' : 'MISS',
+                'X-PDF-Hash' => $artifact['hash'],
+                'X-PDF-Size' => (string) $artifact['filesize'],
+            ]);
+        }
+
+        return $this->success([
+            'product_id' => $product->id,
+            'sku' => $product->sku,
+            'status' => 'ready',
+            'filename' => $artifact['filename'],
+            'filesize_bytes' => $artifact['filesize'],
+            'checksum_sha256' => $artifact['hash'],
+            'is_hit' => $artifact['is_hit'],
+            'duration_ms' => $artifact['time_ms'],
+            'download_url' => url("/api/v1/products/{$product->id}/offer-sheet?download=1"),
+        ], 'Product Offer Sheet retrieved successfully');
+    }
+
+    /**
+     * POST /api/v1/products/bulk-offer-sheet
+     * Combine canonical pre-generated product Offer Sheet PDFs in selected order.
+     */
+    public function bulkOfferSheet(Request $request): \Illuminate\Http\Response|JsonResponse
+    {
+        $validated = $request->validate([
+            'product_ids' => ['required_without:skus', 'array'],
+            'product_ids.*' => ['integer'],
+            'skus' => ['required_without:product_ids', 'array'],
+            'skus.*' => ['string'],
+        ]);
+
+        $productIds = $validated['product_ids'] ?? [];
+        $skus = $validated['skus'] ?? [];
+
+        $query = Product::with(['brand', 'images', 'pricingTiers'])->where('status', 'published');
+        if (!empty($productIds)) {
+            $products = $query->whereIn('id', $productIds)->get()->keyBy('id');
+            $orderedProducts = [];
+            foreach ($productIds as $pId) {
+                if (isset($products[$pId])) {
+                    $orderedProducts[] = $products[$pId];
+                }
+            }
+        } else {
+            $products = $query->whereIn('sku', $skus)->get()->keyBy('sku');
+            $orderedProducts = [];
+            foreach ($skus as $sku) {
+                if (isset($products[$sku])) {
+                    $orderedProducts[] = $products[$sku];
+                }
+            }
+        }
+
+        if (empty($orderedProducts)) {
+            return $this->error('No matching published products found for bulk Offer Sheet generation.', 404);
+        }
+
+        $service = app(\App\Services\Documents\ProductOfferSheetService::class);
+        $artifact = $service->mergeProductsOfferSheets($orderedProducts);
+
+        if ($request->query('format') === 'pdf' || $request->has('pdf') || $request->has('download') || !$request->wantsJson()) {
+            return response($artifact['content'], 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => ($request->query('download') ? 'attachment' : 'inline') . "; filename=\"{$artifact['filename']}\"",
+                'Cache-Control' => 'private, max-age=3600',
+                'X-PDF-Cache' => $artifact['is_hit'] ? 'HIT' : 'MISS',
+                'X-PDF-Hash' => $artifact['hash'],
+                'X-PDF-Size' => (string) $artifact['filesize'],
+            ]);
+        }
+
+        return $this->success([
+            'status' => 'ready',
+            'product_count' => count($orderedProducts),
+            'filename' => $artifact['filename'],
+            'filesize_bytes' => $artifact['filesize'],
+            'checksum_sha256' => $artifact['hash'],
+            'is_hit' => $artifact['is_hit'],
+            'duration_ms' => $artifact['time_ms'],
+        ], 'Combined Offer Sheet generated successfully');
     }
 }

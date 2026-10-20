@@ -334,6 +334,11 @@ class Product extends Model
         return $this->hasOne(ProductImage::class)->where('is_primary', true);
     }
 
+    public function offerSheet(): HasOne
+    {
+        return $this->hasOne(ProductOfferSheet::class);
+    }
+
     /**
      * Authoritative primary image URL for the product.
      */

@@ -142,9 +142,12 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::get('/featured', [ProductController::class, 'featured']);
         Route::get('/statistics', [ProductController::class, 'statistics']);
         Route::get('/check-uniqueness', [ProductController::class, 'checkUniqueness']);
+        Route::post('/bulk-offer-sheet', [ProductController::class, 'bulkOfferSheet']);
         Route::get('/', [ProductController::class, 'index'])->middleware('throttle:products-browse');
         Route::get('/slug/{slug}', [ProductController::class, 'show']);
         Route::get('/{slugOrId}/shipping-specs', [ProductController::class, 'shippingSpecs']);
+        Route::get('/{slugOrId}/offer-sheet', [ProductController::class, 'offerSheet']);
+        Route::get('/{slugOrId}/offer-sheet/pdf', [ProductController::class, 'offerSheet']);
         Route::get('/{slugOrId}', [ProductController::class, 'show']);
 
         Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {

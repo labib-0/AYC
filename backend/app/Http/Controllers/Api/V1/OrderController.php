@@ -1351,8 +1351,13 @@ class OrderController extends ApiController
 
         // Direct PDF binary streaming if format=pdf requested
         if ($request->query('format') === 'pdf' || $request->has('pdf')) {
-            $artifactService = app(\App\Services\Documents\CommercialPdfArtifactService::class);
-            $artifact = $artifactService->getOrGenerateForOrder($order, $normalizedType, $docPayload, $isAdmin);
+            if (in_array($normalizedType, ['OFFER_SHEET', 'ORDER_SHEET'])) {
+                $productOfferService = app(\App\Services\Documents\ProductOfferSheetService::class);
+                $artifact = $productOfferService->getOrGenerateForOrder($order);
+            } else {
+                $artifactService = app(\App\Services\Documents\CommercialPdfArtifactService::class);
+                $artifact = $artifactService->getOrGenerateForOrder($order, $normalizedType, $docPayload, $isAdmin);
+            }
 
             return response($artifact['content'], 200, [
                 'Content-Type' => 'application/pdf',

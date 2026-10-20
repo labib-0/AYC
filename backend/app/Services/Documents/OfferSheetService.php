@@ -323,6 +323,153 @@ class OfferSheetService
     }
 
     /**
+     * Build canonical Offer Sheet document representation for a single Product.
+     */
+    public function generateForProduct(Product $product, array $options = []): array
+    {
+        $docDefaults = DocumentHelper::getDocumentDefaults();
+        $cleanSku = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($product->sku ?: "PROD-{$product->id}"));
+        $docNumber = "OS-{$cleanSku}";
+
+        $gallery = DocumentHelper::getProductGallery($product);
+
+        $brandModel = $product->brand;
+        $brand = $brandModel?->name ?? (is_string($product->brand) ? $product->brand : 'AYAAN CLOTHING');
+        $brandLogoRaw = $brandModel?->logo_url;
+        $brandLogo = $brandLogoRaw ? DocumentHelper::resolvePdfImageSource($brandLogoRaw, true) : null;
+        if ($brandLogo && !file_exists($brandLogo)) {
+            $brandLogo = null;
+        }
+
+        $prodDesc = $product->description ?? '';
+        $designType = !empty(trim($product->design_type ?? '')) ? trim($product->design_type) : 'See Description';
+        $material = !empty(trim($product->material ?? ($product->fabric ?? ''))) ? trim($product->material ?? $product->fabric) : 'See Description';
+        $sizeDesc = !empty(trim($product->size_description ?? '')) ? trim($product->size_description) : 'See Description';
+        $colourDesc = !empty(trim($product->colour_description ?? '')) ? trim($product->colour_description) : 'See Description';
+
+        $moqQty = $product->moq ?: 1;
+        $cbmMoq = $product->cbm ? number_format((float) $product->cbm, 3) . ' m³' : 'See Description';
+        $gwMoq = $product->gross_weight ? number_format((float) $product->gross_weight, 1) . ' KG' : 'See Description';
+
+        $stdPrice = (float) ($product->standard_price ?? $product->wholesale_price ?? 0);
+        $tiers = [
+            [
+                'tierName' => 'Standard',
+                'quantityBasis' => $moqQty . ' pcs (Minimum Order)',
+                'unitPrice' => $stdPrice,
+                'totalPrice' => round($stdPrice * $moqQty, 2),
+            ],
+        ];
+
+        if ($product->bulk_pricing_enabled && $product->bulk_price && (float) $product->bulk_price > 0) {
+            $bQty = (int) ($product->bulk_threshold ?: ($moqQty * 2));
+            $bPrice = (float) $product->bulk_price;
+            $tiers[] = [
+                'tierName' => 'Bulk',
+                'quantityBasis' => $bQty . ' pcs (Minimum Quantity)',
+                'unitPrice' => $bPrice,
+                'totalPrice' => round($bPrice * $bQty, 2),
+            ];
+        }
+
+        if ($product->full_stock_price && (float) $product->full_stock_price > 0 && $product->available_stock && $product->available_stock > 0) {
+            $fsPrice = (float) $product->full_stock_price;
+            $fsQty = (int) $product->available_stock;
+            $tiers[] = [
+                'tierName' => 'Full Stock',
+                'quantityBasis' => number_format($fsQty) . ' pcs (Available Stock)',
+                'unitPrice' => $fsPrice,
+                'totalPrice' => round($fsPrice * $fsQty, 2),
+            ];
+        }
+
+        $items = [
+            [
+                'id' => (string) $product->id,
+                'item_no' => 1,
+                'product_id' => (string) $product->id,
+                'product_name' => $product->name,
+                'brand' => $brand,
+                'brand_logo' => $brandLogo,
+                'brand_logo_url' => $brandLogo,
+                'product_description' => $prodDesc,
+                'design_type' => $designType,
+                'material' => $material,
+                'size_description' => $sizeDesc,
+                'colour_description' => $colourDesc,
+                'cbm_moq' => $cbmMoq,
+                'gross_weight_moq' => $gwMoq,
+                'pricing_tiers' => $tiers,
+                'description' => $product->name,
+                'sku' => $product->sku ?: "AYN-SKU-" . str_pad($product->id, 3, '0', STR_PAD_LEFT),
+                'product_image_url' => $gallery[0] ?? null,
+                'product_images' => $gallery,
+                'quantity' => $moqQty,
+                'unit_price' => $stdPrice,
+                'line_total' => round($stdPrice * $moqQty, 2),
+                'package_breakdown' => null,
+                'details' => $sizeDesc,
+                'applicable_pricing' => [
+                    'order_quantity' => $moqQty,
+                    'unit_price' => $stdPrice,
+                    'total' => round($stdPrice * $moqQty, 2),
+                ],
+            ]
+        ];
+
+        return [
+            'id' => "doc_OFFER_SHEET_PROD_{$product->id}",
+            'docNumber' => $docNumber,
+            'doc_number' => $docNumber,
+            'docType' => 'OFFER_SHEET',
+            'doc_type' => 'OFFER_SHEET',
+            'document_type' => 'offer_sheet',
+            'title' => 'COMMERCIAL OFFER SHEET',
+            'date' => date('Y-m-d'),
+            'validUntil' => date('Y-m-d', strtotime('+30 days')),
+            'product_id' => (string) $product->id,
+            'sku' => $product->sku,
+            'companyName' => 'Wholesale / Private Label Commercial Partner',
+            'buyerName' => 'Valued Commercial Buyer',
+            'buyerEmail' => 'export@ayaanclothing.com',
+            'buyerPhone' => '+880 1620-853502',
+            'buyerAddress' => 'International Export Market (Worldwide)',
+            'buyerCountry' => 'International (Worldwide)',
+            'exporter' => DocumentHelper::getExporterProfile(),
+            'items' => $items,
+            'product_gallery' => $gallery,
+            'financials' => [
+                'currency' => 'USD',
+                'goods_value' => round($stdPrice * $moqQty, 2),
+                'subtotal' => round($stdPrice * $moqQty, 2),
+                'shipping_charge' => 0.00,
+                'tax_amount' => 0.00,
+                'other_charges' => 0.00,
+                'discount_amount' => 0.00,
+                'total_payable' => round($stdPrice * $moqQty, 2),
+                'grand_total' => round($stdPrice * $moqQty, 2),
+            ],
+            'subtotal' => round($stdPrice * $moqQty, 2),
+            'shipping' => 0.00,
+            'tax' => 0.00,
+            'discount' => 0.00,
+            'grandTotal' => round($stdPrice * $moqQty, 2),
+            'currency' => 'USD',
+            'paymentTerms' => '100% Advance Bank Wire Transfer (T/T) or Confirmed L/C at Sight',
+            'shippingTerms' => 'FOB Dhaka (Port / Airport) Export',
+            'incoterm' => 'FOB',
+            'notes' => 'Commercial Merchandising Offer Sheet. Quotation valid for order placement within 30 calendar days.',
+            'bankDetails' => DocumentHelper::getBankDetails('USD'),
+            'bank_details' => DocumentHelper::getBankDetails('USD'),
+            'show_all_pricing_tiers' => true,
+            'document_defaults' => $docDefaults,
+            'signatory_name' => $docDefaults['signatory_name'] ?? 'Authorized Representative',
+            'signatory_title' => $docDefaults['signatory_title'] ?? 'Managing Director / Commercial Head',
+            'signatory_division' => $docDefaults['signatory_division'] ?? 'Ayaan Clothing Export Division',
+        ];
+    }
+
+    /**
      * Generate PDF object for asynchronous job pipeline
      */
     public function generate(Quotation $quotation): DocumentPdfService
@@ -332,3 +479,4 @@ class OfferSheetService
         return $pdfService->render($payload);
     }
 }
+

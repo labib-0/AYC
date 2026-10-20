@@ -108,11 +108,10 @@ class SendOrderConfirmationEmailJob implements ShouldQueue
             throw $e;
         }
 
-        // Generate the authoritative Offer Sheet PDF using the unified CommercialPdfArtifactService
+        // Generate the authoritative Offer Sheet PDF using canonical ProductOfferSheetService
         try {
-            $offerDoc = $offerService->generateForOrder($order, 'OFFER_SHEET');
-            $artifactService = app(\App\Services\Documents\CommercialPdfArtifactService::class);
-            $offerArtifact = $artifactService->getOrGenerateForOrder($order, 'OFFER_SHEET', $offerDoc, false);
+            $productOfferService = app(\App\Services\Documents\ProductOfferSheetService::class);
+            $offerArtifact = $productOfferService->getOrGenerateForOrder($order);
             $offerBinary = $offerArtifact['content'];
             if (empty($offerBinary) || !str_starts_with($offerBinary, '%PDF-')) {
                 throw new \RuntimeException("Generated Offer Sheet binary failed standard PDF header validation.");

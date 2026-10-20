@@ -1059,6 +1059,35 @@ export async function downloadProductOfferSheetPDF(
   },
   selectedQty?: number
 ) {
+  // Fast Path: Check backend for authoritative canonical pre-generated Offer Sheet
+  if (product.id && typeof window !== "undefined") {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+      const res = await fetch(`${apiUrl}/products/${product.id}/offer-sheet?download=1`, {
+        headers: { Accept: "application/pdf" },
+      });
+      if (res.ok && res.headers.get("content-type")?.includes("application/pdf")) {
+        const blob = await res.blob();
+        if (blob.size > 0) {
+          const cleanSku = (product.sku || product.name || "garment")
+            .replace(/[^a-zA-Z0-9_-]/g, "_")
+            .slice(0, 30);
+          const filename = `AYAAN_Offer_Sheet_${cleanSku}.pdf`;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("[AYC] Backend product offer sheet download failed, falling back to client generator:", e);
+    }
+  }
   // Collect all available image sources for gallery: primary first, followed by secondary images
   let imageSources: string[] = [];
   const primarySrc = product.imageUrl || product.image;
@@ -1228,6 +1257,44 @@ export async function downloadCombinedProductOfferSheetsPDF(
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       return;
+    }
+  }
+
+  // Fast Path: Check backend for authoritative merged canonical Offer Sheet
+  if (order.items && order.items.length > 0 && typeof window !== "undefined") {
+    const productIds = order.items
+      .map((it: any) => it.product_id)
+      .filter((id: any): id is number => typeof id === "number" && id > 0);
+
+    if (productIds.length > 0) {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+        const res = await fetch(`${apiUrl}/products/bulk-offer-sheet?download=1`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/pdf",
+          },
+          body: JSON.stringify({ product_ids: productIds }),
+        });
+        if (res.ok && res.headers.get("content-type")?.includes("application/pdf")) {
+          const blob = await res.blob();
+          if (blob.size > 0) {
+            const filename = `AYAAN_CLOTHING_Offer_Sheets_${order.order_number || "ORDER"}.pdf`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("[AYC] Backend bulk offer sheet download failed, falling back to client generator:", e);
+      }
     }
   }
 
