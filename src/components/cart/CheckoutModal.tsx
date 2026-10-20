@@ -18,7 +18,6 @@ import { getWhatsAppUrl, getCommercialOrderWhatsAppMessage } from "@/config/busi
 import { formatPrice } from "@/lib/formatters";
 import {
   downloadProformaInvoicePDF,
-  downloadCombinedProductOfferSheetsPDF,
 } from "@/lib/pdf-generator";
 import { orderServiceClient, triggerBlobDownload } from "@/services/order.service";
 import { CouponRecord } from "@/services/admin/coupon.service";
@@ -924,18 +923,11 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     try {
       const { blob, filename } = await orderServiceClient.downloadOrderCommercialDocumentPdf(confirmedOrder.id, "OFFER_SHEET");
       triggerBlobDownload(blob, filename);
-    } catch (err) {
-      console.warn("[AYC] Backend Offer Sheet download failed, falling back to local generator:", err);
-      try {
-        await downloadCombinedProductOfferSheetsPDF(confirmedOrder, {
-          name: confirmedOrder.shipping_name,
-          company: confirmedOrder.shipping_company,
-          email: confirmedOrder.email,
-          country: confirmedOrder.shipping_country_code,
-        });
-      } catch {
-        setOfferSheetError("Unable to prepare the combined Offer Sheets PDF. Please try again.");
-      }
+    } catch (err: any) {
+      console.error("[AYC] Failed to download canonical Product Offer Sheets:", err);
+      setOfferSheetError(
+        err?.message || "Unable to prepare the combined Offer Sheets PDF. Please try again."
+      );
     } finally {
       setIsGeneratingOfferSheets(false);
     }
