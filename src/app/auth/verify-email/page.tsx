@@ -109,10 +109,16 @@ function VerifyEmailContent() {
 
   // Validate signed URL challenge directly from email link click
   useEffect(() => {
-    if (idParam && expiresParam && signatureParam && status === "loading") {
-      let verifyUrl = `/auth/email/verify/${idParam}/${hashParam || "hash"}?expires=${encodeURIComponent(
-        expiresParam
-      )}&signature=${encodeURIComponent(signatureParam)}`;
+    if (status !== "loading") return;
+
+    if (!idParam || !signatureParam || !expiresParam) {
+      setStatus("invalid_or_expired");
+      return;
+    }
+
+    let verifyUrl = `/auth/email/verify/${idParam}/${hashParam || "hash"}?expires=${encodeURIComponent(
+      expiresParam
+    )}&signature=${encodeURIComponent(signatureParam)}`;
 
       if (tokenParam) {
         verifyUrl += `&token=${encodeURIComponent(tokenParam)}`;
@@ -140,7 +146,6 @@ function VerifyEmailContent() {
             setStatus("invalid_or_expired");
           }
         });
-    }
   }, [idParam, hashParam, tokenParam, expiresParam, signatureParam, status, resendEmail, refreshSession]);
 
   // Explicit, rate-limited resend handler
