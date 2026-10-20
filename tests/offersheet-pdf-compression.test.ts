@@ -121,7 +121,7 @@ for (let p = 1; p <= 10; p++) {
 // Generate realistic PDF representation with 6 pages, text streams, styling, and graphics
 function renderMockDompdf(items: OfferSheetItem[], compress: boolean): { buffer: Buffer; renderMs: number } {
   const startTime = performance.now();
-  let parts: Buffer[] = [];
+  const parts: Buffer[] = [];
 
   // PDF Header
   parts.push(Buffer.from("%PDF-1.4\n"));

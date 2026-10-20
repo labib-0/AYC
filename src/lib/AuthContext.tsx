@@ -49,7 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             prev.id === nextId &&
             prev.email === currentUser.email &&
             prev.role === currentUser.role &&
-            prev.name === currentUser.name
+            prev.name === currentUser.name &&
+            prev.email_verified_at === currentUser.email_verified_at
           ) {
             return prev;
           }

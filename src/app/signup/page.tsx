@@ -84,7 +84,9 @@ export default function SignUpPage() {
       const errMsg = typeof res.error === "string" ? res.error : res.error.message || "Failed to create account. Please try again.";
       setError(errMsg);
     } else if ((res as any)?.requires_verification) {
-      setVerificationSentEmail((res as any)?.email || email);
+      const registeredEmail = (res as any)?.email || email;
+      const targetReturn = getRedirectUrl(res.user);
+      router.push(`/auth/verify-email?email=${encodeURIComponent(registeredEmail)}&pending=1&returnUrl=${encodeURIComponent(targetReturn)}`);
     } else {
       router.push(getRedirectUrl(res.user));
     }
@@ -102,25 +104,32 @@ export default function SignUpPage() {
           <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/60 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-600 dark:text-amber-400">
             <Mail size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Verify Your Email</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Verify Your Email Address</h1>
           <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
             We sent a secure verification link to{" "}
             <strong className="text-slate-900 dark:text-white font-semibold">
               {maskEmail(verificationSentEmail)}
             </strong>
-            . Please click the link in your email to verify your account and enable order placement.
+            . Account verification is required before placing an order.
           </p>
 
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs text-slate-500 dark:text-slate-400 text-left mb-6 space-y-1.5">
             <p className="font-semibold text-slate-700 dark:text-slate-300">Quick Tips:</p>
             <p>&bull; The verification link is time-limited and valid for 60 minutes.</p>
+            <p>&bull; Be sure to check your spam or junk folder if the email does not appear in your inbox.</p>
             <p>&bull; Email verification is required before placing an order or completing checkout.</p>
           </div>
 
           <div className="space-y-3">
             <Link
+              href={`/auth/verify-email?email=${encodeURIComponent(verificationSentEmail)}&pending=1`}
+              className="w-full inline-block py-3 px-4 rounded-xl font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors shadow-md text-sm font-semibold"
+            >
+              Go to Verification Page
+            </Link>
+            <Link
               href="/login"
-              className="w-full inline-block py-3 px-4 rounded-xl font-medium text-white bg-slate-900 hover:bg-slate-800 dark:bg-amber-600 dark:hover:bg-amber-500 transition-colors shadow-md text-sm"
+              className="w-full inline-block py-2 px-4 rounded-xl font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-xs"
             >
               Sign In to Your Account
             </Link>

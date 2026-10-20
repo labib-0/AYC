@@ -150,8 +150,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Email Verification limits
         RateLimiter::for('verification-resend', function (Request $request) {
-            $key = $request->user()?->id ?: (string) $request->input('email', $request->ip());
-            return Limit::perMinute(3)->by($key);
+            $key = $request->user()?->id ?: strtolower(trim((string) $request->input('email', $request->ip())));
+            return Limit::perMinute(1)->by($key);
         });
 
         RateLimiter::for('verification-verify', function (Request $request) {

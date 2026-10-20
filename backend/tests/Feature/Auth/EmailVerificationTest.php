@@ -396,4 +396,161 @@ class EmailVerificationTest extends TestCase
 
         Notification::assertNothingSent();
     }
+
+    public function test_successful_registration_dispatches_exactly_one_notification(): void
+    {
+        Notification::fake();
+
+        $email = 'single_dispatch_' . time() . '@example.com';
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Single Dispatch Test',
+            'email' => $email,
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'requires_verification' => true,
+                ],
+            ]);
+
+        $user = User::where('email', $email)->first();
+        $this->assertNotNull($user);
+
+        // Crucial regression assert: EXACTLY 1 notification dispatched
+        Notification::assertSentToTimes($user, CustomerVerifyEmailNotification::class, 1);
+    }
+
+    public function test_failed_registration_does_not_dispatch_notification(): void
+    {
+        Notification::fake();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Failed Reg',
+            'email' => 'invalid-email-format',
+            'password' => 'short',
+        ]);
+
+        $response->assertStatus(422);
+        Notification::assertNothingSent();
+    }
+
+    public function test_resend_inside_60s_cooldown_returns_429_and_blocks_duplicate_dispatch(): void
+    {
+        Notification::fake();
+
+        $email = 'cooldowntest_' . time() . '@example.com';
+        $user = User::factory()->create([
+            'email' => $email,
+            'email_verified_at' => null,
+            'role' => User::ROLE_CUSTOMER,
+        ]);
+
+        // First resend request succeeds
+        $res1 = $this->postJson('/api/v1/auth/email/verification-notification', [
+            'email' => $email,
+        ]);
+        $res1->assertStatus(200);
+        Notification::assertSentToTimes($user, CustomerVerifyEmailNotification::class, 1);
+
+        // Second resend request within 60s MUST return 429
+        $res2 = $this->postJson('/api/v1/auth/email/verification-notification', [
+            'email' => $email,
+        ]);
+        $res2->assertStatus(429)
+            ->assertJson([
+                'success' => false,
+                'error_code' => 'VERIFICATION_RESEND_COOLDOWN',
+            ]);
+
+        // Notification count MUST remain strictly 1
+        Notification::assertSentToTimes($user, CustomerVerifyEmailNotification::class, 1);
+    }
+
+    public function test_resend_to_already_verified_account_does_not_dispatch_notification(): void
+    {
+        Notification::fake();
+
+        $email = 'alreadyverified_' . time() . '@example.com';
+        $user = User::factory()->create([
+            'email' => $email,
+            'email_verified_at' => now(),
+            'role' => User::ROLE_CUSTOMER,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/email/verification-notification', [
+            'email' => $email,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'already_verified' => true,
+                ],
+            ]);
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_unverified_order_placement_does_not_dispatch_email(): void
+    {
+        Notification::fake();
+
+        $unverifiedCustomer = User::factory()->create([
+            'email' => 'order_no_resend@example.com',
+            'email_verified_at' => null,
+            'role' => User::ROLE_CUSTOMER,
+        ]);
+
+        $response = $this->actingAs($unverifiedCustomer, 'sanctum')->postJson('/api/v1/orders', [
+            'shipping_name' => 'Test User',
+            'shipping_address1' => '123 Main St',
+            'shipping_city' => 'Anytown',
+            'shipping_postal_code' => '12345',
+            'shipping_country_code' => 'US',
+            'payment_method' => 'card',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'error_code' => 'EMAIL_VERIFICATION_REQUIRED',
+            ]);
+
+        // Order placement failure MUST NOT trigger email verification notification
+        Notification::assertNothingSent();
+    }
+
+    public function test_verification_status_endpoint_works_for_both_auth_and_email_query(): void
+    {
+        $unverified = User::factory()->create([
+            'email' => 'statuscheck_unverified@example.com',
+            'email_verified_at' => null,
+            'role' => User::ROLE_CUSTOMER,
+        ]);
+
+        $verified = User::factory()->create([
+            'email' => 'statuscheck_verified@example.com',
+            'email_verified_at' => now(),
+            'role' => User::ROLE_CUSTOMER,
+        ]);
+
+        // 1. Authenticated status check
+        $resAuthUnverified = $this->actingAs($unverified, 'sanctum')->getJson('/api/v1/auth/email/verification-status');
+        $resAuthUnverified->assertStatus(200)->assertJson(['data' => ['is_verified' => false]]);
+
+        $resAuthVerified = $this->actingAs($verified, 'sanctum')->getJson('/api/v1/auth/email/verification-status');
+        $resAuthVerified->assertStatus(200)->assertJson(['data' => ['is_verified' => true]]);
+
+        // 2. Unauthenticated status check with email parameter (for pending page)
+        $resPublicUnverified = $this->getJson('/api/v1/auth/email/verification-status?email=' . urlencode($unverified->email));
+        $resPublicUnverified->assertStatus(200)->assertJson(['data' => ['is_verified' => false]]);
+
+        $resPublicVerified = $this->getJson('/api/v1/auth/email/verification-status?email=' . urlencode($verified->email));
+        $resPublicVerified->assertStatus(200)->assertJson(['data' => ['is_verified' => true]]);
+    }
 }

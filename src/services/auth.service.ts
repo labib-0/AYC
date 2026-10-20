@@ -238,15 +238,44 @@ export class AuthService {
   }
 
   /**
-   * Resend email verification notification
+   * Resend email verification notification (centralized on the verification-pending screen).
    */
-  async resendVerificationEmail(email?: string): Promise<{ message: string }> {
+  async resendVerificationEmail(email?: string): Promise<{
+    message: string;
+    already_verified?: boolean;
+    seconds_remaining?: number;
+  }> {
     if (!isFrontendOnly()) {
       const res = await apiClient.post<any>("/auth/email/verification-notification", email ? { email } : {});
       return res?.data || res || { message: "A new verification link has been sent to your email." };
     }
     return {
       message: "A new verification link has been sent to your email.",
+    };
+  }
+
+  /**
+   * Check email verification status.
+   * This is a read-only query and NEVER triggers or dispatches any verification email.
+   */
+  async getVerificationStatus(email?: string): Promise<{
+    is_verified: boolean;
+    is_exempt?: boolean;
+    email_verified_at?: string | null;
+    email?: string;
+  }> {
+    if (!isFrontendOnly()) {
+      const url = email
+        ? `/auth/email/verification-status?email=${encodeURIComponent(email)}`
+        : "/auth/email/verification-status";
+      const res = await apiClient.get<any>(url);
+      return res?.data || res || { is_verified: false };
+    }
+    const current = mockStore.getActiveUser();
+    return {
+      is_verified: !!current?.email_verified_at,
+      email_verified_at: current?.email_verified_at,
+      email: current?.email,
     };
   }
 }

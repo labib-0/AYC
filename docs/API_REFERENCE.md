@@ -113,8 +113,18 @@
   ```
 
 ### `POST /api/v1/auth/email/verification-notification`
-* **Purpose**: Resend a fresh verification challenge email.
-* **Auth**: `auth:sanctum`. Throttled (`throttle:email-verification`).
+* **Purpose**: Resend a fresh verification challenge email. Centralized on the dedicated verification page (`/auth/verify-email`).
+* **Auth**: Public with `{ "email": "..." }` or `auth:sanctum`.
+* **Rate Limit**: `throttle:verification-resend` (`Limit::perMinute(1)`).
+* **Cooldown Policy**: Authoritative 60-second cooldown enforced server-side. Repeated calls within 60 seconds return HTTP 429 (`VERIFICATION_RESEND_COOLDOWN`).
+* **Already Verified**: Returns HTTP 200 with `already_verified: true` without sending any email.
+
+### `GET /api/v1/auth/email/verification-status`
+* **Purpose**: Non-dispatching, read-only check of current account email verification status.
+* **Auth**: Public with query `?email=...` or authenticated via `auth:sanctum`.
+* **Rate Limit**: `throttle:60,1`.
+* **Response**: `{ "success": true, "data": { "is_verified": true|false, "email_verified_at": "..." } }`.
+* **Guarantee**: NEVER generates, sends, or resends any verification email.
 
 ### `GET /api/v1/auth/google/redirect`
 * **Purpose**: Initiate Google OAuth 2.0 consent flow.

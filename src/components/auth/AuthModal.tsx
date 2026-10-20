@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { X, Eye, EyeOff, Lock, Mail, User as UserIcon, AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { authService } from "@/services/auth.service";
@@ -23,6 +24,8 @@ export default function AuthModal({
   onClose,
   initialView = "signin",
 }: AuthModalProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { signIn, signUp } = useAuth();
   const [view, setView] = useState<AuthView>(initialView);
   const [showPassword, setShowPassword] = useState(false);
@@ -156,6 +159,17 @@ export default function AuthModal({
             type: "error",
             text: errMsg,
           });
+        } else if ((res as any)?.requires_verification) {
+          const registeredEmail = (res as any)?.email || identifier.trim();
+          setStatusMessage({
+            type: "success",
+            text: "Account created! Redirecting to email verification...",
+          });
+          setTimeout(() => {
+            onClose();
+            const returnTarget = pathname && pathname !== "/login" && pathname !== "/signup" ? pathname : "/cart?openCheckout=true";
+            router.push(`/auth/verify-email?email=${encodeURIComponent(registeredEmail)}&pending=1&returnUrl=${encodeURIComponent(returnTarget)}`);
+          }, 600);
         } else {
           setStatusMessage({
             type: "success",

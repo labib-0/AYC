@@ -29,9 +29,9 @@ sequenceDiagram
     API->>VerifySvc: createChallenge($user)
     VerifySvc->>VerifySvc: Generate 256-bit cryptosecure secret & compute SHA-256 hash
     VerifySvc->>DB: Insert token record (token_hash, expires_at: now + 60m)
-    VerifySvc->>Mail: Dispatch CustomerVerifyEmailNotification
-    API-->>UI: HTTP 201 Created + Sanctum Bearer Token
-    UI-->>User: Session active, displays "Email Verification Required" banner
+    VerifySvc->>Mail: Dispatch exactly one CustomerVerifyEmailNotification
+    API-->>UI: HTTP 201 Created (requires_verification: true)
+    UI-->>User: Immediate redirect to /auth/verify-email?pending=1 (masked email, spam check instructions)
 
     Note over User, Mail: Buyer receives branded verification email
     User->>UI: Clicks signed verification link in email (/auth/verify-email?id=...&hash=...&expires=...&signature=...)
@@ -100,7 +100,9 @@ if (! $user->hasVerifiedEmail()) {
 
 ### Layer 3: Frontend Checkout Modal Guard (`CheckoutModal.tsx`)
 * Before submitting an order, the frontend checks `user.email_verified_at`.
-* If unverified, the modal displays a clear warning card with a one-click **"Resend Verification Link"** button, preventing accidental form submission failures.
+* If an unverified user reaches checkout, their cart, quantities, and consignee details are 100% preserved.
+* The modal displays an informative verification banner and a non-dispatching **"Check Verification Status"** action.
+* **Resend Removal from Checkout**: The checkout modal NEVER automatically sends or resends a verification email. Historical buttons such as `VERIFY EMAIL TO PLACE ORDER (RESEND LINK)` have been completely removed. Customers are directed to the dedicated verification screen (`/auth/verify-email`) if they require a fresh email dispatch.
 
 ---
 
@@ -130,10 +132,14 @@ Token generation and verification are encapsulated in `App\Services\Auth\EmailVe
 
 ## 5. Token Resend & Throttling Controls
 
-To prevent email spamming and protect SMTP delivery quotas:
+To eliminate duplicate verification emails, prevent email spamming, and protect SMTP delivery quotas:
+* **Centralized Location**: Verification email resending is centralized exclusively on the dedicated verification-pending screen (`/auth/verify-email`).
 * **Endpoint**: `POST /api/v1/auth/email/verification-notification`
-* **Rate Limit**: Protected by Laravel's `throttle:email-verification` (max 5 requests per 10 minutes per IP/account).
-* **Cooldown**: The frontend enforces a 60-second visual countdown timer between resend requests.
+* **Route Rate Limit**: `throttle:verification-resend` configured at `Limit::perMinute(1)` in `AppServiceProvider`.
+* **Authoritative Server-Side Cooldown**: `EmailVerificationController::resend()` inspects `email_verification_tokens` for tokens created within the last 60 seconds (`created_at >= now()->subSeconds(60)`). If a token was generated within 60 seconds (at registration or previous resend), it immediately rejects with HTTP 429 and `VERIFICATION_RESEND_COOLDOWN` containing `seconds_remaining`.
+* **Already-Verified Suppression**: If an account is already verified, `resend()` returns HTTP 200 with `already_verified: true` and dispatches zero emails.
+* **Frontend Usability Cooldown**: The verification page displays a 60-second visual countdown disabling the resend control and showing `Resend in {seconds}s`.
+* **Verification Status Query**: `GET /api/v1/auth/email/verification-status` allows checking verification status without dispatching any email.
 
 ---
 
@@ -141,10 +147,12 @@ To prevent email spamming and protect SMTP delivery quotas:
 
 | Scenario | HTTP Status | Response Payload | User Remediation |
 | :--- | :---: | :--- | :--- |
-| **Unverified user attempts checkout** | `403` | `{"error_code": "EMAIL_VERIFICATION_REQUIRED", ...}` | User is prompted to check inbox or request a new verification link. |
-| **Expired token link clicked (>60m)** | `422` | `{"error_code": "TOKEN_EXPIRED", "message": "Verification link has expired."}` | Landing page prompts user to enter email for an instant resend. |
-| **Already-used token link clicked** | `422` | `{"error_code": "TOKEN_USED", "message": "This verification link has already been used."}` | User is directed to log in directly. |
-| **Tampered / invalid token** | `422` | `{"error_code": "TOKEN_INVALID", "message": "Invalid verification link."}` | Link was corrupted; user requests a new link. |
+| **Unverified user attempts checkout** | `403` | `{"error_code": "EMAIL_VERIFICATION_REQUIRED", ...}` | User is prompted to check inbox or navigate to `/auth/verify-email`. |
+| **Resend inside 60s cooldown** | `429` | `{"error_code": "VERIFICATION_RESEND_COOLDOWN", "seconds_remaining": 45}` | Wait for visual countdown to expire before requesting again. |
+| **Resend for verified account** | `200` | `{"data": {"already_verified": true}}` | Account is already verified; user proceeds to checkout or dashboard. |
+| **Expired token link clicked (>60m)** | `403` | `{"message": "The verification link is invalid or has expired."}` | Landing page prompts user to enter email for a fresh verification link. |
+| **Already-used token link clicked** | `200` | `{"data": {"already_verified": true}}` | User is directed to continue shopping or checkout. |
+| **Tampered / invalid signature** | `403` | `{"message": "The verification link is invalid or has expired."}` | Link was corrupted; user requests a new link on `/auth/verify-email`. |
 
 ---
 

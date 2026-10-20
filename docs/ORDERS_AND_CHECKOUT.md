@@ -56,7 +56,7 @@ sequenceDiagram
 Before an order record is persisted, five validation gates must pass:
 
 1. **Authentication Gate**: User must be authenticated with role `customer`. Admins cannot check out via the storefront.
-2. **Email Verification Gate**: The customer must have verified their email address via AYC's challenge link (`$user->hasVerifiedEmail()`). Rejects unverified buyers with HTTP 403 `EMAIL_VERIFICATION_REQUIRED`.
+2. **Email Verification Gate**: The customer must have verified their email address via AYC's challenge link (`$user->hasVerifiedEmail()`). Rejects unverified buyers with HTTP 403 `EMAIL_VERIFICATION_REQUIRED`. The checkout modal displays an informative verification banner with a non-dispatching status check action; checkout never automatically sends or resends verification emails. All resend operations are centralized on `/auth/verify-email`.
 3. **Cart Compatibility Gate**: Ready-Stock items and Pre-Order garments cannot be mixed in the same order. Rejects with HTTP 422 if detected.
 4. **MOQ & Package Assortment Gate**: Every line item must satisfy the minimum order quantity configured for the product.
 5. **Idempotency Gate**: Every checkout submission must include a unique idempotency key. Rapid duplicate clicks return the existing order payload without creating duplicate database rows.

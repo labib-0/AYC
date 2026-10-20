@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Api\ApiController;
+use App\Models\EmailVerificationToken;
 use App\Models\User;
 use App\Services\Auth\EmailVerificationService;
 use Illuminate\Http\JsonResponse;
@@ -139,6 +140,7 @@ class EmailVerificationController extends ApiController
 
     /**
      * Resend the email verification notification.
+     * Enforces an authoritative 60-second cooldown between verification dispatches for the same account.
      *
      * POST /api/v1/auth/email/verification-notification
      */
@@ -150,7 +152,7 @@ class EmailVerificationController extends ApiController
             $validated = $request->validate([
                 'email' => 'required|email',
             ]);
-            $user = User::where('email', $validated['email'])->first();
+            $user = User::where('email', strtolower(trim($validated['email'])))->first();
         }
 
         $bindingCookie = null;
@@ -160,6 +162,22 @@ class EmailVerificationController extends ApiController
                 return $this->success([
                     'already_verified' => true,
                 ], 'Email address is already verified.');
+            }
+
+            // Server-side 60-second cooldown enforcement (independent of IP/browser)
+            $recentToken = EmailVerificationToken::where('user_id', $user->id)
+                ->where('created_at', '>=', now()->subSeconds(60))
+                ->latest('id')
+                ->first();
+
+            if ($recentToken) {
+                $secondsRemaining = max(1, 60 - (int) $recentToken->created_at->diffInSeconds(now()));
+                return response()->json([
+                    'success' => false,
+                    'error_code' => 'VERIFICATION_RESEND_COOLDOWN',
+                    'message' => "Please wait {$secondsRemaining} seconds before requesting another verification email.",
+                    'seconds_remaining' => $secondsRemaining,
+                ], 429);
             }
 
             if ($this->verificationService->isEnabled()) {
@@ -184,12 +202,35 @@ class EmailVerificationController extends ApiController
 
     /**
      * Retrieve current user's email verification status.
+     * Supports both authenticated sessions and email-lookup checks (for pending verification screens).
      *
      * GET /api/v1/auth/email/verification-status
      */
     public function status(Request $request): JsonResponse
     {
         $user = $request->user();
+
+        if (! $user && $request->filled('email')) {
+            $email = strtolower(trim((string) $request->input('email')));
+            $user = User::where('email', $email)->first();
+            if ($user) {
+                return $this->success([
+                    'is_verified' => $user->hasVerifiedEmail(),
+                    'is_exempt' => $user->isVerifiedOrLegacyExempt(),
+                    'email_verified_at' => $user->email_verified_at?->toIso8601String(),
+                    'email' => $user->email,
+                ], 'Verification status retrieved.');
+            }
+            return $this->success([
+                'is_verified' => false,
+                'is_exempt' => false,
+                'email_verified_at' => null,
+            ], 'Verification status retrieved.');
+        }
+
+        if (! $user) {
+            return $this->unauthorized('Unauthenticated.');
+        }
 
         return $this->success([
             'is_verified' => $user->hasVerifiedEmail(),

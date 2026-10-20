@@ -326,6 +326,53 @@ if ($bobToken && $bobToken->used_at === null) {
     reportFail("Bob token generation", "Token not created");
 }
 
+// TEST 7b: Cooldown enforcement within 60s
+$cooldownReq = Request::create('/api/v1/auth/email/verification-notification', 'POST', [
+    'email' => $unverifiedUserB->email,
+]);
+$cooldownReq->setUserResolver(fn() => $unverifiedUserB);
+$cooldownRes = $verificationController->resend($cooldownReq);
+if ($cooldownRes->getStatusCode() === 429) {
+    $cooldownData = $cooldownRes->getData(true);
+    if (($cooldownData['error_code'] ?? '') === 'VERIFICATION_RESEND_COOLDOWN') {
+        reportPass("Resend within 60s cooldown is rejected with HTTP 429 VERIFICATION_RESEND_COOLDOWN");
+    } else {
+        reportFail("Cooldown error code", "Expected VERIFICATION_RESEND_COOLDOWN, got " . json_encode($cooldownData));
+    }
+} else {
+    reportFail("Cooldown enforcement", "Expected HTTP 429, got " . $cooldownRes->getStatusCode());
+}
+
+// TEST 7c: Already verified account resend returns already_verified
+$verifiedResendReq = Request::create('/api/v1/auth/email/verification-notification', 'POST', [
+    'email' => $userAFresh->email,
+]);
+$verifiedResendReq->setUserResolver(fn() => $userAFresh);
+$verifiedResendRes = $verificationController->resend($verifiedResendReq);
+if ($verifiedResendRes->getStatusCode() === 200 && ($verifiedResendRes->getData(true)['data']['already_verified'] ?? false) === true) {
+    reportPass("Resend for already-verified user returns HTTP 200 with already_verified = true");
+} else {
+    reportFail("Already verified resend", "Expected already_verified = true, got " . json_encode($verifiedResendRes->getData(true)));
+}
+
+// TEST 7d: Verification status endpoint (auth and email lookup)
+$statusAuthReq = Request::create('/api/v1/auth/email/verification-status', 'GET');
+$statusAuthReq->setUserResolver(fn() => $userAFresh);
+$statusAuthRes = $verificationController->status($statusAuthReq);
+if ($statusAuthRes->getStatusCode() === 200 && ($statusAuthRes->getData(true)['data']['is_verified'] ?? false) === true) {
+    reportPass("Verification status endpoint reports is_verified = true for verified authenticated customer");
+} else {
+    reportFail("Verification status auth check", "Failed");
+}
+
+$statusLookupReq = Request::create('/api/v1/auth/email/verification-status?email=' . urlencode($unverifiedUserB->email), 'GET', ['email' => $unverifiedUserB->email]);
+$statusLookupRes = $verificationController->status($statusLookupReq);
+if ($statusLookupRes->getStatusCode() === 200 && ($statusLookupRes->getData(true)['data']['is_verified'] ?? true) === false) {
+    reportPass("Verification status endpoint reports is_verified = false for unverified customer via email query");
+} else {
+    reportFail("Verification status email query check", "Failed");
+}
+
 // Test account enumeration protection: non-existent email returns same success message
 $enumReq = Request::create('/api/v1/auth/email/verification-notification', 'POST', [
     'email' => 'nonexistent_account_' . time() . '@example.com',

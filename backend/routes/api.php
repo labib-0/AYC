@@ -99,6 +99,8 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
             ->middleware('throttle:verification-resend');
         Route::post('/email/verify/resend', [EmailVerificationController::class, 'resend'])
             ->middleware('throttle:verification-resend');
+        Route::get('/email/verification-status', [EmailVerificationController::class, 'status'])
+            ->middleware('throttle:60,1');
 
         // Google OAuth Endpoints (Customer Only)
         Route::middleware(['web'])->group(function () {

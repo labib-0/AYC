@@ -30,26 +30,6 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const router = useRouter();
   const pathname = usePathname();
 
-  const [resending, setResending] = useState(false);
-  const [resendMessage, setResendMessage] = useState<string | null>(null);
-  const [resendError, setResendError] = useState<string | null>(null);
-
-  const handleResend = async () => {
-    if (!user?.email) return;
-    setResending(true);
-    setResendMessage(null);
-    setResendError(null);
-    try {
-      const res = await authService.resendVerificationEmail(user.email);
-      setResendMessage(res?.message || "Verification link sent! Please check your inbox.");
-      setTimeout(() => setResendMessage(null), 8000);
-    } catch (err: any) {
-      setResendError(err?.message || "Failed to resend verification link. Please try again.");
-    } finally {
-      setResending(false);
-    }
-  };
-
   useEffect(() => {
     if (!loading && (!user || user.role !== "customer")) {
       if (typeof window !== "undefined") {
@@ -126,23 +106,15 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
                 <p className="text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
                   Your account email (<strong>{user.email}</strong>) has not been verified yet. You can browse the catalog and save items, but email verification is required before placing an order.
                 </p>
-                {resendMessage && (
-                  <p className="text-emerald-600 dark:text-emerald-400 font-semibold mt-1">{resendMessage}</p>
-                )}
-                {resendError && (
-                  <p className="text-destructive font-semibold mt-1">{resendError}</p>
-                )}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleResend}
-              disabled={resending}
-              className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+            <Link
+              href={`/auth/verify-email?email=${encodeURIComponent(user.email)}&pending=1`}
+              className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
             >
-              {resending ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />}
-              <span>{resending ? "Sending..." : "Resend Link"}</span>
-            </button>
+              <Mail size={13} />
+              <span>Verify Email</span>
+            </Link>
           </div>
         )}
 

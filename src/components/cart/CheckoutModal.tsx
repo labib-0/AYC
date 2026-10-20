@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -75,7 +76,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   } = useCart();
   const items = selectedItems.length > 0 ? selectedItems : allCartItems;
   const subtotal = selectedItems.length > 0 ? selectedSubtotal : allSubtotal;
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refreshSession } = useAuth();
   const userId = String(user?.id || "guest");
 
   useEffect(() => {
@@ -179,24 +180,30 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const [error, setError] = useState("");
   const [isSubmitAttempted, setIsSubmitAttempted] = useState(false);
 
-  // Email Verification States
-  const [resendingVerification, setResendingVerification] = useState(false);
-  const [resendVerificationSuccess, setResendVerificationSuccess] = useState<string | null>(null);
-  const [resendVerificationError, setResendVerificationError] = useState<string | null>(null);
+  // Email Verification States (Strictly Status Checking only — NEVER dispatches or resends email from Checkout)
+  const [checkingVerification, setCheckingVerification] = useState(false);
+  const [verificationCheckStatus, setVerificationCheckStatus] = useState<string | null>(null);
 
-  const handleResendVerification = async () => {
-    if (!user?.email) return;
-    setResendingVerification(true);
-    setResendVerificationSuccess(null);
-    setResendVerificationError(null);
+  const handleCheckVerificationStatus = async () => {
+    setCheckingVerification(true);
+    setVerificationCheckStatus(null);
     try {
-      const res = await authService.resendVerificationEmail(user.email);
-      setResendVerificationSuccess(res?.message || "Verification link sent to your email! Please check your inbox.");
-      setTimeout(() => setResendVerificationSuccess(null), 8000);
-    } catch (err: any) {
-      setResendVerificationError(err?.message || "Failed to resend verification link. Please try again.");
+      if (refreshSession) {
+        await refreshSession();
+      }
+      const statusRes = await authService.getVerificationStatus(user?.email);
+      if (statusRes?.is_verified) {
+        setVerificationCheckStatus("Email verified! You can now confirm your order.");
+        setTimeout(() => setVerificationCheckStatus(null), 5000);
+      } else {
+        setVerificationCheckStatus("Email is not verified yet. Please check your inbox or spam folder.");
+        setTimeout(() => setVerificationCheckStatus(null), 6000);
+      }
+    } catch {
+      setVerificationCheckStatus("Could not verify status at this moment. Please try again.");
+      setTimeout(() => setVerificationCheckStatus(null), 6000);
     } finally {
-      setResendingVerification(false);
+      setCheckingVerification(false);
     }
   };
   const [confirmedOrder, setConfirmedOrder] = useState<OrderRecord | null>(() => {
@@ -723,7 +730,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       }
 
       if (user && !user.email_verified_at) {
-        setError("Email verification is required before placing an order. Please click the verification link sent to your inbox, or use Resend Link above.");
+        setError("Please verify your email address before placing your order. Check your inbox for the verification email. Once your email is verified, return to checkout to continue.");
         setLoading(false);
         isSubmittingRef.current = false;
         return;
@@ -883,7 +890,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         err?.error_code === "EMAIL_VERIFICATION_REQUIRED" ||
         (err?.status === 403 && (err?.message?.includes("verification") || err?.data?.message?.includes("verification")))
       ) {
-        setError("Email verification is required before placing an order. Please verify your email via the link sent to your inbox, or click Resend Link above.");
+        setError("Please verify your email address before placing your order. Check your inbox for the verification email. Once your email is verified, return to checkout to continue.");
       } else {
         setError(err?.message || "Failed to confirm order. Please try again.");
       }
@@ -1227,29 +1234,32 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                   <div>
                     <p className="font-bold text-slate-900 dark:text-white">Email Verification Required Before Ordering</p>
                     <p className="text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
-                      Your account email (<strong className="text-slate-800 dark:text-slate-200">{user.email}</strong>) has not been verified yet. Please click the verification link in your email to enable order placement.
+                      Please verify your email address before placing your order. Check your inbox for the verification email sent to <strong className="text-slate-800 dark:text-slate-200">{user.email}</strong>. Once your email is verified, return to checkout to continue.
                     </p>
-                    {resendVerificationSuccess && (
-                      <p className="text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
-                        {resendVerificationSuccess}
-                      </p>
-                    )}
-                    {resendVerificationError && (
-                      <p className="text-destructive font-semibold mt-1">
-                        {resendVerificationError}
+                    {verificationCheckStatus && (
+                      <p className="text-amber-600 dark:text-amber-400 font-semibold mt-1">
+                        {verificationCheckStatus}
                       </p>
                     )}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleResendVerification}
-                  disabled={resendingVerification}
-                  className="shrink-0 px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-                >
-                  {resendingVerification ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />}
-                  <span>{resendingVerification ? "Sending..." : "Resend Link"}</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <button
+                    type="button"
+                    onClick={handleCheckVerificationStatus}
+                    disabled={checkingVerification}
+                    className="px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw size={13} className={checkingVerification ? "animate-spin" : ""} />
+                    <span>{checkingVerification ? "Checking..." : "Check Status"}</span>
+                  </button>
+                  <Link
+                    href={`/auth/verify-email?email=${encodeURIComponent(user.email)}&pending=1&returnUrl=${encodeURIComponent("/cart?openCheckout=true")}`}
+                    className="px-3 py-2 rounded-lg border border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors"
+                  >
+                    Instructions
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -1779,21 +1789,32 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             </p>
 
             {user && !user.email_verified_at ? (
-              <button
-                type="button"
-                onClick={handleResendVerification}
-                disabled={resendingVerification}
-                className="w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md bg-amber-600 hover:bg-amber-700 text-white active:translate-y-0"
-              >
-                {resendingVerification ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Mail size={16} />
-                    <span>Verify Email to Place Order (Resend Link)</span>
-                  </>
-                )}
-              </button>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={handleCheckVerificationStatus}
+                  disabled={checkingVerification}
+                  className="w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md bg-amber-600 hover:bg-amber-700 text-white active:translate-y-0 disabled:opacity-60"
+                >
+                  {checkingVerification ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <RefreshCw size={16} />
+                      <span>Check Verification Status</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-center text-muted-foreground">
+                  Verification pending. Check your inbox or{" "}
+                  <Link
+                    href={`/auth/verify-email?email=${encodeURIComponent(user.email)}&pending=1&returnUrl=${encodeURIComponent("/cart?openCheckout=true")}`}
+                    className="text-amber-600 dark:text-amber-400 font-semibold underline hover:opacity-80"
+                  >
+                    open the verification screen
+                  </Link>
+                </p>
+              </div>
             ) : (
               <button
                 type="submit"
