@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CommercialPdfArtifactService
 {
-    public const LAYOUT_VERSION = 'v3_reference_rebuild';
+    public const LAYOUT_VERSION = 'v5_refined_layout';
 
     /**
      * Retrieve a cached commercial PDF artifact or render and persist it atomically.

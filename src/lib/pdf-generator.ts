@@ -422,72 +422,32 @@ export function generateOfferSheetPDFDoc(
   let y = margin;
 
   const printContinuationHeader = (subtitle?: string) => {
-    doc.setFillColor(15, 23, 42);
-    doc.rect(margin, y, contentWidth, 7, "F");
-    doc.setTextColor(255, 255, 255);
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(margin, y, contentWidth, 7, 1.5, 1.5, "FD");
+    doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     const titleText = subtitle
-      ? `AYAAN CLOTHING • ${subtitle} • Ref: ${offerData.docNumber}`
-      : `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} (Continued)`;
+      ? `OFFER SHEET • ${subtitle} • Ref: ${offerData.docNumber}`
+      : `OFFER SHEET • Ref: ${offerData.docNumber} (Continued)`;
     doc.text(titleText, margin + 4, y + 4.8);
     y += 11;
   };
 
-  // 1. Header Background Accent Band (Deep Navy) — 28mm height for balanced breathing room
-  const headerBandH = 28;
-  doc.setFillColor(15, 23, 42); // slate-900 / dark corporate navy
-  doc.rect(margin, y, contentWidth, headerBandH, "F");
-
-  // Header Title & Exporter info
-  doc.setTextColor(255, 255, 255);
+  // 1. Compact Header: No Company Information (Orange OFFER SHEET heading on top right)
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
-  doc.text(offerData.seller.name, margin + 4, y + 7.5);
+  doc.setFontSize(18);
+  doc.setTextColor(234, 88, 12); // Brand Orange #ea580c
+  const headerTitle = "OFFER SHEET";
+  doc.text(headerTitle, pageWidth - margin, y + 6, { align: "right" });
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(203, 213, 225); // slate-300
-  doc.text(
-    `${offerData.seller.description} • Est. ${offerData.seller.establishedYear}`,
-    margin + 4,
-    y + 13
-  );
-  doc.text(`${offerData.seller.address}`, margin + 4, y + 18);
-  doc.text(
-    `Origin: Bangladesh • Export Desk: www.ayaanclothing.com • ${offerData.seller.email}`,
-    margin + 4,
-    y + 23
-  );
-
-  // Document Badge on top right (Enlarged modestly in width & height with comfortable padding)
-  const badgeW = 58;
-  const badgeH = 20;
-  const badgeX = pageWidth - margin - badgeW - 2.5;
-  const badgeY = y + 4;
-  doc.setFillColor(234, 88, 12); // Brand Orange
-  doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1.8, 1.8, "F");
-
-  doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  const badgeTitle = "OFFER SHEET";
-  doc.text(
-    badgeTitle,
-    badgeX + (badgeW - doc.getTextWidth(badgeTitle)) / 2,
-    badgeY + 8.2
-  );
+  doc.setFontSize(7.2);
+  doc.setTextColor(100, 116, 139); // slate-500
+  doc.text("DIRECT MANUFACTURER OFFER", pageWidth - margin, y + 10.5, { align: "right" });
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  const badgeSub = "Direct Manufacturer Offer";
-  doc.text(
-    badgeSub,
-    badgeX + (badgeW - doc.getTextWidth(badgeSub)) / 2,
-    badgeY + 14.5
-  );
-
-  y += headerBandH + 4;
+  y += 14;
 
   // 2. Metadata Card (Reference, Date, Validity) - Product-based, strictly NO customer/buyer data
   const offerHeaderResult = drawDocumentInformationHeader(doc, {
@@ -723,17 +683,12 @@ export function generateOfferSheetPDFDoc(
       y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 4.5 : y + 14;
     }
 
-    // 6. Page 2: Continuation Header and Product Specifications
-    // Strictly matches the approved two-page Offer Sheet reference structure
-    doc.addPage();
-    y = margin;
-    printContinuationHeader();
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text("PRODUCT SPECIFICATIONS", margin, y);
-    y += 4;
+    // 6. Product Specifications (Natural Flow)
+    if (y + 35 > pageBottomSafeY) {
+      doc.addPage();
+      y = margin;
+      printContinuationHeader();
+    }
 
     const isMissingVal = (v: any): boolean => {
       if (v === undefined || v === null) return true;
@@ -750,41 +705,49 @@ export function generateOfferSheetPDFDoc(
       );
     };
 
-    const specRows = [
-      ["Design Type", !isMissingVal(product.specificationTiles?.designType) ? String(product.specificationTiles?.designType).trim() : "See Description"],
-      ["Material", !isMissingVal(product.specificationTiles?.material) ? String(product.specificationTiles?.material).trim() : "See Description"],
-      ["Size", !isMissingVal(product.specificationTiles?.size) ? String(product.specificationTiles?.size).trim() : "See Description"],
-      ["Colour", !isMissingVal(product.specificationTiles?.colour) ? String(product.specificationTiles?.colour).trim() : "See Description"],
-    ];
+    const specRows: string[][] = [];
+    if (!isMissingVal(product.brand)) specRows.push(["Brand", String(product.brand).trim()]);
+    if (!isMissingVal(product.specificationTiles?.colour)) specRows.push(["Colours", String(product.specificationTiles?.colour).trim()]);
+    if (!isMissingVal(product.specificationTiles?.size)) specRows.push(["Available Sizes", String(product.specificationTiles?.size).trim()]);
+    if (!isMissingVal(product.specificationTiles?.material)) specRows.push(["Fabric / Composition", String(product.specificationTiles?.material).trim()]);
+    if (!isMissingVal(product.specificationTiles?.designType)) specRows.push(["Design Type", String(product.specificationTiles?.designType).trim()]);
 
-    applyAutoTable(doc, {
-      startY: y,
-      margin: { left: margin, right: margin },
-      body: specRows,
-      theme: "plain",
-      styles: {
-        fontSize: 7.8,
-        cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
-        lineColor: [226, 232, 240],
-        lineWidth: 0.25,
-      },
-      columnStyles: {
-        0: {
-          cellWidth: 46,
-          fontStyle: "bold",
-          textColor: [71, 85, 105],
-          fillColor: [248, 250, 252],
-        },
-        1: {
-          cellWidth: contentWidth - 46,
-          fontStyle: "normal",
-          textColor: [15, 23, 42],
-          fillColor: [255, 255, 255],
-        },
-      },
-    });
+    if (specRows.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text("PRODUCT SPECIFICATIONS", margin, y);
+      y += 4;
 
-    y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 5 : y + 26;
+      applyAutoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        body: specRows,
+        theme: "plain",
+        styles: {
+          fontSize: 7.8,
+          cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
+          lineColor: [226, 232, 240],
+          lineWidth: 0.25,
+        },
+        columnStyles: {
+          0: {
+            cellWidth: 46,
+            fontStyle: "bold",
+            textColor: [71, 85, 105],
+            fillColor: [248, 250, 252],
+          },
+          1: {
+            cellWidth: contentWidth - 46,
+            fontStyle: "normal",
+            textColor: [15, 23, 42],
+            fillColor: [255, 255, 255],
+          },
+        },
+      });
+
+      y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 5 : y + 26;
+    }
 
     // 7. PACKING & LOGISTICS (MOQ)
     if (y + 22 > pageBottomSafeY) {
@@ -906,58 +869,19 @@ export function generateOfferSheetPDFDoc(
     y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 6 : y + 26;
   }
 
-  // 9. COMMERCIAL TERMS (Unified, strictly no ISO99)
-  if (y + 32 > pageBottomSafeY) {
-    doc.addPage();
-    y = margin;
-    printContinuationHeader();
-  }
-
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(203, 213, 225);
-  const termsBoxH = 22;
-  doc.roundedRect(margin, y, contentWidth, termsBoxH, 1.5, 1.5, "FD");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text("COMMERCIAL TERMS", margin + 3.5, y + 4.5);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.8);
-  doc.setTextColor(51, 65, 85);
-  offerData.commercialTerms.forEach((line: string, lineIdx: number) => {
-    doc.text(`• ${line}`, margin + 3.5, y + 8 + lineIdx * 3.1);
-  });
-
-  y += termsBoxH + 4;
-
-  // 10. AUTHORIZED REPRESENTATIVE
-  if (y + 22 > pageBottomSafeY) {
-    doc.addPage();
-    y = margin;
-    printContinuationHeader();
-  }
-
-  const sigX = pageWidth - margin - 60;
-  doc.setDrawColor(148, 163, 184);
-  doc.line(sigX, y + 8, sigX + 58, y + 8);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(offerData.seller.signatoryTitle, sigX, y + 12);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(offerData.seller.signatoryDivision, sigX, y + 15.5);
-
-  // Dynamic Footer on all pages
+  // Dynamic Footer and Subtle Border Outline on all pages
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+
+    // Subtle full-page border outline inset 7mm
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.4);
+    doc.rect(7, 7, pageWidth - 14, 297 - 14, "S");
+
+    // Clean, unbranded footer
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
+    doc.setFontSize(6.8);
     doc.setTextColor(148, 163, 184);
     const pgIndex =
       options?.pageIndex !== undefined && options?.totalPages !== undefined
@@ -966,7 +890,7 @@ export function generateOfferSheetPDFDoc(
     const pgTotal =
       options?.totalPages !== undefined ? options.totalPages : pageCount;
     doc.text(
-      `AYAAN CLOTHING • Offer Sheet Reference: ${offerData.docNumber} • Generated on ${new Date().toISOString().slice(0, 10)} • Page ${pgIndex} of ${pgTotal}`,
+      `Offer Sheet Reference: ${offerData.docNumber} • Generated on ${new Date().toISOString().slice(0, 10)} • Page ${pgIndex} of ${pgTotal}`,
       margin,
       297 - 8
     );
@@ -1503,11 +1427,11 @@ export function generateProformaInvoiceDoc(
   // Header Title & Exporter info
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(15);
+  doc.setFontSize(16);
   doc.text(expName, margin + 4, y + 7.5);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
+  doc.setFontSize(8.5);
   doc.setTextColor(203, 213, 225);
   doc.text(
     `${expDesc} • Est. ${expEst}`,
@@ -1570,17 +1494,17 @@ export function generateProformaInvoiceDoc(
   doc.roundedRect(margin, y, colWidth, 34, 1.5, 1.5, "FD");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
   doc.text("EXPORTER / BENEFICIARY:", margin + 3, y + 5);
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(expName, margin + 3, y + 9.5);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.8);
+  doc.setFontSize(7.8);
   doc.setTextColor(71, 85, 105);
   doc.text(expAddress.slice(0, 45), margin + 3, y + 13.5);
   doc.text("Country of Origin: Bangladesh", margin + 3, y + 17.5);
@@ -1594,17 +1518,17 @@ export function generateProformaInvoiceDoc(
   doc.roundedRect(buyerX, y, colWidth, 34, 1.5, 1.5, "FD");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
   doc.text("CONSIGNEE / BUYER:", buyerX + 3, y + 5);
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text((order.shipping_company || order.shipping_name || "Valued Customer").slice(0, 32), buyerX + 3, y + 9.5);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.8);
+  doc.setFontSize(7.8);
   doc.setTextColor(71, 85, 105);
   doc.text(`Attn: ${order.shipping_name || "Purchasing Manager"}`, buyerX + 3, y + 13.5);
   doc.text(`${(order.shipping_address1 || "Destination Address").slice(0, 36)}`, buyerX + 3, y + 17.5);
@@ -1687,11 +1611,11 @@ export function generateProformaInvoiceDoc(
       fillColor: [30, 41, 59], // slate-800
       textColor: [255, 255, 255],
       fontStyle: "bold",
-      fontSize: 7.5,
+      fontSize: 8.5,
       cellPadding: 2,
     },
     bodyStyles: {
-      fontSize: 6.8,
+      fontSize: 7.8,
       cellPadding: 2,
       textColor: [30, 41, 59],
     },
@@ -1701,8 +1625,8 @@ export function generateProformaInvoiceDoc(
       2: { cellWidth: 26, fontStyle: "bold" },
       3: { cellWidth: 20, halign: "center" },
       4: { cellWidth: 19, halign: "right", fontStyle: "bold" },
-      5: { cellWidth: 20, halign: "right" },
-      6: { cellWidth: 20, halign: "right", fontStyle: "bold" },
+      5: { cellWidth: 20, halign: "right", fontSize: 8.8 },
+      6: { cellWidth: 20, halign: "right", fontStyle: "bold", fontSize: 8.8 },
     },
   });
 
@@ -1721,12 +1645,12 @@ export function generateProformaInvoiceDoc(
 
   // Left side: Shipping note & packaging
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
   doc.text("Shipping & Delivery Information:", margin, y + 4);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   doc.setTextColor(71, 85, 105);
 
   if (isAramex) {
@@ -1755,39 +1679,46 @@ export function generateProformaInvoiceDoc(
   doc.roundedRect(summaryX, y, summaryWidth, boxHeight, 1.5, 1.5, "FD");
 
   let subY = y + 4.5;
-  doc.setFontSize(7.2);
+  doc.setFontSize(8.2);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(71, 85, 105);
   doc.text("Goods Value / Subtotal:", summaryX + 3, subY);
   doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.2);
   doc.setTextColor(15, 23, 42);
   doc.text(fmtUSD(order.subtotal), summaryX + summaryWidth - 3, subY, { align: "right" });
 
   if (hasDiscount) {
     subY += 4.5;
+    doc.setFontSize(8.2);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(22, 101, 52); // green-800
     const promoLabel = order.coupon_code || order.promo_code ? `Discount (${order.coupon_code || order.promo_code}):` : "Discount Applied:";
     doc.text(promoLabel, summaryX + 3, subY);
     doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.8);
     doc.text(`-${fmtUSD(discountVal)}`, summaryX + summaryWidth - 3, subY, { align: "right" });
   }
 
   if (isAramex) {
     subY += 4.5;
+    doc.setFontSize(8.2);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(71, 85, 105);
     doc.text("Air Shipping — Aramex:", summaryX + 3, subY);
     doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.8);
     doc.setTextColor(15, 23, 42);
     doc.text(fmtUSD(shippingAmount), summaryX + summaryWidth - 3, subY, { align: "right" });
   }
 
   subY += 4.5;
+  doc.setFontSize(8.2);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(71, 85, 105);
   doc.text("Estimated Tax (B2B Export):", summaryX + 3, subY);
   doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
   doc.text("$0.00 (Zero Rated)", summaryX + summaryWidth - 3, subY, { align: "right" });
 
@@ -1799,16 +1730,17 @@ export function generateProformaInvoiceDoc(
   // Grand Total
   subY += 4.5;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(isAramex ? "TOTAL PAYABLE:" : "MERCHANDISE TOTAL:", summaryX + 3, subY);
+  doc.setFontSize(10);
   doc.setTextColor(30, 58, 138); // blue-900
   doc.text(`${fmtUSD(grandTotal)} USD`, summaryX + summaryWidth - 3, subY, { align: "right" });
 
   y += boxHeight + 5;
 
   // 6. BENEFICIARY BANK DETAILS Block (Exact Pubali Bank Limited credentials)
-  const bankBlockHeight = 24;
+  const bankBlockHeight = 25;
   if (y + bankBlockHeight + 25 > 297 - margin) {
     doc.addPage();
     y = margin;
@@ -1819,11 +1751,11 @@ export function generateProformaInvoiceDoc(
   doc.roundedRect(margin, y, contentWidth, bankBlockHeight, 1.5, 1.5, "FD");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text("BENEFICIARY BANK DETAILS", margin + 3, y + 4.5);
 
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   // Row 1: Bank Name & Account Title
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
@@ -1870,20 +1802,27 @@ export function generateProformaInvoiceDoc(
   doc.line(sigX, y + 8, sigX + 60, y + 8);
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
   doc.text(optExp?.signatory_title || "Authorized Signatory & Export Seal", sigX, y + 12);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text(optExp?.signatory_division || "Ayaan Clothing Ltd • Dhaka, Bangladesh", sigX, y + 15.5);
 
-  // Footer on each page
+  // Footer & border on each page
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFontSize(6.5);
+
+    // Subtle full-page border outline inset 7mm
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.4);
+    doc.rect(7, 7, pageWidth - 14, 297 - 14, "S");
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
     doc.text(
       `AYAAN CLOTHING • Proforma Invoice Ref: ${piNumber} • Generated on ${new Date().toISOString().slice(0, 10)} • Page ${i} of ${pageCount}`,

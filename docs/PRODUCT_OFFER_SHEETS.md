@@ -125,7 +125,7 @@ public function computeFingerprint(Product $product): string
     ]));
 
     return hash('sha256', implode('~', [
-        self::LAYOUT_VERSION, // 'v3_reference_rebuild'
+        self::LAYOUT_VERSION, // 'v5_refined_layout'
         $product->id, $product->sku, $product->name, $product->base_price,
         $product->moq, $specsFingerprint, $primaryChecksum, $galleryFingerprint,
         $brandName, $brandLogoChecksum, $exporterFingerprint
@@ -136,23 +136,32 @@ public function computeFingerprint(Product $product): string
 ### Invalidation Rules:
 * **Invalidates & Regenerates**: Updates to `LAYOUT_VERSION`, product title, SKU, base price, wholesale price, bulk pricing tiers, full stock price, MOQ, specifications (GSM, fabric, wash care, CBM, weight), primary photo, gallery photos, brand name, brand logo, or company exporter profile.
 * **Does NOT Invalidate**: Updates to stock quantities, inventory warehouse balances, or order history (these do not appear on product Offer Sheets).
-* **Automated Template Versioning**: `ProductOfferSheetService::LAYOUT_VERSION = 'v3_reference_rebuild'` ensures template revisions trigger instantaneous cache misses and regeneration without requiring destructive manual disk purges.
+* **Automated Template Versioning**: `ProductOfferSheetService::LAYOUT_VERSION = 'v5_refined_layout'` ensures template revisions trigger instantaneous cache misses and regeneration without requiring destructive manual disk purges.
 
-### Two-Page Visual Reference Standards (v3 Rebuild):
-* **Page 1 (Product Profile)**:
-  - Dark navy company header with registered address and export contacts.
-  - Orange rectangular badge (`#ea580c`, `OFFER SHEET / Direct Manufacturer Offer`) with preserved position, dimensions, and centered text.
-  - 3-column metadata strip: Offer Reference, Date of Issue, Validity (in red).
-  - Product Title & SKU/Brand subtitle.
-  - 4-column product image gallery maintaining aspect ratio in uniform boxes.
-  - Product description and summary specification rows (Brand, Colours, Available Sizes, Fabric / Composition, Package Assortment).
-* **Page 2 (Specifications, Logistics & Pricing)**:
-  - Dark navy continuation header bar (`AYAAN CLOTHING · Offer Sheet Reference: ... (Continued)`).
-  - 2-column Product Specifications table (Design Type, Material, Size, Colour).
-  - Paired Packing & Logistics cards: CBM (MOQ) and Gross Weight (MOQ).
-  - 4-column Pricing Schedule (USD): Pricing Tier, Minimum Quantity / Basis, Unit Price (USD), Total Price (USD).
-  - Light blue Commercial Terms panel (Freight terms, Document nature, Validity, Payment terms, Inspection).
-  - Authorized Representative signature section and clean footer (`Page 1 of 2`, `Page 2 of 2` without decimal indexing errors).
+### Visual Reference Standards (v5 Refined Layout):
+* **Strict A4 Geometry**: 210 × 297 mm (~595.28 × 841.89 pt), portrait on every page. Subtle neutral-grey outline (`#e2e8f0`, 0.75pt) inset precisely 7 mm from paper edges.
+* **Zero Company Branding**: All company names, logos, registered addresses, phone numbers, email addresses, and websites are completely omitted from header, body, and footer.
+* **Header & Metadata Block**:
+  - Upper-right header block: bold orange `OFFER SHEET` (`#ea580c`, 18pt) with subtitle `Direct Manufacturer Offer` (`#64748b`, 8.5pt).
+  - 3-column metadata strip directly below: Offer Reference, Date of Issue, Validity (highlighted in orange `#c2410c`).
+  - Product Title (`#0f172a`, 13pt bold) and SKU / Brand subtitle.
+* **Gallery Architecture**:
+  - 4 columns per row with strict **4:5 aspect ratio** containers (~42.5mm × 53mm) and visibly larger imagery.
+  - Multi-page gallery continuation: Up to 2 rows (8 images) on Page 1 alongside the 52mm header/title block; rows 3+ cleanly flow to continuation pages with `PRODUCT GALLERY (CONTINUED)` heading.
+  - Preserves product sequence, filters out duplicates, and omits blank placeholder boxes.
+* **Description & Specifications**:
+  - Compact 2-column specifications table rendering **only** populated/verified specs. Empty fields are suppressed.
+  - Cleaned description text filtering redundant lines that duplicate the specification rows.
+* **Packing & Logistics**:
+  - CBM (MOQ) and Gross Weight (MOQ) metric cards are visually uniform: identical label styling (7pt uppercase), matching value typography (9.5pt bold `#0f172a`), equal card height, internal padding, and border radius.
+  - Values are calculated directly from verified database shipping package profiles (`ShippingPackageProfile`).
+* **Final Substantive Section — Pricing Schedule**:
+  - `PRICING SCHEDULE (USD)` is the final content section on the Offer Sheet.
+  - 4-column structured table: Pricing Tier, Minimum Quantity / Basis, Unit Price (USD), Total Price (USD).
+  - **Completely Removed**: Commercial terms, Authorized Representative signature blocks, and Export Seals.
+* **Non-Branded Dynamic Footer**:
+  - Canvas-driven footer positioned at $y = 818.0$ pt (safe margin $>17$ mm clearance): `Offer Sheet Reference: {ref} • Generated on {date} • Page {PAGE_NUM} of {PAGE_COUNT}`.
+* **Natural Multi-Page Flow**: Content flows naturally across A4 pages without arbitrary 1-page constraints.
 
 ---
 

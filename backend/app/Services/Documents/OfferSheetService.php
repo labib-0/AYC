@@ -52,8 +52,11 @@ class OfferSheetService
             $colourDesc = !empty(trim($product?->colour_description ?? '')) ? trim($product->colour_description) : 'See Description';
 
             $moqQty = $product?->moq ?: (int) $item->quantity;
-            $cbmMoq = $product?->cbm ? number_format((float) $product->cbm, 3) . ' m³' : 'See Description';
-            $gwMoq = $product?->gross_weight ? number_format((float) $product->gross_weight, 1) . ' KG' : 'See Description';
+            $moqProfile = $product?->findShippingPackageProfileForQuantity($moqQty);
+            $cbmVal = $product?->cbm ?? ($moqProfile?->total_cbm);
+            $gwVal = $product?->gross_weight ?? ($moqProfile?->gross_weight);
+            $cbmMoq = $cbmVal ? number_format((float) $cbmVal, 3) . ' m³' : 'See Description';
+            $gwMoq = $gwVal ? number_format((float) $gwVal, 1) . ' KG' : 'See Description';
 
             $stdPrice = (float) ($product?->standard_price ?? $product?->wholesale_price ?? $item->unit_price);
             $tiers = [
@@ -217,8 +220,11 @@ class OfferSheetService
             $colourDesc = !empty(trim($product?->colour_description ?? '')) ? trim($product->colour_description) : 'See Description';
 
             $moqQty = $product?->moq ?: (int) $item->quantity;
-            $cbmMoq = $product?->cbm ? number_format((float) $product->cbm, 3) . ' m³' : 'See Description';
-            $gwMoq = $product?->gross_weight ? number_format((float) $product->gross_weight, 1) . ' KG' : 'See Description';
+            $moqProfile = $product?->findShippingPackageProfileForQuantity($moqQty);
+            $cbmVal = $product?->cbm ?? ($moqProfile?->total_cbm);
+            $gwVal = $product?->gross_weight ?? ($moqProfile?->gross_weight);
+            $cbmMoq = $cbmVal ? number_format((float) $cbmVal, 3) . ' m³' : 'See Description';
+            $gwMoq = $gwVal ? number_format((float) $gwVal, 1) . ' KG' : 'See Description';
 
             $stdPrice = (float) ($product?->standard_price ?? $product?->wholesale_price ?? $item->unit_price);
             $tiers = [
@@ -348,8 +354,11 @@ class OfferSheetService
         $colourDesc = !empty(trim($product->colour_description ?? '')) ? trim($product->colour_description) : 'See Description';
 
         $moqQty = $product->moq ?: 1;
-        $cbmMoq = $product->cbm ? number_format((float) $product->cbm, 3) . ' m³' : 'See Description';
-        $gwMoq = $product->gross_weight ? number_format((float) $product->gross_weight, 1) . ' KG' : 'See Description';
+        $moqProfile = $product->findShippingPackageProfileForQuantity($moqQty);
+        $cbmVal = $product->cbm ?? ($moqProfile?->total_cbm);
+        $gwVal = $product->gross_weight ?? ($moqProfile?->gross_weight);
+        $cbmMoq = $cbmVal ? number_format((float) $cbmVal, 3) . ' m³' : 'See Description';
+        $gwMoq = $gwVal ? number_format((float) $gwVal, 1) . ' KG' : 'See Description';
 
         $stdPrice = (float) ($product->standard_price ?? $product->wholesale_price ?? 0);
         $tiers = [

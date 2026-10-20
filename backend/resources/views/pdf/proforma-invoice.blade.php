@@ -61,7 +61,7 @@
     <style>
         @page {
             size: a4 portrait;
-            margin: 14mm 14mm 12mm 14mm;
+            margin: 14mm 14mm 14mm 14mm;
         }
         * {
             box-sizing: border-box;
@@ -70,7 +70,7 @@
         }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 7.5pt;
+            font-size: 8.5pt; /* +1 pt bump */
             color: #1e293b;
             line-height: 1.35;
             background: #ffffff;
@@ -78,6 +78,17 @@
         table {
             width: 100%;
             border-collapse: collapse;
+        }
+        /* Full Page Subtle Outer Border Inset 7mm from physical edge */
+        .page-border {
+            position: fixed;
+            top: -7mm;
+            left: -7mm;
+            right: -7mm;
+            bottom: -7mm;
+            border: 0.75pt solid #cbd5e1;
+            pointer-events: none;
+            z-index: 9999;
         }
         /* Header Banner */
         .header-banner {
@@ -88,14 +99,14 @@
             margin-bottom: 9px;
         }
         .company-title {
-            font-size: 14pt;
+            font-size: 15pt; /* +1 pt bump */
             font-weight: bold;
             letter-spacing: 0.5px;
             color: #ffffff;
             line-height: 1.1;
         }
         .company-meta {
-            font-size: 7.2pt;
+            font-size: 8.2pt; /* +1 pt bump */
             color: #cbd5e1;
             margin-top: 2px;
             line-height: 1.35;
@@ -111,7 +122,7 @@
             padding: 10px 8px;
         }
         .pi-badge-title {
-            font-size: 9.5pt;
+            font-size: 10.5pt; /* +1 pt bump */
             font-weight: bold;
             color: #ffffff;
             letter-spacing: 0.4px;
@@ -119,29 +130,33 @@
             line-height: 1.1;
         }
         .pi-badge-sub {
-            font-size: 6.8pt;
+            font-size: 7.8pt; /* +1 pt bump */
             color: #e2e8f0;
             margin-top: 4px;
             text-align: center;
         }
         /* Two-Column Parties */
+        .parties-table {
+            width: 100%;
+            table-layout: fixed;
+        }
         .party-card {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 6px 10px;
-            font-size: 6.8pt;
-            min-height: 82px;
+            padding: 7px 10px;
+            font-size: 7.8pt; /* +1 pt bump */
+            min-height: 84px;
         }
         .card-label {
-            font-size: 6.8pt;
+            font-size: 7.8pt; /* +1 pt bump */
             font-weight: bold;
             color: #64748b;
             margin-bottom: 3px;
             text-transform: uppercase;
         }
         .card-name {
-            font-size: 8pt;
+            font-size: 9pt; /* +1 pt bump */
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 2px;
@@ -160,14 +175,14 @@
             margin-bottom: 9px;
         }
         .meta-label {
-            font-size: 6.2pt;
+            font-size: 7.2pt; /* +1 pt bump */
             font-weight: bold;
             color: #64748b;
             text-transform: uppercase;
             margin-bottom: 2px;
         }
         .meta-val {
-            font-size: 7.5pt;
+            font-size: 8.5pt; /* +1 pt bump */
             font-weight: bold;
             color: #0f172a;
         }
@@ -179,23 +194,34 @@
             width: 100%;
             margin-bottom: 9px;
             border-collapse: collapse;
+            table-layout: fixed;
         }
         .goods-table th {
             background-color: #1e293b;
             color: #ffffff;
-            font-size: 7pt;
+            font-size: 8pt; /* +1 pt bump */
             font-weight: bold;
             padding: 5px 6px;
             text-align: left;
         }
         .goods-table td {
-            font-size: 6.8pt;
+            font-size: 7.8pt; /* +1 pt bump */
             padding: 4px 6px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
         }
         .goods-table tr.alt {
             background-color: #f8fafc;
+        }
+        /* Unit price & line amount bumped +2 pt */
+        .goods-price {
+            font-size: 8.8pt; /* +2 pt bump */
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .goods-amount {
+            font-size: 8.8pt; /* +2 pt bump */
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
@@ -204,15 +230,16 @@
         /* Shipping Info & Totals */
         .summary-wrapper {
             margin-bottom: 9px;
+            table-layout: fixed;
         }
         .shipping-title {
-            font-size: 7.5pt;
+            font-size: 8.5pt; /* +1 pt bump */
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 4px;
         }
         .shipping-bullet {
-            font-size: 6.8pt;
+            font-size: 7.8pt; /* +1 pt bump */
             color: #475569;
             margin-bottom: 2.5px;
             line-height: 1.3;
@@ -228,17 +255,30 @@
             padding: 6px 10px;
         }
         .totals-line {
-            font-size: 7.2pt;
+            font-size: 8.2pt; /* +1 pt bump */
             padding: 1.5px 0;
+        }
+        /* Numeric totals figures bumped +2 pt */
+        .totals-num {
+            font-size: 9.2pt; /* +2 pt bump */
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
         }
         .totals-divider {
             border-top: 1px solid #cbd5e1;
             margin: 3px 0;
         }
         .totals-grand {
-            font-size: 8pt;
+            font-size: 9pt; /* +1 pt bump */
             font-weight: bold;
             padding-top: 2px;
+        }
+        /* Merchandise Total figure prominently +2.5 pt larger */
+        .totals-grand-num {
+            font-size: 10.5pt; /* Prominent +2.5 pt bump */
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            color: #1e3a8a;
         }
         /* Bank Details */
         .bank-card {
@@ -249,52 +289,47 @@
             margin-bottom: 9px;
         }
         .bank-title {
-            font-size: 8pt;
+            font-size: 9pt; /* +1 pt bump */
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 4px;
             text-transform: uppercase;
         }
         .bank-table td {
-            font-size: 7pt;
+            font-size: 8pt; /* +1 pt bump */
             padding: 2px 0;
             vertical-align: top;
         }
-        /* Signatory */
+        /* Signatory & Seal Block — safely inset to avoid right clipping */
         .sig-section {
             margin-top: 6px;
             margin-bottom: 8px;
+            padding-right: 4px;
         }
         .sig-line {
             border-top: 1px solid #94a3b8;
             width: 170px;
             margin-left: auto;
-            margin-bottom: 3px;
+            margin-right: 0;
+            margin-bottom: 4px;
         }
         .sig-title {
-            font-size: 7.5pt;
+            font-size: 8.5pt; /* +1 pt bump */
             font-weight: bold;
             color: #0f172a;
             text-align: right;
         }
         .sig-sub {
-            font-size: 6.5pt;
+            font-size: 7.5pt; /* +1 pt bump */
             color: #64748b;
             text-align: right;
-        }
-        /* Footer */
-        .footer-bar {
-            position: fixed;
-            bottom: -6mm;
-            left: 0;
-            right: 0;
-            font-size: 6.5pt;
-            color: #94a3b8;
-            line-height: 1.2;
         }
     </style>
 </head>
 <body>
+
+    {{-- Full-page neutral-grey border outline --}}
+    <div class="page-border"></div>
 
     {{-- SECTION A: HEADER BANNER --}}
     <div class="header-banner">
@@ -319,7 +354,7 @@
     {{-- SECTION B: EXPORTER & BUYER CARDS --}}
     <table class="parties-table">
         <tr>
-            <td style="width: 49.5%; vertical-align: top;">
+            <td style="width: 49.2%; vertical-align: top;">
                 <div class="party-card">
                     <div class="card-label">EXPORTER / BENEFICIARY:</div>
                     <div class="card-name">{{ $companyName }}</div>
@@ -329,8 +364,8 @@
                     <div class="card-text">Reg: {{ $exporterReg }}</div>
                 </div>
             </td>
-            <td style="width: 1%;"></td>
-            <td style="width: 49.5%; vertical-align: top;">
+            <td style="width: 1.6%;"></td>
+            <td style="width: 49.2%; vertical-align: top;">
                 <div class="party-card">
                     <div class="card-label">CONSIGNEE / BUYER:</div>
                     <div class="card-name">{{ $buyerName }}</div>
@@ -409,14 +444,14 @@
                 <tr class="{{ $idx % 2 === 1 ? 'alt' : '' }}">
                     <td class="text-center" style="color: #64748b;">{{ $idx + 1 }}</td>
                     <td>
-                        <div class="font-bold" style="color: #0f172a;">{{ $item['product_name'] ?? ($item['description'] ?? 'Garment Item') }}</div>
-                        <div style="font-size: 6.2pt; color: #64748b; margin-top: 1px;">Assortment: {{ $pkgText }}</div>
+                        <div class="font-bold" style="color: #0f172a; font-size: 8.5pt;">{{ $item['product_name'] ?? ($item['description'] ?? 'Garment Item') }}</div>
+                        <div style="font-size: 7.2pt; color: #64748b; margin-top: 1px;">Assortment: {{ $pkgText }}</div>
                     </td>
                     <td class="font-bold" style="color: #0f172a;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
                     <td class="text-center font-mono" style="color: #475569;">{{ $item['hs_code'] ?? '6109.10.00' }}</td>
                     <td class="text-right font-bold">{{ number_format($qty) }} pcs</td>
-                    <td class="text-right font-mono">${{ number_format($uPrice, 2) }}</td>
-                    <td class="text-right font-bold font-mono">${{ number_format($lTotal, 2) }}</td>
+                    <td class="text-right goods-price" style="color: #0f172a;">${{ number_format($uPrice, 2) }}</td>
+                    <td class="text-right goods-amount" style="color: #0f172a;">${{ number_format($lTotal, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -426,7 +461,7 @@
     <table class="summary-wrapper">
         <tr>
             {{-- Left Side: Shipping Information --}}
-            <td style="width: 54%; vertical-align: top; padding-right: 12px;">
+            <td style="width: 53%; vertical-align: top; padding-right: 10px;">
                 <div class="shipping-title">Shipping &amp; Delivery Information:</div>
                 @if($isAramex)
                     <div class="shipping-bullet">• Selected Carrier: {{ $doc['estimated_shipping_data']['carrier'] ?? 'Aramex Priority Air Express' }}</div>
@@ -442,35 +477,35 @@
             </td>
 
             {{-- Right Side: Order Amount Summary --}}
-            <td style="width: 46%; vertical-align: top;">
+            <td style="width: 47%; vertical-align: top;">
                 <div class="totals-card">
                     <table style="width: 100%;">
                         <tr>
                             <td class="totals-line" style="color: #475569;">Goods Value / Subtotal:</td>
-                            <td class="totals-line text-right font-bold font-mono" style="color: #0f172a;">${{ number_format($subtotal, 2) }}</td>
+                            <td class="totals-line text-right totals-num" style="color: #0f172a;">${{ number_format($subtotal, 2) }}</td>
                         </tr>
                         @if($discount > 0)
                             <tr>
                                 <td class="totals-line" style="color: #15803d;">Discount {{ $couponCode ? "({$couponCode})" : "Applied" }}:</td>
-                                <td class="totals-line text-right font-bold font-mono" style="color: #15803d;">-${{ number_format($discount, 2) }}</td>
+                                <td class="totals-line text-right totals-num" style="color: #15803d;">-${{ number_format($discount, 2) }}</td>
                             </tr>
                         @endif
                         @if($isAramex && $shipping > 0)
                             <tr>
                                 <td class="totals-line" style="color: #475569;">Air Shipping — Aramex:</td>
-                                <td class="totals-line text-right font-bold font-mono" style="color: #0f172a;">${{ number_format($shipping, 2) }}</td>
+                                <td class="totals-line text-right totals-num" style="color: #0f172a;">${{ number_format($shipping, 2) }}</td>
                             </tr>
                         @endif
                         <tr>
                             <td class="totals-line" style="color: #475569;">Estimated Tax (B2B Export):</td>
-                            <td class="totals-line text-right font-bold" style="color: #0f172a;">$0.00 (Zero Rated)</td>
+                            <td class="totals-line text-right totals-num" style="color: #0f172a;">$0.00 (Zero Rated)</td>
                         </tr>
                         <tr>
                             <td colspan="2"><div class="totals-divider"></div></td>
                         </tr>
                         <tr>
                             <td class="totals-grand" style="color: #0f172a;">{{ $isAramex ? 'TOTAL PAYABLE:' : 'MERCHANDISE TOTAL:' }}</td>
-                            <td class="totals-grand text-right font-bold font-mono" style="color: #1e3a8a;">${{ number_format($grandTotal, 2) }} USD</td>
+                            <td class="totals-grand text-right totals-grand-num">${{ number_format($grandTotal, 2) }} USD</td>
                         </tr>
                     </table>
                 </div>
@@ -487,8 +522,8 @@
                 <td style="width: 52%;"><strong style="color: #475569;">Account Title:</strong> &nbsp;{{ $accountTitle }}</td>
             </tr>
             <tr>
-                <td><strong style="color: #475569;">Account No:</strong> &nbsp;<span class="font-bold" style="color: #0f172a;">{{ $accountNo }}</span></td>
-                <td><strong style="color: #475569;">SWIFT CODE:</strong> &nbsp;<span class="font-bold" style="color: #0f172a;">{{ $swiftCode }}</span></td>
+                <td><strong style="color: #475569;">Account No:</strong> &nbsp;<span class="font-bold font-mono" style="color: #0f172a;">{{ $accountNo }}</span></td>
+                <td><strong style="color: #475569;">SWIFT CODE:</strong> &nbsp;<span class="font-bold font-mono" style="color: #0f172a;">{{ $swiftCode }}</span></td>
             </tr>
             <tr>
                 <td colspan="2"><strong style="color: #475569;">Bank Address:</strong> &nbsp;{{ $bankAddress }}</td>
@@ -496,17 +531,21 @@
         </table>
     </div>
 
-    {{-- SECTION H: AUTHORIZED SIGNATORY & SEAL --}}
+    {{-- SECTION H: AUTHORIZED SIGNATORY & SEAL (Safely Inset) --}}
     <div class="sig-section">
         <div class="sig-line"></div>
         <div class="sig-title">Authorized Signatory &amp; Export Seal</div>
         <div class="sig-sub">Ayaan Clothing Ltd • Dhaka, Bangladesh</div>
     </div>
 
-    {{-- FOOTER --}}
-    <div class="footer-bar">
-        AYAAN CLOTHING • Proforma Invoice Ref: {{ $piNumber }} • Generated on {{ $generatedDate }} • Page 1 of 1
-    </div>
+    {{-- FOOTER WITH DYNAMIC PAGINATION --}}
+    <script type="text/php">
+    if (isset($pdf)) {
+        $text = "AYAAN CLOTHING • Proforma Invoice Ref: {{ $piNumber }} • Generated on {{ $generatedDate }} • Page {PAGE_NUM} of {PAGE_COUNT}";
+        $font = $fontMetrics->getFont("Helvetica Neue, Helvetica, Arial", "normal");
+        $pdf->page_text(39.68, 814.0, $text, $font, 7.5, array(0.58, 0.64, 0.72));
+    }
+    </script>
 
 </body>
 </html>

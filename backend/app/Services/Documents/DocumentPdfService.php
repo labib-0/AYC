@@ -60,6 +60,7 @@ class DocumentPdfService implements Stringable
             ->setOptions([
                 'isHtml5ParserEnabled' => true,
                 'isRemoteEnabled'      => false,
+                'isPhpEnabled'         => true,
                 'defaultFont'          => 'sans-serif',
                 'chroot'               => base_path(),
             ]);
