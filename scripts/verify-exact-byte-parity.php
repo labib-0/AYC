@@ -59,6 +59,7 @@ try {
         'shipping_phone' => '+1-555-0199',
         'shipping_address1' => '100 Broadway Suite 400',
         'shipping_city' => 'New York',
+        'shipping_postal_code' => '10001',
         'shipping_country_code' => 'US',
     ]);
 
