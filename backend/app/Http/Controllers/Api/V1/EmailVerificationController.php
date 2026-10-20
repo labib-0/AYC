@@ -208,7 +208,7 @@ class EmailVerificationController extends ApiController
      */
     public function status(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $request->user() ?? auth('sanctum')->user();
 
         if (! $user && $request->filled('email')) {
             $email = strtolower(trim((string) $request->input('email')));

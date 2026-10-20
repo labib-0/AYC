@@ -115,7 +115,6 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::middleware('auth:sanctum')->group(function () {
             Route::post('/logout', [AuthController::class, 'logout']);
             Route::get('/me', [AuthController::class, 'me']);
-            Route::get('/email/verification-status', [EmailVerificationController::class, 'status']);
         });
     });
 
