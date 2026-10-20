@@ -120,30 +120,26 @@ if ($existingGoogleUser && $existingGoogleUser->email_verified_at === null) {
 // --------------------------------------------------------------------------
 echo "\n[3] Testing Order Placement Block for Unverified Customers:\n";
 
-// Get or create an active product & variant for order test
-$product = Product::where('status', 'published')->first();
-if (!$product) {
-    $product = Product::create([
-        'name' => 'Test Cotton Shirt',
-        'slug' => 'test-cotton-shirt-' . time(),
-        'sku' => 'TEST-SHT-' . time(),
-        'wholesale_price' => 25.00,
-        'msrp_price' => 30.00,
-        'moq' => 1,
-        'status' => 'published',
-    ]);
-}
+// Create a dedicated test product & variant for order test
+$testSku = 'TEST-SHT-' . time();
+$product = Product::create([
+    'name' => 'Verification Test Cotton Shirt',
+    'slug' => 'test-cotton-shirt-' . time(),
+    'sku' => $testSku,
+    'wholesale_price' => 25.00,
+    'msrp_price' => 30.00,
+    'moq' => 1,
+    'stock' => 1000,
+    'status' => 'published',
+]);
 
-$variant = ProductVariant::where('product_id', $product->id)->first();
-if (!$variant) {
-    $variant = ProductVariant::create([
-        'product_id' => $product->id,
-        'title' => 'Size M',
-        'sku' => $product->sku . '-M',
-        'size' => 'M',
-        'stock' => 100,
-    ]);
-}
+$variant = ProductVariant::create([
+    'product_id' => $product->id,
+    'title' => 'Size M',
+    'sku' => $testSku . '-M',
+    'size' => 'M',
+    'stock' => 1000,
+]);
 
 $initialStock = $variant->fresh()->stock;
 $initialOrderCount = Order::count();
@@ -279,7 +275,9 @@ $valRequestVerified = Request::create('/api/v1/checkout/validate', 'POST', [
     'items' => [
         [
             'product_id' => $product->id,
-            'quantity' => (int) ($product->moq ?: 1),
+            'variant_id' => $variant->id,
+            'size' => $variant->size,
+            'quantity' => 1,
         ],
     ],
 ]);
@@ -349,6 +347,10 @@ echo "====================================================================\n\n";
 // Clean up test data safely
 EmailVerificationToken::whereIn('user_id', [$userA->id, $googleUser->id, $unverifiedUserB->id])->delete();
 User::whereIn('id', [$userA->id, $googleUser->id, $unverifiedUserB->id])->delete();
+if (isset($product)) {
+    ProductVariant::where('product_id', $product->id)->delete();
+    $product->delete();
+}
 
 if ($failCount > 0) {
     exit(1);
