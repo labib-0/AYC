@@ -49,7 +49,7 @@
     $accountTitle = $bank['account_name'] ?? 'M/S AYAAN CLOTHING';
     $accountNo = $bank['account_no'] ?? ($bank['account_number'] ?? '1788-901-044316');
     $swiftCode = $bank['swift_code'] ?? 'PUBABDDH210';
-    $bankAddress = $bank['branch'] ? ($bank['branch'] . ', Dhaka, Bangladesh') : 'Nawabpur Road Branch., 125 Nawabpur Road., Dhaka-1100., Bangladesh';
+    $bankAddress = !empty($bank['branch']) ? ($bank['branch'] . ', Dhaka, Bangladesh') : 'Nawabpur Road Branch., 125 Nawabpur Road., Dhaka-1100., Bangladesh';
 
     $generatedDate = date('Y-m-d', strtotime($doc['date'] ?? now()));
 @endphp
@@ -61,16 +61,18 @@
     <style>
         @page {
             size: a4 portrait;
-            margin: 14mm 14mm 14mm 14mm;
+            margin: 14mm 14mm 16mm 14mm;
         }
         * {
             box-sizing: border-box;
+        }
+        body, div, p, table, th, td {
             margin: 0;
             padding: 0;
         }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 8.5pt; /* +1 pt bump */
+            font-size: 8.5pt;
             color: #1e293b;
             line-height: 1.35;
             background: #ffffff;
@@ -78,17 +80,6 @@
         table {
             width: 100%;
             border-collapse: collapse;
-        }
-        /* Full Page Subtle Outer Border Inset 7mm from physical edge */
-        .page-border {
-            position: fixed;
-            top: -7mm;
-            left: -7mm;
-            right: -7mm;
-            bottom: -7mm;
-            border: 0.75pt solid #cbd5e1;
-            pointer-events: none;
-            z-index: 9999;
         }
         /* Header Banner */
         .header-banner {
@@ -99,14 +90,14 @@
             margin-bottom: 9px;
         }
         .company-title {
-            font-size: 15pt; /* +1 pt bump */
+            font-size: 15pt;
             font-weight: bold;
             letter-spacing: 0.5px;
             color: #ffffff;
             line-height: 1.1;
         }
         .company-meta {
-            font-size: 8.2pt; /* +1 pt bump */
+            font-size: 8.2pt;
             color: #cbd5e1;
             margin-top: 2px;
             line-height: 1.35;
@@ -122,7 +113,7 @@
             padding: 10px 8px;
         }
         .pi-badge-title {
-            font-size: 10.5pt; /* +1 pt bump */
+            font-size: 10.5pt;
             font-weight: bold;
             color: #ffffff;
             letter-spacing: 0.4px;
@@ -130,7 +121,7 @@
             line-height: 1.1;
         }
         .pi-badge-sub {
-            font-size: 7.8pt; /* +1 pt bump */
+            font-size: 7.8pt;
             color: #e2e8f0;
             margin-top: 4px;
             text-align: center;
@@ -145,18 +136,18 @@
             border: 1px solid #e2e8f0;
             border-radius: 4px;
             padding: 7px 10px;
-            font-size: 7.8pt; /* +1 pt bump */
+            font-size: 7.8pt;
             min-height: 84px;
         }
         .card-label {
-            font-size: 7.8pt; /* +1 pt bump */
+            font-size: 7.8pt;
             font-weight: bold;
             color: #64748b;
             margin-bottom: 3px;
             text-transform: uppercase;
         }
         .card-name {
-            font-size: 9pt; /* +1 pt bump */
+            font-size: 9pt;
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 2px;
@@ -175,14 +166,14 @@
             margin-bottom: 9px;
         }
         .meta-label {
-            font-size: 7.2pt; /* +1 pt bump */
+            font-size: 7.2pt;
             font-weight: bold;
             color: #64748b;
             text-transform: uppercase;
             margin-bottom: 2px;
         }
         .meta-val {
-            font-size: 8.5pt; /* +1 pt bump */
+            font-size: 8.5pt;
             font-weight: bold;
             color: #0f172a;
         }
@@ -199,13 +190,13 @@
         .goods-table th {
             background-color: #1e293b;
             color: #ffffff;
-            font-size: 8pt; /* +1 pt bump */
+            font-size: 8pt;
             font-weight: bold;
             padding: 5px 6px;
             text-align: left;
         }
         .goods-table td {
-            font-size: 7.8pt; /* +1 pt bump */
+            font-size: 7.8pt;
             padding: 4px 6px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
@@ -213,13 +204,12 @@
         .goods-table tr.alt {
             background-color: #f8fafc;
         }
-        /* Unit price & line amount bumped +2 pt */
         .goods-price {
-            font-size: 8.8pt; /* +2 pt bump */
+            font-size: 8.8pt;
             font-family: 'Courier New', Courier, monospace;
         }
         .goods-amount {
-            font-size: 8.8pt; /* +2 pt bump */
+            font-size: 8.8pt;
             font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
         }
@@ -233,13 +223,13 @@
             table-layout: fixed;
         }
         .shipping-title {
-            font-size: 8.5pt; /* +1 pt bump */
+            font-size: 8.5pt;
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 4px;
         }
         .shipping-bullet {
-            font-size: 7.8pt; /* +1 pt bump */
+            font-size: 7.8pt;
             color: #475569;
             margin-bottom: 2.5px;
             line-height: 1.3;
@@ -255,12 +245,11 @@
             padding: 6px 10px;
         }
         .totals-line {
-            font-size: 8.2pt; /* +1 pt bump */
+            font-size: 8.2pt;
             padding: 1.5px 0;
         }
-        /* Numeric totals figures bumped +2 pt */
         .totals-num {
-            font-size: 9.2pt; /* +2 pt bump */
+            font-size: 9.2pt;
             font-family: 'Courier New', Courier, monospace;
             font-weight: bold;
         }
@@ -269,13 +258,12 @@
             margin: 3px 0;
         }
         .totals-grand {
-            font-size: 9pt; /* +1 pt bump */
+            font-size: 9pt;
             font-weight: bold;
             padding-top: 2px;
         }
-        /* Merchandise Total figure prominently +2.5 pt larger */
         .totals-grand-num {
-            font-size: 10.5pt; /* Prominent +2.5 pt bump */
+            font-size: 10.5pt;
             font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
             color: #1e3a8a;
@@ -287,49 +275,48 @@
             border-radius: 4px;
             padding: 6px 10px;
             margin-bottom: 9px;
+            page-break-inside: avoid;
         }
         .bank-title {
-            font-size: 9pt; /* +1 pt bump */
+            font-size: 9pt;
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 4px;
             text-transform: uppercase;
         }
         .bank-table td {
-            font-size: 8pt; /* +1 pt bump */
+            font-size: 8pt;
             padding: 2px 0;
             vertical-align: top;
         }
-        /* Signatory & Seal Block — safely inset to avoid right clipping */
+        /* Authorized Signatory Block — Deliberate top whitespace, safely inset */
         .sig-section {
-            margin-top: 6px;
+            margin-top: 22px;
             margin-bottom: 8px;
-            padding-right: 4px;
+            padding-right: 8px;
+            page-break-inside: avoid;
         }
         .sig-line {
             border-top: 1px solid #94a3b8;
             width: 170px;
             margin-left: auto;
             margin-right: 0;
-            margin-bottom: 4px;
+            margin-bottom: 5px;
         }
         .sig-title {
-            font-size: 8.5pt; /* +1 pt bump */
+            font-size: 8.5pt;
             font-weight: bold;
             color: #0f172a;
             text-align: right;
         }
         .sig-sub {
-            font-size: 7.5pt; /* +1 pt bump */
+            font-size: 7.5pt;
             color: #64748b;
             text-align: right;
         }
     </style>
 </head>
 <body>
-
-    {{-- Full-page neutral-grey border outline --}}
-    <div class="page-border"></div>
 
     {{-- SECTION A: HEADER BANNER --}}
     <div class="header-banner">
@@ -339,7 +326,8 @@
                     <div class="company-title">{{ $companyName }}</div>
                     <div class="company-meta">{{ $tagline }}</div>
                     <div class="company-meta">{{ $address }}</div>
-                    <div class="company-meta">Port of Loading: Dhaka Airport (DAC) / Chittagong Port • Web: www.ayaanclothing.com</div>
+                    <div class="company-meta">Email: sales@ayaanclothing.com</div>
+                    <div class="company-meta">WhatsApp: {{ $exporterWhatsapp }}</div>
                 </td>
                 <td style="width: 195px; text-align: right; vertical-align: middle;">
                     <div class="pi-badge-box">
@@ -531,19 +519,30 @@
         </table>
     </div>
 
-    {{-- SECTION H: AUTHORIZED SIGNATORY & SEAL (Safely Inset) --}}
+    {{-- SECTION H: AUTHORIZED SIGNATORY (Safely Inset with Clear Top Spacing) --}}
     <div class="sig-section">
         <div class="sig-line"></div>
-        <div class="sig-title">Authorized Signatory &amp; Export Seal</div>
+        <div class="sig-title">Authorized Signatory</div>
         <div class="sig-sub">Ayaan Clothing Ltd • Dhaka, Bangladesh</div>
     </div>
 
-    {{-- FOOTER WITH DYNAMIC PAGINATION --}}
+    {{-- CANVAS SCRIPT: PHYSICAL 7MM PAGE BORDER + FOOTER ON EVERY PAGE --}}
     <script type="text/php">
     if (isset($pdf)) {
-        $text = "AYAAN CLOTHING • Proforma Invoice Ref: {{ $piNumber }} • Generated on {{ $generatedDate }} • Page {PAGE_NUM} of {PAGE_COUNT}";
-        $font = $fontMetrics->getFont("Helvetica Neue, Helvetica, Arial", "normal");
-        $pdf->page_text(39.68, 814.0, $text, $font, 7.5, array(0.58, 0.64, 0.72));
+        $pdf->page_script(function ($PAGE_NUM, $PAGE_COUNT, $pdf, $fontMetrics) {
+            // A4 physical page border: exactly 7mm (19.84 pt) inside edges on all 4 sides
+            $x = 19.84;
+            $y = 19.84;
+            $w = $pdf->get_width() - (2 * $x);
+            $h = $pdf->get_height() - (2 * $y);
+            $borderColor = [0.80, 0.84, 0.88]; // neutral grey #cbd5e1
+            $pdf->rectangle($x, $y, $w, $h, $borderColor, 0.75);
+
+            // Official PI footer
+            $text = "AYAAN CLOTHING • Proforma Invoice Ref: {{ $piNumber }} • Generated on {{ $generatedDate }} • Page {$PAGE_NUM} of {$PAGE_COUNT}";
+            $font = $fontMetrics->getFont("Helvetica Neue, Helvetica, Arial", "normal");
+            $pdf->text(39.68, 814.0, $text, $font, 7.5, [0.58, 0.64, 0.72]);
+        });
     }
     </script>
 

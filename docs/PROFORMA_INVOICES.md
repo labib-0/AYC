@@ -107,26 +107,31 @@ While `CommercialPdfArtifactService` and Dompdf 3.1 serve as the canonical gener
 
 ---
 
-## 5. Approved Reference Rebuild & Layout Standards (v5 Refined Layout)
+## 5. Approved Reference Rebuild & Layout Standards (v6 Canonical Layout)
 
-As part of the v5 commercial document overhaul, the Proforma Invoice was refined across both the Dompdf backend template (`backend/resources/views/pdf/proforma-invoice.blade.php`) and the jsPDF client fallback (`src/lib/pdf-generator.ts`):
+As part of the v6 commercial document visual refinements:
 
-* **Page Geometry & Frame**: Strict A4 portrait (`210 mm x 297 mm`, `595.28 x 841.89 pt`) with 14 mm margins and a subtle full-page outer border outline (`#e2e8f0`, 0.75pt) inset precisely 7 mm from the physical paper edges on every page.
-* **Header Layout**:
+* **Page Geometry & Frame**: Strict A4 portrait (`210 mm x 297 mm`, `595.28 x 841.89 pt`) with a fine, continuous neutral-grey border (`#cbd5e1`, 0.75pt) drawn directly via Dompdf canvas `page_script` inset precisely 7 mm (`19.84 pt`) from the physical paper edges on all four sides of every page.
+* **Header Layout & Contact Lines**:
   - Full-width dark navy block (`#0f172a`).
-  - Left side: Authoritative exporter branding, address, origin, export desk email/WhatsApp, and BGMEA certification. Company title enlarged to 16pt.
-  - Right side: Preserved blue rectangular box (`#1d4ed8`, `w = 52 mm`, `h = 16 mm`, `x = right - 56 mm`, `y = 4 mm`). The box coordinates and dimensions are strictly preserved.
-  - **Internal Alignment**: Title `PROFORMA INVOICE` and subtitle `Official PI (USD)` are precisely centered horizontally and vertically within the blue box as a balanced composition.
+  - Left side: Authoritative exporter branding, address, origin, followed by exact contact lines:
+    - `Email: sales@ayaanclothing.com`
+    - `WhatsApp: +880 1620-853502` (immediately following line)
+  - Right side: Preserved blue rectangular box (`#1e3a8a`, `w = 195px`, `h = 56px`).
+  - **Internal Alignment**: Title `PROFORMA INVOICE` (10.5pt bold) and subtitle `Official PI (USD)` (7.8pt) are centered horizontally and vertically within the blue box.
 * **Parties Panels**: Side-by-side Exporter/Beneficiary card and Consignee/Buyer card.
 * **Commercial Metadata Strip**: 6-item grid displaying P.I. Number, Order Reference, Issue Date, Validity, Shipping Arrangement, and Payment Terms.
-* **Typography Enhancements (+1 pt)**: All text elements bumped by +1 pt (company name 16pt, section headings 8.5–9pt, body 7.8–8.5pt, table text 7.8–8.2pt) for immediate legibility without visual fatigue.
-* **Prominent Financial Figures (+2 pt)**: Pricing numbers bumped by +2 pt (unit prices 8.8pt, line amounts 8.8pt, subtotal 9.2pt, and Merchandise Total 10pt bold in `#1d4ed8`).
+* **Typography Enhancements**: Legible body text (8.5pt) and well-structured card and table fonts.
+* **Prominent Financial Figures**: Pricing numbers in Courier New monospace (unit prices 8.8pt, line amounts 8.8pt bold, subtotal 9.2pt, and Merchandise Total / Total Payable 10.5pt bold in `#1e3a8a`).
 * **Goods Table**: 7 columns (`#`, Description of Goods & Package Assortment, SKU / Style, HS Code, Quantity, Unit Price, Amount USD) with clean alignments and row spacing.
-* **Shipping & Delivery vs Financial Summary**: Paired lower section. Left: Shipping arrangements note, scheduled packaging summary, logistics desk contact. Right: Goods Value / Subtotal, Estimated Tax (B2B Export Zero-Rated), and Merchandise Total in bold USD.
-* **Beneficiary Bank Details**: Full-width light grey/blue card with authoritative bank name, account title, account number, SWIFT code, and branch address.
-* **Signature Alignment & Zero-Clipping**: Authorized Signatory block inset safely (`margin-right: 12px` / `right: 14mm`) ensuring it never overlaps or touches the outer page border outline.
-* **Dynamic Canvas Footer**: Printed at $y = 814.0$ pt (`Official Commercial Document • Page {PAGE_NUM} of {PAGE_COUNT}`).
-* **Deterministic Layout Invalidation**: `CommercialPdfArtifactService::LAYOUT_VERSION = 'v5_refined_layout'` is incorporated into `computeOrderFingerprint()`, ensuring all previously cached PDFs are automatically invalidated upon deployment.
+* **Shipping & Delivery vs Financial Summary**: Paired lower section. Left: Shipping arrangements note, scheduled packaging summary, logistics desk contact. Right: Goods Value / Subtotal, Estimated Tax (B2B Export Zero-Rated), and Total Payable in bold USD.
+* **Beneficiary Bank Details**: Full-width light card with authoritative bank name, account title, account number, SWIFT code, and branch address.
+* **Authorized Signatory Section**:
+  - Wording is strictly `Authorized Signatory` (`& Export Seal` is completely removed).
+  - Deliberate top whitespace (`margin-top: 22px`) provides clear separation from preceding content.
+  - Safely inset from right border (`padding-right: 8px`) ensuring zero collision with the 7 mm page border.
+* **Dynamic Canvas Footer**: Printed at $y = 814.0$ pt (`AYAAN CLOTHING • Proforma Invoice Ref: {ref} • Generated on {date} • Page {PAGE_NUM} of {PAGE_COUNT}`).
+* **Deterministic Layout Invalidation**: `CommercialPdfArtifactService::LAYOUT_VERSION = 'v6_canonical_layout'` is incorporated into `computeOrderFingerprint()`, ensuring all previously cached PDFs are automatically invalidated and re-rendered with updated styling.
 
 ---
 

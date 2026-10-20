@@ -125,7 +125,7 @@ public function computeFingerprint(Product $product): string
     ]));
 
     return hash('sha256', implode('~', [
-        self::LAYOUT_VERSION, // 'v5_refined_layout'
+        self::LAYOUT_VERSION, // 'v6_canonical_layout'
         $product->id, $product->sku, $product->name, $product->base_price,
         $product->moq, $specsFingerprint, $primaryChecksum, $galleryFingerprint,
         $brandName, $brandLogoChecksum, $exporterFingerprint
@@ -136,32 +136,42 @@ public function computeFingerprint(Product $product): string
 ### Invalidation Rules:
 * **Invalidates & Regenerates**: Updates to `LAYOUT_VERSION`, product title, SKU, base price, wholesale price, bulk pricing tiers, full stock price, MOQ, specifications (GSM, fabric, wash care, CBM, weight), primary photo, gallery photos, brand name, brand logo, or company exporter profile.
 * **Does NOT Invalidate**: Updates to stock quantities, inventory warehouse balances, or order history (these do not appear on product Offer Sheets).
-* **Automated Template Versioning**: `ProductOfferSheetService::LAYOUT_VERSION = 'v5_refined_layout'` ensures template revisions trigger instantaneous cache misses and regeneration without requiring destructive manual disk purges.
+* **Automated Template Versioning**: `ProductOfferSheetService::LAYOUT_VERSION = 'v6_canonical_layout'` ensures template revisions trigger instantaneous cache misses and regeneration without requiring destructive manual disk purges.
 
-### Visual Reference Standards (v5 Refined Layout):
-* **Strict A4 Geometry**: 210 × 297 mm (~595.28 × 841.89 pt), portrait on every page. Subtle neutral-grey outline (`#e2e8f0`, 0.75pt) inset precisely 7 mm from paper edges.
-* **Zero Company Branding**: All company names, logos, registered addresses, phone numbers, email addresses, and websites are completely omitted from header, body, and footer.
-* **Header & Metadata Block**:
-  - Upper-right header block: bold orange `OFFER SHEET` (`#ea580c`, 18pt) with subtitle `Direct Manufacturer Offer` (`#64748b`, 8.5pt).
-  - 3-column metadata strip directly below: Offer Reference, Date of Issue, Validity (highlighted in orange `#c2410c`).
-  - Product Title (`#0f172a`, 13pt bold) and SKU / Brand subtitle.
-* **Gallery Architecture**:
-  - 4 columns per row with strict **4:5 aspect ratio** containers (~42.5mm × 53mm) and visibly larger imagery.
-  - Multi-page gallery continuation: Up to 2 rows (8 images) on Page 1 alongside the 52mm header/title block; rows 3+ cleanly flow to continuation pages with `PRODUCT GALLERY (CONTINUED)` heading.
-  - Preserves product sequence, filters out duplicates, and omits blank placeholder boxes.
-* **Description & Specifications**:
-  - Compact 2-column specifications table rendering **only** populated/verified specs. Empty fields are suppressed.
-  - Cleaned description text filtering redundant lines that duplicate the specification rows.
-* **Packing & Logistics**:
-  - CBM (MOQ) and Gross Weight (MOQ) metric cards are visually uniform: identical label styling (7pt uppercase), matching value typography (9.5pt bold `#0f172a`), equal card height, internal padding, and border radius.
-  - Values are calculated directly from verified database shipping package profiles (`ShippingPackageProfile`).
+### Visual Reference Standards (v6 Canonical Layout):
+* **Strict A4 Geometry**: 210 × 297 mm (~595.28 × 841.89 pt), portrait on every page. Subtle neutral-grey outline (`#cbd5e1`, 0.75pt) drawn via Dompdf canvas `page_script` inset precisely 7 mm (`19.84 pt`) from physical paper edges on all four sides of every page (including automatic continuation pages).
+* **Top-Left Header & Zero Company Branding**:
+  - Upper-left heading: bold orange `OFFER SHEET` (`#ea580c`, 20pt) placed near the top-left content margin.
+  - Subtitle `Direct Manufacturer Offer` is completely omitted.
+  - All company names, logos, registered addresses, phone numbers, email addresses, and websites are completely omitted from header, body, and footer.
+* **Metadata Strip**:
+  - 3-column metadata strip directly below heading: Offer Reference, Date of Issue, Validity (highlighted in orange `#c2410c`, 9.5pt bold).
+  - Product Title (`#0f172a`, 16pt bold) and SKU / Brand subtitle (8.5pt).
+* **Gallery Architecture & Natural Pagination**:
+  - 4 columns per row with strict **4:5 aspect ratio** containers (42.4mm × 53mm) and larger product images.
+  - Natural page flow: As many complete rows fit on the current page as space permits without arbitrary 2-row limits.
+  - When the gallery finishes on a page, subsequent sections (Product Description, Specifications, Logistics, Pricing) immediately flow beneath it, eliminating avoidable whitespace.
+* **Description & Plain-Text Transformation**:
+  - Raw Markdown formatting artifacts like triple asterisks (`***Quality: High-Quality Brand Master Copy***`) and bold markers (`**Intact Goods**`) are automatically cleaned into readable plain text without altering production database records.
+  - Redundant lines duplicating table specs (Brand, Fabric, Sizes, etc.) or generic headers (`PRODUCT DETAILS`) are filtered out.
+* **Overall Typography Scaling**:
+  - Heading: 20pt bold orange (`#ea580c`).
+  - Product Title: 16pt bold (`#0f172a`).
+  - Section Headings: 11pt bold uppercase.
+  - Product Description: 10pt (`#334155`).
+  - Specifications Table: 9.5pt (labels 9.5pt bold `#475569`, values 9.5pt `#0f172a`).
+  - Packing & Logistics Cards: 8.5pt labels, 11.5pt bold prominent values.
+  - Pricing Table: Headers 10pt bold, Unit & Total price figures 10.5pt bold monospace right-aligned.
+  - Dynamic Footer: 7.5pt (`#94a3b8`).
+* **Packing & Logistics Consistency**:
+  - CBM (MOQ) and Gross Weight (MOQ) metric cards are visually identical: 49.5% width each, matching 7px 10px padding, 8.5pt labels, 11.5pt bold values (`#0f172a`), equal min-height.
+  - Generated from verified database shipping package profiles.
 * **Final Substantive Section — Pricing Schedule**:
   - `PRICING SCHEDULE (USD)` is the final content section on the Offer Sheet.
-  - 4-column structured table: Pricing Tier, Minimum Quantity / Basis, Unit Price (USD), Total Price (USD).
-  - **Completely Removed**: Commercial terms, Authorized Representative signature blocks, and Export Seals.
+  - Unit-price and total-price figures are visibly larger, right-aligned, and styled in monospace bold.
+  - Completely removed: Commercial Terms, Authorized Representative signature blocks, and Export Seals.
 * **Non-Branded Dynamic Footer**:
-  - Canvas-driven footer positioned at $y = 818.0$ pt (safe margin $>17$ mm clearance): `Offer Sheet Reference: {ref} • Generated on {date} • Page {PAGE_NUM} of {PAGE_COUNT}`.
-* **Natural Multi-Page Flow**: Content flows naturally across A4 pages without arbitrary 1-page constraints.
+  - Canvas-driven footer positioned at $y = 818.0$ pt (safely above the 7mm bottom border): `Offer Sheet Reference: {ref} • Generated on {date} • Page {PAGE_NUM} of {PAGE_COUNT}`.
 
 ---
 

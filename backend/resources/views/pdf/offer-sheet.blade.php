@@ -24,16 +24,18 @@
     <style>
         @page {
             size: a4 portrait;
-            margin: 14mm 14mm 26mm 14mm;
+            margin: 14mm 14mm 16mm 14mm;
         }
         * {
             box-sizing: border-box;
+        }
+        body, div, p, table, th, td {
             margin: 0;
             padding: 0;
         }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 7.5pt;
+            font-size: 9.5pt;
             color: #1e293b;
             line-height: 1.35;
             background: #ffffff;
@@ -42,38 +44,15 @@
             width: 100%;
             border-collapse: collapse;
         }
-        /* Full Page Subtle Outer Border Inset 7mm from physical edge */
-        .page-border {
-            position: fixed;
-            top: -7mm;
-            left: -7mm;
-            right: -7mm;
-            bottom: -19mm;
-            border: 0.75pt solid #cbd5e1;
-            pointer-events: none;
-            z-index: 9999;
-        }
-        /* Header: Compact, No Company Info */
-        .os-header-table {
-            width: 100%;
-            margin-bottom: 6px;
-        }
+        /* Top-Left Heading: Orange, 20pt, Bold, No Subtitle, No Company Branding */
         .os-header-title {
-            font-size: 19pt;
+            font-size: 20pt;
             font-weight: bold;
             color: #ea580c;
             letter-spacing: 0.8px;
             line-height: 1.1;
-            text-align: right;
-        }
-        .os-header-sub {
-            font-size: 7.2pt;
-            font-weight: bold;
-            color: #64748b;
-            letter-spacing: 0.4px;
-            margin-top: 3px;
-            text-transform: uppercase;
-            text-align: right;
+            text-align: left;
+            margin-bottom: 7px;
         }
         /* Metadata Strip */
         .meta-strip {
@@ -84,14 +63,14 @@
             margin-bottom: 8px;
         }
         .meta-label {
-            font-size: 6.2pt;
+            font-size: 8pt;
             font-weight: bold;
             color: #64748b;
             text-transform: uppercase;
             margin-bottom: 2px;
         }
         .meta-val {
-            font-size: 7.5pt;
+            font-size: 9.5pt;
             font-weight: bold;
             color: #0f172a;
         }
@@ -100,31 +79,31 @@
         }
         /* Product Title Block */
         .product-title {
-            font-size: 14pt;
+            font-size: 16pt;
             font-weight: bold;
             color: #0f172a;
             line-height: 1.2;
             margin-bottom: 3px;
         }
         .product-meta-row {
-            font-size: 8pt;
+            font-size: 8.5pt;
             color: #64748b;
             margin-bottom: 8px;
         }
         /* Section Headings */
         .section-heading {
-            font-size: 8.5pt;
+            font-size: 11pt;
             font-weight: bold;
             color: #0f172a;
-            margin-top: 3px;
-            margin-bottom: 4px;
+            margin-top: 4px;
+            margin-bottom: 5px;
             text-transform: uppercase;
             letter-spacing: 0.2px;
         }
-        /* Gallery — Strict 4:5 Aspect Ratio (4 per row) */
+        /* Gallery — Strict 4:5 Aspect Ratio (4 per row, 42.4mm x 53mm) */
         .gallery-table {
             width: 100%;
-            margin-bottom: 7px;
+            margin-bottom: 8px;
             border-collapse: separate;
             border-spacing: 3.5mm 3.5mm;
             table-layout: fixed;
@@ -135,7 +114,8 @@
         }
         .gallery-cell {
             width: 25%;
-            height: 52.5mm;
+            height: 53mm;
+            max-height: 53mm;
             text-align: center;
             vertical-align: middle;
             background: #f8fafc;
@@ -146,7 +126,8 @@
         }
         .gallery-cell-empty {
             width: 25%;
-            height: 52.5mm;
+            height: 53mm;
+            max-height: 53mm;
             border: none;
             background: transparent;
         }
@@ -159,18 +140,25 @@
             vertical-align: middle;
         }
         /* Description */
+        .desc-section {
+            margin-bottom: 8px;
+        }
         .desc-box {
-            font-size: 7.5pt;
+            font-size: 10pt;
             color: #334155;
-            line-height: 1.35;
+            line-height: 1.4;
             margin-bottom: 7px;
         }
         /* Specifications Table — Clean 2-column key-value */
+        .spec-section {
+            margin-bottom: 8px;
+        }
         .spec-table {
             width: 100%;
-            margin-bottom: 8px;
             border: 1px solid #e2e8f0;
             border-collapse: collapse;
+        }
+        .spec-table tr {
             page-break-inside: avoid;
         }
         .spec-table tr:nth-child(even) {
@@ -178,8 +166,8 @@
         }
         .spec-label {
             width: 28%;
-            padding: 3.5px 8px;
-            font-size: 7.5pt;
+            padding: 4px 8px;
+            font-size: 9.5pt;
             font-weight: bold;
             color: #475569;
             border-bottom: 1px solid #e2e8f0;
@@ -187,13 +175,17 @@
         }
         .spec-val {
             width: 72%;
-            padding: 3.5px 8px;
-            font-size: 7.5pt;
+            padding: 4px 8px;
+            font-size: 9.5pt;
             color: #0f172a;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: top;
         }
         /* Logistics Cards */
+        .logistics-section {
+            page-break-inside: avoid;
+            margin-bottom: 8px;
+        }
         .logistics-card {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -202,7 +194,7 @@
             min-height: 40px;
         }
         .logistics-label {
-            font-size: 7pt;
+            font-size: 8.5pt;
             font-weight: bold;
             color: #64748b;
             text-transform: uppercase;
@@ -210,38 +202,45 @@
             line-height: 1.2;
         }
         .logistics-val {
-            font-size: 9.5pt;
+            font-size: 11.5pt;
             font-weight: bold;
             color: #0f172a;
-            margin-top: 2px;
+            margin-top: 3px;
             line-height: 1.2;
         }
         /* Pricing Table */
+        .pricing-section {
+            page-break-inside: avoid;
+            margin-bottom: 8px;
+        }
         .pricing-table {
             width: 100%;
-            margin-bottom: 10px;
             border-collapse: collapse;
-            page-break-inside: avoid;
-        }
-        .content-section {
-            page-break-inside: avoid;
         }
         .pricing-table th {
             background-color: #0f172a;
             color: #ffffff;
-            font-size: 7.2pt;
+            font-size: 10pt;
             font-weight: bold;
             padding: 5px 8px;
             text-align: left;
         }
         .pricing-table td {
-            font-size: 7.5pt;
+            font-size: 9.5pt;
             padding: 5px 8px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
         }
         .pricing-table tr:nth-child(even) {
             background-color: #f8fafc;
+        }
+        .price-unit {
+            font-size: 10.5pt;
+            color: #0f172a;
+        }
+        .price-total {
+            font-size: 10.5pt;
+            color: #c2410c;
         }
         .text-right { text-align: right; }
         .font-mono { font-family: 'Courier New', Courier, monospace; }
@@ -252,9 +251,6 @@
     </style>
 </head>
 <body>
-
-    {{-- Subtle full-page border box --}}
-    <div class="page-border"></div>
 
     @foreach($items as $itemIdx => $item)
         @php
@@ -282,19 +278,61 @@
             if (!$isMissingVal($fitStyle)) $validSpecs['Fit / Style'] = $fitStyle;
             if (!$isMissingVal($packageAssortment)) $validSpecs['Package Assortment'] = $packageAssortment;
 
-            // Clean description: filter out empty lines and lines duplicating table specs
+            // Clean description: filter out empty lines, markdown markers, and lines duplicating table specs
             $cleanDescLines = [];
             if (!empty($rawDescription)) {
                 $lines = preg_split('/\r?\n/', $rawDescription);
                 foreach ($lines as $l) {
                     $l = trim($l);
                     if (empty($l)) continue;
+
+                    // Skip horizontal rules
+                    if (preg_match('/^[-=_*]{3,}$/', $l)) continue;
+
+                    // Skip generic section headings already redundant with layout
+                    $cleanHeaderCheck = strtolower(trim($l, " :*-#\t\n\r\0\x0B"));
+                    if (in_array($cleanHeaderCheck, [
+                        'product details', 'product features', 'item details', 'details',
+                        'specifications', 'description', 'product description', 'product info', 'product information'
+                    ])) {
+                        continue;
+                    }
+
+                    // Strip markdown heading hashes (# Title)
+                    $l = preg_replace('/^#+\s*/', '', $l);
+
+                    // Strip markdown bullet prefixes (- item, * item, • item)
+                    $l = preg_replace('/^[-*•]\s+/', '', $l);
+
+                    // Strip outer markdown asterisks: e.g. ***Quality: Master Copy*** or **Quality**
+                    $l = preg_replace('/^\s*\*{1,3}\s*(.*?)\s*\*{1,3}\s*$/u', '$1', $l);
+
+                    // Strip any inline markdown emphasis asterisks: **text** or ***text***
+                    $l = preg_replace('/\*{1,3}\s*([^*]+?)\s*\*{1,3}/u', '$1', $l);
+
+                    // Final trim of any stray edge asterisks or punctuation
+                    $l = trim($l, " *\t\n\r\0\x0B");
+                    if (empty($l)) continue;
+
+                    // Filter out lines duplicating specs already displayed in header or spec table
                     if (preg_match('/^([^:]+):\s*(.+)$/', $l, $m)) {
                         $kLower = strtolower(trim($m[1]));
-                        if (in_array($kLower, ['brand', 'colours', 'colors', 'colour', 'color', 'available sizes', 'sizes', 'size', 'fabric', 'fabric / composition', 'material', 'design type', 'item', 'item / product type'])) {
-                            continue; // skip redundant lines already in heading or spec table
+                        if (in_array($kLower, [
+                            'brand', 'colours', 'colors', 'colour', 'color', 
+                            'available sizes', 'sizes', 'size', 'size ratio',
+                            'fabric', 'fabric / composition', 'fabric type', 'material', 
+                            'design type', 'design', 'style', 'fit',
+                            'item', 'item / product type', 'category', 'gender',
+                            'quantity', 'qty', 'total quantity', 'total qty', 
+                            'stock status', 'stock type', 'cbm', 'gross weight', 'gw'
+                        ])) {
+                            continue;
                         }
                     }
+
+                    // Skip empty key-value lines like "Style:" or "Fit -"
+                    if (preg_match('/^[A-Za-z0-9\s]+[:\-]\s*$/', $l)) continue;
+
                     $cleanDescLines[] = $l;
                 }
             }
@@ -317,18 +355,8 @@
             <div class="page-break"></div>
         @endif
 
-        {{-- 1. Compact Header: No Company Information --}}
-        <table class="os-header-table">
-            <tr>
-                <td style="vertical-align: middle;">
-                    {{-- Clean whitespace on the left, zero company branding --}}
-                </td>
-                <td style="width: 220px; text-align: right; vertical-align: middle;">
-                    <div class="os-header-title">OFFER SHEET</div>
-                    <div class="os-header-sub">Direct Manufacturer Offer</div>
-                </td>
-            </tr>
-        </table>
+        {{-- 1. Compact Header: Top-Left OFFER SHEET, Zero Subtitle, Zero Company Branding --}}
+        <div class="os-header-title">OFFER SHEET</div>
 
         {{-- 2. Offer Metadata Strip --}}
         <div class="meta-strip">
@@ -361,17 +389,11 @@
             <span style="font-weight: bold; color: #0f172a;">{{ $sku }}</span>
         </div>
 
-        {{-- 4. Product Gallery: Exactly 4 Images Per Row, Strict 4:5 Aspect Ratio --}}
-        @php
-            $allGalleryRows = array_chunk($images, 4);
-            $page1Rows = array_slice($allGalleryRows, 0, 2); // Up to 8 images on Page 1 alongside header
-            $remRows = array_slice($allGalleryRows, 2);      // Remaining rows flow cleanly to next page(s)
-        @endphp
-
-        @if(count($page1Rows) > 0)
+        {{-- 4. Product Gallery: Exactly 4 Images Per Row, Strict 4:5 Aspect Ratio, Natural Page Flow --}}
+        @if(count($images) > 0)
             <div class="section-heading">PRODUCT GALLERY</div>
             <table class="gallery-table">
-                @foreach($page1Rows as $row)
+                @foreach(array_chunk($images, 4) as $row)
                     <tr>
                         @foreach($row as $rawImgUrl)
                             @php
@@ -391,58 +413,33 @@
             </table>
         @endif
 
-        @if(count($remRows) > 0)
-            @foreach(array_chunk($remRows, 4) as $remChunkIdx => $remChunk)
-                <div class="page-break"></div>
-                <div class="section-heading">PRODUCT GALLERY (CONTINUED)</div>
-                <table class="gallery-table">
-                    @foreach($remChunk as $row)
+        {{-- 5. Product Description & Verified Specifications: Natural Flow Immediately Following Gallery --}}
+        @if(!empty($cleanDescription))
+            <div class="desc-section">
+                <div class="section-heading">PRODUCT DESCRIPTION</div>
+                <div class="desc-box">{!! nl2br(e($cleanDescription)) !!}</div>
+            </div>
+        @endif
+
+        @if(count($validSpecs) > 0)
+            <div class="spec-section">
+                <div class="section-heading">SPECIFICATIONS</div>
+                <table class="spec-table">
+                    @foreach($validSpecs as $sLabel => $sVal)
                         <tr>
-                            @foreach($row as $rawImgUrl)
-                                @php
-                                    $imgSrc = \App\Services\Documents\DocumentHelper::resolvePdfImageSource($rawImgUrl);
-                                @endphp
-                                <td class="gallery-cell">
-                                    @if($imgSrc)
-                                        <img src="{{ $imgSrc }}" class="gallery-img" alt="Product" />
-                                    @endif
-                                </td>
-                            @endforeach
-                            @for($k = count($row); $k < 4; $k++)
-                                <td class="gallery-cell-empty"></td>
-                            @endfor
+                            <td class="spec-label">{{ $sLabel }}</td>
+                            <td class="spec-val">{{ $sVal }}</td>
                         </tr>
                     @endforeach
                 </table>
-            @endforeach
-        @endif
-
-        {{-- 5. Product Description & Verified Specifications --}}
-        @if(!empty($cleanDescription) || count($validSpecs) > 0)
-            <div class="content-section">
-                <div class="section-heading">PRODUCT DESCRIPTION</div>
-                @if(!empty($cleanDescription))
-                    <div class="desc-box">{!! nl2br(e($cleanDescription)) !!}</div>
-                @endif
-
-                @if(count($validSpecs) > 0)
-                    <table class="spec-table">
-                        @foreach($validSpecs as $sLabel => $sVal)
-                            <tr>
-                                <td class="spec-label">{{ $sLabel }}</td>
-                                <td class="spec-val">{{ $sVal }}</td>
-                            </tr>
-                        @endforeach
-                    </table>
-                @endif
             </div>
         @endif
 
         {{-- 6. Packing & Logistics (MOQ) --}}
         @if($hasCbm || $hasGw)
-            <div class="content-section">
+            <div class="logistics-section">
                 <div class="section-heading">PACKING &amp; LOGISTICS (MOQ)</div>
-                <table style="width: 100%; margin-bottom: 8px; table-layout: fixed;">
+                <table style="width: 100%; table-layout: fixed;">
                     <tr>
                         <td style="width: 49.5%; vertical-align: top;">
                             <div class="logistics-card">
@@ -463,7 +460,7 @@
         @endif
 
         {{-- 7. PRICING SCHEDULE (USD) — MUST BE THE FINAL SUBSTANTIVE CONTENT SECTION --}}
-        <div class="content-section">
+        <div class="pricing-section">
             <div class="section-heading">PRICING SCHEDULE (USD)</div>
             <table class="pricing-table">
                 <thead>
@@ -479,8 +476,8 @@
                         <tr>
                             <td class="font-bold" style="color: #0f172a;">{{ $tier['tierName'] ?? 'Standard' }}</td>
                             <td style="color: #475569;">{{ $tier['quantityBasis'] ?? '100 PCS' }}</td>
-                            <td class="text-right font-bold font-mono" style="color: #0f172a;">${{ number_format($tier['unitPrice'] ?? 0, 2) }} / pc</td>
-                            <td class="text-right font-bold font-mono" style="color: #c2410c;">${{ number_format($tier['totalPrice'] ?? 0, 2) }} USD</td>
+                            <td class="text-right font-bold font-mono price-unit">${{ number_format($tier['unitPrice'] ?? 0, 2) }} / pc</td>
+                            <td class="text-right font-bold font-mono price-total">${{ number_format($tier['totalPrice'] ?? 0, 2) }} USD</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -491,12 +488,23 @@
 
     @endforeach
 
-    {{-- Non-branded footer on every page with dynamic total page count --}}
+    {{-- Non-branded footer and physical 7mm page border on every page via canvas script --}}
     <script type="text/php">
     if (isset($pdf)) {
-        $text = "Offer Sheet Reference: {{ $docNumber }} • Generated on {{ $generatedDate }} • Page {PAGE_NUM} of {PAGE_COUNT}";
-        $font = $fontMetrics->getFont("Helvetica Neue, Helvetica, Arial", "normal");
-        $pdf->page_text(39.68, 818.0, $text, $font, 6.5, array(0.58, 0.64, 0.72));
+        $pdf->page_script(function ($PAGE_NUM, $PAGE_COUNT, $pdf, $fontMetrics) {
+            // A4 physical page border: exactly 7mm (19.84 pt) inside edges on all 4 sides
+            $x = 19.84;
+            $y = 19.84;
+            $w = $pdf->get_width() - (2 * $x);
+            $h = $pdf->get_height() - (2 * $y);
+            $borderColor = [0.80, 0.84, 0.88]; // neutral grey #cbd5e1
+            $pdf->rectangle($x, $y, $w, $h, $borderColor, 0.75);
+
+            // Clean, non-branded footer
+            $text = "Offer Sheet Reference: {{ $docNumber }} • Generated on {{ $generatedDate }} • Page {$PAGE_NUM} of {$PAGE_COUNT}";
+            $font = $fontMetrics->getFont("Helvetica Neue, Helvetica, Arial", "normal");
+            $pdf->text(39.68, 818.0, $text, $font, 7.5, [0.58, 0.64, 0.72]);
+        });
     }
     </script>
 
