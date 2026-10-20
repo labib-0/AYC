@@ -169,10 +169,9 @@ $storeRequest = Request::create('/api/v1/orders', 'POST', [
         ],
     ],
 ]);
-$storeRequest->setUserResolver(fn() => $userA);
-
-$response = $orderController->store(new \App\Http\Requests\Order\CreateOrderRequest($storeRequest->all()));
-$response->setUserResolver(fn() => $userA);
+$createOrderReq = \App\Http\Requests\Order\CreateOrderRequest::create('/api/v1/orders', 'POST', $storeRequest->all());
+$createOrderReq->setUserResolver(fn() => $userA);
+$response = $orderController->store($createOrderReq);
 
 $statusCode = $response->getStatusCode();
 $responseData = json_decode($response->getContent(), true);
