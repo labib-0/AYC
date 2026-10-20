@@ -43,26 +43,17 @@ check(Boolean(catalogSection), "CATALOG section exists in ADMIN_NAV_SECTIONS");
 const catalogLabels = catalogSection ? catalogSection.items.map((i) => i.label) : [];
 check(
   catalogLabels.includes("Products") &&
+    catalogLabels.includes("Inventory") &&
     catalogLabels.includes("Categories") &&
     catalogLabels.includes("Brands"),
-  "CATALOG contains Products, Categories, and Brands"
+  "CATALOG contains Products, Inventory, Categories, and Brands"
 );
 
+const productsIdx = catalogLabels.indexOf("Products");
+const inventoryIdx = catalogLabels.indexOf("Inventory");
 check(
-  !catalogLabels.includes("Inventory"),
-  "Standalone Inventory item is completely removed from CATALOG sidebar navigation"
-);
-
-const allNavItems = ADMIN_NAV_SECTIONS.flatMap((s) => s.items);
-const allNavLabels = allNavItems.map((i) => i.label);
-check(
-  !allNavLabels.includes("Inventory"),
-  "Standalone Inventory is not present in ANY sidebar navigation section"
-);
-
-check(
-  !allNavLabels.some((l) => l.toLowerCase().includes("products & inventory") || l.toLowerCase().includes("product inventory")),
-  "Module naming is strictly 'Products', no combined 'Products & Inventory' variation"
+  inventoryIdx === productsIdx + 1,
+  "Inventory item is placed directly after Products in navigation"
 );
 
 // =========================================================================
@@ -80,14 +71,8 @@ check(
 );
 
 check(
-  productsPageContent.includes('id="btn-products-adjust-stock"') &&
-    productsPageContent.includes("handleOpenGlobalAdjust"),
-  "Products page provides an 'Adjust Stock' CTA button in the header"
-);
-
-check(
-  productsPageContent.includes("canAdjustStock"),
-  "Adjust Stock CTA is properly guarded by permission (inventory.adjust or product.edit)"
+  !productsPageContent.includes('id="btn-products-adjust-stock"'),
+  "Redundant stock manage CTA button is removed from Products page header"
 );
 
 // =========================================================================
@@ -209,24 +194,19 @@ check(
 console.log("\n▶ 7. Backward Compatibility & Routing Redirects:");
 
 const inventoryPagePath = path.join(rootDir, "src/app/ayc/inventory/page.tsx");
+check(fs.existsSync(inventoryPagePath), "Dedicated inventory page exists at src/app/ayc/inventory/page.tsx");
 const inventoryPageContent = fs.readFileSync(inventoryPagePath, "utf-8");
 
 check(
-  inventoryPageContent.includes("router.replace(destination)") &&
-    inventoryPageContent.includes("/ayc/products"),
-  "Former inventory page at /ayc/inventory cleanly redirects to /ayc/products"
-);
-
-check(
-  inventoryPageContent.includes('params.set("availability", "low_stock")'),
-  "Former inventory page maps stock-control / LOW_STOCK tabs to ?availability=low_stock"
+  inventoryPageContent.includes("products/stock/page") || inventoryPageContent.includes("FullPageStockManagementContent"),
+  "Inventory page mounts full stock management workspace"
 );
 
 const dashboardActionsPath = path.join(rootDir, "src/components/admin/dashboard/DashboardQuickActions.tsx");
 const dashboardActionsContent = fs.readFileSync(dashboardActionsPath, "utf-8");
 check(
-  dashboardActionsContent.includes("/ayc/products?availability=low_stock"),
-  "Dashboard Quick Actions links inventory management to Products low_stock"
+  dashboardActionsContent.includes("/ayc/inventory"),
+  "Dashboard Quick Actions links to /ayc/inventory"
 );
 
 const dashboardPagePath = path.join(rootDir, "src/app/ayc/dashboard/page.tsx");
@@ -240,8 +220,8 @@ const breadcrumbsPath = path.join(rootDir, "src/components/admin/layout/AdminBre
 const breadcrumbsContent = fs.readFileSync(breadcrumbsPath, "utf-8");
 check(
   breadcrumbsContent.includes('pathname === "/ayc/inventory"') &&
-    breadcrumbsContent.includes('href: "/ayc/products"'),
-  "AdminBreadcrumbs maps /ayc/inventory to Products"
+    breadcrumbsContent.includes('label: "Inventory"'),
+  "AdminBreadcrumbs maps /ayc/inventory to Inventory"
 );
 
 // =========================================================================

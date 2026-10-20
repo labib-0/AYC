@@ -23,7 +23,8 @@ import {
   TrendingUp,
   PanelLeftClose,
   PanelLeftOpen,
-  X
+  X,
+  Boxes
 } from "lucide-react";
 
 import { useAdminAuth } from "@/lib/AdminAuthContext";
@@ -56,6 +57,13 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
     title: "CATALOG",
     items: [
       { label: "Products", href: "/ayc/products", icon: Package, permission: ADMIN_PERMISSIONS.PRODUCT_VIEW },
+      {
+        label: "Inventory",
+        href: "/ayc/inventory",
+        icon: Boxes,
+        permission: ADMIN_PERMISSIONS.INVENTORY_VIEW,
+        fallbackPermission: ADMIN_PERMISSIONS.PRODUCT_VIEW,
+      },
       { label: "Categories", href: "/ayc/categories", icon: Layers, permission: ADMIN_PERMISSIONS.CATEGORY_VIEW },
       { label: "Brands", href: "/ayc/brands", icon: Tag, permission: ADMIN_PERMISSIONS.BRAND_VIEW },
     ],
@@ -251,6 +259,15 @@ export default function AdminSidebar({
                   isActive =
                     pathname.startsWith("/ayc/administrators") ||
                     pathname.startsWith("/ayc/admins");
+                } else if (item.href === "/ayc/products") {
+                  isActive =
+                    (pathname === "/ayc/products" || pathname.startsWith("/ayc/products/")) &&
+                    !pathname.startsWith("/ayc/products/stock");
+                } else if (item.href === "/ayc/inventory") {
+                  isActive =
+                    pathname === "/ayc/inventory" ||
+                    pathname.startsWith("/ayc/inventory/") ||
+                    pathname.startsWith("/ayc/products/stock");
                 } else {
                   isActive =
                     pathname === item.href ||

@@ -390,23 +390,6 @@ function FullPageStockManagementContent() {
       {/* ── Top Header & Navigation ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
         <div>
-          {/* Breadcrumb Navigation */}
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-            <Link href="/ayc/dashboard" className="hover:text-foreground transition-colors">
-              Admin
-            </Link>
-            <span>/</span>
-            <span className="text-muted-foreground/80">Catalog</span>
-            <span>/</span>
-            <Link href="/ayc/products" className="hover:text-foreground transition-colors">
-              Products
-            </Link>
-            <span>/</span>
-            <span className="text-foreground font-extrabold" aria-current="page">
-              Stock Management
-            </span>
-          </nav>
-
           <h1 className="text-xl sm:text-2xl font-bold font-display uppercase tracking-tight text-foreground">
             Inventory Management
           </h1>
@@ -1124,8 +1107,8 @@ function FullPageStockManagementContent() {
 
 export default function AdminStockManagementPage() {
   return (
-    <AdminPageGate permission="product.view" moduleName="Stock Management">
-      <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">Loading stock management workspace...</div>}>
+    <AdminPageGate anyOf={["inventory.view", "product.view"]} moduleName="Inventory">
+      <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">Loading inventory workspace...</div>}>
         <FullPageStockManagementContent />
       </Suspense>
     </AdminPageGate>

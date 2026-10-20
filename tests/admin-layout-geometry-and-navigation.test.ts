@@ -103,6 +103,7 @@ console.log("\n▶ 4. Admin Navigation Content Preservation & Active States");
 const expectedLabels = [
   "Dashboard",
   "Products",
+  "Inventory",
   "Categories",
   "Brands",
   "Orders",
@@ -121,7 +122,7 @@ const expectedLabels = [
 const allNavItems = ADMIN_NAV_SECTIONS.flatMap((s) => s.items);
 const allNavLabels = allNavItems.map((i) => i.label);
 
-assert(!allNavLabels.includes("Inventory"), "Inventory module must be consolidated into Products and removed from sidebar");
+assert(allNavLabels.includes("Inventory"), "Inventory module must be present in sidebar");
 assert(allNavLabels.includes("Products"), "Products navigation entry must be present in sidebar");
 
 for (const label of expectedLabels) {

@@ -34,32 +34,19 @@ async function runTests() {
   const sidebarSrc = fs.readFileSync(sidebarPath, "utf-8");
   const breadcrumbsSrc = fs.readFileSync(breadcrumbsPath, "utf-8");
 
-  // ── Verification 1: Clicking ADJUST STOCK Navigates to Full-Page Workspace ──
+  // ── Verification 1: Redundant Adjust Stock button removed from Products header ──
   console.log("\n▶ 1. Navigation & Route Routing:");
   assert(
-    productsSrc.includes('href="/ayc/products/stock"') &&
-      productsSrc.includes('id="btn-products-adjust-stock"'),
-    "Products page header provides 'ADJUST STOCK' button with direct href to '/ayc/products/stock'"
+    !productsSrc.includes('id="btn-products-adjust-stock"'),
+    "Products page header does not provide redundant 'ADJUST STOCK' button"
   );
 
+  // ── Verification 2: Row-level action routes to Inventory ──
+  console.log("\n▶ 2. Row Action Navigation to Inventory:");
   assert(
-    productsSrc.includes('router.push("/ayc/products/stock")') ||
-      productsSrc.includes("handleOpenGlobalAdjust"),
-    "handleOpenGlobalAdjust programmatically routes to '/ayc/products/stock'"
-  );
-
-  // ── Verification 2: No Stock Adjustment Modal on Admin Products ──
-  console.log("\n▶ 2. Modal Removal from Products Flow:");
-  assert(
-    !productsSrc.includes("handleOpenGlobalAdjust = () => {\n    setAdjustingItem(null);\n    setIsAdjustModalOpen(true);") &&
-      productsSrc.includes('router.push("/ayc/products/stock")'),
-    "Clicking ADJUST STOCK navigates directly rather than opening StockAdjustmentModal"
-  );
-
-  assert(
-    productsSrc.includes('router.push(`/ayc/products/stock?productId=') ||
+    productsSrc.includes('router.push(`/ayc/inventory?productId=') ||
       productsSrc.includes('encodeURIComponent(String(pid))'),
-    "Row-level Adjust Stock action navigates to '/ayc/products/stock?productId=...' instead of opening modal"
+    "Row-level Adjust Stock action navigates to '/ayc/inventory?productId=...' instead of opening modal"
   );
 
   // ── Verification 3 & 4: Breadcrumbs, Page Title & Back to Products ──
@@ -68,9 +55,8 @@ async function runTests() {
   const crumbLabels = breadcrumbs.map((b) => b.label);
   assert(
     crumbLabels.includes("Catalog") &&
-      crumbLabels.includes("Products") &&
-      crumbLabels.includes("Stock Management"),
-    "AdminBreadcrumbs generates 'Admin → Catalog → Products → Stock Management' for /ayc/products/stock",
+      crumbLabels.includes("Inventory"),
+    "AdminBreadcrumbs generates 'Admin → Catalog → Inventory' for /ayc/products/stock",
     `Actual: ${crumbLabels.join(" → ")}`
   );
 
@@ -85,17 +71,12 @@ async function runTests() {
     "Page title clearly indicates Inventory Management"
   );
 
-  // ── Verification 5: Active Sidebar Highlighting (No Top-Level Inventory Module) ──
+  // ── Verification 5: Dedicated Inventory Sidebar Navigation ──
   console.log("\n▶ 4. Sidebar Active Section & Hierarchy:");
   assert(
-    sidebarSrc.includes('pathname.startsWith(item.href + "/")'),
-    "AdminSidebar automatically highlights 'Products' as active section for /ayc/products/stock"
-  );
-
-  assert(
-    !sidebarSrc.includes('href: "/ayc/inventory"') &&
-      !sidebarSrc.includes('label: "Inventory", href: "/ayc/inventory"'),
-    "No separate top-level Inventory navigation item is introduced into sidebar"
+    sidebarSrc.includes('label: "Inventory"') &&
+      sidebarSrc.includes('href: "/ayc/inventory"'),
+    "Dedicated Inventory navigation item is present in sidebar after Products"
   );
 
   // ── Verification 6: Search Component & Filter Reuse ──

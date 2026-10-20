@@ -13,7 +13,7 @@ export default function DashboardQuickActions() {
 
   const addProductHref = isUnderAdminPath ? "/ayc/products/new" : "/products/new";
   const ordersHref = isUnderAdminPath ? "/ayc/orders" : "/orders";
-  const inventoryHref = isUnderAdminPath ? "/ayc/products?availability=low_stock" : "/products?availability=low_stock";
+  const inventoryHref = isUnderAdminPath ? "/ayc/inventory" : "/inventory";
 
   const canAddProduct = isSuperAdmin || can("product.create");
   const canReviewOrders = isSuperAdmin || can("order.view");

@@ -771,13 +771,9 @@ function AdminProductsContent() {
     }));
   };
 
-  const handleOpenGlobalAdjust = () => {
-    router.push("/ayc/products/stock");
-  };
-
   const handleOpenRowAdjust = (product: B2BProductInput) => {
     const pid = product.productId || product.id;
-    router.push(`/ayc/products/stock?productId=${encodeURIComponent(String(pid))}`);
+    router.push(`/ayc/inventory?productId=${encodeURIComponent(String(pid))}`);
   };
 
   const handleOpenRowHistory = (product: B2BProductInput) => {
@@ -881,21 +877,6 @@ function AdminProductsContent() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {canAdjustStock && (
-            <Link
-              href="/ayc/products/stock"
-              id="btn-products-adjust-stock"
-              onClick={(e) => {
-                e.preventDefault();
-                handleOpenGlobalAdjust();
-              }}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-secondary border border-border/80 text-foreground hover:bg-secondary/80 transition-all shadow-xs shrink-0 cursor-pointer"
-              title="Record verified stock adjustments in dedicated inventory workspace"
-            >
-              <SlidersHorizontal size={14} className="text-primary" />
-              <span>Adjust Stock</span>
-            </Link>
-          )}
           <PermissionGate permission="product.create">
             <Link
               href={addProductHref}

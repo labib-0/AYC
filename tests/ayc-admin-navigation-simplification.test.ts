@@ -23,7 +23,7 @@ const expectedSections = [
   },
   {
     title: "CATALOG",
-    expectedItems: ["Products", "Categories", "Brands"],
+    expectedItems: ["Products", "Inventory", "Categories", "Brands"],
   },
   {
     title: "COMMERCE",
@@ -71,7 +71,7 @@ for (let i = 0; i < expectedSections.length; i++) {
   );
 }
 
-console.log("✔ All 7 navigation sections and 16 module items match the simplified architecture.");
+console.log("✔ All 7 navigation sections and 17 module items match the simplified architecture.");
 
 // -----------------------------------------------------------------------------
 // Suite 2: Duplicate Operations Group Removal
@@ -116,9 +116,9 @@ assert(
 console.log("✔ Add Product verified as prominent contextual action in Products.");
 
 // -----------------------------------------------------------------------------
-// Suite 4: Inventory Consolidation into Products
+// Suite 4: Dedicated Inventory Navigation & Stock Integration
 // -----------------------------------------------------------------------------
-console.log("\n▶ Suite 4: Inventory Consolidation into Products");
+console.log("\n▶ Suite 4: Dedicated Inventory Navigation & Stock Integration");
 
 const inventorySource = fs.readFileSync(
   path.join(rootDir, "src/app/ayc/inventory/page.tsx"),
@@ -134,15 +134,15 @@ assert(
   "Products page must have InventoryHistoryModal integrated"
 );
 assert(
-  productsSource.includes("btn-products-adjust-stock"),
-  "Products page must have Adjust Stock CTA"
+  !productsSource.includes("btn-products-adjust-stock"),
+  "Products page header must not contain redundant Adjust Stock button"
 );
 assert(
-  inventorySource.includes("router.replace(destination)") && inventorySource.includes("/ayc/products"),
-  "Inventory page must seamlessly redirect to Products"
+  inventorySource.includes("products/stock/page") || inventorySource.includes("FullPageStockManagementContent"),
+  "Inventory page must mount the stock management workspace"
 );
 
-console.log("✔ Inventory successfully consolidated into Products with all capabilities preserved.");
+console.log("✔ Inventory successfully accessible via dedicated admin navigation with all capabilities preserved.");
 
 // -----------------------------------------------------------------------------
 // Suite 5: Pending Orders Integration into Orders

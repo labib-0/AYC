@@ -34,10 +34,9 @@ export function getAdminBreadcrumbs(pathname: string): BreadcrumbItem[] {
     items.push({ label: "Add Product", isCurrent: true });
     return items;
   }
-  if (pathname === "/ayc/products/stock") {
+  if (pathname === "/ayc/products/stock" || pathname === "/ayc/inventory") {
     items.push({ label: "Catalog" });
-    items.push({ label: "Products", href: "/ayc/products" });
-    items.push({ label: "Stock Management", isCurrent: true });
+    items.push({ label: "Inventory", isCurrent: true });
     return items;
   }
   if (pathname.startsWith("/ayc/products/") && pathname.endsWith("/edit")) {
@@ -60,11 +59,6 @@ export function getAdminBreadcrumbs(pathname: string): BreadcrumbItem[] {
   if (pathname === "/ayc/brands") {
     items.push({ label: "Catalog" });
     items.push({ label: "Brands", isCurrent: true });
-    return items;
-  }
-  if (pathname === "/ayc/inventory") {
-    items.push({ label: "Catalog" });
-    items.push({ label: "Products", href: "/ayc/products", isCurrent: true });
     return items;
   }
 
