@@ -563,15 +563,14 @@ class ProductController extends ApiController
                     $newQuery->orderBy('created_at', 'desc');
                     $allOrderedIds = $newQuery->pluck('id')->toArray();
                 } else {
-                    // DEFAULT (Section 7: Exact Required Ordering):
-                    // Priority 1: Pinned products in saved manual order (sort_order ASC, id ASC)
+                    // Priority 1: Pinned products in saved manual order (sort_order ASC, product_id ASC tie-breaker)
                     $pinnedIds = HomepageFeaturedProduct::query()
                         ->where('is_active', true)
                         ->whereHas('product', function ($pq) use ($applyStorefrontFilters) {
                             $applyStorefrontFilters($pq);
                         })
                         ->orderBy('sort_order', 'asc')
-                        ->orderBy('id', 'asc')
+                        ->orderBy('product_id', 'asc')
                         ->pluck('product_id')
                         ->filter()
                         ->values()
@@ -591,7 +590,7 @@ class ProductController extends ApiController
                             ->toArray();
                     }
 
-                    // Priority 2: All remaining eligible storefront products in upload order (created_at DESC, id DESC tie-breaker)
+                    // Priority 2: All remaining eligible storefront products in upload order (created_at DESC)
                     $remainingQuery = Product::query();
                     $applyStorefrontFilters($remainingQuery);
                     if (!empty($pinnedIds)) {
@@ -599,7 +598,6 @@ class ProductController extends ApiController
                     }
                     $remainingIds = $remainingQuery
                         ->orderBy('created_at', 'desc') // authoritative upload timestamp: newest first
-                        ->orderBy('id', 'desc')         // stable secondary key
                         ->pluck('id')
                         ->toArray();
 
@@ -3080,9 +3078,10 @@ class ProductController extends ApiController
                             'pinned_order' => $pOrder,
                             'featured_sort_order' => $pOrder,
                         ]);
-                        HomepageFeaturedProduct::where('product_id', $id)->update([
-                            'sort_order' => $pOrder,
-                        ]);
+                        HomepageFeaturedProduct::updateOrCreate(
+                            ['product_id' => $id],
+                            ['sort_order' => $pOrder, 'is_active' => true]
+                        );
                     }
                 }
             } else {
@@ -3103,9 +3102,10 @@ class ProductController extends ApiController
                             'pinned_order' => $pinnedOrder,
                             'featured_sort_order' => $pinnedOrder,
                         ]);
-                        HomepageFeaturedProduct::where('product_id', $id)->update([
-                            'sort_order' => $pinnedOrder,
-                        ]);
+                        HomepageFeaturedProduct::updateOrCreate(
+                            ['product_id' => $id],
+                            ['sort_order' => $pinnedOrder, 'is_active' => true]
+                        );
                     } else {
                         Product::where('id', $id)->update([
                             'sort_order' => $order,

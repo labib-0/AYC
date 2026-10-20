@@ -73,20 +73,39 @@ erDiagram
    - `expires_at`: `timestamp`
    - `used_at`: `timestamp nullable`
 
-### B. Catalog & Products
+### B. Catalog, Products & Inventory
 1. **`products`**:
    - `id`: `bigint PK`
    - `sku`: `varchar(100) UNIQUE`
-   - `name`: `varchar(255)`
    - `slug`: `varchar(255) UNIQUE`
+   - `product_id`: `varchar(255) UNIQUE nullable` (Visible custom ID format)
+   - `name`: `varchar(255) nullable` (Not unique; permits repeat production runs)
    - `status`: `varchar(50)` (`draft`, `published`, `archived`)
-   - `base_price`: `decimal(10,2)`
-   - `moq`: `integer` (Minimum Order Quantity)
-   - `specifications`: `jsonb nullable` (GSM, fabric composition, wash care)
+   - `stock`: `integer default 0` (Aggregate physical stock)
+   - `wholesale_price`: `numeric(12,2)`
+   - `bulk_price`: `numeric(12,2) nullable`
+   - `bulk_threshold`: `integer nullable`
+   - `full_stock_price`: `numeric(12,2) nullable`
+   - `moq`: `integer nullable` (Minimum Order Quantity)
+   - `specifications`: `jsonb nullable`
+   - `package_assortment_visible`: `boolean default true`
+   - `package_assortment_message`: `text nullable`
    - `is_sold_out`: `boolean default false`
    - `is_preorder`: `boolean default false`
    - `deleted_at`: `timestamp nullable` (Soft deletes)
-2. **`product_offer_sheets`**:
+2. **`inventories`**:
+   - `id`: `bigint PK`
+   - `product_variant_id`: `bigint FK -> product_variants.id nullable`
+   - `product_id`: `bigint FK -> products.id nullable`
+   - `warehouse_id`: `bigint FK -> warehouses.id`
+   - `quantity`: `integer default 0` (Authoritative warehouse physical count)
+   - *(Note: `reserved_quantity` was dropped and does not exist in the production schema).*
+3. **`warehouses`**:
+   - `id`: `bigint PK`
+   - `code`: `varchar(50) UNIQUE` (Canonical production warehouse: `WH-UTTARA-01`)
+   - `name`: `varchar(255)` (`Uttara Warehouse`)
+   - `is_active`: `boolean default true`
+4. **`product_offer_sheets`**:
    - `id`: `bigint PK`
    - `product_id`: `bigint FK -> products.id` (cascade delete)
    - `sku`: `varchar(100)`
@@ -104,15 +123,21 @@ erDiagram
    - `id`: `bigint PK`
    - `order_number`: `varchar(100) UNIQUE` (`AYN-YYYYMMDD-XXXXXX`)
    - `user_id`: `bigint FK -> users.id nullable` (null for walk-in accounts)
-   - `order_source`: `varchar(50)` (`storefront`, `pos`)
-   - `status`: `varchar(50)` (`pending`, `processing`, `confirmed`, `fulfilled`, `cancelled`, `shipped`, `delivered`)
-   - `customer_status`: `varchar(50)` (`ORDER_PLACED`, `PAYMENT_PENDING`, `WAITING_FOR_APPROVAL`, `ORDER_CONFIRMED`, `ON_SHIPMENT`, `DELIVERED`)
-   - `payment_status`: `varchar(50)` (`pending`, `paid`, `failed`, `refunded`)
+   - `order_source`: `varchar(50) default 'storefront'` (`storefront`, `pos`)
+   - `status`: `varchar(50) default 'pending'` (`pending`, `processing`, `confirmed`, `fulfilled`, `cancelled`, `shipped`, `delivered`)
+   - `payment_status`: `varchar(50) default 'unpaid'` (`unpaid`, `pending`, `payment_submitted`, `paid`, `failed`, `refunded`)
+   - `shipping_status`: `varchar(50) default 'unfulfilled'` (`unfulfilled`, `processing`, `shipped`, `delivered`)
+   - `customer_status`: *(Computed Eloquent model accessor `$order->customer_status`, not a raw database column; maps to `ORDER_PLACED`, `PAYMENT_PENDING`, `WAITING_FOR_APPROVAL`, `ORDER_CONFIRMED`, `ON_SHIPMENT`, `DELIVERED`).*
    - `subtotal`: `decimal(12,2)`
    - `shipping_cost`: `decimal(12,2)`
    - `discount_amount`: `decimal(12,2)`
    - `total_amount`: `decimal(12,2)`
-   - `shipping_name`, `shipping_company`, `shipping_city`, `shipping_country_code`, `destination_port`
+   - `payment_method`: `varchar(50)`
+   - `payment_proof_url`: `varchar(255) nullable`
+   - `payment_details`: `jsonb nullable` (Holds `inventory_decremented: bool`)
+   - `payment_confirmed_at`: `timestamp nullable`
+   - `payment_confirmed_by`: `bigint FK -> users.id nullable`
+   - `shipping_snapshot`: `jsonb nullable`
 2. **`order_items`**:
    - `id`: `bigint PK`
    - `order_id`: `bigint FK -> orders.id` (cascade delete)
@@ -150,8 +175,8 @@ The database schema utilizes targeted B-tree indexes for high-frequency queries:
 
 ## 5. Data Integrity & Transactional Invariants
 
-1. **Atomic Checkout Transactions**: Order creation, inventory stock decrements, and status event logging execute within a single ACID transaction (`DB::transaction`).
-2. **Pessimistic Inventory Locking**: Stock checks use `lockForUpdate()` to eliminate race conditions between simultaneous wholesale buyers.
+1. **Atomic Payment & POS Transactions**: Stock deductions occur atomically during admin payment approval (`AdminOrderController::verifyPayment`) or POS counter sale (`AdminPosSaleService`). Web order placement commits pending orders without immediate inventory decrement.
+2. **Pessimistic Inventory Locking**: Stock checks use `lockForUpdate()` during payment approval and POS checkout to eliminate race conditions between simultaneous wholesale buyers.
 3. **Soft-Deleted Product Slugs**: When a product is deleted, its slug is updated or released so new products can reuse the canonical URL structure without foreign key violations.
 
 ---
@@ -160,4 +185,6 @@ The database schema utilizes targeted B-tree indexes for high-frequency queries:
 
 * **[ORDERS_AND_CHECKOUT.md](ORDERS_AND_CHECKOUT.md)**: Order creation and checkout transactions.
 * **[PAYMENTS_AND_INVENTORY.md](PAYMENTS_AND_INVENTORY.md)**: Stock decrementing and restoration logic.
+* **[PRODUCTION_STATE_AUDIT.md](PRODUCTION_STATE_AUDIT.md)**: Production schema interrogation evidence (`DB-001`).
 * **[BACKUP_AND_RECOVERY.md](BACKUP_AND_RECOVERY.md)**: PostgreSQL database backup and restore runbooks.
+

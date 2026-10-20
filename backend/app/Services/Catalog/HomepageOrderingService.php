@@ -203,6 +203,7 @@ class HomepageOrderingService
                     }
                 ])
                 ->orderBy('sort_order', 'asc')
+                ->orderBy('product_id', 'asc')
                 ->get();
         });
     }

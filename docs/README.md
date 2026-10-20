@@ -32,10 +32,10 @@ This matrix establishes which implementation file, service, or configuration gov
 
 ### 1. High-Level Architecture & Modules
 * **[SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md)**: Business scope, wholesale export model, customer/admin journeys, high-level component topologies.
-* **[ARCHITECTURE.md](ARCHITECTURE.md)**: Full-stack infrastructure, Next.js 16 App Router, Laravel 11 REST API, PostgreSQL 16, Redis 7, Nginx reverse proxy, PM2 process model.
+* **[ARCHITECTURE.md](ARCHITECTURE.md)**: Full-stack infrastructure, Next.js 16 App Router, Laravel Framework 13.34.0 REST API (PHP 8.4), PostgreSQL 16, Redis 7, Nginx reverse proxy, PM2 process model.
 * **[APPLICATION_MODULES.md](APPLICATION_MODULES.md)**: Exhaustive functional inventory of storefront, administrative suite, POS terminal, and backend modules.
 * **[FRONTEND.md](FRONTEND.md)**: Next.js App Router conventions, UI design token system, state providers, API client, chunk optimization.
-* **[BACKEND.md](BACKEND.md)**: Laravel 11 architecture, service layers, request validation, middleware pipeline, model design, console commands.
+* **[BACKEND.md](BACKEND.md)**: Laravel Framework 13.34.0 architecture, service layers, request validation, middleware pipeline, model design, console commands.
 
 ### 2. Identity, Security & Administration
 * **[AUTHENTICATION_AND_VERIFICATION.md](AUTHENTICATION_AND_VERIFICATION.md)**: Sanctum token management, cryptographic verification tokens, token expiry, mandatory verified-only checkout gate.
@@ -55,6 +55,7 @@ This matrix establishes which implementation file, service, or configuration gov
 * **[DOCUMENT_STORAGE_AND_DELIVERY.md](DOCUMENT_STORAGE_AND_DELIVERY.md)**: Disk storage hierarchy, atomic file writes, caching layers, 100% SHA-256 byte parity between UI and email.
 
 ### 5. Infrastructure, Operations & Quality
+* **[PRODUCTION_STATE_AUDIT.md](PRODUCTION_STATE_AUDIT.md)**: Live production VPS forensic interrogation report, verified runtime stack, schema introspection, business state machines, and documentation discrepancy ledger.
 * **[EMAIL_AND_NOTIFICATIONS.md](EMAIL_AND_NOTIFICATIONS.md)**: Transactional email infrastructure, templates, layouts, queue workers, retry semantics, attachment assembly.
 * **[DATABASE.md](DATABASE.md)**: PostgreSQL schemas, tables, relationships, migrations, indexing strategies, data integrity rules.
 * **[API_REFERENCE.md](API_REFERENCE.md)**: Complete REST API catalog, route signatures, request schemas, response bodies, auth gates.

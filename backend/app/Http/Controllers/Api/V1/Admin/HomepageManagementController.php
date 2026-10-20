@@ -93,6 +93,7 @@ class HomepageManagementController extends ApiController
                 }
             ])
             ->orderBy('sort_order', 'asc')
+            ->orderBy('product_id', 'asc')
             ->get();
 
         // 5. Ticker items in order

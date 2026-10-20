@@ -23,29 +23,30 @@ graph TB
 
     subgraph ApplicationLayer ["Application Execution Tier"]
         subgraph PM2Cluster ["PM2 Process Supervisor (User: ayaan)"]
-            CustNode["ayaan-customer (Port 3000)<br/>Next.js 16 Storefront"]
-            AdminNode["ayaan-admin (Port 3001)<br/>Next.js 16 Admin Suite"]
+            CustNode["ayaan-customer (Port 3000)<br/>Next.js 16 Storefront & /ayc App Router"]
+            AdminNode["ayaan-admin (Port 3001)<br/>Node.js scripts/admin-proxy.js Gateway<br/>Injects X-Admin-App: true"]
             ApiNode["ayaan-api-8000 (Port 8000)<br/>Internal Artisan Daemon"]
         end
 
         subgraph PHPCluster ["PHP-FPM Execution Engine"]
-            PHPFPM["PHP 8.4-FPM Unix Socket<br/>/run/php/php8.4-fpm.sock<br/>Laravel 11.x Core"]
+            PHPFPM["PHP 8.4-FPM Unix Socket<br/>/run/php/php8.4-fpm.sock<br/>Laravel Framework 13.34.0 Core"]
         end
 
         subgraph AsyncWorkers ["Asynchronous Queue Process (Supervisor)"]
-            Worker["ayaan-worker<br/>php artisan queue:work redis<br/>Queues: default, high"]
+            Worker["ayaan-worker<br/>php artisan queue:work redis<br/>Queues: default"]
         end
     end
 
     subgraph StorageLayer ["Data Persistence & Caching Tier"]
         Postgres[("PostgreSQL 16 Engine<br/>Port 5432 (Local Unix/TCP)<br/>Database: ayaan_production")]
         Redis[("Redis 7.x In-Memory Store<br/>Port 6379 (Local TCP)<br/>DB 0: Cache, DB 1: Queues")]
-        DiskStorage["Local Persistent Filesystem<br/>/var/www/ayaan/backend/storage/app/<br/>Media, PDFs, Wire Receipts"]
+        DiskStorage["Local Persistent Filesystem<br/>/var/www/ayaan/backend/storage/app/<br/>Media, PDFs, Order Receipts"]
     end
 
     Clients -->|HTTPS| Nginx
     Nginx -->|Proxy Pass /| CustNode
     Nginx -->|Proxy Pass /ayc| AdminNode
+    AdminNode -->|Internal proxy localhost:3000| CustNode
     Nginx -->|FastCGI Pass /api & /ayc/api| PHPFPM
     Nginx -->|Static Alias /storage/| DiskStorage
 
@@ -112,12 +113,13 @@ The system segregates responsibilities across isolated system processes operatin
 │ 2  │ ayaan-api-8000    │ fork    │ 8000     │ ~48 MB   │ ayaan    │ online   │
 └────┴───────────────────┴─────────┴──────────┴──────────┴──────────┴──────────┘
 ```
-1. **`ayaan-customer`**: Serves the Next.js storefront, faceted search, user cart, checkout wizard, and customer portal.
-2. **`ayaan-admin`**: Serves the administrative back-office, catalog management, quotation editor, user administration, and POS interface.
-3. **`ayaan-api-8000`**: Internal Laravel artisan daemon providing local auxiliary services.
+1. **`ayaan-customer`**: Serves the unified Next.js App Router application (handling customer storefront, search, user cart, checkout wizard, and `/ayc` admin routes forwarded by `admin-proxy.js`).
+2. **`ayaan-admin`**: Runs `scripts/admin-proxy.js` on port 3001, injecting `X-Admin-App: true` and `X-Is-Admin-Host: 1` headers and proxying internally to Next.js on port 3000.
+3. **`ayaan-api-8000`**: Internal Laravel artisan daemon providing local auxiliary services and release-gate health probes.
 
 ### B. PHP-FPM Daemon (Laravel REST API)
-* **Runtime**: PHP 8.4-FPM socket at `/run/php/php8.4-fpm.sock`.
+* **Runtime**: PHP 8.4-FPM socket at `/run/php/php8.4-fpm.sock` (PHP 8.4.26).
+* **Framework**: Laravel Framework 13.34.0.
 * **Pool Configuration**: Dynamic process manager with opcache enabled and preloading configured for production performance.
 * **Execution Boundary**: Executes all REST API endpoints, business calculation services, PDF rendering via Dompdf, and database migrations.
 
@@ -144,13 +146,14 @@ Data persistence is partitioned cleanly into relational storage, fast in-memory 
 ├── public/                       # Publicly accessible assets (/storage/ alias)
 │   ├── products/                 # High-resolution catalog imagery & thumbnails
 │   ├── brands/                   # Brand vector & PNG logos
-│   └── payment_proofs/           # Scanned customer wire transfer receipts
+│   └── order-receipts/           # Scanned customer wire transfer receipts (WebP format)
 ├── product_offer_sheets/         # Pre-generated product Offer Sheet artifacts
-│   └── {sku}_{fingerprint}.pdf   # Compressed individual product PDFs (<=1.5 MB)
+│   └── {product_id}/             # Per-product directory
+│       └── OFFER_SHEET_{fingerprint}.pdf # Compressed individual product PDFs (<=1.5 MB)
 ├── documents_cache/              # Merged order documents and PI artifacts
 │   └── order_{id}/               # Order-specific artifact storage
-│       ├── OFFER_SHEET_{hash}.pdf # Merged multi-product order Offer Sheet
-│       └── PROFORMA_INVOICE_{hash}.pdf # Authoritative order Proforma Invoice
+│       ├── OFFER_SHEET_{fingerprint}.pdf # Merged multi-product order Offer Sheet
+│       └── PROFORMA_INVOICE_{fingerprint}.pdf # Authoritative order Proforma Invoice
 └── temp/                         # Temporary working directory for PDF assembly
 ```
 
@@ -198,3 +201,5 @@ graph LR
 * **[BACKEND.md](BACKEND.md)**: Laravel service architecture and controller layers.
 * **[DOCUMENT_STORAGE_AND_DELIVERY.md](DOCUMENT_STORAGE_AND_DELIVERY.md)**: Storage paths, atomic writes, and SHA-256 byte parity.
 * **[DEPLOYMENT.md](DEPLOYMENT.md)**: Deployment script runbook and automated release gates.
+* **[PRODUCTION_STATE_AUDIT.md](PRODUCTION_STATE_AUDIT.md)**: Production interrogation and evidence report (`ENV-001`, `RUN-001`, `NET-001`).
+

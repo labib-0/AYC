@@ -88,24 +88,26 @@ classDiagram
 
 ### A. Pre-Configured System Roles
 1. **Super Admin**: Unrestricted system access across catalog, finance, users, system settings, and RBAC matrix.
-2. **Merchandiser / Catalog Manager**: Authorized for `catalog.manage` and `inventory.adjust`. Restricted from financial verification and RBAC roles.
-3. **Finance & Order Verifier**: Authorized for `orders.manage` and `orders.verify_payment`. Reviews wire receipts and confirms payments.
-4. **Showroom POS Cashier**: Authorized for `pos.access`. Limited to counter sales and stock lookups.
+2. **Merchandiser / Catalog Manager**: Authorized for `product.create`, `product.edit`, and `inventory.adjust`. Restricted from financial verification and RBAC roles.
+3. **Finance & Order Verifier**: Authorized for `order.view` and `payment.receipt.verify`. Reviews wire receipts and confirms payments.
+4. **Showroom POS Cashier**: Authorized for `pos.view` and `pos.create`. Limited to counter sales and stock lookups.
 
 ### B. Granular Permission Slugs
-* `catalog.manage`: Full product, category, and brand CRUD operations.
+*(Note: Consult canonical **[CUSTOMERS_AND_ADMINISTRATION.md](CUSTOMERS_AND_ADMINISTRATION.md)** and **[PRODUCTION_STATE_AUDIT.md](PRODUCTION_STATE_AUDIT.md)** for the 143 verified production permission slugs).*
+* `product.create`, `product.edit`, `product.delete`: Product catalog CRUD operations.
 * `inventory.adjust`: Warehouse inventory edits and physical count reconciliations.
-* `orders.manage`: Customer order management, carrier assignment, tracking updates.
-* `orders.verify_payment`: Approve or reject buyer wire transfer receipts.
-* `pos.access`: Access POS showroom terminal.
-* `pos.discounts`: Apply manual discounts on POS order lines.
-* `users.manage`: View registered customer profiles.
-* `administrators.manage`: Create and manage administrative accounts.
-* `rbac.manage`: Create custom roles and modify the permission assignment matrix.
-* `settings.manage`: Update corporate contact details and business rules.
+* `order.view`, `order.update_status`: Customer order management, carrier assignment, tracking updates.
+* `payment.receipt.verify`, `payment.receipt.reject`: Approve or reject buyer wire transfer receipts (supersedes legacy label `orders.verify_payment`).
+* `pos.view`: View POS showroom terminal, inventory, and calculate totals (supersedes legacy label `pos.access`).
+* `pos.create`: Execute showroom counter sales (supersedes legacy label `pos.operate`).
+* `pos.discount`: Apply manual line discounts on POS orders (supersedes legacy label `pos.discounts`).
+* `coupon.view`, `coupon.create`: Marketing coupon management and staff commission binding.
+* `role.view`, `role.create`, `role.edit`, `permission.view`: RBAC management via `role_permissions`.
+* `settings.view`, `settings.edit`: Update corporate contact details and business rules.
 
 ### C. Admin Security & Middleware
-All administrative requests pass through `CheckPermission` middleware:
+All administrative requests pass through `RequirePermission` middleware (aliased as `permission:slug`):
 * If the user account has `status: inactive`, all requests are terminated with `HTTP 403 Forbidden`.
 * Super Admin roles bypass granular checks automatically.
-* Non-super admins must possess the explicit permission slug matching the requested endpoint.
+* Non-super admins must possess the explicit permission slug matching the requested endpoint via `admin_roles` -> `role_permissions`.
+

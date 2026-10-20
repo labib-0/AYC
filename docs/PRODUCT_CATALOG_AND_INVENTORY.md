@@ -58,23 +58,42 @@ To protect factory sourcing relationships and profit margins:
 
 ---
 
-## 5. Pinned & Featured Catalog Ordering
+## 5. Pinned & Featured Catalog Ordering Contract
 
-The catalog implements a two-tier priority ordering model (`src/components/admin/AdminProductsTable.tsx` and `backend/app/Http/Controllers/ProductController.php`):
+The product catalog and customer-facing Featured Products section share an authoritative, synchronized ordering and eligibility model (`src/app/ayc/products/page.tsx`, `backend/app/Http/Controllers/Api/V1/ProductController.php`, and `backend/app/Http/Controllers/Api/V1/HomepageController.php`):
 
-### A. Pinned Priority (`is_pinned`)
-* Administrators can pin high-priority stock lots or clearance overruns to the top of the catalog using the **Pin** action button.
-* Pinned items are assigned an explicit `pinned_at` timestamp.
-* **Sorting Hierarchy**:
-  1. `is_pinned = TRUE` ordered by `pinned_at DESC` (newest pinned items first).
-  2. `is_pinned = FALSE` ordered by `sort_order ASC`, then `created_at DESC`.
+### A. Admin Manual Sequence Representation & Persistence
+* **Admin Sequence Definition**: The Admin Product Management table displays all products in a unified, deterministic order where pinned products (`is_pinned = TRUE` or `is_featured = TRUE`) precede unpinned products.
+* **Manual Reordering**: When administrators reorder products via drag-and-drop or **Move Up / Down** controls, `PUT /api/v1/products/reorder` atomically updates:
+  - `products.sort_order`: Sequential integer (`1..N`) representing overall catalog position.
+  - `products.pinned_order` and `products.featured_sort_order`: Sequential integer (`1..M`) for pinned items.
+  - `homepage_featured_products.sort_order`: Synchronized `sort_order` in the featured pivot table.
+* **Default Tie-Breaker**: For products whose custom ranking is unassigned or equal (`sort_order = 0` / `pinned_order = 0`), the canonical secondary key is `products.id ASC` (deterministic primary key order).
 
-### B. Featured Status (`is_featured`)
-* Flags products for inclusion in the curated homepage **Featured Export Overruns** carousel.
-* Operated independently of pinned status.
+### B. Customer Storefront Featured Products Ordering
+* **Priority 1 (Admin-Curated Pinned Products)**:
+  - Eligible products present in `homepage_featured_products` (`is_active = TRUE`) are rendered first in strict `sort_order ASC`, with `product_id ASC` tie-breaking.
+* **Priority 2 (Remaining Eligible Products)**:
+  - Storefront-eligible products not pinned follow in upload sequence (`created_at DESC`), ensuring new catalog additions remain discoverable without displacing curated items.
+* **No Client-Side Reordering**: Next.js client components (`src/components/home/FeaturedProducts.tsx`) and service mappers (`src/lib/services/products.ts`) preserve the exact array order delivered by the backend API.
 
-### C. Storefront Visibility Toggle (`is_hidden_from_storefront`)
-* Allows administrators to draft products, prepare future collections, or restrict items to POS showroom sales without displaying them on the public website.
+### C. Eligibility vs. Ordering Boundary
+* **Eligibility Rule**: A product is only eligible for public storefront display if:
+  1. `products.status = 'published'` (draft and archived items are strictly excluded).
+  2. `products.is_hidden_from_storefront = FALSE`.
+  3. `products.deleted_at IS NULL`.
+* Eligibility determines *whether* a product may appear, while the admin manual sequence strictly dictates *where* it appears among eligible items.
+
+### D. Cache Invalidation & Event Propagation
+* When an admin updates product pins or reorders products:
+  - Backend: `CatalogCacheService::invalidateAll()` clears key caches and `CatalogCacheService::bumpFeaturedVersion()` immediately invalidates all versioned featured product page cache keys (`catalog:products:featured:v{N}`).
+  - Frontend: `homepageService.invalidateStorefrontCache()` and `ayaan:homepage-updated` custom DOM events notify mounted browser tabs to reload active featured slices.
+
+### E. Regression Test Coverage
+* Behavior is safeguarded by automated regression suites:
+  - `tests/admin-storefront-featured-ordering-reconciliation.test.ts` (covers manual sequence, eligibility, pin vs rank separation, persistence, frontend parity, and zero regressions).
+  - `tests/featured-products-order.test.ts` (verifies Priority 1 sort_order, Priority 2 created_at DESC, and deduplication).
+  - `tests/admin-featured-products-tile-and-priority.test.ts` (verifies admin metrics and storefront priority invariants).
 
 ---
 

@@ -2,7 +2,7 @@
 
 [![Production](https://img.shields.io/badge/Production-Live%20(Hostinger%20VPS)-emerald?style=flat-square)](https://ayaanclothing.com)
 [![Next.js](https://img.shields.io/badge/Next.js-16%20(App%20Router)-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![Laravel](https://img.shields.io/badge/Laravel-11.x%20(PHP%208.4)-red?style=flat-square&logo=laravel)](https://laravel.com/)
+[![Laravel](https://img.shields.io/badge/Laravel-13.x%20(PHP%208.4)-red?style=flat-square&logo=laravel)](https://laravel.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7.x-crimson?style=flat-square&logo=redis)](https://redis.io/)
 [![License](https://img.shields.io/badge/License-Proprietary-slate?style=flat-square)](#)
@@ -21,11 +21,11 @@ graph TD
     
     subgraph Frontend ["Frontend Runtimes (PM2)"]
         Nginx -->|Proxy Pass /| NextCustomer["ayaan-customer (Port 3000)<br/>Storefront, Cart, Checkout, Portal"]
-        Nginx -->|Proxy Pass /ayc| NextAdmin["ayaan-admin (Port 3001)<br/>Admin Suite, POS, Catalog, RFQ"]
+        Nginx -->|Proxy Pass /ayc| NextAdmin["ayaan-admin (Port 3001)<br/>Node.js Gateway to Next.js App Router"]
     end
 
     subgraph Backend ["Backend API & Workers"]
-        Nginx -->|FastCGI /run/php/php8.4-fpm.sock| PHPFPM["Laravel 11.x REST API<br/>PHP 8.4-FPM"]
+        Nginx -->|FastCGI /run/php/php8.4-fpm.sock| PHPFPM["Laravel 13.x REST API<br/>PHP 8.4-FPM"]
         Supervisor["Supervisor Daemon"] -->|Queue Worker| Worker["ayaan-worker<br/>php artisan queue:work redis"]
     end
 
@@ -61,11 +61,12 @@ Comprehensive, authoritative technical documentation is maintained in the [`docs
 | Document | Focus & Scope |
 | :--- | :--- |
 | **[docs/README.md](docs/README.md)** | **Master Documentation Index & Source-of-Truth Matrix** |
+| **[docs/PRODUCTION_STATE_AUDIT.md](docs/PRODUCTION_STATE_AUDIT.md)** | **Live Production State Audit Report & Evidence Ledger (October 2026)** |
 | **[docs/SYSTEM_OVERVIEW.md](docs/SYSTEM_OVERVIEW.md)** | Business scope, B2B wholesale domain, user journeys, core components |
 | **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Full-stack architecture, network layout, process model, and data flow |
 | **[docs/APPLICATION_MODULES.md](docs/APPLICATION_MODULES.md)** | Complete inventory of all storefront, admin, and backend functional modules |
 | **[docs/FRONTEND.md](docs/FRONTEND.md)** | Next.js 16 App Router, Tailwind tokens, UI components, client state |
-| **[docs/BACKEND.md](docs/BACKEND.md)** | Laravel 11 service layers, controllers, requests, models, and commands |
+| **[docs/BACKEND.md](docs/BACKEND.md)** | Laravel 13.x service layers, controllers, requests, models, and commands |
 | **[docs/AUTHENTICATION_AND_VERIFICATION.md](docs/AUTHENTICATION_AND_VERIFICATION.md)** | Sanctum, registration, login, token hashing, and checkout verification gate |
 | **[docs/GOOGLE_OAUTH.md](docs/GOOGLE_OAUTH.md)** | Google Socialite flow, customer isolation, account linking, verification rules |
 | **[docs/CUSTOMERS_AND_ADMINISTRATION.md](docs/CUSTOMERS_AND_ADMINISTRATION.md)** | Customer dashboard, Admin management portal (`/ayc`), POS, and RBAC |

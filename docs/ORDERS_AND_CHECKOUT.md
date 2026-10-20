@@ -39,7 +39,7 @@ sequenceDiagram
         Note over API, DB: Atomic Database Transaction
         API->>DB: Create Order record (status: pending, payment_status: pending)
         API->>DB: Create OrderItem records (with snapshot pricing & carton allocations)
-        API->>DB: Decrement product / variant inventory balances
+        API->>DB: Validate stock availability (physical stock decrement deferred until payment approval)
         API->>DB: Record initial OrderStatusEvent (ORDER_PLACED)
         API->>DB: Insert OrderEmailDispatch record (status: pending)
     end
@@ -72,20 +72,21 @@ stateDiagram-v2
     [*] --> ORDER_PLACED: Order Created via Checkout
     ORDER_PLACED --> PAYMENT_PENDING: Customer reviews PI and banking info
     PAYMENT_PENDING --> WAITING_FOR_APPROVAL: Wire proof receipt uploaded
-    WAITING_FOR_APPROVAL --> ORDER_CONFIRMED: Merchandiser verifies bank deposit
+    WAITING_FOR_APPROVAL --> ORDER_CONFIRMED: Merchandiser verifies deposit (decrements stock)
     ORDER_CONFIRMED --> ON_SHIPMENT: Cargo dispatched / Aramex AWB created
     ON_SHIPMENT --> DELIVERED: Consignee receives freight
-    ORDER_PLACED --> CANCELLED: Buyer cancels / timeout (restores inventory)
-    PAYMENT_PENDING --> CANCELLED: Non-payment (restores inventory)
+    ORDER_PLACED --> CANCELLED: Buyer cancels / timeout (stock was not decremented)
+    PAYMENT_PENDING --> CANCELLED: Non-payment (stock was not decremented)
+    ORDER_CONFIRMED --> CANCELLED: Admin cancels confirmed order (restores decremented stock)
 ```
 
 ### State Dimensions & Field Mappings:
-| Dimension | Column | Valid Production Values | Description |
+| Dimension | Column / Attribute | Valid Production Values | Description |
 | :--- | :--- | :--- | :--- |
-| **System Status** | `status` | `pending`, `processing`, `confirmed`, `fulfilled`, `cancelled`, `shipped`, `delivered` | Primary administrative lifecycle state. |
-| **Customer Status** | `customer_status` | `ORDER_PLACED`, `PAYMENT_PENDING`, `WAITING_FOR_APPROVAL`, `ORDER_CONFIRMED`, `ON_SHIPMENT`, `DELIVERED` | Buyer-facing status shown on tracking timeline. |
-| **Payment Status** | `payment_status` | `pending`, `paid`, `failed`, `refunded` | Financial settlement state. |
-| **Fulfillment Status**| `fulfillment_status`| `unfulfilled`, `processing`, `shipped`, `delivered`, `returned` | Warehouse freight dispatch state. |
+| **System Status** | `status` (DB column) | `pending`, `processing`, `confirmed`, `fulfilled`, `cancelled`, `shipped`, `delivered` | Primary administrative lifecycle state. |
+| **Customer Status** | `customer_status` (Eloquent accessor) | `ORDER_PLACED`, `PAYMENT_PENDING`, `WAITING_FOR_APPROVAL`, `ORDER_CONFIRMED`, `ON_SHIPMENT`, `DELIVERED` | Buyer-facing status computed from `status`, `payment_status`, and carrier data. |
+| **Payment Status** | `payment_status` (DB column) | `pending`, `payment_submitted`, `paid`, `failed`, `refunded` | Financial settlement state. |
+| **Fulfillment Status**| `fulfillment_status` (DB column)| `unfulfilled`, `processing`, `shipped`, `delivered`, `returned` | Warehouse freight dispatch state. |
 
 ---
 

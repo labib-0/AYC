@@ -149,7 +149,7 @@ class HomepageController extends ApiController
                     }
                 ])
                 ->orderBy('sort_order', 'asc') // Admin-pinned order
-                ->orderBy('id', 'asc')
+                ->orderBy('product_id', 'asc')
                 ->get()
                 ->map(function ($item) {
                     return [
@@ -164,7 +164,7 @@ class HomepageController extends ApiController
             // Collect pinned product IDs to exclude from remaining list (prevents duplication)
             $pinnedProductIds = $selectedFeatured->pluck('product_id')->filter()->values()->toArray();
 
-            // Remaining eligible products in upload order (created_at DESC, id DESC — newest upload first)
+            // Remaining eligible products in upload order (created_at DESC — newest upload first)
             // Excludes all pinned products so each product appears exactly once
             $remainingFeatured = Product::query()
                 ->storefrontVisible()
@@ -179,7 +179,6 @@ class HomepageController extends ApiController
                     'packageAllocations',
                 ])
                 ->orderBy('created_at', 'desc') // authoritative upload timestamp: newest first
-                ->orderBy('id', 'desc')         // stable secondary key
                 ->get()
                 ->map(function ($p, $idx) use ($selectedFeatured) {
                     return [
@@ -241,7 +240,6 @@ class HomepageController extends ApiController
                             'packageAllocations',
                         ])
                         ->orderBy('created_at', 'desc') // newest upload first
-                        ->orderBy('id', 'desc')         // stable secondary key
                         ->get()
                         ->map(function ($p, $idx) use ($fallbackPinned) {
                             return [
