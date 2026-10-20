@@ -279,7 +279,7 @@ $valRequestVerified = Request::create('/api/v1/checkout/validate', 'POST', [
     'items' => [
         [
             'product_id' => $product->id,
-            'quantity' => 1,
+            'quantity' => (int) ($product->moq ?: 1),
         ],
     ],
 ]);
