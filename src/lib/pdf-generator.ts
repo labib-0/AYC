@@ -1059,34 +1059,53 @@ export async function downloadProductOfferSheetPDF(
   },
   selectedQty?: number
 ) {
-  // Fast Path: Check backend for authoritative canonical pre-generated Offer Sheet
+  // Canonical Path: Stream backend pre-generated and compressed Offer Sheet
   if (product.id && typeof window !== "undefined") {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
-      const res = await fetch(`${apiUrl}/products/${product.id}/offer-sheet?download=1`, {
-        headers: { Accept: "application/pdf" },
-      });
-      if (res.ok && res.headers.get("content-type")?.includes("application/pdf")) {
-        const blob = await res.blob();
-        if (blob.size > 0) {
-          const cleanSku = (product.sku || product.name || "garment")
-            .replace(/[^a-zA-Z0-9_-]/g, "_")
-            .slice(0, 30);
-          const filename = `AYAAN_Offer_Sheet_${cleanSku}.pdf`;
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-          return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const forceParam = attempt === 2 ? "&force=1" : "";
+        const res = await fetch(`${apiUrl}/products/${product.id}/offer-sheet?download=1${forceParam}`, {
+          headers: { Accept: "application/pdf" },
+        });
+
+        if (res.ok && res.headers.get("content-type")?.includes("application/pdf")) {
+          const blob = await res.blob();
+          if (blob.size > 0) {
+            const cleanSku = (product.sku || product.name || "garment")
+              .replace(/[^a-zA-Z0-9_-]/g, "_")
+              .slice(0, 30);
+            const filename = `AYAAN_Offer_Sheet_${cleanSku}.pdf`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            return;
+          }
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          throw new Error(errJson?.message || `Offer Sheet download failed with status HTTP ${res.status}`);
+        }
+      } catch (e: any) {
+        lastError = e instanceof Error ? e : new Error(String(e));
+        if (attempt === 1) {
+          await new Promise((r) => setTimeout(r, 600));
         }
       }
-    } catch (e) {
-      console.warn("[AYC] Backend product offer sheet download failed, falling back to client generator:", e);
     }
+
+    // Do NOT silently produce a divergent client-side document for published products
+    console.error("[AYC] Authoritative Offer Sheet download failed:", lastError);
+    throw (
+      lastError ||
+      new Error(`Unable to download the official Offer Sheet for product "${product.name || product.sku}". Please retry.`)
+    );
   }
   // Collect all available image sources for gallery: primary first, followed by secondary images
   let imageSources: string[] = [];
@@ -1260,41 +1279,59 @@ export async function downloadCombinedProductOfferSheetsPDF(
     }
   }
 
-  // Fast Path: Check backend for authoritative merged canonical Offer Sheet
+  // Canonical Path: Retrieve backend merged canonical Offer Sheets
   if (order.items && order.items.length > 0 && typeof window !== "undefined") {
     const productIds = order.items
       .map((it: any) => it.product_id)
       .filter((id: any): id is number => typeof id === "number" && id > 0);
 
     if (productIds.length > 0) {
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
-        const res = await fetch(`${apiUrl}/products/bulk-offer-sheet?download=1`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/pdf",
-          },
-          body: JSON.stringify({ product_ids: productIds }),
-        });
-        if (res.ok && res.headers.get("content-type")?.includes("application/pdf")) {
-          const blob = await res.blob();
-          if (blob.size > 0) {
-            const filename = `AYAAN_CLOTHING_Offer_Sheets_${order.order_number || "ORDER"}.pdf`;
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-            return;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+      let lastBulkError: Error | null = null;
+
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const forceParam = attempt === 2 ? "?force=1" : "";
+          const res = await fetch(`${apiUrl}/products/bulk-offer-sheet?download=1${forceParam}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/pdf",
+            },
+            body: JSON.stringify({ product_ids: productIds }),
+          });
+
+          if (res.ok && res.headers.get("content-type")?.includes("application/pdf")) {
+            const blob = await res.blob();
+            if (blob.size > 0) {
+              const filename = `AYAAN_CLOTHING_Offer_Sheets_${order.order_number || "ORDER"}.pdf`;
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+              return;
+            }
+          } else {
+            const errJson = await res.json().catch(() => ({}));
+            throw new Error(errJson?.message || `Bulk Offer Sheet merge failed with status HTTP ${res.status}`);
+          }
+        } catch (e: any) {
+          lastBulkError = e instanceof Error ? e : new Error(String(e));
+          if (attempt === 1) {
+            await new Promise((r) => setTimeout(r, 600));
           }
         }
-      } catch (e) {
-        console.warn("[AYC] Backend bulk offer sheet download failed, falling back to client generator:", e);
       }
+
+      console.error("[AYC] Authoritative Bulk Offer Sheet merge failed:", lastBulkError);
+      throw (
+        lastBulkError ||
+        new Error(`Unable to prepare combined Offer Sheets for Order ${order.order_number || ""}. Please retry.`)
+      );
     }
   }
 

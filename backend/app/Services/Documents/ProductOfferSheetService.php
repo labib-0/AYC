@@ -31,19 +31,28 @@ class ProductOfferSheetService
     {
         $brandName = $product->brand?->name ?? (is_string($product->brand) ? $product->brand : '');
         $brandLogoUrl = $product->brand?->logo_url ?? '';
-        $brandLogoMtime = $this->resolveLocalImageMtime($brandLogoUrl);
+        $brandLogoChecksum = $this->resolveLocalImageChecksum($brandLogoUrl);
 
         $images = $product->relationLoaded('images') ? $product->images : $product->images()->get();
         $galleryFingerprint = $images->map(function ($img) {
-            $mtime = $this->resolveLocalImageMtime($img->image_url);
-            return "{$img->id}_{$img->image_url}_{$img->is_primary}_{$img->sort_order}_{$mtime}";
+            $checksum = $this->resolveLocalImageChecksum($img->image_url);
+            return "{$img->id}_{$img->image_url}_{$img->is_primary}_{$img->sort_order}_{$checksum}";
         })->join(',');
 
-        $primaryMtime = $this->resolveLocalImageMtime($product->primary_image_url);
+        $primaryChecksum = $this->resolveLocalImageChecksum($product->primary_image_url);
 
         $specsFingerprint = is_array($product->specifications) 
             ? json_encode($product->specifications) 
             : (string) ($product->specifications ?? '');
+
+        // Exporter / company profile fingerprint (to invalidate if company address or contact details update)
+        $exporter = DocumentHelper::getExporterProfile();
+        $exporterFingerprint = md5(implode('|', [
+            $exporter['company_name'] ?? '',
+            $exporter['address'] ?? '',
+            $exporter['whatsapp_display'] ?? '',
+            $exporter['email'] ?? '',
+        ]));
 
         $corePayload = implode('~', [
             $product->id,
@@ -64,9 +73,10 @@ class ProductOfferSheetService
             $product->full_stock_price ? "stock:{$product->full_stock_price}:{$product->available_stock}" : 'no_stock',
             $brandName,
             $brandLogoUrl,
-            $brandLogoMtime,
+            $brandLogoChecksum,
             $galleryFingerprint,
-            $primaryMtime,
+            $primaryChecksum,
+            $exporterFingerprint,
         ]);
 
         return hash('sha256', "product_offer_sheet_{$product->id}_{$corePayload}");
@@ -412,17 +422,18 @@ class ProductOfferSheetService
     }
 
     /**
-     * Resolve image file modification time.
+     * Resolve reliable content checksum for an image file.
+     * Combines content hash, filesize, and mtime to guarantee invalidation on any asset modification.
      */
-    protected function resolveLocalImageMtime(?string $url): int
+    protected function resolveLocalImageChecksum(?string $url): string
     {
         if (!$url || trim($url) === '') {
-            return 0;
+            return 'empty';
         }
 
         $trimmed = trim($url);
         if (str_starts_with($trimmed, 'data:image')) {
-            return crc32($trimmed);
+            return hash('sha256', $trimmed);
         }
 
         $clean = explode('?', explode('#', $trimmed)[0])[0];
@@ -445,11 +456,14 @@ class ProductOfferSheetService
 
         foreach ($candidates as $c) {
             if (file_exists($c) && is_file($c)) {
-                return (int) @filemtime($c);
+                $hash = @md5_file($c) ?: 'nohash';
+                $size = (int) @filesize($c);
+                $mtime = (int) @filemtime($c);
+                return "{$hash}_{$size}_{$mtime}";
             }
         }
 
-        return 0;
+        return hash('sha256', $trimmed);
     }
 
     /**

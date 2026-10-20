@@ -63,11 +63,11 @@ class PdfMergerService
 
                 $body = substr($content, $bodyStart, $endPos - $bodyStart);
 
-                // Separate dictionary/metadata from stream if present
-                $streamPos = strpos($body, 'stream');
-                if ($streamPos !== false) {
-                    $dictPart = substr($body, 0, $streamPos);
-                    $streamPart = substr($body, $streamPos);
+                // Separate dictionary/metadata from stream strictly after closing '>>'
+                if (preg_match('/>>\s*stream[\r\n]+/s', $body, $sm, PREG_OFFSET_CAPTURE)) {
+                    $dictEnd = $sm[0][1] + 2;
+                    $dictPart = substr($body, 0, $dictEnd);
+                    $streamPart = ltrim(substr($body, $dictEnd));
                 } else {
                     $dictPart = $body;
                     $streamPart = '';

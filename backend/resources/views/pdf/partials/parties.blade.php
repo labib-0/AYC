@@ -50,6 +50,9 @@
                 <div class="card-line"><strong>Order Ref:</strong> {{ $orderNumber }}</div>
                 <div class="card-line"><strong>Doc Ref:</strong> {{ $docNumber }}</div>
                 <div class="card-line"><strong>Date:</strong> {{ $date }}</div>
+                @if(!empty($doc['validUntil']) || !empty($doc['valid_until']))
+                    <div class="card-line"><strong>Validity:</strong> {{ $doc['validUntil'] ?? $doc['valid_until'] }}</div>
+                @endif
                 <div class="card-line">
                     <strong>Payment:</strong>
                     <span class="status-badge {{ in_array($paymentStatus, ['PAID']) ? 'status-paid' : 'status-pending' }}">
