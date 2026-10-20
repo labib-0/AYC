@@ -357,5 +357,13 @@ class OrderConfirmationEmailTest extends TestCase
 
         // 5. Order Dashboard Payment Link
         $this->assertStringContainsString("/dashboard/orders/{$this->order->id}", $html);
+
+        // 6. Clean Sender Name & Footer Branding (No M/S, No Automated Disclaimer)
+        $mail->build();
+        $this->assertEquals('AYAAN CLOTHING', $mail->from[0]['name']);
+        $this->assertStringContainsString('<strong>AYAAN CLOTHING</strong> &bull; Ready-made Garments Manufacturer & Exporter', $html);
+        $this->assertStringNotContainsString('<strong>M/S AYAAN CLOTHING</strong>', $html);
+        $this->assertStringNotContainsString('This is an automated transactional notification', $html);
+        $this->assertStringNotContainsString('Please do not reply directly to this email', $html);
     }
 }

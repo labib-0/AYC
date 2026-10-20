@@ -48,6 +48,7 @@ class TestOrderEmailDeliveryCommand extends Command
         $this->info("=== AYAAN CLOTHING — Order Transactional Email Delivery Test ===");
         $this->line("Mailer Driver   : <comment>{$mailer}</comment>");
         $this->line("From Address    : <comment>" . config('order.emails.from_address', config('mail.from.address')) . "</comment>");
+        $this->line("From Name       : <comment>" . config('order.emails.from_name', config('mail.from.name')) . "</comment>");
         $this->line("Target Recipient: <comment>{$recipient}</comment>");
         $this->line("Email Type      : <comment>{$type}</comment>");
         $this->line("Delivery Mode   : <comment>" . ($viaQueue ? "Queued (Redis)" : "Synchronous") . "</comment>");

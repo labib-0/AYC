@@ -36,5 +36,5 @@ OPEN IN ADMIN PORTAL:
 Notice: This is a protected administrative link. You must be authenticated as an authorized administrator to view customer details.
 
 ---
-M/S AYAAN CLOTHING • Export Administration
+AYAAN CLOTHING • Export Administration
 House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh

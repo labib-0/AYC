@@ -54,7 +54,7 @@ class CustomerOrderConfirmedMail extends Mailable
     public function build(): self
     {
         $fromAddress = config('order.emails.from_address', config('mail.from.address', 'export@ayaanclothing.com'));
-        $fromName = config('order.emails.from_name', config('mail.from.name', 'AYAAN CLOTHING Export Division'));
+        $fromName = config('order.emails.from_name', config('mail.from.name', 'AYAAN CLOTHING'));
 
         $subject = "AYAAN CLOTHING — Order Confirmed {$this->order->order_number}";
 

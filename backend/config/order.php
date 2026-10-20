@@ -19,7 +19,7 @@ return [
     'emails' => [
         'enabled' => (bool) env('ORDER_EMAILS_ENABLED', false),
         'from_address' => env('ORDER_MAIL_FROM_ADDRESS', env('MAIL_FROM_ADDRESS', 'export@ayaanclothing.com')),
-        'from_name' => env('ORDER_MAIL_FROM_NAME', env('MAIL_FROM_NAME', 'AYAAN CLOTHING Export Division')),
+        'from_name' => env('ORDER_MAIL_FROM_NAME', env('MAIL_FROM_NAME', 'AYAAN CLOTHING')),
         'queue' => env('ORDER_MAIL_QUEUE', 'default'),
         'max_attachment_size_mb' => (int) env('ORDER_MAIL_MAX_ATTACHMENT_SIZE_MB', 20),
         'retry_attempts' => (int) env('ORDER_MAIL_RETRY_ATTEMPTS', 3),

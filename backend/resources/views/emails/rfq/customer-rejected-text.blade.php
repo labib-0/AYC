@@ -24,6 +24,6 @@ View your RFQ details in your customer dashboard:
 {{ $viewUrl }}
 
 ---
-M/S AYAAN CLOTHING • Ready-made Garments Manufacturer & Exporter
+AYAAN CLOTHING • Ready-made Garments Manufacturer & Exporter
 House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh
 WhatsApp Export Desk: +880 1620-853502 • www.ayaanclothing.com

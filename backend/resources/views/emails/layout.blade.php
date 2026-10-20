@@ -186,15 +186,8 @@
             text-decoration: underline;
         }
         .footer-address {
-            margin: 8px 0;
+            margin: 8px 0 0 0;
             color: #64748b;
-        }
-        .footer-disclaimer {
-            margin-top: 12px;
-            font-size: 11px;
-            color: #475569;
-            border-top: 1px solid #1e293b;
-            padding-top: 12px;
         }
         @media only screen and (max-width: 620px) {
             .body-content { padding: 20px 18px !important; }
@@ -226,14 +219,11 @@
             <tr>
                 <td class="footer">
                     <div>
-                        <strong>M/S AYAAN CLOTHING</strong> &bull; Ready-made Garments Manufacturer & Exporter
+                        <strong>AYAAN CLOTHING</strong> &bull; Ready-made Garments Manufacturer & Exporter
                     </div>
                     <div class="footer-address">
                         House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh<br>
                         WhatsApp Export Desk: <a href="https://wa.me/8801620853502">+880 1620-853502</a> &bull; Web: <a href="https://ayaanclothing.com">www.ayaanclothing.com</a>
-                    </div>
-                    <div class="footer-disclaimer">
-                        {{ $footerNotice ?? 'This is an automated transactional notification from AYAAN CLOTHING. Please do not reply directly to this email. For inquiries, contact our export team.' }}
                     </div>
                 </td>
             </tr>

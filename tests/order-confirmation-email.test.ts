@@ -199,6 +199,45 @@ assert(
   "Plaintext template includes order payment link"
 );
 
+const sharedLayoutPath = path.join(
+  backendDir,
+  "resources",
+  "views",
+  "emails",
+  "layout.blade.php"
+);
+assert(fs.existsSync(sharedLayoutPath), "Shared emails.layout Blade template exists");
+const sharedLayoutContent = fs.readFileSync(sharedLayoutPath, "utf-8");
+assert(
+  sharedLayoutContent.includes("<strong>AYAAN CLOTHING</strong> &bull; Ready-made Garments Manufacturer & Exporter"),
+  "Shared email footer uses clean 'AYAAN CLOTHING' branding without 'M/S'"
+);
+assert(
+  !sharedLayoutContent.includes("M/S AYAAN CLOTHING"),
+  "Shared email footer has 'M/S' removed completely"
+);
+assert(
+  !sharedLayoutContent.includes("This is an automated transactional notification") &&
+  !sharedLayoutContent.includes("Please do not reply directly to this email"),
+  "Shared email footer has automated disclaimer removed entirely"
+);
+assert(
+  orderConfigContent.includes("'from_name' => env('ORDER_MAIL_FROM_NAME', env('MAIL_FROM_NAME', 'AYAAN CLOTHING'))"),
+  "config/order.php sets sender display name fallback to 'AYAAN CLOTHING'"
+);
+assert(
+  !orderConfigContent.includes("Export Division"),
+  "config/order.php does not contain 'Export Division'"
+);
+assert(
+  mailableContent.includes("config('order.emails.from_name', config('mail.from.name', 'AYAAN CLOTHING'))"),
+  "CustomerOrderConfirmationMail sets sender display name fallback to 'AYAAN CLOTHING'"
+);
+assert(
+  !mailableContent.includes("Export Division"),
+  "CustomerOrderConfirmationMail does not contain 'Export Division'"
+);
+
 // 6. Queued Job & Failure Recovery
 console.log("\n[6] Queued Job & Resiliency Checks");
 
