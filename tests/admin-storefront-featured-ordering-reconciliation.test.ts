@@ -337,20 +337,20 @@ console.log("\nTest 3: Pinning and ranking are not confused...");
 console.log("  ✓ Passed: Pinned hierarchy strictly respects manual sequence.");
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 4: Admin reordering persists
+// Test 4: Admin reordering persists without expanding featured eligibility
 // ─────────────────────────────────────────────────────────────────────────────
-console.log("\nTest 4: Admin reordering persists into HomepageFeaturedProduct...");
+console.log("\nTest 4: Admin reordering persists into HomepageFeaturedProduct without expanding eligibility...");
 {
   assert.ok(
-    productControllerContent.includes("HomepageFeaturedProduct::updateOrCreate"),
-    "ProductController@reorder must use updateOrCreate to ensure atomic HFP persistence"
+    productControllerContent.includes("HomepageFeaturedProduct::where('product_id', $id)->update"),
+    "ProductController@reorder must use where('product_id', $id)->update to persist HFP sort order without creating uncurated rows"
   );
   assert.ok(
     productControllerContent.includes("orderBy('product_id', 'asc')"),
     "ProductController@featured must use product_id ASC tie-breaker"
   );
 }
-console.log("  ✓ Passed: Reorder endpoint atomicity and query contract verified.");
+console.log("  ✓ Passed: Reorder endpoint atomicity and non-expanding query contract verified.");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 5: Storefront sequence matches the API

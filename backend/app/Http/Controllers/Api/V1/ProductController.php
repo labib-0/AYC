@@ -3078,10 +3078,11 @@ class ProductController extends ApiController
                             'pinned_order' => $pOrder,
                             'featured_sort_order' => $pOrder,
                         ]);
-                        HomepageFeaturedProduct::updateOrCreate(
-                            ['product_id' => $id],
-                            ['sort_order' => $pOrder, 'is_active' => true]
-                        );
+                        // Only update sort_order if product is ALREADY in curated HomepageFeaturedProduct catalogue.
+                        // NEVER create new rows in homepage_featured_products during catalog reordering.
+                        HomepageFeaturedProduct::where('product_id', $id)->update([
+                            'sort_order' => $pOrder,
+                        ]);
                     }
                 }
             } else {
@@ -3102,10 +3103,11 @@ class ProductController extends ApiController
                             'pinned_order' => $pinnedOrder,
                             'featured_sort_order' => $pinnedOrder,
                         ]);
-                        HomepageFeaturedProduct::updateOrCreate(
-                            ['product_id' => $id],
-                            ['sort_order' => $pinnedOrder, 'is_active' => true]
-                        );
+                        // Only update sort_order if product is ALREADY in curated HomepageFeaturedProduct catalogue.
+                        // NEVER create new rows in homepage_featured_products during catalog reordering.
+                        HomepageFeaturedProduct::where('product_id', $id)->update([
+                            'sort_order' => $pinnedOrder,
+                        ]);
                     } else {
                         Product::where('id', $id)->update([
                             'sort_order' => $order,
