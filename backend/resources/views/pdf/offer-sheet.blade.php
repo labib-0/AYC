@@ -4,7 +4,11 @@
     @include('pdf.partials.header')
     @include('pdf.partials.parties')
 
-    @foreach($doc['items'] ?? [] as $item)
+    @foreach($doc['items'] ?? [] as $itemIdx => $item)
+        @if($itemIdx > 0)
+            <div style="page-break-before: always;"></div>
+        @endif
+
         {{-- Section 3: Product Heading & Brand Logo --}}
         <div style="margin-top: 10px; margin-bottom: 8px; page-break-after: avoid;">
             <table style="width: 100%; border: none;">
