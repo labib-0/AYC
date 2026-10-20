@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
-import { orderService } from "@/services/order.service";
+import { orderService, triggerBlobDownload } from "@/services/order.service";
 import { getCommercialDocument } from "@/lib/services/quotations";
 import {
   downloadCommercialDocumentPDF,
@@ -476,6 +476,23 @@ export default function DocumentCenterPage() {
   const handleDownloadPDF = async (item: OrderDocumentItem) => {
     setDownloadingId(item.id);
     try {
+      const cleanId = item.source_id.startsWith("order_")
+        ? item.source_id.replace("order_", "")
+        : item.source_id;
+
+      // Prefer backend canonical PDF artifact for exact byte parity and compression
+      try {
+        const { blob, filename } = await orderService.downloadOrderCommercialDocumentPdf(
+          cleanId,
+          item.doc_type
+        );
+        triggerBlobDownload(blob, filename);
+        showToast(`Downloaded ${filename}.`);
+        return;
+      } catch (backendErr) {
+        console.warn("[AYC] Direct backend PDF download skipped/failed, falling back to client generator:", backendErr);
+      }
+
       const doc = await getCommercialDocument(
         item.doc_type,
         item.source_id,

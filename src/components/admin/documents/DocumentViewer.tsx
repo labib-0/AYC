@@ -7,6 +7,7 @@ import {
   downloadCommercialDocumentPDF,
 } from "@/lib/pdf-generator";
 import { Loader2 } from "lucide-react";
+import { orderServiceClient, triggerBlobDownload } from "@/services/order.service";
 import DocumentToolbar from "./DocumentToolbar";
 import PackingListDocument from "./PackingListDocument";
 import CommercialInvoiceDocument from "./CommercialInvoiceDocument";
@@ -33,21 +34,43 @@ export default function DocumentViewer({ doc }: DocumentViewerProps) {
     let objectUrl: string | null = null;
     setPdfLoading(true);
 
-    generateCommercialDocumentPDFBlob(doc)
-      .then((res) => {
+    const orderId =
+      doc.order_id ||
+      (typeof doc.id === "string" && doc.id.startsWith("order_")
+        ? doc.id.replace("order_", "")
+        : typeof doc.id === "string" && /^\d+$/.test(doc.id)
+        ? doc.id
+        : null);
+
+    const loadCanonicalOrFallback = async () => {
+      if (orderId) {
+        try {
+          const res = await orderServiceClient.downloadOrderCommercialDocumentPdf(orderId, doc.docType);
+          if (!active) return;
+          objectUrl = URL.createObjectURL(res.blob);
+          setPdfArtifact({ blob: res.blob, url: objectUrl, filename: res.filename });
+          return;
+        } catch (backendErr) {
+          console.warn("[AYC] Direct backend PDF preview failed, falling back to client generator:", backendErr);
+        }
+      }
+
+      try {
+        const res = await generateCommercialDocumentPDFBlob(doc);
         if (!active) {
           if (res.url) URL.revokeObjectURL(res.url);
           return;
         }
         objectUrl = res.url;
         setPdfArtifact(res);
-      })
-      .catch((err) => {
-        console.error("Failed to generate authoritative PDF artifact:", err);
-      })
-      .finally(() => {
-        if (active) setPdfLoading(false);
-      });
+      } catch (err) {
+        console.error("Failed to generate PDF artifact:", err);
+      }
+    };
+
+    loadCanonicalOrFallback().finally(() => {
+      if (active) setPdfLoading(false);
+    });
 
     return () => {
       active = false;
@@ -72,6 +95,24 @@ export default function DocumentViewer({ doc }: DocumentViewerProps) {
     if (isDownloading) return;
     setIsDownloading(true);
     try {
+      const orderId =
+        doc.order_id ||
+        (typeof doc.id === "string" && doc.id.startsWith("order_")
+          ? doc.id.replace("order_", "")
+          : typeof doc.id === "string" && /^\d+$/.test(doc.id)
+          ? doc.id
+          : null);
+
+      if (orderId) {
+        try {
+          const { blob, filename } = await orderServiceClient.downloadOrderCommercialDocumentPdf(orderId, doc.docType);
+          triggerBlobDownload(blob, filename);
+          return;
+        } catch (backendErr) {
+          console.warn("[AYC] Backend PDF download failed, falling back to local generator:", backendErr);
+        }
+      }
+
       if (pdfArtifact) {
         await downloadCommercialDocumentPDF(doc, pdfArtifact.blob, pdfArtifact.filename);
       } else {

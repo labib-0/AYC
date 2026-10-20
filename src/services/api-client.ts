@@ -398,6 +398,31 @@ class ApiClient {
   public delete<T>(path: string, options?: RequestOptions): Promise<T> {
     return this.request<T>(path, { ...options, method: "DELETE" });
   }
+
+  public async downloadBlob(path: string, options?: RequestOptions): Promise<{ blob: Blob; filename: string }> {
+    const url = this.buildUrl(path, options?.params);
+    const token = options?.token || this.getToken();
+    const headers: Record<string, string> = {
+      Accept: "application/pdf, application/octet-stream, */*",
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers,
+      credentials: "include",
+    });
+    if (!response.ok) {
+      throw new ApiError(response.status, `Failed to download file: ${response.status} ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get("content-disposition");
+    let filename = `${path.split("/").filter(Boolean).pop() || "document"}.pdf`;
+    if (disposition) {
+      const match = disposition.match(/filename=["']?([^"';]+)["']?/i);
+      if (match && match[1]) filename = match[1];
+    }
+    return { blob, filename };
+  }
 }
 
 export const apiClient = new ApiClient();

@@ -422,6 +422,14 @@ export class OrderService {
   }
 
   /**
+   * Download official canonical commercial document PDF for an order.
+   * Downloads the exact same compressed artifact generated on backend and attached to emails.
+   */
+  async downloadOrderCommercialDocumentPdf(orderId: string | number, docType: string): Promise<{ blob: Blob; filename: string }> {
+    return apiClient.downloadBlob(`/orders/${orderId}/documents/${docType}/pdf`);
+  }
+
+  /**
    * Fetch customer document groups (Order-wise Document Center)
    */
   async getCustomerDocumentGroups(params?: {
@@ -757,4 +765,17 @@ export class OrderService {
   }
 }
 
+export function triggerBlobDownload(blob: Blob, filename: string): void {
+  if (typeof document === "undefined") return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export const orderService = new OrderService();
+export const orderServiceClient = orderService;

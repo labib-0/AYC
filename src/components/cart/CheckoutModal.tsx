@@ -20,6 +20,7 @@ import {
   downloadProformaInvoicePDF,
   downloadCombinedProductOfferSheetsPDF,
 } from "@/lib/pdf-generator";
+import { orderServiceClient, triggerBlobDownload } from "@/services/order.service";
 import { CouponRecord } from "@/services/admin/coupon.service";
 import { validateCoupon } from "@/lib/coupon";
 import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
@@ -199,6 +200,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   const [isGeneratingOfferSheets, setIsGeneratingOfferSheets] = useState(false);
   const [offerSheetError, setOfferSheetError] = useState<string | null>(null);
+  const [isDownloadingPI, setIsDownloadingPI] = useState(false);
+  const [piError, setPiError] = useState<string | null>(null);
 
   // Promo Code / Coupon State
   const [appliedCoupon, setAppliedCoupon] = useState<CouponRecord | null>(null);
@@ -859,19 +862,44 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   const manualShippingWhatsAppMsg = `Hello AYAAN CLOTHING,\n\nI would like to discuss shipping arrangements for my order.\n\nItems: ${totalItemQuantity} pcs\nMerchandise value: $${subtotal.toFixed(2)} USD\nConsignee: ${shippingCompany || shippingName}\nDestination: ${city || "—"}, ${country}\n\nPlease advise on export arrangements.`;
 
+  const handleDownloadProformaInvoice = async () => {
+    if (!confirmedOrder) return;
+    setIsDownloadingPI(true);
+    setPiError(null);
+    try {
+      const { blob, filename } = await orderServiceClient.downloadOrderCommercialDocumentPdf(confirmedOrder.id, "PROFORMA_INVOICE");
+      triggerBlobDownload(blob, filename);
+    } catch (err) {
+      console.warn("[AYC] Backend PI download failed, falling back to local generator:", err);
+      try {
+        await downloadProformaInvoicePDF(confirmedOrder);
+      } catch {
+        setPiError("Unable to prepare the Proforma Invoice (PI). Please try again.");
+      }
+    } finally {
+      setIsDownloadingPI(false);
+    }
+  };
+
   const handleDownloadOfferSheets = async () => {
     if (!confirmedOrder) return;
     setIsGeneratingOfferSheets(true);
     setOfferSheetError(null);
     try {
-      await downloadCombinedProductOfferSheetsPDF(confirmedOrder, {
-        name: confirmedOrder.shipping_name,
-        company: confirmedOrder.shipping_company,
-        email: confirmedOrder.email,
-        country: confirmedOrder.shipping_country_code,
-      });
-    } catch {
-      setOfferSheetError("Unable to prepare the combined Offer Sheets PDF. Please try again.");
+      const { blob, filename } = await orderServiceClient.downloadOrderCommercialDocumentPdf(confirmedOrder.id, "OFFER_SHEET");
+      triggerBlobDownload(blob, filename);
+    } catch (err) {
+      console.warn("[AYC] Backend Offer Sheet download failed, falling back to local generator:", err);
+      try {
+        await downloadCombinedProductOfferSheetsPDF(confirmedOrder, {
+          name: confirmedOrder.shipping_name,
+          company: confirmedOrder.shipping_company,
+          email: confirmedOrder.email,
+          country: confirmedOrder.shipping_country_code,
+        });
+      } catch {
+        setOfferSheetError("Unable to prepare the combined Offer Sheets PDF. Please try again.");
+      }
     } finally {
       setIsGeneratingOfferSheets(false);
     }
@@ -1008,8 +1036,9 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
                 <button
                   type="button"
-                  onClick={() => downloadProformaInvoicePDF(confirmedOrder)}
-                  className="w-full h-13 px-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors flex items-center justify-between text-left cursor-pointer group"
+                  onClick={handleDownloadProformaInvoice}
+                  disabled={isDownloadingPI}
+                  className="w-full h-13 px-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors flex items-center justify-between text-left cursor-pointer group disabled:opacity-50"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -1020,9 +1049,17 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                     </span>
                   </div>
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground group-hover:text-foreground group-hover:bg-secondary transition-colors shrink-0">
-                    <Download size={16} />
+                    {isDownloadingPI ? (
+                      <RefreshCw size={16} className="animate-spin text-primary" />
+                    ) : (
+                      <Download size={16} />
+                    )}
                   </div>
                 </button>
+
+                {piError && (
+                  <p className="text-[11px] text-destructive">{piError}</p>
+                )}
 
                 <button
                   type="button"

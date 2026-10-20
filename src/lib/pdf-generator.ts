@@ -88,7 +88,6 @@ const imageDataUrlCache = new Map<string, string>();
  */
 export async function loadImageAsDataUrl(url?: string): Promise<string | null> {
   if (!url || typeof window === "undefined") return null;
-  if (url.startsWith("data:image/")) return url;
   if (imageDataUrlCache.has(url)) return imageDataUrlCache.get(url)!;
 
   return new Promise((resolve) => {
@@ -408,6 +407,7 @@ export function generateOfferSheetPDFDoc(
       orientation: "portrait",
       unit: "mm",
       format: "a4",
+      compress: true,
     });
 
   if (options?.existingDoc && (options?.pageIndex === undefined || options?.pageIndex > 1)) {
@@ -647,10 +647,10 @@ export function generateOfferSheetPDFDoc(
             }
             const drawX = tileX + (innerW - drawW) / 2;
             const drawY = tileY + (innerH - drawH) / 2;
-            doc.addImage(imgData, "JPEG", drawX, drawY, drawW, drawH);
+            doc.addImage(imgData, "JPEG", drawX, drawY, drawW, drawH, undefined, "FAST");
           } catch {
             try {
-              doc.addImage(imgData, "JPEG", tileX, tileY, innerW, innerH);
+              doc.addImage(imgData, "JPEG", tileX, tileY, innerW, innerH, undefined, "FAST");
             } catch {
               // safe fallback
             }
@@ -663,10 +663,10 @@ export function generateOfferSheetPDFDoc(
 
           if (effectiveLogoDataUrl) {
             try {
-              doc.addImage(effectiveLogoDataUrl, "PNG", logoX, logoY, logoSize, logoSize);
+              doc.addImage(effectiveLogoDataUrl, "PNG", logoX, logoY, logoSize, logoSize, "AYC_LOGO", "FAST");
             } catch {
               try {
-                doc.addImage(effectiveLogoDataUrl, logoX, logoY, logoSize, logoSize);
+                doc.addImage(effectiveLogoDataUrl, logoX, logoY, logoSize, logoSize, "AYC_LOGO", "FAST");
               } catch {}
             }
           }
@@ -1370,6 +1370,7 @@ export function generateProformaInvoiceDoc(
     orientation: "portrait",
     unit: "mm",
     format: "a4",
+    compress: true,
   });
 
   const optExp = (options as any)?.exporter;
@@ -1792,6 +1793,7 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
     orientation: "portrait",
     unit: "mm",
     format: "a4",
+    compress: true,
   });
 
   const pageWidth = 210;

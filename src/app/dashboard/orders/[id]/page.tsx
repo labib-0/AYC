@@ -4,6 +4,7 @@ import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { getOrderById, OrderRecord, OrderItemRecord } from "@/lib/services/orders";
+import { orderServiceClient, triggerBlobDownload } from "@/services/order.service";
 import { uploadPaymentProof, PaymentSubmissionDetails } from "@/lib/services/storage";
 import {
   getOrderStatusPresentation,
@@ -303,29 +304,49 @@ export default function CustomerOrderDetailPage({ params }: Props) {
 
 
 
-  const handleDownloadOfferSheet = (item?: OrderItemRecord) => {
-    if (!order) return;
-    const targetItem = item || order.items?.[0];
-    if (!targetItem) return;
+  const [downloadingDocType, setDownloadingDocType] = useState<string | null>(null);
 
-    downloadProductOfferSheetPDF(
-      {
-        name: targetItem.product_name,
-        sku: targetItem.sku,
-        price: targetItem.unit_price,
-        moq: targetItem.quantity,
-        imageUrl: targetItem.product_image_url,
-        images: (targetItem as any).product_images || (targetItem as any).images || (targetItem.product_image_url ? [targetItem.product_image_url] : []),
-        packageBreakdown: targetItem.package_breakdown,
-      },
-      {
-        name: order.shipping_name,
-        company: order.shipping_company,
-        email: order.email,
-        country: order.shipping_country_code,
-      },
-      targetItem.quantity
-    );
+  const handleDownloadOfficialDocument = async (
+    docType: "OFFER_SHEET" | "PROFORMA_INVOICE" | "COMMERCIAL_INVOICE",
+    fallbackItem?: OrderItemRecord
+  ) => {
+    if (!order) return;
+    setDownloadingDocType(docType);
+    try {
+      const { blob, filename } = await orderServiceClient.downloadOrderCommercialDocumentPdf(order.id, docType);
+      triggerBlobDownload(blob, filename);
+    } catch (err) {
+      console.warn(`[AYC] Backend PDF download for ${docType} failed, falling back to local generator:`, err);
+      if (docType === "OFFER_SHEET") {
+        const targetItem = fallbackItem || order.items?.[0];
+        if (targetItem) {
+          downloadProductOfferSheetPDF(
+            {
+              name: targetItem.product_name,
+              sku: targetItem.sku,
+              price: targetItem.unit_price,
+              moq: targetItem.quantity,
+              imageUrl: targetItem.product_image_url,
+              images: (targetItem as any).product_images || (targetItem as any).images || (targetItem.product_image_url ? [targetItem.product_image_url] : []),
+              packageBreakdown: targetItem.package_breakdown,
+            },
+            {
+              name: order.shipping_name,
+              company: order.shipping_company,
+              email: order.email,
+              country: order.shipping_country_code,
+            },
+            targetItem.quantity
+          );
+        }
+      } else if (docType === "PROFORMA_INVOICE") {
+        downloadProformaInvoicePDF(order);
+      } else if (docType === "COMMERCIAL_INVOICE") {
+        downloadCommercialInvoicePDF(order);
+      }
+    } finally {
+      setDownloadingDocType(null);
+    }
   };
 
   // State: Loading (only on initial load before order data is loaded)
@@ -841,11 +862,16 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                   )}
                   <button
                     type="button"
-                    onClick={() => downloadCommercialInvoicePDF(order)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition-colors shadow-xs cursor-pointer"
+                    disabled={downloadingDocType === "COMMERCIAL_INVOICE"}
+                    onClick={() => handleDownloadOfficialDocument("COMMERCIAL_INVOICE")}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition-colors shadow-xs cursor-pointer disabled:opacity-60"
                     id="btn-generate-commercial-invoice-hero"
                   >
-                    <Download size={14} />
+                    {downloadingDocType === "COMMERCIAL_INVOICE" ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Download size={14} />
+                    )}
                     <span>Generate Commercial Invoice</span>
                   </button>
                 </div>
@@ -1352,10 +1378,15 @@ export default function CustomerOrderDetailPage({ params }: Props) {
             </div>
             <button
               type="button"
-              onClick={() => handleDownloadOfferSheet()}
-              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+              disabled={downloadingDocType === "OFFER_SHEET"}
+              onClick={() => handleDownloadOfficialDocument("OFFER_SHEET")}
+              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer disabled:opacity-60"
             >
-              <Download size={12} />
+              {downloadingDocType === "OFFER_SHEET" ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Download size={12} />
+              )}
               <span>Download PDF</span>
             </button>
           </div>
@@ -1371,10 +1402,15 @@ export default function CustomerOrderDetailPage({ params }: Props) {
             </div>
             <button
               type="button"
-              onClick={() => downloadProformaInvoicePDF(order)}
-              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+              disabled={downloadingDocType === "PROFORMA_INVOICE"}
+              onClick={() => handleDownloadOfficialDocument("PROFORMA_INVOICE")}
+              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer disabled:opacity-60"
             >
-              <Download size={12} />
+              {downloadingDocType === "PROFORMA_INVOICE" ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Download size={12} />
+              )}
               <span>Download PDF</span>
             </button>
           </div>
@@ -1405,11 +1441,16 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => downloadCommercialInvoicePDF(order)}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs"
+                  onClick={() => handleDownloadOfficialDocument("COMMERCIAL_INVOICE")}
+                  disabled={downloadingDocType === "COMMERCIAL_INVOICE"}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs disabled:opacity-60"
                   id="btn-download-commercial-invoice-sec8"
                 >
-                  <Download size={12} />
+                  {downloadingDocType === "COMMERCIAL_INVOICE" ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Download size={12} />
+                  )}
                   <span>PDF</span>
                 </button>
               </div>

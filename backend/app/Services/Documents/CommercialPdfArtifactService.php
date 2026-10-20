@@ -23,7 +23,19 @@ class CommercialPdfArtifactService
         $fingerprint = $this->computeOrderFingerprint($order, $normalizedDocType, $isAdmin);
         $cacheDir = "documents_cache/order_{$order->id}";
         $cacheFile = "{$cacheDir}/{$normalizedDocType}_{$fingerprint}.pdf";
-        $filename = ($docPayload['doc_number'] ?? "{$normalizedDocType}-{$order->order_number}") . ".pdf";
+        $cleanOrderNumber = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $order->order_number);
+        if ($normalizedDocType === 'PROFORMA_INVOICE') {
+            $piNumber = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($docPayload['docNumber'] ?? $docPayload['doc_number'] ?? "PI-{$cleanOrderNumber}"));
+            $filename = "AYC_PI_{$piNumber}.pdf";
+        } elseif ($normalizedDocType === 'OFFER_SHEET' || $normalizedDocType === 'ORDER_SHEET') {
+            $offerNumber = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($docPayload['doc_number'] ?? $docPayload['docNumber'] ?? "ORD-{$cleanOrderNumber}"));
+            $filename = "AYC_Offer_Sheet_{$offerNumber}.pdf";
+        } elseif ($normalizedDocType === 'COMMERCIAL_INVOICE') {
+            $ciNumber = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($docPayload['doc_number'] ?? $docPayload['docNumber'] ?? "CI-{$cleanOrderNumber}"));
+            $filename = "AYC_CI_{$ciNumber}.pdf";
+        } else {
+            $filename = ($docPayload['doc_number'] ?? "{$normalizedDocType}-{$order->order_number}") . ".pdf";
+        }
 
         // 1. Fast path: check if valid cached artifact exists
         if (Storage::disk('local')->exists($cacheFile)) {
@@ -95,13 +107,22 @@ class CommercialPdfArtifactService
             $totalTimeMs = round((microtime(true) - $startTime) * 1000, 2);
             $hash = hash('sha256', $content);
 
+            $sizeBytes = strlen($content);
+            if ($sizeBytes > 10 * 1024 * 1024) {
+                Log::warning('Commercial PDF generated size exceeds 10MB budget', [
+                    'order_id' => $order->id,
+                    'doc_type' => $normalizedDocType,
+                    'size_bytes' => $sizeBytes,
+                ]);
+            }
+
             Log::info('Commercial PDF generated and cached with native compression', [
                 'order_id' => $order->id,
                 'doc_type' => $normalizedDocType,
                 'cache_hit' => false,
                 'render_ms' => $renderMs,
                 'total_ms' => $totalTimeMs,
-                'size_bytes' => strlen($content),
+                'size_bytes' => $sizeBytes,
             ]);
 
             return [
@@ -127,7 +148,16 @@ class CommercialPdfArtifactService
         $fingerprint = $this->computeQuotationFingerprint($quotation, $normalizedDocType, $isAdmin);
         $cacheDir = "documents_cache/quotation_{$quotation->id}";
         $cacheFile = "{$cacheDir}/{$normalizedDocType}_{$fingerprint}.pdf";
-        $filename = ($docPayload['doc_number'] ?? "{$normalizedDocType}-{$quotation->quotation_number}") . ".pdf";
+        $cleanQuoteNumber = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $quotation->quotation_number);
+        if ($normalizedDocType === 'PROFORMA_INVOICE') {
+            $filename = "AYC_PI_{$cleanQuoteNumber}.pdf";
+        } elseif ($normalizedDocType === 'OFFER_SHEET' || $normalizedDocType === 'ORDER_SHEET') {
+            $filename = "AYC_Offer_Sheet_{$cleanQuoteNumber}.pdf";
+        } elseif ($normalizedDocType === 'QUOTATION') {
+            $filename = "AYC_Quotation_{$cleanQuoteNumber}.pdf";
+        } else {
+            $filename = ($docPayload['doc_number'] ?? "{$normalizedDocType}-{$quotation->quotation_number}") . ".pdf";
+        }
 
         if (Storage::disk('local')->exists($cacheFile)) {
             $content = Storage::disk('local')->get($cacheFile);

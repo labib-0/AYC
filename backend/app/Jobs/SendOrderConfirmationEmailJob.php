@@ -122,13 +122,8 @@ class SendOrderConfirmationEmailJob implements ShouldQueue
             throw $e;
         }
 
-        // Standardize filenames using canonical document numbers
-        $cleanOrderNumber = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $order->order_number);
-        $piNumber = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($piDoc['docNumber'] ?? $piDoc['doc_number'] ?? "PI-{$cleanOrderNumber}"));
-        $offerNumber = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($offerDoc['doc_number'] ?? $offerDoc['docNumber'] ?? "ORD-{$cleanOrderNumber}"));
-
-        $piFilename = "AYC_PI_{$piNumber}.pdf";
-        $offerFilename = "AYC_Offer_Sheet_{$offerNumber}.pdf";
+        $piFilename = $piArtifact['filename'];
+        $offerFilename = $offerArtifact['filename'];
 
         // Validate total attachment payload size against configured limit
         $maxBytes = (int) config('order.emails.max_attachment_size_mb', 20) * 1024 * 1024;
