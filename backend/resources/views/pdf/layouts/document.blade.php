@@ -5,7 +5,7 @@
     <title>{{ $doc['title'] ?? 'COMMERCIAL DOCUMENT' }} - {{ $doc['doc_number'] ?? ($doc['docNumber'] ?? '') }}</title>
     <style>
         @page {
-            margin: 10mm 12mm 12mm 12mm;
+            margin: 10mm 12mm 22mm 12mm;
             size: a4 portrait;
         }
         * {
@@ -15,7 +15,7 @@
         }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 8pt;
+            font-size: 9pt;
             color: #1e293b;
             line-height: 1.35;
             background: #ffffff;
@@ -28,6 +28,22 @@
         th, td {
             padding: 4px 6px;
             vertical-align: top;
+        }
+        /* Fixed Footer on all pages */
+        .pdf-footer {
+            position: fixed;
+            bottom: -16mm;
+            left: 0;
+            right: 0;
+            height: 12mm;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 2.5mm;
+            font-size: 7pt;
+            color: #64748b;
+            line-height: 1.3;
+        }
+        .page-number:before {
+            content: counter(page);
         }
         /* Header Banner */
         .header-banner {
@@ -42,27 +58,27 @@
             vertical-align: middle;
         }
         .company-title {
-            font-size: 15pt;
+            font-size: 16pt;
             font-weight: bold;
             letter-spacing: 0.5px;
             color: #ffffff;
             line-height: 1.1;
         }
         .company-tagline {
-            font-size: 7.5pt;
+            font-size: 8.5pt;
             color: #cbd5e1;
             margin-top: 3px;
         }
         .doc-title-right {
             text-align: right;
-            font-size: 13pt;
+            font-size: 14pt;
             font-weight: bold;
             color: #10b981;
             line-height: 1.1;
         }
         .doc-number-right {
             text-align: right;
-            font-size: 8.5pt;
+            font-size: 9.5pt;
             font-weight: bold;
             color: #ffffff;
             margin-top: 3px;
@@ -76,10 +92,10 @@
             border: 1px solid #e2e8f0;
             border-radius: 4px;
             padding: 6px 8px;
-            font-size: 7pt;
+            font-size: 8pt;
         }
         .card-header {
-            font-size: 7.5pt;
+            font-size: 8.5pt;
             font-weight: bold;
             color: #0f172a;
             border-bottom: 1px solid #e2e8f0;
@@ -89,7 +105,7 @@
             letter-spacing: 0.3px;
         }
         .card-title {
-            font-size: 7.5pt;
+            font-size: 8.5pt;
             font-weight: bold;
             color: #1e293b;
             margin-bottom: 2px;
@@ -104,7 +120,7 @@
             padding: 1px 4px;
             border-radius: 2px;
             text-transform: uppercase;
-            font-size: 6.5pt;
+            font-size: 7.5pt;
         }
         .status-paid {
             background: #dcfce7;
@@ -124,14 +140,14 @@
         .items-table th {
             background-color: #0f172a;
             color: #ffffff;
-            font-size: 7pt;
+            font-size: 8pt;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.3px;
             padding: 5px 6px;
         }
         .items-table td {
-            font-size: 7pt;
+            font-size: 8pt;
             border-bottom: 1px solid #f1f5f9;
             padding: 4px 6px;
         }
@@ -152,30 +168,30 @@
             border: 1px solid #e2e8f0;
             border-radius: 4px;
             padding: 8px 10px;
-            font-size: 7pt;
+            font-size: 8pt;
         }
         .totals-card {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
             padding: 8px 10px;
-            font-size: 7.5pt;
+            font-size: 8.5pt;
         }
         .totals-table td {
             padding: 2px 0;
-            font-size: 7.5pt;
+            font-size: 8.5pt;
         }
         .grand-total-row td {
             border-top: 1.5px solid #0f172a;
             border-bottom: 1.5px solid #0f172a;
             padding: 4px 0;
-            font-size: 8.5pt;
+            font-size: 9.5pt;
             font-weight: bold;
             color: #059669;
         }
         /* Declarations & Signatory */
         .declaration-box {
-            font-size: 6.5pt;
+            font-size: 7.5pt;
             color: #64748b;
             font-style: italic;
             border-top: 1px solid #e2e8f0;
@@ -196,6 +212,7 @@
     @yield('styles')
 </head>
 <body>
+    @include('pdf.partials.footer')
     @yield('content')
 </body>
 </html>

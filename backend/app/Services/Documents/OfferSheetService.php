@@ -37,7 +37,13 @@ class OfferSheetService
                 }
             }
 
-            $brand = $product?->brand?->name ?? (is_string($product?->brand) ? $product->brand : 'AYAAN CLOTHING');
+            $brandModel = $product?->brand;
+            $brand = $brandModel?->name ?? (is_string($product?->brand) ? $product->brand : 'AYAAN CLOTHING');
+            $brandLogoRaw = $brandModel?->logo_url;
+            $brandLogo = $brandLogoRaw ? DocumentHelper::resolvePdfImageSource($brandLogoRaw, true) : null;
+            if ($brandLogo && !file_exists($brandLogo)) {
+                $brandLogo = null;
+            }
             $prodDesc = $product?->description ?? '';
             $designType = !empty(trim($product?->design_type ?? '')) ? trim($product->design_type) : 'See Description';
             $material = !empty(trim($product?->material ?? ($product?->fabric ?? ''))) ? trim($product?->material ?? $product->fabric) : 'See Description';
@@ -85,6 +91,8 @@ class OfferSheetService
                 'product_id' => (string) $item->product_id,
                 'product_name' => $item->product_name,
                 'brand' => $brand,
+                'brand_logo' => $brandLogo,
+                'brand_logo_url' => $brandLogo,
                 'product_description' => $prodDesc,
                 'design_type' => $designType,
                 'material' => $material,
@@ -194,7 +202,13 @@ class OfferSheetService
                 }
             }
 
-            $brand = $product?->brand?->name ?? (is_string($product?->brand) ? $product->brand : 'AYAAN CLOTHING');
+            $brandModel = $product?->brand;
+            $brand = $brandModel?->name ?? (is_string($product?->brand) ? $product->brand : 'AYAAN CLOTHING');
+            $brandLogoRaw = $brandModel?->logo_url;
+            $brandLogo = $brandLogoRaw ? DocumentHelper::resolvePdfImageSource($brandLogoRaw, true) : null;
+            if ($brandLogo && !file_exists($brandLogo)) {
+                $brandLogo = null;
+            }
             $prodDesc = $product?->description ?? '';
             $designType = !empty(trim($product?->design_type ?? '')) ? trim($product->design_type) : 'See Description';
             $material = !empty(trim($product?->material ?? ($product?->fabric ?? ''))) ? trim($product?->material ?? $product->fabric) : 'See Description';
@@ -242,6 +256,8 @@ class OfferSheetService
                 'product_id' => (string) $item->product_id,
                 'product_name' => $item->product_name,
                 'brand' => $brand,
+                'brand_logo' => $brandLogo,
+                'brand_logo_url' => $brandLogo,
                 'product_description' => $prodDesc,
                 'design_type' => $designType,
                 'material' => $material,

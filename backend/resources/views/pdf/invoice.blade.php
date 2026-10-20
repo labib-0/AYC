@@ -8,5 +8,4 @@
     @include('pdf.partials.signatory', [
         'declaration' => $doc['notes'] ?? 'Official Commercial Sales Invoice. Authoritative for commercial accounting, import customs duty assessment, and bank foreign exchange settlement.'
     ])
-    @include('pdf.partials.footer')
 @endsection

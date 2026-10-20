@@ -18,12 +18,26 @@ class ProformaInvoiceService
         $snapshot = $order->shipping_snapshot ?? [];
         $docDefaults = DocumentHelper::getDocumentDefaults();
 
-        $items = $order->items->map(function ($item, $idx) use ($order) {
+        $productIds = $order->items->pluck('product_id')->filter()->unique()->values();
+        $products = \App\Models\Product::with(['images', 'brand'])->whereIn('id', $productIds)->get()->keyBy('id');
+
+        $items = $order->items->map(function ($item, $idx) use ($order, $products) {
+            $product = ($item->product_id && isset($products[$item->product_id])) ? $products[$item->product_id] : null;
+            $brand = $product?->brand?->name ?? 'AYAAN CLOTHING';
+            $brandLogoRaw = $product?->brand?->logo_url;
+            $brandLogo = $brandLogoRaw ? DocumentHelper::resolvePdfImageSource($brandLogoRaw, true) : null;
+            if ($brandLogo && !file_exists($brandLogo)) {
+                $brandLogo = null;
+            }
+
             return [
                 'id' => (string) $item->id,
                 'item_no' => $idx + 1,
                 'product_id' => (string) $item->product_id,
                 'product_name' => $item->product_name,
+                'brand' => $brand,
+                'brand_logo' => $brandLogo,
+                'brand_logo_url' => $brandLogo,
                 'description' => $item->product_name . ($item->size ? " (Size: {$item->size})" : " (Assorted Package)"),
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'hs_code' => '6105.10.00',
@@ -128,12 +142,26 @@ class ProformaInvoiceService
         $piNumber = $quotation->proformaInvoiceId ?: "PI-{$year}-{$docSuffix}";
         $docDefaults = DocumentHelper::getDocumentDefaults();
 
-        $items = $quotation->items->map(function ($item, $idx) {
+        $productIds = $quotation->items->pluck('product_id')->filter()->unique()->values();
+        $products = \App\Models\Product::with(['images', 'brand'])->whereIn('id', $productIds)->get()->keyBy('id');
+
+        $items = $quotation->items->map(function ($item, $idx) use ($products) {
+            $product = ($item->product_id && isset($products[$item->product_id])) ? $products[$item->product_id] : null;
+            $brand = $product?->brand?->name ?? 'AYAAN CLOTHING';
+            $brandLogoRaw = $product?->brand?->logo_url;
+            $brandLogo = $brandLogoRaw ? DocumentHelper::resolvePdfImageSource($brandLogoRaw, true) : null;
+            if ($brandLogo && !file_exists($brandLogo)) {
+                $brandLogo = null;
+            }
+
             return [
                 'id' => (string) $item->id,
                 'item_no' => $idx + 1,
                 'product_id' => (string) $item->product_id,
                 'product_name' => $item->product_name,
+                'brand' => $brand,
+                'brand_logo' => $brandLogo,
+                'brand_logo_url' => $brandLogo,
                 'description' => $item->product_name . ($item->selected_size ? " (Size: {$item->selected_size})" : " (Assorted)"),
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'hs_code' => '6105.10.00',

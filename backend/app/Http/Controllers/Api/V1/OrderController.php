@@ -1316,6 +1316,9 @@ class OrderController extends ApiController
         if (in_array($normalizedType, ['OFFER_SHEET', 'ORDER_SHEET'])) {
             $offerSheetService = app(\App\Services\Documents\OfferSheetService::class);
             $docPayload = $offerSheetService->generateForOrder($order, $normalizedType);
+        } elseif (in_array($normalizedType, ['PROFORMA_INVOICE', 'PI'])) {
+            $piService = app(\App\Services\Documents\ProformaInvoiceService::class);
+            $docPayload = $piService->generateForOrder($order);
         } elseif (in_array($normalizedType, ['INVOICE', 'SALES_INVOICE', 'TAX_INVOICE'])) {
             $invoiceService = app(\App\Services\Documents\InvoiceService::class);
             $docPayload = $invoiceService->generateForOrder($order, $isAdmin);

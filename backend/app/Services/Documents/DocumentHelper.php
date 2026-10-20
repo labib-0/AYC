@@ -457,10 +457,10 @@ class DocumentHelper
     }
 
     /**
-     * Resolve a product gallery image to a lightweight, local cached derivative for Dompdf rendering.
-     * Prevents multi-megabyte WebP memory exhaustion and slow remote network fetches during PDF builds.
+     * Resolve a product gallery image or brand logo to a lightweight, local cached derivative for Dompdf rendering.
+     * Prevents multi-megabyte WebP memory exhaustion, preserves logo transparency, and optimizes PDF byte size.
      */
-    public static function resolvePdfImageSource(?string $url): ?string
+    public static function resolvePdfImageSource(?string $url, bool $isLogo = false): ?string
     {
         if (!$url || trim($url) === '') {
             return null;
@@ -475,6 +475,7 @@ class DocumentHelper
 
         // Clean URL to local relative path
         $clean = explode('?', explode('#', $trimmed)[0])[0];
+        $clean = urldecode($clean);
         $clean = preg_replace('#^https?://[^/]+#i', '', $clean);
         $clean = preg_replace('#^/ayc#i', '', $clean);
         $clean = preg_replace('#^/?storage/#i', '', $clean);
@@ -486,6 +487,7 @@ class DocumentHelper
             public_path("storage/{$cleanRel}"),
             public_path($cleanRel),
             base_path($cleanRel),
+            storage_path("app/{$cleanRel}"),
         ];
 
         $sourceFile = null;
@@ -500,37 +502,28 @@ class DocumentHelper
             return $trimmed;
         }
 
+        $detectLogo = $isLogo
+            || str_contains($sourceFile, '/brands/')
+            || str_contains($sourceFile, '/branding/')
+            || str_contains(strtolower(basename($sourceFile)), 'logo');
+
         // Generate or fetch cached derivative
         try {
             $mtime = filemtime($sourceFile);
-            $hash = md5($sourceFile . '_' . $mtime);
             $cacheDir = storage_path('app/pdf_cache');
             if (!is_dir($cacheDir)) {
                 @mkdir($cacheDir, 0755, true);
             }
-            $targetPath = "{$cacheDir}/{$hash}.jpg";
+
+            $hash = md5($sourceFile . '_' . $mtime . ($detectLogo ? '_logo' : '_photo'));
+            $ext = $detectLogo ? 'png' : 'jpg';
+            $targetPath = "{$cacheDir}/{$hash}.{$ext}";
 
             if (file_exists($targetPath) && filesize($targetPath) > 0) {
                 return $targetPath;
             }
 
-            // Create downscaled JPEG derivative (max 480x480, quality 85)
-            // Try Intervention Image first if available
-            if (class_exists(\Illuminate\Support\Facades\Image::class)) {
-                try {
-                    $img = \Illuminate\Support\Facades\Image::read($sourceFile);
-                    if ($img->width() > 480 || $img->height() > 480) {
-                        $img = $img->scaleDown(width: 480, height: 480);
-                    }
-                    $jpegBytes = $img->toJpeg(85)->toBytes();
-                    file_put_contents($targetPath, $jpegBytes);
-                    return $targetPath;
-                } catch (\Throwable) {
-                    // Fallback to native GD
-                }
-            }
-
-            // Native GD fallback
+            // Image reading with GD or Intervention Image
             if (extension_loaded('gd')) {
                 $info = @getimagesize($sourceFile);
                 if ($info) {
@@ -545,22 +538,41 @@ class DocumentHelper
                     if ($srcImg) {
                         $origW = imagesx($srcImg);
                         $origH = imagesy($srcImg);
-                        $maxDim = 480;
-                        if ($origW > $maxDim || $origH > $maxDim) {
-                            $ratio = min($maxDim / $origW, $maxDim / $origH);
-                            $newW = (int) round($origW * $ratio);
-                            $newH = (int) round($origH * $ratio);
+
+                        if ($detectLogo) {
+                            // Brand logo: resize to crisp bounds (max 240w x 100h) and preserve PNG transparency
+                            $maxW = 240;
+                            $maxH = 100;
+                            $ratio = min($maxW / $origW, $maxH / $origH, 1.0);
+                            $newW = (int) max(1, round($origW * $ratio));
+                            $newH = (int) max(1, round($origH * $ratio));
+
+                            $dstImg = imagecreatetruecolor($newW, $newH);
+                            imagealphablending($dstImg, false);
+                            imagesavealpha($dstImg, true);
+                            $transparent = imagecolorallocatealpha($dstImg, 255, 255, 255, 127);
+                            imagefilledrectangle($dstImg, 0, 0, $newW, $newH, $transparent);
+                            imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+                            imagepng($dstImg, $targetPath, 8);
                         } else {
-                            $newW = $origW;
-                            $newH = $origH;
+                            // Product photo: resize to max 480x480, JPEG quality 82 for photographic sharpness & light file
+                            $maxDim = 480;
+                            if ($origW > $maxDim || $origH > $maxDim) {
+                                $ratio = min($maxDim / $origW, $maxDim / $origH);
+                                $newW = (int) max(1, round($origW * $ratio));
+                                $newH = (int) max(1, round($origH * $ratio));
+                            } else {
+                                $newW = $origW;
+                                $newH = $origH;
+                            }
+
+                            $dstImg = imagecreatetruecolor($newW, $newH);
+                            $white = imagecolorallocate($dstImg, 255, 255, 255);
+                            imagefilledrectangle($dstImg, 0, 0, $newW, $newH, $white);
+                            imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+                            imagejpeg($dstImg, $targetPath, 82);
                         }
 
-                        $dstImg = imagecreatetruecolor($newW, $newH);
-                        // Fill white background for transparent PNG/WebP
-                        $white = imagecolorallocate($dstImg, 255, 255, 255);
-                        imagefilledrectangle($dstImg, 0, 0, $newW, $newH, $white);
-                        imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
-                        imagejpeg($dstImg, $targetPath, 85);
                         imagedestroy($srcImg);
                         imagedestroy($dstImg);
                         return $targetPath;

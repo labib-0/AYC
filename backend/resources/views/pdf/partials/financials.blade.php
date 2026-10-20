@@ -64,7 +64,7 @@
                     </div>
                 @endif
 
-                <div style="margin-top: 5px; padding-top: 4px; border-top: 1px dashed #cbd5e1; font-size: 6.5pt; color: #475569;">
+                <div style="margin-top: 5px; padding-top: 4px; border-top: 1px dashed #cbd5e1; font-size: 7.5pt; color: #475569;">
                     <strong>Say in Words:</strong> {{ $inWords }}
                 </div>
             </div>

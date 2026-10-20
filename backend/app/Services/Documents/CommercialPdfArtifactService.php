@@ -253,6 +253,8 @@ class CommercialPdfArtifactService
             $productFingerprint = '';
             if ($product) {
                 $brandName = $product->brand?->name ?? (is_string($product->brand) ? $product->brand : '');
+                $brandLogoUrl = $product->brand?->logo_url ?? '';
+                $brandLogoMtime = $this->resolveLocalImageMtime($brandLogoUrl);
 
                 $images = $product->relationLoaded('images') ? $product->images : $product->images()->get();
                 $galleryFingerprint = $images->map(function ($img) {
@@ -279,6 +281,8 @@ class CommercialPdfArtifactService
                     $product->bulk_pricing_enabled ? "bulk:{$product->bulk_price}:{$product->bulk_threshold}" : 'no_bulk',
                     $product->full_stock_price ? "stock:{$product->full_stock_price}:{$product->available_stock}" : 'no_stock',
                     $brandName,
+                    $brandLogoUrl,
+                    $brandLogoMtime,
                     $galleryFingerprint,
                     $primaryMtime,
                 ]);
@@ -337,6 +341,8 @@ class CommercialPdfArtifactService
             $productFingerprint = '';
             if ($product) {
                 $brandName = $product->brand?->name ?? (is_string($product->brand) ? $product->brand : '');
+                $brandLogoUrl = $product->brand?->logo_url ?? '';
+                $brandLogoMtime = $this->resolveLocalImageMtime($brandLogoUrl);
 
                 $images = $product->relationLoaded('images') ? $product->images : $product->images()->get();
                 $galleryFingerprint = $images->map(function ($img) {
@@ -363,6 +369,8 @@ class CommercialPdfArtifactService
                     $product->bulk_pricing_enabled ? "bulk:{$product->bulk_price}:{$product->bulk_threshold}" : 'no_bulk',
                     $product->full_stock_price ? "stock:{$product->full_stock_price}:{$product->available_stock}" : 'no_stock',
                     $brandName,
+                    $brandLogoUrl,
+                    $brandLogoMtime,
                     $galleryFingerprint,
                     $primaryMtime,
                 ]);
@@ -408,12 +416,17 @@ class CommercialPdfArtifactService
         $clean = preg_replace('#^/ayc#i', '', $clean);
         $clean = preg_replace('#^/?storage/#i', '', $clean);
         $cleanRel = ltrim($clean, '/');
+        $decodedRel = urldecode($cleanRel);
 
         $candidates = [
             storage_path("app/public/{$cleanRel}"),
             public_path("storage/{$cleanRel}"),
             public_path($cleanRel),
             base_path($cleanRel),
+            storage_path("app/public/{$decodedRel}"),
+            public_path("storage/{$decodedRel}"),
+            public_path($decodedRel),
+            base_path($decodedRel),
         ];
 
         foreach ($candidates as $c) {

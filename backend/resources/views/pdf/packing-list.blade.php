@@ -35,7 +35,7 @@
                         <td>
                             <div class="font-bold">{{ $ctn['description'] ?? 'Export Garments' }}</div>
                             @if(!empty($ctn['items_summary']))
-                                <div class="text-muted" style="font-size: 6.5pt;">{{ is_array($ctn['items_summary']) ? implode(', ', $ctn['items_summary']) : $ctn['items_summary'] }}</div>
+                                <div class="text-muted" style="font-size: 7.5pt;">{{ is_array($ctn['items_summary']) ? implode(', ', $ctn['items_summary']) : $ctn['items_summary'] }}</div>
                             @endif
                         </td>
                         <td class="text-right font-mono">{{ number_format($ctn['quantity_pcs'] ?? 0) }} pcs</td>
@@ -50,7 +50,7 @@
                         <td class="text-center font-mono font-bold">CTN #{{ $idx + 1 }}</td>
                         <td>
                             <div class="font-bold">{{ $item['product_name'] ?? ($item['description'] ?? 'Export Garments') }}</div>
-                            <div class="text-muted" style="font-size: 6.5pt;">SKU: {{ $item['sku'] ?? 'AYN-SKU' }}</div>
+                            <div class="text-muted" style="font-size: 7.5pt;">SKU: {{ $item['sku'] ?? 'AYN-SKU' }}</div>
                         </td>
                         <td class="text-right font-mono">{{ number_format((int)($item['quantity'] ?? 0)) }} pcs</td>
                         <td class="text-center font-mono text-muted">60x40x30 cm</td>
@@ -61,7 +61,7 @@
             @endif
         </tbody>
         <tfoot>
-            <tr style="background-color: #0f172a; color: #ffffff; font-weight: bold; font-size: 7.5pt;">
+            <tr style="background-color: #0f172a; color: #ffffff; font-weight: bold; font-size: 8.5pt;">
                 <td colspan="2" style="padding: 6px;">
                     TOTAL PACKING SUMMARY ({{ $totCartons }} Export Cartons)
                 </td>
@@ -100,5 +100,4 @@
     @include('pdf.partials.signatory', [
         'declaration' => 'We hereby certify that the above mentioned goods have been carefully packed in accordance with international export packaging standards.'
     ])
-    @include('pdf.partials.footer')
 @endsection

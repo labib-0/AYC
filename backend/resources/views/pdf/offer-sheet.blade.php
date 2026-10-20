@@ -5,23 +5,34 @@
     @include('pdf.partials.parties')
 
     @foreach($doc['items'] ?? [] as $item)
-        {{-- Section 3: Product Heading & Metadata --}}
-        <div style="margin-top: 10px; margin-bottom: 8px;">
-            <div style="font-size: 14pt; font-weight: bold; color: #0f172a; line-height: 1.2;">
-                {{ $item['product_name'] ?? 'Garment Product' }}
-            </div>
-            <div style="margin-top: 4px; font-size: 8pt; color: #64748b;">
-                <span style="font-weight: bold; color: #ea580c;">{{ strtoupper($item['brand'] ?? 'AYAAN CLOTHING') }}</span>
-                <span style="color: #94a3b8;"> • </span>
-                <span style="font-weight: bold; color: #475569;">SKU:</span>
-                <span style="font-weight: bold; color: #0f172a;">{{ $item['sku'] ?? 'AYN-SKU' }}</span>
-            </div>
+        {{-- Section 3: Product Heading & Brand Logo --}}
+        <div style="margin-top: 10px; margin-bottom: 8px; page-break-after: avoid;">
+            <table style="width: 100%; border: none;">
+                <tr>
+                    <td style="padding: 0; vertical-align: middle;">
+                        <div style="font-size: 15pt; font-weight: bold; color: #0f172a; line-height: 1.2;">
+                            {{ $item['product_name'] ?? 'Garment Product' }}
+                        </div>
+                        <div style="margin-top: 4px; font-size: 9pt; color: #64748b;">
+                            <span style="font-weight: bold; color: #ea580c;">{{ strtoupper($item['brand'] ?? 'AYAAN CLOTHING') }}</span>
+                            <span style="color: #94a3b8;"> • </span>
+                            <span style="font-weight: bold; color: #475569;">SKU:</span>
+                            <span style="font-weight: bold; color: #0f172a;">{{ $item['sku'] ?? 'AYN-SKU' }}</span>
+                        </div>
+                    </td>
+                    @if(!empty($item['brand_logo']) && file_exists($item['brand_logo']))
+                        <td style="width: 130px; text-align: right; vertical-align: middle; padding: 0;">
+                            <img src="{{ $item['brand_logo'] }}" style="max-height: 38px; max-width: 120px; object-fit: contain;" alt="{{ $item['brand'] ?? 'Brand Logo' }}" />
+                        </td>
+                    @endif
+                </tr>
+            </table>
         </div>
 
         {{-- Section 4: Product Gallery (4 Images Per Row) --}}
         @if(!empty($item['product_images']) && count($item['product_images']) > 0)
-            <div style="margin-top: 10px; margin-bottom: 12px;">
-                <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PRODUCT GALLERY</div>
+            <div style="margin-top: 10px; margin-bottom: 12px; page-break-inside: avoid;">
+                <div style="font-size: 9.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PRODUCT GALLERY</div>
                 <table style="width: 100%; border-collapse: separate; border-spacing: 4px 6px;">
                     @foreach(array_chunk($item['product_images'], 4) as $row)
                         <tr>
@@ -45,60 +56,60 @@
         @endif
 
         {{-- Section 5: Product Description --}}
-        <div style="margin-top: 10px; margin-bottom: 10px;">
-            <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 3px;">PRODUCT DESCRIPTION</div>
-            <div style="font-size: 7.5pt; color: #334155; line-height: 1.4; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 8px; border-radius: 4px; white-space: pre-line;">
+        <div style="margin-top: 10px; margin-bottom: 10px; page-break-inside: avoid;">
+            <div style="font-size: 9.5pt; font-weight: bold; color: #0f172a; margin-bottom: 3px;">PRODUCT DESCRIPTION</div>
+            <div style="font-size: 8.5pt; color: #334155; line-height: 1.4; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 8px; border-radius: 4px; white-space: pre-line;">
                 {!! nl2br(e($item['product_description'] ?? ($item['description'] ?? 'Standard commercial garment specifications apply.'))) !!}
             </div>
         </div>
 
         {{-- Section 6: Product Specifications (Four Specification Tiles in 2x2 Grid) --}}
-        <div style="margin-top: 10px; margin-bottom: 10px;">
-            <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PRODUCT SPECIFICATIONS</div>
+        <div style="margin-top: 10px; margin-bottom: 10px; page-break-inside: avoid;">
+            <div style="font-size: 9.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PRODUCT SPECIFICATIONS</div>
             <table style="width: 100%; border-collapse: separate; border-spacing: 4px;">
                 <tr>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
-                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">DESIGN TYPE</div>
-                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['design_type'] ?? '')) && !in_array($item['design_type'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['design_type'] : 'See Description' }}</div>
+                        <div style="font-size: 7.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">DESIGN TYPE</div>
+                        <div style="font-size: 9pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['design_type'] ?? '')) && !in_array($item['design_type'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['design_type'] : 'See Description' }}</div>
                     </td>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
-                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">MATERIAL</div>
-                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['material'] ?? '')) && !in_array($item['material'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['material'] : 'See Description' }}</div>
+                        <div style="font-size: 7.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">MATERIAL</div>
+                        <div style="font-size: 9pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['material'] ?? '')) && !in_array($item['material'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['material'] : 'See Description' }}</div>
                     </td>
                 </tr>
                 <tr>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
-                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">SIZE</div>
-                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['size_description'] ?? '')) && !in_array($item['size_description'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['size_description'] : 'See Description' }}</div>
+                        <div style="font-size: 7.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">SIZE</div>
+                        <div style="font-size: 9pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['size_description'] ?? '')) && !in_array($item['size_description'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['size_description'] : 'See Description' }}</div>
                     </td>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
-                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">COLOUR</div>
-                        <div style="font-size: 8pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['colour_description'] ?? '')) && !in_array($item['colour_description'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['colour_description'] : 'See Description' }}</div>
+                        <div style="font-size: 7.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">COLOUR</div>
+                        <div style="font-size: 9pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['colour_description'] ?? '')) && !in_array($item['colour_description'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['colour_description'] : 'See Description' }}</div>
                     </td>
                 </tr>
             </table>
         </div>
 
         {{-- Section 7: Packing & Logistics (MOQ) --}}
-        <div style="margin-top: 10px; margin-bottom: 10px;">
-            <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PACKING &amp; LOGISTICS (MOQ)</div>
+        <div style="margin-top: 10px; margin-bottom: 10px; page-break-inside: avoid;">
+            <div style="font-size: 9.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PACKING &amp; LOGISTICS (MOQ)</div>
             <table style="width: 100%; border-collapse: separate; border-spacing: 4px;">
                 <tr>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
-                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">CBM (MOQ)</div>
-                        <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['cbm_moq'] ?? '')) && !in_array($item['cbm_moq'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['cbm_moq'] : 'See Description' }}</div>
+                        <div style="font-size: 7.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">CBM (MOQ)</div>
+                        <div style="font-size: 9.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['cbm_moq'] ?? '')) && !in_array($item['cbm_moq'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['cbm_moq'] : 'See Description' }}</div>
                     </td>
                     <td style="width: 50%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 5px 8px; border-radius: 4px;">
-                        <div style="font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">GROSS WEIGHT (MOQ)</div>
-                        <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['gross_weight_moq'] ?? '')) && !in_array($item['gross_weight_moq'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['gross_weight_moq'] : 'See Description' }}</div>
+                        <div style="font-size: 7.5pt; font-weight: bold; color: #64748b; text-transform: uppercase;">GROSS WEIGHT (MOQ)</div>
+                        <div style="font-size: 9.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">{{ (!empty(trim($item['gross_weight_moq'] ?? '')) && !in_array($item['gross_weight_moq'], ['—', '-', '–', 'Not configured', 'N/A'])) ? $item['gross_weight_moq'] : 'See Description' }}</div>
                     </td>
                 </tr>
             </table>
         </div>
 
         {{-- Section 8: Pricing Schedule (All Configured Tiers) --}}
-        <div style="margin-top: 10px; margin-bottom: 10px;">
-            <div style="font-size: 8.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PRICING SCHEDULE (USD)</div>
+        <div style="margin-top: 10px; margin-bottom: 10px; page-break-inside: avoid;">
+            <div style="font-size: 9.5pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">PRICING SCHEDULE (USD)</div>
             <table class="items-table" style="width: 100%;">
                 <thead>
                     <tr>
@@ -133,11 +144,14 @@
     @endforeach
 
     {{-- Section 9: Commercial Terms --}}
-    @include('pdf.partials.financials', ['showBanking' => false])
+    <div style="page-break-inside: avoid;">
+        @include('pdf.partials.financials', ['showBanking' => false])
+    </div>
 
     {{-- Section 10: Signatory --}}
-    @include('pdf.partials.signatory', [
-        'declaration' => $doc['notes'] ?? 'Commercial Merchandising Offer Sheet. Quotation valid for order placement within 30 calendar days.'
-    ])
-    @include('pdf.partials.footer')
+    <div style="page-break-inside: avoid;">
+        @include('pdf.partials.signatory', [
+            'declaration' => $doc['notes'] ?? 'Commercial Merchandising Offer Sheet. Quotation valid for order placement within 30 calendar days.'
+        ])
+    </div>
 @endsection

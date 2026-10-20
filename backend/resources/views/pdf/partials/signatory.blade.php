@@ -18,7 +18,7 @@
 <table style="width: 100%; margin-top: 8px;">
     <tr>
         <td style="width: 60%; vertical-align: bottom;">
-            <div style="font-size: 6.5pt; color: #64748b; line-height: 1.4;">
+            <div style="font-size: 7.5pt; color: #64748b; line-height: 1.4;">
                 <div>1. ISO 9001 &amp; OEKO-TEX Standard 100 quality compliance.</div>
                 <div>2. Export Loading: {{ $portOfLoading }}.</div>
                 <div>3. Country of Origin: {{ $origin }}.</div>
@@ -27,9 +27,9 @@
         <td style="width: 40%; text-align: right; vertical-align: bottom;">
             <div style="display: inline-block; text-align: left;">
                 <div class="signatory-line"></div>
-                <div class="font-bold" style="font-size: 7.5pt; color: #0f172a;">{{ $sigName }}</div>
-                <div style="font-size: 7pt; color: #475569;">{{ $sigTitle }}</div>
-                <div style="font-size: 6.5pt; color: #64748b;">{{ $sigDivision }}</div>
+                <div class="font-bold" style="font-size: 8.5pt; color: #0f172a;">{{ $sigName }}</div>
+                <div style="font-size: 8pt; color: #475569;">{{ $sigTitle }}</div>
+                <div style="font-size: 7.5pt; color: #64748b;">{{ $sigDivision }}</div>
             </div>
         </td>
     </tr>

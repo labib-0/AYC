@@ -48,12 +48,17 @@
             <tr class="{{ $idx % 2 === 1 ? 'alt' : '' }}">
                 <td class="text-center text-muted">{{ $idx + 1 }}</td>
                 <td>
-                    <div class="font-bold">{{ $desc }}</div>
+                    <div class="font-bold">
+                        @if(!empty($item['brand']))
+                            <span style="font-weight: bold; color: #ea580c; font-size: 7.5pt; margin-right: 4px;">[{{ strtoupper($item['brand']) }}]</span>
+                        @endif
+                        {{ $desc }}
+                    </div>
                     @if(!empty($detailsStr))
-                        <div class="text-muted" style="font-size: 6.5pt;">{{ $detailsStr }}</div>
+                        <div class="text-muted" style="font-size: 7.5pt;">{{ $detailsStr }}</div>
                     @endif
                     @if(!empty($pkgStr))
-                        <div class="text-muted" style="font-size: 6.5pt;">Package: {{ $pkgStr }}</div>
+                        <div class="text-muted" style="font-size: 7.5pt;">Package: {{ $pkgStr }}</div>
                     @endif
                 </td>
                 <td class="font-mono text-muted">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
