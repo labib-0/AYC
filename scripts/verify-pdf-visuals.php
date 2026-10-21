@@ -157,8 +157,8 @@ $piDoc = [
         'subtotal' => 4980.00,
         'discount_amount' => 0.00,
         'shipping_charge' => 0.00,
-        'tax_amount' => 249.00,
-        'grand_total' => 5229.00,
+        'tax_amount' => 0.00,
+        'grand_total' => 4980.00,
     ],
 ];
 
@@ -181,8 +181,9 @@ echo "   -> Country of Origin: Bangladesh printed: " . (str_contains($piPdf, "Co
 echo "   -> Registration TRAD/DNCC/012458/2022 printed: " . (str_contains($piPdf, "TRAD/DNCC/012458/2022") ? "YES" : "NO") . "\n";
 echo "   -> Consignee address duplicate comma ', ,' absent: " . (!str_contains($piPdf, ", ,") ? "YES (Clean)" : "FAIL") . "\n";
 echo "   -> Subtotal $4,980.00 present: " . (str_contains($piPdf, "4,980.00") ? "YES" : "NO") . "\n";
-echo "   -> Estimated Tax $249.00 reconciled: " . (str_contains($piPdf, "Estimated Tax:") && str_contains($piPdf, "249.00") ? "YES (Reconciled)" : "FAIL") . "\n";
-echo "   -> Merchandise Total $5,229.00 USD present: " . (str_contains($piPdf, "5,229.00 USD") ? "YES" : "NO") . "\n";
+echo "   -> Zero-rated export tax present: " . (str_contains($piPdf, "Estimated Tax (B2B Export):") && str_contains($piPdf, "0.00 (Zero Rated)") ? "YES (Zero Rated)" : "FAIL") . "\n";
+echo "   -> 5% Tax absent: " . (!str_contains($piPdf, "249.00") ? "YES (Absent)" : "FAIL") . "\n";
+echo "   -> Merchandise Total $4,980.00 USD reconciles with subtotal: " . (str_contains($piPdf, "4,980.00 USD") ? "YES (Reconciled)" : "FAIL") . "\n";
 echo "   -> Signatory heading strictly 'Authorized Signatory': " . (str_contains($piPdf, "Authorized Signatory") && !str_contains($piPdf, "Authorized Signatory &") ? "YES (Strict)" : "FAIL") . "\n\n";
 
 // --------------------------------------------------------------------------
@@ -201,8 +202,8 @@ if ($realOrder) {
     echo "   -> Hash: {$artifact['hash']}\n";
     $realRectCount = substr_count($artifact['content'], "19.840 19.840 555.600 802.210 re S");
     echo "   -> Border strokes on real order PI (MUST BE 0): {$realRectCount} " . ($realRectCount === 0 ? "PASSED" : "FAIL") . "\n";
-    echo "   -> Tax 249.00 printed on real order PI: " . (str_contains($artifact['content'], "249.00") ? "YES" : "NO") . "\n";
-    echo "   -> Total 5,229.00 USD printed on real order PI: " . (str_contains($artifact['content'], "5,229.00 USD") ? "YES" : "NO") . "\n";
+    echo "   -> Zero-rated tax on real order PI: " . (str_contains($artifact['content'], "Zero Rated") ? "YES" : "NO") . "\n";
+    echo "   -> Total 4,980.00 USD printed on real order PI: " . (str_contains($artifact['content'], "4,980.00 USD") ? "YES" : "NO") . "\n";
 } else {
     echo "   -> Order AYN-20261021-KGXEYR not in local test DB (will be verified on VPS production DB)\n";
 }

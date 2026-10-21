@@ -1401,7 +1401,7 @@ export function generateProformaInvoiceDoc(
   const expDesc = optExp?.tagline || optExp?.business_type || BUSINESS_PROFILE.description;
   const expEst = optExp?.est_year || BUSINESS_PROFILE.establishedYear;
   const expAddress = optExp?.address || optExp?.office_address || BUSINESS_PROFILE.address.formatted;
-  const expEmail = optExp?.email || BUSINESS_PROFILE.contact.email || "export@ayaanclothing.com";
+  const expEmail = optExp?.email || BUSINESS_PROFILE.contact.email || "sales@ayaanclothing.com";
   const expPhone = optExp?.whatsapp_display || optExp?.phone || BUSINESS_PROFILE.contact.phone;
 
   const optBank = (options as any)?.bankDetails || (options as any)?.bank_details;
@@ -1478,9 +1478,9 @@ export function generateProformaInvoiceDoc(
 
   const shippingAmount = isAramex ? (order.shipping_cost || 0) : 0;
   const discountVal = Number(order.discount_amount || 0);
-  const taxVal = Number(order.tax_amount || 0);
-  const merchandisePayable = Math.max(0, order.subtotal - discountVal + taxVal);
-  const grandTotal = isAramex ? merchandisePayable + shippingAmount : merchandisePayable;
+  const taxVal = 0; // Mandatory B2B Export zero-rated tax
+  const merchandisePayable = Math.max(0, Number(order.subtotal || 0) - discountVal);
+  const grandTotal = isAramex && shippingAmount > 0 ? merchandisePayable + shippingAmount : merchandisePayable;
 
   // 2. Exporter / Buyer Details (Two Columns)
   const colWidth = (contentWidth - 6) / 2;
@@ -1711,11 +1711,11 @@ export function generateProformaInvoiceDoc(
   doc.setFontSize(8.2);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(71, 85, 105);
-  doc.text(taxVal > 0 ? "Estimated Tax:" : "Estimated Tax (B2B Export):", summaryX + 3, subY);
+  doc.text("Estimated Tax (B2B Export):", summaryX + 3, subY);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(taxVal > 0 ? fmtUSD(taxVal) : "$0.00 (Zero Rated)", summaryX + summaryWidth - 3, subY, { align: "right" });
+  doc.text("$0.00 (Zero Rated)", summaryX + summaryWidth - 3, subY, { align: "right" });
 
   // Divider
   subY += 2.5;
@@ -1727,7 +1727,7 @@ export function generateProformaInvoiceDoc(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text(isAramex ? "TOTAL PAYABLE:" : "MERCHANDISE TOTAL:", summaryX + 3, subY);
+  doc.text(isAramex && shippingAmount > 0 ? "TOTAL PAYABLE:" : "MERCHANDISE TOTAL:", summaryX + 3, subY);
   doc.setFontSize(10);
   doc.setTextColor(30, 58, 138); // blue-900
   doc.text(`${fmtUSD(grandTotal)} USD`, summaryX + summaryWidth - 3, subY, { align: "right" });

@@ -71,9 +71,9 @@
         }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 9.5pt;
+            font-size: 8.8pt;
             color: #1e293b;
-            line-height: 1.4;
+            line-height: 1.38;
             background: #ffffff;
         }
         table {
@@ -84,19 +84,19 @@
         .header-banner {
             background-color: #0f172a;
             color: #ffffff;
-            padding: 12px 14px;
+            padding: 11px 13px;
             border-radius: 4px;
-            margin-bottom: 9px;
+            margin-bottom: 8px;
         }
         .company-title {
-            font-size: 15pt;
+            font-size: 15.5pt;
             font-weight: bold;
             letter-spacing: 0.5px;
             color: #ffffff;
             line-height: 1.15;
         }
         .company-meta {
-            font-size: 9.5pt;
+            font-size: 8.8pt;
             color: #cbd5e1;
             margin-top: 2px;
             line-height: 1.35;
@@ -135,7 +135,7 @@
             border: 1px solid #e2e8f0;
             border-radius: 4px;
             padding: 8px 10px;
-            font-size: 9.5pt;
+            font-size: 8.8pt;
             min-height: 98px;
         }
         .card-label {
@@ -146,15 +146,15 @@
             text-transform: uppercase;
         }
         .card-name {
-            font-size: 10.5pt;
+            font-size: 10pt;
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 3px;
         }
         .card-text {
-            font-size: 9.5pt;
+            font-size: 8.8pt;
             color: #475569;
-            line-height: 1.45;
+            line-height: 1.42;
         }
         /* Metadata Strip */
         .meta-strip {
@@ -162,18 +162,18 @@
             border: 1px solid #cbd5e1;
             border-radius: 4px;
             padding: 6px 10px;
-            margin-top: 8px;
-            margin-bottom: 9px;
+            margin-top: 7px;
+            margin-bottom: 8px;
         }
         .meta-label {
-            font-size: 8pt;
+            font-size: 8.2pt;
             font-weight: bold;
             color: #64748b;
             text-transform: uppercase;
             margin-bottom: 2px;
         }
         .meta-val {
-            font-size: 9.5pt;
+            font-size: 9.0pt;
             font-weight: bold;
             color: #0f172a;
         }
@@ -183,20 +183,20 @@
         /* Goods Table */
         .goods-table {
             width: 100%;
-            margin-bottom: 9px;
+            margin-bottom: 8px;
             border-collapse: collapse;
             table-layout: fixed;
         }
         .goods-table th {
             background-color: #1e293b;
             color: #ffffff;
-            font-size: 9.5pt;
+            font-size: 9.0pt;
             font-weight: bold;
             padding: 6px 4px;
             text-align: left;
         }
         .goods-table td {
-            font-size: 9.5pt;
+            font-size: 8.8pt;
             padding: 5px 4px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
@@ -205,11 +205,11 @@
             background-color: #f8fafc;
         }
         .goods-price {
-            font-size: 11pt;
+            font-size: 10.5pt;
             font-family: 'Courier New', Courier, monospace;
         }
         .goods-amount {
-            font-size: 11pt;
+            font-size: 10.5pt;
             font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
         }
@@ -219,20 +219,20 @@
         .font-mono { font-family: 'Courier New', Courier, monospace; }
         /* Shipping Info & Totals */
         .summary-wrapper {
-            margin-bottom: 9px;
+            margin-bottom: 8px;
             table-layout: fixed;
         }
         .shipping-title {
-            font-size: 9.5pt;
+            font-size: 9.2pt;
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 4px;
         }
         .shipping-bullet {
-            font-size: 9pt;
+            font-size: 8.8pt;
             color: #475569;
             margin-bottom: 3px;
-            line-height: 1.4;
+            line-height: 1.38;
         }
         .shipping-alert {
             color: #c2410c;
@@ -245,11 +245,11 @@
             padding: 7px 10px;
         }
         .totals-line {
-            font-size: 9.5pt;
+            font-size: 8.8pt;
             padding: 2px 0;
         }
         .totals-num {
-            font-size: 11pt;
+            font-size: 10.5pt;
             font-family: 'Courier New', Courier, monospace;
             font-weight: bold;
         }
@@ -258,12 +258,12 @@
             margin: 4px 0;
         }
         .totals-grand {
-            font-size: 10.5pt;
+            font-size: 10pt;
             font-weight: bold;
             padding-top: 2px;
         }
         .totals-grand-num {
-            font-size: 13.5pt;
+            font-size: 12.0pt;
             font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
             color: #1e3a8a;
@@ -274,25 +274,25 @@
             border: 1px solid #cbd5e1;
             border-radius: 4px;
             padding: 7px 10px;
-            margin-bottom: 9px;
+            margin-bottom: 8px;
             page-break-inside: avoid;
         }
         .bank-title {
-            font-size: 9.5pt;
+            font-size: 9.2pt;
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 4px;
             text-transform: uppercase;
         }
         .bank-table td {
-            font-size: 9.5pt;
-            padding: 2.5px 0;
+            font-size: 8.8pt;
+            padding: 2px 0;
             vertical-align: top;
-            line-height: 1.4;
+            line-height: 1.38;
         }
         /* Authorized Signatory Block — Deliberate top whitespace, safely inset */
         .sig-section {
-            margin-top: 18px;
+            margin-top: 20px;
             margin-bottom: 6px;
             padding-right: 8px;
             page-break-inside: avoid;
@@ -409,7 +409,7 @@
             <tr>
                 <th style="width: 4%;" class="text-center">#</th>
                 <th style="width: 33%;">Description of Goods &amp; Package Assortment</th>
-                <th style="width: 16%;">SKU / Style</th>
+                <th style="width: 16%; white-space: nowrap;">SKU / Style</th>
                 <th style="width: 12%;" class="text-center">HS Code</th>
                 <th style="width: 11%; text-align: right; white-space: nowrap;">Quantity</th>
                 <th style="width: 11%; text-align: right; white-space: nowrap; padding-right: 8px;">Unit Price</th>
@@ -434,12 +434,12 @@
                 <tr class="{{ $idx % 2 === 1 ? 'alt' : '' }}">
                     <td class="text-center" style="color: #64748b;">{{ $idx + 1 }}</td>
                     <td>
-                        <div class="font-bold" style="color: #0f172a; font-size: 9.5pt;">{{ $item['product_name'] ?? ($item['description'] ?? 'Garment Item') }}</div>
-                        <div style="font-size: 8pt; color: #64748b; margin-top: 1px;">Assortment: {{ $pkgText }}</div>
+                        <div class="font-bold" style="color: #0f172a; font-size: 9.0pt;">{{ $item['product_name'] ?? ($item['description'] ?? 'Garment Item') }}</div>
+                        <div style="font-size: 8.0pt; color: #64748b; margin-top: 1px;">Assortment: {{ $pkgText }}</div>
                     </td>
-                    <td class="font-bold" style="color: #0f172a; word-break: break-all;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
-                    <td class="text-center font-mono" style="color: #475569; white-space: nowrap;">{{ $item['hs_code'] ?? '6109.10.00' }}</td>
-                    <td class="text-right font-bold" style="white-space: nowrap;">{{ number_format($qty) }} pcs</td>
+                    <td class="font-bold" style="color: #0f172a; white-space: nowrap; font-size: 8.8pt;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
+                    <td class="text-center font-mono" style="color: #475569; white-space: nowrap; font-size: 8.8pt;">{{ $item['hs_code'] ?? '6109.10.00' }}</td>
+                    <td class="text-right font-bold" style="white-space: nowrap; font-size: 8.8pt;">{{ number_format($qty) }} pcs</td>
                     <td class="text-right goods-price" style="color: #0f172a; white-space: nowrap; padding-right: 8px;">${{ number_format($uPrice, 2) }}</td>
                     <td class="text-right goods-amount" style="color: #0f172a; white-space: nowrap; padding-right: 6px;">${{ number_format($lTotal, 2) }}</td>
                 </tr>
@@ -468,6 +468,10 @@
 
             {{-- Right Side: Order Amount Summary --}}
             <td style="width: 47%; vertical-align: top;">
+                @php
+                    $merchandisePayable = max(0, round($subtotal - $discount, 2));
+                    $totalPayable = ($isAramex && $shipping > 0) ? round($merchandisePayable + $shipping, 2) : $merchandisePayable;
+                @endphp
                 <div class="totals-card">
                     <table style="width: 100%;">
                         <tr>
@@ -486,23 +490,16 @@
                                 <td class="totals-line text-right totals-num" style="color: #0f172a;">${{ number_format($shipping, 2) }}</td>
                             </tr>
                         @endif
-                        @if($tax > 0)
-                            <tr>
-                                <td class="totals-line" style="color: #475569;">Estimated Tax:</td>
-                                <td class="totals-line text-right totals-num" style="color: #0f172a;">${{ number_format($tax, 2) }}</td>
-                            </tr>
-                        @else
-                            <tr>
-                                <td class="totals-line" style="color: #475569;">Estimated Tax (B2B Export):</td>
-                                <td class="totals-line text-right totals-num" style="color: #0f172a;">$0.00 (Zero Rated)</td>
-                            </tr>
-                        @endif
+                        <tr>
+                            <td class="totals-line" style="color: #475569;">Estimated Tax (B2B Export):</td>
+                            <td class="totals-line text-right totals-num" style="color: #0f172a;">$0.00 (Zero Rated)</td>
+                        </tr>
                         <tr>
                             <td colspan="2"><div class="totals-divider"></div></td>
                         </tr>
                         <tr>
-                            <td class="totals-grand" style="color: #0f172a;">{{ $isAramex ? 'TOTAL PAYABLE:' : 'MERCHANDISE TOTAL:' }}</td>
-                            <td class="totals-grand text-right totals-grand-num">${{ number_format($grandTotal, 2) }} USD</td>
+                            <td class="totals-grand" style="color: #0f172a;">{{ ($isAramex && $shipping > 0) ? 'TOTAL PAYABLE:' : 'MERCHANDISE TOTAL:' }}</td>
+                            <td class="totals-grand text-right totals-grand-num">${{ number_format($totalPayable, 2) }} USD</td>
                         </tr>
                     </table>
                 </div>
@@ -543,7 +540,7 @@
             // Official PI footer
             $text = "AYAAN CLOTHING • Proforma Invoice Ref: {{ $piNumber }} • Generated on {{ $generatedDate }} • Page {$PAGE_NUM} of {$PAGE_COUNT}";
             $font = $fontMetrics->getFont("Helvetica Neue, Helvetica, Arial", "normal");
-            $pdf->text(39.68, 814.0, $text, $font, 8.0, [0.58, 0.64, 0.72]);
+            $pdf->text(39.68, 814.0, $text, $font, 7.8, [0.58, 0.64, 0.72]);
         });
     }
     </script>

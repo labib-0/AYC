@@ -136,9 +136,9 @@ public function computeFingerprint(Product $product): string
 ### Invalidation Rules:
 * **Invalidates & Regenerates**: Updates to `LAYOUT_VERSION`, product title, SKU, base price, wholesale price, bulk pricing tiers, full stock price, MOQ, specifications (GSM, fabric, wash care, CBM, weight), primary photo, gallery photos, brand name, brand logo, or company exporter profile.
 * **Does NOT Invalidate**: Updates to stock quantities, inventory warehouse balances, or order history (these do not appear on product Offer Sheets).
-* **Automated Template Versioning**: `ProductOfferSheetService::LAYOUT_VERSION = 'v7.1_canonical_layout'` ensures template revisions trigger instantaneous cache misses and regeneration without requiring destructive manual disk purges.
+* **Automated Template Versioning**: `ProductOfferSheetService::LAYOUT_VERSION = 'v7.3_canonical_layout'` ensures template revisions trigger instantaneous cache misses and regeneration without requiring destructive manual disk purges.
 
-### Visual Reference Standards (v7 Canonical Commercial PDF Layout):
+### Visual Reference Standards (v7.3 Canonical Commercial PDF Layout):
 * **Strict A4 Geometry & Invisible Page Border**:
   - 210 × 297 mm (~595.28 × 841.89 pt), portrait on every page.
   - The visible outline stroke has been **removed completely** (`$pdf->rectangle(...)` call removed in Dompdf canvas `page_script`).
@@ -149,32 +149,35 @@ public function computeFingerprint(Product $product): string
   - All company names, logos, registered addresses, phone numbers, email addresses, and websites are completely omitted from header, body, and footer.
 * **Metadata Strip**:
   - 3-column metadata strip directly below heading: Offer Reference, Date of Issue, Validity (highlighted in orange `#c2410c`, 9.5pt bold).
-  - Product Title (`#0f172a`, 16pt bold) and SKU / Brand subtitle (8.5pt).
+  - Product Title (`#0f172a`, 15.5pt bold) and SKU / Brand subtitle (8.5pt).
 * **Gallery Architecture & Natural Pagination**:
-  - 4 columns per row with strict **4:5 aspect ratio** containers (42.4mm × 53mm) and larger product images.
-  - Natural page flow: As many complete rows fit on the current page as space permits without arbitrary 2-row limits.
-  - When the gallery finishes on a page, subsequent sections (Product Description, Specifications, Logistics, Pricing) immediately flow beneath it, eliminating avoidable whitespace.
-  - Specification tables support multi-page pagination with repeating `<thead>` headers (`display: table-header-group;`).
+  - 4 columns per row with strict **4:5 aspect ratio** containers (40mm width × 50mm height, 2.5mm spacing, 1.5mm cell padding) and readable product images.
+  - Natural page flow:
+    - Products with up to 6 images (2 rows) fit cleanly on **Page 1 of 1** alongside Description, Specifications table, Logistics cards, and Pricing Schedule!
+    - Products with 10 images (3 rows, e.g. Product 213) cleanly position Title and Gallery on Page 1, with `.spec-section { page-break-inside: avoid; }` holding the entire Specifications table together on Page 2, followed immediately by Packing & Logistics and Pricing Schedule.
+    - Prevents awkward 1–2 row splits of specification tables.
+    - If a table ever exceeds a full page, repeating `<thead>` headers (`display: table-header-group;`) ensure table clarity.
 * **Description & Specification Deduplication**:
   - Fixed spacing typos (e.g. `daily wear.Perfect` $\rightarrow$ `daily wear. Perfect`).
   - Corrected raw data spelling (e.g. `Polyster` $\rightarrow$ `Polyester`).
-  - Stripped duplicated label prefixes (e.g. `Fabric / Composition: Fabric / Composition: ...` $\rightarrow$ `65% Cotton, 35% Polyester`).
+  - Stripped duplicated label prefixes (e.g. `Fabric / Composition: Fabric / Composition: ...` $\rightarrow$ `65% Cotton, 35% Polyester`) using recursive prefix stripping.
   - Filtered raw metadata prefixes (`Materials:`) out of the description block to eliminate redundant sections.
+  - Empty specification rows are completely suppressed.
 * **Verified CBM & Gross Weight Logistics**:
-  - Package calculator profile audit resolved implausible CBM for 500 pcs MOQ on Product 213 (Heritage Denim) from `69.480 m³` to `1.296 m³` (18 cartons of 60×40×30 cm holding 28 pcs/carton).
-  - Enforced `PackageCalculatorService` validation rejecting profiles where `carton_count > package_quantity`.
-* **Overall Typography Scaling**:
+  - Package calculator profile audit resolved implausible CBM for 500 pcs MOQ on Product 213 (Heritage Denim) from `69.480 m³` to `1.296 m³` (18 cartons of 60×40×30 cm holding 28 pcs/carton, 22.0 kg).
+  - Verified sample product packages against authoritative records:
+    - Product 200 (`JAC-SWE-MEN-8454-01`): 5 cartons = `0.360 m³ / 17.0 kg` (Verified).
+    - Product 204 (`TEX-SLE-BAB-6421`): 7 cartons = `0.504 m³ / 16.0 kg` (Verified).
+    - Product 183 (`HM-SHI-BOY-3684-01`): 11 cartons = `0.792 m³ / 15.0 kg` (Verified).
+* **Refined Typography Hierarchy**:
   - Heading: 20pt bold orange (`#ea580c`).
-  - Product Title: 16pt bold (`#0f172a`).
-  - Section Headings: 11pt bold uppercase.
-  - Product Description: 10pt (`#334155`).
-  - Specifications Table: 9.5pt (labels 9.5pt bold `#475569`, values 9.5pt `#0f172a`).
-  - Packing & Logistics Cards: 8.5pt labels, 11.5pt bold prominent values.
-  - Pricing Table: Headers 10.5pt bold, Unit & Total price figures 11.0pt bold monospace right-aligned.
-  - Dynamic Footer: 8.0pt (`#94a3b8`).
-* **Packing & Logistics Consistency**:
-  - CBM (MOQ) and Gross Weight (MOQ) metric cards are visually identical: 49.5% width each, matching 7px 10px padding, 8.5pt labels, 11.5pt bold values (`#0f172a`), equal min-height.
-  - Generated from verified database shipping package profiles.
+  - Product Title: 15.5pt bold (`#0f172a`).
+  - Section Headings: 10.5pt bold uppercase.
+  - Product Description: 9.5pt (`#334155`, line-height 1.35).
+  - Specifications Table: 9.0pt (labels 9.0pt bold `#475569`, values 9.0pt `#0f172a`).
+  - Packing & Logistics Cards: 8.5pt labels, 11.0pt bold prominent values.
+  - Pricing Table: Headers 9.5pt bold, Unit & Total price figures 10.5pt bold monospace right-aligned.
+  - Dynamic Footer: 7.8pt (`#94a3b8`).
 * **Final Substantive Section — Pricing Schedule**:
   - `PRICING SCHEDULE (USD)` is the final content section on the Offer Sheet.
   - Unit-price and total-price figures are visibly larger, right-aligned, and styled in monospace bold.

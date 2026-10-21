@@ -79,33 +79,33 @@
         }
         /* Product Title Block */
         .product-title {
-            font-size: 16pt;
+            font-size: 15.5pt;
             font-weight: bold;
             color: #0f172a;
             line-height: 1.2;
-            margin-bottom: 3px;
+            margin-bottom: 2px;
         }
         .product-meta-row {
             font-size: 8.5pt;
             color: #64748b;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
         }
         /* Section Headings */
         .section-heading {
-            font-size: 11pt;
+            font-size: 10.5pt;
             font-weight: bold;
             color: #0f172a;
             margin-top: 3px;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             text-transform: uppercase;
             letter-spacing: 0.2px;
         }
-        /* Gallery — Strict 4:5 Aspect Ratio (4 per row, 42.4mm x 53mm) */
+        /* Gallery — Strict 4:5 Aspect Ratio (4 per row, 40mm x 50mm) */
         .gallery-table {
             width: 100%;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             border-collapse: separate;
-            border-spacing: 3.5mm 3.5mm;
+            border-spacing: 2.5mm 2.5mm;
             table-layout: fixed;
             page-break-inside: auto;
         }
@@ -114,26 +114,26 @@
         }
         .gallery-cell {
             width: 25%;
-            height: 53mm;
-            max-height: 53mm;
+            height: 50mm;
+            max-height: 50mm;
             text-align: center;
             vertical-align: middle;
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 2mm;
+            padding: 1.5mm;
             overflow: hidden;
         }
         .gallery-cell-empty {
             width: 25%;
-            height: 53mm;
-            max-height: 53mm;
+            height: 50mm;
+            max-height: 50mm;
             border: none;
             background: transparent;
         }
         .gallery-img {
             max-width: 100%;
-            max-height: 48.5mm;
+            max-height: 46mm;
             width: auto;
             height: auto;
             display: inline-block;
@@ -141,17 +141,18 @@
         }
         /* Description */
         .desc-section {
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
         .desc-box {
-            font-size: 10pt;
+            font-size: 9.5pt;
             color: #334155;
-            line-height: 1.4;
-            margin-bottom: 6px;
+            line-height: 1.35;
+            margin-bottom: 4px;
         }
-        /* Specifications Table — Clean repeated header on page breaks */
+        /* Specifications Table — Clean repeated header on page breaks, keep together */
         .spec-section {
-            margin-bottom: 6px;
+            page-break-inside: avoid;
+            margin-bottom: 5px;
         }
         .spec-table {
             width: 100%;
@@ -164,9 +165,9 @@
         .spec-thead-th {
             background-color: #f8fafc;
             color: #0f172a;
-            font-size: 11pt;
+            font-size: 10.5pt;
             font-weight: bold;
-            padding: 5px 8px;
+            padding: 4px 8px;
             text-align: left;
             text-transform: uppercase;
             letter-spacing: 0.2px;
@@ -180,8 +181,8 @@
         }
         .spec-label {
             width: 28%;
-            padding: 3.5px 8px;
-            font-size: 9.5pt;
+            padding: 3px 8px;
+            font-size: 9.0pt;
             font-weight: bold;
             color: #475569;
             border-bottom: 1px solid #e2e8f0;
@@ -189,8 +190,8 @@
         }
         .spec-val {
             width: 72%;
-            padding: 3.5px 8px;
-            font-size: 9.5pt;
+            padding: 3px 8px;
+            font-size: 9.0pt;
             color: #0f172a;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: top;
@@ -198,14 +199,14 @@
         /* Logistics Cards */
         .logistics-section {
             page-break-inside: avoid;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
         }
         .logistics-card {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 6px 10px;
-            min-height: 38px;
+            padding: 5px 8px;
+            min-height: 36px;
         }
         .logistics-label {
             font-size: 8.5pt;
@@ -216,7 +217,7 @@
             line-height: 1.2;
         }
         .logistics-val {
-            font-size: 11.5pt;
+            font-size: 11.0pt;
             font-weight: bold;
             color: #0f172a;
             margin-top: 2px;
@@ -225,7 +226,7 @@
         /* Pricing Table */
         .pricing-section {
             page-break-inside: avoid;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
         }
         .pricing-table {
             width: 100%;
@@ -234,14 +235,14 @@
         .pricing-table th {
             background-color: #0f172a;
             color: #ffffff;
-            font-size: 10pt;
+            font-size: 9.5pt;
             font-weight: bold;
-            padding: 5px 8px;
+            padding: 4px 8px;
             text-align: left;
         }
         .pricing-table td {
-            font-size: 9.5pt;
-            padding: 4.5px 8px;
+            font-size: 9.0pt;
+            padding: 4px 8px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
         }
@@ -249,11 +250,11 @@
             background-color: #f8fafc;
         }
         .price-unit {
-            font-size: 11pt;
+            font-size: 10.5pt;
             color: #0f172a;
         }
         .price-total {
-            font-size: 11pt;
+            font-size: 10.5pt;
             color: #c2410c;
         }
         .text-right { text-align: right; }
@@ -287,8 +288,11 @@
             if (!$isMissingVal($colourDesc)) $validSpecs['Colours'] = $colourDesc;
             if (!$isMissingVal($sizeDesc)) $validSpecs['Available Sizes'] = $sizeDesc;
             if (!$isMissingVal($material)) {
-                // Strip redundant prefixes like "Fabric / Composition:" or "Materials:"
-                $cleanMat = preg_replace('/^(?:Fabric\s*\/\s*Composition|Materials?)\s*:\s*/i', '', $material);
+                // Strip redundant prefixes like "Fabric / Composition:" or "Materials:" (loop ensures any repeats are removed)
+                $cleanMat = $material;
+                while (preg_match('/^(?:Fabric\s*\/\s*Composition|Materials?)\s*:\s*/i', $cleanMat)) {
+                    $cleanMat = preg_replace('/^(?:Fabric\s*\/\s*Composition|Materials?)\s*:\s*/i', '', $cleanMat);
+                }
                 // Correct "Polyster" -> "Polyester"
                 $cleanMat = preg_replace('/\bPolyster\b/i', 'Polyester', $cleanMat);
                 $validSpecs['Fabric / Composition'] = trim($cleanMat);
@@ -527,7 +531,7 @@
             // Clean, non-branded footer
             $text = "Offer Sheet Reference: {{ $docNumber }} • Generated on {{ $generatedDate }} • Page {$PAGE_NUM} of {$PAGE_COUNT}";
             $font = $fontMetrics->getFont("Helvetica Neue, Helvetica, Arial", "normal");
-            $pdf->text(39.68, 818.0, $text, $font, 8.0, [0.58, 0.64, 0.72]);
+            $pdf->text(39.68, 818.0, $text, $font, 7.8, [0.58, 0.64, 0.72]);
         });
     }
     </script>

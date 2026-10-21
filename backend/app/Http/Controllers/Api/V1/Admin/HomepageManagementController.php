@@ -719,7 +719,7 @@ class HomepageManagementController extends ApiController
             'exporter_company_name' => ['required', 'string', 'filled', 'regex:/[^\s]/', 'max:255'],
             'office_address' => ['required', 'string', 'filled', 'regex:/[^\s]/', 'max:500'],
             'country_of_origin' => ['required', 'string', 'filled', 'regex:/[^\s]/', 'max:100'],
-            'contact_email' => ['required', 'string', 'email:rfc,dns', 'max:255'],
+            'contact_email' => ['required', 'string', 'email:rfc,filter', 'max:255'],
             'whatsapp_display' => ['required', 'string', 'filled', 'regex:/[^\s]/', 'max:50'],
             'reg_number' => ['required', 'string', 'filled', 'regex:/[^\s]/', 'max:100'],
         ], [

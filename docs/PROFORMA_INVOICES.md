@@ -107,9 +107,9 @@ While `CommercialPdfArtifactService` and Dompdf 3.1 serve as the canonical gener
 
 ---
 
-## 5. Approved Reference Rebuild & Layout Standards (v7 Canonical Commercial PDF Layout)
+## 5. Approved Reference Rebuild & Layout Standards (v7.3 Canonical Commercial PDF Layout)
 
-As part of the v7 commercial document visual refinements and data-integrity audit (October 21, 2026):
+As part of the final commercial document visual refinements, financial validation, and typography balancing (October 21, 2026):
 
 * **Page Geometry & Invisible Border**:
   - Strict A4 portrait (`210 mm x 297 mm`, `595.28 x 841.89 pt`).
@@ -117,7 +117,7 @@ As part of the v7 commercial document visual refinements and data-integrity audi
   - The exact physical margins (`14mm 14mm 16mm 14mm`) and 7 mm (`19.84 pt`) content insets are strictly **retained**, preserving identical spacing and header/footer positioning.
 * **Header Layout & Contact Lines**:
   - Full-width dark navy block (`#0f172a`).
-  - Preserved blue rectangular box (`#1e3a8a`, `w = 195px`, `h = 56px`) with vertically and horizontally centered `PROFORMA INVOICE` title (10.5pt bold) and subtitle `Official PI (USD)` (7.8pt).
+  - Preserved blue rectangular box (`#1e3a8a`, `w = 195px`, `h = 56px`) with vertically and horizontally centered `PROFORMA INVOICE` title (10.5pt bold) and subtitle `Official PI (USD)` (8.0pt).
   - Clean company contact lines:
     - `Email: sales@ayaanclothing.com`
     - `WhatsApp: +880 1620-853502` (immediately following line; no bullet, no combined line).
@@ -125,7 +125,7 @@ As part of the v7 commercial document visual refinements and data-integrity audi
   - Side-by-side Exporter/Beneficiary card and Consignee/Buyer card.
   - **Admin Editability**: All 6 Exporter/Beneficiary fields are independently editable and strictly validated under `Admin → Storefront → Homepage Management`:
     1. Company Name (`AYAAN CLOTHING`)
-    2. Registered Address (`House #33 (2nd floor), Road #12, Sector #11`)
+    2. Registered Address (`House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh`)
     3. Country of Origin (`Bangladesh`)
     4. Contact Email (`sales@ayaanclothing.com`)
     5. WhatsApp Number (`+880 1620-853502`)
@@ -141,24 +141,32 @@ As part of the v7 commercial document visual refinements and data-integrity audi
     - Jackets / Outerwear: `6201.40.00`
     - Hoodies / Sweatshirts: `6110.20.00`
     - T-Shirts: `6109.10.00`
-* **Typography Enhancements & Line Spacing (~2 pt Increase)**:
-  - Body text and table content: ~9.5–10.5 pt with comfortable line heights.
-  - Unit prices & Line amounts: 11.0 pt bold monospace right-aligned (`white-space: nowrap;`).
-  - Subtotal amount: 11.0 pt bold.
-  - Merchandise Total / Total Payable: **13.5 pt bold** in `#1e3a8a`.
-  - Footer: 8.0 pt legible grey.
-  - Non-wrapping table columns: Quantity (`1,000 pcs`), Unit Price, and Amount USD are wrapped in `white-space: nowrap;` to prevent awkward splitting.
-* **Financial Calculation & Tax Reconciliation**:
-  - **Audit Finding**: Order 45 displayed line items totaling USD 4,980.00 but printed Merchandise Total USD 5,229.00 (+USD 249.00 discrepancy) because the template hardcoded `$0.00 (Zero Rated)` while printing `$grandTotal`.
-  - **Resolution**: Template now dynamically renders the authoritative `$tax` amount (`Estimated Tax: USD 249.00` at 5%) when tax > 0, reconciling line items ($4,980.00) + tax ($249.00) = Merchandise Total ($5,229.00). When tax is zero, displays `$0.00 (Zero Rated)`.
-  - **Price Snapshots**: Authoritative order-item snapshots (e.g. $4.30 for Item 198 Mens Interlock Jacket) are preserved rather than overwritten with catalog prices.
+* **Balanced Typography Hierarchy & Table Layout**:
+  - Company name: `15.5 pt` bold.
+  - Company tagline and header details: `8.8 pt`.
+  - Exporter / Beneficiary and Consignee details: `8.8 pt` with comfortable `line-height: 1.42`.
+  - Section headings & metadata values: `9.0–9.2 pt`.
+  - Goods-table headings: `9.0 pt` bold.
+  - Goods descriptions and SKU values: `8.8–9.0 pt`. SKU wrapped in `white-space: nowrap;` to avoid awkward breaks.
+  - Quantities: `8.8 pt` bold with `white-space: nowrap;` (keeps `1,000 pcs` together).
+  - Unit prices & Line amounts: `10.5 pt` bold monospace right-aligned.
+  - Subtotal amount: `10.5 pt` bold monospace right-aligned.
+  - Merchandise Total / Total Payable: **12.0 pt bold** in `#1e3a8a` (prominent without overpowering the document).
+  - Footer: `7.8 pt` legible grey.
+* **Mandatory B2B Export Tax Policy (Zero Rated)**:
+  - Ready-made garments export from Bangladesh is zero-rated (0% VAT).
+  - Commercial B2B export Proforma Invoices strictly render:
+    `Estimated Tax (B2B Export): $0.00 (Zero Rated)`
+  - **Financial Reconciliation**: When shipping is excluded (or to be confirmed separately) and discount is zero, Merchandise Total strictly reconciles with and equals the Goods Value / Subtotal (e.g. $4,980.00 = $4,980.00). No 5% tax or extraneous surcharges are applied.
+  - Line items sum directly to Goods Value / Subtotal ($430.00 + $350.00 + $4,200.00 = $4,980.00).
 * **Authorized Signatory Section**:
   - Heading reads strictly: `Authorized Signatory` (`& Export Seal` is removed).
-  - Deliberate top whitespace (`margin-top: 24px`) provides clean visual separation from the banking panel.
+  - Deliberate top whitespace (`margin-top: 20px`) provides clean visual separation from the banking panel.
   - Right-aligned and safely inset within page content boundaries.
 * **Dynamic Canvas Footer**: Printed at $y = 814.0$ pt (`AYAAN CLOTHING • Proforma Invoice Ref: {ref} • Generated on {date} • Page {PAGE_NUM} of {PAGE_COUNT}`).
 * **Deterministic Layout Invalidation**:
-  - `CommercialPdfArtifactService::LAYOUT_VERSION = 'v7.1_canonical_layout'`.
+  - `CommercialPdfArtifactService::LAYOUT_VERSION = 'v7.3_canonical_layout'`.
+  - `ProductOfferSheetService::LAYOUT_VERSION = 'v7.3_canonical_layout'`.
   - Exporter profile checksum is incorporated into `computeOrderFingerprint()`, ensuring changes to beneficiary settings automatically invalidate cached documents.
 
 ---

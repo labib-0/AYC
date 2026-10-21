@@ -58,6 +58,13 @@ class ProformaInvoiceService
         $netWeight = isset($snapshot['net_weight']) ? (float) $snapshot['net_weight'] : round($grossWeight * 0.9, 2);
         $cbm = (float) ($snapshot['cbm'] ?? $snapshot['total_cbm'] ?? 0.072);
 
+        $subtotal = (float) $order->subtotal;
+        $discount = (float) $order->discount_amount;
+        $shipping = (float) $order->shipping_cost;
+        $isAramex = in_array(strtolower($order->carrier ?: ''), ['aramex', 'aramex priority parcel express (ppx)', 'aramex priority air express']);
+        $merchandisePayable = max(0, round($subtotal - $discount, 2));
+        $grandTotal = ($isAramex && $shipping > 0) ? round($merchandisePayable + $shipping, 2) : $merchandisePayable;
+
         return [
             'id' => "doc_PROFORMA_INVOICE_{$order->id}",
             'docNumber' => $piNumber,
@@ -89,19 +96,19 @@ class ProformaInvoiceService
             'items' => $items,
             'financials' => [
                 'currency' => $order->currency ?: 'USD',
-                'subtotal' => (float) $order->subtotal,
-                'goods_value' => (float) $order->subtotal,
-                'shipping_charge' => (float) $order->shipping_cost,
-                'tax_amount' => (float) $order->tax_amount,
-                'discount_amount' => (float) $order->discount_amount,
+                'subtotal' => $subtotal,
+                'goods_value' => $subtotal,
+                'shipping_charge' => $shipping,
+                'tax_amount' => 0.00, // Mandatory B2B Export zero-rated tax
+                'discount_amount' => $discount,
                 'coupon_code' => $order->coupon_code,
-                'coupon_discount_amount' => (float) ($order->coupon_discount_amount ?? max(0, (float) $order->discount_amount - (float) ($order->manual_discount_amount ?? 0))),
+                'coupon_discount_amount' => (float) ($order->coupon_discount_amount ?? max(0, $discount - (float) ($order->manual_discount_amount ?? 0))),
                 'manual_discount_amount' => (float) ($order->manual_discount_amount ?? 0),
-                'paid_amount' => (float) ($order->paid_amount ?? ($order->payment_status === 'paid' ? $order->total_amount : 0)),
-                'balance_due' => (float) max(0, round($order->total_amount - ($order->paid_amount ?? ($order->payment_status === 'paid' ? $order->total_amount : 0)), 2)),
-                'grand_total' => (float) $order->total_amount,
-                'total_payable' => (float) $order->total_amount,
-                'amount_in_words' => DocumentHelper::numberToWords((float) $order->total_amount, $order->currency ?: 'USD'),
+                'paid_amount' => (float) ($order->paid_amount ?? ($order->payment_status === 'paid' ? $grandTotal : 0)),
+                'balance_due' => (float) max(0, round($grandTotal - ($order->paid_amount ?? ($order->payment_status === 'paid' ? $grandTotal : 0)), 2)),
+                'grand_total' => $grandTotal,
+                'total_payable' => $grandTotal,
+                'amount_in_words' => DocumentHelper::numberToWords($grandTotal, $order->currency ?: 'USD'),
             ],
             'estimated_shipping_data' => [
                 'carrier' => $order->carrier ?: 'Aramex',
@@ -114,13 +121,13 @@ class ProformaInvoiceService
                 'port_of_loading' => $docDefaults['air_port_of_loading'] ?? ($docDefaults['port_of_loading'] ?? 'Hazrat Shahjalal International Airport (DAC), Dhaka'),
                 'destination_port' => ($order->shipping_city ?: 'Destination') . ' Airport / Hub',
             ],
-            'subtotal' => (float) $order->subtotal,
-            'shipping' => (float) $order->shipping_cost,
-            'tax' => (float) $order->tax_amount,
-            'discount' => (float) $order->discount_amount,
+            'subtotal' => $subtotal,
+            'shipping' => $shipping,
+            'tax' => 0.00, // Mandatory B2B Export zero-rated tax
+            'discount' => $discount,
             'coupon_discount' => (float) ($order->coupon_discount_amount ?? 0),
             'manual_discount' => (float) ($order->manual_discount_amount ?? 0),
-            'grandTotal' => (float) $order->total_amount,
+            'grandTotal' => $grandTotal,
             'currency' => $order->currency ?: ($docDefaults['currency'] ?? 'USD'),
             'paymentTerms' => $order->payment_method === 'net_30' ? 'Commercial Credit Net 30' : ($order->payment_method === 'card' ? 'Prepaid Credit Card (Full in Advance)' : ($docDefaults['payment_terms'] ?? 'Bank Wire Transfer (T/T Advance)')),
             'shippingTerms' => $docDefaults['shipping_terms'] ?? 'Express Air Freight (DAP / DDP)',
