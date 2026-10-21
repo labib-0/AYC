@@ -149,9 +149,8 @@
             line-height: 1.35;
             margin-bottom: 4px;
         }
-        /* Specifications Table — Clean repeated header on page breaks, keep together */
+        /* Specifications Table — Keep heading + first row together; allow rest to flow */
         .spec-section {
-            page-break-inside: avoid;
             margin-bottom: 5px;
         }
         .spec-table {
