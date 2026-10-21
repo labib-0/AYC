@@ -193,7 +193,7 @@ $realOrder = Order::where('order_number', 'AYN-20261021-KGXEYR')->with(['items',
 if ($realOrder) {
     $artifactService = app(CommercialPdfArtifactService::class);
     $piService = app(ProformaInvoiceService::class);
-    $piPayload = $piService->generate($realOrder);
+    $piPayload = $piService->generateForOrder($realOrder);
     $artifact = $artifactService->getOrGenerateForOrder($realOrder, 'PROFORMA_INVOICE', $piPayload, true);
 
     echo "   -> Real Order 45 PI Filename: {$artifact['filename']}\n";
