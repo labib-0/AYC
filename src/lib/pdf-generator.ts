@@ -874,11 +874,7 @@ export function generateOfferSheetPDFDoc(
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
 
-    // Subtle full-page border outline inset 7mm
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.4);
-    doc.rect(7, 7, pageWidth - 14, 297 - 14, "S");
-
+    // Border stroke removed per commercial audit, retaining exact 7mm geometry
     // Clean, unbranded footer
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.8);
@@ -1482,7 +1478,8 @@ export function generateProformaInvoiceDoc(
 
   const shippingAmount = isAramex ? (order.shipping_cost || 0) : 0;
   const discountVal = Number(order.discount_amount || 0);
-  const merchandisePayable = Math.max(0, order.subtotal - discountVal);
+  const taxVal = Number(order.tax_amount || 0);
+  const merchandisePayable = Math.max(0, order.subtotal - discountVal + taxVal);
   const grandTotal = isAramex ? merchandisePayable + shippingAmount : merchandisePayable;
 
   // 2. Exporter / Buyer Details (Two Columns)
@@ -1508,8 +1505,9 @@ export function generateProformaInvoiceDoc(
   doc.setTextColor(71, 85, 105);
   doc.text(expAddress.slice(0, 45), margin + 3, y + 13.5);
   doc.text("Country of Origin: Bangladesh", margin + 3, y + 17.5);
-  doc.text(`Contact: ${expEmail} • WA: ${expPhone}`, margin + 3, y + 21.5);
-  doc.text(`Reg: ${optExp?.reg_number || optExp?.tin_number || "BGMEA Certified"}`, margin + 3, y + 25.5);
+  doc.text(`Contact: ${expEmail}`, margin + 3, y + 21.5);
+  doc.text(`WhatsApp: ${expPhone}`, margin + 3, y + 25.5);
+  doc.text(`Reg: ${optExp?.reg_number || optExp?.tin_number || "TRAD/DNCC/012458/2022"}`, margin + 3, y + 29.5);
 
   // Box 2: Consignee / Buyer
   const buyerX = margin + colWidth + 6;
@@ -1532,11 +1530,8 @@ export function generateProformaInvoiceDoc(
   doc.setTextColor(71, 85, 105);
   doc.text(`Attn: ${order.shipping_name || "Purchasing Manager"}`, buyerX + 3, y + 13.5);
   doc.text(`${(order.shipping_address1 || "Destination Address").slice(0, 36)}`, buyerX + 3, y + 17.5);
-  doc.text(
-    `${order.shipping_city || ""}, ${order.shipping_postal_code || ""}, ${order.shipping_country_code || "US"}`,
-    buyerX + 3,
-    y + 21.5
-  );
+  const buyerDest = [order.shipping_city, order.shipping_postal_code, order.shipping_country_code || "US"].filter(Boolean).join(", ");
+  doc.text(buyerDest || "International", buyerX + 3, y + 21.5);
   doc.text(`Email: ${order.email || "N/A"}`, buyerX + 3, y + 25.5);
   doc.text(`Phone: ${order.shipping_phone || "N/A"}`, buyerX + 3, y + 29.5);
 
@@ -1716,11 +1711,11 @@ export function generateProformaInvoiceDoc(
   doc.setFontSize(8.2);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(71, 85, 105);
-  doc.text("Estimated Tax (B2B Export):", summaryX + 3, subY);
+  doc.text(taxVal > 0 ? "Estimated Tax:" : "Estimated Tax (B2B Export):", summaryX + 3, subY);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("$0.00 (Zero Rated)", summaryX + summaryWidth - 3, subY, { align: "right" });
+  doc.text(taxVal > 0 ? fmtUSD(taxVal) : "$0.00 (Zero Rated)", summaryX + summaryWidth - 3, subY, { align: "right" });
 
   // Divider
   subY += 2.5;
@@ -1804,7 +1799,7 @@ export function generateProformaInvoiceDoc(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(optExp?.signatory_title || "Authorized Signatory & Export Seal", sigX, y + 12);
+  doc.text(optExp?.signatory_title || "Authorized Signatory", sigX, y + 12);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
@@ -1816,10 +1811,7 @@ export function generateProformaInvoiceDoc(
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
 
-    // Subtle full-page border outline inset 7mm
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.4);
-    doc.rect(7, 7, pageWidth - 14, 297 - 14, "S");
+    // Border stroke removed per commercial audit, retaining exact 7mm geometry
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
@@ -2204,7 +2196,7 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(optExp?.signatory_title || "Authorized Signatory & Export Seal", sigX, y + 11);
+  doc.text(optExp?.signatory_title || "Authorized Signatory", sigX, y + 11);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);

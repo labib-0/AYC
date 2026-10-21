@@ -164,6 +164,9 @@ class AdminSettingsController extends Controller
             'contact_phone' => ['nullable', 'string', 'max:100'],
             'public_phone' => ['nullable', 'string', 'max:100'],
             'faqs' => ['nullable', 'array'],
+            'exporter_company_name' => ['nullable', 'string', 'max:255'],
+            'country_of_origin' => ['nullable', 'string', 'max:100'],
+            'reg_number' => ['nullable', 'string', 'max:100'],
         ]);
 
         $display = trim($validated['whatsapp_display']);
@@ -242,6 +245,27 @@ class AdminSettingsController extends Controller
 
         if ($request->has('faqs')) {
             SystemSetting::set('homepage_faqs', $request->input('faqs'), 'json', 'homepage');
+        }
+
+        if ($request->has('exporter_company_name')) {
+            $cn = trim((string)$request->input('exporter_company_name'));
+            if (!empty($cn)) {
+                SystemSetting::set('company_name', $cn, 'string', 'branding');
+            }
+        }
+
+        if ($request->has('country_of_origin')) {
+            $co = trim((string)$request->input('country_of_origin'));
+            if (!empty($co)) {
+                SystemSetting::set('office_country', $co, 'string', 'contact');
+            }
+        }
+
+        if ($request->has('reg_number')) {
+            $rn = trim((string)$request->input('reg_number'));
+            if (!empty($rn)) {
+                SystemSetting::set('reg_number', $rn, 'string', 'legal');
+            }
         }
 
         // Process social links

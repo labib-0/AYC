@@ -108,6 +108,10 @@ class PackageCalculatorService
                 throw new InvalidArgumentException("Package profile #{$rowNum}: Carton count must be at least 1");
             }
 
+            if ($cartonCount > $qtyMin) {
+                throw new InvalidArgumentException("Package profile #{$rowNum}: Carton count ({$cartonCount}) cannot exceed package quantity ({$qtyMin})");
+            }
+
             if ($length <= 0 || $width <= 0 || $height <= 0) {
                 throw new InvalidArgumentException("Package profile #{$rowNum}: Carton length, width, and height must be greater than 0");
             }

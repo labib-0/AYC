@@ -308,14 +308,7 @@ class Order extends Model
         $isGated = in_array($normalizedType, ['COMMERCIAL_INVOICE', 'PACKING_LIST']) && !$isPaid;
 
         $items = $this->items->map(function ($item, $idx) {
-            $hsCode = '6105.10.00';
-            if (stripos($item->product_name, 't-shirt') !== false || stripos($item->product_name, 'tee') !== false) {
-                $hsCode = '6109.10.00';
-            } elseif (stripos($item->product_name, 'trouser') !== false || stripos($item->product_name, 'pant') !== false) {
-                $hsCode = '6203.42.00';
-            } elseif (stripos($item->product_name, 'hoodie') !== false || stripos($item->product_name, 'sweater') !== false) {
-                $hsCode = '6110.20.00';
-            }
+            $hsCode = \App\Services\Documents\DocumentHelper::resolveHsCode($item->product_name);
 
             $product = $item->product_id ? \App\Models\Product::with('images')->find($item->product_id) : null;
             $gallery = \App\Services\Documents\DocumentHelper::getProductGallery($product, $item->product_image_url);

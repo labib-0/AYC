@@ -27,5 +27,6 @@ export type { BangladeshStorefrontAccessCardProps } from "./BangladeshStorefront
 export { HomepageSeoManager } from "./HomepageSeoManager";
 export { GoogleTagsManager } from "./GoogleTagsManager";
 export { default as HomepageFooterManager } from "./HomepageFooterManager";
+export { default as HomepageBeneficiaryManager } from "./HomepageBeneficiaryManager";
 export { default as HomepageFaqManager } from "./HomepageFaqManager";
 

@@ -639,6 +639,8 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
                 ->middleware('permission:homepage.category.manage');
             Route::post('/settings', [AdminHomepageManagementController::class, 'updateSettings'])
                 ->middleware('permission:homepage.banner.edit');
+            Route::post('/beneficiary', [AdminHomepageManagementController::class, 'updateBeneficiarySettings'])
+                ->middleware('permission:homepage.banner.edit');
             Route::get('/faqs', [AdminHomepageManagementController::class, 'getFaqs'])
                 ->middleware('permission:homepage.view');
             Route::post('/faqs', [AdminHomepageManagementController::class, 'syncFaqs'])

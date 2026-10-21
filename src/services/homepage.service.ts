@@ -118,6 +118,10 @@ export interface AdminHomepageData {
   contact_email?: string;
   contact_phone?: string;
   whatsapp_display?: string;
+  exporter_company_name?: string;
+  company_name?: string;
+  country_of_origin?: string;
+  reg_number?: string;
   faqs?: any[];
   social_links?: any[];
   counts?: {
@@ -744,6 +748,24 @@ export class HomepageService {
       target: model.destination_value || "#featured",
       active: Boolean(model.is_active),
     };
+  }
+
+  /**
+   * Update authoritative Commercial Exporter / Beneficiary details.
+   */
+  async updateBeneficiarySettings(payload: {
+    exporter_company_name: string;
+    office_address: string;
+    country_of_origin: string;
+    contact_email: string;
+    whatsapp_display: string;
+    reg_number: string;
+  }): Promise<any> {
+    const response = await apiClient.post<{ status: string; data: any; message: string }>(
+      "/admin/homepage/beneficiary",
+      payload
+    );
+    return response.data;
   }
 }
 

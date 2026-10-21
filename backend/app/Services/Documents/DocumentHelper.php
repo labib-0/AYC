@@ -30,11 +30,12 @@ class DocumentHelper
             $formattedAddress = !empty($parts) ? implode(', ', $parts) : config('business.address.formatted', 'House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh');
         }
 
-        $companyName = SystemSetting::get('company_name', SystemSetting::get('company.name', config('business.name', 'Ayaan Clothing Ltd.')));
-        $legalName = SystemSetting::get('company_legal_name', SystemSetting::get('company.legal_name', config('business.banking.account_title', 'Ayaan Clothing Ltd.')));
-        $tagline = SystemSetting::get('company_tagline', SystemSetting::get('company.tagline', config('business.business_type', 'Premium Knitwear & Ready-Made Garments Manufacturer & Exporter')));
+        $companyName = SystemSetting::get('company_name', SystemSetting::get('company.name', config('business.name', 'AYAAN CLOTHING')));
+        $legalName = SystemSetting::get('company_legal_name', SystemSetting::get('company.legal_name', config('business.banking.account_title', 'AYAAN CLOTHING')));
+        $tagline = SystemSetting::get('company_tagline', SystemSetting::get('company.tagline', config('business.business_type', 'Ready-made Garments Manufacturer & Exporter')));
         $website = SystemSetting::get('company_website', SystemSetting::get('company.website', SystemSetting::get('business_website', config('business.contact.website', 'https://ayaanclothing.com'))));
         $logoUrl = SystemSetting::get('company_logo_url', SystemSetting::get('company.logo_url', '/images/logo.png'));
+        $email = SystemSetting::get('business_email', config('business.contact.email', 'sales@ayaanclothing.com'));
 
         return [
             'name' => $companyName,
@@ -52,9 +53,11 @@ class DocumentHelper
             'city' => $city,
             'postal_code' => $postalCode,
             'country' => $country,
+            'country_of_origin' => $country,
             'country_code' => SystemSetting::get('office_country_code', config('business.address.country_code', 'BD')),
             'phone' => SystemSetting::get('business_phone', config('business.contact.phone', '+880 1620-853502')),
-            'email' => SystemSetting::get('business_email', config('business.contact.email', 'export@ayaanclothing.com')),
+            'email' => $email,
+            'contact_email' => $email,
             'whatsapp' => $waDisplay,
             'whatsapp_display' => $waDisplay,
             'whatsapp_number' => $waNumber,
@@ -75,6 +78,51 @@ class DocumentHelper
             'incorporation_number' => SystemSetting::get('incorporation_number', 'C-158945/2021'),
             'est_year' => (int) SystemSetting::get('company_established_year', config('business.established_year', 2010)),
         ];
+    }
+
+    /**
+     * Resolve authoritative international customs HS Code for apparel products.
+     */
+    public static function resolveHsCode(?string $productName, ?string $explicitHsCode = null): string
+    {
+        if (!empty($explicitHsCode) && trim($explicitHsCode) !== '') {
+            return trim($explicitHsCode);
+        }
+
+        $name = strtolower(trim((string)$productName));
+        if (str_contains($name, 'pant') || str_contains($name, 'trouser') || str_contains($name, 'denim') || str_contains($name, 'jeans')) {
+            return '6203.42.00';
+        }
+
+        if (str_contains($name, 'jacket') || str_contains($name, 'coat') || str_contains($name, 'outerwear') || str_contains($name, 'blazer') || str_contains($name, 'sherpa')) {
+            return '6201.40.00';
+        }
+
+        if (str_contains($name, 'hoodie') || str_contains($name, 'sweater') || str_contains($name, 'sweatshirt') || str_contains($name, 'pullover') || str_contains($name, 'fleece')) {
+            return '6110.20.00';
+        }
+
+        if (str_contains($name, 't-shirt') || str_contains($name, 'tee') || str_contains($name, 'tank')) {
+            return '6109.10.00';
+        }
+
+        if (str_contains($name, 'polo') || str_contains($name, 'knit shirt')) {
+            return '6105.10.00';
+        }
+
+        if (str_contains($name, 'shirt') || str_contains($name, 'woven')) {
+            return '6205.20.00';
+        }
+
+        if (str_contains($name, 'short')) {
+            return '6203.42.00';
+        }
+
+        if (str_contains($name, 'dress') || str_contains($name, 'skirt')) {
+            return '6204.42.00';
+        }
+
+        return '6109.10.00';
     }
 
     public const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'BDT'];

@@ -1,23 +1,22 @@
 @php
     $exporter = $doc['exporter'] ?? [];
-    $companyName = strtoupper($exporter['company_name'] ?? 'AYAAN CLOTHING');
+    $companyName = strtoupper($exporter['company_name'] ?? ($exporter['name'] ?? 'AYAAN CLOTHING'));
     $tagline = $exporter['business_type'] ?? ($exporter['tagline'] ?? 'Original-Branded Garments Manufacturer & Exporter • Est. 2010');
     $address = $exporter['address'] ?? ($exporter['office_address'] ?? 'House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh');
-    $exporterEmail = $exporter['email'] ?? 'export@ayaanclothing.com';
-    $exporterWhatsapp = $exporter['whatsapp_display'] ?? ($exporter['phone'] ?? '+880 1620-853502');
-    $exporterReg = $exporter['reg_number'] ?? ($exporter['tin_number'] ?? 'BGMEA Certified');
+    $countryOfOrigin = $exporter['country_of_origin'] ?? ($exporter['country'] ?? 'Bangladesh');
+    $exporterEmail = $exporter['contact_email'] ?? ($exporter['email'] ?? 'sales@ayaanclothing.com');
+    $exporterWhatsapp = $exporter['whatsapp_display'] ?? ($exporter['whatsapp'] ?? ($exporter['phone'] ?? '+880 1620-853502'));
+    $exporterReg = $exporter['reg_number'] ?? 'TRAD/DNCC/012458/2022';
 
     $buyer = $doc['buyer'] ?? [];
     $buyerName = $buyer['company_name'] ?? ($buyer['name'] ?? ($doc['companyName'] ?? ($doc['buyerName'] ?? 'Valued Customer')));
     $buyerAttn = $buyer['name'] ?? ($doc['buyerName'] ?? 'Authorized Buyer');
     $buyerAddress = $buyer['address'] ?? ($doc['buyerAddress'] ?? 'Destination Address');
-    $buyerCity = $buyer['city'] ?? ($doc['shipping_city'] ?? '');
-    $buyerPostal = $buyer['postal_code'] ?? ($doc['shipping_postal_code'] ?? '');
-    $buyerCountry = $buyer['country'] ?? ($doc['buyerCountry'] ?? 'US');
-    $buyerCityStateCountry = trim("{$buyerCity}, {$buyerPostal}, {$buyerCountry}", ", ");
-    if (empty($buyerCityStateCountry)) {
-        $buyerCityStateCountry = $buyerCountry ?: 'International';
-    }
+    $buyerCity = trim((string)($buyer['city'] ?? ($doc['shipping_city'] ?? '')));
+    $buyerPostal = trim((string)($buyer['postal_code'] ?? ($doc['shipping_postal_code'] ?? '')));
+    $buyerCountry = trim((string)($buyer['country'] ?? ($doc['buyerCountry'] ?? 'US')));
+    $buyerLocationParts = array_filter([$buyerCity, $buyerPostal, $buyerCountry]);
+    $buyerCityStateCountry = !empty($buyerLocationParts) ? implode(', ', $buyerLocationParts) : ($buyerCountry ?: 'International');
     $buyerEmail = $buyer['email'] ?? ($doc['buyerEmail'] ?? 'N/A');
     $buyerPhone = $buyer['phone'] ?? ($doc['buyerPhone'] ?? 'N/A');
 
@@ -72,9 +71,9 @@
         }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 8.5pt;
+            font-size: 9.5pt;
             color: #1e293b;
-            line-height: 1.35;
+            line-height: 1.4;
             background: #ffffff;
         }
         table {
@@ -94,15 +93,15 @@
             font-weight: bold;
             letter-spacing: 0.5px;
             color: #ffffff;
-            line-height: 1.1;
+            line-height: 1.15;
         }
         .company-meta {
-            font-size: 8.2pt;
+            font-size: 9.5pt;
             color: #cbd5e1;
             margin-top: 2px;
             line-height: 1.35;
         }
-        /* Blue Box (Exact Dimensions & Centered Title/Subtitle) */
+        /* Blue Box (Exact Dimensions & Centered Title/Subtitle Preserved) */
         .pi-badge-box {
             width: 195px;
             height: 56px;
@@ -121,7 +120,7 @@
             line-height: 1.1;
         }
         .pi-badge-sub {
-            font-size: 7.8pt;
+            font-size: 8pt;
             color: #e2e8f0;
             margin-top: 4px;
             text-align: center;
@@ -135,26 +134,27 @@
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 7px 10px;
-            font-size: 7.8pt;
-            min-height: 84px;
+            padding: 8px 10px;
+            font-size: 9.5pt;
+            min-height: 98px;
         }
         .card-label {
-            font-size: 7.8pt;
+            font-size: 8.5pt;
             font-weight: bold;
             color: #64748b;
             margin-bottom: 3px;
             text-transform: uppercase;
         }
         .card-name {
-            font-size: 9pt;
+            font-size: 10.5pt;
             font-weight: bold;
             color: #0f172a;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
         }
         .card-text {
+            font-size: 9.5pt;
             color: #475569;
-            line-height: 1.35;
+            line-height: 1.45;
         }
         /* Metadata Strip */
         .meta-strip {
@@ -166,14 +166,14 @@
             margin-bottom: 9px;
         }
         .meta-label {
-            font-size: 7.2pt;
+            font-size: 8pt;
             font-weight: bold;
             color: #64748b;
             text-transform: uppercase;
             margin-bottom: 2px;
         }
         .meta-val {
-            font-size: 8.5pt;
+            font-size: 9.5pt;
             font-weight: bold;
             color: #0f172a;
         }
@@ -190,14 +190,14 @@
         .goods-table th {
             background-color: #1e293b;
             color: #ffffff;
-            font-size: 8pt;
+            font-size: 9.5pt;
             font-weight: bold;
-            padding: 5px 6px;
+            padding: 6px 6px;
             text-align: left;
         }
         .goods-table td {
-            font-size: 7.8pt;
-            padding: 4px 6px;
+            font-size: 9.5pt;
+            padding: 5px 6px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
         }
@@ -205,11 +205,11 @@
             background-color: #f8fafc;
         }
         .goods-price {
-            font-size: 8.8pt;
+            font-size: 11pt;
             font-family: 'Courier New', Courier, monospace;
         }
         .goods-amount {
-            font-size: 8.8pt;
+            font-size: 11pt;
             font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
         }
@@ -223,16 +223,16 @@
             table-layout: fixed;
         }
         .shipping-title {
-            font-size: 8.5pt;
+            font-size: 9.5pt;
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 4px;
         }
         .shipping-bullet {
-            font-size: 7.8pt;
+            font-size: 9pt;
             color: #475569;
-            margin-bottom: 2.5px;
-            line-height: 1.3;
+            margin-bottom: 3px;
+            line-height: 1.4;
         }
         .shipping-alert {
             color: #c2410c;
@@ -242,28 +242,28 @@
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 6px 10px;
+            padding: 7px 10px;
         }
         .totals-line {
-            font-size: 8.2pt;
-            padding: 1.5px 0;
+            font-size: 9.5pt;
+            padding: 2px 0;
         }
         .totals-num {
-            font-size: 9.2pt;
+            font-size: 11pt;
             font-family: 'Courier New', Courier, monospace;
             font-weight: bold;
         }
         .totals-divider {
             border-top: 1px solid #cbd5e1;
-            margin: 3px 0;
+            margin: 4px 0;
         }
         .totals-grand {
-            font-size: 9pt;
+            font-size: 10.5pt;
             font-weight: bold;
             padding-top: 2px;
         }
         .totals-grand-num {
-            font-size: 10.5pt;
+            font-size: 13.5pt;
             font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
             color: #1e3a8a;
@@ -273,26 +273,27 @@
             background: #f8fafc;
             border: 1px solid #cbd5e1;
             border-radius: 4px;
-            padding: 6px 10px;
+            padding: 7px 10px;
             margin-bottom: 9px;
             page-break-inside: avoid;
         }
         .bank-title {
-            font-size: 9pt;
+            font-size: 9.5pt;
             font-weight: bold;
             color: #0f172a;
             margin-bottom: 4px;
             text-transform: uppercase;
         }
         .bank-table td {
-            font-size: 8pt;
-            padding: 2px 0;
+            font-size: 9.5pt;
+            padding: 2.5px 0;
             vertical-align: top;
+            line-height: 1.4;
         }
         /* Authorized Signatory Block — Deliberate top whitespace, safely inset */
         .sig-section {
-            margin-top: 22px;
-            margin-bottom: 8px;
+            margin-top: 18px;
+            margin-bottom: 6px;
             padding-right: 8px;
             page-break-inside: avoid;
         }
@@ -304,13 +305,13 @@
             margin-bottom: 5px;
         }
         .sig-title {
-            font-size: 8.5pt;
+            font-size: 9.5pt;
             font-weight: bold;
             color: #0f172a;
             text-align: right;
         }
         .sig-sub {
-            font-size: 7.5pt;
+            font-size: 8.5pt;
             color: #64748b;
             text-align: right;
         }
@@ -326,7 +327,7 @@
                     <div class="company-title">{{ $companyName }}</div>
                     <div class="company-meta">{{ $tagline }}</div>
                     <div class="company-meta">{{ $address }}</div>
-                    <div class="company-meta">Email: sales@ayaanclothing.com</div>
+                    <div class="company-meta">Email: {{ $exporterEmail }}</div>
                     <div class="company-meta">WhatsApp: {{ $exporterWhatsapp }}</div>
                 </td>
                 <td style="width: 195px; text-align: right; vertical-align: middle;">
@@ -346,9 +347,10 @@
                 <div class="party-card">
                     <div class="card-label">EXPORTER / BENEFICIARY:</div>
                     <div class="card-name">{{ $companyName }}</div>
-                    <div class="card-text">House #33 (2nd floor), Road #12, Sector #11,</div>
-                    <div class="card-text">Country of Origin: Bangladesh</div>
-                    <div class="card-text">Contact: {{ $exporterEmail }} • WA: {{ $exporterWhatsapp }}</div>
+                    <div class="card-text">{{ $address }}</div>
+                    <div class="card-text">Country of Origin: {{ $countryOfOrigin }}</div>
+                    <div class="card-text">Contact: {{ $exporterEmail }}</div>
+                    <div class="card-text">WhatsApp: {{ $exporterWhatsapp }}</div>
                     <div class="card-text">Reg: {{ $exporterReg }}</div>
                 </div>
             </td>
@@ -405,13 +407,13 @@
     <table class="goods-table">
         <thead>
             <tr>
-                <th style="width: 5%;" class="text-center">#</th>
-                <th style="width: 44%;">Description of Goods &amp; Package Assortment</th>
-                <th style="width: 17%;">SKU / Style</th>
-                <th style="width: 10%;" class="text-center">HS Code</th>
-                <th style="width: 8%;" class="text-right">Quantity</th>
-                <th style="width: 7%;" class="text-right">Unit Price</th>
-                <th style="width: 9%;" class="text-right">Amount (USD)</th>
+                <th style="width: 4%;" class="text-center">#</th>
+                <th style="width: 38%;">Description of Goods &amp; Package Assortment</th>
+                <th style="width: 18%;">SKU / Style</th>
+                <th style="width: 11%;" class="text-center">HS Code</th>
+                <th style="width: 10%; text-align: right; white-space: nowrap;">Quantity</th>
+                <th style="width: 9%; text-align: right; white-space: nowrap;">Unit Price</th>
+                <th style="width: 10%; text-align: right; white-space: nowrap;">Amount (USD)</th>
             </tr>
         </thead>
         <tbody>
@@ -432,14 +434,14 @@
                 <tr class="{{ $idx % 2 === 1 ? 'alt' : '' }}">
                     <td class="text-center" style="color: #64748b;">{{ $idx + 1 }}</td>
                     <td>
-                        <div class="font-bold" style="color: #0f172a; font-size: 8.5pt;">{{ $item['product_name'] ?? ($item['description'] ?? 'Garment Item') }}</div>
-                        <div style="font-size: 7.2pt; color: #64748b; margin-top: 1px;">Assortment: {{ $pkgText }}</div>
+                        <div class="font-bold" style="color: #0f172a; font-size: 9.5pt;">{{ $item['product_name'] ?? ($item['description'] ?? 'Garment Item') }}</div>
+                        <div style="font-size: 8pt; color: #64748b; margin-top: 1px;">Assortment: {{ $pkgText }}</div>
                     </td>
-                    <td class="font-bold" style="color: #0f172a;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
-                    <td class="text-center font-mono" style="color: #475569;">{{ $item['hs_code'] ?? '6109.10.00' }}</td>
-                    <td class="text-right font-bold">{{ number_format($qty) }} pcs</td>
-                    <td class="text-right goods-price" style="color: #0f172a;">${{ number_format($uPrice, 2) }}</td>
-                    <td class="text-right goods-amount" style="color: #0f172a;">${{ number_format($lTotal, 2) }}</td>
+                    <td class="font-bold" style="color: #0f172a; word-break: break-all;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
+                    <td class="text-center font-mono" style="color: #475569; white-space: nowrap;">{{ $item['hs_code'] ?? '6109.10.00' }}</td>
+                    <td class="text-right font-bold" style="white-space: nowrap;">{{ number_format($qty) }} pcs</td>
+                    <td class="text-right goods-price" style="color: #0f172a; white-space: nowrap;">${{ number_format($uPrice, 2) }}</td>
+                    <td class="text-right goods-amount" style="color: #0f172a; white-space: nowrap;">${{ number_format($lTotal, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -484,10 +486,17 @@
                                 <td class="totals-line text-right totals-num" style="color: #0f172a;">${{ number_format($shipping, 2) }}</td>
                             </tr>
                         @endif
-                        <tr>
-                            <td class="totals-line" style="color: #475569;">Estimated Tax (B2B Export):</td>
-                            <td class="totals-line text-right totals-num" style="color: #0f172a;">$0.00 (Zero Rated)</td>
-                        </tr>
+                        @if($tax > 0)
+                            <tr>
+                                <td class="totals-line" style="color: #475569;">Estimated Tax:</td>
+                                <td class="totals-line text-right totals-num" style="color: #0f172a;">${{ number_format($tax, 2) }}</td>
+                            </tr>
+                        @else
+                            <tr>
+                                <td class="totals-line" style="color: #475569;">Estimated Tax (B2B Export):</td>
+                                <td class="totals-line text-right totals-num" style="color: #0f172a;">$0.00 (Zero Rated)</td>
+                            </tr>
+                        @endif
                         <tr>
                             <td colspan="2"><div class="totals-divider"></div></td>
                         </tr>
@@ -526,22 +535,15 @@
         <div class="sig-sub">Ayaan Clothing Ltd • Dhaka, Bangladesh</div>
     </div>
 
-    {{-- CANVAS SCRIPT: PHYSICAL 7MM PAGE BORDER + FOOTER ON EVERY PAGE --}}
+    {{-- CANVAS SCRIPT: RETAIN EXACT INSET MARGINS AND GEOMETRY, REMOVE VISIBLE BORDER STROKE --}}
     <script type="text/php">
     if (isset($pdf)) {
         $pdf->page_script(function ($PAGE_NUM, $PAGE_COUNT, $pdf, $fontMetrics) {
-            // A4 physical page border: exactly 7mm (19.84 pt) inside edges on all 4 sides
-            $x = 19.84;
-            $y = 19.84;
-            $w = $pdf->get_width() - (2 * $x);
-            $h = $pdf->get_height() - (2 * $y);
-            $borderColor = [0.80, 0.84, 0.88]; // neutral grey #cbd5e1
-            $pdf->rectangle($x, $y, $w, $h, $borderColor, 0.75);
-
+            // A4 physical page border: outline stroke removed per commercial audit, reserved geometry retained
             // Official PI footer
             $text = "AYAAN CLOTHING • Proforma Invoice Ref: {{ $piNumber }} • Generated on {{ $generatedDate }} • Page {$PAGE_NUM} of {$PAGE_COUNT}";
             $font = $fontMetrics->getFont("Helvetica Neue, Helvetica, Arial", "normal");
-            $pdf->text(39.68, 814.0, $text, $font, 7.5, [0.58, 0.64, 0.72]);
+            $pdf->text(39.68, 814.0, $text, $font, 8.0, [0.58, 0.64, 0.72]);
         });
     }
     </script>

@@ -19,6 +19,7 @@ import {
   HomepageSeoManager,
   GoogleTagsManager,
   HomepageFooterManager,
+  HomepageBeneficiaryManager,
   HomepageFaqManager,
 } from "@/components/admin/homepage";
 import SocialLinksSettings from "@/components/admin/settings/social/SocialLinksSettings";
@@ -54,6 +55,14 @@ export default function AdminHomepageManagement() {
   const [contactPhone, setContactPhone] = useState<string>("");
   const [whatsappDisplay, setWhatsappDisplay] = useState<string>("");
   const [faqs, setFaqs] = useState<any[]>([]);
+
+  // Commercial Exporter / Beneficiary State
+  const [beneficiaryCompanyName, setBeneficiaryCompanyName] = useState<string>("AYAAN CLOTHING");
+  const [beneficiaryAddress, setBeneficiaryAddress] = useState<string>("House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh");
+  const [beneficiaryCountry, setBeneficiaryCountry] = useState<string>("Bangladesh");
+  const [beneficiaryEmail, setBeneficiaryEmail] = useState<string>("sales@ayaanclothing.com");
+  const [beneficiaryWhatsapp, setBeneficiaryWhatsapp] = useState<string>("+880 1620-853502");
+  const [beneficiaryRegNumber, setBeneficiaryRegNumber] = useState<string>("TRAD/DNCC/012458/2022");
 
   // Banner Form Draft State
   const [formState, setFormState] = useState<BannerFormState>({
@@ -110,10 +119,24 @@ export default function AdminHomepageManagement() {
       setGoogleTagBodyCode(data.google_tag_body_code || null);
 
       if (data.footer_description) setFooterDescription(data.footer_description);
-      if (data.office_address) setOfficeAddress(data.office_address);
-      if (data.contact_email) setContactEmail(data.contact_email);
+      if (data.office_address) {
+        setOfficeAddress(data.office_address);
+        setBeneficiaryAddress(data.office_address);
+      }
+      if (data.contact_email) {
+        setContactEmail(data.contact_email);
+        setBeneficiaryEmail(data.contact_email);
+      }
       if (data.contact_phone) setContactPhone(data.contact_phone);
-      if (data.whatsapp_display) setWhatsappDisplay(data.whatsapp_display);
+      if (data.whatsapp_display) {
+        setWhatsappDisplay(data.whatsapp_display);
+        setBeneficiaryWhatsapp(data.whatsapp_display);
+      }
+      if (data.exporter_company_name || data.company_name) {
+        setBeneficiaryCompanyName(data.exporter_company_name || data.company_name || "AYAAN CLOTHING");
+      }
+      if (data.country_of_origin) setBeneficiaryCountry(data.country_of_origin);
+      if (data.reg_number) setBeneficiaryRegNumber(data.reg_number);
       if (Array.isArray(data.faqs) && data.faqs.length > 0) setFaqs(data.faqs);
 
       // Attempt to enrich with authoritative site settings
@@ -489,6 +512,23 @@ export default function AdminHomepageManagement() {
             initialEmail={contactEmail}
             initialPhone={contactPhone}
             initialWhatsApp={whatsappDisplay}
+            showToast={showToast}
+            disabled={saving}
+            onSaveSuccess={loadHomepageData}
+          />
+        </section>
+
+        {/* ==================================================================== */}
+        {/* SECTION 5B: COMMERCIAL EXPORTER / BENEFICIARY PROFILE                 */}
+        {/* ==================================================================== */}
+        <section>
+          <HomepageBeneficiaryManager
+            initialCompanyName={beneficiaryCompanyName}
+            initialAddress={beneficiaryAddress}
+            initialCountryOfOrigin={beneficiaryCountry}
+            initialEmail={beneficiaryEmail}
+            initialWhatsApp={beneficiaryWhatsapp}
+            initialRegNumber={beneficiaryRegNumber}
             showToast={showToast}
             disabled={saving}
             onSaveSuccess={loadHomepageData}

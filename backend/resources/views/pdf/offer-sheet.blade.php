@@ -52,7 +52,7 @@
             letter-spacing: 0.8px;
             line-height: 1.1;
             text-align: left;
-            margin-bottom: 7px;
+            margin-bottom: 6px;
         }
         /* Metadata Strip */
         .meta-strip {
@@ -60,7 +60,7 @@
             border: 1px solid #cbd5e1;
             border-radius: 4px;
             padding: 5px 10px;
-            margin-bottom: 8px;
+            margin-bottom: 7px;
         }
         .meta-label {
             font-size: 8pt;
@@ -88,22 +88,22 @@
         .product-meta-row {
             font-size: 8.5pt;
             color: #64748b;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         /* Section Headings */
         .section-heading {
             font-size: 11pt;
             font-weight: bold;
             color: #0f172a;
-            margin-top: 4px;
-            margin-bottom: 5px;
+            margin-top: 3px;
+            margin-bottom: 4px;
             text-transform: uppercase;
             letter-spacing: 0.2px;
         }
         /* Gallery — Strict 4:5 Aspect Ratio (4 per row, 42.4mm x 53mm) */
         .gallery-table {
             width: 100%;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             border-collapse: separate;
             border-spacing: 3.5mm 3.5mm;
             table-layout: fixed;
@@ -141,22 +141,36 @@
         }
         /* Description */
         .desc-section {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .desc-box {
             font-size: 10pt;
             color: #334155;
             line-height: 1.4;
-            margin-bottom: 7px;
+            margin-bottom: 6px;
         }
-        /* Specifications Table — Clean 2-column key-value */
+        /* Specifications Table — Clean repeated header on page breaks */
         .spec-section {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .spec-table {
             width: 100%;
             border: 1px solid #e2e8f0;
             border-collapse: collapse;
+        }
+        .spec-table thead {
+            display: table-header-group;
+        }
+        .spec-thead-th {
+            background-color: #f8fafc;
+            color: #0f172a;
+            font-size: 11pt;
+            font-weight: bold;
+            padding: 5px 8px;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+            border-bottom: 1px solid #cbd5e1;
         }
         .spec-table tr {
             page-break-inside: avoid;
@@ -166,7 +180,7 @@
         }
         .spec-label {
             width: 28%;
-            padding: 4px 8px;
+            padding: 3.5px 8px;
             font-size: 9.5pt;
             font-weight: bold;
             color: #475569;
@@ -175,7 +189,7 @@
         }
         .spec-val {
             width: 72%;
-            padding: 4px 8px;
+            padding: 3.5px 8px;
             font-size: 9.5pt;
             color: #0f172a;
             border-bottom: 1px solid #e2e8f0;
@@ -184,14 +198,14 @@
         /* Logistics Cards */
         .logistics-section {
             page-break-inside: avoid;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .logistics-card {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 7px 10px;
-            min-height: 40px;
+            padding: 6px 10px;
+            min-height: 38px;
         }
         .logistics-label {
             font-size: 8.5pt;
@@ -205,13 +219,13 @@
             font-size: 11.5pt;
             font-weight: bold;
             color: #0f172a;
-            margin-top: 3px;
+            margin-top: 2px;
             line-height: 1.2;
         }
         /* Pricing Table */
         .pricing-section {
             page-break-inside: avoid;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .pricing-table {
             width: 100%;
@@ -227,7 +241,7 @@
         }
         .pricing-table td {
             font-size: 9.5pt;
-            padding: 5px 8px;
+            padding: 4.5px 8px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
         }
@@ -235,11 +249,11 @@
             background-color: #f8fafc;
         }
         .price-unit {
-            font-size: 10.5pt;
+            font-size: 11pt;
             color: #0f172a;
         }
         .price-total {
-            font-size: 10.5pt;
+            font-size: 11pt;
             color: #c2410c;
         }
         .text-right { text-align: right; }
@@ -272,7 +286,13 @@
             if (!$isMissingVal($brandName)) $validSpecs['Brand'] = $brandName;
             if (!$isMissingVal($colourDesc)) $validSpecs['Colours'] = $colourDesc;
             if (!$isMissingVal($sizeDesc)) $validSpecs['Available Sizes'] = $sizeDesc;
-            if (!$isMissingVal($material)) $validSpecs['Fabric / Composition'] = $material;
+            if (!$isMissingVal($material)) {
+                // Strip redundant prefixes like "Fabric / Composition:" or "Materials:"
+                $cleanMat = preg_replace('/^(?:Fabric\s*\/\s*Composition|Materials?)\s*:\s*/i', '', $material);
+                // Correct "Polyster" -> "Polyester"
+                $cleanMat = preg_replace('/\bPolyster\b/i', 'Polyester', $cleanMat);
+                $validSpecs['Fabric / Composition'] = trim($cleanMat);
+            }
             if (!$isMissingVal($designType)) $validSpecs['Design Type'] = $designType;
             $fitStyle = $item['fit'] ?? ($item['style'] ?? ($item['fit_style'] ?? ''));
             if (!$isMissingVal($fitStyle)) $validSpecs['Fit / Style'] = $fitStyle;
@@ -281,6 +301,11 @@
             // Clean description: filter out empty lines, markdown markers, and lines duplicating table specs
             $cleanDescLines = [];
             if (!empty($rawDescription)) {
+                // Fix spacing error: missing space after period e.g. "daily wear.Perfect" -> "daily wear. Perfect"
+                $rawDescription = preg_replace('/([a-z0-9])\.([A-Z])/', '$1. $2', $rawDescription);
+                // Correct spelling typo "Polyster" -> "Polyester"
+                $rawDescription = preg_replace('/\bPolyster\b/i', 'Polyester', $rawDescription);
+
                 $lines = preg_split('/\r?\n/', $rawDescription);
                 foreach ($lines as $l) {
                     $l = trim($l);
@@ -315,12 +340,12 @@
                     if (empty($l)) continue;
 
                     // Filter out lines duplicating specs already displayed in header or spec table
-                    if (preg_match('/^([^:]+):\s*(.+)$/', $l, $m)) {
+                    if (preg_match('/^([^:]+):\s*(.*)$/', $l, $m)) {
                         $kLower = strtolower(trim($m[1]));
                         if (in_array($kLower, [
                             'brand', 'colours', 'colors', 'colour', 'color', 
                             'available sizes', 'sizes', 'size', 'size ratio',
-                            'fabric', 'fabric / composition', 'fabric type', 'material', 
+                            'fabric', 'fabric / composition', 'fabric type', 'material', 'materials',
                             'design type', 'design', 'style', 'fit',
                             'item', 'item / product type', 'category', 'gender',
                             'quantity', 'qty', 'total quantity', 'total qty', 
@@ -336,7 +361,7 @@
                     $cleanDescLines[] = $l;
                 }
             }
-            $cleanDescription = implode("\n", $cleanDescLines);
+            $cleanDescription = trim(implode("\n", $cleanDescLines));
 
             $hasCbm = !$isMissingVal($cbmMoq);
             $hasGw = !$isMissingVal($gwMoq);
@@ -355,7 +380,7 @@
             <div class="page-break"></div>
         @endif
 
-        {{-- 1. Compact Header: Top-Left OFFER SHEET, Zero Subtitle, Zero Company Branding --}}
+        {{-- 1. Header: Top-Left OFFER SHEET only, Zero Subtitle, Zero Company Branding --}}
         <div class="os-header-title">OFFER SHEET</div>
 
         {{-- 2. Offer Metadata Strip --}}
@@ -423,14 +448,20 @@
 
         @if(count($validSpecs) > 0)
             <div class="spec-section">
-                <div class="section-heading">SPECIFICATIONS</div>
                 <table class="spec-table">
-                    @foreach($validSpecs as $sLabel => $sVal)
+                    <thead>
                         <tr>
-                            <td class="spec-label">{{ $sLabel }}</td>
-                            <td class="spec-val">{{ $sVal }}</td>
+                            <th colspan="2" class="spec-thead-th">SPECIFICATIONS</th>
                         </tr>
-                    @endforeach
+                    </thead>
+                    <tbody>
+                        @foreach($validSpecs as $sLabel => $sVal)
+                            <tr>
+                                <td class="spec-label">{{ $sLabel }}</td>
+                                <td class="spec-val">{{ $sVal }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
                 </table>
             </div>
         @endif
@@ -492,18 +523,11 @@
     <script type="text/php">
     if (isset($pdf)) {
         $pdf->page_script(function ($PAGE_NUM, $PAGE_COUNT, $pdf, $fontMetrics) {
-            // A4 physical page border: exactly 7mm (19.84 pt) inside edges on all 4 sides
-            $x = 19.84;
-            $y = 19.84;
-            $w = $pdf->get_width() - (2 * $x);
-            $h = $pdf->get_height() - (2 * $y);
-            $borderColor = [0.80, 0.84, 0.88]; // neutral grey #cbd5e1
-            $pdf->rectangle($x, $y, $w, $h, $borderColor, 0.75);
-
+            // A4 physical page border: outline stroke removed per commercial audit, reserved geometry retained
             // Clean, non-branded footer
             $text = "Offer Sheet Reference: {{ $docNumber }} • Generated on {{ $generatedDate }} • Page {$PAGE_NUM} of {$PAGE_COUNT}";
             $font = $fontMetrics->getFont("Helvetica Neue, Helvetica, Arial", "normal");
-            $pdf->text(39.68, 818.0, $text, $font, 7.5, [0.58, 0.64, 0.72]);
+            $pdf->text(39.68, 818.0, $text, $font, 8.0, [0.58, 0.64, 0.72]);
         });
     }
     </script>

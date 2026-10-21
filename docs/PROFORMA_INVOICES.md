@@ -107,31 +107,59 @@ While `CommercialPdfArtifactService` and Dompdf 3.1 serve as the canonical gener
 
 ---
 
-## 5. Approved Reference Rebuild & Layout Standards (v6 Canonical Layout)
+## 5. Approved Reference Rebuild & Layout Standards (v7 Canonical Commercial PDF Layout)
 
-As part of the v6 commercial document visual refinements:
+As part of the v7 commercial document visual refinements and data-integrity audit (October 21, 2026):
 
-* **Page Geometry & Frame**: Strict A4 portrait (`210 mm x 297 mm`, `595.28 x 841.89 pt`) with a fine, continuous neutral-grey border (`#cbd5e1`, 0.75pt) drawn directly via Dompdf canvas `page_script` inset precisely 7 mm (`19.84 pt`) from the physical paper edges on all four sides of every page.
+* **Page Geometry & Invisible Border**:
+  - Strict A4 portrait (`210 mm x 297 mm`, `595.28 x 841.89 pt`).
+  - The visible neutral-grey border stroke has been **completely removed** (`$pdf->rectangle(...)` call removed in Dompdf canvas `page_script`).
+  - The exact physical margins (`14mm 14mm 16mm 14mm`) and 7 mm (`19.84 pt`) content insets are strictly **retained**, preserving identical spacing and header/footer positioning.
 * **Header Layout & Contact Lines**:
   - Full-width dark navy block (`#0f172a`).
-  - Left side: Authoritative exporter branding, address, origin, followed by exact contact lines:
+  - Preserved blue rectangular box (`#1e3a8a`, `w = 195px`, `h = 56px`) with vertically and horizontally centered `PROFORMA INVOICE` title (10.5pt bold) and subtitle `Official PI (USD)` (7.8pt).
+  - Clean company contact lines:
     - `Email: sales@ayaanclothing.com`
-    - `WhatsApp: +880 1620-853502` (immediately following line)
-  - Right side: Preserved blue rectangular box (`#1e3a8a`, `w = 195px`, `h = 56px`).
-  - **Internal Alignment**: Title `PROFORMA INVOICE` (10.5pt bold) and subtitle `Official PI (USD)` (7.8pt) are centered horizontally and vertically within the blue box.
-* **Parties Panels**: Side-by-side Exporter/Beneficiary card and Consignee/Buyer card.
+    - `WhatsApp: +880 1620-853502` (immediately following line; no bullet, no combined line).
+* **Parties Panels & Authoritative Beneficiary Settings**:
+  - Side-by-side Exporter/Beneficiary card and Consignee/Buyer card.
+  - **Admin Editability**: All 6 Exporter/Beneficiary fields are independently editable and strictly validated under `Admin → Storefront → Homepage Management`:
+    1. Company Name (`AYAAN CLOTHING`)
+    2. Registered Address (`House #33 (2nd floor), Road #12, Sector #11`)
+    3. Country of Origin (`Bangladesh`)
+    4. Contact Email (`sales@ayaanclothing.com`)
+    5. WhatsApp Number (`+880 1620-853502`)
+    6. Registration Number (`TRAD/DNCC/012458/2022`)
+  - Strict frontend and backend validation rejects missing, null, empty, or whitespace-only inputs.
+  - Beneficiary card displays email and WhatsApp on separate lines without bullet separators; obsolete `export@` email is eliminated.
 * **Commercial Metadata Strip**: 6-item grid displaying P.I. Number, Order Reference, Issue Date, Validity, Shipping Arrangement, and Payment Terms.
-* **Typography Enhancements**: Legible body text (8.5pt) and well-structured card and table fonts.
-* **Prominent Financial Figures**: Pricing numbers in Courier New monospace (unit prices 8.8pt, line amounts 8.8pt bold, subtotal 9.2pt, and Merchandise Total / Total Payable 10.5pt bold in `#1e3a8a`).
-* **Goods Table**: 7 columns (`#`, Description of Goods & Package Assortment, SKU / Style, HS Code, Quantity, Unit Price, Amount USD) with clean alignments and row spacing.
-* **Shipping & Delivery vs Financial Summary**: Paired lower section. Left: Shipping arrangements note, scheduled packaging summary, logistics desk contact. Right: Goods Value / Subtotal, Estimated Tax (B2B Export Zero-Rated), and Total Payable in bold USD.
-* **Beneficiary Bank Details**: Full-width light card with authoritative bank name, account title, account number, SWIFT code, and branch address.
+* **Consignee Address Normalization**:
+  - Populates `postal_code`, `city`, and `country` in `$buyer` array without duplicate punctuation (`implode(', ', array_filter([...]))`).
+* **HS Code Classification**:
+  - Centralized in `DocumentHelper::resolveHsCode(?string $productName, ?string $explicitHsCode = null)`:
+    - Pants / Denim: `6203.42.00`
+    - Jackets / Outerwear: `6201.40.00`
+    - Hoodies / Sweatshirts: `6110.20.00`
+    - T-Shirts: `6109.10.00`
+* **Typography Enhancements & Line Spacing (~2 pt Increase)**:
+  - Body text and table content: ~9.5–10.5 pt with comfortable line heights.
+  - Unit prices & Line amounts: 11.0 pt bold monospace right-aligned (`white-space: nowrap;`).
+  - Subtotal amount: 11.0 pt bold.
+  - Merchandise Total / Total Payable: **13.5 pt bold** in `#1e3a8a`.
+  - Footer: 8.0 pt legible grey.
+  - Non-wrapping table columns: Quantity (`1,000 pcs`), Unit Price, and Amount USD are wrapped in `white-space: nowrap;` to prevent awkward splitting.
+* **Financial Calculation & Tax Reconciliation**:
+  - **Audit Finding**: Order 45 displayed line items totaling USD 4,980.00 but printed Merchandise Total USD 5,229.00 (+USD 249.00 discrepancy) because the template hardcoded `$0.00 (Zero Rated)` while printing `$grandTotal`.
+  - **Resolution**: Template now dynamically renders the authoritative `$tax` amount (`Estimated Tax: USD 249.00` at 5%) when tax > 0, reconciling line items ($4,980.00) + tax ($249.00) = Merchandise Total ($5,229.00). When tax is zero, displays `$0.00 (Zero Rated)`.
+  - **Price Snapshots**: Authoritative order-item snapshots (e.g. $4.30 for Item 198 Mens Interlock Jacket) are preserved rather than overwritten with catalog prices.
 * **Authorized Signatory Section**:
-  - Wording is strictly `Authorized Signatory` (`& Export Seal` is completely removed).
-  - Deliberate top whitespace (`margin-top: 22px`) provides clear separation from preceding content.
-  - Safely inset from right border (`padding-right: 8px`) ensuring zero collision with the 7 mm page border.
+  - Heading reads strictly: `Authorized Signatory` (`& Export Seal` is removed).
+  - Deliberate top whitespace (`margin-top: 24px`) provides clean visual separation from the banking panel.
+  - Right-aligned and safely inset within page content boundaries.
 * **Dynamic Canvas Footer**: Printed at $y = 814.0$ pt (`AYAAN CLOTHING • Proforma Invoice Ref: {ref} • Generated on {date} • Page {PAGE_NUM} of {PAGE_COUNT}`).
-* **Deterministic Layout Invalidation**: `CommercialPdfArtifactService::LAYOUT_VERSION = 'v6_canonical_layout'` is incorporated into `computeOrderFingerprint()`, ensuring all previously cached PDFs are automatically invalidated and re-rendered with updated styling.
+* **Deterministic Layout Invalidation**:
+  - `CommercialPdfArtifactService::LAYOUT_VERSION = 'v7_canonical_layout'`.
+  - Exporter profile checksum is incorporated into `computeOrderFingerprint()`, ensuring changes to beneficiary settings automatically invalidate cached documents.
 
 ---
 

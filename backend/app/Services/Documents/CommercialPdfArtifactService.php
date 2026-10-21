@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CommercialPdfArtifactService
 {
-    public const LAYOUT_VERSION = 'v6_canonical_layout';
+    public const LAYOUT_VERSION = 'v7_canonical_layout';
 
     /**
      * Retrieve a cached commercial PDF artifact or render and persist it atomically.
@@ -337,7 +337,17 @@ class CommercialPdfArtifactService
             ]);
         })->join('-');
 
-        return hash('sha256', "order_" . self::LAYOUT_VERSION . "_{$order->id}_{$normalizedDocType}_{$rolePart}_{$orderCore}_{$itemsPart}");
+        $exporter = DocumentHelper::getExporterProfile();
+        $exporterFingerprint = implode('^', [
+            $exporter['company_name'] ?? '',
+            $exporter['address'] ?? '',
+            $exporter['country_of_origin'] ?? '',
+            $exporter['contact_email'] ?? '',
+            $exporter['whatsapp_display'] ?? '',
+            $exporter['reg_number'] ?? '',
+        ]);
+
+        return hash('sha256', "order_" . self::LAYOUT_VERSION . "_{$order->id}_{$normalizedDocType}_{$rolePart}_{$orderCore}_{$itemsPart}_{$exporterFingerprint}");
     }
 
     /**
@@ -425,7 +435,17 @@ class CommercialPdfArtifactService
             ]);
         })->join('-');
 
-        return hash('sha256', "quotation_" . self::LAYOUT_VERSION . "_{$quotation->id}_{$normalizedDocType}_{$rolePart}_{$quoteCore}_{$itemsPart}");
+        $exporter = DocumentHelper::getExporterProfile();
+        $exporterFingerprint = implode('^', [
+            $exporter['company_name'] ?? '',
+            $exporter['address'] ?? '',
+            $exporter['country_of_origin'] ?? '',
+            $exporter['contact_email'] ?? '',
+            $exporter['whatsapp_display'] ?? '',
+            $exporter['reg_number'] ?? '',
+        ]);
+
+        return hash('sha256', "quotation_" . self::LAYOUT_VERSION . "_{$quotation->id}_{$normalizedDocType}_{$rolePart}_{$quoteCore}_{$itemsPart}_{$exporterFingerprint}");
     }
 
     /**

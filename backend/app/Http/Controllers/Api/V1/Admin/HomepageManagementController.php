@@ -117,10 +117,14 @@ class HomepageManagementController extends ApiController
             'all_categories' => $allCategories,
             'featured_products' => $featuredProducts,
             'footer_description' => SystemSetting::get('footer_description', 'Ready-made Garments Manufacturer & Exporter. Serving international retail chains and corporate apparel importers with export-grade ready-made garments.'),
-            'office_address' => SystemSetting::get('office_address_formatted', 'House #33, Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh'),
-            'contact_email' => SystemSetting::get('business_email', 'export@ayaanclothing.com'),
+            'office_address' => SystemSetting::get('office_address_formatted', 'House #33 (2nd floor), Road #12, Sector #11, Uttara, Dhaka-1230, Bangladesh'),
+            'contact_email' => SystemSetting::get('business_email', 'sales@ayaanclothing.com'),
             'contact_phone' => SystemSetting::get('business_phone', '+880 1620-853502'),
             'whatsapp_display' => SystemSetting::get('whatsapp_display', '+880 1620-853502'),
+            'exporter_company_name' => SystemSetting::get('company_name', 'AYAAN CLOTHING'),
+            'company_name' => SystemSetting::get('company_name', 'AYAAN CLOTHING'),
+            'country_of_origin' => SystemSetting::get('office_country', 'Bangladesh'),
+            'reg_number' => SystemSetting::get('reg_number', 'TRAD/DNCC/012458/2022'),
             'faqs' => SystemSetting::get('homepage_faqs', []),
             'social_links' => SystemSetting::get('social_links', []),
             'counts' => [
@@ -607,6 +611,10 @@ class HomepageManagementController extends ApiController
             'whatsapp_display' => ['nullable', 'string', 'max:100'],
             'faqs' => ['nullable', 'array'],
             'social_links' => ['nullable', 'array'],
+            'exporter_company_name' => ['nullable', 'string', 'max:255'],
+            'company_name' => ['nullable', 'string', 'max:255'],
+            'country_of_origin' => ['nullable', 'string', 'max:100'],
+            'reg_number' => ['nullable', 'string', 'max:100'],
         ]);
 
         if ($request->has('hot_sale_visible')) {
@@ -645,6 +653,28 @@ class HomepageManagementController extends ApiController
             if (!empty($wa)) {
                 $clean = preg_replace('/\D+/', '', $wa);
                 SystemSetting::set('whatsapp_number', $clean, 'string', 'contact');
+                SystemSetting::set('whatsapp_business_number', $clean, 'string', 'contact');
+            }
+        }
+
+        if ($request->has('exporter_company_name') || $request->has('company_name')) {
+            $cn = trim(strip_tags((string)($request->input('exporter_company_name') ?: $request->input('company_name'))));
+            if (!empty($cn)) {
+                SystemSetting::set('company_name', $cn, 'string', 'branding');
+            }
+        }
+
+        if ($request->has('country_of_origin')) {
+            $co = trim(strip_tags((string)$request->input('country_of_origin')));
+            if (!empty($co)) {
+                SystemSetting::set('office_country', $co, 'string', 'contact');
+            }
+        }
+
+        if ($request->has('reg_number')) {
+            $rn = trim(strip_tags((string)$request->input('reg_number')));
+            if (!empty($rn)) {
+                SystemSetting::set('reg_number', $rn, 'string', 'legal');
             }
         }
 
@@ -667,7 +697,77 @@ class HomepageManagementController extends ApiController
             'contact_email' => SystemSetting::get('business_email'),
             'contact_phone' => SystemSetting::get('business_phone'),
             'whatsapp_display' => SystemSetting::get('whatsapp_display'),
+            'exporter_company_name' => SystemSetting::get('company_name'),
+            'country_of_origin' => SystemSetting::get('office_country'),
+            'reg_number' => SystemSetting::get('reg_number'),
         ], 'Homepage settings saved successfully.');
+    }
+
+    /**
+     * POST /api/v1/admin/homepage/beneficiary
+     *
+     * Update authoritative Exporter / Beneficiary commercial settings.
+     */
+    public function updateBeneficiarySettings(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$this->authorization->can($user, 'settings.edit') && !$this->authorization->can($user, 'homepage.banner.edit')) {
+            return $this->forbidden("Forbidden: you do not have permission to edit commercial beneficiary settings.");
+        }
+
+        $validated = $request->validate([
+            'exporter_company_name' => ['required', 'string', 'filled', 'regex:/[^\s]/', 'max:255'],
+            'office_address' => ['required', 'string', 'filled', 'regex:/[^\s]/', 'max:500'],
+            'country_of_origin' => ['required', 'string', 'filled', 'regex:/[^\s]/', 'max:100'],
+            'contact_email' => ['required', 'string', 'email:rfc,dns', 'max:255'],
+            'whatsapp_display' => ['required', 'string', 'filled', 'regex:/[^\s]/', 'max:50'],
+            'reg_number' => ['required', 'string', 'filled', 'regex:/[^\s]/', 'max:100'],
+        ], [
+            'exporter_company_name.required' => 'Exporter / Beneficiary Company Name is required.',
+            'exporter_company_name.regex' => 'Company Name cannot be empty or whitespace only.',
+            'office_address.required' => 'Address is required.',
+            'office_address.regex' => 'Address cannot be empty or whitespace only.',
+            'country_of_origin.required' => 'Country of Origin is required.',
+            'country_of_origin.regex' => 'Country of Origin cannot be empty or whitespace only.',
+            'contact_email.required' => 'Contact Email is required.',
+            'contact_email.email' => 'Contact Email must be a valid email address.',
+            'whatsapp_display.required' => 'WhatsApp Number is required.',
+            'whatsapp_display.regex' => 'WhatsApp Number cannot be empty or whitespace only.',
+            'reg_number.required' => 'Registration Number is required.',
+            'reg_number.regex' => 'Registration Number cannot be empty or whitespace only.',
+        ]);
+
+        $companyName = trim($validated['exporter_company_name']);
+        $officeAddress = trim($validated['office_address']);
+        $countryOfOrigin = trim($validated['country_of_origin']);
+        $contactEmail = trim($validated['contact_email']);
+        $whatsappDisplay = trim($validated['whatsapp_display']);
+        $regNumber = trim($validated['reg_number']);
+
+        SystemSetting::set('company_name', $companyName, 'string', 'branding');
+        SystemSetting::set('office_address_formatted', $officeAddress, 'string', 'contact');
+        SystemSetting::set('office_country', $countryOfOrigin, 'string', 'contact');
+        SystemSetting::set('business_email', $contactEmail, 'string', 'contact');
+        SystemSetting::set('whatsapp_display', $whatsappDisplay, 'string', 'contact');
+        $cleanWa = preg_replace('/\D+/', '', $whatsappDisplay);
+        if (!empty($cleanWa)) {
+            SystemSetting::set('whatsapp_number', $cleanWa, 'string', 'contact');
+            SystemSetting::set('whatsapp_business_number', $cleanWa, 'string', 'contact');
+        }
+        SystemSetting::set('reg_number', $regNumber, 'string', 'legal');
+
+        Cache::forget('site_settings_public');
+        CatalogCacheService::invalidateAll();
+
+        return $this->success([
+            'exporter_company_name' => SystemSetting::get('company_name'),
+            'company_name' => SystemSetting::get('company_name'),
+            'office_address' => SystemSetting::get('office_address_formatted'),
+            'country_of_origin' => SystemSetting::get('office_country'),
+            'contact_email' => SystemSetting::get('business_email'),
+            'whatsapp_display' => SystemSetting::get('whatsapp_display'),
+            'reg_number' => SystemSetting::get('reg_number'),
+        ], 'Commercial Exporter / Beneficiary settings saved successfully.');
     }
 
     /**
