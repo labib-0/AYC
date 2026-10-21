@@ -412,8 +412,8 @@
                 <th style="width: 16%;">SKU / Style</th>
                 <th style="width: 12%;" class="text-center">HS Code</th>
                 <th style="width: 11%; text-align: right; white-space: nowrap;">Quantity</th>
-                <th style="width: 11%; text-align: right; white-space: nowrap;">Unit Price</th>
-                <th style="width: 13%; text-align: right; white-space: nowrap;">Amount (USD)</th>
+                <th style="width: 11%; text-align: right; white-space: nowrap; padding-right: 8px;">Unit Price</th>
+                <th style="width: 13%; text-align: right; white-space: nowrap; padding-right: 6px;">Amount (USD)</th>
             </tr>
         </thead>
         <tbody>
@@ -440,8 +440,8 @@
                     <td class="font-bold" style="color: #0f172a; word-break: break-all;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
                     <td class="text-center font-mono" style="color: #475569; white-space: nowrap;">{{ $item['hs_code'] ?? '6109.10.00' }}</td>
                     <td class="text-right font-bold" style="white-space: nowrap;">{{ number_format($qty) }} pcs</td>
-                    <td class="text-right goods-price" style="color: #0f172a; white-space: nowrap;">${{ number_format($uPrice, 2) }}</td>
-                    <td class="text-right goods-amount" style="color: #0f172a; white-space: nowrap;">${{ number_format($lTotal, 2) }}</td>
+                    <td class="text-right goods-price" style="color: #0f172a; white-space: nowrap; padding-right: 8px;">${{ number_format($uPrice, 2) }}</td>
+                    <td class="text-right goods-amount" style="color: #0f172a; white-space: nowrap; padding-right: 6px;">${{ number_format($lTotal, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>
