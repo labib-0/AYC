@@ -195,9 +195,8 @@
             border-bottom: 1px solid #e2e8f0;
             vertical-align: top;
         }
-        /* Logistics Cards */
+        /* Logistics Cards — allow natural flow; governed by combined logistics+pricing wrapper */
         .logistics-section {
-            page-break-inside: avoid;
             margin-bottom: 5px;
         }
         .logistics-card {
@@ -469,6 +468,9 @@
             </div>
         @endif
 
+        {{-- 6 + 7. Packing & Logistics + Pricing: Keep together; move as a unit if they don't fit --}}
+        <div style="page-break-inside: avoid;">
+
         {{-- 6. Packing & Logistics (MOQ) --}}
         @if($hasCbm || $hasGw)
             <div class="logistics-section">
@@ -517,6 +519,8 @@
                 </tbody>
             </table>
         </div>
+
+        </div>{{-- end combined logistics+pricing keep-together wrapper --}}
 
         {{-- NOTE: Commercial terms, Authorized Signature, and Export Seal are completely removed from Offer Sheet --}}
 
