@@ -4,6 +4,7 @@ namespace App\Services\Documents;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductShippingPackageProfile;
 use App\Models\Quotation;
 
 class OfferSheetService
@@ -21,15 +22,28 @@ class OfferSheetService
         $items = [];
         $allGalleryImages = [];
 
-        // Preload products with images and brand in a single query to eliminate N+1 queries
-        $productIds = $order->items->pluck('product_id')->filter()->unique()->values();
-        $products = Product::with(['images', 'brand'])->whereIn('id', $productIds)->get()->keyBy('id');
+        // Preload products with images, brand, shippingPackageProfiles, and pricingTiers
+        $products = collect();
+        $missingProductIds = [];
+        foreach ($order->items as $it) {
+            if ($it->relationLoaded('product') && $it->product) {
+                $products[(string) $it->product->id] = $it->product;
+            } elseif ($it->product_id) {
+                $missingProductIds[] = $it->product_id;
+            }
+        }
+        if (!empty($missingProductIds)) {
+            $fetched = Product::with(['images', 'brand', 'shippingPackageProfiles', 'pricingTiers'])->whereIn('id', array_unique($missingProductIds))->get()->keyBy(fn($p) => (string) $p->id);
+            foreach ($fetched as $k => $v) {
+                $products[$k] = $v;
+            }
+        }
 
         foreach ($order->items as $idx => $item) {
-            $product = ($item->product_id && isset($products[$item->product_id]))
-                ? $products[$item->product_id]
-                : ($item->product_id ? Product::with(['images', 'brand'])->find($item->product_id) : null);
-            $gallery = DocumentHelper::getProductGallery($product, $item->product_image_url);
+            $product = ($item->product_id && isset($products[(string) $item->product_id]))
+                ? $products[(string) $item->product_id]
+                : ($item->relationLoaded('product') ? $item->product : null);
+            $gallery = DocumentHelper::getProductGallery($product, $item->product_image_url ?? null);
             
             foreach ($gallery as $g) {
                 if (!in_array($g, $allGalleryImages)) {
@@ -44,7 +58,7 @@ class OfferSheetService
             if ($brandLogo && !file_exists($brandLogo)) {
                 $brandLogo = null;
             }
-            $prodDesc = $product?->description ?? '';
+            $prodDesc = $product?->description ?: ($product?->short_description ?? '');
             $designType = !empty(trim($product?->design_type ?? '')) ? trim($product->design_type) : 'See Description';
             $material = !empty(trim($product?->material ?? ($product?->fabric ?? ''))) ? trim($product?->material ?? $product->fabric) : 'See Description';
             $sizeDesc = !empty(trim($product?->size_description ?? '')) ? trim($product->size_description) : 'See Description';
@@ -54,39 +68,11 @@ class OfferSheetService
             $moqQty = $product?->moq ?: (int) $item->quantity;
             $moqProfile = $product?->findShippingPackageProfileForQuantity($moqQty);
             $cbmVal = $product?->cbm ?? ($moqProfile?->total_cbm);
-            $gwVal = $product?->gross_weight ?? ($moqProfile?->gross_weight);
             $cbmMoq = $cbmVal ? number_format((float) $cbmVal, 3) . ' m³' : 'See Description';
-            $gwMoq = $gwVal ? number_format((float) $gwVal, 1) . ' KG' : 'See Description';
+            $gwVal = $product?->gross_weight ?? ($moqProfile?->gross_weight);
+            $gwMoq = self::formatGrossWeight($gwVal ? (float) $gwVal : null, $moqProfile);
 
-            $stdPrice = (float) ($product?->standard_price ?? $product?->wholesale_price ?? $item->unit_price);
-            $tiers = [
-                [
-                    'tierName' => 'Standard',
-                    'quantityBasis' => $moqQty . ' pcs (Minimum Order)',
-                    'unitPrice' => $stdPrice,
-                    'totalPrice' => round($stdPrice * $moqQty, 2),
-                ],
-            ];
-            if ($product?->bulk_pricing_enabled && $product?->bulk_price && (float) $product->bulk_price > 0) {
-                $bQty = (int) ($product->bulk_threshold ?: ($moqQty * 2));
-                $bPrice = (float) $product->bulk_price;
-                $tiers[] = [
-                    'tierName' => 'Bulk',
-                    'quantityBasis' => $bQty . ' pcs (Minimum Quantity)',
-                    'unitPrice' => $bPrice,
-                    'totalPrice' => round($bPrice * $bQty, 2),
-                ];
-            }
-            if ($product?->full_stock_price && (float) $product->full_stock_price > 0 && $product?->available_stock && $product->available_stock > 0) {
-                $fsPrice = (float) $product->full_stock_price;
-                $fsQty = (int) $product->available_stock;
-                $tiers[] = [
-                    'tierName' => 'Full Stock',
-                    'quantityBasis' => number_format($fsQty) . ' pcs (Available Stock)',
-                    'unitPrice' => $fsPrice,
-                    'totalPrice' => round($fsPrice * $fsQty, 2),
-                ];
-            }
+            $tiers = self::buildPricingTiers($product, (float) $item->unit_price, (int) $item->quantity);
 
             $items[] = [
                 'id' => (string) $item->id,
@@ -105,14 +91,14 @@ class OfferSheetService
                 'gross_weight_moq' => $gwMoq,
                 'pricing_tiers' => $tiers,
                 'description' => $item->product_name,
-                'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
-                'product_image_url' => $gallery[0] ?? $item->product_image_url,
+                'sku' => ($item->sku ?? null) ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
+                'product_image_url' => $gallery[0] ?? ($item->product_image_url ?? null),
                 'product_images' => $gallery,
                 'quantity' => (int) $item->quantity,
                 'unit_price' => (float) $item->unit_price,
                 'line_total' => (float) $item->line_total,
-                'package_breakdown' => $item->package_breakdown,
-                'details' => $item->variant_title,
+                'package_breakdown' => $item->package_breakdown ?? null,
+                'details' => $item->variant_title ?? null,
                 // ONLY the relevant applicable quantity pricing
                 'applicable_pricing' => [
                     'order_quantity' => (int) $item->quantity,
@@ -189,14 +175,27 @@ class OfferSheetService
         $items = [];
         $allGalleryImages = [];
 
-        // Preload products with images and brand in a single query to eliminate N+1 queries
-        $productIds = $quotation->items->pluck('product_id')->filter()->unique()->values();
-        $products = Product::with(['images', 'brand'])->whereIn('id', $productIds)->get()->keyBy('id');
+        // Preload products with images, brand, shippingPackageProfiles, and pricingTiers
+        $products = collect();
+        $missingProductIds = [];
+        foreach ($quotation->items as $it) {
+            if ($it->relationLoaded('product') && $it->product) {
+                $products[(string) $it->product->id] = $it->product;
+            } elseif ($it->product_id) {
+                $missingProductIds[] = $it->product_id;
+            }
+        }
+        if (!empty($missingProductIds)) {
+            $fetched = Product::with(['images', 'brand', 'shippingPackageProfiles', 'pricingTiers'])->whereIn('id', array_unique($missingProductIds))->get()->keyBy(fn($p) => (string) $p->id);
+            foreach ($fetched as $k => $v) {
+                $products[$k] = $v;
+            }
+        }
 
         foreach ($quotation->items as $idx => $item) {
-            $product = ($item->product_id && isset($products[$item->product_id]))
-                ? $products[$item->product_id]
-                : ($item->product_id ? Product::with(['images', 'brand'])->find($item->product_id) : null);
+            $product = ($item->product_id && isset($products[(string) $item->product_id]))
+                ? $products[(string) $item->product_id]
+                : ($item->relationLoaded('product') ? $item->product : null);
             $gallery = DocumentHelper::getProductGallery($product, $item->product_image_url);
 
             foreach ($gallery as $g) {
@@ -212,7 +211,7 @@ class OfferSheetService
             if ($brandLogo && !file_exists($brandLogo)) {
                 $brandLogo = null;
             }
-            $prodDesc = $product?->description ?? '';
+            $prodDesc = $product?->description ?: ($product?->short_description ?? '');
             $designType = !empty(trim($product?->design_type ?? '')) ? trim($product->design_type) : 'See Description';
             $material = !empty(trim($product?->material ?? ($product?->fabric ?? ''))) ? trim($product?->material ?? $product->fabric) : 'See Description';
             $sizeDesc = !empty(trim($product?->size_description ?? '')) ? trim($product->size_description) : 'See Description';
@@ -222,39 +221,11 @@ class OfferSheetService
             $moqQty = $product?->moq ?: (int) $item->quantity;
             $moqProfile = $product?->findShippingPackageProfileForQuantity($moqQty);
             $cbmVal = $product?->cbm ?? ($moqProfile?->total_cbm);
-            $gwVal = $product?->gross_weight ?? ($moqProfile?->gross_weight);
             $cbmMoq = $cbmVal ? number_format((float) $cbmVal, 3) . ' m³' : 'See Description';
-            $gwMoq = $gwVal ? number_format((float) $gwVal, 1) . ' KG' : 'See Description';
+            $gwVal = $product?->gross_weight ?? ($moqProfile?->gross_weight);
+            $gwMoq = self::formatGrossWeight($gwVal ? (float) $gwVal : null, $moqProfile);
 
-            $stdPrice = (float) ($product?->standard_price ?? $product?->wholesale_price ?? $item->unit_price);
-            $tiers = [
-                [
-                    'tierName' => 'Standard',
-                    'quantityBasis' => $moqQty . ' pcs (Minimum Order)',
-                    'unitPrice' => $stdPrice,
-                    'totalPrice' => round($stdPrice * $moqQty, 2),
-                ],
-            ];
-            if ($product?->bulk_pricing_enabled && $product?->bulk_price && (float) $product->bulk_price > 0) {
-                $bQty = (int) ($product->bulk_threshold ?: ($moqQty * 2));
-                $bPrice = (float) $product->bulk_price;
-                $tiers[] = [
-                    'tierName' => 'Bulk',
-                    'quantityBasis' => $bQty . ' pcs (Minimum Quantity)',
-                    'unitPrice' => $bPrice,
-                    'totalPrice' => round($bPrice * $bQty, 2),
-                ];
-            }
-            if ($product?->full_stock_price && (float) $product->full_stock_price > 0 && $product?->available_stock && $product->available_stock > 0) {
-                $fsPrice = (float) $product->full_stock_price;
-                $fsQty = (int) $product->available_stock;
-                $tiers[] = [
-                    'tierName' => 'Full Stock',
-                    'quantityBasis' => number_format($fsQty) . ' pcs (Available Stock)',
-                    'unitPrice' => $fsPrice,
-                    'totalPrice' => round($fsPrice * $fsQty, 2),
-                ];
-            }
+            $tiers = self::buildPricingTiers($product, (float) $item->unit_price, (int) $item->quantity);
 
             $items[] = [
                 'id' => (string) $item->id,
@@ -347,7 +318,7 @@ class OfferSheetService
             $brandLogo = null;
         }
 
-        $prodDesc = $product->description ?? '';
+        $prodDesc = $product->description ?: ($product->short_description ?? '');
         $designType = !empty(trim($product->design_type ?? '')) ? trim($product->design_type) : 'See Description';
         $material = !empty(trim($product->material ?? ($product->fabric ?? ''))) ? trim($product->material ?? $product->fabric) : 'See Description';
         $sizeDesc = !empty(trim($product->size_description ?? '')) ? trim($product->size_description) : 'See Description';
@@ -356,41 +327,12 @@ class OfferSheetService
         $moqQty = $product->moq ?: 1;
         $moqProfile = $product->findShippingPackageProfileForQuantity($moqQty);
         $cbmVal = $product->cbm ?? ($moqProfile?->total_cbm);
-        $gwVal = $product->gross_weight ?? ($moqProfile?->gross_weight);
         $cbmMoq = $cbmVal ? number_format((float) $cbmVal, 3) . ' m³' : 'See Description';
-        $gwMoq = $gwVal ? number_format((float) $gwVal, 1) . ' KG' : 'See Description';
+        $gwVal = $product->gross_weight ?? ($moqProfile?->gross_weight);
+        $gwMoq = self::formatGrossWeight($gwVal ? (float) $gwVal : null, $moqProfile);
 
-        $stdPrice = (float) ($product->standard_price ?? $product->wholesale_price ?? 0);
-        $tiers = [
-            [
-                'tierName' => 'Standard',
-                'quantityBasis' => $moqQty . ' pcs (Minimum Order)',
-                'unitPrice' => $stdPrice,
-                'totalPrice' => round($stdPrice * $moqQty, 2),
-            ],
-        ];
-
-        if ($product->bulk_pricing_enabled && $product->bulk_price && (float) $product->bulk_price > 0) {
-            $bQty = (int) ($product->bulk_threshold ?: ($moqQty * 2));
-            $bPrice = (float) $product->bulk_price;
-            $tiers[] = [
-                'tierName' => 'Bulk',
-                'quantityBasis' => $bQty . ' pcs (Minimum Quantity)',
-                'unitPrice' => $bPrice,
-                'totalPrice' => round($bPrice * $bQty, 2),
-            ];
-        }
-
-        if ($product->full_stock_price && (float) $product->full_stock_price > 0 && $product->available_stock && $product->available_stock > 0) {
-            $fsPrice = (float) $product->full_stock_price;
-            $fsQty = (int) $product->available_stock;
-            $tiers[] = [
-                'tierName' => 'Full Stock',
-                'quantityBasis' => number_format($fsQty) . ' pcs (Available Stock)',
-                'unitPrice' => $fsPrice,
-                'totalPrice' => round($fsPrice * $fsQty, 2),
-            ];
-        }
+        $tiers = self::buildPricingTiers($product);
+        $stdPrice = (float) ($tiers[0]['unitPrice'] ?? $product->wholesale_price ?? 0);
 
         $items = [
             [
@@ -489,6 +431,182 @@ class OfferSheetService
         $payload = $this->generateForQuotation($quotation);
         $pdfService = app(DocumentPdfService::class);
         return $pdfService->render($payload);
+    }
+
+    /**
+     * Format Gross Weight display string communicating both total and per-carton weight accurately.
+     */
+    public static function formatGrossWeight(?float $gwVal, ?ProductShippingPackageProfile $moqProfile): string
+    {
+        if (!$gwVal || $gwVal <= 0) {
+            return 'See Description';
+        }
+
+        $cartonCount = (int) ($moqProfile?->carton_count ?? 1);
+        if ($cartonCount > 1) {
+            $totalGw = round($gwVal * $cartonCount, 1);
+            return number_format($totalGw, 1) . ' KG total (' . number_format($gwVal, 1) . ' KG/carton)';
+        }
+
+        return number_format($gwVal, 1) . ' KG';
+    }
+
+    /**
+     * Build the full configured pricing schedule for a product.
+     * Includes all active tiers: Standard (MOQ), Bulk (if enabled), Full Stock (if configured & stock available),
+     * and any distinct breaks from product_pricing_tiers.
+     * Removes only demonstrably redundant automatically derived tiers, preserving all genuine custom tiers.
+     */
+    public static function buildPricingTiers(?Product $product, ?float $fallbackUnitPrice = null, ?int $fallbackMoq = null): array
+    {
+        if (!$product) {
+            $uPrice = (float) ($fallbackUnitPrice ?: 0);
+            $qty = max(1, (int) ($fallbackMoq ?: 100));
+            return [
+                [
+                    'tierName' => 'Standard',
+                    'quantityBasis' => "{$qty} pcs (Minimum Order)",
+                    'unitPrice' => $uPrice,
+                    'totalPrice' => round($uPrice * $qty, 2),
+                ],
+            ];
+        }
+
+        $tiers = [];
+        $moq = max(1, (int) ($product->moq ?: ($fallbackMoq ?: 100)));
+        $stdPrice = (float) ($product->wholesale_price ?? $product->standard_price ?? ($fallbackUnitPrice ?: 0));
+        $hasBulkTier = (bool) ($product->bulk_pricing_enabled && $product->bulk_price && (float) $product->bulk_price > 0 && $product->bulk_threshold && (int) $product->bulk_threshold > $moq);
+        $bulkThreshold = $hasBulkTier ? (int) $product->bulk_threshold : null;
+
+        // 1. Standard Tier
+        $standardBasis = ($hasBulkTier && $bulkThreshold > $moq)
+            ? "{$moq}–" . ($bulkThreshold - 1) . " pcs"
+            : "{$moq}+ pcs (Minimum Order)";
+        $tiers[] = [
+            'tierName' => 'Standard',
+            'quantityBasis' => $standardBasis,
+            'unitPrice' => $stdPrice,
+            'totalPrice' => round($stdPrice * $moq, 2),
+            '_min_qty' => $moq,
+            '_max_qty' => ($hasBulkTier && $bulkThreshold > $moq) ? ($bulkThreshold - 1) : null,
+            '_is_custom' => false,
+        ];
+
+        // 2. Custom Pricing Tiers from product_pricing_tiers (if any)
+        $customTiers = $product->relationLoaded('pricingTiers') ? $product->pricingTiers : $product->pricingTiers()->get();
+        if ($customTiers && $customTiers->isNotEmpty()) {
+            foreach ($customTiers as $cTier) {
+                $cMin = (int) $cTier->min_quantity;
+                $cMax = $cTier->max_quantity !== null ? (int) $cTier->max_quantity : null;
+                $cPrice = (float) $cTier->unit_price;
+
+                if ($cMin <= 0 || $cPrice <= 0) {
+                    continue;
+                }
+
+                // Check for demonstrably redundant duplicate of Standard:
+                // Only redundant if both quantity basis and price are identical to Standard
+                $isDuplicateOfStandard = ($cMin === $moq && $cMax === null && abs($cPrice - $stdPrice) < 0.001);
+                if ($isDuplicateOfStandard) {
+                    continue;
+                }
+
+                // Check for demonstrably redundant duplicate of another already added custom tier (equal price and equal quantity)
+                $isDuplicateCustom = false;
+                foreach ($tiers as $existingTier) {
+                    if (!empty($existingTier['_is_custom'])
+                        && ($existingTier['_min_qty'] ?? 0) === $cMin
+                        && ($existingTier['_max_qty'] ?? null) === $cMax
+                        && abs(($existingTier['unitPrice'] ?? 0) - $cPrice) < 0.001) {
+                        $isDuplicateCustom = true;
+                        break;
+                    }
+                }
+                if ($isDuplicateCustom) {
+                    continue;
+                }
+
+                // Distinct custom tier: preserve even if different price at same quantity, or overlapping thresholds
+                $cBasis = $cMax ? "{$cMin}–{$cMax} pcs" : "{$cMin}+ pcs";
+                $tierLabel = (!empty($cTier->tier_name) && is_string($cTier->tier_name)) ? $cTier->tier_name : 'Volume Tier';
+                $tiers[] = [
+                    'tierName' => $tierLabel,
+                    'quantityBasis' => $cBasis,
+                    'unitPrice' => $cPrice,
+                    'totalPrice' => round($cPrice * $cMin, 2),
+                    '_min_qty' => $cMin,
+                    '_max_qty' => $cMax,
+                    '_is_custom' => true,
+                ];
+            }
+        }
+
+        // 3. Bulk Tier (if enabled)
+        if ($hasBulkTier) {
+            $bPrice = (float) $product->bulk_price;
+            // Deduplicate if a custom tier already configured exact same threshold and price
+            $isDuplicateBulk = false;
+            foreach ($tiers as $existingTier) {
+                if (($existingTier['_min_qty'] ?? 0) === $bulkThreshold && abs(($existingTier['unitPrice'] ?? 0) - $bPrice) < 0.001) {
+                    $isDuplicateBulk = true;
+                    break;
+                }
+            }
+            if (!$isDuplicateBulk) {
+                $tiers[] = [
+                    'tierName' => 'Bulk',
+                    'quantityBasis' => "{$bulkThreshold}+ pcs",
+                    'unitPrice' => $bPrice,
+                    'totalPrice' => round($bPrice * $bulkThreshold, 2),
+                    '_min_qty' => $bulkThreshold,
+                    '_max_qty' => null,
+                    '_is_custom' => false,
+                ];
+            }
+        }
+
+        // 4. Full Stock Tier
+        $fsQty = (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock);
+        if ($product->full_stock_price !== null && (float) $product->full_stock_price > 0 && $fsQty > 0) {
+            $fsPrice = (float) $product->getResolvedFullStockPrice($fsQty);
+            // Prevent emitting redundant derived Full Stock row when quantity basis and unit price are identical to the Standard row
+            $isRedundantWithStandard = ($fsQty <= $moq && abs($fsPrice - $stdPrice) < 0.001);
+
+            // Also prevent duplicate if identical to an existing tier
+            $isDuplicateOfExisting = false;
+            foreach ($tiers as $existingTier) {
+                if (($existingTier['_min_qty'] ?? 0) === $fsQty && abs(($existingTier['unitPrice'] ?? 0) - $fsPrice) < 0.001) {
+                    $isDuplicateOfExisting = true;
+                    break;
+                }
+            }
+
+            if (!$isRedundantWithStandard && !$isDuplicateOfExisting) {
+                $tiers[] = [
+                    'tierName' => 'Full Stock',
+                    'quantityBasis' => number_format($fsQty) . " pcs (Available Stock)",
+                    'unitPrice' => $fsPrice,
+                    'totalPrice' => round($fsPrice * $fsQty, 2),
+                    '_min_qty' => $fsQty,
+                    '_max_qty' => null,
+                    '_is_custom' => false,
+                ];
+            }
+        }
+
+        // Sort logically by _min_qty ascending, then by unitPrice descending for ties at same quantity
+        usort($tiers, function ($a, $b) {
+            $cmp = ($a['_min_qty'] ?? 0) <=> ($b['_min_qty'] ?? 0);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            return ($b['unitPrice'] ?? 0) <=> ($a['unitPrice'] ?? 0);
+        });
+
+        return array_map(function ($t) {
+            unset($t['_min_qty'], $t['_max_qty'], $t['_is_custom']);
+            return $t;
+        }, $tiers);
     }
 }
 

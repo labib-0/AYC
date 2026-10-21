@@ -149,9 +149,10 @@
             line-height: 1.35;
             margin-bottom: 4px;
         }
-        /* Specifications Table — Keep heading + first row together; allow rest to flow */
+        /* Specifications Table — Keep specifications table together to prevent orphaned headings */
         .spec-section {
             margin-bottom: 5px;
+            page-break-inside: avoid;
         }
         .spec-table {
             width: 100%;
@@ -195,9 +196,10 @@
             border-bottom: 1px solid #e2e8f0;
             vertical-align: top;
         }
-        /* Logistics Cards — allow natural flow; governed by combined logistics+pricing wrapper */
+        /* Logistics Cards — Restrained, balanced typography consistent with specifications */
         .logistics-section {
             margin-bottom: 5px;
+            page-break-inside: avoid;
         }
         .logistics-card {
             background: #f8fafc;
@@ -207,7 +209,7 @@
             min-height: 36px;
         }
         .logistics-label {
-            font-size: 8.5pt;
+            font-size: 8.0pt;
             font-weight: bold;
             color: #64748b;
             text-transform: uppercase;
@@ -215,28 +217,34 @@
             line-height: 1.2;
         }
         .logistics-val {
-            font-size: 11.0pt;
+            font-size: 9.0pt;
             font-weight: bold;
             color: #0f172a;
             margin-top: 2px;
-            line-height: 1.2;
+            line-height: 1.25;
         }
         /* Pricing Table */
         .pricing-section {
-            page-break-inside: avoid;
             margin-bottom: 5px;
+            page-break-inside: auto;
         }
         .pricing-table {
             width: 100%;
             border-collapse: collapse;
         }
+        .pricing-table thead {
+            display: table-header-group;
+        }
         .pricing-table th {
             background-color: #0f172a;
             color: #ffffff;
-            font-size: 9.5pt;
+            font-size: 9.0pt;
             font-weight: bold;
             padding: 4px 8px;
             text-align: left;
+        }
+        .pricing-table tr {
+            page-break-inside: avoid;
         }
         .pricing-table td {
             font-size: 9.0pt;
@@ -248,11 +256,11 @@
             background-color: #f8fafc;
         }
         .price-unit {
-            font-size: 10.5pt;
+            font-size: 9.5pt;
             color: #0f172a;
         }
         .price-total {
-            font-size: 10.5pt;
+            font-size: 9.5pt;
             color: #c2410c;
         }
         .text-right { text-align: right; }
@@ -280,90 +288,55 @@
             $gwMoq = $item['gross_weight_moq'] ?? '';
             $packageAssortment = $item['package_assortment_message'] ?? ($product->package_assortment_message ?? '');
 
-            // Collect only valid, non-empty specifications
+            // Helper to strip redundant field prefixes from specification values (e.g. "Fabric / Composition: 65% Cotton..." -> "65% Cotton...")
+            $stripPrefix = function ($val, $prefixPatterns) {
+                if (empty($val) || !is_string($val)) return $val;
+                $cleaned = $val;
+                foreach ((array) $prefixPatterns as $pat) {
+                    while (preg_match('/^' . $pat . '\s*:\s*/i', $cleaned)) {
+                        $cleaned = preg_replace('/^' . $pat . '\s*:\s*/i', '', $cleaned);
+                    }
+                }
+                return trim($cleaned);
+            };
+
+            // Collect only valid, non-empty specifications without duplicate prefixes
             $validSpecs = [];
-            if (!$isMissingVal($brandName)) $validSpecs['Brand'] = $brandName;
-            if (!$isMissingVal($colourDesc)) $validSpecs['Colours'] = $colourDesc;
-            if (!$isMissingVal($sizeDesc)) $validSpecs['Available Sizes'] = $sizeDesc;
+            if (!$isMissingVal($brandName)) $validSpecs['Brand'] = $stripPrefix($brandName, ['Brand']);
+            if (!$isMissingVal($colourDesc)) $validSpecs['Colours'] = $stripPrefix($colourDesc, ['Colours?', 'Colors?']);
+            if (!$isMissingVal($sizeDesc)) $validSpecs['Available Sizes'] = $stripPrefix($sizeDesc, ['(?:Available\s+)?Sizes?']);
             if (!$isMissingVal($material)) {
-                // Strip redundant prefixes like "Fabric / Composition:" or "Materials:" (loop ensures any repeats are removed)
-                $cleanMat = $material;
-                while (preg_match('/^(?:Fabric\s*\/\s*Composition|Materials?)\s*:\s*/i', $cleanMat)) {
-                    $cleanMat = preg_replace('/^(?:Fabric\s*\/\s*Composition|Materials?)\s*:\s*/i', '', $cleanMat);
-                }
-                // Correct "Polyster" -> "Polyester"
-                $cleanMat = preg_replace('/\bPolyster\b/i', 'Polyester', $cleanMat);
-                $validSpecs['Fabric / Composition'] = trim($cleanMat);
+                $cleanMat = $stripPrefix($material, ['Fabric\s*\/\s*Composition', 'Materials?', 'Fabric']);
+                $validSpecs['Fabric / Composition'] = $cleanMat;
             }
-            if (!$isMissingVal($designType)) $validSpecs['Design Type'] = $designType;
+            if (!$isMissingVal($designType)) $validSpecs['Design Type'] = $stripPrefix($designType, ['Design\s*Type', 'Design']);
             $fitStyle = $item['fit'] ?? ($item['style'] ?? ($item['fit_style'] ?? ''));
-            if (!$isMissingVal($fitStyle)) $validSpecs['Fit / Style'] = $fitStyle;
-            if (!$isMissingVal($packageAssortment)) $validSpecs['Package Assortment'] = $packageAssortment;
+            if (!$isMissingVal($fitStyle)) $validSpecs['Fit / Style'] = $stripPrefix($fitStyle, ['Fit\s*\/\s*Style', 'Fit', 'Style']);
+            if (!$isMissingVal($packageAssortment)) $validSpecs['Package Assortment'] = $stripPrefix($packageAssortment, ['Package\s*Assortment', 'Assortment']);
 
-            // Clean description: filter out empty lines, markdown markers, and lines duplicating table specs
-            $cleanDescLines = [];
+            // Presentation logic matching storefront (src/lib/product-description.tsx)
+            // Preserves exact storefront text, resolves period spacing, parses markdown bold/italic, and strips unsafe HTML
+            $formattedDescription = '';
             if (!empty($rawDescription)) {
-                // Fix spacing error: missing space after period e.g. "daily wear.Perfect" -> "daily wear. Perfect"
-                $rawDescription = preg_replace('/([a-z0-9])\.([A-Z])/', '$1. $2', $rawDescription);
-                // Correct spelling typo "Polyster" -> "Polyester"
-                $rawDescription = preg_replace('/\bPolyster\b/i', 'Polyester', $rawDescription);
+                // Meaningful spacing fix between sentences (e.g. "daily wear.Perfect" -> "daily wear. Perfect")
+                $desc = preg_replace('/([a-z0-9])\.([A-Z])/', '$1. $2', $rawDescription);
 
-                $lines = preg_split('/\r?\n/', $rawDescription);
-                foreach ($lines as $l) {
-                    $l = trim($l);
-                    if (empty($l)) continue;
+                // Strip unsafe HTML elements & tag attributes
+                $desc = preg_replace('/<(script|style|iframe|object|embed)[^>]*?>.*?<\/\1>/is', '', $desc);
+                $desc = preg_replace('/<(script|style|iframe|object|embed|img|svg|input|form|button)[^>]*?>/i', '', $desc);
+                $desc = preg_replace('/<([a-z0-9]+)\s+[^>]*>/i', '<$1>', $desc);
 
-                    // Skip horizontal rules
-                    if (preg_match('/^[-=_*]{3,}$/', $l)) continue;
+                // Parse markdown bold: **text** -> <strong>text</strong>
+                $desc = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $desc);
 
-                    // Skip generic section headings already redundant with layout
-                    $cleanHeaderCheck = strtolower(trim($l, " :*-#\t\n\r\0\x0B"));
-                    if (in_array($cleanHeaderCheck, [
-                        'product details', 'product features', 'item details', 'details',
-                        'specifications', 'description', 'product description', 'product info', 'product information'
-                    ])) {
-                        continue;
-                    }
+                // Parse markdown italic: *text* -> <em>$1</em> (avoiding bullet points)
+                $desc = preg_replace('/(?<=\s|^|[([{"\'])\*([^\s*][^*\n]*?)\*(?=\s|$|[.,!?:;)\]}"\'])/', '<em>$1</em>', $desc);
 
-                    // Strip markdown heading hashes (# Title)
-                    $l = preg_replace('/^#+\s*/', '', $l);
+                // Line breaks preserving paragraph spacing
+                $desc = nl2br($desc);
 
-                    // Strip markdown bullet prefixes (- item, * item, • item)
-                    $l = preg_replace('/^[-*•]\s+/', '', $l);
-
-                    // Strip outer markdown asterisks: e.g. ***Quality: Master Copy*** or **Quality**
-                    $l = preg_replace('/^\s*\*{1,3}\s*(.*?)\s*\*{1,3}\s*$/u', '$1', $l);
-
-                    // Strip any inline markdown emphasis asterisks: **text** or ***text***
-                    $l = preg_replace('/\*{1,3}\s*([^*]+?)\s*\*{1,3}/u', '$1', $l);
-
-                    // Final trim of any stray edge asterisks or punctuation
-                    $l = trim($l, " *\t\n\r\0\x0B");
-                    if (empty($l)) continue;
-
-                    // Filter out lines duplicating specs already displayed in header or spec table
-                    if (preg_match('/^([^:]+):\s*(.*)$/', $l, $m)) {
-                        $kLower = strtolower(trim($m[1]));
-                        if (in_array($kLower, [
-                            'brand', 'colours', 'colors', 'colour', 'color', 
-                            'available sizes', 'sizes', 'size', 'size ratio',
-                            'fabric', 'fabric / composition', 'fabric type', 'material', 'materials',
-                            'design type', 'design', 'style', 'fit',
-                            'item', 'item / product type', 'category', 'gender',
-                            'quantity', 'qty', 'total quantity', 'total qty', 
-                            'stock status', 'stock type', 'cbm', 'gross weight', 'gw'
-                        ])) {
-                            continue;
-                        }
-                    }
-
-                    // Skip empty key-value lines like "Style:" or "Fit -"
-                    if (preg_match('/^[A-Za-z0-9\s]+[:\-]\s*$/', $l)) continue;
-
-                    $cleanDescLines[] = $l;
-                }
+                $formattedDescription = trim($desc);
             }
-            $cleanDescription = trim(implode("\n", $cleanDescLines));
 
             $hasCbm = !$isMissingVal($cbmMoq);
             $hasGw = !$isMissingVal($gwMoq);
@@ -441,10 +414,10 @@
         @endif
 
         {{-- 5. Product Description & Verified Specifications: Natural Flow Immediately Following Gallery --}}
-        @if(!empty($cleanDescription))
+        @if(!empty($formattedDescription))
             <div class="desc-section">
                 <div class="section-heading">PRODUCT DESCRIPTION</div>
-                <div class="desc-box">{!! nl2br(e($cleanDescription)) !!}</div>
+                <div class="desc-box">{!! $formattedDescription !!}</div>
             </div>
         @endif
 
@@ -467,9 +440,6 @@
                 </table>
             </div>
         @endif
-
-        {{-- 6 + 7. Packing & Logistics + Pricing: Keep together; move as a unit if they don't fit --}}
-        <div style="page-break-inside: avoid;">
 
         {{-- 6. Packing & Logistics (MOQ) --}}
         @if($hasCbm || $hasGw)
@@ -519,8 +489,6 @@
                 </tbody>
             </table>
         </div>
-
-        </div>{{-- end combined logistics+pricing keep-together wrapper --}}
 
         {{-- NOTE: Commercial terms, Authorized Signature, and Export Seal are completely removed from Offer Sheet --}}
 

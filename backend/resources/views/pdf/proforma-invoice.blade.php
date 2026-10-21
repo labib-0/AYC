@@ -35,12 +35,21 @@
     $subtotal = (float) ($fin['subtotal'] ?? ($fin['goods_value'] ?? ($doc['subtotal'] ?? 0)));
     $discount = (float) ($fin['discount_amount'] ?? ($doc['discount'] ?? 0));
     $couponCode = $fin['coupon_code'] ?? ($doc['coupon_code'] ?? null);
-    $shipping = (float) ($fin['shipping_charge'] ?? ($doc['shipping'] ?? 0));
-    $tax = (float) ($fin['tax_amount'] ?? ($doc['tax'] ?? 0));
-    $grandTotal = (float) ($fin['grand_total'] ?? ($fin['total_payable'] ?? ($doc['grandTotal'] ?? ($subtotal - $discount + $shipping + $tax))));
+    $merchandiseTotal = max(0, round($subtotal - $discount, 2));
 
-    $isAramex = ($shipping > 0) || (isset($doc['estimated_shipping_data']['carrier']) && str_contains(strtolower($doc['estimated_shipping_data']['carrier']), 'aramex'));
-    $shippingArrangement = $isAramex ? 'Air Cargo Express (Aramex)' : 'To Be Confirmed Separately';
+    $rawCarrier = $doc['estimated_shipping_data']['carrier'] ?? '';
+    $rawMethod = $doc['estimated_shipping_data']['shipping_method'] ?? '';
+    if (!empty($rawMethod) && !str_contains(strtolower($rawMethod), 'aramex priority')) {
+        $shippingArrangement = $rawMethod;
+    } elseif (!empty($rawCarrier) && !str_contains(strtolower($rawCarrier), 'aramex')) {
+        $shippingArrangement = $rawCarrier;
+    } elseif (!empty($rawMethod)) {
+        $shippingArrangement = $rawMethod;
+    } elseif (!empty($rawCarrier)) {
+        $shippingArrangement = $rawCarrier;
+    } else {
+        $shippingArrangement = 'To Be Confirmed Separately';
+    }
     $paymentTerms = $doc['paymentTerms'] ?? ($doc['payment_terms'] ?? '100% Advance T/T Wire');
 
     $bank = $doc['bank_details'] ?? ($doc['bankDetails'] ?? []);
@@ -290,30 +299,38 @@
             vertical-align: top;
             line-height: 1.38;
         }
-        /* Authorized Signatory Block — Deliberate top whitespace, safely inset */
-        .sig-section {
-            margin-top: 20px;
+        /* Authorized Signatory Block — Deliberate top whitespace, coherent centered alignment */
+        .sig-wrapper {
+            margin-top: 22px;
             margin-bottom: 6px;
-            padding-right: 8px;
+            padding-right: 6px;
             page-break-inside: avoid;
+            width: 100%;
+        }
+        .sig-block {
+            width: 215px;
+            margin-left: auto;
+            margin-right: 0;
+            text-align: center;
         }
         .sig-line {
             border-top: 1px solid #94a3b8;
-            width: 170px;
-            margin-left: auto;
-            margin-right: 0;
-            margin-bottom: 5px;
+            width: 100%;
+            margin-bottom: 6px;
         }
         .sig-title {
             font-size: 9.5pt;
             font-weight: bold;
             color: #0f172a;
-            text-align: right;
+            text-align: center;
+            line-height: 1.2;
         }
         .sig-sub {
-            font-size: 8.5pt;
+            font-size: 8.2pt;
             color: #64748b;
-            text-align: right;
+            text-align: center;
+            margin-top: 2px;
+            line-height: 1.2;
         }
     </style>
 </head>
@@ -407,13 +424,12 @@
     <table class="goods-table">
         <thead>
             <tr>
-                <th style="width: 4%;" class="text-center">#</th>
-                <th style="width: 28%;">Description of Goods &amp; Package Assortment</th>
-                <th style="width: 21%;">SKU / Style</th>
-                <th style="width: 11%;" class="text-center">HS Code</th>
+                <th style="width: 5%;" class="text-center">#</th>
+                <th style="width: 38%;">Description of Goods</th>
+                <th style="width: 23%; white-space: nowrap;">SKU / Style</th>
                 <th style="width: 11%; text-align: right; white-space: nowrap;">Quantity</th>
-                <th style="width: 12%; text-align: right; white-space: nowrap; padding-right: 8px;">Unit Price</th>
-                <th style="width: 13%; text-align: right; white-space: nowrap; padding-right: 6px;">Amount (USD)</th>
+                <th style="width: 11%; text-align: right; white-space: nowrap; padding-right: 8px;">Unit Price</th>
+                <th style="width: 12%; text-align: right; white-space: nowrap; padding-right: 6px;">Amount (USD)</th>
             </tr>
         </thead>
         <tbody>
@@ -422,23 +438,17 @@
                     $qty = (int) ($item['quantity'] ?? 1);
                     $uPrice = (float) ($item['unit_price'] ?? 0);
                     $lTotal = (float) ($item['line_total'] ?? ($uPrice * $qty));
-                    $pkg = $item['package_breakdown'] ?? null;
-                    $pkgText = '';
-                    if (!empty($pkg)) {
-                        $pkgText = is_array($pkg) ? implode(', ', array_map(fn($k, $v) => is_numeric($k) ? (is_array($v) ? json_encode($v) : $v) : "$v", array_keys($pkg), $pkg)) : (string) $pkg;
-                    }
-                    if (empty($pkgText)) {
-                        $pkgText = "{$qty} pcs standard export assortment";
-                    }
+                    $stdPkg = $item['standard_package'] ?? null;
                 @endphp
                 <tr class="{{ $idx % 2 === 1 ? 'alt' : '' }}">
                     <td class="text-center" style="color: #64748b;">{{ $idx + 1 }}</td>
                     <td>
                         <div class="font-bold" style="color: #0f172a; font-size: 9.0pt;">{{ $item['product_name'] ?? ($item['description'] ?? 'Garment Item') }}</div>
-                        <div style="font-size: 8.0pt; color: #64748b; margin-top: 1px;">Assortment: {{ $pkgText }}</div>
+                        @if(!empty($stdPkg))
+                            <div style="font-size: 8.0pt; color: #64748b; margin-top: 2px;">{{ $stdPkg }}</div>
+                        @endif
                     </td>
                     <td class="font-bold" style="color: #0f172a; font-size: 8.8pt; white-space: nowrap;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
-                    <td class="text-center font-mono" style="color: #475569; white-space: nowrap; font-size: 8.8pt;">{{ $item['hs_code'] ?? '6109.10.00' }}</td>
                     <td class="text-right font-bold" style="white-space: nowrap; font-size: 8.8pt;">{{ number_format($qty) }} pcs</td>
                     <td class="text-right goods-price" style="color: #0f172a; white-space: nowrap; padding-right: 8px;">${{ number_format($uPrice, 2) }}</td>
                     <td class="text-right goods-amount" style="color: #0f172a; white-space: nowrap; padding-right: 6px;">${{ number_format($lTotal, 2) }}</td>
@@ -453,25 +463,20 @@
             {{-- Left Side: Shipping Information --}}
             <td style="width: 53%; vertical-align: top; padding-right: 10px;">
                 <div class="shipping-title">Shipping &amp; Delivery Information:</div>
-                @if($isAramex)
-                    <div class="shipping-bullet">• Selected Carrier: {{ $doc['estimated_shipping_data']['carrier'] ?? 'Aramex Priority Air Express' }}</div>
-                    <div class="shipping-bullet">• Total Items: {{ $totalQty }} pcs scheduled for export air cargo.</div>
-                    <div class="shipping-bullet">• Estimated Gross Weight: ~{{ $doc['estimated_shipping_data']['gross_weight'] ?? round($totalQty * 0.35, 1) }} kg</div>
-                    <div class="shipping-bullet">• Air Shipping charge is itemized in the Proforma Invoice total.</div>
-                @else
-                    <div class="shipping-bullet shipping-alert">• Shipping arrangements to be confirmed separately.</div>
-                    <div class="shipping-bullet">• Total Order Items: {{ $totalQty }} pcs scheduled for export packaging.</div>
-                    <div class="shipping-bullet">• Shipping charges are NOT included in the merchandise total below.</div>
-                    <div class="shipping-bullet">• Contact our export logistics desk to arrange carrier booking.</div>
+                @if(!empty($shippingArrangement) && $shippingArrangement !== 'To Be Confirmed Separately')
+                    <div class="shipping-bullet">• Shipping arrangement: {{ $shippingArrangement }}</div>
+                @elseif(!empty($rawCarrier))
+                    <div class="shipping-bullet">• Carrier: {{ $rawCarrier }}</div>
                 @endif
+                <div class="shipping-bullet">• Total Order Items: {{ number_format($totalQty) }} pcs scheduled for export packaging.</div>
+                <div class="shipping-bullet">• Estimated Gross Weight: ~{{ $doc['estimated_shipping_data']['gross_weight'] ?? round($totalQty * 0.35, 1) }} kg</div>
+                <div class="shipping-bullet shipping-alert">• Shipping arrangements to be confirmed separately.</div>
+                <div class="shipping-bullet shipping-alert">• Shipping charges are NOT included in the merchandise total below.</div>
+                <div class="shipping-bullet">• Contact our export logistics desk to arrange carrier booking.</div>
             </td>
 
             {{-- Right Side: Order Amount Summary --}}
             <td style="width: 47%; vertical-align: top;">
-                @php
-                    $merchandisePayable = max(0, round($subtotal - $discount, 2));
-                    $totalPayable = ($isAramex && $shipping > 0) ? round($merchandisePayable + $shipping, 2) : $merchandisePayable;
-                @endphp
                 <div class="totals-card">
                     <table style="width: 100%;">
                         <tr>
@@ -484,22 +489,16 @@
                                 <td class="totals-line text-right totals-num" style="color: #15803d;">-${{ number_format($discount, 2) }}</td>
                             </tr>
                         @endif
-                        @if($isAramex && $shipping > 0)
-                            <tr>
-                                <td class="totals-line" style="color: #475569;">Air Shipping — Aramex:</td>
-                                <td class="totals-line text-right totals-num" style="color: #0f172a;">${{ number_format($shipping, 2) }}</td>
-                            </tr>
-                        @endif
                         <tr>
-                            <td class="totals-line" style="color: #475569;">Estimated Tax (B2B Export):</td>
-                            <td class="totals-line text-right totals-num" style="color: #0f172a;">$0.00 (Zero Rated)</td>
+                            <td class="totals-line" style="color: #475569; white-space: nowrap;">Estimated Tax (B2B Export):</td>
+                            <td class="totals-line text-right totals-num" style="color: #0f172a; white-space: nowrap;">$0.00 &nbsp;<span style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 8.0pt; font-weight: normal; color: #64748b;">(Zero-rated)</span></td>
                         </tr>
                         <tr>
                             <td colspan="2"><div class="totals-divider"></div></td>
                         </tr>
                         <tr>
-                            <td class="totals-grand" style="color: #0f172a;">{{ ($isAramex && $shipping > 0) ? 'TOTAL PAYABLE:' : 'MERCHANDISE TOTAL:' }}</td>
-                            <td class="totals-grand text-right totals-grand-num">${{ number_format($totalPayable, 2) }} USD</td>
+                            <td class="totals-grand" style="color: #0f172a;">MERCHANDISE TOTAL:</td>
+                            <td class="totals-grand text-right totals-grand-num">${{ number_format($merchandiseTotal, 2) }} USD</td>
                         </tr>
                     </table>
                 </div>
@@ -517,7 +516,7 @@
             </tr>
             <tr>
                 <td><strong style="color: #475569;">Account No:</strong> &nbsp;<span class="font-bold font-mono" style="color: #0f172a;">{{ $accountNo }}</span></td>
-                <td><strong style="color: #475569;">SWIFT CODE:</strong> &nbsp;<span class="font-bold font-mono" style="color: #0f172a;">{{ $swiftCode }}</span></td>
+                <td><strong style="color: #475569;">SWIFT / BIC:</strong> &nbsp;<span style="color: #0f172a; font-weight: bold; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.5px;">{{ $swiftCode }}</span></td>
             </tr>
             <tr>
                 <td colspan="2"><strong style="color: #475569;">Bank Address:</strong> &nbsp;{{ $bankAddress }}</td>
@@ -525,11 +524,13 @@
         </table>
     </div>
 
-    {{-- SECTION H: AUTHORIZED SIGNATORY (Safely Inset with Clear Top Spacing) --}}
-    <div class="sig-section">
-        <div class="sig-line"></div>
-        <div class="sig-title">Authorized Signatory</div>
-        <div class="sig-sub">Ayaan Clothing Ltd • Dhaka, Bangladesh</div>
+    {{-- SECTION H: AUTHORIZED SIGNATORY (Coherent Single-Block Alignment) --}}
+    <div class="sig-wrapper">
+        <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-title">Authorized Signatory</div>
+            <div class="sig-sub">Ayaan Clothing Ltd • Dhaka, Bangladesh</div>
+        </div>
     </div>
 
     {{-- CANVAS SCRIPT: RETAIN EXACT INSET MARGINS AND GEOMETRY, REMOVE VISIBLE BORDER STROKE --}}

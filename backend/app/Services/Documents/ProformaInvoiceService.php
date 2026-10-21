@@ -18,8 +18,21 @@ class ProformaInvoiceService
         $snapshot = $order->shipping_snapshot ?? [];
         $docDefaults = DocumentHelper::getDocumentDefaults();
 
-        $productIds = $order->items->pluck('product_id')->filter()->unique()->values();
-        $products = \App\Models\Product::with(['images', 'brand'])->whereIn('id', $productIds)->get()->keyBy('id');
+        $products = collect();
+        $missingProductIds = [];
+        foreach ($order->items as $it) {
+            if ($it->relationLoaded('product') && $it->product) {
+                $products[(string) $it->product->id] = $it->product;
+            } elseif ($it->product_id) {
+                $missingProductIds[] = $it->product_id;
+            }
+        }
+        if (!empty($missingProductIds)) {
+            $fetched = \App\Models\Product::with(['images', 'brand', 'shippingPackageProfiles', 'packageAllocations'])->whereIn('id', array_unique($missingProductIds))->get()->keyBy(fn($p) => (string) $p->id);
+            foreach ($fetched as $k => $v) {
+                $products[$k] = $v;
+            }
+        }
 
         $items = $order->items->map(function ($item, $idx) use ($order, $products) {
             $product = ($item->product_id && isset($products[$item->product_id])) ? $products[$item->product_id] : null;
@@ -30,6 +43,38 @@ class ProformaInvoiceService
                 $brandLogo = null;
             }
 
+            // Resolve authoritative standard-package information
+            $stdPackage = null;
+            $qty = (int) $item->quantity;
+            $uPrice = (float) $item->unit_price;
+            $lTotal = (float) ($item->line_total ?: ($uPrice * $qty));
+
+            $pkg = $item->package_breakdown ?? null;
+            if (!empty($pkg) && is_array($pkg)) {
+                $breakdownParts = [];
+                foreach ($pkg as $k => $v) {
+                    $breakdownParts[] = is_numeric($k) ? (is_array($v) ? json_encode($v) : (string)$v) : "{$k}: {$v}";
+                }
+                $stdPackage = "Standard Package: " . implode(', ', $breakdownParts);
+            } elseif ($product) {
+                $profile = $product->shippingPackageProfiles?->where('is_active', true)->first()
+                    ?? $product->shippingPackageProfiles?->first();
+                if ($profile && (int) $profile->package_quantity > 0) {
+                    $pkgQty = (int) $profile->package_quantity;
+                    $prefix = ($pkgQty !== $qty) ? "Standard Package (MOQ basis): " : "Standard Package: ";
+                    if ((int) $profile->carton_count > 0) {
+                        $ctnCount = (int) $profile->carton_count;
+                        $stdPackage = $prefix . number_format($pkgQty) . " pcs ({$ctnCount} " . ($ctnCount > 1 ? 'cartons' : 'carton') . ")";
+                    } else {
+                        $stdPackage = $prefix . number_format($pkgQty) . " pcs";
+                    }
+                } elseif ($product->moq > 0) {
+                    $moqVal = (int) $product->moq;
+                    $prefix = ($moqVal !== $qty) ? "Standard Package (MOQ basis): " : "Standard Package: ";
+                    $stdPackage = $prefix . number_format($moqVal) . " pcs";
+                }
+            }
+
             return [
                 'id' => (string) $item->id,
                 'item_no' => $idx + 1,
@@ -38,18 +83,19 @@ class ProformaInvoiceService
                 'brand' => $brand,
                 'brand_logo' => $brandLogo,
                 'brand_logo_url' => $brandLogo,
-                'description' => $item->product_name . ($item->size ? " (Size: {$item->size})" : " (Assorted Package)"),
+                'description' => $item->product_name,
+                'standard_package' => $stdPackage,
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'hs_code' => DocumentHelper::resolveHsCode($item->product_name, $product?->hs_code ?: ($item->hs_code ?? null)),
                 'marks_and_numbers' => "AYN/{$order->order_number}/ITEM-" . ($idx + 1),
-                'product_image_url' => $item->product_image_url ?: '/placeholder.jpg',
-                'quantity' => (int) $item->quantity,
-                'unit_price' => (float) $item->unit_price,
-                'line_total' => (float) $item->line_total,
-                'size' => $item->size,
-                'color' => $item->color,
-                'package_breakdown' => $item->package_breakdown,
-                'details' => $item->variant_title,
+                'product_image_url' => ($item->product_image_url ?? null) ?: '/placeholder.jpg',
+                'quantity' => $qty,
+                'unit_price' => $uPrice,
+                'line_total' => $lTotal,
+                'size' => $item->size ?? null,
+                'color' => $item->color ?? null,
+                'package_breakdown' => $item->package_breakdown ?? null,
+                'details' => $item->variant_title ?? null,
             ];
         })->toArray();
 
@@ -61,9 +107,8 @@ class ProformaInvoiceService
         $subtotal = (float) $order->subtotal;
         $discount = (float) $order->discount_amount;
         $shipping = (float) $order->shipping_cost;
-        $isAramex = in_array(strtolower($order->carrier ?: ''), ['aramex', 'aramex priority parcel express (ppx)', 'aramex priority air express']);
         $merchandisePayable = max(0, round($subtotal - $discount, 2));
-        $grandTotal = ($isAramex && $shipping > 0) ? round($merchandisePayable + $shipping, 2) : $merchandisePayable;
+        $grandTotal = $merchandisePayable; // Confirmed business rule: Shipping is excluded from PI total
 
         return [
             'id' => "doc_PROFORMA_INVOICE_{$order->id}",
@@ -98,7 +143,7 @@ class ProformaInvoiceService
                 'currency' => $order->currency ?: 'USD',
                 'subtotal' => $subtotal,
                 'goods_value' => $subtotal,
-                'shipping_charge' => $shipping,
+                'shipping_charge' => 0.00, // Confirmed rule: Shipping excluded from PI total
                 'tax_amount' => 0.00, // Mandatory B2B Export zero-rated tax
                 'discount_amount' => $discount,
                 'coupon_code' => $order->coupon_code,
@@ -108,6 +153,7 @@ class ProformaInvoiceService
                 'balance_due' => (float) max(0, round($grandTotal - ($order->paid_amount ?? ($order->payment_status === 'paid' ? $grandTotal : 0)), 2)),
                 'grand_total' => $grandTotal,
                 'total_payable' => $grandTotal,
+                'merchandise_total' => $grandTotal,
                 'amount_in_words' => DocumentHelper::numberToWords($grandTotal, $order->currency ?: 'USD'),
             ],
             'estimated_shipping_data' => [
@@ -122,12 +168,13 @@ class ProformaInvoiceService
                 'destination_port' => ($order->shipping_city ?: 'Destination') . ' Airport / Hub',
             ],
             'subtotal' => $subtotal,
-            'shipping' => $shipping,
+            'shipping' => 0.00, // Confirmed rule: Shipping excluded from PI calculation
             'tax' => 0.00, // Mandatory B2B Export zero-rated tax
             'discount' => $discount,
             'coupon_discount' => (float) ($order->coupon_discount_amount ?? 0),
             'manual_discount' => (float) ($order->manual_discount_amount ?? 0),
             'grandTotal' => $grandTotal,
+            'merchandise_total' => $grandTotal,
             'currency' => $order->currency ?: ($docDefaults['currency'] ?? 'USD'),
             'paymentTerms' => $order->payment_method === 'net_30' ? 'Commercial Credit Net 30' : ($order->payment_method === 'card' ? 'Prepaid Credit Card (Full in Advance)' : ($docDefaults['payment_terms'] ?? 'Bank Wire Transfer (T/T Advance)')),
             'shippingTerms' => $docDefaults['shipping_terms'] ?? 'Express Air Freight (DAP / DDP)',
@@ -152,8 +199,21 @@ class ProformaInvoiceService
         $piNumber = $quotation->proformaInvoiceId ?: "PI-{$year}-{$docSuffix}";
         $docDefaults = DocumentHelper::getDocumentDefaults();
 
-        $productIds = $quotation->items->pluck('product_id')->filter()->unique()->values();
-        $products = \App\Models\Product::with(['images', 'brand'])->whereIn('id', $productIds)->get()->keyBy('id');
+        $products = collect();
+        $missingProductIds = [];
+        foreach ($quotation->items as $it) {
+            if ($it->relationLoaded('product') && $it->product) {
+                $products[(string) $it->product->id] = $it->product;
+            } elseif ($it->product_id) {
+                $missingProductIds[] = $it->product_id;
+            }
+        }
+        if (!empty($missingProductIds)) {
+            $fetched = \App\Models\Product::with(['images', 'brand', 'shippingPackageProfiles', 'packageAllocations'])->whereIn('id', array_unique($missingProductIds))->get()->keyBy(fn($p) => (string) $p->id);
+            foreach ($fetched as $k => $v) {
+                $products[$k] = $v;
+            }
+        }
 
         $items = $quotation->items->map(function ($item, $idx) use ($products) {
             $product = ($item->product_id && isset($products[$item->product_id])) ? $products[$item->product_id] : null;
@@ -164,6 +224,38 @@ class ProformaInvoiceService
                 $brandLogo = null;
             }
 
+            // Resolve authoritative standard-package information
+            $stdPackage = null;
+            $qty = (int) $item->quantity;
+            $uPrice = (float) $item->unit_price;
+            $lTotal = (float) ($item->line_total ?: ($uPrice * $qty));
+
+            $pkg = $item->package_breakdown ?? null;
+            if (!empty($pkg) && is_array($pkg)) {
+                $breakdownParts = [];
+                foreach ($pkg as $k => $v) {
+                    $breakdownParts[] = is_numeric($k) ? (is_array($v) ? json_encode($v) : (string)$v) : "{$k}: {$v}";
+                }
+                $stdPackage = "Standard Package: " . implode(', ', $breakdownParts);
+            } elseif ($product) {
+                $profile = $product->shippingPackageProfiles?->where('is_active', true)->first()
+                    ?? $product->shippingPackageProfiles?->first();
+                if ($profile && (int) $profile->package_quantity > 0) {
+                    $pkgQty = (int) $profile->package_quantity;
+                    $prefix = ($pkgQty !== $qty) ? "Standard Package (MOQ basis): " : "Standard Package: ";
+                    if ((int) $profile->carton_count > 0) {
+                        $ctnCount = (int) $profile->carton_count;
+                        $stdPackage = $prefix . number_format($pkgQty) . " pcs ({$ctnCount} " . ($ctnCount > 1 ? 'cartons' : 'carton') . ")";
+                    } else {
+                        $stdPackage = $prefix . number_format($pkgQty) . " pcs";
+                    }
+                } elseif ($product->moq > 0) {
+                    $moqVal = (int) $product->moq;
+                    $prefix = ($moqVal !== $qty) ? "Standard Package (MOQ basis): " : "Standard Package: ";
+                    $stdPackage = $prefix . number_format($moqVal) . " pcs";
+                }
+            }
+
             return [
                 'id' => (string) $item->id,
                 'item_no' => $idx + 1,
@@ -172,17 +264,22 @@ class ProformaInvoiceService
                 'brand' => $brand,
                 'brand_logo' => $brandLogo,
                 'brand_logo_url' => $brandLogo,
-                'description' => $item->product_name . ($item->selected_size ? " (Size: {$item->selected_size})" : " (Assorted)"),
+                'description' => $item->product_name,
+                'standard_package' => $stdPackage,
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
-                'hs_code' => '6105.10.00',
+                'hs_code' => DocumentHelper::resolveHsCode($item->product_name, $product?->hs_code ?: ($item->hs_code ?? null)),
                 'product_image_url' => $item->product_image_url ?: '/placeholder.jpg',
-                'quantity' => (int) $item->quantity,
-                'unit_price' => (float) $item->unit_price,
-                'line_total' => (float) $item->line_total,
+                'quantity' => $qty,
+                'unit_price' => $uPrice,
+                'line_total' => $lTotal,
                 'package_breakdown' => $item->package_breakdown,
                 'details' => $item->variant_title,
             ];
         })->toArray();
+
+        $subtotal = (float) $quotation->subtotal;
+        $discount = (float) $quotation->discount_total;
+        $merchandiseTotal = max(0, round($subtotal - $discount, 2));
 
         return [
             'id' => "doc_PROFORMA_INVOICE_QT_{$quotation->id}",
@@ -212,14 +309,15 @@ class ProformaInvoiceService
             'items' => $items,
             'financials' => [
                 'currency' => $quotation->currency ?: 'USD',
-                'subtotal' => (float) $quotation->subtotal,
-                'goods_value' => (float) $quotation->subtotal,
-                'shipping_charge' => (float) $quotation->shipping_fee,
-                'tax_amount' => (float) $quotation->tax_amount,
-                'discount_amount' => (float) $quotation->discount_total,
-                'grand_total' => (float) $quotation->grand_total,
-                'total_payable' => (float) $quotation->grand_total,
-                'amount_in_words' => DocumentHelper::numberToWords((float) $quotation->grand_total, $quotation->currency ?: 'USD'),
+                'subtotal' => $subtotal,
+                'goods_value' => $subtotal,
+                'shipping_charge' => 0.00, // Confirmed rule: Shipping excluded from PI total
+                'tax_amount' => 0.00, // Mandatory B2B Export zero-rated tax
+                'discount_amount' => $discount,
+                'grand_total' => $merchandiseTotal,
+                'total_payable' => $merchandiseTotal,
+                'merchandise_total' => $merchandiseTotal,
+                'amount_in_words' => DocumentHelper::numberToWords($merchandiseTotal, $quotation->currency ?: 'USD'),
             ],
             'estimated_shipping_data' => [
                 'carrier' => 'Aramex Priority Air Express',
@@ -232,11 +330,12 @@ class ProformaInvoiceService
                 'port_of_loading' => $docDefaults['air_port_of_loading'] ?? ($docDefaults['port_of_loading'] ?? 'Hazrat Shahjalal International Airport (DAC), Dhaka'),
                 'destination_port' => ($quotation->destination_city ?: 'Destination') . ' Airport / Hub',
             ],
-            'subtotal' => (float) $quotation->subtotal,
-            'shipping' => (float) $quotation->shipping_fee,
-            'tax' => (float) $quotation->tax_amount,
-            'discount' => (float) $quotation->discount_total,
-            'grandTotal' => (float) $quotation->grand_total,
+            'subtotal' => $subtotal,
+            'shipping' => 0.00, // Confirmed rule: Shipping excluded from PI calculation
+            'tax' => 0.00, // Mandatory B2B Export zero-rated tax
+            'discount' => $discount,
+            'grandTotal' => $merchandiseTotal,
+            'merchandise_total' => $merchandiseTotal,
             'currency' => $quotation->currency ?: ($docDefaults['currency'] ?? 'USD'),
             'paymentTerms' => $quotation->payment_terms ?: ($docDefaults['payment_terms'] ?? '30% T/T Advance, 70% against B/L'),
             'shippingTerms' => $quotation->shipping_terms ?: ($docDefaults['shipping_terms'] ?? 'FOB Dhaka (Export)'),
