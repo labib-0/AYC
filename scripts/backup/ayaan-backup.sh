@@ -209,8 +209,8 @@ if [ ! -x "$RETENTION_ENGINE" ] && [ -x "$(dirname "$0")/ayaan-retention.sh" ]; 
 fi
 
 if [ -x "$RETENTION_ENGINE" ]; then
-    "$RETENTION_ENGINE" "${BACKUP_ROOT}" "${KEEP_GENERATIONS}" 0
-    log "Generation-aware retention completed successfully."
+    "$RETENTION_ENGINE" "${BACKUP_ROOT}" "${KEEP_GENERATIONS}" 1
+    log "Generation-aware retention completed successfully (DRY-RUN mode)."
 else
     log "WARNING: Retention engine (${RETENTION_ENGINE}) not executable. Skipping retention."
 fi
