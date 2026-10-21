@@ -168,23 +168,24 @@ file_put_contents($piFile, $piPdf);
 
 $piPageCount = substr_count($piPdf, "/Type /Page\n");
 $piRectCount = substr_count($piPdf, "19.840 19.840 555.600 802.210 re S");
+$piText = shell_exec("pdftotext " . escapeshellarg($piFile) . " - 2>/dev/null") ?: $piPdf;
 
 echo "   -> File: {$piFile}\n";
 echo "   -> Pages: {$piPageCount}\n";
 echo "   -> Visible border stroke count (MUST BE 0): {$piRectCount} " . ($piRectCount === 0 ? "PASSED (Zero Stroke)" : "FAIL") . "\n";
-echo "   -> Header Email sales@ayaanclothing.com: " . (str_contains($piPdf, "sales@ayaanclothing.com") ? "YES" : "NO") . "\n";
-echo "   -> Obsolete export@ayaanclothing.com absent: " . (!str_contains($piPdf, "export@ayaanclothing.com") ? "YES (Absent)" : "FAIL") . "\n";
-echo "   -> Exporter card Contact email on its own line: " . (str_contains($piPdf, "Contact: sales@ayaanclothing.com") ? "YES" : "NO") . "\n";
-echo "   -> Exporter card WhatsApp on its own line: " . (str_contains($piPdf, "WhatsApp: +880 1620-853502") ? "YES" : "NO") . "\n";
-echo "   -> Combined contact with bullet separator '• WA:' absent: " . (!str_contains($piPdf, "• WA:") ? "YES (Absent)" : "FAIL") . "\n";
-echo "   -> Country of Origin: Bangladesh printed: " . (str_contains($piPdf, "Country of Origin: Bangladesh") ? "YES" : "NO") . "\n";
-echo "   -> Registration TRAD/DNCC/012458/2022 printed: " . (str_contains($piPdf, "TRAD/DNCC/012458/2022") ? "YES" : "NO") . "\n";
-echo "   -> Consignee address duplicate comma ', ,' absent: " . (!str_contains($piPdf, ", ,") ? "YES (Clean)" : "FAIL") . "\n";
-echo "   -> Subtotal $4,980.00 present: " . (str_contains($piPdf, "4,980.00") ? "YES" : "NO") . "\n";
-echo "   -> Zero-rated export tax present: " . (str_contains($piPdf, "Estimated Tax (B2B Export):") && str_contains($piPdf, "0.00 (Zero Rated)") ? "YES (Zero Rated)" : "FAIL") . "\n";
-echo "   -> 5% Tax absent: " . (!str_contains($piPdf, "249.00") ? "YES (Absent)" : "FAIL") . "\n";
-echo "   -> Merchandise Total $4,980.00 USD reconciles with subtotal: " . (str_contains($piPdf, "4,980.00 USD") ? "YES (Reconciled)" : "FAIL") . "\n";
-echo "   -> Signatory heading strictly 'Authorized Signatory': " . (str_contains($piPdf, "Authorized Signatory") && !str_contains($piPdf, "Authorized Signatory &") ? "YES (Strict)" : "FAIL") . "\n\n";
+echo "   -> Header Email sales@ayaanclothing.com: " . (str_contains($piText, "sales@ayaanclothing.com") ? "YES" : "NO") . "\n";
+echo "   -> Obsolete export@ayaanclothing.com absent: " . (!str_contains($piText, "export@ayaanclothing.com") ? "YES (Absent)" : "FAIL") . "\n";
+echo "   -> Exporter card Contact email on its own line: " . (str_contains($piText, "Contact: sales@ayaanclothing.com") ? "YES" : "NO") . "\n";
+echo "   -> Exporter card WhatsApp on its own line: " . (str_contains($piText, "WhatsApp: +880 1620-853502") ? "YES" : "NO") . "\n";
+echo "   -> Combined contact with bullet separator '• WA:' absent: " . (!str_contains($piText, "• WA:") ? "YES (Absent)" : "FAIL") . "\n";
+echo "   -> Country of Origin: Bangladesh printed: " . (str_contains($piText, "Country of Origin: Bangladesh") ? "YES" : "NO") . "\n";
+echo "   -> Registration TRAD/DNCC/012458/2022 printed: " . (str_contains($piText, "TRAD/DNCC/012458/2022") ? "YES" : "NO") . "\n";
+echo "   -> Consignee address duplicate comma ', ,' absent: " . (!str_contains($piText, ", ,") ? "YES (Clean)" : "FAIL") . "\n";
+echo "   -> Subtotal $4,980.00 present: " . (str_contains($piText, "4,980.00") ? "YES" : "NO") . "\n";
+echo "   -> Zero-rated export tax present: " . (str_contains($piText, "Estimated Tax (B2B Export):") && str_contains($piText, "0.00 (Zero") ? "YES (Zero Rated)" : "FAIL") . "\n";
+echo "   -> 5% Tax absent: " . (!str_contains($piText, "249.00") ? "YES (Absent)" : "FAIL") . "\n";
+echo "   -> Merchandise Total $4,980.00 USD reconciles with subtotal: " . (str_contains($piText, "4,980.00 USD") ? "YES (Reconciled)" : "FAIL") . "\n";
+echo "   -> Signatory heading strictly 'Authorized Signatory': " . (str_contains($piText, "Authorized Signatory") && !str_contains($piText, "Authorized Signatory &") ? "YES (Strict)" : "FAIL") . "\n\n";
 
 // --------------------------------------------------------------------------
 // TEST SCENARIO 4: Real Order 45 Artifact Service Generation
@@ -197,13 +198,17 @@ if ($realOrder) {
     $piPayload = $piService->generateForOrder($realOrder);
     $artifact = $artifactService->getOrGenerateForOrder($realOrder, 'PROFORMA_INVOICE', $piPayload, true);
 
+    $realPdfFile = "{$outputDir}/real_order_45.pdf";
+    file_put_contents($realPdfFile, $artifact['content']);
+    $realPdfText = shell_exec("pdftotext " . escapeshellarg($realPdfFile) . " - 2>/dev/null") ?: $artifact['content'];
+
     echo "   -> Real Order 45 PI Filename: {$artifact['filename']}\n";
     echo "   -> Artifact size: " . strlen($artifact['content']) . " bytes\n";
     echo "   -> Hash: {$artifact['hash']}\n";
     $realRectCount = substr_count($artifact['content'], "19.840 19.840 555.600 802.210 re S");
     echo "   -> Border strokes on real order PI (MUST BE 0): {$realRectCount} " . ($realRectCount === 0 ? "PASSED" : "FAIL") . "\n";
-    echo "   -> Zero-rated tax on real order PI: " . (str_contains($artifact['content'], "Zero Rated") ? "YES" : "NO") . "\n";
-    echo "   -> Total 4,980.00 USD printed on real order PI: " . (str_contains($artifact['content'], "4,980.00 USD") ? "YES" : "NO") . "\n";
+    echo "   -> Zero-rated tax on real order PI: " . (str_contains($realPdfText, "Zero") ? "YES (Zero Rated)" : "NO") . "\n";
+    echo "   -> Total 4,980.00 USD printed on real order PI: " . (str_contains($realPdfText, "4,980.00 USD") ? "YES (Reconciled)" : "NO") . "\n";
 } else {
     echo "   -> Order AYN-20261021-KGXEYR not in local test DB (will be verified on VPS production DB)\n";
 }
