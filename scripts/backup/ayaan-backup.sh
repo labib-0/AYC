@@ -8,8 +8,8 @@ BACKUP_ROOT="/var/backups/ayaan"
 LOG_FILE="/var/log/ayaan-backup.log"
 LOCK_FILE="/var/run/ayaan-backup.lock"
 DB_NAME="ayaan_production"
-SCRIPT_VERSION="1.0.0"
-RETENTION_DAYS=14
+SCRIPT_VERSION="1.1.0"
+KEEP_GENERATIONS=7
 MIN_DISK_FREE_MB=2000
 
 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
@@ -201,29 +201,19 @@ MANIFEST_EOF
 chmod 644 "${MANIFEST_FILE}"
 log "Manifest generated at: ${MANIFEST_FILE}"
 
-# 7. Retention Policy Enforcement
-log "Applying retention policy (retaining ${RETENTION_DAYS} days)..."
-apply_retention() {
-    local dir="$1"
-    local pattern="$2"
-    local total_count=$(find "$dir" -name "$pattern" -type f | wc -l)
-    if [ "$total_count" -le 1 ]; then
-        return 0
-    fi
-    find "$dir" -name "$pattern" -type f -mtime +${RETENTION_DAYS} | while read -r old_file; do
-        local current_count=$(find "$dir" -name "$pattern" -type f | wc -l)
-        if [ "$current_count" -gt 1 ]; then
-            log "Retention: Removing expired backup ${old_file}"
-            rm -f "$old_file"
-        fi
-    done
-}
+# 7. Generation-Aware Retention Policy Enforcement
+log "Applying generation-aware retention policy (keeping newest ${KEEP_GENERATIONS} generations)..."
+RETENTION_ENGINE="/usr/local/bin/ayaan-retention.sh"
+if [ ! -x "$RETENTION_ENGINE" ] && [ -x "$(dirname "$0")/ayaan-retention.sh" ]; then
+    RETENTION_ENGINE="$(dirname "$0")/ayaan-retention.sh"
+fi
 
-apply_retention "${BACKUP_ROOT}/database" "ayaan_production_*.dump"
-apply_retention "${BACKUP_ROOT}/database" "ayaan_globals_*.sql"
-apply_retention "${BACKUP_ROOT}/media" "ayaan_media_*.tar.gz"
-apply_retention "${BACKUP_ROOT}/config" "ayaan_config_*.tar.gz"
-apply_retention "${BACKUP_ROOT}/manifests" "backup_*.manifest"
+if [ -x "$RETENTION_ENGINE" ]; then
+    "$RETENTION_ENGINE" "${BACKUP_ROOT}" "${KEEP_GENERATIONS}" 0
+    log "Generation-aware retention completed successfully."
+else
+    log "WARNING: Retention engine (${RETENTION_ENGINE}) not executable. Skipping retention."
+fi
 
 log "Backup completed successfully in ${DURATION} seconds."
 log "=================================================="
