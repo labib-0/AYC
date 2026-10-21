@@ -192,12 +192,12 @@
             color: #ffffff;
             font-size: 9.5pt;
             font-weight: bold;
-            padding: 6px 6px;
+            padding: 6px 4px;
             text-align: left;
         }
         .goods-table td {
             font-size: 9.5pt;
-            padding: 5px 6px;
+            padding: 5px 4px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
         }
@@ -408,12 +408,12 @@
         <thead>
             <tr>
                 <th style="width: 4%;" class="text-center">#</th>
-                <th style="width: 38%;">Description of Goods &amp; Package Assortment</th>
-                <th style="width: 18%;">SKU / Style</th>
-                <th style="width: 11%;" class="text-center">HS Code</th>
-                <th style="width: 10%; text-align: right; white-space: nowrap;">Quantity</th>
-                <th style="width: 9%; text-align: right; white-space: nowrap;">Unit Price</th>
-                <th style="width: 10%; text-align: right; white-space: nowrap;">Amount (USD)</th>
+                <th style="width: 33%;">Description of Goods &amp; Package Assortment</th>
+                <th style="width: 16%;">SKU / Style</th>
+                <th style="width: 12%;" class="text-center">HS Code</th>
+                <th style="width: 11%; text-align: right; white-space: nowrap;">Quantity</th>
+                <th style="width: 11%; text-align: right; white-space: nowrap;">Unit Price</th>
+                <th style="width: 13%; text-align: right; white-space: nowrap;">Amount (USD)</th>
             </tr>
         </thead>
         <tbody>
