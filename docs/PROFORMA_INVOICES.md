@@ -158,7 +158,7 @@ As part of the v7 commercial document visual refinements and data-integrity audi
   - Right-aligned and safely inset within page content boundaries.
 * **Dynamic Canvas Footer**: Printed at $y = 814.0$ pt (`AYAAN CLOTHING • Proforma Invoice Ref: {ref} • Generated on {date} • Page {PAGE_NUM} of {PAGE_COUNT}`).
 * **Deterministic Layout Invalidation**:
-  - `CommercialPdfArtifactService::LAYOUT_VERSION = 'v7_canonical_layout'`.
+  - `CommercialPdfArtifactService::LAYOUT_VERSION = 'v7.1_canonical_layout'`.
   - Exporter profile checksum is incorporated into `computeOrderFingerprint()`, ensuring changes to beneficiary settings automatically invalidate cached documents.
 
 ---

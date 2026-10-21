@@ -136,7 +136,7 @@ public function computeFingerprint(Product $product): string
 ### Invalidation Rules:
 * **Invalidates & Regenerates**: Updates to `LAYOUT_VERSION`, product title, SKU, base price, wholesale price, bulk pricing tiers, full stock price, MOQ, specifications (GSM, fabric, wash care, CBM, weight), primary photo, gallery photos, brand name, brand logo, or company exporter profile.
 * **Does NOT Invalidate**: Updates to stock quantities, inventory warehouse balances, or order history (these do not appear on product Offer Sheets).
-* **Automated Template Versioning**: `ProductOfferSheetService::LAYOUT_VERSION = 'v7_canonical_layout'` ensures template revisions trigger instantaneous cache misses and regeneration without requiring destructive manual disk purges.
+* **Automated Template Versioning**: `ProductOfferSheetService::LAYOUT_VERSION = 'v7.1_canonical_layout'` ensures template revisions trigger instantaneous cache misses and regeneration without requiring destructive manual disk purges.
 
 ### Visual Reference Standards (v7 Canonical Commercial PDF Layout):
 * **Strict A4 Geometry & Invisible Page Border**:
