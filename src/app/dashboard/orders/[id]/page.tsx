@@ -78,7 +78,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
   const [paymentDetails, setPaymentDetails] = useState("");
   const [paymentTxnId, setPaymentTxnId] = useState("");
   const [paymentPayer, setPaymentPayer] = useState("");
-  const [paymentBank, setPaymentBank] = useState("Pubali Bank Limited");
+  const [paymentBank, setPaymentBank] = useState("");
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
@@ -87,6 +87,21 @@ export default function CustomerOrderDetailPage({ params }: Props) {
 
   // Tracking copy
   const [copiedTracking, setCopiedTracking] = useState(false);
+
+  // Pre-populate form state from existing order payment details when present
+  useEffect(() => {
+    if (order?.payment_details) {
+      const pd = order.payment_details;
+      if (pd.bank_name) setPaymentBank(pd.bank_name);
+      if (pd.transaction_id) setPaymentTxnId(pd.transaction_id);
+      if (pd.payer_name) setPaymentPayer(pd.payer_name);
+      if (pd.payment_amount != null) setPaymentAmount(String(pd.payment_amount));
+      if (pd.payment_date) setPaymentDate(pd.payment_date);
+      if (pd.notes) setPaymentNotes(pd.notes);
+      if (pd.payment_details) setPaymentDetails(pd.payment_details);
+      if (pd.payment_method) setPaymentMethod(pd.payment_method);
+    }
+  }, [order]);
 
   // Clean up object preview URL on unmount or URL replacement
   useEffect(() => {
@@ -270,7 +285,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
         payment_method: paymentMethod || "Bank Transfer",
         transaction_id: paymentTxnId.trim() || undefined,
         payer_name: paymentPayer.trim() || order.shipping_name,
-        bank_name: paymentBank.trim() || "Pubali Bank Limited",
+        bank_name: paymentBank.trim() || undefined,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : order.total_amount,
         payment_date: paymentDate || new Date().toISOString().split("T")[0],
         notes: paymentNotes.trim() || undefined,
@@ -830,7 +845,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Bank Name</span>
                 <span className="font-bold text-slate-900 dark:text-white">
-                  {order.payment_details?.bank_name || "Pubali Bank Limited"}
+                  {order.payment_details?.bank_name || "N/A"}
                 </span>
               </div>
               <div>
@@ -1154,7 +1169,7 @@ export default function CustomerOrderDetailPage({ params }: Props) {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Pubali Bank Limited"
+                  placeholder="e.g. JPMorgan Chase, HSBC, Barclays, or Pubali Bank"
                   value={paymentBank}
                   onChange={(e) => setPaymentBank(e.target.value)}
                   className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs outline-none focus:border-amber-500"

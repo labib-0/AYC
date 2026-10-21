@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CommercialPdfArtifactService
 {
-    public const LAYOUT_VERSION = 'v7.8_pi_shipping_excluded';
+    public const LAYOUT_VERSION = 'v8.0_pi_column_spacing_and_commercial_alignment';
 
     /**
      * Retrieve a cached commercial PDF artifact or render and persist it atomically.
@@ -267,6 +267,10 @@ class CommercialPdfArtifactService
             (float) $order->discount_amount,
             (float) $order->total_amount,
             $order->payment_method ?? '',
+            $order->payment_status ?? '',
+            (float) ($order->paid_amount ?? 0),
+            $order->payment_reference ?? '',
+            $order->payments ? $order->payments->map(fn($p) => "{$p->id}_{$p->status}_{$p->amount}_{$p->transaction_id}")->join(',') : '',
             $order->shipping_name ?? '',
             $order->shipping_address1 ?? '',
             $order->shipping_address2 ?? '',

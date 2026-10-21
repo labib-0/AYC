@@ -2,11 +2,12 @@
 
 import React from "react";
 import Link from "next/link";
-import { Package, FileText, FolderOpen, ArrowRight } from "lucide-react";
+import { Package, FileText, CreditCard, ArrowRight } from "lucide-react";
 
 interface KPICardsProps {
   ordersCount: number;
   quotesCount: number;
+  pendingPaymentsCount?: number;
   documentsCount?: number;
   loading?: boolean;
 }
@@ -14,11 +15,10 @@ interface KPICardsProps {
 export function DashboardKPICards({
   ordersCount,
   quotesCount,
+  pendingPaymentsCount = 0,
   documentsCount,
   loading = false,
 }: KPICardsProps) {
-  const resolvedDocsCount = documentsCount ?? ordersCount;
-
   const cards = [
     {
       title: "Orders",
@@ -41,14 +41,14 @@ export function DashboardKPICards({
       cta: "Review requests & quotes",
     },
     {
-      title: "Documents",
-      value: resolvedDocsCount,
-      label: resolvedDocsCount === 1 ? "Commercial Document" : "Commercial Documents",
-      href: "/dashboard/documents",
-      icon: FolderOpen,
-      iconBg: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400",
-      accent: "hover:border-emerald-300 dark:hover:border-emerald-700",
-      cta: "Access PI, CI & Invoices",
+      title: "Payment Pending",
+      value: pendingPaymentsCount,
+      label: pendingPaymentsCount === 1 ? "Order Awaiting Payment" : "Orders Awaiting Payment",
+      href: "/dashboard/orders?status=PAYMENT_PENDING",
+      icon: CreditCard,
+      iconBg: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
+      accent: "hover:border-amber-300 dark:hover:border-amber-700",
+      cta: "Review Pending Payments",
     },
   ];
 

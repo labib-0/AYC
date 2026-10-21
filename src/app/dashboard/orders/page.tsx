@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { getUserOrders, OrderRecord } from "@/lib/services/orders";
 import {
@@ -35,13 +36,45 @@ function formatUSD(amount: number): string {
   })}`;
 }
 
-export default function CustomerOrdersPage() {
+function CustomerOrdersContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const statusParam = searchParams.get("status") || searchParams.get("filter");
+
+  // Determine initial filter from query param if valid
+  const initialFilter: OrderFilter = useMemo(() => {
+    if (!statusParam) return "all";
+    const normalized = statusParam.toUpperCase().replace(/[\s-]/g, "_");
+    if (normalized === "PAYMENT_PENDING" || normalized === "PENDING" || normalized === "PAYMENT") {
+      return "PAYMENT_PENDING";
+    }
+    if (normalized === "ORDER_PLACED" || normalized === "PLACED") {
+      return "ORDER_PLACED";
+    }
+    if (normalized === "WAITING_FOR_APPROVAL" || normalized === "APPROVAL" || normalized === "WAITING") {
+      return "WAITING_FOR_APPROVAL";
+    }
+    if (normalized === "ORDER_CONFIRMED" || normalized === "CONFIRMED" || normalized === "PAID") {
+      return "ORDER_CONFIRMED";
+    }
+    if (normalized === "ON_SHIPMENT" || normalized === "SHIPPED") {
+      return "ON_SHIPMENT";
+    }
+    return "all";
+  }, [statusParam]);
+
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<OrderFilter>("all");
+  const [activeFilter, setActiveFilter] = useState<OrderFilter>(initialFilter);
+
+  // Sync activeFilter if URL query param changes
+  useEffect(() => {
+    if (initialFilter) {
+      setActiveFilter(initialFilter);
+    }
+  }, [initialFilter]);
 
   const loadOrders = React.useCallback(async () => {
     if (!user) return;
@@ -414,5 +447,20 @@ export default function CustomerOrdersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CustomerOrdersPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="space-y-5">
+          <div className="h-10 w-48 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
+          <div className="h-64 bg-slate-100 dark:bg-slate-800/60 rounded-2xl animate-pulse" />
+        </div>
+      }
+    >
+      <CustomerOrdersContent />
+    </React.Suspense>
   );
 }

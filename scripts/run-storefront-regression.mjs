@@ -40,6 +40,7 @@ const STOREFRONT_UNIT_SUITES = [
   "phase3-final-verification.test.ts",
   "customer-cart-redesign.test.ts",
   "customer-dashboard-simplification.test.ts",
+  "customer-dashboard-payment-pending-tile.test.ts",
   "dynamic-product-specification-boxes.test.ts",
   "standard-pricing-and-full-stock-basis.test.ts",
   "single-active-explorer.test.ts",

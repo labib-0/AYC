@@ -424,12 +424,12 @@
     <table class="goods-table">
         <thead>
             <tr>
-                <th style="width: 5%;" class="text-center">#</th>
-                <th style="width: 38%;">Description of Goods</th>
-                <th style="width: 23%; white-space: nowrap;">SKU / Style</th>
-                <th style="width: 11%; text-align: right; white-space: nowrap;">Quantity</th>
-                <th style="width: 11%; text-align: right; white-space: nowrap; padding-right: 8px;">Unit Price</th>
-                <th style="width: 12%; text-align: right; white-space: nowrap; padding-right: 6px;">Amount (USD)</th>
+                <th style="width: 4%;" class="text-center">#</th>
+                <th style="width: 35%;">Description of Goods</th>
+                <th style="width: 20%; white-space: nowrap;">SKU / Style</th>
+                <th style="width: 11%; text-align: right; white-space: nowrap; padding-right: 4px;">Quantity</th>
+                <th style="width: 14%; text-align: center; white-space: nowrap;">Unit Price</th>
+                <th style="width: 16%; text-align: center; white-space: nowrap;">Amount (USD)</th>
             </tr>
         </thead>
         <tbody>
@@ -449,9 +449,9 @@
                         @endif
                     </td>
                     <td class="font-bold" style="color: #0f172a; font-size: 8.8pt; white-space: nowrap;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
-                    <td class="text-right font-bold" style="white-space: nowrap; font-size: 8.8pt;">{{ number_format($qty) }} pcs</td>
-                    <td class="text-right goods-price" style="color: #0f172a; white-space: nowrap; padding-right: 8px;">${{ number_format($uPrice, 2) }}</td>
-                    <td class="text-right goods-amount" style="color: #0f172a; white-space: nowrap; padding-right: 6px;">${{ number_format($lTotal, 2) }}</td>
+                    <td class="text-right font-bold" style="white-space: nowrap; font-size: 8.8pt; padding-right: 4px;">{{ number_format($qty) }} pcs</td>
+                    <td class="text-right goods-price" style="color: #0f172a; white-space: nowrap; padding-right: 14px;">${{ number_format($uPrice, 2) }}</td>
+                    <td class="text-right goods-amount" style="color: #0f172a; white-space: nowrap; padding-right: 10px;">${{ number_format($lTotal, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>

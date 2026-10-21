@@ -75,15 +75,14 @@ function runTests() {
   // ─────────────────────────────────────────────────────────────
   // 2. Primary KPI Metrics Consolidation
   // ─────────────────────────────────────────────────────────────
-  console.log("\n▶ Group 2: Key Workflow Metrics");
   assert(
     kpiCode.includes('title: "Orders"') &&
     kpiCode.includes('href: "/dashboard/orders"') &&
     kpiCode.includes('title: "Active RFQs"') &&
     kpiCode.includes('href: "/dashboard/rfq"') &&
-    kpiCode.includes('title: "Documents"') &&
-    kpiCode.includes('href: "/dashboard/documents"'),
-    "DashboardKPICards provides primary metrics: Orders, Active RFQs, Documents"
+    kpiCode.includes('title: "Payment Pending"') &&
+    kpiCode.includes('href: "/dashboard/orders?status=PAYMENT_PENDING"'),
+    "DashboardKPICards provides primary metrics: Orders, Active RFQs, Payment Pending"
   );
   assert(
     !kpiCode.includes("Reorder Ready") &&

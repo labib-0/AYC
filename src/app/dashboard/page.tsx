@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { getUserOrders, OrderRecord } from "@/lib/services/orders";
 import { getAllRfqs } from "@/lib/services/rfq";
 import { RfqRecord } from "@/types/b2b";
+import { getCanonicalCustomerStatus } from "@/lib/order-status";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardKPICards } from "@/components/dashboard/DashboardKPICards";
 import { DashboardQuickActions } from "@/components/dashboard/DashboardQuickActions";
@@ -68,6 +69,11 @@ export default function DashboardOverviewPage() {
     (r) => r.status !== "REJECTED" && r.status !== "CANCELLED"
   ).length;
 
+  // Calculate authenticated customer's orders awaiting payment
+  const pendingPaymentsCount = orders.filter(
+    (o) => getCanonicalCustomerStatus(o) === "PAYMENT_PENDING"
+  ).length;
+
   return (
     <div className="space-y-2">
       {/* Header Banner */}
@@ -77,6 +83,7 @@ export default function DashboardOverviewPage() {
       <DashboardKPICards
         ordersCount={orders.length}
         quotesCount={activeQuotesCount}
+        pendingPaymentsCount={pendingPaymentsCount}
         loading={loading}
       />
 

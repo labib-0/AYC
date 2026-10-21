@@ -10,6 +10,7 @@ $kernel->bootstrap();
 // ========================================================
 // Force in-memory SQLite connection; purge pgsql to physically prevent production access.
 config([
+    'cache.default' => 'array',
     'database.default' => 'sqlite',
     'database.connections.sqlite' => [
         'driver' => 'sqlite',
@@ -28,7 +29,19 @@ if ($effectiveConn !== 'sqlite' || $effectiveDb !== ':memory:') {
     exit(1);
 }
 
-// Create isolated in-memory tables needed by DocumentHelper and Eloquent models
+// Create isolated in-memory tables needed by DocumentHelper, Cache, and Eloquent models
+\Illuminate\Support\Facades\Schema::create('cache', function ($t) {
+    $t->string('key')->primary();
+    $t->mediumText('value');
+    $t->integer('expiration');
+});
+
+\Illuminate\Support\Facades\Schema::create('cache_locks', function ($t) {
+    $t->string('key')->primary();
+    $t->string('owner');
+    $t->integer('expiration');
+});
+
 \Illuminate\Support\Facades\Schema::create('system_settings', function ($t) {
     $t->id();
     $t->string('key')->unique();
@@ -91,6 +104,96 @@ if ($effectiveConn !== 'sqlite' || $effectiveDb !== ':memory:') {
     $t->timestamps();
 });
 
+\Illuminate\Support\Facades\Schema::create('users', function ($t) {
+    $t->id();
+    $t->string('name')->nullable();
+    $t->string('email')->unique();
+    $t->string('company_name')->nullable();
+    $t->string('role')->default('customer');
+    $t->string('password')->nullable();
+    $t->rememberToken();
+    $t->softDeletes();
+    $t->timestamps();
+});
+
+\Illuminate\Support\Facades\Schema::create('orders', function ($t) {
+    $t->id();
+    $t->foreignId('user_id')->nullable();
+    $t->string('order_number')->unique();
+    $t->string('status')->default('pending');
+    $t->string('payment_status')->default('pending');
+    $t->string('payment_method')->nullable();
+    $t->string('payment_reference')->nullable();
+    $t->decimal('paid_amount', 12, 2)->default(0);
+    $t->text('payment_details')->nullable();
+    $t->string('currency', 10)->default('USD');
+    $t->decimal('subtotal', 12, 2)->default(0);
+    $t->decimal('shipping_cost', 12, 2)->default(0);
+    $t->decimal('shipping_fee', 12, 2)->default(0);
+    $t->decimal('tax_amount', 12, 2)->default(0);
+    $t->decimal('discount_amount', 12, 2)->default(0);
+    $t->string('coupon_code')->nullable();
+    $t->decimal('coupon_discount_amount', 12, 2)->default(0);
+    $t->decimal('manual_discount_amount', 12, 2)->default(0);
+    $t->decimal('total_amount', 12, 2)->default(0);
+    $t->string('shipping_name')->nullable();
+    $t->string('shipping_address1')->nullable();
+    $t->string('shipping_address2')->nullable();
+    $t->string('shipping_city')->nullable();
+    $t->string('shipping_state')->nullable();
+    $t->string('shipping_postal_code')->nullable();
+    $t->string('shipping_country_code')->nullable();
+    $t->string('shipping_phone')->nullable();
+    $t->string('email')->nullable();
+    $t->string('carrier')->nullable();
+    $t->string('shipping_method')->nullable();
+    $t->text('shipping_snapshot')->nullable();
+    $t->timestamp('payment_confirmed_at')->nullable();
+    $t->softDeletes();
+    $t->timestamps();
+});
+
+\Illuminate\Support\Facades\Schema::create('order_items', function ($t) {
+    $t->id();
+    $t->foreignId('order_id')->nullable();
+    $t->foreignId('product_id')->nullable();
+    $t->string('product_name')->nullable();
+    $t->string('sku')->nullable();
+    $t->integer('quantity')->default(1);
+    $t->decimal('unit_price', 12, 2)->default(0);
+    $t->decimal('line_total', 12, 2)->default(0);
+    $t->string('size')->nullable();
+    $t->string('color')->nullable();
+    $t->string('variant_title')->nullable();
+    $t->text('package_breakdown')->nullable();
+    $t->timestamps();
+});
+
+\Illuminate\Support\Facades\Schema::create('payments', function ($t) {
+    $t->id();
+    $t->foreignId('order_id')->nullable();
+    $t->foreignId('customer_id')->nullable();
+    $t->string('transaction_id')->nullable();
+    $t->string('provider')->nullable();
+    $t->string('payment_method')->nullable();
+    $t->decimal('amount', 12, 2)->default(0);
+    $t->string('currency', 10)->default('USD');
+    $t->string('status')->default('pending');
+    $t->string('payer_name')->nullable();
+    $t->string('bank_name')->nullable();
+    $t->string('account_number')->nullable();
+    $t->string('receipt_original_name')->nullable();
+    $t->string('receipt_path')->nullable();
+    $t->string('receipt_url')->nullable();
+    $t->text('payload')->nullable();
+    $t->text('notes')->nullable();
+    $t->date('payment_date')->nullable();
+    $t->timestamp('submitted_at')->nullable();
+    $t->timestamp('confirmed_at')->nullable();
+    $t->foreignId('confirmed_by')->nullable();
+    $t->timestamps();
+});
+
 // Seed canonical defaults in isolated in-memory database
 \App\Models\SystemSetting::set('business_email', 'sales@ayaanclothing.com');
 \App\Models\SystemSetting::set('document_defaults.incoterm_default', 'FOB');
@@ -103,13 +206,20 @@ require_once __DIR__ . '/app/Services/Documents/CommercialPdfArtifactService.php
 require_once __DIR__ . '/app/Services/Documents/ProductOfferSheetService.php';
 require_once __DIR__ . '/app/Services/Documents/OfferSheetService.php';
 require_once __DIR__ . '/app/Services/Documents/ProformaInvoiceService.php';
+require_once __DIR__ . '/app/Services/Documents/CommercialInvoiceService.php';
 
 use App\Models\Brand;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductPricingTier;
 use App\Models\ProductShippingPackageProfile;
 use App\Models\SystemSetting;
+use App\Models\User;
+use App\Services\Documents\CommercialInvoiceService;
+use App\Services\Documents\CommercialPdfArtifactService;
 use App\Services\Documents\DocumentPdfService;
 use App\Services\Documents\OfferSheetService;
 use App\Services\Documents\ProformaInvoiceService;
@@ -837,6 +947,431 @@ file_put_contents("{$outputDir}/os_product_213.pdf", $osPdf213);
 checkTrue(strlen($osPdf213) > 10000, "OS 213 PDF generated successfully (" . strlen($osPdf213) . " bytes)");
 
 // ========================================================
+// TEST 12: COMMERCIAL INVOICE (CI) VISUAL PARITY & VERIFIED PAYMENT TRACKING
+// ========================================================
+echo "\n========================================================\n";
+echo "TEST 12: COMMERCIAL INVOICE (CI) VERIFICATION SUITE\n";
+echo "========================================================\n";
+
+$ciService = app(CommercialInvoiceService::class);
+$artifactService = app(CommercialPdfArtifactService::class);
+
+// Create Synthetic Customer & Unrelated Customer
+$ciCustomer = User::create([
+    'name' => 'Synthetic Test Buyer',
+    'email' => 'synthetic-buyer@example.test',
+    'company_name' => 'Nordic Apparel Imports Ltd',
+    'role' => 'customer',
+]);
+
+$ciUnrelatedCustomer = User::create([
+    'name' => 'Unrelated Customer',
+    'email' => 'unrelated@example.test',
+    'company_name' => 'Other Corp',
+    'role' => 'customer',
+]);
+
+$ciAdmin = User::create([
+    'name' => 'Super Admin',
+    'email' => 'admin@ayaanclothing.com',
+    'role' => 'admin',
+]);
+
+// Helper to create synthetic order
+function createCiTestOrder($customer, array $overrides = []): Order {
+    $order = Order::create(array_merge([
+        'user_id' => $customer->id,
+        'order_number' => 'ORD-CI-' . rand(10000, 99999),
+        'shipping_name' => 'Nordic Apparel Imports Ltd',
+        'shipping_address1' => 'Storgata 15',
+        'shipping_city' => 'Oslo',
+        'shipping_country_code' => 'Norway',
+        'email' => 'synthetic-buyer@example.test',
+        'shipping_phone' => '+47 21 00 00 00',
+        'currency' => 'USD',
+        'subtotal' => 4500.00,
+        'shipping_cost' => 300.00,
+        'tax_amount' => 180.00,
+        'discount_amount' => 0.00,
+        'total_amount' => 4980.00,
+        'payment_status' => 'pending',
+        'status' => 'pending',
+        'payment_method' => 'bank_transfer',
+        'carrier' => 'Aramex',
+        'shipping_method' => 'Aramex Priority Air Express',
+        'shipping_snapshot' => [
+            'carton_count' => 5,
+            'gross_weight' => 20.0,
+            'cbm' => 0.072,
+        ],
+    ], $overrides));
+
+    OrderItem::create([
+        'order_id' => $order->id,
+        'product_id' => 198,
+        'product_name' => "Men's Interlock Jacket",
+        'sku' => 'JAC-EXP-001',
+        'quantity' => 100,
+        'unit_price' => 45.00,
+        'line_total' => 4500.00,
+    ]);
+
+    return $order->fresh(['items', 'payments', 'user']);
+}
+
+// Case 1: Unpaid Invoice
+echo "\nCase 1: Unpaid Invoice\n";
+$orderUnpaid = createCiTestOrder($ciCustomer);
+$payloadUnpaid = $ciService->generateForOrder($orderUnpaid);
+checkEquals(0.00, $payloadUnpaid['financials']['paid_amount'], "Case 1: Paid amount is $0.00");
+checkEquals(4980.00, $payloadUnpaid['financials']['balance_due'], "Case 1: Full balance due is $4,980.00");
+checkEquals('PAYMENT PENDING', $payloadUnpaid['payment_status'], "Case 1: Payment status is PAYMENT PENDING");
+checkTrue(!$payloadUnpaid['is_payment_verified'], "Case 1: is_payment_verified is false");
+
+$htmlUnpaid = View::make('pdf.commercial-invoice', ['doc' => $payloadUnpaid])->render();
+checkContains('COMMERCIAL INVOICE', $htmlUnpaid, "Case 1: Document title is COMMERCIAL INVOICE");
+checkContains('Amount Paid:', $htmlUnpaid, "Case 1: Amount Paid label rendered");
+checkContains('$0.00', $htmlUnpaid, "Case 1: Amount paid $0.00 rendered");
+checkContains('Balance Due:', $htmlUnpaid, "Case 1: Balance Due label rendered");
+checkContains('$4,980.00', $htmlUnpaid, "Case 1: Balance due $4,980.00 rendered");
+checkContains('PAYMENT PENDING', $htmlUnpaid, "Case 1: Status PAYMENT PENDING rendered");
+
+$pdfUnpaid = $pdfService->render($payloadUnpaid)->output();
+file_put_contents("{$outputDir}/ci_unpaid.pdf", $pdfUnpaid);
+checkTrue(strlen($pdfUnpaid) > 10000, "Case 1: CI Unpaid PDF generated (" . strlen($pdfUnpaid) . " bytes)");
+
+// Case 2: Partial Payment
+echo "\nCase 2: Partial Payment\n";
+$orderPartial = createCiTestOrder($ciCustomer);
+Payment::create([
+    'order_id' => $orderPartial->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'TXN-PARTIAL-001',
+    'amount' => 1800.00,
+    'currency' => 'USD',
+    'status' => 'confirmed',
+    'payment_method' => 'bank_transfer',
+    'payer_name' => 'Nordic Treasury AS',
+    'bank_name' => 'DNB Bank ASA',
+    'confirmed_at' => now(),
+]);
+$orderPartial->load('payments');
+$payloadPartial = $ciService->generateForOrder($orderPartial);
+checkEquals(1800.00, $payloadPartial['financials']['paid_amount'], "Case 2: Verified paid amount is $1,800.00");
+checkEquals(3180.00, $payloadPartial['financials']['balance_due'], "Case 2: Remaining balance due is $3,180.00");
+checkEquals('PARTIAL', $payloadPartial['payment_status'], "Case 2: Status is PARTIAL");
+checkTrue(!$payloadPartial['is_payment_verified'], "Case 2: is_payment_verified is false for partial payment");
+
+$htmlPartial = View::make('pdf.commercial-invoice', ['doc' => $payloadPartial])->render();
+checkContains('$1,800.00', $htmlPartial, "Case 2: Amount paid $1,800.00 rendered");
+checkContains('Balance Due:', $htmlPartial, "Case 2: Balance Due label rendered");
+checkContains('$3,180.00', $htmlPartial, "Case 2: Remaining balance $3,180.00 rendered");
+checkContains('PARTIAL', $htmlPartial, "Case 2: PARTIAL status badge rendered");
+
+$pdfPartial = $pdfService->render($payloadPartial)->output();
+file_put_contents("{$outputDir}/ci_partial.pdf", $pdfPartial);
+checkTrue(strlen($pdfPartial) > 10000, "Case 2: CI Partial PDF generated (" . strlen($pdfPartial) . " bytes)");
+
+// Case 3: Fully Paid Invoice (Balance Due Row Suppression)
+echo "\nCase 3: Fully Paid Invoice & Balance Due Row Suppression\n";
+$orderPaid = createCiTestOrder($ciCustomer, ['payment_status' => 'paid']);
+Payment::create([
+    'order_id' => $orderPaid->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'TXN-FULL-SETTLE',
+    'amount' => 4980.00,
+    'currency' => 'USD',
+    'status' => 'confirmed',
+    'payment_method' => 'bank_transfer',
+    'payer_name' => 'Nordic Treasury AS',
+    'bank_name' => 'DNB Bank ASA',
+    'confirmed_at' => now(),
+]);
+$orderPaid->load('payments');
+$payloadPaid = $ciService->generateForOrder($orderPaid);
+checkEquals(4980.00, $payloadPaid['financials']['paid_amount'], "Case 3: Paid amount equals total payable ($4,980.00)");
+checkEquals(0.00, $payloadPaid['financials']['balance_due'], "Case 3: Balance due is $0.00");
+checkEquals('PAID', $payloadPaid['payment_status'], "Case 3: Payment status is PAID");
+checkTrue($payloadPaid['is_payment_verified'], "Case 3: is_payment_verified is true");
+
+$htmlPaid = View::make('pdf.commercial-invoice', ['doc' => $payloadPaid])->render();
+checkContains('TOTAL PAYABLE:', $htmlPaid, "Case 3: TOTAL PAYABLE line rendered");
+checkContains('$4,980.00 USD', $htmlPaid, "Case 3: Total $4,980.00 USD rendered");
+checkContains('Amount Paid:', $htmlPaid, "Case 3: Amount Paid line rendered");
+checkContains('PAID', $htmlPaid, "Case 3: PAID status badge rendered");
+checkNotContains('Balance Due:', $htmlPaid, "Case 3: MANDATORY: Balance Due row is completely SUPPRESSED when balance is zero");
+
+$pdfPaid = $pdfService->render($payloadPaid)->output();
+file_put_contents("{$outputDir}/ci_paid.pdf", $pdfPaid);
+checkTrue(strlen($pdfPaid) > 10000, "Case 3: CI Paid PDF generated (" . strlen($pdfPaid) . " bytes)");
+
+// Case 4: Pending Transaction Reference
+echo "\nCase 4: Pending Transaction Reference\n";
+$orderPendingRef = createCiTestOrder($ciCustomer, [
+    'payment_status' => 'payment_submitted',
+    'payment_reference' => 'UNVERIFIED-BUYER-REF-999',
+]);
+Payment::create([
+    'order_id' => $orderPendingRef->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'UNVERIFIED-BUYER-REF-999',
+    'amount' => 4980.00,
+    'currency' => 'USD',
+    'status' => 'submitted', // submitted/pending, unconfirmed!
+    'payment_method' => 'bank_transfer',
+    'payer_name' => 'Pending Buyer Account',
+    'bank_name' => 'Pending Bank Int',
+]);
+$orderPendingRef->load('payments');
+$payloadPendingRef = $ciService->generateForOrder($orderPendingRef);
+checkEquals(0.00, $payloadPendingRef['financials']['paid_amount'], "Case 4: Unverified payment does NOT mark as paid ($0.00 paid)");
+checkEquals(4980.00, $payloadPendingRef['financials']['balance_due'], "Case 4: Full balance due remains ($4,980.00)");
+checkTrue(!$payloadPendingRef['is_payment_verified'], "Case 4: is_payment_verified is false");
+
+$htmlPendingRef = View::make('pdf.commercial-invoice', ['doc' => $payloadPendingRef])->render();
+checkContains('UNVERIFIED-BUYER-REF-999', $htmlPendingRef, "Case 4: Submitted reference ID is displayed");
+checkContains('Pending Buyer Account', $htmlPendingRef, "Case 4: Submitted buyer account name displayed");
+checkContains('Pending Bank Int', $htmlPendingRef, "Case 4: Submitted buyer bank name displayed");
+checkContains('Balance Due:', $htmlPendingRef, "Case 4: Balance Due remains visible");
+checkContains('$4,980.00', $htmlPendingRef, "Case 4: Balance due amount remains $4,980.00");
+
+// Case 5: Failed or Rejected Transactions Excluded
+echo "\nCase 5: Failed or Rejected Transactions Excluded\n";
+$orderFailed = createCiTestOrder($ciCustomer);
+Payment::create([
+    'order_id' => $orderFailed->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'TXN-FAILED-001',
+    'amount' => 4980.00,
+    'currency' => 'USD',
+    'status' => 'failed',
+    'payment_method' => 'card',
+]);
+Payment::create([
+    'order_id' => $orderFailed->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'TXN-REJECTED-002',
+    'amount' => 4980.00,
+    'currency' => 'USD',
+    'status' => 'rejected',
+    'payment_method' => 'bank_transfer',
+]);
+$orderFailed->load('payments');
+$payloadFailed = $ciService->generateForOrder($orderFailed);
+checkEquals(0.00, $payloadFailed['financials']['paid_amount'], "Case 5: Failed and rejected transactions excluded from paid amount");
+checkEquals(4980.00, $payloadFailed['financials']['balance_due'], "Case 5: Balance due remains full $4,980.00");
+
+// Case 6: Multiple Verified Transactions Aggregated
+echo "\nCase 6: Multiple Verified Transactions Aggregated\n";
+$orderMulti = createCiTestOrder($ciCustomer);
+Payment::create([
+    'order_id' => $orderMulti->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'TXN-PART-1',
+    'amount' => 1500.00,
+    'currency' => 'USD',
+    'status' => 'confirmed',
+    'payment_method' => 'bank_transfer',
+    'payer_name' => 'Nordic Corp',
+    'bank_name' => 'Nordea',
+    'confirmed_at' => now(),
+]);
+Payment::create([
+    'order_id' => $orderMulti->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'TXN-PART-2',
+    'amount' => 2000.00,
+    'currency' => 'USD',
+    'status' => 'succeeded',
+    'payment_method' => 'bank_transfer',
+    'payer_name' => 'Nordic Corp',
+    'bank_name' => 'Nordea',
+    'confirmed_at' => now(),
+]);
+$orderMulti->load('payments');
+$payloadMulti = $ciService->generateForOrder($orderMulti);
+checkEquals(3500.00, $payloadMulti['financials']['paid_amount'], "Case 6: Verified payments aggregated (1500 + 2000 = 3500.00)");
+checkEquals(1480.00, $payloadMulti['financials']['balance_due'], "Case 6: Balance due accurately calculated (4980 - 3500 = 1480.00)");
+checkEquals('PARTIAL', $payloadMulti['payment_status'], "Case 6: Payment status is PARTIAL");
+
+// Case 7: Duplicate Notification or Callback Deduplication
+echo "\nCase 7: Duplicate Notification Deduplication\n";
+$orderDup = createCiTestOrder($ciCustomer);
+Payment::create([
+    'order_id' => $orderDup->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'TXN-DUP-CALLBACK-777',
+    'amount' => 2500.00,
+    'currency' => 'USD',
+    'status' => 'confirmed',
+    'payment_method' => 'bank_transfer',
+    'payer_name' => 'Nordic Corp',
+    'bank_name' => 'Nordea',
+    'confirmed_at' => now(),
+]);
+Payment::create([
+    'order_id' => $orderDup->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'TXN-DUP-CALLBACK-777', // Identical transaction_id
+    'amount' => 2500.00,
+    'currency' => 'USD',
+    'status' => 'confirmed',
+    'payment_method' => 'bank_transfer',
+    'payer_name' => 'Nordic Corp',
+    'bank_name' => 'Nordea',
+    'confirmed_at' => now(),
+]);
+$orderDup->load('payments');
+$payloadDup = $ciService->generateForOrder($orderDup);
+checkEquals(2500.00, $payloadDup['financials']['paid_amount'], "Case 7: Duplicate transaction_id counted only once ($2,500.00, not $5,000.00)");
+checkEquals(2480.00, $payloadDup['financials']['balance_due'], "Case 7: Balance due is $2,480.00");
+
+// Case 8: Stale PDF Cache Invalidation
+echo "\nCase 8: Stale PDF Cache Invalidation\n";
+$orderCache = createCiTestOrder($ciCustomer, ['payment_status' => 'pending']);
+$docC1 = $ciService->generateForOrder($orderCache);
+$htmlC1 = View::make('pdf.commercial-invoice', ['doc' => $docC1])->render();
+checkContains('Balance Due:', $htmlC1, "Case 8: Unpaid document contains Balance Due");
+checkEquals(4980.00, $docC1['balance_due'], "Case 8: Unpaid balance due is $4,980.00");
+
+$fp1 = $artifactService->computeOrderFingerprint($orderCache, 'COMMERCIAL_INVOICE', false);
+$art1 = $artifactService->getOrGenerateForOrder($orderCache, 'COMMERCIAL_INVOICE', $docC1, false);
+checkTrue(!$art1['is_hit'], "Case 8: Initial artifact generation is cache miss");
+checkTrue(strlen($art1['content']) > 10000, "Case 8: Initial PDF artifact generated (" . strlen($art1['content']) . " bytes)");
+
+// Subsequent call before update is a cache hit
+$art1Repeat = $artifactService->getOrGenerateForOrder($orderCache, 'COMMERCIAL_INVOICE', $docC1, false);
+checkTrue($art1Repeat['is_hit'], "Case 8: Repeat request hits unpaid cache artifact");
+
+Payment::create([
+    'order_id' => $orderCache->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'TXN-CACHE-SETTLE-01',
+    'amount' => 4980.00,
+    'currency' => 'USD',
+    'status' => 'confirmed',
+    'confirmed_at' => now(),
+]);
+$orderCache->update(['payment_status' => 'paid']);
+$orderCache->refresh();
+$orderCache->load('payments');
+
+$docC2 = $ciService->generateForOrder($orderCache);
+$htmlC2 = View::make('pdf.commercial-invoice', ['doc' => $docC2])->render();
+checkNotContains('Balance Due:', $htmlC2, "Case 8: Fresh paid document HTML suppresses Balance Due");
+checkContains('PAID', $htmlC2, "Case 8: Fresh document shows PAID");
+checkEquals(0.00, $docC2['balance_due'], "Case 8: Settled balance due is $0.00");
+
+$fp2 = $artifactService->computeOrderFingerprint($orderCache, 'COMMERCIAL_INVOICE', false);
+checkTrue($fp1 !== $fp2, "Case 8: Fingerprint changed when payment settled (fp1 != fp2)");
+
+$art2 = $artifactService->getOrGenerateForOrder($orderCache, 'COMMERCIAL_INVOICE', $docC2, false);
+checkTrue(!$art2['is_hit'], "Case 8: Newly generated paid document invalidates stale cache (miss on new fp)");
+checkTrue(strlen($art2['content']) > 10000, "Case 8: Fresh paid PDF artifact generated (" . strlen($art2['content']) . " bytes)");
+
+$art3 = $artifactService->getOrGenerateForOrder($orderCache, 'COMMERCIAL_INVOICE', $docC2, false);
+checkTrue($art3['is_hit'], "Case 8: Subsequent request hits the new paid artifact cache");
+
+// Case 9: Buyer Payment Details vs Beneficiary Details Separation
+echo "\nCase 9: Buyer Payment Details Separation\n";
+$orderBankCheck = createCiTestOrder($ciCustomer);
+Payment::create([
+    'order_id' => $orderBankCheck->id,
+    'customer_id' => $ciCustomer->id,
+    'transaction_id' => 'WIRE-REF-554433',
+    'amount' => 4980.00,
+    'currency' => 'USD',
+    'status' => 'confirmed',
+    'payment_method' => 'International Wire Transfer',
+    'payer_name' => 'Acme Apparel Logistics AS',
+    'bank_name' => 'Skandinaviska Enskilda Banken (SEB)',
+    'account_number' => 'SEB-NO-99887766',
+    'confirmed_at' => now(),
+]);
+$orderBankCheck->load('payments');
+$payloadBank = $ciService->generateForOrder($orderBankCheck);
+checkEquals('Acme Apparel Logistics AS', $payloadBank['buyer_payment']['payer_name'], "Case 9: Buyer account name resolved");
+checkEquals('Skandinaviska Enskilda Banken (SEB)', $payloadBank['buyer_payment']['payer_bank_name'], "Case 9: Buyer bank name resolved without confusing with beneficiary");
+checkEquals('WIRE-REF-554433', $payloadBank['buyer_payment']['transaction_id'], "Case 9: Transaction ID resolved");
+
+$htmlBank = View::make('pdf.commercial-invoice', ['doc' => $payloadBank])->render();
+checkContains('Acme Apparel Logistics AS', $htmlBank, "Case 9: Buyer payer name rendered in HTML");
+checkContains('Skandinaviska Enskilda Banken (SEB)', $htmlBank, "Case 9: Buyer originating bank rendered in HTML");
+checkContains('WIRE-REF-554433', $htmlBank, "Case 9: Transaction reference rendered in HTML");
+checkContains('BENEFICIARY BANK WIRE INSTRUCTIONS:', $htmlBank, "Case 9: Beneficiary bank wire section separate and present");
+checkContains('Pubali Bank Limited', $htmlBank, "Case 9: Beneficiary bank name intact");
+checkContains('1788-901-044316', $htmlBank, "Case 9: Beneficiary account number intact");
+checkContains('PUBABDDH210', $htmlBank, "Case 9: Beneficiary SWIFT code intact");
+
+// Case 10: Access Control Policy Verification
+echo "\nCase 10: Access Control Policy\n";
+$canOwnerAccess = ($ciCustomer->id === $orderBankCheck->user_id || $ciCustomer->role === 'admin');
+$canUnrelatedAccess = ($ciUnrelatedCustomer->id === $orderBankCheck->user_id || $ciUnrelatedCustomer->role === 'admin');
+$canAdminAccess = ($ciAdmin->id === $orderBankCheck->user_id || $ciAdmin->role === 'admin');
+checkTrue($canOwnerAccess, "Case 10: Order owner has authorized access to commercial invoice");
+checkTrue(!$canUnrelatedAccess, "Case 10: Unrelated customer is strictly DENIED access to commercial invoice");
+checkTrue($canAdminAccess, "Case 10: Administrator has authorized access");
+
+// Case 11: Numbered Declaration Remarks Removed
+echo "\nCase 11: Numbered Declaration Remarks Removed\n";
+$htmlDeclarationCheck = View::make('pdf.commercial-invoice', ['doc' => $payloadUnpaid])->render();
+checkNotContains('1. ISO 9001 & OEKO-TEX Standard 100 quality compliance.', $htmlDeclarationCheck, "Case 11: Remark 1 removed");
+checkNotContains('ISO 9001 & OEKO-TEX', $htmlDeclarationCheck, "Case 11: Remark 1 substring absent");
+checkNotContains('2. Export Loading:', $htmlDeclarationCheck, "Case 11: Remark 2 removed");
+checkNotContains('Chattogram Sea Port (CGP)', $htmlDeclarationCheck, "Case 11: Remark 2 substring absent");
+checkNotContains('3. Country of Origin: Bangladesh.', $htmlDeclarationCheck, "Case 11: Remark 3 removed");
+checkContains('class="text-center">#</th>', $htmlDeclarationCheck, "Case 11: Goods table line-item numbering preserved in header");
+checkContains('<td class="text-center" style="color: #64748b;">1</td>', $htmlDeclarationCheck, "Case 11: Goods table line-item numbering preserved in body");
+
+// Case 12: Visual Parity with PI
+echo "\nCase 12: Visual Parity with Proforma Invoice\n";
+$piDocCheck = $piService->generateForOrder($orderUnpaid);
+$piHtmlCheck = View::make('pdf.proforma-invoice', ['doc' => $piDocCheck])->render();
+$ciHtmlCheck = View::make('pdf.commercial-invoice', ['doc' => $payloadUnpaid])->render();
+
+checkContains('margin: 14mm 14mm 16mm 14mm;', $ciHtmlCheck, "Case 12: CI uses exact PI @page margins (14mm 14mm 16mm 14mm)");
+checkContains('margin: 14mm 14mm 16mm 14mm;', $piHtmlCheck, "Case 12: PI uses exact @page margins");
+checkContains('class="header-banner"', $ciHtmlCheck, "Case 12: CI uses .header-banner");
+checkContains('font-size: 15.5pt;', $ciHtmlCheck, "Case 12: CI uses 15.5pt company title");
+checkContains('background-color: #1e3a8a;', $ciHtmlCheck, "Case 12: CI uses #1e3a8a badge box");
+checkContains('class="parties-table"', $ciHtmlCheck, "Case 12: CI uses .parties-table");
+checkContains('class="party-card"', $ciHtmlCheck, "Case 12: CI uses .party-card");
+checkContains('class="meta-strip"', $ciHtmlCheck, "Case 12: CI uses .meta-strip");
+checkContains('class="goods-table"', $ciHtmlCheck, "Case 12: CI uses .goods-table");
+checkContains('background-color: #1e293b;', $ciHtmlCheck, "Case 12: CI goods-table uses #1e293b header background");
+checkContains('class="sig-block"', $ciHtmlCheck, "Case 12: CI uses .sig-block centered signatory");
+checkContains('$pdf->text(39.68, 814.0,', $ciHtmlCheck, "Case 12: CI footer positioned at (39.68, 814.0)");
+checkContains('$pdf->text(39.68, 814.0,', $piHtmlCheck, "Case 12: PI footer positioned at (39.68, 814.0)");
+checkContains('COMMERCIAL INVOICE', $ciHtmlCheck, "Case 12: CI title is COMMERCIAL INVOICE");
+checkContains('PROFORMA INVOICE', $piHtmlCheck, "Case 12: PI title is PROFORMA INVOICE");
+
+// Case 13: Financial Calculations Integrity
+echo "\nCase 13: Financial Calculations Integrity\n";
+$orderCalc = createCiTestOrder($ciCustomer, [
+    'subtotal' => 4500.00,
+    'shipping_cost' => 300.00,
+    'tax_amount' => 180.00,
+    'discount_amount' => 150.00,
+    'total_amount' => 4830.00, // 4500 + 300 + 180 - 150 = 4830
+]);
+$payloadCalc = $ciService->generateForOrder($orderCalc);
+checkEquals(4500.00, $payloadCalc['subtotal'], "Case 13: Subtotal is $4,500.00");
+checkEquals(300.00, $payloadCalc['shipping'], "Case 13: Legitimate shipping $300.00 preserved on CI");
+checkEquals(180.00, $payloadCalc['tax'], "Case 13: Legitimate tax $180.00 preserved on CI");
+checkEquals(150.00, $payloadCalc['discount'], "Case 13: Discount $150.00 preserved");
+checkEquals(4830.00, $payloadCalc['grandTotal'], "Case 13: Grand total $4,830.00 preserved");
+
+$htmlCalc = View::make('pdf.commercial-invoice', ['doc' => $payloadCalc])->render();
+checkContains('$4,500.00', $htmlCalc, "Case 13: Subtotal $4,500.00 rendered");
+checkContains('Shipping &amp; Freight:', $htmlCalc, "Case 13: Shipping line item rendered");
+checkContains('$300.00', $htmlCalc, "Case 13: Shipping $300.00 rendered");
+checkContains('Tax / Surcharge:', $htmlCalc, "Case 13: Tax line item rendered");
+checkContains('$180.00', $htmlCalc, "Case 13: Tax $180.00 rendered");
+checkContains('-$150.00', $htmlCalc, "Case 13: Discount -$150.00 rendered");
+checkContains('TOTAL PAYABLE:', $htmlCalc, "Case 13: TOTAL PAYABLE label rendered");
+checkContains('$4,830.00 USD', $htmlCalc, "Case 13: $4,830.00 USD rendered");
+
+// ========================================================
 // CONVERT ALL GENERATED PDFS TO HIGH-RES PNGS FOR VISUAL INSPECTION
 // ========================================================
 echo "\nCONVERTING GENERATED PDFS TO PNGS VIA pdftoppm...\n";
@@ -844,6 +1379,9 @@ exec("pdftoppm -r 150 -png {$outputDir}/pi_order_4980.pdf /tmp/rendered_pngs/pi_
 exec("pdftoppm -r 150 -png {$outputDir}/os_product_198.pdf /tmp/rendered_pngs/os_198_page");
 exec("pdftoppm -r 150 -png {$outputDir}/os_product_210.pdf /tmp/rendered_pngs/os_210_page");
 exec("pdftoppm -r 150 -png {$outputDir}/os_product_213.pdf /tmp/rendered_pngs/os_213_page");
+exec("pdftoppm -r 150 -png {$outputDir}/ci_unpaid.pdf /tmp/rendered_pngs/ci_unpaid_page");
+exec("pdftoppm -r 150 -png {$outputDir}/ci_partial.pdf /tmp/rendered_pngs/ci_partial_page");
+exec("pdftoppm -r 150 -png {$outputDir}/ci_paid.pdf /tmp/rendered_pngs/ci_paid_page");
 
 $pngFiles = glob('/tmp/rendered_pngs/*.png');
 echo "Generated " . count($pngFiles) . " PNG images for visual inspection:\n";
