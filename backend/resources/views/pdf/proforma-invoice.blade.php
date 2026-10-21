@@ -408,8 +408,8 @@
         <thead>
             <tr>
                 <th style="width: 4%;" class="text-center">#</th>
-                <th style="width: 30%;">Description of Goods &amp; Package Assortment</th>
-                <th style="width: 19%;">SKU / Style</th>
+                <th style="width: 28%;">Description of Goods &amp; Package Assortment</th>
+                <th style="width: 21%;">SKU / Style</th>
                 <th style="width: 11%;" class="text-center">HS Code</th>
                 <th style="width: 11%; text-align: right; white-space: nowrap;">Quantity</th>
                 <th style="width: 12%; text-align: right; white-space: nowrap; padding-right: 8px;">Unit Price</th>
@@ -437,7 +437,7 @@
                         <div class="font-bold" style="color: #0f172a; font-size: 9.0pt;">{{ $item['product_name'] ?? ($item['description'] ?? 'Garment Item') }}</div>
                         <div style="font-size: 8.0pt; color: #64748b; margin-top: 1px;">Assortment: {{ $pkgText }}</div>
                     </td>
-                    <td class="font-bold" style="color: #0f172a; font-size: 8.8pt; word-break: break-all;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
+                    <td class="font-bold" style="color: #0f172a; font-size: 8.8pt; white-space: nowrap;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
                     <td class="text-center font-mono" style="color: #475569; white-space: nowrap; font-size: 8.8pt;">{{ $item['hs_code'] ?? '6109.10.00' }}</td>
                     <td class="text-right font-bold" style="white-space: nowrap; font-size: 8.8pt;">{{ number_format($qty) }} pcs</td>
                     <td class="text-right goods-price" style="color: #0f172a; white-space: nowrap; padding-right: 8px;">${{ number_format($uPrice, 2) }}</td>
