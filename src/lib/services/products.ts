@@ -13,7 +13,6 @@ import {
 import { B2BProductInput } from "@/types/b2b";
 import { Product } from "@/types";
 import { homepageService } from "@/services/homepage.service";
-import { INITIAL_MOCK_PRODUCTS } from "@/lib/mock-data/mock-products";
 
 export { normalizeToB2BProduct, toStorefrontProduct, generateProductSku, toggleProductStorefrontVisibility, reorderProducts };
 export type { ProductQueryParams, SearchSuggestionsResult, PaginatedProductsResult };
@@ -135,7 +134,10 @@ export async function getFeaturedProducts(
   // Remaining eligible products follow in created_at DESC (newest upload first).
   // No product appears twice. This is enforced by the backend; we trust the order returned.
 
-  // Primary path: fetch directly from dedicated, paginated backend featured endpoint
+  // Primary path: fetch directly from dedicated, paginated backend featured endpoint.
+  // AUTHORITATIVE: If the API call succeeds (no exception), the response is final — even if
+  // zero products are returned. Do NOT fall through to mock/dummy data in that case.
+  let primaryApiSucceeded = false;
   try {
     const params: Record<string, any> = {
       offset,
@@ -153,14 +155,16 @@ export async function getFeaturedProducts(
     const items = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
     const meta = payload?.meta || {};
 
-    if (items.length > 0) {
-      const products = items.map(toStorefrontProduct);
-      const total = typeof meta.total === "number" ? meta.total : products.length;
-      const hasMore = meta.has_more !== undefined ? Boolean(meta.has_more) : offset + products.length < total;
-      return { products, total, hasMore };
-    }
+    // Mark the API call as successful regardless of item count
+    primaryApiSucceeded = true;
+
+    const products = items.map(toStorefrontProduct);
+    const total = typeof meta.total === "number" ? meta.total : products.length;
+    const hasMore = meta.has_more !== undefined ? Boolean(meta.has_more) : offset + products.length < total;
+    // Return the authoritative result — including empty sets
+    return { products, total, hasMore };
   } catch {
-    // Fall through to storefront homepage data / direct product query
+    // API call failed — fall through to homepage fallback then direct product query
   }
 
   // Fallback path: use backend homepage data which also enforces the correct ordering
@@ -232,58 +236,75 @@ export async function getFeaturedProducts(
       }
     }
   } catch {
-    // Fall through to direct database query
+    // Homepage endpoint failed — fall through to direct product API query
   }
 
-  // Fallback: direct product query (sorted by newest upload via 'newest' sort_by)
-  // When filters are active and homepage endpoint fails, fetch using sort=newest to approximate created_at DESC
-  const queryParams: ProductQueryParams = {
-    is_hot: isBestDeals ? true : undefined,
-    brand: options.brands && options.brands.length > 0 ? options.brands.join(",") : undefined,
-    design_type: options.designTypes && options.designTypes.length > 0 ? options.designTypes.join(",") : undefined,
-    audience: options.audiences && options.audiences.length > 0 ? options.audiences.join(",") : undefined,
-    category: options.categories && options.categories.length > 0 ? options.categories.join(",") : undefined,
-    sort_by: "newest", // created_at DESC — consistent with the required upload-order rule
-  };
+  // If the primary /products/featured endpoint already succeeded but returned 0 items,
+  // we must NOT reach this point (it would return mock/dummy data). Guard here for safety.
+  if (primaryApiSucceeded) {
+    return { products: [], total: 0, hasMore: false };
+  }
 
-  const allFiltered = await productService.getProducts(queryParams);
-  let orderedProducts = allFiltered;
-
-  if (!isBestDeals && !isNew) {
-    const now = Date.now();
-    const isProductFeatured = (p: B2BProductInput) => {
-      const featUntil = p.featuredUntil || p.featured_until;
-      const isExpired = featUntil ? new Date(featUntil).getTime() <= now : false;
-      return (
-        Boolean(
-          p.isPinned ??
-          (p as any).is_pinned ??
-          p.isFeatured ??
-          p.is_featured ??
-          (p as any).featured
-        ) && !isExpired
-      );
+  // Last-resort fallback: direct product query via backend API only.
+  // IMPORTANT: productService.getProducts() may fall back to mockStore when the backend is
+  // unreachable. To prevent dummy data leaking to the storefront, we explicitly call the
+  // backend API directly and return empty on failure — never mock data.
+  try {
+    const queryParams: ProductQueryParams = {
+      is_hot: isBestDeals ? true : undefined,
+      brand: options.brands && options.brands.length > 0 ? options.brands.join(",") : undefined,
+      design_type: options.designTypes && options.designTypes.length > 0 ? options.designTypes.join(",") : undefined,
+      audience: options.audiences && options.audiences.length > 0 ? options.audiences.join(",") : undefined,
+      category: options.categories && options.categories.length > 0 ? options.categories.join(",") : undefined,
+      sort_by: "newest", // created_at DESC — consistent with the required upload-order rule
     };
 
-    const pinned = allFiltered
-      .filter(isProductFeatured)
-      .sort((a, b) => {
-        const sa = a.pinnedOrder ?? (a as any).pinned_order ?? a.featuredSortOrder ?? (a as any).featured_sort_order ?? a.sort_order ?? 9999;
-        const sb = b.pinnedOrder ?? (b as any).pinned_order ?? b.featuredSortOrder ?? (b as any).featured_sort_order ?? b.sort_order ?? 9999;
-        if (sa !== sb) return sa - sb;
-        return Number(a.id) - Number(b.id);
-      });
+    const rawItems = await apiClient.get<any>("/products", {
+      params: queryParams as Record<string, string | number | boolean | undefined>,
+    });
+    const backendItems = Array.isArray(rawItems) ? rawItems : (Array.isArray(rawItems?.data) ? rawItems.data : []);
+    const allFiltered: B2BProductInput[] = backendItems.map(normalizeToB2BProduct);
+    let orderedProducts = allFiltered;
 
-    const pinnedIds = new Set(pinned.map((p) => String(p.id)));
-    const remaining = allFiltered.filter((p) => !pinnedIds.has(String(p.id)));
-    orderedProducts = [...pinned, ...remaining];
+    if (!isBestDeals && !isNew) {
+      const now = Date.now();
+      const isProductFeatured = (p: B2BProductInput) => {
+        const featUntil = p.featuredUntil || p.featured_until;
+        const isExpired = featUntil ? new Date(featUntil).getTime() <= now : false;
+        return (
+          Boolean(
+            p.isPinned ??
+            (p as any).is_pinned ??
+            p.isFeatured ??
+            p.is_featured ??
+            (p as any).featured
+          ) && !isExpired
+        );
+      };
+
+      const pinned = allFiltered
+        .filter(isProductFeatured)
+        .sort((a, b) => {
+          const sa = a.pinnedOrder ?? (a as any).pinned_order ?? a.featuredSortOrder ?? (a as any).featured_sort_order ?? a.sort_order ?? 9999;
+          const sb = b.pinnedOrder ?? (b as any).pinned_order ?? b.featuredSortOrder ?? (b as any).featured_sort_order ?? b.sort_order ?? 9999;
+          if (sa !== sb) return sa - sb;
+          return Number(a.id) - Number(b.id);
+        });
+
+      const pinnedIds = new Set(pinned.map((p) => String(p.id)));
+      const remaining = allFiltered.filter((p) => !pinnedIds.has(String(p.id)));
+      orderedProducts = [...pinned, ...remaining];
+    }
+
+    const total = orderedProducts.length;
+    const sliced = orderedProducts.slice(offset, offset + limit).map(toStorefrontProduct);
+    const hasMore = offset + sliced.length < total;
+    return { products: sliced, total, hasMore };
+  } catch (err) {
+    // All backend paths failed — return empty. Never substitute mock/dummy data.
+    console.error("[getFeaturedProducts] All backend paths failed:", err);
+    return { products: [], total: 0, hasMore: false };
   }
-
-  const total = orderedProducts.length;
-  const sliced = orderedProducts.slice(offset, offset + limit).map(toStorefrontProduct);
-  const hasMore = offset + sliced.length < total;
-
-  return { products: sliced, total, hasMore };
 }
 
 export function getInitialFeaturedProducts(
@@ -297,63 +318,19 @@ export function getInitialFeaturedProducts(
   return [];
 }
 
+/**
+ * @deprecated No longer serves static mock data. Always returns an empty array.
+ * Use getFeaturedProducts() which fetches from the authoritative backend API.
+ */
 export function getInitialBrandProducts(
-  brands: string[],
-  limit: number = 21,
-  audiences?: string[],
-  categories?: string[],
-  designTypes?: string[]
+  _brands: string[],
+  _limit: number = 21,
+  _audiences?: string[],
+  _categories?: string[],
+  _designTypes?: string[]
 ): Product[] {
-  let filtered = [...INITIAL_MOCK_PRODUCTS];
-
-  if (brands && brands.length > 0) {
-    filtered = filtered.filter((p) => {
-      const pBrandClean = (p.brand || "").toLowerCase().replace(/['’.\s-]/g, "");
-      const pBrandRaw = (p.brand || "").toLowerCase();
-      return brands.some((b) => {
-        const bLower = b.toLowerCase();
-        const bClean = bLower.replace(/^br_/, "").replace(/['’.\s-]/g, "");
-        return (
-          (pBrandRaw && (pBrandRaw === bLower || pBrandRaw.includes(bLower) || bLower.includes(pBrandRaw))) ||
-          (pBrandClean && (pBrandClean === bClean || pBrandClean.includes(bClean) || bClean.includes(pBrandClean)))
-        );
-      });
-    });
-  }
-  if (designTypes && designTypes.length > 0) {
-    const dtUpper = designTypes.map((d) => {
-      const u = d.toUpperCase();
-      if (u === "REPLICA" || u === "MASTER_COPY" || u === "MASTER COPY" || u === "MC") return "MASTER COPY";
-      return u;
-    });
-    filtered = filtered.filter((p) => {
-      const rawDt = ((p as any).designType || "ORIGINAL").toUpperCase();
-      const pDt = (rawDt === "REPLICA" || rawDt === "MC") ? "MASTER COPY" : rawDt;
-      return dtUpper.includes(pDt);
-    });
-  }
-  if (audiences && audiences.length > 0) {
-    const aUpper = audiences.map((a) => a.toUpperCase());
-    filtered = filtered.filter((p) => {
-      const pAud = (p.audience || "").toUpperCase();
-      const pCatId = (p.categoryId || "").toUpperCase();
-      return aUpper.some((a) => (pAud && pAud === a) || (pCatId && pCatId.includes(a)));
-    });
-  }
-  if (categories && categories.length > 0) {
-    const cleanCats = categories.map((c) => c.toLowerCase().replace(/[^a-z0-9]/g, ""));
-    filtered = filtered.filter((p) => {
-      const pCatName = (p.categoryName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const pCatId = (p.categoryId || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      return cleanCats.some(
-        (c) =>
-          (pCatName && (pCatName === c || pCatName.includes(c) || c.includes(pCatName))) ||
-          (pCatId && (pCatId === c || pCatId.includes(c) || c.includes(pCatId)))
-      );
-    });
-  }
-
-  return filtered.slice(0, limit).map(toStorefrontProduct);
+  // Returns empty — never serves static dummy/mock data on the live storefront.
+  return [];
 }
 
 /**
