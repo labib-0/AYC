@@ -241,7 +241,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
     });
 
     // Cart (Session / Authenticated)
-    Route::prefix('cart')->middleware('throttle:cart-mutations')->group(function () {
+    Route::prefix('cart')->middleware(['throttle:cart-mutations', 'storefront.country.access'])->group(function () {
         Route::get('/', [CartController::class, 'index']);
         Route::post('/', [CartController::class, 'addItem']);
         Route::post('/items', [CartController::class, 'addItem']);
@@ -256,9 +256,10 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
     });
 
     // Checkout & Orders (Customer)
-    Route::post('/coupons/validate', [CouponController::class, 'validateCoupon'])->middleware('throttle:coupons-validate');
+    Route::post('/coupons/validate', [CouponController::class, 'validateCoupon'])
+        ->middleware(['throttle:coupons-validate', 'storefront.country.access']);
 
-    Route::middleware(['auth:sanctum', 'role:customer', 'verified'])->group(function () {
+    Route::middleware(['auth:sanctum', 'role:customer', 'verified', 'storefront.country.access'])->group(function () {
         Route::post('/checkout/validate', [OrderController::class, 'validateCheckout'])->middleware('throttle:checkout-order');
     });
 
@@ -269,7 +270,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::get('/documents', [OrderController::class, 'documentCenter'])->middleware('auth:sanctum');
 
         // Strictly customer mutations & customer personal order listing
-        Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
+        Route::middleware(['auth:sanctum', 'role:customer', 'storefront.country.access'])->group(function () {
             Route::post('/', [OrderController::class, 'store'])->middleware(['throttle:checkout-order', 'verified']);
             Route::get('/', [OrderController::class, 'index']);
             Route::post('/{id}/cancel', [OrderController::class, 'cancel']);
@@ -321,7 +322,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
     // RFQ / Quotes
     Route::prefix('rfq')->group(function () {
         // Customer submission (strictly customer-only)
-        Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
+        Route::middleware(['auth:sanctum', 'role:customer', 'storefront.country.access'])->group(function () {
             Route::post('/', [RfqController::class, 'store'])->middleware('throttle:rfq-create');
         });
 

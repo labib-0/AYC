@@ -118,11 +118,10 @@ test("Proxy strictly excludes /ayc, /api, and /storage from storefront country b
   expect(proxySrc).toContain("pathname.startsWith('/storage')");
 });
 
-test("Proxy explicitly classifies and excludes customer service and account routes", () => {
-  expect(proxySrc).toContain("isCustomerServiceRoute");
-  expect(proxySrc).toContain("pathname.startsWith('/order-access')");
-  expect(proxySrc).toContain("pathname.startsWith('/dashboard')");
-  expect(proxySrc).toContain("pathname.startsWith('/profile')");
+test("Proxy enforces access check across all customer routes without bypass", () => {
+  expect(proxySrc).toContain("Customer Storefront Access Check (Authoritative Server Enforcement)");
+  expect(proxySrc).toContain("status: 403");
+  expect(proxySrc).notToContain("if (isCustomerServiceRoute)");
 });
 
 // ▶ Suite 3: Frontend Homepage Service
@@ -223,11 +222,13 @@ test("Bootstrap app.php registers storefront.country.access middleware alias", (
   expect(bootstrapSrc).toContain("'storefront.country.access' => \\App\\Http\\Middleware\\EnforceStorefrontCountryAccess::class");
 });
 
-test("Routes api.php protects public homepage, search, products, categories, and brands routes with storefront.country.access", () => {
+test("Routes api.php protects public homepage, search, products, categories, brands, cart, and checkout with storefront.country.access", () => {
   expect(routesApiSrc).toContain("->middleware('storefront.country.access')");
   expect(routesApiSrc).toContain("Route::middleware('storefront.country.access')->group(function ()");
   expect(routesApiSrc).toContain("Route::get('/homepage'");
   expect(routesApiSrc).toContain("Route::get('/search/suggestions'");
+  expect(routesApiSrc).toContain("Route::prefix('cart')->middleware(['throttle:cart-mutations', 'storefront.country.access'])");
+  expect(routesApiSrc).toContain("Route::post('/coupons/validate', [CouponController::class, 'validateCoupon'])");
 });
 
 console.log("\n==================================================");

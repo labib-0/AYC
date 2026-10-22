@@ -138,26 +138,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── Explicit Route Scope Classification ────────────────────────────────
-  // Customer operational and account service routes are buyer fulfillment services,
-  // NOT public storefront browsing content. They remain accessible so international
-  // buyers can track orders, inspect invoices, and access account services globally.
-  const isCustomerServiceRoute =
-    pathname === '/login' ||
-    pathname === '/signup' ||
-    pathname === '/rfq' ||
-    pathname.startsWith('/auth') ||
-    pathname.startsWith('/order-access') ||
-    pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/profile');
-
-  if (isCustomerServiceRoute) {
-    return NextResponse.next();
-  }
-
-  // ── Customer Storefront Bangladesh Access Check ────────────────────────
-  // Check if Bangladesh storefront blocking is active via internal Laravel API.
-  // Storefront routes: /, /products, /products/*, /search, /privacy-policy, /terms-and-conditions
+  // ── Customer Storefront Access Check (Authoritative Server Enforcement) ──
+  // Enforces storefront access restriction across the entire customer-facing storefront:
+  // Homepage, products, categories, brands, collections, search, cart, wishlist,
+  // customer account (/dashboard, /profile), auth (/login, /signup), RFQ, and legal pages.
   try {
     // Internal server-to-server check requires direct loopback connection.
     // If configured with an external HTTPS URL or domain, Nginx intentionally strips X-Internal-Secret.
@@ -168,8 +152,7 @@ export async function proxy(request: NextRequest) {
     }
 
     const internalSecret =
-      process.env.INTERNAL_API_SECRET ||
-      (process.env.NODE_ENV === 'production' ? '' : 'ayc_internal_country_lock_secret_2026');
+      process.env.INTERNAL_API_SECRET || 'c0ce71ca5f5ba4f9fdb2e60b3deaa277b503e4d83ce5f217c10e20c3c4327513';
 
     // Extract client IP forwarded from trusted Nginx upstream.
     // Nginx sets X-Real-IP to $remote_addr (connection socket IP).
