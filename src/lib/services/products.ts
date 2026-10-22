@@ -254,15 +254,24 @@ export async function getFeaturedProducts(
     const isProductFeatured = (p: B2BProductInput) => {
       const featUntil = p.featuredUntil || p.featured_until;
       const isExpired = featUntil ? new Date(featUntil).getTime() <= now : false;
-      return Boolean(p.isFeatured ?? p.is_featured ?? (p as any).featured) && !isExpired;
+      return (
+        Boolean(
+          p.isPinned ??
+          (p as any).is_pinned ??
+          p.isFeatured ??
+          p.is_featured ??
+          (p as any).featured
+        ) && !isExpired
+      );
     };
 
     const pinned = allFiltered
       .filter(isProductFeatured)
       .sort((a, b) => {
-        const sa = a.featuredSortOrder ?? (a as any).featured_sort_order ?? 9999;
-        const sb = b.featuredSortOrder ?? (b as any).featured_sort_order ?? 9999;
-        return sa - sb;
+        const sa = a.pinnedOrder ?? (a as any).pinned_order ?? a.featuredSortOrder ?? (a as any).featured_sort_order ?? a.sort_order ?? 9999;
+        const sb = b.pinnedOrder ?? (b as any).pinned_order ?? b.featuredSortOrder ?? (b as any).featured_sort_order ?? b.sort_order ?? 9999;
+        if (sa !== sb) return sa - sb;
+        return Number(a.id) - Number(b.id);
       });
 
     const pinnedIds = new Set(pinned.map((p) => String(p.id)));

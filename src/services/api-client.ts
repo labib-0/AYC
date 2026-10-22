@@ -59,6 +59,9 @@ class ApiClient {
         ? process.env.INTERNAL_API_URL
         : process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
     let url = envUrl;
+    if (process.env.NODE_ENV === "production" && (url.includes(":8000") || url.includes("127.0.0.1") || url.includes("localhost"))) {
+      url = "https://ayaanclothing.com/api/v1";
+    }
     if (url.endsWith("/")) {
       url = url.slice(0, -1);
     }
@@ -117,6 +120,9 @@ class ApiClient {
     if (process.env.INTERNAL_API_URL) {
       let internal = process.env.INTERNAL_API_URL;
       if (internal.endsWith("/")) internal = internal.slice(0, -1);
+      if (process.env.NODE_ENV === "production" && (internal.includes(":8000") || internal.includes("127.0.0.1") || internal.includes("localhost"))) {
+        return "https://ayaanclothing.com/api/v1";
+      }
       if (!internal.includes("/api/v1") && !internal.includes("/api")) {
         internal = `${internal}/api/v1`;
       }

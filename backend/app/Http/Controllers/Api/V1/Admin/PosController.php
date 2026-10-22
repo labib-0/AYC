@@ -113,7 +113,8 @@ class PosController extends ApiController
         $admin = $request->user();
 
         $validated = $request->validate([
-            'customer_id' => ['required', 'integer', 'exists:users,id'],
+            'customer_id' => ['nullable', 'integer', 'exists:users,id'],
+            'is_walkin' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.variant_id' => ['nullable', 'integer'],
@@ -141,18 +142,23 @@ class PosController extends ApiController
             $paymentMethod = 'bank_transfer';
         }
 
-        $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
+        $customerId = $validated['customer_id'] ?? null;
+        $customer = null;
 
-        if (!$customer) {
-            throw ValidationException::withMessages([
-                'customer_id' => ['The selected customer is invalid or not an active customer account.']
-            ]);
-        }
+        if ($customerId !== null) {
+            $customer = User::where('role', User::ROLE_CUSTOMER)->find($customerId);
 
-        if ($customer->email === AdminPosSaleService::WALKIN_CUSTOMER_EMAIL) {
-            throw ValidationException::withMessages([
-                'customer_id' => ['Generic walk-in customer is not allowed for new POS transactions. Please select or register an individual customer.']
-            ]);
+            if (!$customer) {
+                throw ValidationException::withMessages([
+                    'customer_id' => ['The selected customer is invalid or not an active customer account.']
+                ]);
+            }
+
+            if ($customer->email === AdminPosSaleService::WALKIN_CUSTOMER_EMAIL) {
+                throw ValidationException::withMessages([
+                    'customer_id' => ['Generic walk-in customer is not allowed for new POS transactions. Please select or register an individual customer.']
+                ]);
+            }
         }
 
         try {
@@ -194,7 +200,8 @@ class PosController extends ApiController
         $admin = $request->user();
 
         $validated = $request->validate([
-            'customer_id' => ['required', 'integer', 'exists:users,id'],
+            'customer_id' => ['nullable', 'integer', 'exists:users,id'],
+            'is_walkin' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.variant_id' => ['nullable', 'integer'],
@@ -225,18 +232,23 @@ class PosController extends ApiController
             $paymentMethod = 'bank_transfer';
         }
 
-        $customer = User::where('role', User::ROLE_CUSTOMER)->find($validated['customer_id']);
+        $customerId = $validated['customer_id'] ?? null;
+        $customer = null;
 
-        if (!$customer) {
-            throw ValidationException::withMessages([
-                'customer_id' => ['The selected customer is invalid or not an active customer account.']
-            ]);
-        }
+        if ($customerId !== null) {
+            $customer = User::where('role', User::ROLE_CUSTOMER)->find($customerId);
 
-        if ($customer->email === AdminPosSaleService::WALKIN_CUSTOMER_EMAIL) {
-            throw ValidationException::withMessages([
-                'customer_id' => ['Generic walk-in customer is not allowed for new POS transactions. Please select or register an individual customer.']
-            ]);
+            if (!$customer) {
+                throw ValidationException::withMessages([
+                    'customer_id' => ['The selected customer is invalid or not an active customer account.']
+                ]);
+            }
+
+            if ($customer->email === AdminPosSaleService::WALKIN_CUSTOMER_EMAIL) {
+                throw ValidationException::withMessages([
+                    'customer_id' => ['Generic walk-in customer is not allowed for new POS transactions. Please select or register an individual customer.']
+                ]);
+            }
         }
 
         try {

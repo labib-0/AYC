@@ -34,22 +34,21 @@ class AdminPosSaleService
     ) {}
 
     /**
-     * Retrieve or create the single canonical walk-in customer record for in-store sales.
+     * Retrieve ephemeral in-memory walk-in customer representation for in-store sales.
+     * Never creates or persists a customer account in the database.
      */
     public function getOrCreateWalkinCustomer(): User
     {
-        return User::firstOrCreate(
-            ['email' => self::WALKIN_CUSTOMER_EMAIL],
-            [
-                'name' => 'Walk-in Customer',
-                'role' => User::ROLE_CUSTOMER,
-                'phone' => '+880 1700-000000',
-                'company_name' => 'POS Walk-in Counter',
-                'password' => Hash::make(Str::random(32)),
-                'email_verified_at' => now(),
-                'status' => 'active',
-            ]
-        );
+        $user = new User([
+            'name' => 'Walk-in Customer',
+            'email' => self::WALKIN_CUSTOMER_EMAIL,
+            'role' => User::ROLE_CUSTOMER,
+            'phone' => '+880 1700-000000',
+            'company_name' => 'POS Walk-in Counter',
+            'status' => 'active',
+        ]);
+        $user->id = null;
+        return $user;
     }
 
     /**
@@ -355,7 +354,7 @@ class AdminPosSaleService
      */
     public function calculatePreview(
         array $items,
-        User $customer,
+        ?User $customer = null,
         ?User $admin = null,
         ?string $couponCode = null,
         ?array $manualDiscount = null,
@@ -527,7 +526,7 @@ class AdminPosSaleService
      */
     public function executeSale(
         User $admin,
-        User $customer,
+        ?User $customer = null,
         array $items,
         array $options = []
     ): Order {
@@ -535,12 +534,15 @@ class AdminPosSaleService
             throw ValidationException::withMessages(['admin' => 'Unauthorized operator. Admin authentication required.']);
         }
 
-        if ($customer->role !== User::ROLE_CUSTOMER) {
-            throw ValidationException::withMessages(['customer' => 'POS sale buyer must be a valid customer account.']);
-        }
+        if ($customer !== null) {
+            if ($customer->id && $customer->role !== User::ROLE_CUSTOMER) {
+                throw ValidationException::withMessages(['customer' => 'POS sale buyer must be a valid customer account.']);
+            }
 
-        if ($customer->email === self::WALKIN_CUSTOMER_EMAIL) {
-            throw ValidationException::withMessages(['customer' => 'New POS sales cannot use the generic walk-in customer account. Please select or register an identifiable customer.']);
+            if ($customer->email === self::WALKIN_CUSTOMER_EMAIL) {
+                // If generic walk-in instance provided, treat as customerless walk-in sale
+                $customer = null;
+            }
         }
 
         if (empty($items)) {
@@ -758,7 +760,7 @@ class AdminPosSaleService
 
                 $order = Order::create([
                     'order_number' => $orderNumber,
-                    'user_id' => $customer->id,
+                    'user_id' => $customer?->id,
                     'created_by_admin_id' => $admin->id,
                     'order_source' => 'pos',
                     'coupon_id' => $calc['applied_coupon']?->id,
@@ -779,10 +781,10 @@ class AdminPosSaleService
                     'total_amount' => $totalAmount,
                     'paid_amount' => round($actualPaid, 2),
                     'balance_due' => $balanceDue,
-                    'email' => $customer->email,
-                    'shipping_name' => $customer->name,
-                    'shipping_phone' => $customer->phone ?: 'N/A',
-                    'shipping_address1' => $customer->company_name ?: 'POS Direct Sale',
+                    'email' => $customer?->email ?? 'walkin@ayaanclothing.com',
+                    'shipping_name' => $customer?->name ?? 'Walk-in Customer',
+                    'shipping_phone' => $customer?->phone ?: 'N/A',
+                    'shipping_address1' => $customer?->company_name ?: 'POS Direct Sale',
                     'shipping_address2' => null,
                     'shipping_city' => 'Dhaka',
                     'shipping_region' => 'Dhaka Division',
@@ -844,19 +846,19 @@ class AdminPosSaleService
 
                     $payment = Payment::create([
                         'order_id' => $order->id,
-                        'customer_id' => $customer->id,
+                        'customer_id' => $customer?->id,
                         'transaction_id' => $trxId,
                         'provider' => $paymentMethod,
                         'payment_method' => $paymentMethod,
                         'amount' => round($actualPaid, 2),
                         'currency' => 'USD',
                         'status' => 'succeeded',
-                        'payer_name' => $customer->name,
+                        'payer_name' => $customer?->name ?? 'Walk-in Customer',
                         'account_number' => $paymentReference ?: null,
                         'payload' => [
                             'tendered_amount' => round($tenderedAmount, 2),
                             'change_return' => round($changeReturn, 2),
-                            'is_walkin' => $customer->email === self::WALKIN_CUSTOMER_EMAIL,
+                            'is_walkin' => ($customer === null || $customer->email === self::WALKIN_CUSTOMER_EMAIL),
                         ],
                         'payment_date' => now(),
                         'confirmed_at' => now(),
@@ -899,7 +901,7 @@ class AdminPosSaleService
                     'order_id' => $order->id,
                     'user_id' => $admin->id,
                     'event_type' => 'order_placed',
-                    'message' => "Order #{$orderNumber} created via POS by {$admin->name} for customer {$customer->name}.",
+                    'message' => "Order #{$orderNumber} created via POS by {$admin->name}" . ($customer ? " for customer {$customer->name}." : " for walk-in customer."),
                 ]);
 
                 if ($actualPaid > 0) {
@@ -928,8 +930,8 @@ class AdminPosSaleService
                     'order_number' => $orderNumber,
                     'admin_id' => $admin->id,
                     'admin_name' => $admin->name,
-                    'customer_id' => $customer->id,
-                    'customer_name' => $customer->name,
+                    'customer_id' => $customer?->id,
+                    'customer_name' => $customer?->name ?? 'Walk-in Customer',
                     'total_amount' => (float) $order->total_amount,
                     'paid_amount' => round($actualPaid, 2),
                     'tendered_amount' => round($tenderedAmount, 2),

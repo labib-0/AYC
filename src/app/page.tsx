@@ -6,7 +6,6 @@ import ShopByBrand from "@/components/home/ShopByBrand";
 import AudienceSection from "@/components/home/AudienceSection";
 import DesignTypeSection from "@/components/home/DesignTypeSection";
 import CategoriesSection from "@/components/home/CategoriesSection";
-import HotSales from "@/components/home/HotSales";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
 import BrandTrust from "@/components/home/BrandTrust";
 import { siteSettingsService } from "@/services/site-settings.service";
@@ -81,15 +80,12 @@ export default function Home() {
       {/* 5. CATEGORIES */}
       <CategoriesSection />
 
-      {/* 6. HOT SALE */}
-      <HotSales />
-
-      {/* 7. FEATURED PRODUCTS */}
+      {/* 6. FEATURED PRODUCTS */}
       <Suspense fallback={<div className="h-64 bg-background" />}>
         <FeaturedProducts />
       </Suspense>
 
-      {/* 8. CERTIFICATE & TRUST */}
+      {/* 7. CERTIFICATE & TRUST */}
       <BrandTrust />
     </div>
   );
