@@ -250,17 +250,26 @@ export async function uploadPaymentProof(
       key,
       order: orderData,
     };
-  } catch (error) {
-    if (error && typeof error === "object" && "message" in error) {
-      throw error;
+  } catch (error: any) {
+    if (!isFrontendOnly()) {
+      const msg =
+        error?.errors?.receipt?.[0] ||
+        error?.errors?.payment_details?.[0] ||
+        error?.errors?.payment_amount?.[0] ||
+        (error?.errors && typeof error.errors === "object"
+          ? (Object.values(error.errors).flat()[0] as string | undefined)
+          : null) ||
+        error?.message ||
+        "Failed to submit payment details. Please check your connection and try again.";
+      throw new Error(String(msg));
     }
-  }
 
-  const localUrl = file && typeof window !== "undefined" ? URL.createObjectURL(file) : "/placeholder.jpg";
-  return {
-    url: localUrl,
-    key: `local_proof_${orderId}_${Date.now()}`,
-  };
+    const localUrl = file && typeof window !== "undefined" ? URL.createObjectURL(file) : "/placeholder.jpg";
+    return {
+      url: localUrl,
+      key: `local_proof_${orderId}_${Date.now()}`,
+    };
+  }
 }
 
 /**

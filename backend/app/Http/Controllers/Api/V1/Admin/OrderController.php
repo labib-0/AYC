@@ -250,8 +250,10 @@ class OrderController extends ApiController
         })->firstOrFail();
 
         $validated = $request->validate([
-            'status' => ['required', 'string', 'in:pending,processing,shipped,delivered,cancelled,refunded'],
+            'status' => ['required', 'string', 'in:pending,processing,confirmed,shipped,delivered,cancelled,refunded'],
             'note' => ['nullable', 'string', 'max:500'],
+            'shipping_fee' => ['nullable', 'numeric', 'min:0'],
+            'shipping_cost' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $newStatus = $validated['status'];
@@ -305,8 +307,26 @@ class OrderController extends ApiController
             return $this->error("Invalid status transition from '{$oldStatus}' to '{$newStatus}'.", 422);
         }
 
-        DB::transaction(function () use ($order, $oldStatus, $newStatus, $admin, $note) {
-            $order->update(['status' => $newStatus]);
+        DB::transaction(function () use ($order, $oldStatus, $newStatus, $admin, $note, $request) {
+            $updateData = ['status' => $newStatus];
+
+            if ($request->has('shipping_fee') || $request->has('shipping_cost')) {
+                $feeVal = $request->input('shipping_fee') ?? $request->input('shipping_cost');
+                if ($feeVal !== null && $feeVal !== '') {
+                    $fee = max(0.0, round((float) $feeVal, 2));
+                    $updateData['shipping_cost'] = $fee;
+                    $newTotal = max(0.0, round((float) $order->subtotal - (float) $order->discount_amount + $fee, 2));
+                    $updateData['total_amount'] = $newTotal;
+                    if (strtolower((string) $order->payment_status) === 'paid') {
+                        $updateData['paid_amount'] = $newTotal;
+                        $updateData['balance_due'] = 0.00;
+                    } else {
+                        $updateData['balance_due'] = max(0.0, round($newTotal - (float) ($order->paid_amount ?? 0), 2));
+                    }
+                }
+            }
+
+            $order->update($updateData);
 
             // If moving to cancelled from an active status, restore stock ONLY if it was previously decremented
             if ($newStatus === 'cancelled' && $oldStatus !== 'cancelled') {
@@ -474,6 +494,8 @@ class OrderController extends ApiController
             'bank_name'       => ['nullable', 'string', 'max:255'],
             'account_number'  => ['nullable', 'string', 'max:100'],
             'payment_amount'  => ['nullable', 'numeric', 'min:0'],
+            'shipping_fee'    => ['nullable', 'numeric', 'min:0'],
+            'shipping_cost'   => ['nullable', 'numeric', 'min:0'],
             'payment_date'    => ['nullable', 'date'],
             'receipt'         => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240'],
         ]);
@@ -554,9 +576,26 @@ class OrderController extends ApiController
                     $accountNumber = $request->input('account_number')
                         ?: ($latestPayment?->account_number ?: config('business.banking.account_number'));
 
+                    // Check for admin-confirmed shipping fee
+                    $confirmedShippingFee = null;
+                    if ($request->has('shipping_fee') && $request->input('shipping_fee') !== null && $request->input('shipping_fee') !== '') {
+                        $confirmedShippingFee = max(0.0, round((float) $request->input('shipping_fee'), 2));
+                    } elseif ($request->has('shipping_cost') && $request->input('shipping_cost') !== null && $request->input('shipping_cost') !== '') {
+                        $confirmedShippingFee = max(0.0, round((float) $request->input('shipping_cost'), 2));
+                    }
+
+                    $currentShippingCost = $confirmedShippingFee !== null ? $confirmedShippingFee : (float) ($order->shipping_cost ?? 0.0);
+                    $subtotal = (float) $order->subtotal;
+                    $discount = (float) $order->discount_amount;
+                    // CI Total Payable = Merchandise Subtotal - Applicable Discounts + Admin-Confirmed Shipping Fee (No Tax)
+                    $newTotalAmount = max(0.0, round($subtotal - $discount + $currentShippingCost, 2));
+
                     $paymentAmount = $request->filled('payment_amount')
                         ? (float) $request->input('payment_amount')
-                        : (float) ($latestPayment?->amount ?: $order->total_amount);
+                        : (float) ($latestPayment?->amount ?: $newTotalAmount);
+
+                    $paidAmount = round($paymentAmount, 2);
+                    $balanceDue = max(0.0, round($newTotalAmount - $paidAmount, 2));
 
                     $paymentDate = $request->input('payment_date')
                         ?: ($latestPayment?->payment_date?->format('Y-m-d') ?: now()->toDateString());
@@ -573,6 +612,10 @@ class OrderController extends ApiController
                         'bank_name' => $bankName,
                         'account_number' => $accountNumber,
                         'payment_amount' => $paymentAmount,
+                        'paid_amount' => $paidAmount,
+                        'balance_due' => $balanceDue,
+                        'shipping_fee' => $currentShippingCost,
+                        'shipping_cost' => $currentShippingCost,
                         'currency' => $order->currency ?? 'USD',
                         'payment_date' => $paymentDate,
                         'notes' => $note,
@@ -589,6 +632,10 @@ class OrderController extends ApiController
                         'payment_status' => 'paid',
                         'status' => in_array($order->status, ['pending', 'order_placed'], true) ? 'processing' : $order->status,
                         'payment_method' => $paymentMethod,
+                        'shipping_cost' => $currentShippingCost,
+                        'total_amount' => $newTotalAmount,
+                        'paid_amount' => $paidAmount,
+                        'balance_due' => $balanceDue,
                         'payment_details' => $confirmedSnapshot,
                         'payment_confirmed_at' => now(),
                         'payment_confirmed_by' => $admin->id,

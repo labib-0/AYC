@@ -32,6 +32,7 @@ export interface PaymentVerificationDetails {
   bank_name: string;
   account_number: string;
   payment_amount: number;
+  shipping_fee?: number;
   payment_date: string;
   note: string;
 }
@@ -96,6 +97,12 @@ export default function PaymentProofReview({
   const [note, setNote] = useState(
     order.payment_details?.notes || latestPayment?.notes || "Payment verified against bank receipt credit."
   );
+  const [shippingFee, setShippingFee] = useState<number | string>(
+    order.shipping_cost !== undefined && order.shipping_cost !== null
+      ? Number(order.shipping_cost)
+      : 0
+  );
+  const [shippingFeeError, setShippingFeeError] = useState<string | null>(null);
 
   // Rejection modal / inline state
   const [showRejectBox, setShowRejectBox] = useState(false);
@@ -113,6 +120,13 @@ export default function PaymentProofReview({
 
   const handleApproveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const feeNum = Number(shippingFee);
+    if (isNaN(feeNum) || feeNum < 0 || !isFinite(feeNum)) {
+      setShippingFeeError("Shipping fee must be a valid, non-negative number.");
+      return;
+    }
+    setShippingFeeError(null);
+
     await onApprove({
       payment_method: paymentMethod,
       transaction_id: transactionId.trim(),
@@ -120,6 +134,7 @@ export default function PaymentProofReview({
       bank_name: bankName.trim(),
       account_number: accountNumber.trim(),
       payment_amount: Number(paymentAmount),
+      shipping_fee: Number(feeNum.toFixed(2)),
       payment_date: paymentDate,
       note: note.trim(),
     });
@@ -597,6 +612,30 @@ export default function PaymentProofReview({
                   className="w-full px-3 py-2 rounded-xl border border-border bg-secondary/30 font-mono font-bold text-foreground outline-none focus:ring-1 focus:ring-primary"
                   id="input-verify-payment-amount"
                 />
+              </div>
+
+              {/* Shipping Fee */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                  <DollarSign size={11} />
+                  <span>Shipping Fee (USD)</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={shippingFee}
+                  onChange={(e) => {
+                    setShippingFee(e.target.value);
+                    setShippingFeeError(null);
+                  }}
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-secondary/30 font-mono font-bold text-foreground outline-none focus:ring-1 focus:ring-primary"
+                  id="input-verify-shipping-fee"
+                />
+                {shippingFeeError && (
+                  <p className="text-[10px] text-destructive mt-0.5">{shippingFeeError}</p>
+                )}
               </div>
 
               {/* Payment Date */}

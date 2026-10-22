@@ -29,6 +29,7 @@ export interface PaymentVerificationDetails {
   bank_name?: string;
   account_number?: string;
   payment_amount?: number;
+  shipping_fee?: number;
   payment_date?: string;
   note?: string;
   receipt?: File;
@@ -198,6 +199,12 @@ export default function OrderPaymentInventoryCard({
   const [note, setNote] = useState(
     order.payment_details?.notes || "Payment verified and order confirmed by accounts team."
   );
+  const [shippingFee, setShippingFee] = useState<number | string>(
+    order.shipping_cost !== undefined && order.shipping_cost !== null
+      ? Number(order.shipping_cost)
+      : 0
+  );
+  const [shippingFeeError, setShippingFeeError] = useState<string | null>(null);
 
   // Authoritative Inventory Inspection
   const isDecremented =
@@ -222,6 +229,13 @@ export default function OrderPaymentInventoryCard({
 
   const handleApproveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const feeNum = Number(shippingFee);
+    if (isNaN(feeNum) || feeNum < 0 || !isFinite(feeNum)) {
+      setShippingFeeError("Shipping fee must be a valid, non-negative number.");
+      return;
+    }
+    setShippingFeeError(null);
+
     await onApprove({
       payment_method: paymentMethod,
       transaction_id: transactionId.trim(),
@@ -229,6 +243,7 @@ export default function OrderPaymentInventoryCard({
       bank_name: bankName.trim(),
       account_number: accountNumber.trim(),
       payment_amount: Number(paymentAmount),
+      shipping_fee: Number(feeNum.toFixed(2)),
       payment_date: paymentDate,
       note: note.trim(),
       receipt: adminReceiptFile ?? undefined,
@@ -562,7 +577,7 @@ export default function OrderPaymentInventoryCard({
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
                       Verified Amount (USD) <span className="text-destructive">*</span>
                     </label>
@@ -574,6 +589,28 @@ export default function OrderPaymentInventoryCard({
                       onChange={(e) => setPaymentAmount(e.target.value)}
                       className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs font-mono outline-hidden focus:ring-1 focus:ring-primary"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                      Shipping Fee (USD)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={shippingFee}
+                      onChange={(e) => {
+                        setShippingFee(e.target.value);
+                        setShippingFeeError(null);
+                      }}
+                      placeholder="0.00"
+                      className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs font-mono outline-hidden focus:ring-1 focus:ring-primary"
+                      id="input-admin-shipping-fee"
+                    />
+                    {shippingFeeError && (
+                      <p className="text-[10px] text-destructive mt-0.5">{shippingFeeError}</p>
+                    )}
                   </div>
                 </div>
 
@@ -812,6 +849,28 @@ export default function OrderPaymentInventoryCard({
                       onChange={(e) => setPaymentAmount(e.target.value)}
                       className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs font-mono outline-hidden focus:ring-1 focus:ring-primary"
                     />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                      Shipping Fee (USD)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={shippingFee}
+                      onChange={(e) => {
+                        setShippingFee(e.target.value);
+                        setShippingFeeError(null);
+                      }}
+                      placeholder="0.00"
+                      className="w-full px-3 py-1.5 rounded-xl border border-border bg-background text-foreground text-xs font-mono outline-hidden focus:ring-1 focus:ring-primary"
+                      id="input-admin-direct-shipping-fee"
+                    />
+                    {shippingFeeError && (
+                      <p className="text-[10px] text-destructive mt-0.5">{shippingFeeError}</p>
+                    )}
                   </div>
                 </div>
 

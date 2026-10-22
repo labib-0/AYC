@@ -1048,7 +1048,7 @@ class OrderController extends ApiController
         }
 
         $request->validate([
-            'receipt'         => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            'receipt'         => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif,bmp,avif,tiff,heic,heif', 'max:10240'],
             'payment_details' => ['nullable', 'string', 'max:2000'],
             'transaction_id'  => ['nullable', 'string', 'max:100'],
             'payment_method'  => ['nullable', 'string', 'max:50'],
@@ -1183,6 +1183,9 @@ class OrderController extends ApiController
                 $updatedDetails['receipt_url'] = $url;
                 $updatedDetails['receipt_original_name'] = $originalName;
                 $updatedDetails['receipt_path'] = $path;
+                if (!empty($processed['original_path'])) {
+                    $updatedDetails['receipt_original_path'] = $processed['original_path'];
+                }
             }
 
             $orderUpdate = [

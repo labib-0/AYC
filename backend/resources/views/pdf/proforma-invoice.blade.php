@@ -37,19 +37,30 @@
     $couponCode = $fin['coupon_code'] ?? ($doc['coupon_code'] ?? null);
     $merchandiseTotal = max(0, round($subtotal - $discount, 2));
 
-    $rawCarrier = $doc['estimated_shipping_data']['carrier'] ?? '';
-    $rawMethod = $doc['estimated_shipping_data']['shipping_method'] ?? '';
-    if (!empty($rawMethod) && !str_contains(strtolower($rawMethod), 'aramex priority')) {
-        $shippingArrangement = $rawMethod;
-    } elseif (!empty($rawCarrier) && !str_contains(strtolower($rawCarrier), 'aramex')) {
-        $shippingArrangement = $rawCarrier;
-    } elseif (!empty($rawMethod)) {
-        $shippingArrangement = $rawMethod;
-    } elseif (!empty($rawCarrier)) {
-        $shippingArrangement = $rawCarrier;
-    } else {
-        $shippingArrangement = 'To Be Confirmed Separately';
+    $shipmentSummary = $doc['shipment_summary'] ?? [];
+    $totalCbmFormatted = $shipmentSummary['total_cbm_formatted'] ?? ($doc['total_cbm_formatted'] ?? null);
+    $totalGrossWeightFormatted = $shipmentSummary['total_gross_weight_formatted'] ?? ($doc['total_gross_weight_formatted'] ?? null);
+
+    if (empty($totalCbmFormatted)) {
+        $cbmVal = $doc['estimated_shipping_data']['total_cbm'] ?? ($doc['estimated_shipping_data']['cbm'] ?? null);
+        $totalCbmFormatted = ($cbmVal !== null && (float)$cbmVal > 0)
+            ? (number_format(round((float)$cbmVal, 4), 4) . ' m³')
+            : 'Pending Package Profile';
     }
+
+    if (empty($totalGrossWeightFormatted)) {
+        $gwVal = $doc['estimated_shipping_data']['gross_weight'] ?? null;
+        if ($gwVal !== null && (float)$gwVal > 0) {
+            $roundedGw = round((float)$gwVal, 1);
+            $totalGrossWeightFormatted = (floor($roundedGw) == $roundedGw)
+                ? number_format($roundedGw, 0) . ' KG'
+                : number_format($roundedGw, 1) . ' KG';
+        } else {
+            $totalGrossWeightFormatted = 'Pending Package Profile';
+        }
+    }
+
+    $shippingArrangement = 'Discuss Directly on WhatsApp or Email';
     $paymentTerms = $doc['paymentTerms'] ?? ($doc['payment_terms'] ?? '100% Advance T/T Wire');
 
     $bank = $doc['bank_details'] ?? ($doc['bankDetails'] ?? []);
@@ -408,9 +419,19 @@
                     <div class="meta-label">VALIDITY</div>
                     <div class="meta-val meta-val-red">30 Days ({{ $validityDate }})</div>
                 </td>
-                <td style="width: 33.33%; padding: 4px 4px 2px 4px;">
-                    <div class="meta-label">SHIPPING ARRANGEMENT</div>
-                    <div class="meta-val">{{ $shippingArrangement }}</div>
+                <td style="width: 33.33%; padding: 4px 4px 2px 4px; vertical-align: top;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="width: 46%; vertical-align: top; padding-right: 2px;">
+                                <div class="meta-label" style="font-size: 8.0pt; white-space: nowrap;">TOTAL CBM</div>
+                                <div class="meta-val font-mono" style="font-size: 8.8pt; white-space: nowrap;">{{ $totalCbmFormatted }}</div>
+                            </td>
+                            <td style="width: 54%; vertical-align: top; padding-left: 2px;">
+                                <div class="meta-label" style="font-size: 8.0pt; white-space: nowrap;">TOTAL GROSS WEIGHT</div>
+                                <div class="meta-val font-mono" style="font-size: 8.8pt; white-space: nowrap;">{{ $totalGrossWeightFormatted }}</div>
+                            </td>
+                        </tr>
+                    </table>
                 </td>
                 <td style="width: 33.33%; padding: 4px 0 2px 4px;">
                     <div class="meta-label">PAYMENT TERMS</div>
@@ -438,15 +459,11 @@
                     $qty = (int) ($item['quantity'] ?? 1);
                     $uPrice = (float) ($item['unit_price'] ?? 0);
                     $lTotal = (float) ($item['line_total'] ?? ($uPrice * $qty));
-                    $stdPkg = $item['standard_package'] ?? null;
                 @endphp
                 <tr class="{{ $idx % 2 === 1 ? 'alt' : '' }}">
                     <td class="text-center" style="color: #64748b;">{{ $idx + 1 }}</td>
                     <td>
                         <div class="font-bold" style="color: #0f172a; font-size: 9.0pt;">{{ $item['product_name'] ?? ($item['description'] ?? 'Garment Item') }}</div>
-                        @if(!empty($stdPkg))
-                            <div style="font-size: 8.0pt; color: #64748b; margin-top: 2px;">{{ $stdPkg }}</div>
-                        @endif
                     </td>
                     <td class="font-bold" style="color: #0f172a; font-size: 8.8pt; white-space: nowrap;">{{ $item['sku'] ?? 'AYN-SKU' }}</td>
                     <td class="text-right font-bold" style="white-space: nowrap; font-size: 8.8pt; padding-right: 4px;">{{ number_format($qty) }} pcs</td>
@@ -463,13 +480,7 @@
             {{-- Left Side: Shipping Information --}}
             <td style="width: 53%; vertical-align: top; padding-right: 10px;">
                 <div class="shipping-title">Shipping &amp; Delivery Information:</div>
-                @if(!empty($shippingArrangement) && $shippingArrangement !== 'To Be Confirmed Separately')
-                    <div class="shipping-bullet">• Shipping arrangement: {{ $shippingArrangement }}</div>
-                @elseif(!empty($rawCarrier))
-                    <div class="shipping-bullet">• Carrier: {{ $rawCarrier }}</div>
-                @endif
-                <div class="shipping-bullet">• Total Order Items: {{ number_format($totalQty) }} pcs scheduled for export packaging.</div>
-                <div class="shipping-bullet">• Estimated Gross Weight: ~{{ $doc['estimated_shipping_data']['gross_weight'] ?? round($totalQty * 0.35, 1) }} kg</div>
+                <div class="shipping-bullet">• Shipping arrangement: Discuss Directly on WhatsApp or Email</div>
                 <div class="shipping-bullet shipping-alert">• Shipping arrangements to be confirmed separately.</div>
                 <div class="shipping-bullet shipping-alert">• Shipping charges are NOT included in the merchandise total below.</div>
                 <div class="shipping-bullet">• Contact our export logistics desk to arrange carrier booking.</div>
@@ -490,8 +501,8 @@
                             </tr>
                         @endif
                         <tr>
-                            <td class="totals-line" style="color: #475569; white-space: nowrap;">Estimated Tax (B2B Export):</td>
-                            <td class="totals-line text-right totals-num" style="color: #0f172a; white-space: nowrap;">$0.00 &nbsp;<span style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 8.0pt; font-weight: normal; color: #64748b;">(Zero-rated)</span></td>
+                            <td class="totals-line" style="color: #475569; white-space: nowrap;">Shipping Charge:</td>
+                            <td class="totals-line text-right totals-num" style="color: #475569; font-weight: bold; white-space: nowrap;">Excluded</td>
                         </tr>
                         <tr>
                             <td colspan="2"><div class="totals-divider"></div></td>

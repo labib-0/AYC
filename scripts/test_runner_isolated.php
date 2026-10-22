@@ -441,9 +441,15 @@ checkNotContains('HS Code', $html1, "A1: HS Code column completely removed");
 checkContains('Description of Goods', $html1, "A1/A2: Header is 'Description of Goods'");
 checkNotContains('& Package Assortment', $html1, "A2: Removed '& Package Assortment' heading");
 checkNotContains('Assortment:', $html1, "A2: No assortment label or invented text");
-checkContains('Standard Package (MOQ basis): 500 pcs (18 cartons)', $html1, "A2: Standard package MOQ basis rendered in HTML");
-checkContains('Estimated Tax (B2B Export):', $html1, "A3: Estimated Tax (B2B Export) label present");
-checkContains('(Zero-rated)', $html1, "A3: Zero-rated status present");
+checkNotContains('Standard Package:', $html1, "Standard Package lines absent from goods table");
+checkNotContains('Estimated Tax', $html1, "A3: Estimated Tax (B2B Export) label absent");
+checkContains('Shipping Charge:', $html1, "A3: Shipping Charge label present");
+checkContains('Excluded', $html1, "A3: Shipping Charge Excluded present");
+checkContains('TOTAL CBM', $html1, "Shipment Summary: TOTAL CBM present");
+checkContains('TOTAL GROSS WEIGHT', $html1, "Shipment Summary: TOTAL GROSS WEIGHT present");
+checkContains('Shipping arrangement: Discuss Directly on WhatsApp or Email', $html1, "Authoritative shipping arrangement displayed");
+checkNotContains('scheduled for export packaging', $html1, "Obsolete total order items bullet absent");
+checkNotContains('Estimated Gross Weight: ~', $html1, "Obsolete estimated gross weight bullet absent");
 checkContains('MERCHANDISE TOTAL:', $html1, "A4: Shows MERCHANDISE TOTAL for unpriced shipping");
 checkContains('$4,980.00 USD', $html1, "A4: Displayed MERCHANDISE TOTAL reconciles to $4,980.00 USD");
 checkNotContains('$5,229.00', $html1, "A4: Legacy $5,229.00 does not appear anywhere");
@@ -530,8 +536,8 @@ checkNotContains('$5,330.00', $html3, "Grand total does NOT include shipping");
 checkContains('MERCHANDISE TOTAL:', $html3, "Total label is strictly MERCHANDISE TOTAL");
 checkContains('$4,980.00 USD', $html3, "Rendered HTML displays $4,980.00 USD");
 checkContains('Shipping arrangements to be confirmed separately.', $html3, "Shipping arrangement notice present");
-checkContains('Shipping charges are NOT included in the merchandise total below.', $html3, "Shipping exclusion notice present");
-checkContains('Aramex Air Express', $html3, "Aramex carrier metadata displayed in metadata/shipping info");
+checkContains('Shipping arrangement: Discuss Directly on WhatsApp or Email', $html3, "Shipping arrangement WhatsApp/Email present");
+checkContains('TOTAL CBM', $html3, "TOTAL CBM present");
 
 // ========================================================
 // TEST 4: POSITIVE STORED SHIPPING (NON-ARAMEX: DHL) EXCLUDED FROM PI TOTAL
@@ -561,7 +567,8 @@ checkContains('MERCHANDISE TOTAL:', $html4, "Total label is strictly MERCHANDISE
 checkContains('$4,980.00 USD', $html4, "Rendered HTML displays $4,980.00 USD");
 checkContains('Shipping arrangements to be confirmed separately.', $html4, "Shipping arrangement notice present");
 checkContains('Shipping charges are NOT included in the merchandise total below.', $html4, "Shipping exclusion notice present");
-checkContains('DHL Express Worldwide', $html4, "DHL method metadata displayed in metadata/shipping info");
+checkContains('Shipping arrangement: Discuss Directly on WhatsApp or Email', $html4, "Shipping arrangement WhatsApp/Email present");
+checkContains('TOTAL CBM', $html4, "TOTAL CBM present");
 
 // ========================================================
 // TEST 5: UNPRICED / EXCLUDED SHIPPING (SEA FREIGHT FOB)
@@ -582,7 +589,8 @@ checkEquals(0.00, $payload5['shipping'], "Shipping is 0.00");
 checkEquals(4980.00, $payload5['grandTotal'], "Grand total is $4,980.00 for FOB Sea Freight");
 
 $html5 = View::make('pdf.proforma-invoice', ['doc' => $payload5])->render();
-checkContains('Sea Freight FOB Chittagong', $html5, "Rendered HTML displays arrangement 'Sea Freight FOB Chittagong'");
+checkContains('Shipping arrangement: Discuss Directly on WhatsApp or Email', $html5, "Shipping arrangement WhatsApp/Email present");
+checkContains('TOTAL CBM', $html5, "TOTAL CBM present");
 checkContains('MERCHANDISE TOTAL:', $html5, "Header displays MERCHANDISE TOTAL when shipping is excluded");
 checkContains('$4,980.00 USD', $html5, "Rendered HTML displays $4,980.00 USD");
 checkNotContains('Shipping — Ocean Freight', $html5, "No dollar shipping charge line item when shipping is 0");

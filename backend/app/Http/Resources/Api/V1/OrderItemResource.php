@@ -60,7 +60,7 @@ class OrderItemResource extends JsonResource
                 $availableStock = (int) ($variant?->stock ?? 0);
             } elseif ($this->product_id) {
                 $prod = $this->product ?? \App\Models\Product::find($this->product_id);
-                $availableStock = (int) ($prod?->stock ?? 0);
+                $availableStock = $prod ? (int) ($prod->getTotalAvailableStock() ?: ($prod->stock ?? 0)) : 0;
             }
             $data['current_stock'] = $availableStock;
             $data['stock_available'] = $availableStock >= (int) $this->quantity;

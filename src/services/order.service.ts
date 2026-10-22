@@ -140,6 +140,10 @@ export interface OrderRecord {
     bank_name?: string;
     account_number?: string;
     payment_amount?: number;
+    shipping_fee?: number;
+    shipping_cost?: number;
+    paid_amount?: number;
+    balance_due?: number;
     currency?: string;
     payment_date?: string;
     notes?: string;

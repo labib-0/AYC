@@ -50,6 +50,7 @@ export interface PaymentVerificationDetails {
   bank_name?: string;
   account_number?: string;
   payment_amount?: number;
+  shipping_fee?: number;
   payment_date?: string;
   note?: string;
   receipt?: File;
@@ -198,16 +199,7 @@ export class AdminOrderService {
     id: number | string,
     action: "approve" | "reject",
     note?: string,
-    paymentDetails?: {
-      payment_method?: string;
-      transaction_id?: string;
-      payer_name?: string;
-      bank_name?: string;
-      account_number?: string;
-      payment_amount?: number;
-      payment_date?: string;
-      receipt?: File;
-    }
+    paymentDetails?: PaymentVerificationDetails
   ): Promise<OrderRecord> {
     if (!isFrontendOnly()) {
       const receiptFile = paymentDetails?.receipt;
@@ -222,6 +214,10 @@ export class AdminOrderService {
         if (paymentDetails?.bank_name) formData.append("bank_name", paymentDetails.bank_name);
         if (paymentDetails?.account_number) formData.append("account_number", paymentDetails.account_number);
         if (paymentDetails?.payment_amount !== undefined) formData.append("payment_amount", String(paymentDetails.payment_amount));
+        if (paymentDetails?.shipping_fee !== undefined) {
+          formData.append("shipping_fee", String(paymentDetails.shipping_fee));
+          formData.append("shipping_cost", String(paymentDetails.shipping_fee));
+        }
         if (paymentDetails?.payment_date) formData.append("payment_date", paymentDetails.payment_date);
         formData.append("receipt", receiptFile);
         const res = await apiClient.post<any>(`/admin/orders/${id}/payment-proof/review`, formData);
@@ -231,6 +227,7 @@ export class AdminOrderService {
         action,
         note,
         ...paymentDetails,
+        ...(paymentDetails?.shipping_fee !== undefined ? { shipping_cost: paymentDetails.shipping_fee } : {}),
       });
       return (res?.data || res) as OrderRecord;
     }
@@ -242,6 +239,16 @@ export class AdminOrderService {
       order.payment_status = "paid";
       order.status = "processing";
       order.payment_confirmed_at = new Date().toISOString();
+      if (paymentDetails?.shipping_fee !== undefined) {
+        const fee = Math.max(0, Number(paymentDetails.shipping_fee));
+        order.shipping_cost = fee;
+        const subtotal = Number(order.subtotal || 0);
+        const discount = Number(order.discount_amount || 0);
+        order.total_amount = Math.max(0, subtotal - discount + fee);
+      }
+      const verifiedPaid = paymentDetails?.payment_amount !== undefined ? Number(paymentDetails.payment_amount) : Number(order.total_amount);
+      order.paid_amount = verifiedPaid;
+      order.balance_due = Math.max(0, (Number(order.total_amount) || 0) - verifiedPaid);
       order.payment_details = {
         payment_status: "PAID",
         payment_method: paymentDetails?.payment_method || order.payment_method || "Bank Transfer",
@@ -249,7 +256,8 @@ export class AdminOrderService {
         payer_name: paymentDetails?.payer_name || order.shipping_name || "Customer",
         bank_name: paymentDetails?.bank_name || "Pubali Bank Limited",
         account_number: paymentDetails?.account_number || "M/S AYAAN CLOTHING",
-        payment_amount: paymentDetails?.payment_amount ?? order.total_amount,
+        payment_amount: verifiedPaid,
+        shipping_fee: paymentDetails?.shipping_fee !== undefined ? Number(paymentDetails.shipping_fee) : Number(order.shipping_cost || 0),
         currency: order.currency || "USD",
         payment_date: paymentDetails?.payment_date || new Date().toISOString().split("T")[0],
         notes: note || "Payment verified by accounts team.",

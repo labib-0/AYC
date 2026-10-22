@@ -194,10 +194,24 @@ class ProformaInvoiceConsistencyTest extends TestCase
         $this->assertStringNotContainsString('Assortment:', $html);
         $this->assertStringNotContainsString('standard export assortment', $html);
 
-        // A3: Estimated Tax presentation with Zero-rated together
-        $this->assertStringContainsString('Estimated Tax (B2B Export):', $html);
-        $this->assertStringContainsString('(Zero-rated)', $html);
-        $this->assertStringContainsString('$0.00 &nbsp;<span style="font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-size: 8.0pt; font-weight: normal; color: #64748b;">(Zero-rated)</span>', $html);
+        // A3: Shipping Charge: Excluded row is present and Estimated Tax is absent
+        $this->assertStringNotContainsString('Estimated Tax', $html);
+        $this->assertStringContainsString('Shipping Charge:', $html);
+        $this->assertStringContainsString('Excluded', $html);
+
+        // Standard Package lines must NOT appear in goods table
+        $this->assertStringNotContainsString('Standard Package:', $html);
+        $this->assertStringNotContainsString('Standard Package (MOQ basis):', $html);
+
+        // Metadata panel contains Total CBM and Total Gross Weight
+        $this->assertStringContainsString('TOTAL CBM', $html);
+        $this->assertStringContainsString('TOTAL GROSS WEIGHT', $html);
+        $this->assertStringNotContainsString('SHIPPING ARRANGEMENT', $html);
+
+        // Shipping arrangement text
+        $this->assertStringContainsString('Shipping arrangement: Discuss Directly on WhatsApp or Email', $html);
+        $this->assertStringNotContainsString('scheduled for export packaging', $html);
+        $this->assertStringNotContainsString('Estimated Gross Weight: ~', $html);
 
         // A4: Reconciled totals in rendered HTML
         $this->assertStringContainsString('MERCHANDISE TOTAL:', $html);
@@ -333,8 +347,9 @@ class ProformaInvoiceConsistencyTest extends TestCase
         $this->assertStringContainsString('MERCHANDISE TOTAL:', $html);
         $this->assertStringContainsString('$4,980.00 USD', $html);
         $this->assertStringContainsString('Shipping arrangements to be confirmed separately.', $html);
-        $this->assertStringContainsString('Shipping charges are NOT included in the merchandise total below.', $html);
-        $this->assertStringContainsString('Aramex Air Express', $html);
+        $this->assertStringContainsString('Shipping arrangement: Discuss Directly on WhatsApp or Email', $html);
+        $this->assertStringContainsString('TOTAL CBM', $html);
+        $this->assertStringContainsString('TOTAL GROSS WEIGHT', $html);
     }
 
     /**
@@ -392,7 +407,9 @@ class ProformaInvoiceConsistencyTest extends TestCase
         $this->assertStringContainsString('$4,980.00 USD', $html);
         $this->assertStringContainsString('Shipping arrangements to be confirmed separately.', $html);
         $this->assertStringContainsString('Shipping charges are NOT included in the merchandise total below.', $html);
-        $this->assertStringContainsString('DHL Express Worldwide', $html);
+        $this->assertStringContainsString('Shipping arrangement: Discuss Directly on WhatsApp or Email', $html);
+        $this->assertStringContainsString('TOTAL CBM', $html);
+        $this->assertStringContainsString('TOTAL GROSS WEIGHT', $html);
     }
 
     /**
@@ -438,7 +455,9 @@ class ProformaInvoiceConsistencyTest extends TestCase
         $this->assertEquals(4980.00, $payload['grandTotal']);
 
         $html = View::make('pdf.proforma-invoice', ['doc' => $payload])->render();
-        $this->assertStringContainsString('Sea Freight FOB Chittagong', $html);
+        $this->assertStringContainsString('Shipping arrangement: Discuss Directly on WhatsApp or Email', $html);
+        $this->assertStringContainsString('TOTAL CBM', $html);
+        $this->assertStringContainsString('TOTAL GROSS WEIGHT', $html);
         $this->assertStringContainsString('MERCHANDISE TOTAL:', $html);
         $this->assertStringContainsString('$4,980.00 USD', $html);
         $this->assertStringContainsString('Shipping arrangements to be confirmed separately.', $html);

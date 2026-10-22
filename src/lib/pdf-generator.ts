@@ -1387,7 +1387,7 @@ export async function downloadCombinedProductOfferSheetsPDF(
  */
 export function generateProformaInvoiceDoc(
   order: OrderRecord,
-  options?: { exporter?: any; bankDetails?: any; bank_details?: any } | CommercialDocument
+  options?: ({ exporter?: any; bankDetails?: any; bank_details?: any; shipment_summary?: any } & Record<string, any>) | CommercialDocument
 ): jsPDF {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -1541,16 +1541,17 @@ export function generateProformaInvoiceDoc(
   const piNumber = `PI-${order.order_number}`;
   const issueDate = formatDate(order.placed_at || order.created_at);
   const validityDate = getExpiryDate(order.placed_at || order.created_at);
-  const customShipping =
-    (options as any)?.shippingArrangement ||
-    (options as any)?.shipping_arrangement;
-  const shippingArrangementText = customShipping
-    ? customShipping
-    : isAramex
-    ? (order.shipping_cost && order.shipping_cost > 0
-        ? `Air Cargo Express (Aramex - $${Number(order.shipping_cost).toFixed(2)})`
-        : "Air Cargo Express (Aramex)")
-    : (order.shipping_snapshot?.mode_title || "To Be Confirmed Separately");
+  const optShipment = (options as any)?.shipment_summary || (options as any)?.estimated_shipping_data || {};
+  const totalCbmFormatted =
+    optShipment?.total_cbm_formatted ||
+    (options as any)?.total_cbm_formatted ||
+    (order.shipping_snapshot?.cbm ? `${Number(order.shipping_snapshot.cbm).toFixed(4)} m³` : "Pending Package Profile");
+
+  const totalGrossWeightFormatted =
+    optShipment?.total_gross_weight_formatted ||
+    (options as any)?.total_gross_weight_formatted ||
+    (order.shipping_snapshot?.gross_weight ? `${Number(order.shipping_snapshot.gross_weight).toFixed(0)} KG` : "Pending Package Profile");
+
   const paymentTermsText =
     (options as any)?.paymentTerms ||
     (options as any)?.payment_terms ||
@@ -1573,7 +1574,7 @@ export function generateProformaInvoiceDoc(
         highlight: true,
         valueColor: [194, 65, 12],
       },
-      { label: "Shipping Arrangement", value: shippingArrangementText },
+      { label: "Total CBM / Gross Weight", value: `${totalCbmFormatted} • ${totalGrossWeightFormatted}` },
       { label: "Payment Terms", value: paymentTermsText },
     ],
   });
@@ -1583,11 +1584,7 @@ export function generateProformaInvoiceDoc(
   // 4. Multi-Product Items Table (Contains ALL order items)
   const items = order.items || [];
   const itemsRows = items.map((item, idx) => {
-    const pkgText = formatPackageBreakdownText(
-      item.package_breakdown || (item as any).packageBreakdown,
-      item.quantity
-    );
-    const desc = `${item.product_name || "Garment Product"}\nAssortment: ${pkgText}`;
+    const desc = item.product_name || "Garment Product";
     const sku = item.sku || `AYN-${idx + 101}`;
     const qty = `${(item.quantity || 1).toLocaleString()} pcs`;
     const uPrice = fmtUSD(item.unit_price);
@@ -1599,7 +1596,7 @@ export function generateProformaInvoiceDoc(
   applyAutoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [["#", "Description of Goods & Package Assortment", "SKU / Style", "HS Code", "Quantity", "Unit Price", "Amount (USD)"]],
+    head: [["#", "Description of Goods", "SKU / Style", "HS Code", "Quantity", "Unit Price", "Amount (USD)"]],
     body: itemsRows,
     theme: "striped",
     headStyles: {
@@ -1647,24 +1644,14 @@ export function generateProformaInvoiceDoc(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(71, 85, 105);
-
-  if (isAramex) {
-    const snap = order.shipping_snapshot;
-    doc.text(`• Selected Carrier: ${order.carrier || "Aramex Priority Air Express"}`, margin, y + 8.5);
-    doc.text(`• Total Items: ${totalQty} pcs in ${snap?.carton_count || Math.max(1, Math.ceil(totalQty / 50))} cartons`, margin, y + 12.5);
-    doc.text(`• Estimated Gross Weight: ~${snap?.gross_weight || (totalQty * 0.35).toFixed(1)} kg`, margin, y + 16.5);
-    doc.text("• Aramex Air Shipping charge is itemized in the Proforma Invoice total.", margin, y + 20.5);
-  } else {
-    // Manual shipping
-    doc.setTextColor(194, 65, 12); // amber-700
-    doc.setFont("helvetica", "bold");
-    doc.text("• Shipping arrangements to be confirmed separately.", margin, y + 8.5);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    doc.text(`• Total Order Items: ${totalQty} pcs scheduled for export packaging.`, margin, y + 12.5);
-    doc.text("• Shipping charges are NOT included in the merchandise total below.", margin, y + 16.5);
-    doc.text("• Contact our export logistics desk to arrange carrier booking.", margin, y + 20.5);
-  }
+  doc.text("• Shipping arrangement: Discuss Directly on WhatsApp or Email", margin, y + 8.5);
+  doc.setTextColor(194, 65, 12); // amber-700
+  doc.setFont("helvetica", "bold");
+  doc.text("• Shipping arrangements to be confirmed separately.", margin, y + 12.5);
+  doc.text("• Shipping charges are NOT included in the merchandise total below.", margin, y + 16.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.text("• Contact our export logistics desk to arrange carrier booking.", margin, y + 20.5);
 
   // Right side: Financial Totals Box
   const hasDiscount = discountVal > 0;
@@ -1711,11 +1698,11 @@ export function generateProformaInvoiceDoc(
   doc.setFontSize(8.2);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(71, 85, 105);
-  doc.text("Estimated Tax (B2B Export):", summaryX + 3, subY);
+  doc.text("Shipping Charge:", summaryX + 3, subY);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text("$0.00 (Zero Rated)", summaryX + summaryWidth - 3, subY, { align: "right" });
+  doc.setTextColor(71, 85, 105);
+  doc.text("Excluded", summaryX + summaryWidth - 3, subY, { align: "right" });
 
   // Divider
   subY += 2.5;
@@ -1918,12 +1905,41 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
   doc.text(`${order.shipping_city || ""} ${order.shipping_postal_code || ""}, ${order.shipping_country_code || commercialDoc?.buyerCountry || "US"}`, buyerX, y + 19.5);
   doc.text(`Email: ${order.email || commercialDoc?.buyerEmail || ""}`, buyerX, y + 23);
 
+  // Pre-calculate Total CBM and Total Gross Weight from ordered items & packaging profiles
+  let totalCbm = 0;
+  let totalGrossWeight = 0;
+  let hasMissingPackage = false;
+
+  for (const item of order.items || []) {
+    const qty = Number(item.quantity || 0);
+    const pkg = item.package_breakdown || (item as any).packageBreakdown;
+    const pkgQty = Number(pkg?.package_quantity || pkg?.packageQuantity || 0);
+    const cartons = Number(pkg?.cartons || pkg?.carton_count || 1);
+    const cbm = Number(pkg?.cbm_per_carton || pkg?.cbm || 0);
+    const weight = Number(pkg?.weight_per_carton || pkg?.gross_weight_per_carton || pkg?.gross_weight || 0);
+
+    if (pkgQty > 0 && cbm > 0) {
+      const multiplier = Math.max(1, Math.ceil(qty / pkgQty));
+      const totalCartons = multiplier * cartons;
+      totalCbm += totalCartons * cbm;
+      totalGrossWeight += totalCartons * weight;
+    } else {
+      hasMissingPackage = true;
+    }
+  }
+
+  const shipmentSummary = (commercialDoc as any)?.shipment_summary;
+  const shipmentCbmText = shipmentSummary?.total_cbm_formatted ||
+    (hasMissingPackage && totalCbm === 0 ? "Pending Package Profile" : `${totalCbm.toFixed(4)} m³`);
+  const shipmentWeightText = shipmentSummary?.total_gross_weight_formatted ||
+    (hasMissingPackage && totalGrossWeight === 0 ? "Pending Package Profile" : `${Math.round(totalGrossWeight)} kg`);
+
   // Document & Transport Parameters
   const docParamX = margin + 130;
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text("INVOICE & SHIPPING TERMS:", docParamX, y + 5);
+  doc.text("INVOICE & SHIPMENT DETAILS:", docParamX, y + 5);
 
   doc.setFontSize(6.8);
   doc.setFont("helvetica", "bold");
@@ -1949,17 +1965,17 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Incoterm:", docParamX, y + 19.5);
+  doc.text("TOTAL CBM:", docParamX, y + 19.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text("DAP (Delivered at Place)", docParamX + 18, y + 19.5);
+  doc.text(shipmentCbmText, docParamX + 24, y + 19.5);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Carrier:", docParamX, y + 23);
+  doc.text("TOTAL GROSS WT:", docParamX, y + 23);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(order.carrier || order.shipping_snapshot?.carrier || "Aramex Express Air", docParamX + 18, y + 23);
+  doc.text(shipmentWeightText, docParamX + 28, y + 23);
 
   y += metaBoxHeight + 4;
 
@@ -2010,138 +2026,99 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
 
   y = ((doc as any).lastAutoTable?.finalY || y) + 5;
 
-  // 4. Financial Totals & Say in Words
-  const summaryBoxWidth = 75;
-  const summaryX = pageWidth - margin - summaryBoxWidth;
+  const isPaid =
+    order.payment_status === "paid" ||
+    order.payment_details?.payment_status === "PAID" ||
+    (commercialDoc as any)?.payment_details?.payment_status === "PAID";
+
   const subtotal = Number(order.subtotal || 0);
   const shipping = Number(order.shipping_cost || 0);
   const discount = Number(order.discount_amount || 0);
-  const grandTotal = Number(order.total_amount || (subtotal + shipping - discount));
+  const grandTotal = Math.max(0, subtotal - discount + shipping);
 
-  // Financial totals box
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(summaryX, y, summaryBoxWidth, 24, 1.5, 1.5, "FD");
+  const rawPaid = paymentDetails?.payment_amount !== undefined
+    ? Number(paymentDetails.payment_amount)
+    : order.paid_amount !== undefined && Number(order.paid_amount) > 0
+    ? Number(order.paid_amount)
+    : isPaid
+    ? grandTotal
+    : 0;
+  const amountPaid = Number(rawPaid);
+  const balanceDue = isPaid && amountPaid >= grandTotal - 0.01 ? 0 : Math.max(0, grandTotal - amountPaid);
 
-  let subY = y + 4.5;
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Merchandise Subtotal:", summaryX + 3, subY);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(15, 23, 42);
-  doc.text(fmtUSD(subtotal), summaryX + summaryBoxWidth - 3, subY, { align: "right" });
+  const colWidth = (contentWidth - 4) / 2; // 89mm
+  const sideBySideHeight = 30;
 
-  subY += 4.5;
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Shipping & Export Freight:", summaryX + 3, subY);
-  doc.setFont("helvetica", "bold");
-  doc.text(shipping === 0 ? "FREE" : fmtUSD(shipping), summaryX + summaryBoxWidth - 3, subY, { align: "right" });
-
-  if (discount > 0) {
-    subY += 4.5;
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(22, 101, 52);
-    doc.text("Discount Applied:", summaryX + 3, subY);
-    doc.setFont("helvetica", "bold");
-    doc.text(`-${fmtUSD(discount)}`, summaryX + summaryBoxWidth - 3, subY, { align: "right" });
-  }
-
-  subY += 4.5;
-  doc.setDrawColor(203, 213, 225);
-  doc.line(summaryX + 3, subY - 1, summaryX + summaryBoxWidth - 3, subY - 1);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  doc.text("TOTAL INVOICE (USD):", summaryX + 3, subY + 2.5);
-  doc.setTextColor(16, 185, 129); // emerald-500
-  doc.text(`${fmtUSD(grandTotal)} USD`, summaryX + summaryBoxWidth - 3, subY + 2.5, { align: "right" });
-
-  // 5. DEDICATED PAYMENT DETAILS BOX (Verified & Confirmed)
-  const paymentBoxWidth = summaryX - margin - 5;
-  doc.setFillColor(236, 253, 245); // emerald-50
-  doc.setDrawColor(167, 243, 208); // emerald-200
-  doc.roundedRect(margin, y, paymentBoxWidth, 24, 1.5, 1.5, "FD");
-
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(6, 95, 70); // emerald-800
-  doc.text("PAYMENT DETAILS (VERIFIED & CONFIRMED)", margin + 3, y + 4.5);
-
-  doc.setFontSize(6.8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Status:", margin + 3, y + 9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(16, 185, 129);
-  doc.text("PAID", margin + 18, y + 9);
-
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Method:", margin + 35, y + 9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(15, 23, 42);
-  doc.text(paymentDetails?.payment_method || order.payment_method || "Bank Wire Transfer", margin + 49, y + 9);
-
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Txn ID:", margin + 3, y + 13.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(15, 23, 42);
-  doc.text(paymentDetails?.transaction_id || "N/A", margin + 18, y + 13.5);
-
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Payer:", margin + 55, y + 13.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(15, 23, 42);
-  doc.text(paymentDetails?.payer_name || buyerComp, margin + 67, y + 13.5);
-
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Bank:", margin + 3, y + 18);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(15, 23, 42);
-  doc.text(paymentDetails?.bank_name || "Pubali Bank Limited", margin + 18, y + 18);
-
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Paid Date:", margin + 55, y + 18);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(15, 23, 42);
-  doc.text(paymentDetails?.payment_date || issueDate, margin + 72, y + 18);
-
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Amount Paid:", margin + 3, y + 22);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(15, 23, 42);
-  doc.text(`${fmtUSD(paymentDetails?.payment_amount ?? grandTotal)} USD`, margin + 22, y + 22);
-
-  if (paymentDetails?.receipt_original_name) {
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 116, 139);
-    doc.text(`Ref: ${paymentDetails.receipt_original_name}`, margin + 55, y + 22);
-  }
-
-  y += 28;
-
-  // 6. Beneficiary Bank Details & Signatory
-  const bankBlockHeight = 22;
-  if (y + bankBlockHeight + 20 > 297 - margin) {
+  // Pagination check for lower sections
+  if (y + sideBySideHeight + 35 > 297 - margin - 8) {
     doc.addPage();
     y = margin;
   }
 
+  // 4. Side-by-Side: Left = PAYMENT & SETTLEMENT DETAILS, Right = BENEFICIARY BANK WIRE INSTRUCTIONS
+  const leftX = margin;
+  const rightX = margin + colWidth + 4;
+
+  // Left Box: PAYMENT & SETTLEMENT DETAILS
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(margin, y, contentWidth, bankBlockHeight, 1.5, 1.5, "FD");
+  doc.roundedRect(leftX, y, colWidth, sideBySideHeight, 1.5, 1.5, "FD");
 
-  doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text("SETTLEMENT BANK (BENEFICIARY)", margin + 3, y + 4.5);
+  doc.text("PAYMENT & SETTLEMENT DETAILS", leftX + 3, y + 4.5);
+
+  let py = y + 9;
+  doc.setFontSize(6.8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Payment Method:", leftX + 3, py);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(15, 23, 42);
+  doc.text(paymentDetails?.payment_method || order.payment_method || "Direct Bank Wire (TT)", leftX + 26, py);
+
+  py += 4.5;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Payment Status:", leftX + 3, py);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(isPaid ? 16 : 220, isPaid ? 185 : 38, isPaid ? 129 : 38);
+  doc.text(isPaid ? "PAID" : (order.payment_status?.toUpperCase() || "PENDING"), leftX + 26, py);
+
+  py += 4.5;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Payer Name:", leftX + 3, py);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(15, 23, 42);
+  doc.text((paymentDetails?.payer_name || buyerComp).slice(0, 32), leftX + 26, py);
+
+  py += 4.5;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Payer Bank:", leftX + 3, py);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(15, 23, 42);
+  doc.text((paymentDetails?.bank_name || "Pubali Bank Limited").slice(0, 32), leftX + 26, py);
+
+  py += 4.5;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Transaction ID:", leftX + 3, py);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(15, 23, 42);
+  doc.text((paymentDetails?.transaction_id || "N/A").slice(0, 32), leftX + 26, py);
+
+  // Right Box: BENEFICIARY BANK WIRE INSTRUCTIONS
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(rightX, y, colWidth, sideBySideHeight, 1.5, 1.5, "FD");
+
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("BENEFICIARY BANK WIRE INSTRUCTIONS", rightX + 3, y + 4.5);
 
   const optBank = commercialDoc?.bankDetails || (commercialDoc as any)?.bank_details;
   const ciBankName = optBank?.bank_name || optBank?.bankName || BUSINESS_PROFILE.banking.bankName || "Pubali Bank Limited";
@@ -2150,58 +2127,109 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
   const ciSwift = optBank?.swift_code || optBank?.swiftCode || BUSINESS_PROFILE.banking.swiftCode || "PUBABDDH210";
   const ciAddress = optBank?.bank_address || optBank?.bankAddress || optBank?.branch || optBank?.branch_name || "Nawabpur Road Branch, 125 Nawabpur Road, Dhaka-1100, Bangladesh";
 
+  let by = y + 9;
   doc.setFontSize(6.8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Bank Name:", margin + 3, y + 9);
+  doc.text("Bank Name:", rightX + 3, by);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(ciBankName, margin + 22, y + 9);
+  doc.text(ciBankName.slice(0, 32), rightX + 24, by);
 
+  by += 4.5;
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Account Title:", margin + 80, y + 9);
+  doc.text("Account Title:", rightX + 3, by);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(ciAccTitle, margin + 102, y + 9);
+  doc.text(ciAccTitle.slice(0, 32), rightX + 24, by);
 
+  by += 4.5;
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Account No:", margin + 3, y + 13.5);
+  doc.text("Account No:", rightX + 3, by);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(ciAccNo, margin + 22, y + 13.5);
+  doc.text(ciAccNo, rightX + 24, by);
 
+  by += 4.5;
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("SWIFT CODE:", margin + 80, y + 13.5);
+  doc.text("SWIFT / BIC:", rightX + 3, by);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(ciSwift, margin + 102, y + 13.5);
+  doc.text(ciSwift, rightX + 24, by);
 
+  by += 4.5;
   doc.setFont("helvetica", "bold");
   doc.setTextColor(71, 85, 105);
-  doc.text("Bank Address:", margin + 3, y + 18);
+  doc.text("Bank Address:", rightX + 3, by);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
-  doc.text(ciAddress.replace(/\n/g, ", "), margin + 22, y + 18);
+  doc.text(ciAddress.replace(/\n/g, ", ").slice(0, 34), rightX + 24, by);
 
-  y += bankBlockHeight + 4;
+  y += sideBySideHeight + 5;
 
-  // Signatory & Seal
-  const sigX = pageWidth - margin - 65;
-  doc.setDrawColor(148, 163, 184);
-  doc.line(sigX, y + 7, sigX + 60, y + 7);
+  // 5. Financial Summary Card (Positioned clearly on the right half)
+  const summaryBoxWidth = colWidth;
+  const summaryX = pageWidth - margin - summaryBoxWidth;
+  const hasBalanceDue = balanceDue > 0.0001;
+  const summaryBoxHeight = 28 + (discount > 0 ? 4.5 : 0) + (hasBalanceDue ? 4.5 : 0);
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(optExp?.signatory_title || "Authorized Signatory", sigX, y + 11);
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(summaryX, y, summaryBoxWidth, summaryBoxHeight, 1.5, 1.5, "FD");
 
+  let subY = y + 4.5;
+  doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(optExp?.signatory_division || "Ayaan Clothing Ltd • Dhaka, Bangladesh", sigX, y + 14.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Goods Value / Subtotal:", summaryX + 3, subY);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text(fmtUSD(subtotal), summaryX + summaryBoxWidth - 3, subY, { align: "right" });
+
+  if (discount > 0) {
+    subY += 4.5;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(22, 101, 52);
+    doc.text("Applicable Discount:", summaryX + 3, subY);
+    doc.setFont("helvetica", "bold");
+    doc.text(`-${fmtUSD(discount)}`, summaryX + summaryBoxWidth - 3, subY, { align: "right" });
+  }
+
+  subY += 4.5;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Shipping Fee (Admin Confirmed):", summaryX + 3, subY);
+  doc.setFont("helvetica", "bold");
+  doc.text(shipping === 0 ? "$0.00" : fmtUSD(shipping), summaryX + summaryBoxWidth - 3, subY, { align: "right" });
+
+  subY += 4.5;
+  doc.setDrawColor(203, 213, 225);
+  doc.line(summaryX + 3, subY - 1, summaryX + summaryBoxWidth - 3, subY - 1);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Total Payable:", summaryX + 3, subY + 2.5);
+  doc.setTextColor(16, 185, 129); // emerald-500
+  doc.text(`${fmtUSD(grandTotal)} USD`, summaryX + summaryBoxWidth - 3, subY + 2.5, { align: "right" });
+
+  subY += 6;
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Amount Paid:", summaryX + 3, subY);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`${fmtUSD(amountPaid)} USD`, summaryX + summaryBoxWidth - 3, subY, { align: "right" });
+
+  if (hasBalanceDue) {
+    subY += 4.5;
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(220, 38, 38);
+    doc.text("Balance Due:", summaryX + 3, subY);
+    doc.text(`${fmtUSD(balanceDue)} USD`, summaryX + summaryBoxWidth - 3, subY, { align: "right" });
+  }
 
   // Footer on each page
   const pageCount = (doc as any).internal.getNumberOfPages();
@@ -2210,7 +2238,7 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
     doc.setFontSize(6.5);
     doc.setTextColor(148, 163, 184);
     doc.text(
-      `AYAAN CLOTHING • Commercial Invoice Ref: ${invNumber} • Order: ${order.order_number} • Payment Status: PAID • Page ${i} of ${pageCount}`,
+      `AYAAN CLOTHING • Commercial Invoice Ref: ${invNumber} • Order: ${order.order_number} • Payment Status: ${isPaid ? "PAID" : "PENDING"} • Page ${i} of ${pageCount}`,
       margin,
       297 - 6
     );

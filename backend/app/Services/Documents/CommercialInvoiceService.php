@@ -47,13 +47,21 @@ class CommercialInvoiceService
         }
 
         $verifiedSum = round((float) $dedupedVerified->sum('amount'), 2);
+        $orderPaymentDetails = is_array($order->payment_details) ? $order->payment_details : (json_decode($order->payment_details, true) ?: []);
 
+        // Authoritative Amount Paid Resolution:
+        // 1. If verified transactions exist, use the exact deduplicated verified sum
+        // 2. Otherwise check order payment_details snapshot confirmed by admin
+        // 3. Otherwise check order.paid_amount column
+        // 4. Otherwise if order is officially marked PAID, default to totalPayable (fully settled)
         if ($verifiedSum > 0) {
-            $paidAmount = min($totalPayable, $verifiedSum);
-        } elseif (in_array(strtolower((string) $order->payment_status), ['paid'], true)) {
-            $paidAmount = (float) ($order->paid_amount ?? $totalPayable);
-        } elseif ((float) ($order->paid_amount ?? 0) > 0 && in_array(strtolower((string) $order->payment_status), ['confirmed', 'paid', 'settled'], true)) {
+            $paidAmount = $verifiedSum;
+        } elseif (!empty($orderPaymentDetails['payment_amount']) && (float) $orderPaymentDetails['payment_amount'] > 0 && in_array(strtolower((string) $order->payment_status), ['paid', 'confirmed', 'settled'], true)) {
+            $paidAmount = (float) $orderPaymentDetails['payment_amount'];
+        } elseif ((float) ($order->paid_amount ?? 0) > 0) {
             $paidAmount = (float) $order->paid_amount;
+        } elseif (in_array(strtolower((string) $order->payment_status), ['paid'], true)) {
+            $paidAmount = $totalPayable;
         } else {
             $paidAmount = 0.00;
         }
@@ -63,6 +71,7 @@ class CommercialInvoiceService
         if ($balanceDue <= 0.0001 && ($paidAmount > 0 || strtolower((string) $order->payment_status) === 'paid')) {
             $paymentStatus = 'PAID';
             $isPaid = true;
+            $balanceDue = 0.00;
         } elseif ($paidAmount > 0 && $balanceDue > 0) {
             $paymentStatus = 'PARTIAL';
             $isPaid = false;
@@ -80,7 +89,6 @@ class CommercialInvoiceService
         // Prioritize latest verified payment, then latest submitted payment, then order payment_details JSON
         $latestVerified = $dedupedVerified->sortByDesc('id')->first();
         $latestPayment = $latestVerified ?? $order->payments->sortByDesc('id')->first();
-        $orderPaymentDetails = is_array($order->payment_details) ? $order->payment_details : (json_decode($order->payment_details, true) ?: []);
 
         $payerName = $latestPayment?->payer_name
             ?: ($orderPaymentDetails['payer_name'] ?? null);
@@ -113,6 +121,128 @@ class CommercialInvoiceService
             'receipt_reference' => $receiptRef,
             'payment_method' => $paymentMethod,
             'payment_date' => $paymentDate,
+        ];
+    }
+
+    /**
+     * Calculate authoritative shipment totals across all ordered products.
+     * Aggregates carton volume and gross weight from applicable ProductShippingPackageProfile records.
+     *
+     * @param Order $order
+     * @return array{
+     *     total_cbm: ?float,
+     *     total_gross_weight: ?float,
+     *     carton_count: int,
+     *     total_cbm_formatted: string,
+     *     total_gross_weight_formatted: string,
+     *     has_missing_profile: bool,
+     *     missing_product_ids: array<int|string>
+     * }
+     */
+    public function calculateShipmentTotals(Order $order): array
+    {
+        $order->loadMissing(['items.product.shippingPackageProfiles']);
+
+        $totalCbm = 0.0;
+        $totalGrossWeight = 0.0;
+        $totalCartons = 0;
+        $hasMissingProfile = false;
+        $missingProductIds = [];
+
+        $snapshot = $order->shipping_snapshot ?? [];
+
+        foreach ($order->items as $item) {
+            $product = $item->product ?? ($item->product_id ? Product::with('shippingPackageProfiles')->find($item->product_id) : null);
+            $qty = (int) ($item->quantity ?? 1);
+
+            if (!$product) {
+                $hasMissingProfile = true;
+                $missingProductIds[] = $item->product_id ?: $item->id;
+                continue;
+            }
+
+            // Find applicable package profile for the ordered quantity
+            $profile = $product->findShippingPackageProfileForQuantity($qty);
+
+            // If no direct tier match, try the first active profile
+            if (!$profile && $product->shippingPackageProfiles) {
+                $profile = $product->shippingPackageProfiles->where('is_active', true)->first()
+                    ?? $product->shippingPackageProfiles->first();
+            }
+
+            if (!$profile) {
+                $hasMissingProfile = true;
+                $missingProductIds[] = $product->id;
+                continue;
+            }
+
+            // Determine carton volume
+            $cartonCbm = \App\Services\Shipping\PackageCalculatorService::calculateCartonCbm(
+                (float) $profile->carton_length,
+                (float) $profile->carton_width,
+                (float) $profile->carton_height,
+                $profile->dimension_unit ?: 'cm'
+            );
+
+            // Determine number of cartons for this line item based on profile package quantity
+            $pkgQty = (int) ($profile->package_quantity ?: 1);
+            $profileCartonCount = max(1, (int) ($profile->carton_count ?: 1));
+
+            if ($qty <= $pkgQty) {
+                $lineCartons = $profileCartonCount;
+            } else {
+                // Scale cartons proportionally when quantity exceeds package quantity
+                $packages = (int) ceil($qty / $pkgQty);
+                $lineCartons = $packages * $profileCartonCount;
+            }
+
+            $totalCartons += $lineCartons;
+
+            // Line CBM = line cartons * carton volume
+            $lineCbm = $lineCartons * $cartonCbm;
+            $totalCbm += $lineCbm;
+
+            // Line Gross Weight: gross_weight on profile is defined per-carton
+            $perCartonGw = (float) $profile->gross_weight;
+            $lineGw = $lineCartons * $perCartonGw;
+            $totalGrossWeight += $lineGw;
+        }
+
+        // If no products were resolved from items, check shipping snapshot fallback
+        if ($totalCartons === 0 && (!empty($snapshot['cbm']) || !empty($snapshot['total_cbm']) || !empty($snapshot['gross_weight']))) {
+            $totalCbm = (float) ($snapshot['cbm'] ?? $snapshot['total_cbm'] ?? 0);
+            $totalGrossWeight = (float) ($snapshot['gross_weight'] ?? 0);
+            $totalCartons = (int) ($snapshot['carton_count'] ?? 1);
+            $hasMissingProfile = false;
+        }
+
+        // If completely missing package profile data and no valid figures
+        if ($hasMissingProfile && $totalCbm <= 0.0) {
+            return [
+                'total_cbm' => null,
+                'total_gross_weight' => null,
+                'carton_count' => 0,
+                'total_cbm_formatted' => 'Pending Package Profile',
+                'total_gross_weight_formatted' => 'Pending Package Profile',
+                'has_missing_profile' => true,
+                'missing_product_ids' => array_unique($missingProductIds),
+            ];
+        }
+
+        $formattedCbm = number_format(round($totalCbm, 4), 4) . ' m³';
+        $roundedGw = round($totalGrossWeight, 1);
+        $formattedGw = (floor($roundedGw) == $roundedGw)
+            ? number_format($roundedGw, 0) . ' kg'
+            : number_format($roundedGw, 1) . ' kg';
+
+        return [
+            'total_cbm' => round($totalCbm, 4),
+            'total_gross_weight' => $roundedGw,
+            'carton_count' => $totalCartons,
+            'total_cbm_formatted' => $formattedCbm,
+            'total_gross_weight_formatted' => $formattedGw,
+            'has_missing_profile' => $hasMissingProfile,
+            'missing_product_ids' => array_unique($missingProductIds),
         ];
     }
 
@@ -191,16 +321,20 @@ class CommercialInvoiceService
             ];
         })->toArray();
 
-        $cartonCount = (int) ($snapshot['carton_count'] ?? 1);
-        $grossWeight = (float) ($snapshot['gross_weight'] ?? 20.0);
-        $netWeight = isset($snapshot['net_weight']) ? (float) $snapshot['net_weight'] : round($grossWeight * 0.9, 2);
-        $cbm = (float) ($snapshot['cbm'] ?? $snapshot['total_cbm'] ?? 0.072);
+        // Calculate authoritative shipment totals across all products
+        $shipmentTotals = $this->calculateShipmentTotals($order);
 
+        $cartonCount = $shipmentTotals['carton_count'] > 0 ? $shipmentTotals['carton_count'] : (int) ($snapshot['carton_count'] ?? 1);
+        $grossWeight = $shipmentTotals['total_gross_weight'] !== null ? $shipmentTotals['total_gross_weight'] : (float) ($snapshot['gross_weight'] ?? 20.0);
+        $netWeight = isset($snapshot['net_weight']) ? (float) $snapshot['net_weight'] : round($grossWeight * 0.9, 2);
+        $cbm = $shipmentTotals['total_cbm'] !== null ? $shipmentTotals['total_cbm'] : (float) ($snapshot['cbm'] ?? $snapshot['total_cbm'] ?? 0.072);
+
+        // Financial Calculation: B2B Export CI strictly excludes tax:
+        // CI Total Payable = Merchandise Subtotal - Applicable Discounts + Admin-Confirmed Shipping Fee
         $subtotal = (float) $order->subtotal;
         $discount = (float) $order->discount_amount;
-        $shipping = (float) $order->shipping_cost;
-        $tax = (float) $order->tax_amount;
-        $totalPayable = (float) ($order->total_amount ?: max(0, round($subtotal + $shipping + $tax - $discount, 2)));
+        $shipping = (float) ($order->shipping_cost ?? 0.0);
+        $totalPayable = max(0.0, round($subtotal - $discount + $shipping, 2));
 
         $accounting = $this->resolvePaymentAccounting($order, $totalPayable);
 
@@ -237,12 +371,14 @@ class CommercialInvoiceService
             ],
             'items' => $items,
             'product_gallery' => $allGalleryImages,
+            'shipment_summary' => $shipmentTotals,
             'financials' => [
                 'currency' => $currency,
                 'subtotal' => $subtotal,
                 'goods_value' => $subtotal,
                 'shipping_charge' => $shipping,
-                'tax_amount' => $tax,
+                'shipping_fee' => $shipping,
+                'tax_amount' => 0.00,
                 'discount_amount' => $discount,
                 'coupon_code' => $order->coupon_code,
                 'coupon_discount_amount' => (float) ($order->coupon_discount_amount ?? max(0, $discount - (float) ($order->manual_discount_amount ?? 0))),
@@ -251,7 +387,6 @@ class CommercialInvoiceService
                 'balance_due' => $accounting['balance_due'],
                 'grand_total' => $totalPayable,
                 'total_payable' => $totalPayable,
-                'amount_in_words' => DocumentHelper::numberToWords($totalPayable, $currency),
             ],
             'estimated_shipping_data' => [
                 'carrier' => $order->carrier ?: 'Aramex',
@@ -260,13 +395,14 @@ class CommercialInvoiceService
                 'gross_weight' => $grossWeight,
                 'net_weight' => $netWeight,
                 'total_cbm' => $cbm,
+                'total_cbm_formatted' => $shipmentTotals['total_cbm_formatted'],
+                'total_gross_weight_formatted' => $shipmentTotals['total_gross_weight_formatted'],
                 'country_of_origin' => $docDefaults['country_of_origin'] ?? 'Bangladesh',
-                'port_of_loading' => $docDefaults['air_port_of_loading'] ?? ($docDefaults['port_of_loading'] ?? 'Hazrat Shahjalal International Airport (DAC), Dhaka'),
                 'destination_port' => ($order->shipping_city ?: 'Destination') . ' Airport / Hub',
             ],
             'subtotal' => $subtotal,
             'shipping' => $shipping,
-            'tax' => $tax,
+            'tax' => 0.00,
             'discount' => $discount,
             'coupon_discount' => (float) ($order->coupon_discount_amount ?? 0),
             'manual_discount' => (float) ($order->manual_discount_amount ?? 0),
@@ -287,7 +423,6 @@ class CommercialInvoiceService
             'incoterm' => $docDefaults['incoterm'] ?? 'DAP',
             'bankDetails' => DocumentHelper::getBankDetails($currency),
             'bank_details' => DocumentHelper::getBankDetails($currency),
-            'notes' => $docDefaults['ci_notes'] ?? ($docDefaults['declaration_text'] ?? 'Official Commercial Invoice. All merchandise manufactured in Bangladesh.'),
             'buyer_payment' => [
                 'payer_name' => $accounting['payer_name'],
                 'payer_bank_name' => $accounting['payer_bank_name'],
@@ -317,10 +452,8 @@ class CommercialInvoiceService
                 'receipt_reference' => $accounting['receipt_reference'],
             ],
             'document_defaults' => $docDefaults,
-            'signatory_name' => $docDefaults['signatory_name'] ?? 'Authorized Representative',
-            'signatory_title' => $docDefaults['signatory_title'] ?? 'Managing Director / Commercial Head',
-            'signatory_division' => $docDefaults['signatory_division'] ?? 'Ayaan Clothing Export Division',
         ];
+    }
     }
 
     /**
@@ -399,13 +532,25 @@ class CommercialInvoiceService
         $cartonCount = max(1, (int) ceil($quotation->items->sum('quantity') / 50));
         $grossWeight = round($quotation->items->sum('quantity') * 0.4, 2);
         $netWeight = round($quotation->items->sum('quantity') * 0.36, 2);
-        $cbm = round($quotation->items->sum('quantity') * 0.0014, 3);
+        $cbm = round($quotation->items->sum('quantity') * 0.0014, 4);
+
+        $formattedCbm = number_format($cbm, 4) . ' m³';
+        $formattedGw = number_format($grossWeight, 1) . ' kg';
+
+        $shipmentTotals = [
+            'total_cbm' => $cbm,
+            'total_gross_weight' => $grossWeight,
+            'carton_count' => $cartonCount,
+            'total_cbm_formatted' => $formattedCbm,
+            'total_gross_weight_formatted' => $formattedGw,
+            'has_missing_profile' => false,
+            'missing_product_ids' => [],
+        ];
 
         $subtotal = (float) $quotation->subtotal;
         $shipping = (float) $quotation->shipping_fee;
-        $tax = (float) $quotation->tax_amount;
         $discount = (float) $quotation->discount_total;
-        $totalPayable = (float) ($quotation->grand_total ?: max(0, round($subtotal + $shipping + $tax - $discount, 2)));
+        $totalPayable = max(0.0, round($subtotal + $shipping - $discount, 2));
 
         if ($quotation->convertedOrder) {
             $accounting = $this->resolvePaymentAccounting($quotation->convertedOrder, $totalPayable);
@@ -460,18 +605,19 @@ class CommercialInvoiceService
                 'country' => $quotation->destination_country,
             ],
             'items' => $items,
+            'shipment_summary' => $shipmentTotals,
             'financials' => [
                 'currency' => $currency,
                 'subtotal' => $subtotal,
                 'goods_value' => $subtotal,
                 'shipping_charge' => $shipping,
-                'tax_amount' => $tax,
+                'shipping_fee' => $shipping,
+                'tax_amount' => 0.00,
                 'discount_amount' => $discount,
                 'paid_amount' => $accounting['amount_paid'],
                 'balance_due' => $accounting['balance_due'],
                 'grand_total' => $totalPayable,
                 'total_payable' => $totalPayable,
-                'amount_in_words' => DocumentHelper::numberToWords($totalPayable, $currency),
             ],
             'estimated_shipping_data' => [
                 'carrier' => 'Aramex Priority Air Express',
@@ -480,14 +626,15 @@ class CommercialInvoiceService
                 'gross_weight' => $grossWeight,
                 'net_weight' => $netWeight,
                 'total_cbm' => $cbm,
+                'total_cbm_formatted' => $shipmentTotals['total_cbm_formatted'],
+                'total_gross_weight_formatted' => $shipmentTotals['total_gross_weight_formatted'],
                 'country_of_origin' => $docDefaults['country_of_origin'] ?? 'Bangladesh',
-                'port_of_loading' => $docDefaults['air_port_of_loading'] ?? ($docDefaults['port_of_loading'] ?? 'Hazrat Shahjalal International Airport (DAC), Dhaka'),
                 'destination_port' => ($quotation->destination_city ?: 'Destination') . ' Airport / Hub',
             ],
             'subtotal' => $subtotal,
             'shipping' => $shipping,
             'shipping_fee' => $shipping,
-            'tax' => $tax,
+            'tax' => 0.00,
             'discount' => $discount,
             'grandTotal' => $totalPayable,
             'total_payable' => $totalPayable,
@@ -500,7 +647,6 @@ class CommercialInvoiceService
             'incoterm' => $quotation->incoterm ?: ($docDefaults['incoterm'] ?? 'FOB'),
             'bankDetails' => DocumentHelper::getBankDetails($currency),
             'bank_details' => DocumentHelper::getBankDetails($currency),
-            'notes' => $quotation->admin_notes ?: ($docDefaults['ci_notes'] ?? 'Commercial Invoice. Official customs and clearance document.'),
             'buyer_payment' => [
                 'payer_name' => $accounting['payer_name'],
                 'payer_bank_name' => $accounting['payer_bank_name'],
@@ -530,9 +676,6 @@ class CommercialInvoiceService
                 'receipt_reference' => $accounting['receipt_reference'],
             ],
             'document_defaults' => $docDefaults,
-            'signatory_name' => $docDefaults['signatory_name'] ?? 'Authorized Representative',
-            'signatory_title' => $docDefaults['signatory_title'] ?? 'Managing Director / Commercial Head',
-            'signatory_division' => $docDefaults['signatory_division'] ?? 'Ayaan Clothing Export Division',
         ];
     }
 
