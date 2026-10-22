@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CommercialPdfArtifactService
 {
-    public const LAYOUT_VERSION = 'v10.0_pi_shipment_totals_and_goods_table_cleanup';
+    public const LAYOUT_VERSION = 'v10.1_pi_shipping_text_update';
 
     /**
      * Retrieve a cached commercial PDF artifact or render and persist it atomically.

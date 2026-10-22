@@ -198,7 +198,8 @@
         }
         /* Logistics Cards — Restrained, balanced typography consistent with specifications */
         .logistics-section {
-            margin-bottom: 5px;
+            margin-top: 6px;
+            margin-bottom: 6px;
             page-break-inside: avoid;
         }
         .logistics-card {
@@ -225,12 +226,14 @@
         }
         /* Pricing Table */
         .pricing-section {
+            margin-top: 6px;
             margin-bottom: 5px;
             page-break-inside: auto;
         }
         .pricing-table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
         }
         .pricing-table thead {
             display: table-header-group;
@@ -242,6 +245,10 @@
             font-weight: bold;
             padding: 4px 8px;
             text-align: left;
+            vertical-align: middle;
+        }
+        .pricing-table th.text-right {
+            text-align: right;
         }
         .pricing-table tr {
             page-break-inside: avoid;
@@ -252,16 +259,21 @@
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
         }
+        .pricing-table td.text-right {
+            text-align: right;
+        }
         .pricing-table tr:nth-child(even) {
             background-color: #f8fafc;
         }
         .price-unit {
             font-size: 9.5pt;
             color: #0f172a;
+            white-space: nowrap;
         }
         .price-total {
             font-size: 9.5pt;
             color: #c2410c;
+            white-space: nowrap;
         }
         .text-right { text-align: right; }
         .font-mono { font-family: 'Courier New', Courier, monospace; }
@@ -444,7 +456,6 @@
         {{-- 6. Packing & Logistics (MOQ) --}}
         @if($hasCbm || $hasGw)
             <div class="logistics-section">
-                <div class="section-heading">PACKING &amp; LOGISTICS (MOQ)</div>
                 <table style="width: 100%; table-layout: fixed;">
                     <tr>
                         <td style="width: 49.5%; vertical-align: top;">
@@ -467,14 +478,19 @@
 
         {{-- 7. PRICING SCHEDULE (USD) — MUST BE THE FINAL SUBSTANTIVE CONTENT SECTION --}}
         <div class="pricing-section">
-            <div class="section-heading">PRICING SCHEDULE (USD)</div>
             <table class="pricing-table">
+                <colgroup>
+                    <col style="width: 25%;">
+                    <col style="width: 33%;">
+                    <col style="width: 21%;">
+                    <col style="width: 21%;">
+                </colgroup>
                 <thead>
                     <tr>
                         <th style="width: 25%;">Pricing Tier</th>
-                        <th style="width: 35%;">Minimum Quantity / Basis</th>
-                        <th style="width: 20%;" class="text-right">Unit Price (USD)</th>
-                        <th style="width: 20%;" class="text-right">Total Price (USD)</th>
+                        <th style="width: 33%;">Minimum Quantity / Basis</th>
+                        <th style="width: 21%; text-align: right;" class="text-right">Unit Price (USD)</th>
+                        <th style="width: 21%; text-align: right;" class="text-right">Total Price (USD)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -482,8 +498,8 @@
                         <tr>
                             <td class="font-bold" style="color: #0f172a;">{{ $tier['tierName'] ?? 'Standard' }}</td>
                             <td style="color: #475569;">{{ $tier['quantityBasis'] ?? '100 PCS' }}</td>
-                            <td class="text-right font-bold font-mono price-unit">${{ number_format($tier['unitPrice'] ?? 0, 2) }} / pc</td>
-                            <td class="text-right font-bold font-mono price-total">${{ number_format($tier['totalPrice'] ?? 0, 2) }} USD</td>
+                            <td class="text-right font-bold font-mono price-unit" style="text-align: right;">${{ number_format($tier['unitPrice'] ?? 0, 2) }} / pc</td>
+                            <td class="text-right font-bold font-mono price-total" style="text-align: right;">${{ number_format($tier['totalPrice'] ?? 0, 2) }} USD</td>
                         </tr>
                     @endforeach
                 </tbody>

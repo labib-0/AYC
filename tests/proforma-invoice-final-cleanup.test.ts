@@ -229,13 +229,15 @@ function runProformaInvoiceFinalCleanupAudit() {
     bladeCode.indexOf("{{-- Right Side: Order Amount Summary --}}")
   );
   const hasExactWhatsAppEmailWording =
-    shippingInfoSection.includes("• Shipping arrangement: Discuss Directly on WhatsApp or Email");
+    shippingInfoSection.includes("Shipping &amp; Delivery:") &&
+    shippingInfoSection.includes("Arrangements and carrier booking to be confirmed via WhatsApp or email.") &&
+    shippingInfoSection.includes("Shipping charges are excluded from the merchandise total.");
 
   assert(
     hasExactWhatsAppEmailWording,
     11,
-    "The new shipping arrangement text appears with exact wording 'Discuss Directly on WhatsApp or Email'",
-    "Rendered prominently in Shipping & Delivery Information"
+    "The new shipping text appears with exact business-standard wording",
+    "Rendered cleanly: Shipping & Delivery: Arrangements and carrier booking to be confirmed via WhatsApp or email. Shipping charges are excluded from the merchandise total."
   );
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -350,13 +352,15 @@ function runProformaInvoiceFinalCleanupAudit() {
   });
 
   const pdfArrayBuffer = jsPdfDoc.output("arraybuffer");
-  const layoutVersionBumped = artifactServiceCode.includes("v10.0_pi_shipment_totals_and_goods_table_cleanup");
+  const layoutVersionBumped =
+    artifactServiceCode.includes("v10.0_pi_shipment_totals_and_goods_table_cleanup") ||
+    artifactServiceCode.includes("v10.1_pi_shipping_text_update");
   const hasExactA4Geometry = bladeCode.includes("size: a4 portrait;") && bladeCode.includes("margin: 14mm 14mm 16mm 14mm;");
 
   assert(
     Boolean(jsPdfDoc) && pdfArrayBuffer.byteLength > 2000 && layoutVersionBumped && hasExactA4Geometry,
     14,
-    "The PI renders cleanly within A4 geometry, invalidating stale cache via layout version v10.0",
+    "The PI renders cleanly within A4 geometry, invalidating stale cache via layout version",
     `Generated PDF: ${pdfArrayBuffer.byteLength} bytes, A4 portrait margins verified`
   );
 

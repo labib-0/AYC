@@ -242,21 +242,17 @@
             margin-bottom: 8px;
             table-layout: fixed;
         }
-        .shipping-title {
-            font-size: 9.2pt;
-            font-weight: bold;
-            color: #0f172a;
-            margin-bottom: 4px;
-        }
-        .shipping-bullet {
+        .shipping-block {
             font-size: 8.8pt;
             color: #475569;
-            margin-bottom: 3px;
-            line-height: 1.38;
+            line-height: 1.45;
+        }
+        .shipping-lead {
+            font-weight: bold;
+            color: #0f172a;
         }
         .shipping-alert {
             color: #c2410c;
-            font-weight: bold;
         }
         .totals-card {
             background: #f8fafc;
@@ -478,12 +474,10 @@
     <table class="summary-wrapper">
         <tr>
             {{-- Left Side: Shipping Information --}}
-            <td style="width: 53%; vertical-align: top; padding-right: 10px;">
-                <div class="shipping-title">Shipping &amp; Delivery Information:</div>
-                <div class="shipping-bullet">• Shipping arrangement: Discuss Directly on WhatsApp or Email</div>
-                <div class="shipping-bullet shipping-alert">• Shipping arrangements to be confirmed separately.</div>
-                <div class="shipping-bullet shipping-alert">• Shipping charges are NOT included in the merchandise total below.</div>
-                <div class="shipping-bullet">• Contact our export logistics desk to arrange carrier booking.</div>
+            <td style="width: 53%; vertical-align: top; padding-right: 12px;">
+                <div class="shipping-block">
+                    <strong class="shipping-lead">Shipping &amp; Delivery:</strong> Arrangements and carrier booking to be confirmed via WhatsApp or email. <span class="shipping-alert">Shipping charges are excluded from the merchandise total.</span>
+                </div>
             </td>
 
             {{-- Right Side: Order Amount Summary --}}

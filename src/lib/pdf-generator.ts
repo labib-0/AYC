@@ -749,18 +749,12 @@ export function generateOfferSheetPDFDoc(
       y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 5 : y + 26;
     }
 
-    // 7. PACKING & LOGISTICS (MOQ)
-    if (y + 22 > pageBottomSafeY) {
+    // 7. Packing & Logistics Cards (MOQ)
+    if (y + 18 > pageBottomSafeY) {
       doc.addPage();
       y = margin;
       printContinuationHeader();
     }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text("PACKING & LOGISTICS (MOQ)", margin, y);
-    y += 4;
 
     const logBoxH = 12;
     const logGap = 3;
@@ -815,18 +809,12 @@ export function generateOfferSheetPDFDoc(
 
     y += logBoxH + 5;
 
-    // 8. PRICING SCHEDULE (USD)
-    if (y + 24 > pageBottomSafeY) {
+    // 8. Pricing Schedule Table
+    if (y + 20 > pageBottomSafeY) {
       doc.addPage();
       y = margin;
       printContinuationHeader();
     }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text("PRICING SCHEDULE (USD)", margin, y);
-    y += 3.5;
 
     const pricingRows: string[][] = (product.pricingTiers || []).map((t: any) => [
       t.tierName,
@@ -859,10 +847,15 @@ export function generateOfferSheetPDFDoc(
         textColor: [30, 41, 59],
       },
       columnStyles: {
-        0: { cellWidth: 32, fontStyle: "bold" },
-        1: { cellWidth: 60 },
+        0: { cellWidth: 36, fontStyle: "bold" },
+        1: { cellWidth: 56 },
         2: { cellWidth: 45, fontStyle: "bold", textColor: [15, 23, 42], halign: "right" },
         3: { cellWidth: 45, fontStyle: "bold", textColor: [194, 65, 12], halign: "right" },
+      },
+      didParseCell: (data: any) => {
+        if (data.column.index === 2 || data.column.index === 3) {
+          data.cell.styles.halign = "right";
+        }
       },
     });
 
@@ -1635,23 +1628,25 @@ export function generateProformaInvoiceDoc(
   const summaryWidth = 85;
   const summaryX = pageWidth - margin - summaryWidth;
 
-  // Left side: Shipping note & packaging
+  // Left side: Shipping note
+  const shipTitle = "Shipping & Delivery: ";
+  const shipPart1 = "Arrangements and carrier booking to be";
+  const shipPart2 = "confirmed via WhatsApp or email.";
+  const shipAlert = "Shipping charges are excluded from the merchandise total.";
+
+  doc.setFontSize(8.2);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("Shipping & Delivery Information:", margin, y + 4);
+  doc.text(shipTitle, margin, y + 4.5);
+  const shipTitleW = doc.getTextWidth(shipTitle);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
   doc.setTextColor(71, 85, 105);
-  doc.text("• Shipping arrangement: Discuss Directly on WhatsApp or Email", margin, y + 8.5);
-  doc.setTextColor(194, 65, 12); // amber-700
-  doc.setFont("helvetica", "bold");
-  doc.text("• Shipping arrangements to be confirmed separately.", margin, y + 12.5);
-  doc.text("• Shipping charges are NOT included in the merchandise total below.", margin, y + 16.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  doc.text("• Contact our export logistics desk to arrange carrier booking.", margin, y + 20.5);
+  doc.text(shipPart1, margin + shipTitleW, y + 4.5);
+  doc.text(shipPart2, margin, y + 9);
+
+  doc.setTextColor(194, 65, 12); // amber-700 / orange accent
+  doc.text(shipAlert, margin, y + 13.5);
 
   // Right side: Financial Totals Box
   const hasDiscount = discountVal > 0;

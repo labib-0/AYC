@@ -181,9 +181,6 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
 
               {/* 7. Packing & Logistics (MOQ) */}
               <div>
-                <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2">
-                  PACKING &amp; LOGISTICS (MOQ)
-                </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
@@ -206,9 +203,6 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
 
               {/* 8. Complete Product Pricing Chart (Standard, Bulk, Full Stock) */}
               <div>
-                <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2.5">
-                  PRICING SCHEDULE (USD)
-                </h3>
                 {product.pricingTiers.length === 0 ? (
                   <div className="rounded-xl border border-border/60 bg-secondary/20 p-3 text-muted-foreground text-xs">
                     Price available upon direct request.

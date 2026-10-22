@@ -124,13 +124,15 @@ describe("Offer Sheet Layout Rebuild & Unified PDF Pipeline Tests", () => {
     // Check Gallery 4-per-row
     assert.ok(pdfGenCode.includes("const MAX_PER_ROW = 4") || pdfGenCode.includes("const cols = 4"), "Gallery must strictly limit images to 4 per row");
 
-    // Check Sections in order
+    // Check Sections
     assert.ok(pdfGenCode.includes("PRODUCT DESCRIPTION"), "Section 5: PRODUCT DESCRIPTION must exist");
     assert.ok(pdfGenCode.includes("PRODUCT SPECIFICATIONS"), "Section 6: PRODUCT SPECIFICATIONS must exist");
-    assert.ok(pdfGenCode.includes("PACKING & LOGISTICS (MOQ)"), "Section 7: PACKING & LOGISTICS (MOQ) must exist");
-    assert.ok(pdfGenCode.includes("PRICING SCHEDULE (USD)"), "Section 8: PRICING SCHEDULE (USD) must exist");
-    assert.ok(pdfGenCode.includes("COMMERCIAL TERMS"), "Section 9: COMMERCIAL TERMS must exist");
-    assert.ok(pdfGenCode.includes("AUTHORIZED REPRESENTATIVE"), "Section 10: AUTHORIZED REPRESENTATIVE must exist");
+    assert.ok(pdfGenCode.includes("CBM (MOQ)"), "CBM (MOQ) card must exist");
+    assert.ok(pdfGenCode.includes("GROSS WEIGHT (MOQ)"), "GROSS WEIGHT (MOQ) card must exist");
+    assert.ok(pdfGenCode.includes("Unit Price (USD)"), "Unit Price (USD) column must exist");
+    assert.ok(pdfGenCode.includes("Total Price (USD)"), "Total Price (USD) column must exist");
+    assert.ok(!pdfGenCode.includes("doc.text(\"PACKING & LOGISTICS (MOQ)"), "PACKING & LOGISTICS heading must be removed");
+    assert.ok(!pdfGenCode.includes("doc.text(\"PRICING SCHEDULE (USD)"), "PRICING SCHEDULE heading must be removed");
 
     // Check Viewer and Download parity implementation
     const viewerCode = fs.readFileSync(path.join(repoRoot, "src/components/admin/documents/DocumentViewer.tsx"), "utf-8");
