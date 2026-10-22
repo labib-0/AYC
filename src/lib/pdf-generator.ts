@@ -1876,11 +1876,12 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
   doc.setFontSize(6.8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(71, 85, 105);
-  doc.text(expName, margin + 3, y + 9);
-  doc.text(expAddress.slice(0, 45), margin + 3, y + 12.5);
+  doc.text(expName.slice(0, 36), margin + 3, y + 9);
+  doc.text(expAddress.slice(0, 40), margin + 3, y + 12.5);
   doc.text("Country of Origin: Bangladesh", margin + 3, y + 16);
-  doc.text(`Email: ${expEmail} • WA: ${expPhone}`, margin + 3, y + 19.5);
-  doc.text(`Reg: ${expReg}`, margin + 3, y + 23);
+  doc.text(`Email: ${expEmail}`.slice(0, 36), margin + 3, y + 19.5);
+  doc.text(`WhatsApp: ${expPhone}`.slice(0, 36), margin + 3, y + 23);
+  doc.text(`Trade Reg: ${expReg}`.slice(0, 36), margin + 3, y + 26.5);
 
   // Buyer / Consignee Column
   const buyerX = margin + 65;
@@ -1894,11 +1895,11 @@ export function generateCommercialInvoiceDoc(order: OrderRecord, commercialDoc?:
   doc.setTextColor(71, 85, 105);
   const buyerName = commercialDoc?.buyerName || order.shipping_name || "Valued Buyer";
   const buyerComp = commercialDoc?.companyName || order.shipping_company || buyerName;
-  doc.text(buyerComp, buyerX, y + 9);
-  doc.text(`Attn: ${buyerName}`, buyerX, y + 12.5);
-  doc.text(order.shipping_address1 || commercialDoc?.buyerAddress || "Destination Address", buyerX, y + 16);
-  doc.text(`${order.shipping_city || ""} ${order.shipping_postal_code || ""}, ${order.shipping_country_code || commercialDoc?.buyerCountry || "US"}`, buyerX, y + 19.5);
-  doc.text(`Email: ${order.email || commercialDoc?.buyerEmail || ""}`, buyerX, y + 23);
+  doc.text(buyerComp.slice(0, 36), buyerX, y + 9);
+  doc.text(`Attn: ${buyerName}`.slice(0, 36), buyerX, y + 12.5);
+  doc.text((order.shipping_address1 || commercialDoc?.buyerAddress || "Destination Address").slice(0, 36), buyerX, y + 16);
+  doc.text(`${order.shipping_city || ""} ${order.shipping_postal_code || ""}, ${order.shipping_country_code || commercialDoc?.buyerCountry || "US"}`.slice(0, 36), buyerX, y + 19.5);
+  doc.text(`Email: ${order.email || commercialDoc?.buyerEmail || ""}`.slice(0, 36), buyerX, y + 23);
 
   // Pre-calculate Total CBM and Total Gross Weight from ordered items & packaging profiles
   let totalCbm = 0;

@@ -50,33 +50,21 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
           </p>
         </div>
 
-        {/* Proforma Invoice Logistics Snapshot */}
-        <div className="p-4 rounded-2xl bg-secondary/30 border border-border/60 space-y-1.5">
+        {/* Proforma Invoice Logistics & Shipping Notice */}
+        <div className="p-4 rounded-2xl bg-secondary/30 border border-border/60 space-y-2">
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>Physical Shipment &amp; Logistics</span>
-            {snapshot?.is_provisional && (
-              <span className="text-[10px] uppercase font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded">
-                Estimated Shipping
-              </span>
-            )}
+            <span>Shipping &amp; Delivery Terms</span>
+            <span className="text-[10px] uppercase font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded">
+              Excluded From Total
+            </span>
           </span>
-          
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-muted-foreground">
-            <div><strong className="text-foreground">Carrier:</strong> {snapshot?.carrier || (doc.shipping > 0 ? "Aramex Express Air" : "To be confirmed")}</div>
-            <div><strong className="text-foreground">Cartons:</strong> {snapshot?.carton_count || 1} ctn</div>
-            <div><strong className="text-foreground">Gross Wt:</strong> {snapshot?.gross_weight ? `${snapshot.gross_weight} kg` : "N/A"}</div>
-            <div><strong className="text-foreground">Volume:</strong> {snapshot?.cbm ? `${snapshot.cbm} m³` : "0.072 m³"}</div>
-            <div className="col-span-2"><strong className="text-foreground">Terms:</strong> {doc.incoterm || "FOB Dhaka / CIF"}</div>
-            {snapshot?.tracking_number && (
-              <div className="col-span-2 text-primary font-mono font-bold">
-                AWB Tracking: {snapshot.tracking_number}
-              </div>
-            )}
-            {!doc.shipping && (
-              <div className="col-span-2 text-amber-600 dark:text-amber-400 font-semibold pt-1">
-                Freight charges to be confirmed directly by export desk.
-              </div>
-            )}
+          <div className="text-xs leading-relaxed text-muted-foreground">
+            <strong className="text-foreground font-bold">Shipping &amp; Delivery:</strong> Arrangements and carrier booking to be confirmed via WhatsApp or email.{" "}
+            <span className="text-amber-600 dark:text-amber-400 font-semibold">Shipping charges are excluded from the merchandise total.</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-muted-foreground pt-1 text-[11px]">
+            <div><strong className="text-foreground">Total CBM:</strong> {snapshot?.cbm ? `${Number(snapshot.cbm).toFixed(4)} m³` : "Pending Package Profile"}</div>
+            <div><strong className="text-foreground">Gross Weight:</strong> {snapshot?.gross_weight ? `${Number(snapshot.gross_weight).toFixed(0)} KG` : "Pending Package Profile"}</div>
           </div>
         </div>
       </div>
@@ -144,15 +132,22 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
 
       {/* Financial Summary */}
       <div className="flex flex-col sm:flex-row justify-between gap-8 pt-4 border-t border-border">
-        <div className="flex-1 space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-            Commercial Terms &amp; Notes
-          </span>
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            1. Goods manufactured in compliance with ISO 9001 and OEKO-TEX Standard 100 quality standards.<br />
-            2. Official export documentation package includes Commercial Invoice, Packing List, and Certificate of Origin.<br />
-            3. Payment Terms: {doc.paymentTerms || "100% Advance T/T or L/C at sight"}.
-          </p>
+        <div className="flex-1 space-y-3">
+          <div className="p-3.5 rounded-2xl bg-secondary/30 border border-border/60 text-xs leading-relaxed">
+            <strong className="text-foreground font-bold">Shipping &amp; Delivery:</strong> Arrangements and carrier booking to be confirmed via WhatsApp or email.{" "}
+            <span className="text-amber-600 dark:text-amber-400 font-semibold">Shipping charges are excluded from the merchandise total.</span>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+              Commercial Terms &amp; Notes
+            </span>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              1. Goods manufactured in compliance with ISO 9001 and OEKO-TEX Standard 100 quality standards.<br />
+              2. Official export documentation package includes Commercial Invoice, Packing List, and Certificate of Origin.<br />
+              3. Payment Terms: {doc.paymentTerms || "100% Advance T/T or L/C at sight"}.
+            </p>
+          </div>
         </div>
 
         <div className="w-full sm:w-80 space-y-2 shrink-0 bg-secondary/20 p-4 rounded-2xl border border-border/60 text-xs">
@@ -160,6 +155,13 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
             <span>Goods Value (Subtotal):</span>
             <span className="font-bold text-foreground">${Number(doc.goods_value ?? doc.subtotal ?? 0).toFixed(2)}</span>
           </div>
+
+          {Number(doc.discount || (doc as any).coupon_discount || (doc as any).manual_discount || 0) > 0 && (
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+              <span>Discounts:</span>
+              <span className="font-bold">-${Number(doc.discount || ((doc as any).coupon_discount || 0) + ((doc as any).manual_discount || 0)).toFixed(2)}</span>
+            </div>
+          )}
 
           <div className="flex justify-between text-muted-foreground">
             <span className="flex items-center gap-1">
@@ -172,7 +174,7 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
               {Number(doc.shipping || 0) > 0 ? (
                 `$${Number(doc.shipping).toFixed(2)}`
               ) : (
-                <span className="text-amber-600 dark:text-amber-400 font-semibold">To be confirmed</span>
+                <span className="text-muted-foreground font-semibold">Excluded</span>
               )}
             </span>
           </div>
@@ -186,15 +188,10 @@ export default function ProformaInvoiceDocument({ doc }: ProformaInvoiceDocument
 
           <div className="flex justify-between text-base font-bold text-foreground pt-2.5 border-t-2 border-foreground">
             <span>
-              {doc.shipping > 0 ? "TOTAL PAYABLE:" : "MERCHANDISE TOTAL:"}
+              MERCHANDISE TOTAL:
             </span>
             <span>
               ${(doc.total_payable ?? doc.grandTotal).toFixed(2)} {doc.currency}
-              {!doc.shipping && (
-                <span className="block text-[10px] text-amber-600 dark:text-amber-400 font-medium text-right">
-                  + freight (to be confirmed)
-                </span>
-              )}
             </span>
           </div>
         </div>

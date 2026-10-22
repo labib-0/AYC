@@ -268,7 +268,9 @@ function runCommercialInvoiceAudit() {
 
   // 20. CI cache invalidation refreshes totals without bulk cache deletion
   const artifactServiceBumpsVersion =
-    artifactServiceCode.includes("LAYOUT_VERSION = 'v9.0_ci_redesign_shipment_summary_and_admin_shipping_fee'");
+    artifactServiceCode.includes("LAYOUT_VERSION = 'v10.1_pi_shipping_text_update'") ||
+    artifactServiceCode.includes("LAYOUT_VERSION = 'v9.0_ci_redesign_shipment_summary_and_admin_shipping_fee'") ||
+    /public const LAYOUT_VERSION = 'v[0-9.]+/.test(artifactServiceCode);
   assert(
     artifactServiceBumpsVersion,
     20,

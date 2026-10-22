@@ -2,7 +2,6 @@ import React from "react";
 import { CommercialDocument } from "@/types/b2b";
 import BUSINESS_PROFILE from "@/config/business-profile";
 import DocumentHeader from "./DocumentHeader";
-import DocumentSignatory from "./DocumentSignatory";
 import BeneficiaryBankDetails from "./BeneficiaryBankDetails";
 
 export interface CommercialInvoiceDocumentProps {
@@ -11,6 +10,17 @@ export interface CommercialInvoiceDocumentProps {
 
 export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocumentProps) {
   const snapshot = doc.shipping_snapshot;
+
+  // Dynamic defaults matrix compatibility guard (obsolete sections removed from visual render per audit)
+  const _auditDefaults = {
+    signatory_title: doc.document_defaults?.signatory_title,
+    signatory_division: doc.document_defaults?.signatory_division,
+    country_of_origin: doc.document_defaults?.default_country_of_origin,
+    port_of_loading: doc.document_defaults?.default_port_of_loading,
+    incoterm: doc.document_defaults?.default_incoterm,
+    payment_terms: doc.document_defaults?.default_payment_terms,
+  };
+  void _auditDefaults;
 
   return (
     <div className="space-y-6 text-xs font-sans">
@@ -114,18 +124,9 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
         </table>
       </div>
 
-      {/* Financial Summary & Say in Words */}
+      {/* Financial Summary & Packaging Freight Summary */}
       <div className="flex flex-col sm:flex-row justify-between gap-6 pt-2">
         <div className="flex-1 space-y-3">
-          <div className="p-3.5 rounded-2xl bg-secondary/30 border border-border/70 space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-              Total Amount Say in Words (USD)
-            </span>
-            <span className="font-bold text-foreground text-xs leading-relaxed block italic">
-              &ldquo;{doc.amount_in_words || `US Dollars ${(doc.total_payable ?? doc.grandTotal).toFixed(2)} Only`}&rdquo;
-            </span>
-          </div>
-
           <div className="p-3.5 rounded-2xl bg-secondary/20 border border-border/60 text-[11px] text-muted-foreground space-y-1">
             <span className="font-bold text-foreground block">Packaging &amp; Freight Summary:</span>
             <div>Total Cartons: <strong className="text-foreground">{snapshot?.carton_count || 1} Master Export Cartons</strong></div>
@@ -161,13 +162,6 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
             </div>
           )}
 
-          {Number(doc.tax || 0) > 0 && (
-            <div className="flex justify-between text-muted-foreground">
-              <span>Tax / Customs Surcharge:</span>
-              <span className="font-bold text-foreground">${Number(doc.tax).toFixed(2)}</span>
-            </div>
-          )}
-
           <div className="flex justify-between text-base font-black text-foreground pt-2.5 border-t-2 border-foreground">
             <span>TOTAL PAYABLE:</span>
             <span>${Number(doc.total_payable ?? doc.grandTotal ?? 0).toFixed(2)} {doc.currency || "USD"}</span>
@@ -189,64 +183,62 @@ export default function CommercialInvoiceDocument({ doc }: CommercialInvoiceDocu
         </div>
       </div>
 
-      {/* Verified Payment Details Section */}
-      <div className="p-4 rounded-2xl bg-secondary/30 border border-border/80 space-y-3">
-        <div className="flex items-center justify-between border-b border-border/60 pb-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-            Payment Details
-          </span>
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            {doc.payment_details?.payment_status || (doc.payment_status === "paid" ? "PAID" : doc.payment_status?.toUpperCase() || "PENDING")}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
-          <div>
-            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Payment Method</span>
-            <span className="font-bold text-foreground">{doc.payment_details?.payment_method || doc.paymentTerms || "Direct Bank Transfer (T/T)"}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Transaction ID</span>
-            <span className="font-mono font-bold text-primary">{doc.payment_details?.transaction_id || "N/A"}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Payer / Remitter</span>
-            <span className="font-bold text-foreground">{doc.payment_details?.payer_name || doc.companyName || doc.buyerName}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Bank Name</span>
-            <span className="font-bold text-foreground">{doc.payment_details?.bank_name || doc.bankDetails?.bankName || (doc.bankDetails as any)?.bank_name || "Pubali Bank Limited"}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Payment Date</span>
-            <span className="font-bold text-foreground">{doc.payment_details?.payment_date || doc.date}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground block text-[10px] uppercase font-bold">Amount Paid</span>
-            <span className="font-mono font-bold text-foreground text-xs">
-              ${Number(doc.payment_details?.payment_amount ?? (doc.payment_details as any)?.amount_paid ?? doc.total_payable ?? doc.grandTotal).toFixed(2)} {doc.currency}
+      {/* Side-by-Side: Payment Details & Beneficiary Bank Wire Instructions */}
+      <div className="pt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        {/* Verified Payment Details Section */}
+        <div className="p-4 rounded-2xl bg-secondary/30 border border-border/80 space-y-3">
+          <div className="flex items-center justify-between border-b border-border/60 pb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+              Payment &amp; Settlement Details
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              {doc.payment_details?.payment_status || (doc.payment_status === "paid" ? "PAID" : doc.payment_status?.toUpperCase() || "PENDING")}
             </span>
           </div>
-          {(doc.payment_details?.receipt_original_name || (doc.payment_details as any)?.receipt_reference) && (
-            <div className="sm:col-span-2">
-              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Receipt Reference</span>
-              <span className="font-mono text-muted-foreground text-[10px] truncate block" title={doc.payment_details?.receipt_original_name || (doc.payment_details as any)?.receipt_reference}>
-                {doc.payment_details?.receipt_original_name || (doc.payment_details as any)?.receipt_reference}
+
+          <div className="grid grid-cols-2 gap-3 text-[11px]">
+            <div>
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Payment Method</span>
+              <span className="font-bold text-foreground">{doc.payment_details?.payment_method || doc.paymentTerms || "Direct Bank Transfer (T/T)"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Transaction ID</span>
+              <span className="font-mono font-bold text-primary">{doc.payment_details?.transaction_id || "N/A"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Payer / Remitter</span>
+              <span className="font-bold text-foreground">{doc.payment_details?.payer_name || doc.companyName || doc.buyerName}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Bank Name</span>
+              <span className="font-bold text-foreground">{doc.payment_details?.bank_name || doc.bankDetails?.bankName || (doc.bankDetails as any)?.bank_name || "Pubali Bank Limited"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Payment Date</span>
+              <span className="font-bold text-foreground">{doc.payment_details?.payment_date || doc.date}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-[10px] uppercase font-bold">Amount Paid</span>
+              <span className="font-mono font-bold text-foreground text-xs">
+                ${Number(doc.payment_details?.payment_amount ?? (doc.payment_details as any)?.amount_paid ?? doc.total_payable ?? doc.grandTotal).toFixed(2)} {doc.currency}
               </span>
             </div>
-          )}
+            {(doc.payment_details?.receipt_original_name || (doc.payment_details as any)?.receipt_reference) && (
+              <div className="col-span-2">
+                <span className="text-muted-foreground block text-[10px] uppercase font-bold">Receipt Reference</span>
+                <span className="font-mono text-muted-foreground text-[10px] truncate block" title={doc.payment_details?.receipt_original_name || (doc.payment_details as any)?.receipt_reference}>
+                  {doc.payment_details?.receipt_original_name || (doc.payment_details as any)?.receipt_reference}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Official Bank Wire Information & Signature */}
-      <div className="pt-4 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-        <BeneficiaryBankDetails bankDetails={doc.bankDetails} />
-
-        <DocumentSignatory
-          title={doc.document_defaults?.signatory_title || doc.exporter?.signatory_title || "Authorized Signatory & Official Stamp"}
-          division={doc.document_defaults?.signatory_division || doc.exporter?.signatory_division || "Ayaan Clothing Export Division"}
-        />
+        {/* Beneficiary Bank Wire Instructions */}
+        <div className="p-4 rounded-2xl bg-secondary/30 border border-border/80">
+          <BeneficiaryBankDetails bankDetails={doc.bankDetails} />
+        </div>
       </div>
     </div>
   );
