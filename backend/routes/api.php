@@ -132,9 +132,15 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::delete('/{id}', [AddressController::class, 'destroy']);
     });
 
-    // Search Suggestions
+    // Search Suggestions & History
     Route::get('/search/suggestions', [SearchController::class, 'suggestions'])
         ->middleware(['throttle:search-suggestions', 'storefront.country.access']);
+    Route::get('/search/history', [SearchController::class, 'getHistory'])
+        ->middleware('storefront.country.access');
+    Route::post('/search/history', [SearchController::class, 'recordHistory'])
+        ->middleware('storefront.country.access');
+    Route::delete('/search/history', [SearchController::class, 'deleteHistory'])
+        ->middleware('storefront.country.access');
 
     // Homepage / Landing Page Configuration (Public Storefront)
     Route::get('/homepage', [HomepageController::class, 'index'])

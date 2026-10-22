@@ -61,16 +61,21 @@ export interface PaginatedProductsResult {
   };
 }
 
+export interface SearchSuggestionsProductItem {
+  id: string;
+  name: string;
+  slug: string;
+  sku: string;
+  brand: string;
+  brandLogo?: string | null;
+  price: number;
+  has_valid_price?: boolean;
+  image: string;
+  moq?: number;
+}
+
 export interface SearchSuggestionsResult {
-  products: Array<{
-    id: string;
-    name: string;
-    slug: string;
-    sku: string;
-    brand: string;
-    price: number;
-    image: string;
-  }>;
+  products: SearchSuggestionsProductItem[];
   categories: Array<{
     id: string;
     name: string;
@@ -892,42 +897,118 @@ export class ProductService {
   }
 
   /**
-   * Fetch search suggestions (quick autocomplete)
+   * Fetch search suggestions (quick autocomplete) with multi-dimensional product matching & relevance scoring
    */
-  async getSearchSuggestions(query: string): Promise<SearchSuggestionsResult> {
-    if (!isFrontendOnly()) {
-      const res = await apiClient.get<any>("/search/suggestions", {
-        params: { q: query },
-      });
-      const data = res?.data || res;
-      return {
-        products: data?.products || [],
-        categories: data?.categories || [],
-        brands: data?.brands || [],
-      };
-    }
-
+  async getSearchSuggestions(
+    query: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<SearchSuggestionsResult> {
     const q = query.toLowerCase().trim();
     if (!q) {
       return { products: [], categories: [], brands: [] };
+    }
+
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>("/search/suggestions", {
+          params: { q },
+          signal: options?.signal,
+        });
+        const data = res?.data || res;
+        return {
+          products: Array.isArray(data?.products) ? data.products : [],
+          categories: Array.isArray(data?.categories) ? data.categories : [],
+          brands: Array.isArray(data?.brands) ? data.brands : [],
+        };
+      } catch (err: any) {
+        if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
+          throw err;
+        }
+        // Fall through to offline mock store search
+      }
     }
 
     const allProducts = mockStore.getProducts();
     const allCategories = mockStore.getCategories();
     const allBrands = mockStore.getBrands();
 
-    const matchedProducts = allProducts
-      .filter((p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
-      .slice(0, 5)
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        sku: p.sku,
-        brand: p.brand,
-        price: p.standardPrice ?? p.wholesalePrice ?? 0,
-        image: p.images[0] || "/placeholder.jpg",
-      }));
+    // Map categories for rapid lookup
+    const categoryNameMap = new Map<string, string>();
+    allCategories.forEach((c) => {
+      categoryNameMap.set(String(c.id).toLowerCase(), (c.name || "").toLowerCase());
+      categoryNameMap.set((c.slug || "").toLowerCase(), (c.name || "").toLowerCase());
+    });
+
+    // Score products across Title, SKU, Brand, Category, and Description
+    const scoredProducts = allProducts.map((p) => {
+      let score = 0;
+      const name = (p.name || "").toLowerCase();
+      const sku = (p.sku || "").toLowerCase();
+      const brand = (p.brand || "").toLowerCase();
+      const catId = String(p.categoryId || (p as any).category_id || "").toLowerCase();
+      const catName = (p.categoryName || (p as any).category_name || categoryNameMap.get(catId) || "").toLowerCase();
+      const desc = `${p.description || ""} ${p.shortDescription || ""}`.toLowerCase();
+
+      // 1. Title match
+      if (name === q) {
+        score += 100;
+      } else if (name.startsWith(q)) {
+        score += 80;
+      } else if (name.includes(q)) {
+        score += 60;
+      }
+
+      // 2. SKU match
+      if (sku === q) {
+        score += 70;
+      } else if (sku.startsWith(q)) {
+        score += 50;
+      } else if (sku.includes(q)) {
+        score += 45;
+      }
+
+      // 3. Brand match (e.g., typing 'Lacoste', 'Nike', 'H&M' finds all products for that brand)
+      if (brand === q) {
+        score += 65;
+      } else if (brand.includes(q)) {
+        score += 40;
+      }
+
+      // 4. Category match (e.g., typing 'Sweater', 'Jeans', 'Shirt')
+      if (catName === q) {
+        score += 55;
+      } else if (catName.includes(q)) {
+        score += 35;
+      }
+
+      // 5. Description match
+      if (desc.includes(q)) {
+        score += 10;
+      }
+
+      return { product: p, score };
+    });
+
+    // Filter to only products with positive relevance score
+    const matched = scoredProducts
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .map(({ product: p }) => {
+        const rawPrice = p.standardPrice ?? p.wholesalePrice ?? 0;
+        return {
+          id: String(p.id),
+          name: p.name,
+          slug: p.slug,
+          sku: p.sku,
+          brand: p.brand || "Ayaan",
+          brandLogo: (p as any).brandLogo || (p as any).brand_logo || null,
+          price: rawPrice,
+          has_valid_price: rawPrice > 0,
+          image: p.images?.[0] || "/placeholder.jpg",
+          moq: p.moq || 10,
+        };
+      });
 
     const matchedCategories = allCategories
       .filter((c) => c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q))
@@ -950,7 +1031,7 @@ export class ProductService {
       }));
 
     return {
-      products: matchedProducts,
+      products: matched,
       categories: matchedCategories,
       brands: matchedBrands,
     };

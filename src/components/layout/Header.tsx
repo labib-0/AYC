@@ -20,6 +20,7 @@ import LocationModal from "./LocationModal";
 import LanguageCurrencyModal from "./LanguageCurrencyModal";
 import AuthModal from "../auth/AuthModal";
 import SearchOverlay from "./SearchOverlay";
+import { searchHistoryService } from "@/services/search-history.service";
 import BrandName from "../common/BrandName";
 import HeaderBranding from "../common/HeaderBranding";
 import { useCart } from "@/lib/CartContext";
@@ -202,15 +203,8 @@ function HeaderContent() {
       setIsSearchOpen(false);
       setSearchQuery(""); // Clear the visible input so search page loads with empty search bar
 
-      // Save to localStorage recent searches
-      try {
-        const saved = localStorage.getItem("ayaan_recent_searches");
-        const list: string[] = saved ? JSON.parse(saved) : ["Sweater", "T-Shirt", "Hoodie"];
-        const updated = [q, ...list.filter((item) => item.toLowerCase() !== q.toLowerCase())].slice(0, 6);
-        localStorage.setItem("ayaan_recent_searches", JSON.stringify(updated));
-      } catch {
-        // Ignore storage errors
-      }
+      // Record search query in persistent user/guest scoped search history
+      searchHistoryService.recordSearch(q).catch(() => {});
 
       // Navigate to dedicated search page
       router.push(`/search?query=${encodeURIComponent(q)}`);

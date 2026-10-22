@@ -75,7 +75,8 @@ const STOREFRONT_UNIT_SUITES = [
   "google-tags-tracking-persistence.test.ts",
   "cart-default-selection.test.ts",
   "admin-storefront-featured-ordering-reconciliation.test.ts",
-  "customer-signup-email-verification-lifecycle.test.ts"
+  "customer-signup-email-verification-lifecycle.test.ts",
+  "dynamic-search-dropdown-and-discovery.test.ts"
 ];
 
 // 2. Storefront Contract Suites (Mocked / Typed Fixtures)
