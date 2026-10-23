@@ -89,7 +89,7 @@ export default function BrandTile({
         {hasValidLogo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={resolvedLogo}
+            src={resolvedLogo || undefined}
             alt={`${brand.name} logo`}
             className="w-auto h-auto max-h-[62%] max-w-[76%] object-contain"
             loading="lazy"

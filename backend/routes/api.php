@@ -442,9 +442,12 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
             ->middleware('permission:inventory.adjust');
 
         // Supplier Master & Search (Admin Only)
-        Route::get('/suppliers', [AdminSupplierController::class, 'index']);
-        Route::get('/suppliers/{id}', [AdminSupplierController::class, 'show']);
-        Route::post('/suppliers', [AdminSupplierController::class, 'store']);
+        Route::get('/suppliers', [AdminSupplierController::class, 'index'])
+            ->middleware('permission:product.view');
+        Route::get('/suppliers/{id}', [AdminSupplierController::class, 'show'])
+            ->middleware('permission:product.view');
+        Route::post('/suppliers', [AdminSupplierController::class, 'store'])
+            ->middleware('permission:product.edit');
 
         // Customer & Account Management (Customers Only)
         Route::get('/customers/summary', [AdminCustomerController::class, 'summary'])

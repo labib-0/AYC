@@ -70,7 +70,7 @@ class ProductController extends ApiController
         $query = Product::with(['brand', 'categories', 'images', 'variants', 'pricingTiers', 'shippingPackageProfiles']);
 
         $user = $request->user() ?: auth('sanctum')->user();
-        $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
+        $isAdmin = (bool) ($user && $user->isAdmin());
 
         // Status filter (defaults to 'published' for public storefront; non-admins can ONLY view published & non-hidden products with a valid customer price)
         if (!$isAdmin) {
@@ -241,7 +241,7 @@ class ProductController extends ApiController
         }
 
         // Flags (storefront only matches active, unexpired promotional badges)
-        $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
+        $isAdmin = (bool) ($user && $user->isAdmin());
         if ($request->boolean('is_featured') || $request->boolean('is_pinned')) {
             $query->where(function ($q) {
                 $q->where('is_featured', true)->orWhere('is_pinned', true);
@@ -404,7 +404,7 @@ class ProductController extends ApiController
             $products = $query->paginate($perPage);
         }
 
-        $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
+        $isAdmin = (bool) ($user && $user->isAdmin());
         $isPaginated = $products instanceof \Illuminate\Pagination\LengthAwarePaginator;
         $metrics = $isAdmin ? $this->productMetricsService->getMetrics() : null;
 
@@ -3425,7 +3425,7 @@ class ProductController extends ApiController
     public function offerSheet(Request $request, string $slugOrId): \Illuminate\Http\Response|JsonResponse
     {
         $user = $request->user() ?: auth('sanctum')->user();
-        $isAdmin = $request->boolean('isAdmin') || ($user && $user->isAdmin());
+        $isAdmin = (bool) ($user && $user->isAdmin());
 
         $query = Product::with(['brand', 'images', 'pricingTiers']);
         $product = is_numeric($slugOrId)
