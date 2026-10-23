@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import {
   FileText,
   ShieldCheck,
@@ -146,14 +145,15 @@ export default function LegalPagesAdminSettings({ onNotify }: LegalPagesAdminSet
                 </h2>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                   <span>Storefront Route:</span>
-                  <Link
+                  <a
                     href={publicUrl}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="text-primary hover:underline flex items-center gap-1 font-mono font-medium"
                   >
                     <span>{publicUrl}</span>
                     <ExternalLink size={12} />
-                  </Link>
+                  </a>
                 </div>
               </div>
 

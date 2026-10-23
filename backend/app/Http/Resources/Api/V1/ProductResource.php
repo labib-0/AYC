@@ -39,6 +39,12 @@ class ProductResource extends JsonResource
         $lowestCustomerPrice = $this->getLowestCustomerUnitPrice();
         $hasValidPrice = ($lowestCustomerPrice !== null && $lowestCustomerPrice > 0) || ($effectivePrice !== null && $effectivePrice > 0);
 
+        $warehouseBreakdown = $this->getWarehouseStockBreakdown();
+        $primaryWarehouseId = !empty($warehouseBreakdown) ? $warehouseBreakdown[0]['warehouse_id'] : null;
+        $totalAvailableStock = (int) $this->getTotalAvailableStock();
+        $onHandStock = (int) $this->getOnHandStock();
+        $availableMoqs = (int) $this->getAvailableMoqs();
+
         return array_merge([
             'id' => (int) $this->id,
             'productId' => $this->when($isAdmin, $this->product_id),
@@ -128,26 +134,26 @@ class ProductResource extends JsonResource
             'full_stock_total' => (float) $this->getEligibleFullStockTotal(),
             'isB2bTier' => $isB2b,
             'moq' => (int) ($this->moq ?? 1),
-            'stock' => (int) $this->getTotalAvailableStock(),
-            'initial_stock' => (int) $this->getTotalAvailableStock(),
-            'initialStock' => (int) $this->getTotalAvailableStock(),
-            'on_hand_stock' => (int) $this->getOnHandStock(),
-            'onHandStock' => (int) $this->getOnHandStock(),
-            'available_stock' => (int) $this->getTotalAvailableStock(),
-            'availableStock' => (int) $this->getTotalAvailableStock(),
-            'available_moqs' => (int) $this->getAvailableMoqs(),
-            'availableMoqs' => (int) $this->getAvailableMoqs(),
-            'warehouse_breakdown' => $this->getWarehouseStockBreakdown(),
-            'warehouseBreakdown' => $this->getWarehouseStockBreakdown(),
-            'warehouse_id' => !empty($this->getWarehouseStockBreakdown()) ? $this->getWarehouseStockBreakdown()[0]['warehouse_id'] : null,
-            'warehouseId' => !empty($this->getWarehouseStockBreakdown()) ? $this->getWarehouseStockBreakdown()[0]['warehouse_id'] : null,
+            'stock' => $totalAvailableStock,
+            'initial_stock' => $totalAvailableStock,
+            'initialStock' => $totalAvailableStock,
+            'on_hand_stock' => $onHandStock,
+            'onHandStock' => $onHandStock,
+            'available_stock' => $totalAvailableStock,
+            'availableStock' => $totalAvailableStock,
+            'available_moqs' => $availableMoqs,
+            'availableMoqs' => $availableMoqs,
+            'warehouse_breakdown' => $warehouseBreakdown,
+            'warehouseBreakdown' => $warehouseBreakdown,
+            'warehouse_id' => $primaryWarehouseId,
+            'warehouseId' => $primaryWarehouseId,
             'max_complete_packages' => $this->getMaxCompletePackages(),
             'maxCompletePackages' => $this->getMaxCompletePackages(),
             'complete_package_stock' => $this->getCompletePackageStock(),
             'completePackageStock' => $this->getCompletePackageStock(),
             'in_stock' => ($this->relationLoaded('packageAllocations') ? $this->packageAllocations->isNotEmpty() : $this->packageAllocations()->exists())
                 ? $this->getMaxCompletePackages() > 0
-                : $this->getTotalAvailableStock() > 0,
+                : $totalAvailableStock > 0,
             'youtubeVideoId' => $this->getYoutubeVideoId(),
             'youtubeEmbedUrl' => $this->getYoutubeEmbedUrl(),
             'facebookVideoUrl' => $this->getFacebookVideoUrl(),

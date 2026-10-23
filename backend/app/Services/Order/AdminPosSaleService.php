@@ -222,6 +222,7 @@ class AdminPosSaleService
             ->with([
                 'brand',
                 'images',
+                'directInventories.warehouse',
                 'variants.inventories.warehouse',
                 'packageAllocations.variant',
                 'pricingTiers',

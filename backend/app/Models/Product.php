@@ -895,7 +895,12 @@ class Product extends Model
             : $this->variants()->with('inventories')->get();
 
         if ($variants->isEmpty()) {
-            $directInvs = Inventory::where('product_id', $this->id)->get();
+            if ($this->relationLoaded('directInventories')) {
+                $directInvs = $this->directInventories;
+            } else {
+                $directInvs = Inventory::where('product_id', $this->id)->get();
+                $this->setRelation('directInventories', $directInvs);
+            }
             if ($directInvs->isNotEmpty()) {
                 return max(0, (int) $directInvs->sum('quantity'));
             }
@@ -948,7 +953,12 @@ class Product extends Model
         $warehouses = [];
 
         if ($variants->isEmpty()) {
-            $directInvs = Inventory::where('product_id', $this->id)->with('warehouse')->get();
+            if ($this->relationLoaded('directInventories')) {
+                $directInvs = $this->directInventories;
+            } else {
+                $directInvs = Inventory::where('product_id', $this->id)->with('warehouse')->get();
+                $this->setRelation('directInventories', $directInvs);
+            }
             foreach ($directInvs as $inv) {
                 $whId = $inv->warehouse_id;
                 $whName = $inv->warehouse?->name ?? "Warehouse #{$whId}";

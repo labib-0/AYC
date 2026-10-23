@@ -50,7 +50,8 @@ export default function BrandCard({
   const canReorder = can("brand.edit") || can("brand.manage") || can("brand.reorder");
 
   const rawLogo = brand.logo_url || brand.logo;
-  const resolvedLogo = getBrandLogoUrl(brand.name, rawLogo) || rawLogo || "";
+  const cleanRawLogo = rawLogo && !rawLogo.includes("generic.png") && !rawLogo.includes("placeholder") ? rawLogo : null;
+  const resolvedLogo = getBrandLogoUrl(brand.name, cleanRawLogo) || cleanRawLogo || "";
   const hasLogo = Boolean(resolvedLogo && !imgError);
 
   const isActive = brand.is_active !== false;

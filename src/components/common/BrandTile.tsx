@@ -45,7 +45,8 @@ export default function BrandTile({
   const [hasImgError, setHasImgError] = useState(false);
 
   const rawLogo = brand.logo_url || brand.logo;
-  const resolvedLogo = getBrandLogoUrl(brand.name, rawLogo) || rawLogo;
+  const cleanRawLogo = rawLogo && !rawLogo.includes("generic.png") && !rawLogo.includes("placeholder") ? rawLogo : null;
+  const resolvedLogo = getBrandLogoUrl(brand.name, cleanRawLogo) || cleanRawLogo;
   const hasValidLogo = Boolean(
     resolvedLogo &&
       resolvedLogo.trim() !== "" &&

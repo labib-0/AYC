@@ -73,7 +73,8 @@ export function BrandFilterGrid({
             (b) => b.toLowerCase() === brandNameLower || (brandSlugLower && b.toLowerCase() === brandSlugLower)
           );
           const rawLogo = brand.logo_url || brand.logo;
-          const resolvedLogo = getBrandLogoUrl(brand.name, rawLogo) || rawLogo;
+          const cleanRawLogo = rawLogo && !rawLogo.includes("generic.png") && !rawLogo.includes("placeholder") ? rawLogo : null;
+          const resolvedLogo = getBrandLogoUrl(brand.name, cleanRawLogo) || cleanRawLogo;
 
           return (
             <BrandLogoTile

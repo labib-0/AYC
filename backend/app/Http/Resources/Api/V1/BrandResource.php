@@ -18,7 +18,7 @@ class BrandResource extends JsonResource
             'id' => (string) $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
-            'logo' => $this->logo_url ?: '/brands/generic.png',
+            'logo' => $this->logo_url,
             'logo_url' => $this->logo_url,
             'website' => $this->website,
             'sort_order' => (int) ($this->sort_order ?? 0),
