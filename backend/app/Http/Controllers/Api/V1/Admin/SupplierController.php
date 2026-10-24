@@ -4,18 +4,28 @@ namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Api\ApiController;
 use App\Models\Supplier;
+use App\Services\Rbac\AdminAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SupplierController extends ApiController
 {
+    public function __construct(
+        private readonly AdminAuthorizationService $authorization
+    ) {}
+
     /**
      * GET /api/v1/admin/suppliers
      * Search and list suppliers for admin selector and management.
      */
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if (!$user || (!$user->isSuperAdmin() && !$this->authorization->can($user, 'supplier.view'))) {
+            return $this->forbidden('Forbidden: you do not have permission to view suppliers.');
+        }
+
         $query = Supplier::query();
 
         if (!$request->boolean('include_inactive')) {
@@ -42,8 +52,13 @@ class SupplierController extends ApiController
      * GET /api/v1/admin/suppliers/{id}
      * Get a single supplier by ID or code.
      */
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
+        $user = $request->user();
+        if (!$user || (!$user->isSuperAdmin() && !$this->authorization->can($user, 'supplier.view'))) {
+            return $this->forbidden('Forbidden: you do not have permission to view supplier details.');
+        }
+
         $supplier = is_numeric($id)
             ? Supplier::find((int) $id)
             : Supplier::where('code', $id)->first();
@@ -61,6 +76,10 @@ class SupplierController extends ApiController
      */
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if (!$user || (!$user->isSuperAdmin() && !$this->authorization->can($user, 'supplier.create'))) {
+            return $this->forbidden('Forbidden: you do not have permission to create suppliers.');
+        }
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:50', 'unique:suppliers,code'],
             'name' => ['required', 'string', 'max:255'],

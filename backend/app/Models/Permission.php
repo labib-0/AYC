@@ -155,6 +155,12 @@ class Permission extends Model
             'brand.feature'            => ['name' => 'Feature Brand',        'module' => 'Catalog', 'action' => 'feature',          'description' => 'Mark a brand as featured on homepage',  'requires' => ['brand.view']],
             'brand.reorder'            => ['name' => 'Reorder Brands',       'module' => 'Catalog', 'action' => 'reorder',          'description' => 'Change display order of brands',        'requires' => ['brand.view']],
 
+            // ── Catalog: Suppliers ─────────────────────────────────────────
+            'supplier.view'            => ['name' => 'View Suppliers',        'module' => 'Catalog', 'action' => 'view',             'description' => 'View supplier directory, contact details, and procurement profiles', 'requires' => []],
+            'supplier.create'          => ['name' => 'Create Supplier',       'module' => 'Catalog', 'action' => 'create',           'description' => 'Register new manufacturing suppliers and factory sources',     'requires' => ['supplier.view']],
+            'supplier.edit'            => ['name' => 'Edit Supplier',         'module' => 'Catalog', 'action' => 'edit',             'description' => 'Edit supplier profiles, contact details, and notes',          'requires' => ['supplier.view']],
+            'supplier.delete'          => ['name' => 'Delete Supplier',       'module' => 'Catalog', 'action' => 'delete',           'description' => 'Deactivate or delete suppliers',                               'requires' => ['supplier.view']],
+
             // ── Homepage / Merchandising ───────────────────────────────────
             'homepage.view'              => ['name' => 'View Homepage Config',    'module' => 'Merchandising', 'action' => 'view',           'description' => 'View homepage configuration',                   'requires' => []],
             'homepage.banner.view'       => ['name' => 'View Banner',            'module' => 'Merchandising', 'action' => 'banner.view',    'description' => 'View homepage promotional banner',              'requires' => ['homepage.view']],

@@ -154,12 +154,13 @@ class RbacPermissionCatalogSeeder extends Seeder
                     'product.shipping_profile.manage',
                     'category.view',
                     'brand.view',
+                    'supplier.view',
                 ],
             ],
             [
                 'name'        => 'Order Manager',
                 'slug'        => 'order_manager',
-                'description' => 'View and manage orders including status transitions and fulfillment.',
+                'description' => 'View and manage orders including status transitions, fulfillment, POS, and invoice generation.',
                 'permissions' => [
                     'order.view',
                     'order.view_customer',
@@ -174,6 +175,10 @@ class RbacPermissionCatalogSeeder extends Seeder
                     'order.shipping.view',
                     'order.shipping.update',
                     'customer.view',
+                    'pos.view',
+                    'pos.create',
+                    'pos.discount',
+                    'document.invoice.generate',
                 ],
             ],
             [
@@ -199,6 +204,7 @@ class RbacPermissionCatalogSeeder extends Seeder
                     'inventory.adjust',
                     'inventory.audit',
                     'product.view',
+                    'supplier.view',
                 ],
             ],
             [

@@ -443,11 +443,11 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
 
         // Supplier Master & Search (Admin Only)
         Route::get('/suppliers', [AdminSupplierController::class, 'index'])
-            ->middleware('permission:product.view');
+            ->middleware('permission:supplier.view');
         Route::get('/suppliers/{id}', [AdminSupplierController::class, 'show'])
-            ->middleware('permission:product.view');
+            ->middleware('permission:supplier.view');
         Route::post('/suppliers', [AdminSupplierController::class, 'store'])
-            ->middleware('permission:product.edit');
+            ->middleware('permission:supplier.create');
 
         // Customer & Account Management (Customers Only)
         Route::get('/customers/summary', [AdminCustomerController::class, 'summary'])
