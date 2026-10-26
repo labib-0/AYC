@@ -397,7 +397,7 @@ export default function GlobalFilterRail({
 
   // ── Panel Header (shared structure for desktop + mobile) ────────────────
   const panelHeader = (isMobile: boolean) => (
-    <div className="flex items-center justify-between pb-3 mb-3.5 border-b border-border/60">
+    <div className="flex items-center justify-between pb-3 mb-3.5 border-b border-border/60 shrink-0">
       {/* Left: X close + FILTERS title */}
       <div className="flex items-center gap-2">
         <button
@@ -439,11 +439,13 @@ export default function GlobalFilterRail({
       {/* ── Desktop Left Rail (lg: >= 1024px): Outer Column + Inner Sticky Panel ── */}
       <div className="filter-column hidden lg:block w-[280px] shrink-0">
         <aside
-          className="filter-panel sticky top-[84px] w-full bg-card border border-border/80 rounded-2xl p-4 shadow-xs font-sans"
+          className="filter-panel sticky top-[84px] w-full bg-card border border-border/80 rounded-2xl p-4 shadow-xs font-sans max-h-[calc(100vh-100px)] flex flex-col"
           aria-label="Product Filters"
         >
           {panelHeader(false)}
-          {filterContent}
+          <div className="overflow-y-auto flex-1 pr-1.5 subtle-scrollbar overscroll-contain">
+            {filterContent}
+          </div>
         </aside>
       </div>
 

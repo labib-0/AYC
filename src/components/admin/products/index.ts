@@ -6,6 +6,7 @@ export { default as ProductPagination } from "./ProductPagination";
 export { default as ProductBulkActions } from "./ProductBulkActions";
 export { default as DeleteProductModal } from "./DeleteProductModal";
 export { default as MarkSoldOutModal } from "./MarkSoldOutModal";
+export { default as ProductOfferSheetModal } from "./ProductOfferSheetModal";
 export { default as ProductToast } from "./ProductToast";
 
 export type { ProductFilters } from "./ProductSearchFilters";

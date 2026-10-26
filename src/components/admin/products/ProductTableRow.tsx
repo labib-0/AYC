@@ -19,6 +19,7 @@ import {
   Star,
   Pin,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
@@ -39,6 +40,7 @@ interface ProductTableRowProps {
   onAdjustStock?: (product: B2BProductInput) => void;
   onViewStockHistory?: (product: B2BProductInput) => void;
   onMarkSoldOut?: (product: B2BProductInput) => void;
+  onViewOfferSheet?: (product: B2BProductInput) => void;
   globalIndex?: number;
   localIndex?: number;
   showReorderControls?: boolean;
@@ -65,6 +67,7 @@ export default function ProductTableRow({
   onAdjustStock,
   onViewStockHistory,
   onMarkSoldOut,
+  onViewOfferSheet,
   globalIndex = 0,
   localIndex = 0,
   showReorderControls = false,
@@ -491,6 +494,22 @@ export default function ProductTableRow({
                 >
                   <Ban size={13} />
                   Mark as Sold Out
+                </button>
+              )}
+
+              {onViewOfferSheet && (
+                <button
+                  type="button"
+                  id={`btn-offer-sheet-${product.id}`}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onViewOfferSheet(product);
+                  }}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
+                  title={`View Offer Sheet for ${product.name || product.productId}`}
+                >
+                  <FileText size={13} className="text-primary" />
+                  Offer Sheet
                 </button>
               )}
 

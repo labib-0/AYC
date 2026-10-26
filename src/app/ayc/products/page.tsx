@@ -41,6 +41,7 @@ import {
   ProductBulkActions,
   DeleteProductModal,
   MarkSoldOutModal,
+  ProductOfferSheetModal,
   ProductToast,
 } from "@/components/admin/products";
 import type { ProductFilters, ToastMessage } from "@/components/admin/products";
@@ -199,6 +200,13 @@ function AdminProductsContent() {
   const [adjustingItem, setAdjustingItem] = useState<InventoryRecord | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [historyItem, setHistoryItem] = useState<InventoryRecord | null>(null);
+
+  // ── Offer Sheet Preview Modal State ──
+  const [offerSheetProduct, setOfferSheetProduct] = useState<B2BProductInput | null>(null);
+
+  const handleViewOfferSheet = useCallback((product: B2BProductInput) => {
+    setOfferSheetProduct(product);
+  }, []);
 
   // ── Bulk Stock Adjustment State ──
   const [isBulkAdjustOpen, setIsBulkAdjustOpen] = useState(false);
@@ -955,6 +963,7 @@ function AdminProductsContent() {
         onMarkSoldOut={canMarkSoldOut ? (p) => setSoldOutTarget(p) : undefined}
         onAdjustStock={canAdjustStock ? handleOpenRowAdjust : undefined}
         onViewStockHistory={canViewHistory ? handleOpenRowHistory : undefined}
+        onViewOfferSheet={handleViewOfferSheet}
         onRetry={loadProducts}
         onClearFilters={handleClearFilters}
         hasActiveFilters={hasActiveFilters}
@@ -1017,6 +1026,13 @@ function AdminProductsContent() {
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
         inventoryItem={historyItem}
+      />
+
+      {/* Product Offer Sheet Preview Modal */}
+      <ProductOfferSheetModal
+        isOpen={offerSheetProduct !== null}
+        onClose={() => setOfferSheetProduct(null)}
+        product={offerSheetProduct}
       />
 
       {/* Bulk Stock Adjustment Modal */}
