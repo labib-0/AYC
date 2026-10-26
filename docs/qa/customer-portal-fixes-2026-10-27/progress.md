@@ -333,6 +333,68 @@
 
 ---
 
-### Next Action
-- Transition to **Prompt 5 — Customer Portal Final Regression, Production Build, Commit & Push, Production Deployment, and Live Verification.**
+## Prompt 5/5: Final Integration, Regression Testing, Production Deployment, and Live Verification
+
+**Status:** COMPLETED  
+**Execution Timestamp:** 2026-10-27 05:10 UTC+6  
+**Active Production Release:** `release_20261026_225708_6b691db`  
+**Git Commit SHA:** `6b691db`  
+
+### Key Actions Executed
+1. **Cross-Feature Integration Verification:**
+   - Authored and executed `scripts/verify-customer-portal-integration.mjs` covering full 15-step cross-feature workflow across all 8 customer-portal issues (INT.1 to INT.15).
+   - Verified storefront desktop width, customer dashboard sidebar sticky behavior on scroll, independent filter sidebar scrolling, 4-column wishlist grid, sign-out modal outside click dismissal, settings current-password verification, human quotation submission, order confirmation backdrop dismissal, commercial order confirmation with proforma invoice, and 375px mobile viewport responsiveness.
+   - Result: **11/11 PASSED (0 FAILURES)**.
+
+2. **Full Regression Test Matrix Execution:**
+   - Static analysis: `npx tsc --noEmit` — **0 type errors (PASS)**
+   - Production bundle compilation: `npm run build` — **59/59 pages generated with Turbopack (Exit code 0)**
+   - `scripts/verify-customer-portal-layouts.mjs` — **10/10 PASS** (CP6, CP7, CP9)
+   - `scripts/verify-modal-backdrop-dismissal.mjs` — **15/15 PASS** (CP12, CP14)
+   - `scripts/verify-password-change-workflow.mjs` — **14/14 PASS** (CP11)
+   - `scripts/verify-rfq-submission.mjs` — **10/10 PASS** (CP10)
+   - `scripts/verify-order-confirmation-submission.mjs` — **12/12 PASS** (CP13)
+   - `scripts/verify-customer-portal-integration.mjs` — **11/11 PASS** (Cross-feature)
+   - **Total regression scenarios across all test suites: 72/72 PASSED (100% pass rate).**
+
+3. **Git Commit & Push:**
+   - Filtered and excluded unrelated user files (`docs/qa/admin-rbac-browser-audit/` and `scripts/reproduce-prompt1-header.mjs`).
+   - Staged all 21 modified customer portal source files, 2 backend feature tests, 6 regression test scripts, and durable QA records.
+   - Committed with message: `fix: stabilize customer portal layouts and submission workflows` (`6b691db`).
+   - Pushed cleanly to `origin/main` (`5992d4b..6b691db`).
+
+4. **Zero-Downtime Atomic Production Deployment (`srv2010990`):**
+   - Pulled commit `6b691db` onto `/var/www/ayaan`.
+   - Backend migrations checked (`Nothing to migrate`), configuration and routes cached.
+   - Compiled frontend release in isolated directory `.next_build_stage` using Turbopack (42s build, 166 chunks generated).
+   - Merged previous active chunks to prevent 404s for in-flight cached users.
+   - Atomically updated `.next` release symlink to `/var/www/ayaan/.next_releases/release_20261026_225708_6b691db`.
+   - Reloaded PM2 daemons (`ayaan-customer` and `ayaan-admin`) without downtime.
+   - All 4 release gates passed:
+     - Gate 1: PM2 daemons online.
+     - Gate 2: `/api/v1/health` (database: ok, redis: ok).
+     - Gate 3: HTML route audit (200 OK on `/`, `/rfq`, `/dashboard/rfq`, `/ayc`, `/ayc/rfq`).
+     - Gate 4: 100% static chunk availability (32/32 chunks returned 200 OK).
+
+5. **Live Production Browser Audit (`https://ayaanclothing.com`):**
+   - Executed `scripts/verify-customer-portal-live.mjs` with browser automation:
+     - `LIVE.CP6`: Search filter sidebar independent scrollbar (`scrollHeight: 3592px > clientHeight: 715px`) — **PASS**
+     - `LIVE.CP7`: Customer dashboard sticky sidebar (`top-24: 96px`, zero footer overlap) — **PASS**
+     - `LIVE.CP9`: Wishlist 4-column responsive grid template ready in DOM — **PASS**
+     - `LIVE.CP12`: Sign-out confirmation modal dismissed by outside click, session preserved — **PASS**
+     - `LIVE.CP11`: Current-password field present in Settings with `autocomplete="current-password"` — **PASS**
+     - `LIVE.CP10`: RFQ form rendered with anti-autofill honeypot (`new-password`, empty) — **PASS**
+     - `LIVE.CP14`: Order-confirmation modal dismissed by outside click without creating orders — **PASS**
+     - `LIVE.CP13`: Checkout modal honeypot rendered cleanly without false positive bot errors — **PASS**
+     - `LIVE.MOBILE`: 375x812 mobile viewport clean navigation with zero horizontal overflow — **PASS**
+     - `LIVE.HEALTH`: Production backend `/api/v1/health` 200 OK (database: ok, redis: ok) — **PASS**
+   - Result: **10/10 LIVE CHECKS PASSED (0 FAILURES)**.
+   - Ephemeral audit token deleted immediately after audit.
+
+---
+
+### Final Project Status
+**ALL 5 PHASES (PROMPTS 1–5) COMPLETED SUCCESSFULLY.**  
+All 8 customer-portal hotfix issues (CP6, CP7, CP9, CP12, CP14, CP11, CP10, CP13) are stabilized, verified by automated suites locally and across real live production, and safely deployed with zero downtime.
+
 

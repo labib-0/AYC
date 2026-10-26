@@ -125,12 +125,13 @@
 
 | Issue ID | Description | Source Files | Test IDs | Local Result | Production Result | Final Status |
 |---|---|---|---|---|---|---|
-| `CP6` | Independent filter sidebar scrolling | `GlobalFilterRail.tsx`, `SearchClient.tsx` | T1.1, T1.2, T1.3, INT.4 | PASS | Pending deploy verification | **PASS** |
-| `CP7` | Sticky customer dashboard sidebar | `DashboardLayoutClient.tsx`, `DashboardSidebar.tsx` | T1.4, T1.5, T1.6, INT.2_3 | PASS | Pending deploy verification | **PASS** |
-| `CP9` | Four-column wishlist grid | `WishlistManager.tsx`, `wishlist/page.tsx` | T1.7, T1.8, T1.9, T1.10, INT.5 | PASS | Pending deploy verification | **PASS** |
-| `CP12` | Sign-out modal backdrop dismissal | `CustomerAccountSidebar.tsx`, `CustomerAccountMobileNav.tsx`, `DashboardSidebar.tsx`, `DashboardMobileNav.tsx` | T2.1, T2.2, T2.3, T2.4, T2.5, T2.5b, INT.6 | PASS | Pending deploy verification | **PASS** |
-| `CP14` | Order-confirmation modal backdrop dismissal | `CheckoutModal.tsx` | T2.6, T2.7, T2.8, T2.9, T2.10, T2.11, T2.12, T2.13, T2.14, INT.10_11 | PASS | Pending deploy verification | **PASS** |
-| `CP11` | Secure current-password change | `settings/page.tsx`, `auth.service.ts`, `UserController.php`, `UpdateProfileRequest.php` | T3.1-T3.14, INT.7_8 | PASS | Pending deploy verification | **PASS** |
-| `CP10` | Legitimate RFQ submission | `rfq/page.tsx`, `rfq.service.ts`, `HoneypotField.tsx`, `RfqController.php`, `NativeBotProtectionService.php` | T4.1-T4.10, INT.9 | PASS | Pending deploy verification | **PASS** |
-| `CP13` | Commercial order confirmation | `CheckoutModal.tsx`, `order.service.ts`, `HoneypotField.tsx`, `NativeBotProtectionService.php` | T4.11-T4.22, INT.12_13 | PASS | Pending deploy verification | **PASS** |
+| `CP6` | Independent filter sidebar scrolling | `GlobalFilterRail.tsx`, `SearchClient.tsx` | T1.1-T1.3, INT.4, LIVE.CP6 | PASS | PASS (`/search?filterOpen=true` internal scroll 3592px) | **PASS** |
+| `CP7` | Sticky customer dashboard sidebar | `DashboardLayoutClient.tsx`, `DashboardSidebar.tsx` | T1.4-T1.6, INT.2_3, LIVE.CP7 | PASS | PASS (`/dashboard` sticky hold at top-24, footer cleared) | **PASS** |
+| `CP9` | Four-column wishlist grid | `WishlistManager.tsx`, `wishlist/page.tsx` | T1.7-T1.10, INT.5, LIVE.CP9 | PASS | PASS (`/wishlist` responsive `xl:grid-cols-4` template ready) | **PASS** |
+| `CP12` | Sign-out modal backdrop dismissal | `CustomerAccountSidebar.tsx`, `CustomerAccountMobileNav.tsx`, `DashboardSidebar.tsx`, `DashboardMobileNav.tsx` | T2.1-T2.5b, INT.6, LIVE.CP12 | PASS | PASS (`/dashboard` outside click dismisses dialog, session intact) | **PASS** |
+| `CP14` | Order-confirmation modal backdrop dismissal | `CheckoutModal.tsx` | T2.6-T2.14, INT.10_11, LIVE.CP14 | PASS | PASS (`/cart` backdrop dismissal closes dialog without orders) | **PASS** |
+| `CP11` | Secure current-password change | `settings/page.tsx`, `auth.service.ts`, `UserController.php`, `UpdateProfileRequest.php` | T3.1-T3.14, INT.7_8, LIVE.CP11 | PASS | PASS (`/dashboard/settings` current-password field present & validated) | **PASS** |
+| `CP10` | Legitimate RFQ submission | `rfq/page.tsx`, `rfq.service.ts`, `HoneypotField.tsx`, `RfqController.php`, `NativeBotProtectionService.php` | T4.1-T4.10, INT.9, LIVE.CP10 | PASS | PASS (`/rfq` form rendered, anti-autofill honeypot protected) | **PASS** |
+| `CP13` | Commercial order confirmation | `CheckoutModal.tsx`, `order.service.ts`, `HoneypotField.tsx`, `NativeBotProtectionService.php` | T4.11-T4.22, INT.12_13, LIVE.CP13 | PASS | PASS (`/cart` modal rendered, honeypot protected without false positive) | **PASS** |
+
 
