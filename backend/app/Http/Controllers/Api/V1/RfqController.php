@@ -199,7 +199,7 @@ class RfqController extends ApiController
         }
 
         $botError = app(\App\Services\Security\NativeBotProtectionService::class)
-            ->validateSubmission($request, 'rfq-create', minSeconds: 2, requireToken: true);
+            ->validateSubmission($request, 'rfq-create', minSeconds: 1, requireToken: true);
         if ($botError !== null) {
             return $this->error($botError, 422);
         }

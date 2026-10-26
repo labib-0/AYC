@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Settings,
   Heart,
+  X,
 } from "lucide-react";
 
 interface NavItem {
@@ -49,6 +50,24 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const signOutMouseDownRef = useRef(false);
+
+  // Keyboard accessibility (Escape) and scroll lock for sign-out confirmation modal
+  useEffect(() => {
+    if (!showSignOutConfirm) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowSignOutConfirm(false);
+      }
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [showSignOutConfirm]);
 
   const initials = user?.name
     ? user.name
@@ -75,8 +94,8 @@ export function DashboardSidebar() {
 
   return (
     <>
-      <aside className="hidden lg:flex flex-col w-[250px] shrink-0 self-start">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-xs overflow-hidden sticky top-24 w-full">
+      <aside className="hidden lg:flex flex-col w-[250px] shrink-0 sticky top-24 self-start max-h-[calc(100vh-7rem)] z-10">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-xs overflow-y-auto subtle-scrollbar w-full flex flex-col max-h-[calc(100vh-7rem)]">
           {/* Company / Buyer identity banner */}
           <div className="p-4 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800/40 dark:to-slate-900 border-b border-slate-100 dark:border-white/10">
             <div className="flex items-center gap-3">
@@ -248,9 +267,44 @@ export function DashboardSidebar() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="signout-dialog-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in"
+          onMouseDown={(e) => {
+            signOutMouseDownRef.current = e.target === e.currentTarget;
+          }}
+          onTouchStart={(e) => {
+            signOutMouseDownRef.current = e.target === e.currentTarget;
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && signOutMouseDownRef.current) {
+              setShowSignOutConfirm(false);
+            }
+            signOutMouseDownRef.current = false;
+          }}
         >
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full shadow-xl border border-slate-200 dark:border-white/10 text-center">
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full shadow-xl border border-slate-200 dark:border-white/10 text-center relative animate-in zoom-in-95 duration-150"
+            onClick={(e) => {
+              e.stopPropagation();
+              signOutMouseDownRef.current = false;
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              signOutMouseDownRef.current = false;
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              signOutMouseDownRef.current = false;
+            }}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowSignOutConfirm(false)}
+              aria-label="Close sign-out modal"
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X size={16} />
+            </button>
             <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/50 text-red-500 flex items-center justify-center mx-auto mb-4">
               <LogOut size={22} />
             </div>

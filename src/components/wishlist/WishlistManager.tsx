@@ -246,8 +246,8 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
     return (
       <div className="space-y-4">
         <div className="h-20 bg-slate-100 dark:bg-slate-800/60 rounded-2xl animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
+          {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-64 bg-slate-100 dark:bg-slate-800/60 rounded-2xl animate-pulse" />
           ))}
         </div>
@@ -479,8 +479,8 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
             </div>
           </div>
 
-          {/* 5. Product Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4">
+          {/* 5. Product Grid (4 columns on desktop >= 1280px, responsive on mobile & tablet) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
             {displayedItems.map((item) => {
               const product = item.product;
               const isEligible = isItemEligible(item);

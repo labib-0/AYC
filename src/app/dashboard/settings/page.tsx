@@ -15,6 +15,8 @@ import {
   Loader2,
   KeyRound,
   Building2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 // ─── Sign Out Confirmation Modal ──────────────────────────────────────────────
@@ -127,6 +129,9 @@ export default function SettingsPage() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -179,9 +184,16 @@ export default function SettingsPage() {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingPassword) return; // Prevent duplicate submissions
     setSavingPassword(true);
     setPasswordError(null);
     setPasswordSuccess(null);
+
+    if (!passwordData.currentPassword) {
+      setPasswordError("Please enter your current password.");
+      setSavingPassword(false);
+      return;
+    }
 
     if (passwordData.newPassword.length < 6) {
       setPasswordError("New password must be at least 6 characters in length.");
@@ -197,9 +209,10 @@ export default function SettingsPage() {
 
     try {
       const res = await updateProfile({
-        ...user,
+        current_password: passwordData.currentPassword,
         password: passwordData.newPassword,
-      } as any);
+        password_confirmation: passwordData.confirmPassword,
+      });
 
       if (res?.error) {
         setPasswordError(
@@ -435,6 +448,41 @@ export default function SettingsPage() {
         )}
 
         <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          {/* Current Password */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="current_password"
+              className="block text-xs font-bold text-slate-700 dark:text-slate-200"
+            >
+              Current Password <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                id="current_password"
+                name="current_password"
+                type={showCurrentPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                value={passwordData.currentPassword}
+                onChange={(e) =>
+                  setPasswordData((p) => ({ ...p, currentPassword: e.target.value }))
+                }
+                placeholder="Enter your current password"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all"
+              />
+              <button
+                type="button"
+                id="toggle_current_password"
+                aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
+                onClick={() => setShowCurrentPassword((prev) => !prev)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none transition-colors cursor-pointer"
+              >
+                {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* New Password */}
             <div className="space-y-1.5">
@@ -448,15 +496,26 @@ export default function SettingsPage() {
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   id="new_password"
-                  type="password"
+                  name="new_password"
+                  type={showNewPassword ? "text" : "password"}
+                  autoComplete="new-password"
                   required
                   value={passwordData.newPassword}
                   onChange={(e) =>
                     setPasswordData((p) => ({ ...p, newPassword: e.target.value }))
                   }
                   placeholder="Min. 6 characters"
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all"
                 />
+                <button
+                  type="button"
+                  id="toggle_new_password"
+                  aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+                  onClick={() => setShowNewPassword((prev) => !prev)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none transition-colors cursor-pointer"
+                >
+                  {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -472,15 +531,26 @@ export default function SettingsPage() {
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   id="confirm_password"
-                  type="password"
+                  name="confirm_password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  autoComplete="new-password"
                   required
                   value={passwordData.confirmPassword}
                   onChange={(e) =>
                     setPasswordData((p) => ({ ...p, confirmPassword: e.target.value }))
                   }
                   placeholder="Re-enter password"
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all"
                 />
+                <button
+                  type="button"
+                  id="toggle_confirm_password"
+                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none transition-colors cursor-pointer"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
           </div>

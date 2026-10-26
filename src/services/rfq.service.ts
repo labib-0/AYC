@@ -1,6 +1,6 @@
 import { RfqRecord, RfqStatus, RfqMessage } from "@/types/b2b";
 import { mockStore } from "@/lib/mock-data/mock-store";
-import { apiClient } from "./api-client";
+import { apiClient, ApiError } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { securityService } from "./security.service";
 
@@ -139,6 +139,32 @@ export async function createRfq(
       return mapBackendQuoteToRfq(backendQuote);
     }
     throw new Error("Invalid response received from RFQ submission endpoint.");
+  }
+
+  // Anti-bot Honeypot validation (both mock and real modes safeguard against automated abuse)
+  const honeypotVal = (data as any)?.website_url_hp ?? (data as any)?.website_hp;
+  if (honeypotVal && typeof honeypotVal === "string" && honeypotVal.trim().length > 0) {
+    throw new ApiError(422, "Automated form submission detected.");
+  }
+
+  // Required field validation
+  if (!normalizedData.buyerName.trim() || !normalizedData.buyerEmail.trim() || !normalizedData.companyName.trim() || !normalizedData.destinationCity.trim()) {
+    throw new ApiError(422, "Please fill in all required fields (Name, Email, Company, Destination City).");
+  }
+
+  // Email format validation
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedData.buyerEmail.trim())) {
+    throw new ApiError(422, "Please provide a valid work email address.");
+  }
+
+  // Items validation
+  if (!normalizedData.items || normalizedData.items.length === 0) {
+    throw new ApiError(422, "Please add at least one line item to your quotation request.");
+  }
+
+  // Quantity validation
+  if (normalizedData.items.some((i) => !i.quantity || i.quantity <= 0)) {
+    throw new ApiError(422, "Quotation items must specify a positive quantity.");
   }
 
   const id = `rfq_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;

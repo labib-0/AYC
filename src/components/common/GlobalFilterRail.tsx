@@ -49,7 +49,7 @@ export const DESIGN_TYPES = [
 ] as const;
 
 /**
- * Reusable bounded scroll container for Brand Logos (max 3 rows)
+ * Reusable container for Brand Logos
  */
 export function BrandFilterGrid({
   brands,
@@ -65,7 +65,7 @@ export function BrandFilterGrid({
       role="region"
       aria-label="Brand logos"
       tabIndex={0}
-      className="max-h-[196px] sm:max-h-[198px] overflow-y-auto pr-1 subtle-scrollbar rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20"
+      className="rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20"
     >
       <div className="grid grid-cols-3 gap-2">
         {brands.map((brand) => {
@@ -97,7 +97,7 @@ export function BrandFilterGrid({
 }
 
 /**
- * Reusable bounded scroll container for Product Categories (max 5 rows)
+ * Reusable container for Product Categories
  */
 export function ProductCategoryFilterScroll({
   categories,
@@ -125,7 +125,7 @@ export function ProductCategoryFilterScroll({
       role="region"
       aria-label="Product Categories"
       tabIndex={0}
-      className="max-h-[188px] sm:max-h-[192px] overflow-y-auto pr-1 subtle-scrollbar flex flex-wrap gap-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20 rounded-md"
+      className="flex flex-wrap gap-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20 rounded-md"
     >
       {uniqueCategories.map((cat: CategoryModel) => {
         const isSelected = selectedCategories.some(
@@ -447,7 +447,7 @@ export default function GlobalFilterRail({
   return (
     <>
       {/* ── Desktop Left Rail (lg: >= 1024px): Outer Column + Inner Sticky Panel ── */}
-      <div className="filter-column hidden lg:block w-[280px] shrink-0">
+      <div className="filter-column hidden lg:block w-full shrink-0">
         <aside
           className="filter-panel sticky top-[84px] w-full bg-card border border-border/80 rounded-2xl p-4 shadow-xs font-sans max-h-[calc(100vh-100px)] flex flex-col"
           aria-label="Product Filters"

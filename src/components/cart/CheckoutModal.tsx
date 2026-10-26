@@ -595,6 +595,37 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     };
   }, [isOpen, aramexEnabled, shippingMode, country, city, postalCode, items, fetchAramexQuote]);
 
+  // Backdrop outside-click handling (supports mouse and touch, distinguishes internal drag gestures)
+  const backdropMouseDownRef = useRef(false);
+  const handleBackdropMouseDown = (e: React.MouseEvent) => {
+    backdropMouseDownRef.current = e.target === e.currentTarget;
+  };
+  const handleBackdropTouchStart = (e: React.TouchEvent) => {
+    backdropMouseDownRef.current = e.target === e.currentTarget;
+  };
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget && backdropMouseDownRef.current) {
+      if (!loading && !isSubmittingRef.current) {
+        onClose();
+      }
+    }
+    backdropMouseDownRef.current = false;
+  };
+
+  const addressSheetMouseDownRef = useRef(false);
+  const handleAddressSheetMouseDown = (e: React.MouseEvent) => {
+    addressSheetMouseDownRef.current = e.target === e.currentTarget;
+  };
+  const handleAddressSheetTouchStart = (e: React.TouchEvent) => {
+    addressSheetMouseDownRef.current = e.target === e.currentTarget;
+  };
+  const handleAddressSheetClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget && addressSheetMouseDownRef.current) {
+      handleCloseAddressSheet();
+    }
+    addressSheetMouseDownRef.current = false;
+  };
+
   if (!isOpen) return null;
 
   // Coupon discount calculation (strictly capped at merchandise subtotal)
@@ -952,13 +983,29 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           className="fixed inset-0 bg-ink/60 backdrop-blur-xs z-[220] animate-in fade-in"
           onClick={onClose}
         />
-        <div className="fixed inset-0 z-[230] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden">
+        <div
+          className="fixed inset-0 z-[230] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden"
+          onMouseDown={handleBackdropMouseDown}
+          onTouchStart={handleBackdropTouchStart}
+          onClick={handleBackdropClick}
+        >
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="order-placed-heading"
             className="bg-card border border-border/80 w-full max-w-xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,840px)] animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              backdropMouseDownRef.current = false;
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              backdropMouseDownRef.current = false;
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              backdropMouseDownRef.current = false;
+            }}
           >
             {/* Modal Header (Pinned) */}
             <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-border bg-amber-500/5 shrink-0">
@@ -1187,7 +1234,12 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         className="fixed inset-0 bg-ink/60 backdrop-blur-xs z-[220] animate-in fade-in"
         onClick={onClose}
       />
-      <div className="fixed inset-0 z-[230] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden">
+      <div
+        className="fixed inset-0 z-[230] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden"
+        onMouseDown={handleBackdropMouseDown}
+        onTouchStart={handleBackdropTouchStart}
+        onClick={handleBackdropClick}
+      >
         <form
           id="checkout-order-form"
           onSubmit={handlePlaceOrder}
@@ -1195,7 +1247,18 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           aria-modal="true"
           aria-labelledby="checkout-modal-title"
           className="bg-card border border-border/80 w-full max-w-2xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,840px)] animate-in zoom-in-95 duration-200"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            backdropMouseDownRef.current = false;
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            backdropMouseDownRef.current = false;
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            backdropMouseDownRef.current = false;
+          }}
         >
           <HoneypotField value={honeypot} onChange={setHoneypot} />
           {/* Modal Header (Pinned) */}
@@ -1464,6 +1527,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 {/* Option 1 — ARAMEX */}
                 <button
                   type="button"
+                  id="shipping-option-aramex"
+                  data-shipping-mode="aramex"
                   disabled={!aramexEnabled}
                   onClick={() => aramexEnabled && setShippingMode("aramex")}
                   className={`p-3.5 rounded-xl text-left transition-all relative flex flex-col justify-between ${
@@ -1524,6 +1589,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 {/* Option 2 — DISCUSS DIRECTLY */}
                 <button
                   type="button"
+                  id="shipping-option-manual"
+                  data-shipping-mode="manual"
                   onClick={() => setShippingMode("manual")}
                   className={`p-3.5 rounded-xl text-left transition-all cursor-pointer relative flex flex-col justify-between ${
                     shippingMode === "manual"
@@ -1851,10 +1918,26 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             className="fixed inset-0 bg-ink/40 backdrop-blur-xs z-[238] animate-in fade-in"
             onClick={handleCloseAddressSheet}
           />
-          <div className="fixed inset-0 z-[240] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6">
+          <div
+            className="fixed inset-0 z-[240] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6"
+            onMouseDown={handleAddressSheetMouseDown}
+            onTouchStart={handleAddressSheetTouchStart}
+            onClick={handleAddressSheetClick}
+          >
             <div
               className="bg-card border border-border/80 w-full max-w-xl rounded-t-2xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                addressSheetMouseDownRef.current = false;
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                addressSheetMouseDownRef.current = false;
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                addressSheetMouseDownRef.current = false;
+              }}
             >
               {/* Sheet header */}
               <div className="flex items-center justify-between px-5 sm:px-6 md:px-8 py-4 sm:py-5 border-b border-border">

@@ -81,7 +81,8 @@ class NativeBotProtectionService
         bool $requireToken = true
     ): ?string {
         // 1. Honeypot check: ordinary users never interact with or fill this field
-        $honeypot = $request->input(self::HONEYPOT_FIELD) ?? $request->input('website_hp');
+        $rawHoneypot = $request->input(self::HONEYPOT_FIELD) ?? $request->input('website_hp');
+        $honeypot = is_string($rawHoneypot) ? trim($rawHoneypot) : (string) ($rawHoneypot ?? '');
         if (!empty($honeypot)) {
             \Illuminate\Support\Facades\Log::warning("Bot detected: honeypot populated on action '{$expectedAction}' from IP {$request->ip()}");
             return 'Automated form submission detected.';
@@ -140,9 +141,18 @@ class NativeBotProtectionService
         $issuedAt = (int) $decoded['iat'];
         $elapsed = $now - $issuedAt;
 
+        // Grace tolerance for minor clock drift (up to 3 seconds)
+        if ($elapsed < -3) {
+            return 'Form security token contains an invalid timestamp.';
+        }
+
         if ($elapsed < $minSeconds) {
-            \Illuminate\Support\Facades\Log::info("Bot detected: implausibly rapid form submission ({$elapsed}s < {$minSeconds}s) on action '{$expectedAction}' from IP {$request->ip()}");
-            return 'Form submitted too quickly. Please take a moment and try again.';
+            $user = $request->user() ?: auth('sanctum')->user();
+            // Allow legitimate authenticated buyers with prefilled details, but reject anonymous bots
+            if (!($user && $elapsed >= 0)) {
+                \Illuminate\Support\Facades\Log::info("Bot detected: implausibly rapid form submission ({$elapsed}s < {$minSeconds}s) on action '{$expectedAction}' from IP {$request->ip()}");
+                return 'Form submitted too quickly. Please take a moment and try again.';
+            }
         }
 
         if ($elapsed > $maxSeconds) {

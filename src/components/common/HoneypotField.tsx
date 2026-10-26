@@ -32,10 +32,13 @@ export default function HoneypotField({
         overflow: "hidden",
         pointerEvents: "none",
         zIndex: -1,
+        visibility: "hidden",
       }}
       aria-hidden="true"
     >
-      <label htmlFor={id}>Do not fill this field</label>
+      <label htmlFor={id} className="sr-only" aria-hidden="true">
+        Do not fill this field
+      </label>
       <input
         type="text"
         name={name}
@@ -43,7 +46,26 @@ export default function HoneypotField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         tabIndex={-1}
-        autoComplete="off"
+        autoComplete="new-password"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        data-1p-ignore="true"
+        data-lpignore="true"
+        data-bwignore="true"
+        data-form-type="other"
+        data-protonpass-ignore="true"
+        aria-hidden="true"
+        style={{
+          opacity: 0,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          height: 0,
+          width: 0,
+          zIndex: -1,
+          pointerEvents: "none",
+        }}
       />
     </div>
   );

@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Settings,
   Heart,
+  X,
 } from "lucide-react";
 
 interface NavItem {
@@ -40,8 +41,26 @@ export function DashboardMobileNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const signOutMouseDownRef = useRef(false);
   const activeRef = useRef<HTMLAnchorElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard accessibility (Escape) and scroll lock for sign-out confirmation modal
+  useEffect(() => {
+    if (!showSignOutConfirm) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowSignOutConfirm(false);
+      }
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [showSignOutConfirm]);
 
   useEffect(() => {
     if (activeRef.current && scrollRef.current) {
@@ -135,10 +154,49 @@ export function DashboardMobileNav() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
+          aria-labelledby="mobile-signout-dialog-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in"
+          onMouseDown={(e) => {
+            signOutMouseDownRef.current = e.target === e.currentTarget;
+          }}
+          onTouchStart={(e) => {
+            signOutMouseDownRef.current = e.target === e.currentTarget;
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && signOutMouseDownRef.current) {
+              setShowSignOutConfirm(false);
+            }
+            signOutMouseDownRef.current = false;
+          }}
         >
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-xs w-full shadow-xl border border-slate-200 dark:border-white/10 text-center">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-xs w-full shadow-xl border border-slate-200 dark:border-white/10 text-center relative animate-in zoom-in-95 duration-150"
+            onClick={(e) => {
+              e.stopPropagation();
+              signOutMouseDownRef.current = false;
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              signOutMouseDownRef.current = false;
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              signOutMouseDownRef.current = false;
+            }}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowSignOutConfirm(false)}
+              aria-label="Close sign-out modal"
+              className="absolute top-3.5 right-3.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X size={15} />
+            </button>
+            <h3
+              id="mobile-signout-dialog-title"
+              className="text-sm font-bold text-slate-900 dark:text-white"
+            >
               Sign Out of Portal?
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
@@ -148,14 +206,14 @@ export function DashboardMobileNav() {
               <button
                 type="button"
                 onClick={() => setShowSignOutConfirm(false)}
-                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmSignOut}
-                className="flex-1 px-3 py-2 rounded-xl bg-red-600 text-white text-xs font-semibold"
+                className="flex-1 px-3 py-2 rounded-xl bg-red-600 text-white text-xs font-semibold cursor-pointer"
               >
                 Sign Out
               </button>

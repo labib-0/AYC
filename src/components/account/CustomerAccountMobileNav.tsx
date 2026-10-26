@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
@@ -11,6 +11,7 @@ import {
   FileText,
   Heart,
   LogOut,
+  X,
 } from "lucide-react";
 
 const mobileNav = [
@@ -25,9 +26,27 @@ export function CustomerAccountMobileNav() {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const [showSignOutConfirm, setShowSignOutConfirm] = React.useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const signOutMouseDownRef = useRef(false);
   const activeRef = useRef<HTMLAnchorElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard accessibility (Escape) and scroll lock for sign-out confirmation modal
+  useEffect(() => {
+    if (!showSignOutConfirm) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowSignOutConfirm(false);
+      }
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [showSignOutConfirm]);
 
   // Scroll active chip into view on mount / path change
   useEffect(() => {
@@ -126,16 +145,56 @@ export function CustomerAccountMobileNav() {
       {/* Sign Out Confirmation Modal */}
       {showSignOutConfirm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in"
-          style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="customer-account-mobile-signout-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in bg-black/50 backdrop-blur-xs"
+          onMouseDown={(e) => {
+            signOutMouseDownRef.current = e.target === e.currentTarget;
+          }}
+          onTouchStart={(e) => {
+            signOutMouseDownRef.current = e.target === e.currentTarget;
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && signOutMouseDownRef.current) {
+              setShowSignOutConfirm(false);
+            }
+            signOutMouseDownRef.current = false;
+          }}
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-2xl p-6 shadow-2xl space-y-4">
+          <div
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-sm rounded-2xl p-6 shadow-2xl space-y-4 relative animate-in zoom-in-95 duration-150"
+            onClick={(e) => {
+              e.stopPropagation();
+              signOutMouseDownRef.current = false;
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              signOutMouseDownRef.current = false;
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              signOutMouseDownRef.current = false;
+            }}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowSignOutConfirm(false)}
+              aria-label="Close sign-out modal"
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X size={16} />
+            </button>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
                 <LogOut size={18} className="text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-bold font-display text-slate-900 dark:text-white">
+                <h3
+                  id="customer-account-mobile-signout-title"
+                  className="text-base font-bold font-display text-slate-900 dark:text-white"
+                >
                   Log Out
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
@@ -148,14 +207,14 @@ export function CustomerAccountMobileNav() {
               <button
                 type="button"
                 onClick={() => setShowSignOutConfirm(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmSignOut}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-sm active:scale-95"
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
               >
                 Log Out
               </button>

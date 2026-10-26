@@ -23,7 +23,13 @@ interface AuthContextType {
     }
   ) => Promise<{ error?: any; user?: any; errors?: Record<string, string[]>; status?: number }>;
   signOut: () => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<{ error?: any; user?: any }>;
+  updateProfile: (
+    data: Partial<User> & {
+      current_password?: string;
+      password?: string;
+      password_confirmation?: string;
+    }
+  ) => Promise<{ error?: any; user?: any; errors?: Record<string, string[]>; status?: number }>;
   refreshSession: () => Promise<void>;
 }
 
@@ -158,7 +164,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateProfile = async (data: Partial<User>) => {
+  const updateProfile = async (
+    data: Partial<User> & {
+      current_password?: string;
+      password?: string;
+      password_confirmation?: string;
+    }
+  ) => {
     try {
       const updated = await authService.updateProfile(data);
       if (updated) {
@@ -168,7 +180,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return { user: null };
     } catch (err: any) {
-      return { error: err?.message || err };
+      const firstValidationMsg = err?.errors
+        ? (Object.values(err.errors).flat()[0] as string | undefined)
+        : null;
+      return {
+        error: firstValidationMsg || err?.message || "Failed to update profile.",
+        errors: err?.errors,
+        status: err?.status,
+      };
     }
   };
 

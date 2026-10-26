@@ -26,6 +26,24 @@ class UpdateProfileRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:50'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'avatar_url' => ['nullable', 'string', 'max:500'],
+            'current_password' => ['required_with:password', 'string'],
+            'password' => ['sometimes', 'required', 'string', 'min:6', 'confirmed'],
+            'password_confirmation' => ['required_with:password', 'string'],
+        ];
+    }
+
+    /**
+     * Custom validation error messages.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'current_password.required_with' => 'The current password field is required to change your password.',
+            'password.confirmed' => 'The new password confirmation does not match.',
+            'password.min' => 'The new password must be at least 6 characters.',
         ];
     }
 }
+

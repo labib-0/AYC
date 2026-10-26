@@ -169,9 +169,28 @@ export class AuthService {
   /**
    * Update authenticated user profile
    */
-  async updateProfile(data: Partial<User>): Promise<User> {
+  async updateProfile(
+    data: Partial<User> & {
+      current_password?: string;
+      password?: string;
+      password_confirmation?: string;
+      currentPassword?: string;
+      newPassword?: string;
+      confirmPassword?: string;
+    }
+  ): Promise<User> {
     if (!isFrontendOnly()) {
-      const res = await apiClient.put<any>("/users/me", data);
+      const payload: Record<string, any> = { ...data };
+      if (!payload.current_password && payload.currentPassword) {
+        payload.current_password = payload.currentPassword;
+      }
+      if (!payload.password && payload.newPassword) {
+        payload.password = payload.newPassword;
+      }
+      if (!payload.password_confirmation && payload.confirmPassword) {
+        payload.password_confirmation = payload.confirmPassword;
+      }
+      const res = await apiClient.put<any>("/users/me", payload);
       const updated = res?.data || res;
       if (updated && updated.id) {
         mockStore.setActiveUser(updated);
@@ -182,7 +201,62 @@ export class AuthService {
 
     const current = mockStore.getActiveUser();
     if (current) {
-      const updated = mockStore.saveUser({ ...current, ...data });
+      const dataAny = data as any;
+      const newPassword = dataAny.password || dataAny.newPassword;
+
+      if (newPassword !== undefined && newPassword !== "") {
+        const currentPassword = dataAny.current_password || dataAny.currentPassword;
+        if (!currentPassword) {
+          throw new ApiError(422, "Please enter your current password.", {
+            current_password: ["Please enter your current password."],
+          });
+        }
+
+        const storedUser = mockStore.getUserById(current.id) || (current as any);
+        const expectedPassword = storedUser?.password || (current as any)?.password || "password";
+        if (expectedPassword !== currentPassword) {
+          throw new ApiError(422, "The provided current password is incorrect.", {
+            current_password: ["The provided current password is incorrect."],
+          });
+        }
+
+        if (newPassword.length < 6) {
+          throw new ApiError(422, "New password must be at least 6 characters in length.", {
+            password: ["New password must be at least 6 characters in length."],
+          });
+        }
+
+        const confirmation = dataAny.password_confirmation || dataAny.confirmPassword;
+        if (confirmation !== undefined && confirmation !== newPassword) {
+          throw new ApiError(422, "New passwords do not match. Please re-enter.", {
+            password: ["New passwords do not match. Please re-enter."],
+          });
+        }
+      }
+
+      await new Promise((r) => setTimeout(r, 200));
+
+      const cleanData = { ...data };
+      // Security: Strictly enforce account isolation - do not allow id, user_id, email, or role to be overwritten
+      delete (cleanData as any).id;
+      delete (cleanData as any).user_id;
+      delete (cleanData as any).email;
+      delete (cleanData as any).role;
+      delete (cleanData as any).current_password;
+      delete (cleanData as any).currentPassword;
+      delete (cleanData as any).password_confirmation;
+      delete (cleanData as any).confirmPassword;
+      if (newPassword) {
+        (cleanData as any).password = newPassword;
+      }
+
+      const updated = mockStore.saveUser({
+        ...current,
+        ...cleanData,
+        id: current.id,
+        email: current.email,
+        role: current.role,
+      });
       mockStore.setActiveUser(updated);
       return updated;
     }
@@ -281,3 +355,7 @@ export class AuthService {
 }
 
 export const authService = new AuthService();
+
+if (typeof window !== "undefined") {
+  (window as any).__authService = authService;
+}

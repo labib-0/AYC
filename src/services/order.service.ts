@@ -1,7 +1,7 @@
 import { mockStore } from "@/lib/mock-data/mock-store";
 import { generateMockDocument } from "@/lib/mock-data/mock-documents";
 import { getWhatsAppUrl } from "@/config/business-profile";
-import { apiClient } from "./api-client";
+import { apiClient, ApiError } from "./api-client";
 import { isFrontendOnly } from "@/lib/frontend-mode";
 import { securityService } from "./security.service";
 import { OrderDocumentItem, OrderDocumentGroup } from "@/types/b2b";
@@ -87,6 +87,7 @@ export interface OrderRecord {
   last_carrier_update?: string;
   last_shipment_error?: string;
   shipping_quote_id?: string;
+  idempotency_key?: string;
   shipping_snapshot?: import("@/types/b2b").OrderShippingSnapshot;
   direct_tracking_url?: string;
   can_create_aramex_shipment?: boolean;
@@ -284,6 +285,36 @@ export class OrderService {
       throw new Error("Invalid response received from order creation endpoint.");
     }
 
+    // Anti-bot Honeypot validation (both mock and real modes safeguard against automated abuse)
+    const honeypotVal = input.website_url_hp ?? (input as any)?.website_hp;
+    if (honeypotVal && typeof honeypotVal === "string" && honeypotVal.trim().length > 0) {
+      throw new ApiError(422, "Automated form submission detected.");
+    }
+
+    // Cart validation
+    if (!input.items || input.items.length === 0) {
+      throw new ApiError(422, "Your cart is empty. Please add items before placing an order.");
+    }
+
+    // Required destination validation
+    if (!input.shippingName?.trim() || !input.shippingAddress?.trim() || !input.shippingCity?.trim() || !input.email?.trim()) {
+      throw new ApiError(422, "Please complete all required shipping destination fields.");
+    }
+
+    // Email format validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
+      throw new ApiError(422, "Please provide a valid consignee email address.");
+    }
+
+    // Idempotency check: reuse existing order if same idempotency key is submitted
+    if (input.idempotencyKey) {
+      const existingOrders = mockStore.getOrders();
+      const matched = existingOrders.find((o) => (o as any).idempotency_key === input.idempotencyKey);
+      if (matched) {
+        return matched;
+      }
+    }
+
     const totalUnits = input.items.reduce((sum, i) => sum + (i.quantity || 1), 0);
     const subtotal = input.items.reduce((sum, i) => sum + (i.unitPrice || 15) * (i.quantity || 1), 0);
     const requestedDiscount = input.discountAmount || 0;
@@ -301,6 +332,7 @@ export class OrderService {
     const newOrder: OrderRecord = {
       id: orderId,
       order_number: orderNumber,
+      idempotency_key: input.idempotencyKey,
       user_id: input.userId || null,
       status: "processing",
       payment_status: "pending",

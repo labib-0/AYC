@@ -1492,3 +1492,7 @@ class MockStore {
 }
 
 export const mockStore = new MockStore();
+
+if (typeof window !== "undefined") {
+  (window as any).__mockStore = mockStore;
+}

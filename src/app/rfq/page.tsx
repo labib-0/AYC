@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRfq } from "@/lib/RfqContext";
@@ -95,6 +95,7 @@ export default function RfqPage() {
     }
   }, [user]);
 
+  const isSubmittingRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedRfqNumber, setSubmittedRfqNumber] = useState<string | null>(null);
   const [submittedRfqId, setSubmittedRfqId] = useState<string | null>(null);
@@ -131,7 +132,14 @@ export default function RfqPage() {
     e.preventDefault();
     setErrorMsg("");
 
+    // Synchronous submission lock to prevent duplicate RFQ creation
+    if (isSubmittingRef.current || isSubmitting) {
+      return;
+    }
+    isSubmittingRef.current = true;
+
     if (!user) {
+      isSubmittingRef.current = false;
       if (typeof window !== "undefined") {
         sessionStorage.setItem("ayaan_intended_destination", "/rfq");
         sessionStorage.setItem("ayaan_login_notice", "Please log in to submit an RFQ.");
@@ -161,6 +169,7 @@ export default function RfqPage() {
         ];
       } else {
         setErrorMsg("Please add at least one product or specify your custom garment requirement.");
+        isSubmittingRef.current = false;
         if (typeof window !== "undefined") {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
@@ -168,8 +177,32 @@ export default function RfqPage() {
       }
     }
 
+    // Required field validation
     if (!buyerName.trim() || !buyerEmail.trim() || !companyName.trim() || !destinationCity.trim()) {
       setErrorMsg("Please fill in all required fields (Name, Email, Company, Destination City).");
+      isSubmittingRef.current = false;
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(buyerEmail.trim())) {
+      setErrorMsg("Please enter a valid work email address.");
+      isSubmittingRef.current = false;
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+
+    // Item quantity constraint validation
+    const invalidQtyItem = finalItems.find((item) => !item.quantity || item.quantity <= 0);
+    if (invalidQtyItem) {
+      setErrorMsg("All quotation line items must specify a valid quantity greater than zero.");
+      isSubmittingRef.current = false;
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -180,19 +213,19 @@ export default function RfqPage() {
     try {
       const created = await createRfq({
         userId: String(user.id),
-        buyerName,
-        buyerEmail,
-        buyerPhone,
-        companyName,
+        buyerName: buyerName.trim(),
+        buyerEmail: buyerEmail.trim(),
+        buyerPhone: buyerPhone.trim(),
+        companyName: companyName.trim(),
         businessType,
         website,
-        taxNumber,
+        taxNumber: taxNumber.trim(),
         destinationCountry,
-        destinationCity,
-        shippingPort,
+        destinationCity: destinationCity.trim(),
+        shippingPort: shippingPort.trim(),
         targetDeliveryDate,
-        requestTitle: requestTitle.trim() || `${finalItems.reduce((acc, i) => acc + i.quantity, 0)} Pcs Apparel for ${destinationCity}`,
-        generalNotes,
+        requestTitle: requestTitle.trim() || `${finalItems.reduce((acc, i) => acc + i.quantity, 0)} Pcs Apparel for ${destinationCity.trim()}`,
+        generalNotes: generalNotes.trim(),
         items: finalItems,
         formToken: formToken || undefined,
         website_url_hp: honeypot,
@@ -211,8 +244,13 @@ export default function RfqPage() {
         router.push(`/login?returnUrl=${encodeURIComponent("/rfq")}&notice=${encodeURIComponent("Please log in to submit an RFQ.")}`);
         return;
       }
-      setErrorMsg(err?.message || "Failed to submit quotation request. Please try again.");
+      // Preserve form values on failure, display clear actionable message
+      setErrorMsg(err?.message || "Failed to submit quotation request. Please verify your details and try again.");
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -458,11 +496,13 @@ export default function RfqPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-2">
                       <div className="sm:col-span-7 space-y-1">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <label htmlFor="custom_item_name" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                           Garment / Apparel Description *
                         </label>
                         <input
                           type="text"
+                          id="custom_item_name"
+                          name="custom_item_name"
                           placeholder="e.g. 100% Combed Cotton T-Shirt, 240 GSM, Custom Wash"
                           value={customItemName}
                           onChange={(e) => setCustomItemName(e.target.value)}
@@ -471,11 +511,13 @@ export default function RfqPage() {
                       </div>
 
                       <div className="sm:col-span-3 space-y-1">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <label htmlFor="custom_item_qty" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                           Target Qty (PCS)
                         </label>
                         <input
                           type="number"
+                          id="custom_item_qty"
+                          name="custom_item_qty"
                           min={50}
                           step={50}
                           value={customItemQty}
@@ -485,11 +527,13 @@ export default function RfqPage() {
                       </div>
 
                       <div className="sm:col-span-2 space-y-1">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <label htmlFor="custom_item_price" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                           Target $/Pc
                         </label>
                         <input
                           type="number"
+                          id="custom_item_price"
+                          name="custom_item_price"
                           step={0.1}
                           placeholder="$3.50"
                           value={customItemTargetPrice}
@@ -505,6 +549,7 @@ export default function RfqPage() {
                       </span>
                       <button
                         type="button"
+                        id="btn-add-custom-line-item"
                         onClick={handleAddCustomProduct}
                         disabled={!customItemName.trim()}
                         className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-foreground text-background text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-40 transition-opacity cursor-pointer shadow-xs"
@@ -535,11 +580,13 @@ export default function RfqPage() {
               </h2>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <label htmlFor="rfq_request_title" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Request Title / Reference Name
                 </label>
                 <input
                   type="text"
+                  id="rfq_request_title"
+                  name="request_title"
                   placeholder="e.g. 500 Nike T-Shirts for Dubai Retail Chain"
                   value={requestTitle}
                   onChange={(e) => setRequestTitle(e.target.value)}
@@ -548,11 +595,13 @@ export default function RfqPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <label htmlFor="rfq_general_notes" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Size Breakdown, Color Assortment & Custom Packaging Instructions
                 </label>
                 <textarea
                   rows={4}
+                  id="rfq_general_notes"
+                  name="general_notes"
                   placeholder="e.g. Please supply size breakdown: S: 100, M: 200, L: 200. Custom polybag packaging with barcode stickers required."
                   value={generalNotes}
                   onChange={(e) => setGeneralNotes(e.target.value)}
@@ -576,12 +625,15 @@ export default function RfqPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1 sm:col-span-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="rfq_buyer_name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Full Name *
                   </label>
                   <input
                     type="text"
                     required
+                    id="rfq_buyer_name"
+                    name="buyer_name"
+                    autoComplete="name"
                     placeholder="e.g. Tariq Al-Mansoor"
                     value={buyerName}
                     onChange={(e) => setBuyerName(e.target.value)}
@@ -590,12 +642,15 @@ export default function RfqPage() {
                 </div>
 
                 <div className="space-y-1 sm:col-span-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="rfq_company_name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Company / Organization Name *
                   </label>
                   <input
                     type="text"
                     required
+                    id="rfq_company_name"
+                    name="company_name"
+                    autoComplete="organization"
                     placeholder="e.g. Gulf Apparel Trading LLC"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
@@ -604,12 +659,15 @@ export default function RfqPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="rfq_buyer_email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Work Email *
                   </label>
                   <input
                     type="email"
                     required
+                    id="rfq_buyer_email"
+                    name="buyer_email"
+                    autoComplete="email"
                     placeholder="buyer@company.com"
                     value={buyerEmail}
                     onChange={(e) => setBuyerEmail(e.target.value)}
@@ -618,11 +676,14 @@ export default function RfqPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="rfq_buyer_phone" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Phone / WhatsApp
                   </label>
                   <input
                     type="tel"
+                    id="rfq_buyer_phone"
+                    name="buyer_phone"
+                    autoComplete="tel"
                     placeholder="+971 50 123 4567"
                     value={buyerPhone}
                     onChange={(e) => setBuyerPhone(e.target.value)}
@@ -631,10 +692,12 @@ export default function RfqPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="rfq_business_type" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Business Type
                   </label>
                   <select
+                    id="rfq_business_type"
+                    name="business_type"
                     value={businessType}
                     onChange={(e) => setBusinessType(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-xs text-foreground focus:ring-1 focus:ring-primary outline-none"
@@ -648,11 +711,13 @@ export default function RfqPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="rfq_tax_number" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Tax / VAT ID (Optional)
                   </label>
                   <input
                     type="text"
+                    id="rfq_tax_number"
+                    name="tax_number"
                     placeholder="e.g. TRN-10029381"
                     value={taxNumber}
                     onChange={(e) => setTaxNumber(e.target.value)}
@@ -673,10 +738,13 @@ export default function RfqPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="rfq_destination_country" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Destination Country *
                   </label>
                   <select
+                    id="rfq_destination_country"
+                    name="destination_country"
+                    autoComplete="country-name"
                     value={destinationCountry}
                     onChange={(e) => setDestinationCountry(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-xs text-foreground focus:ring-1 focus:ring-primary outline-none"
@@ -690,12 +758,15 @@ export default function RfqPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="rfq_destination_city" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Destination City *
                   </label>
                   <input
                     type="text"
                     required
+                    id="rfq_destination_city"
+                    name="destination_city"
+                    autoComplete="address-level2"
                     placeholder="e.g. Dubai"
                     value={destinationCity}
                     onChange={(e) => setDestinationCity(e.target.value)}
@@ -704,11 +775,13 @@ export default function RfqPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="rfq_shipping_port" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Discharge Port / Airport
                   </label>
                   <input
                     type="text"
+                    id="rfq_shipping_port"
+                    name="shipping_port"
                     placeholder="e.g. Jebel Ali / DXB Air"
                     value={shippingPort}
                     onChange={(e) => setShippingPort(e.target.value)}
@@ -717,11 +790,13 @@ export default function RfqPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="rfq_target_delivery_date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Target Delivery Date
                   </label>
                   <input
                     type="date"
+                    id="rfq_target_delivery_date"
+                    name="target_delivery_date"
                     value={targetDeliveryDate}
                     onChange={(e) => setTargetDeliveryDate(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl border border-border bg-secondary/30 text-xs text-foreground focus:ring-1 focus:ring-primary outline-none"
@@ -739,6 +814,7 @@ export default function RfqPage() {
                 )}
                 <button
                   type="submit"
+                  id="btn-submit-rfq"
                   disabled={isSubmitting || (rfqItems.length === 0 && !customItemName.trim())}
                   className="w-full py-3.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-all duration-200 cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex items-center justify-center gap-2 font-display"
                 >
@@ -783,12 +859,14 @@ export default function RfqPage() {
 
               <div className="space-y-3 text-xs">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <label htmlFor="modal_custom_item_name" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                     Garment Name / Fabric Description *
                   </label>
                   <input
                     type="text"
                     required
+                    id="modal_custom_item_name"
+                    name="modal_custom_item_name"
                     placeholder="e.g. 100% Cotton Heavyweight Fleece Hoodie"
                     value={customItemName}
                     onChange={(e) => setCustomItemName(e.target.value)}
@@ -798,11 +876,13 @@ export default function RfqPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <label htmlFor="modal_custom_item_qty" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                       Target Quantity (PCS)
                     </label>
                     <input
                       type="number"
+                      id="modal_custom_item_qty"
+                      name="modal_custom_item_qty"
                       min={50}
                       step={50}
                       value={customItemQty}
@@ -812,11 +892,13 @@ export default function RfqPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <label htmlFor="modal_custom_item_price" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                       Target Price / Pc ($)
                     </label>
                     <input
                       type="number"
+                      id="modal_custom_item_price"
+                      name="modal_custom_item_price"
                       step={0.1}
                       placeholder="$8.50"
                       value={customItemTargetPrice}
