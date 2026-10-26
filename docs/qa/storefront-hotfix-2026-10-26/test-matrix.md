@@ -71,3 +71,21 @@
 | T4.10 | Browser back/forward navigation | 1440x900 (`/search`) | History back and forward accurately restore previously selected filters | Back restored Pants ("PANTS"), Forward restored T-Shirts ("T-SHIRTS") | PASS |
 | T4.11 | Responsive behavior across 4 viewports | 375px, 768px, 1024px, 1440px | Product listing area visible at top with footer below across mobile, tablet, laptop, and desktop | All 4 viewports render product listing cleanly at top with footer below | PASS |
 | T4.12 | Localization integration: Bengali category filtering | 1440x900 (`/search?category=pants`) | Category heading translated to natural Bengali ("প্যান্ট"); cards rendered at top | Heading translated to "প্যান্ট", cards: 23, listingTop: 132px | PASS |
+
+## Phase 5: Final Regression, Verified Commit, Production Deployment & Live QA
+
+| Test ID | Description | Target Viewport / Route | Expected Result | Actual Result | Status |
+|---|---|---|---|---|---|
+| T5.1 | Regression Test A: Responsive Header & Dropdown | 7 Viewports: 320, 375, 430, 768, 1024, 1280, 1440px | Zero horizontal overflow, dropdown flush with input bottom, backdrop functional | 16/16 checks passed, zero horizontal scrollbar, exit code: 0 | PASS |
+| T5.2 | Regression Test B: Website Language Translation | Localized routes & PDPs | English/Bengali switching, cookie persistence, immediate UI translation | 10/10 checks passed, language persists on refresh, exit code: 0 | PASS |
+| T5.3 | Regression Test C: Product Sorting Across Brands & Pagination | `/search?sort=*` | Authoritative sorting across 6 modes, unpriced at end, brands interleaved | 15/15 checks passed across all options, exit code: 0 | PASS |
+| T5.4 | Regression Test D: Category/Filter & Scroll Behavior | `/search?category=*` | Stable layout during filter transitions, smooth scroll repositioning, zero premature footer | 12/12 checks passed (T4.1–T4.12), exit code: 0 | PASS |
+| T5.5 | Regression Test E: TypeScript & Next.js Production Build | Compiler & Turbopack build | Zero type errors, clean standalone build output (59/59 pages) | `tsc --noEmit` exit 0, `npm run build` compiled 59 pages in 1.48s, exit code: 0 | PASS |
+| T5.6 | Cross-Feature Integration QA: Sequential Multi-Filter Flow | 1440px, 1024px, 375px (`/` → `/search`) | Bengali switch + search query + category + brand + sorting + pagination + back/forward | All 11 sequential steps passed across 1440px, 1024px, and 375px; exit code: 0 | PASS |
+| T5.7 | Atomic Production Release Deployment Gate | Production Hostinger VPS (`srv2010990`) | 4-Tier Gate: PM2 online, /api/v1/health 200, HTML routes 200, static chunks 100% 200 | All 4 release tiers passed; release `release_20261026_205221_d32955a` active | PASS |
+| T5.8 | Live QA: Homepage & Responsive Header Layout | 1440x900 (`https://ayaanclothing.com`) | HTTP 200, Header rendered, search input active, 72 products loaded | Status 200, Search input verified, 72 products rendered | PASS |
+| T5.9 | Live QA: Live Search Dropdown Matching | 1440x900 (`https://ayaanclothing.com`) | Typing "Jacket" triggers search overlay with matching real catalog items | Overlay rendered with real matching jacket items | PASS |
+| T5.10 | Live QA: Category Filtering & Product Result Positioning | 1440x900 (`https://ayaanclothing.com/search?category=pants`) | Heading "PANTS", matching cards loaded, scroll at top, footer below viewport | H1 "PANTS", 15 pants cards, scrollY: 0, footerTop: 771.7px (no premature footer) | PASS |
+| T5.11 | Live QA: Product Price Sorting | 1440x900 (`https://ayaanclothing.com/search?category=pants&sort=price_asc`) | Monotonically ascending unit prices without price inversion | Sample prices: [2.4, 2.6, 4.2, 6, 6], isAsc: true | PASS |
+| T5.12 | Live QA: Bengali Persistence & Mobile Layout (375px) | 375x812 (`https://ayaanclothing.com/search?category=pants`) | Bengali text rendered ("প্যান্ট"), zero horizontal overflow at 375px | Bengali UI verified, zero overflow (`scrollWidth <= 375`), footerTop: 1480px | PASS |
+

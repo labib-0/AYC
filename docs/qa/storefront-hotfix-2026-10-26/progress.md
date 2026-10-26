@@ -140,7 +140,47 @@ Five-prompt storefront hotfix workstream addressing responsive layout, search dr
     - Prompt 3 (`verify-storefront-sorting.mjs`): 15/15 PASSED.
     - TypeScript compiler (`npx tsc --noEmit`): exited 0 with zero errors.
 
-## Phase 5: Production Deployment & Integrated Release Gate
-- **Status:** Ready to start (Prompt 5).
+## Phase 5: Final Regression, Verified Commit, Production Deployment & Live QA
+- **Status:** COMPLETED
+- **Completed Test Matrix:**
+  - **Regression Test A (Responsive Header & Dropdown):** `node scripts/verify-prompt1-header-dropdown.mjs` — 16/16 PASSED across all 7 viewports (320px, 375px, 430px, 768px, 1024px, 1280px, 1440px) with exit code 0.
+  - **Regression Test B (Localization):** `node scripts/verify-storefront-localization.mjs` — 10/10 PASSED with exit code 0.
+  - **Regression Test C (Product Sorting):** `node scripts/verify-storefront-sorting.mjs` — 15/15 PASSED with exit code 0.
+  - **Regression Test D (Category/Filter & Scroll Stability):** `node scripts/verify-storefront-category-filter-scroll.mjs` — 12/12 PASSED (T4.1–T4.12) with exit code 0.
+  - **Regression Test E (TypeScript & Next.js Production Build):**
+    - `npx tsc --noEmit` — Exited 0 with zero errors.
+    - `npm run build` — Successfully compiled Next.js 16.0.7 Turbopack build (59/59 pages) in 1,484ms with exit code 0.
+  - **Cross-Feature Integration QA:** `node scripts/verify-cross-feature-integration.mjs` — All 11 sequential cross-feature scenarios PASSED across 1440px, 1024px, and 375px viewports with exit code 0.
+- **Git Commit & Push:**
+  - Initial verified hotfix commit: `d32955abcda9aba45a00150196158ad1ffa26d3d` (`fix: stabilize storefront search, localization, sorting, and filters`).
+  - Authoritative upstream remote: `origin main` (`https://github.com/labib-0/AYC.git`).
+  - Follow-up backend sorting refinement commit: `88429c2` (`fix(catalog): prioritize explicit price and name sort order ahead of sold-out tiebreaker`).
+  - Pushed to `origin main` successfully.
+- **Production Deployment Workflow (`srv2010990` - `200.97.169.230`):**
+  - Script: `/var/www/ayaan/scripts/deploy-production.sh`.
+  - Atomic Release Directory: `/var/www/ayaan/.next_releases/release_20261026_205221_d32955a`.
+  - Live Symlink: `/var/www/ayaan/.next -> /var/www/ayaan/.next_releases/release_20261026_205221_d32955a`.
+  - 4-Tier Release Gate:
+    - Tier 1: PM2 cluster status (`ayaan-customer`: online, `ayaan-admin`: online).
+    - Tier 2: Health check endpoint `/api/v1/health` (HTTP 200, database: ok, redis: ok).
+    - Tier 3: Critical HTML route audit (`/`, `/search`, `/ayc` all returned HTTP 200/307).
+    - Tier 4: Zero 404 static chunk audit (100% of 32 compiled static JavaScript chunks returned HTTP 200).
+- **Live Production Verification (`https://ayaanclothing.com`):**
+  - Automated test script: `node scripts/verify-production-hotfix-live.mjs` (7/7 PASSED with exit code 0).
+  - LIVE-1: Homepage HTTP 200 & Header Layout — Status 200, search placeholder verified, 72 products rendered.
+  - LIVE-2: Search Dropdown Matching — Live dropdown rendered matching products for query "Jacket".
+  - LIVE-3: Category Filtering (`/search?category=pants`) — H1 "PANTS", 15 cards rendered, scrollY: 0, footerTop: 771px (no premature footer).
+  - LIVE-4: Price Low to High Sorting — Cards: 5, Sample prices: [2.4, 2.6, 4.2, 6, 6], strictly ascending with zero price inversions.
+  - LIVE-5: Bengali Language Persistence — Cookie & localStorage persistence active, H1 rendered "প্যান্ট", Bengali UI text verified.
+  - LIVE-6: Mobile 375px Layout — Zero horizontal overflow (`scrollWidth <= innerWidth`), 15 product cards, footerTop: 1480px.
+  - LIVE-7: Admin Gateway (`/ayc`) — HTTP 200 healthy.
+- **Artifacts Generated:**
+  - `live_homepage_1440.png`
+  - `live_search_dropdown_1440.png`
+  - `live_search_pants_1440.png`
+  - `live_search_sorted_price_asc.png`
+  - `live_bengali_search.png`
+  - `live_mobile_375.png`
+
 
 
