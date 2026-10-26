@@ -320,38 +320,53 @@ class ProductController extends ApiController
         // Sorting whitelist
         $sortBy = $request->input('sort') ?? $request->input('sort_by') ?? 'newest';
         if (!$isAdmin) {
-            $query->orderBy('is_sold_out', 'asc');
             switch ($sortBy) {
                 case 'price_asc':
                     $query->orderByRaw('CASE WHEN wholesale_price IS NULL OR wholesale_price <= 0 THEN 1 ELSE 0 END ASC')
                           ->orderBy('wholesale_price', 'asc')
+                          ->orderBy('is_sold_out', 'asc')
                           ->orderBy('id', 'desc');
                     break;
                 case 'price_desc':
                     $query->orderByRaw('CASE WHEN wholesale_price IS NULL OR wholesale_price <= 0 THEN 1 ELSE 0 END ASC')
                           ->orderBy('wholesale_price', 'desc')
+                          ->orderBy('is_sold_out', 'asc')
                           ->orderBy('id', 'desc');
                     break;
                 case 'popular':
                 case 'hot':
-                    $query->orderBy('is_hot', 'desc')->orderBy('created_at', 'desc')->orderBy('id', 'desc');
+                    $query->orderBy('is_sold_out', 'asc')
+                          ->orderBy('is_hot', 'desc')
+                          ->orderBy('created_at', 'desc')
+                          ->orderBy('id', 'desc');
                     break;
                 case 'featured':
-                    $query->orderBy('is_featured', 'desc')->orderBy('created_at', 'desc')->orderBy('id', 'desc');
+                    $query->orderBy('is_sold_out', 'asc')
+                          ->orderBy('is_featured', 'desc')
+                          ->orderBy('created_at', 'desc')
+                          ->orderBy('id', 'desc');
                     break;
                 case 'name_asc':
-                    $query->orderBy('name', 'asc')->orderBy('id', 'desc');
+                    $query->orderBy('name', 'asc')
+                          ->orderBy('is_sold_out', 'asc')
+                          ->orderBy('id', 'desc');
                     break;
                 case 'name_desc':
-                    $query->orderBy('name', 'desc')->orderBy('id', 'desc');
+                    $query->orderBy('name', 'desc')
+                          ->orderBy('is_sold_out', 'asc')
+                          ->orderBy('id', 'desc');
                     break;
                 case 'manual':
                 case 'sort_order':
-                    $query->orderBy('sort_order', 'asc')->orderBy('id', 'desc');
+                    $query->orderBy('is_sold_out', 'asc')
+                          ->orderBy('sort_order', 'asc')
+                          ->orderBy('id', 'desc');
                     break;
                 case 'newest':
                 default:
-                    $query->orderBy('created_at', 'desc')->orderBy('id', 'desc');
+                    $query->orderBy('is_sold_out', 'asc')
+                          ->orderBy('created_at', 'desc')
+                          ->orderBy('id', 'desc');
                     break;
             }
         } else {
