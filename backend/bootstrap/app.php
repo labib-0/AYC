@@ -99,6 +99,25 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (ThrottleRequestsException $e, Request $request) use ($isApi) {
+            // Defensive Browser OAuth Protection:
+            // When browser top-level navigations to OAuth redirect/callback are rate limited,
+            // redirect back to login page with clear feedback instead of stranding user on raw JSON.
+            if ($request->is('api/v1/auth/google/callback*') || $request->is('api/v1/auth/google/redirect*')) {
+                if (!$request->expectsJson() && !$request->wantsJson()) {
+                    $retryAfter = (int) ($e->getHeaders()['Retry-After'] ?? 30);
+                    $frontendUrl = config('app.customer_frontend_url')
+                        ?: config('app.frontend_url')
+                        ?: (config('app.env') === 'production' ? 'https://ayaanclothing.com' : 'http://localhost:3000');
+                    if (config('app.env') === 'production' && (str_contains($frontendUrl, 'localhost') || str_contains($frontendUrl, '127.0.0.1'))) {
+                        $frontendUrl = 'https://ayaanclothing.com';
+                    }
+                    $msg = $retryAfter > 0
+                        ? "Too many sign-in attempts. Please wait {$retryAfter} seconds and try again."
+                        : 'Too many sign-in attempts. Please try again in a moment.';
+                    return redirect()->away(rtrim($frontendUrl, '/') . '/login?error=' . urlencode($msg));
+                }
+            }
+
             if ($isApi($request)) {
                 $headers = $e->getHeaders();
                 $retryAfter = $headers['Retry-After'] ?? null;

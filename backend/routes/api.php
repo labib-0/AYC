@@ -103,13 +103,14 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
             ->middleware('throttle:60,1');
 
         // Google OAuth Endpoints (Customer Only)
-        Route::middleware(['web'])->group(function () {
+        // Decoupled from generic browsing api limiter; isolated under dedicated google-oauth limiter
+        Route::middleware(['web'])->withoutMiddleware('throttle:api')->group(function () {
             Route::get('/google/redirect', [GoogleAuthController::class, 'redirect'])
-                ->middleware('throttle:30,1');
+                ->middleware('throttle:google-oauth');
             Route::get('/google/callback', [GoogleAuthController::class, 'callback'])
-                ->middleware('throttle:30,1');
+                ->middleware('throttle:google-oauth');
             Route::match(['GET', 'POST'], '/google/exchange', [GoogleAuthController::class, 'exchange'])
-                ->middleware('throttle:30,1');
+                ->middleware('throttle:google-oauth');
         });
 
         Route::middleware('auth:sanctum')->group(function () {

@@ -88,12 +88,17 @@ class AppServiceProvider extends ServiceProvider
             return in_array($ip, $allowedIps, true);
         };
 
-        // Global API default limiter (120/min per user or IP; unmetered only for verified internal SSR)
+        // Global API default limiter (300/min per user or IP; unmetered only for verified internal SSR)
         RateLimiter::for('api', function (Request $request) use ($isInternalTrusted) {
             if ($isInternalTrusted($request)) {
                 return Limit::none();
             }
-            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(300)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Dedicated Google OAuth authentication limiter (60/min per IP, isolated bucket)
+        RateLimiter::for('google-oauth', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
         });
 
         // Dedicated search suggestions limiter (60/min per IP)
@@ -101,12 +106,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->ip());
         });
 
-        // Dedicated product catalog browsing limiter (120/min; unmetered only for verified internal SSR)
+        // Dedicated product catalog browsing limiter (300/min; unmetered only for verified internal SSR)
         RateLimiter::for('products-browse', function (Request $request) use ($isInternalTrusted) {
             if ($isInternalTrusted($request)) {
                 return Limit::none();
             }
-            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(300)->by($request->user()?->id ?: $request->ip());
         });
 
         // Dedicated commercial document PDF generation/download limiter (15/min per user or IP)
