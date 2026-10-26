@@ -55,7 +55,7 @@ export const NEUTRAL_PREFERENCES: UserPreferences = {
   isManual: false,
 };
 
-interface PreferencesContextType {
+export interface PreferencesContextType {
   preferences: UserPreferences;
   isLoaded: boolean;
   updateLocation: (countryCode: string, postalCode?: string) => void;
@@ -63,13 +63,22 @@ interface PreferencesContextType {
   updateLanguage: (language: LanguageCode) => void;
   updateLanguageCurrency: (language: string, currency?: string) => void;
   updateAllPreferences: (newPrefs: Partial<UserPreferences>) => void;
-  t: (key: string) => string;
+  t: (key: string, fallback?: string) => string;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);
 
-export function PreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [preferences, setPreferences] = useState<UserPreferences>(NEUTRAL_PREFERENCES);
+export function PreferencesProvider({
+  children,
+  initialLanguage = "English",
+}: {
+  children: React.ReactNode;
+  initialLanguage?: LanguageCode;
+}) {
+  const [preferences, setPreferences] = useState<UserPreferences>(() => ({
+    ...NEUTRAL_PREFERENCES,
+    language: initialLanguage,
+  }));
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -84,6 +93,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           if (parsed && typeof parsed === "object") {
             savedPrefs = {
               ...NEUTRAL_PREFERENCES,
+              language: initialLanguage,
               ...parsed,
               currency: "USD",
               currencySymbol: "$",
@@ -94,19 +104,16 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         // ignore localStorage errors
       }
 
-      // If customer has deliberately selected a country manually, NEVER override it with IP detection!
-      if (savedPrefs && savedPrefs.isManual && savedPrefs.countryCode) {
+      // If customer has saved preferences in localStorage, load them immediately!
+      if (savedPrefs) {
         if (isMounted) {
           setPreferences(savedPrefs);
-          setIsLoaded(true);
         }
-        return;
-      }
-
-      // If an existing auto-detected preference was saved, use it as provisional state while checking
-      if (savedPrefs && savedPrefs.countryCode) {
-        if (isMounted) {
-          setPreferences(savedPrefs);
+        if (savedPrefs.isManual) {
+          if (isMounted) {
+            setIsLoaded(true);
+          }
+          return;
         }
       }
 
@@ -122,7 +129,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
             const flag = getCountryFlag(countryCode);
 
             const detectedPrefs: UserPreferences = {
-              ...(savedPrefs || NEUTRAL_PREFERENCES),
+              ...(savedPrefs || { ...NEUTRAL_PREFERENCES, language: initialLanguage }),
               country: countryName,
               countryCode: countryCode,
               flag: flag,
@@ -143,11 +150,17 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         console.warn("[Preferences] Geolocation detection fetch error:", err);
       }
 
-      // Fallback: If detection returned false or errored and no saved preference exists, keep neutral
+      // Fallback: If detection returned false or errored, keep savedPrefs if present, else fallback
       if (isMounted) {
-        if (!savedPrefs || !savedPrefs.countryCode) {
-          setPreferences(NEUTRAL_PREFERENCES);
+        if (savedPrefs) {
+          setPreferences(savedPrefs);
+        } else {
+          setPreferences({
+            ...NEUTRAL_PREFERENCES,
+            language: initialLanguage,
+          });
         }
+        setIsLoaded(true);
       }
     }
 
@@ -160,7 +173,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialLanguage]);
 
   const updateLocation = (countryCode: string, postalCode = "") => {
     const item = findCountry(countryCode);
@@ -191,7 +204,10 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {}
-    setPreferences(NEUTRAL_PREFERENCES);
+    setPreferences((prev) => ({
+      ...NEUTRAL_PREFERENCES,
+      language: prev.language,
+    }));
 
     // Re-detect country via IP
     fetch("/ayc/api/v1/geolocation/detect")
@@ -202,18 +218,21 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
           const item = findCountry(code);
           const name = data.country_name || (item ? item.name : code);
           const flag = getCountryFlag(code);
-          const detectedPrefs: UserPreferences = {
-            ...NEUTRAL_PREFERENCES,
-            country: name,
-            countryCode: code,
-            flag: flag,
-            isManual: false,
-            lastUpdated: Date.now(),
-          };
-          setPreferences(detectedPrefs);
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(detectedPrefs));
-          } catch {}
+          setPreferences((prev) => {
+            const detectedPrefs: UserPreferences = {
+              ...NEUTRAL_PREFERENCES,
+              country: name,
+              countryCode: code,
+              flag: flag,
+              language: prev.language,
+              isManual: false,
+              lastUpdated: Date.now(),
+            };
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(detectedPrefs));
+            } catch {}
+            return detectedPrefs;
+          });
         }
       })
       .catch(() => {});
@@ -233,6 +252,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch {}
+      if (typeof document !== "undefined") {
+        document.cookie = `ayaan_locale=${encodeURIComponent(langObj.code)}; path=/; max-age=31536000; SameSite=Lax`;
+      }
       return updated;
     });
   };
@@ -253,15 +275,24 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch {}
+      if (typeof document !== "undefined" && updated.language) {
+        document.cookie = `ayaan_locale=${encodeURIComponent(updated.language)}; path=/; max-age=31536000; SameSite=Lax`;
+      }
       return updated;
     });
   };
 
   const t = useCallback(
-    (key: string): string => {
+    (key: string, fallback?: string): string => {
       const lang = preferences.language || "English";
       const dict = TRANSLATIONS[lang] || TRANSLATIONS.English;
-      return dict[key] || TRANSLATIONS.English[key] || key;
+      if (dict && dict[key]) {
+        return dict[key];
+      }
+      if (TRANSLATIONS.English && TRANSLATIONS.English[key]) {
+        return TRANSLATIONS.English[key];
+      }
+      return fallback !== undefined ? fallback : key;
     },
     [preferences.language]
   );
@@ -290,4 +321,15 @@ export function usePreferences() {
     throw new Error("usePreferences must be used within a PreferencesProvider");
   }
   return context;
+}
+
+export function useTranslation() {
+  const { t, preferences, updateLanguage } = usePreferences();
+  return {
+    t,
+    language: preferences.language,
+    isBengali: preferences.language === "Bengali",
+    isEnglish: preferences.language === "English",
+    updateLanguage,
+  };
 }

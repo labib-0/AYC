@@ -323,23 +323,27 @@ class ProductController extends ApiController
             $query->orderBy('is_sold_out', 'asc');
             switch ($sortBy) {
                 case 'price_asc':
-                    $query->orderBy('wholesale_price', 'asc');
+                    $query->orderByRaw('CASE WHEN wholesale_price IS NULL OR wholesale_price <= 0 THEN 1 ELSE 0 END ASC')
+                          ->orderBy('wholesale_price', 'asc')
+                          ->orderBy('id', 'desc');
                     break;
                 case 'price_desc':
-                    $query->orderBy('wholesale_price', 'desc');
+                    $query->orderByRaw('CASE WHEN wholesale_price IS NULL OR wholesale_price <= 0 THEN 1 ELSE 0 END ASC')
+                          ->orderBy('wholesale_price', 'desc')
+                          ->orderBy('id', 'desc');
                     break;
                 case 'popular':
                 case 'hot':
-                    $query->orderBy('is_hot', 'desc')->orderBy('created_at', 'desc');
+                    $query->orderBy('is_hot', 'desc')->orderBy('created_at', 'desc')->orderBy('id', 'desc');
                     break;
                 case 'featured':
-                    $query->orderBy('is_featured', 'desc')->orderBy('created_at', 'desc');
+                    $query->orderBy('is_featured', 'desc')->orderBy('created_at', 'desc')->orderBy('id', 'desc');
                     break;
                 case 'name_asc':
-                    $query->orderBy('name', 'asc');
+                    $query->orderBy('name', 'asc')->orderBy('id', 'desc');
                     break;
                 case 'name_desc':
-                    $query->orderBy('name', 'desc');
+                    $query->orderBy('name', 'desc')->orderBy('id', 'desc');
                     break;
                 case 'manual':
                 case 'sort_order':
@@ -347,7 +351,7 @@ class ProductController extends ApiController
                     break;
                 case 'newest':
                 default:
-                    $query->orderBy('created_at', 'desc');
+                    $query->orderBy('created_at', 'desc')->orderBy('id', 'desc');
                     break;
             }
         } else {

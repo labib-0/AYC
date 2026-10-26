@@ -17,7 +17,7 @@ export default function LanguageCurrencyModal({
   isOpen,
   onClose,
 }: LanguageModalProps) {
-  const { preferences, updateLanguage } = usePreferences();
+  const { preferences, updateLanguage, t } = usePreferences();
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageCode>(preferences.language);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +44,11 @@ export default function LanguageCurrencyModal({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const handleSelectLanguage = (code: LanguageCode) => {
+    setSelectedLanguage(code);
+    updateLanguage(code);
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,10 +85,10 @@ export default function LanguageCurrencyModal({
                 id="lang-modal-title"
                 className="text-xl font-bold font-display text-foreground tracking-tight"
               >
-                Select Language
+                {t("modal.language_title", "Select Language")}
               </h2>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Choose your preferred interface language. All transactions and catalog pricing are strictly in USD ($).
+                {t("modal.language_subtitle", "Choose your preferred interface language. All transactions and catalog pricing are strictly in USD ($).")}
               </p>
             </div>
             <button
@@ -104,7 +109,7 @@ export default function LanguageCurrencyModal({
                   <button
                     key={lang.code}
                     type="button"
-                    onClick={() => setSelectedLanguage(lang.code)}
+                    onClick={() => handleSelectLanguage(lang.code)}
                     className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                       isSelected
                         ? "border-primary bg-primary/10 text-primary shadow-xs"
@@ -129,7 +134,7 @@ export default function LanguageCurrencyModal({
               type="submit"
               className="w-full mt-2 bg-foreground text-background font-bold py-3 px-4 rounded-full text-xs uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
             >
-              Save Language
+              {t("modal.save_language", "Save Language")}
             </button>
           </form>
         </div>

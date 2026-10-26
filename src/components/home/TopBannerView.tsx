@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { DEFAULT_TOP_BANNER, TopBannerConfig } from "@/config/banner";
 import { homepageService } from "@/services/homepage.service";
+import { useTranslation } from "@/lib/PreferencesContext";
 
 const HERO_BLUR_DATA_URL =
   "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1760 160'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%2318181b'/%3E%3Crect width='60%25' height='100%25' fill='%2327272a' filter='url(%23b)' opacity='0.7'/%3E%3C/svg%3E";
@@ -15,6 +16,7 @@ export interface TopBannerViewProps {
 export default function TopBannerView({
   initialBanner = DEFAULT_TOP_BANNER,
 }: TopBannerViewProps) {
+  const { t, isBengali } = useTranslation();
   const [banner, setBanner] = useState<TopBannerConfig>(initialBanner);
   const [imgSrc, setImgSrc] = useState<string>(
     initialBanner.imageUrl || DEFAULT_TOP_BANNER.imageUrl
@@ -135,22 +137,26 @@ export default function TopBannerView({
 
               {/* Main Headline: Confident, professional B2B introduction */}
               <h1 className="sr-only sm:not-sr-only sm:text-base md:text-lg lg:text-xl xl:text-[1.375rem] font-display font-extrabold tracking-tight text-foreground leading-[1.2]">
-                {banner.title === "YOUR WHOLESALE APPAREL SOURCING PARTNER" || banner.title === "Your Wholesale Apparel Sourcing Partner"
-                  ? "Garment Manufacturer & Exporter in Bangladesh"
-                  : banner.title || "Garment Manufacturer & Exporter in Bangladesh"}
+                {isBengali
+                  ? t("hero.title", "বাংলাদেশে গার্মেন্টস প্রস্তুতকারক ও রপ্তানিকারক")
+                  : (banner.title === "YOUR WHOLESALE APPAREL SOURCING PARTNER" || banner.title === "Your Wholesale Apparel Sourcing Partner"
+                    ? "Garment Manufacturer & Exporter in Bangladesh"
+                    : banner.title || "Garment Manufacturer & Exporter in Bangladesh")}
               </h1>
 
               {/* Supporting Text */}
               {banner.subtitle && (
                 <p className="text-[10px] sm:text-[11px] md:text-xs font-sans text-muted-foreground mt-0.5 hidden sm:block line-clamp-1 leading-snug">
-                  {banner.subtitle}
+                  {isBengali ? t("hero.subtitle", "আন্তর্জাতিক পাইকারি পোশাক সোর্সিং পার্টনার") : banner.subtitle}
                 </p>
               )}
 
               {/* Action Prompt */}
               {banner.buttonText && (
                 <span className="hidden sm:inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-mono font-bold text-primary hover:underline mt-1">
-                  <span>{banner.buttonText.replace(/^EXPLORE CATALOG/i, "Explore Catalog")}</span>
+                  <span>
+                    {isBengali ? t("hero.explore", "ক্যাটালগ দেখুন") : banner.buttonText.replace(/^EXPLORE CATALOG/i, "Explore Catalog")}
+                  </span>
                 </span>
               )}
             </div>

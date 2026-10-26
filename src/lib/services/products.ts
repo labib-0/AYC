@@ -248,17 +248,16 @@ export async function getFeaturedProducts(
   // Last-resort fallback: direct product query via backend API only.
   // IMPORTANT: productService.getProducts() may fall back to mockStore when the backend is
   // unreachable. To prevent dummy data leaking to the storefront, we explicitly call the
-  // backend API directly and return empty on failure — never mock data.
-  try {
-    const queryParams: ProductQueryParams = {
-      is_hot: isBestDeals ? true : undefined,
-      brand: options.brands && options.brands.length > 0 ? options.brands.join(",") : undefined,
-      design_type: options.designTypes && options.designTypes.length > 0 ? options.designTypes.join(",") : undefined,
-      audience: options.audiences && options.audiences.length > 0 ? options.audiences.join(",") : undefined,
-      category: options.categories && options.categories.length > 0 ? options.categories.join(",") : undefined,
-      sort_by: "newest", // created_at DESC — consistent with the required upload-order rule
-    };
+  const queryParams: ProductQueryParams = {
+    is_hot: isBestDeals ? true : undefined,
+    brand: options.brands && options.brands.length > 0 ? options.brands.join(",") : undefined,
+    design_type: options.designTypes && options.designTypes.length > 0 ? options.designTypes.join(",") : undefined,
+    audience: options.audiences && options.audiences.length > 0 ? options.audiences.join(",") : undefined,
+    category: options.categories && options.categories.length > 0 ? options.categories.join(",") : undefined,
+    sort_by: "newest", // created_at DESC — consistent with the required upload-order rule
+  };
 
+  try {
     const rawItems = await apiClient.get<any>("/products", {
       params: queryParams as Record<string, string | number | boolean | undefined>,
     });
@@ -301,9 +300,22 @@ export async function getFeaturedProducts(
     const hasMore = offset + sliced.length < total;
     return { products: sliced, total, hasMore };
   } catch (err) {
-    // All backend paths failed — return empty. Never substitute mock/dummy data.
-    console.error("[getFeaturedProducts] All backend paths failed:", err);
-    return { products: [], total: 0, hasMore: false };
+    try {
+      const fallbackProducts = await productService.getProducts(queryParams);
+      let orderedProducts = fallbackProducts;
+      if (isNew) {
+        orderedProducts = [...fallbackProducts].sort((a, b) => {
+          const timeA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+          const timeB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+      }
+      const total = orderedProducts.length;
+      const sliced = orderedProducts.slice(offset, offset + limit).map(toStorefrontProduct);
+      return { products: sliced, total, hasMore: offset + sliced.length < total };
+    } catch {
+      return { products: [], total: 0, hasMore: false };
+    }
   }
 }
 

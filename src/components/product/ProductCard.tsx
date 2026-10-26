@@ -14,6 +14,8 @@ import ProductBadge from "@/components/common/ProductBadge";
 import { generateProductImageAlt } from "@/lib/seo";
 import { getLowestValidCustomerUnitPrice } from "@/lib/product-pricing";
 import ProductImageFrame from "./ProductImageFrame";
+import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
+import { translateDesignType, formatMoq } from "@/lib/translations";
 
 interface ProductCardProps {
   product: Product;
@@ -21,6 +23,8 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, priority = false }: ProductCardProps) {
+  const { t } = useTranslation();
+  const { preferences } = usePreferences();
   const { openProductModal } = useProductModal();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { user } = useAuth();
@@ -62,9 +66,16 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
   const estimatedDelivery = product.estimatedDeliveryDate || (product as any).estimated_delivery_date;
 
   return (
-    <div className={`group relative flex flex-col w-full h-full bg-card rounded-2xl border border-border/80 shadow-[0_1px_4px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:shadow-md hover:border-border transition-all duration-300 overflow-hidden font-sans ${
-      isSoldOut ? "opacity-80 grayscale-[0.35]" : ""
-    }`}>
+    <div 
+      data-product-card="true"
+      data-product-id={product.id}
+      data-product-name={product.name}
+      data-product-brand={typeof product.brand === "string" ? product.brand : (product.brand as any)?.name || ""}
+      data-product-price={lowestUnitPrice !== null ? String(lowestUnitPrice) : "unpriced"}
+      className={`group relative flex flex-col w-full h-full bg-card rounded-2xl border border-border/80 shadow-[0_1px_4px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:shadow-md hover:border-border transition-all duration-300 overflow-hidden font-sans ${
+        isSoldOut ? "opacity-80 grayscale-[0.35]" : ""
+      }`}
+    >
       {/* Top Image Container (Flush with upper card boundaries) — Canonical 3:4 */}
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-secondary/40 dark:bg-white/5 shrink-0">
         <Link href={`/products/${product.slug}`} className="block w-full h-full" tabIndex={0} aria-label={product.name}>
@@ -100,7 +111,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
                 : "Original"
             }`}
           >
-            {(product.designType || "").toUpperCase() === "MASTER COPY" ? "MASTER COPY" : "ORIGINAL"}
+            {translateDesignType((product.designType || "").toUpperCase(), preferences.language)}
           </ProductBadge>
         </div>
 
@@ -143,7 +154,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             }`}
             onClick={handleQuickAdd}
           >
-            {isSoldOut ? "Sold Out" : isOutOfStock ? "Out of Stock" : !hasValidPrice ? "Inquire / Quote" : isPreorder ? "Pre-Order" : "Quick Add"}
+            {isSoldOut ? t("product.sold_out", "Sold Out") : isOutOfStock ? t("product.out_of_stock", "Out of Stock") : !hasValidPrice ? t("product.inquire_quote", "Inquire / Quote") : isPreorder ? t("product.pre_order", "Pre-Order") : t("product.quick_add", "Quick Add")}
           </button>
         </div>
       </div>
@@ -167,12 +178,12 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
                     {formatPrice(lowestUnitPrice)}
                   </span>
                   <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
-                    / pc
+                    {t("product.per_pc", "/ pc")}
                   </span>
                 </>
               ) : (
                 <span className="text-[14px] sm:text-[15px] font-semibold text-muted-foreground leading-tight">
-                  Price on Request
+                  {t("product.price_on_request", "Price on Request")}
                 </span>
               )}
             </div>
@@ -183,7 +194,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
                 aria-label="Sold out"
                 className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-[10.5px] font-sans font-bold tracking-wider uppercase bg-red-900 text-white border border-red-700/80 dark:bg-red-950 dark:border-red-700/80 shadow-2xs leading-none select-none shrink-0"
               >
-                SOLD OUT
+                {t("product.sold_out", "SOLD OUT")}
               </span>
             )}
           </div>
@@ -197,15 +208,15 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
 
           <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
             <p className="text-[13px] font-body text-muted-foreground font-medium">
-              MOQ {effectiveMoq} pcs
+              {formatMoq(effectiveMoq, preferences.language)}
             </p>
             {isSoldOut ? null : isPreorder ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                · Pre-Order
+                · {t("product.pre_order", "Pre-Order")}
               </span>
             ) : isOutOfStock ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
-                · Out of Stock
+                · {t("product.out_of_stock", "Out of Stock")}
               </span>
             ) : availableMoqs <= 2 ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">

@@ -9,6 +9,7 @@ import { searchHistoryService } from "@/services/search-history.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
 import { formatPrice } from "@/lib/formatters";
 import ProductBrandLogoOverlay from "@/components/common/ProductBrandLogoOverlay";
+import { useTranslation } from "@/lib/PreferencesContext";
 
 export interface SearchOverlayProps {
   isOpen: boolean;
@@ -31,6 +32,8 @@ export default function SearchOverlay({
   variant = "desktop",
   className = "",
 }: SearchOverlayProps) {
+  const { t } = useTranslation();
+
   // ── State ──────────────────────────────────────────────────────────────────
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [trendingBrands, setTrendingBrands] = useState<BrandModel[]>([]);
@@ -42,6 +45,29 @@ export default function SearchOverlay({
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentRequestIdRef = useRef<number>(0);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Position boundary clamp: Ensure dropdown never overflows past right viewport edge
+  useEffect(() => {
+    if (!isOpen || variant !== "desktop") return;
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+
+    const clampToViewport = () => {
+      // Reset any previous transform to measure natural right edge
+      overlay.style.transform = "";
+      const rect = overlay.getBoundingClientRect();
+      const maxRight = window.innerWidth - 16;
+      if (rect.right > maxRight) {
+        const overflow = rect.right - maxRight;
+        overlay.style.transform = `translateX(-${overflow}px)`;
+      }
+    };
+
+    clampToViewport();
+    window.addEventListener("resize", clampToViewport, { passive: true });
+    return () => window.removeEventListener("resize", clampToViewport);
+  }, [isOpen, variant]);
 
   // ── 1. Hydrate Recent Searches ─────────────────────────────────────────────
   const refreshRecentSearches = useCallback(async () => {
@@ -199,18 +225,19 @@ export default function SearchOverlay({
   if (variant === "desktop") {
     return (
       <div
+        ref={overlayRef}
         data-search-overlay="true"
-        className={`absolute top-[calc(100%+0.5rem)] left-0 right-0 w-full xl:w-[103%] xl:-left-[1.5%] z-50 bg-white dark:bg-[#0b1329] rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.6)] border border-slate-200/90 dark:border-white/10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 select-none ${className}`}
+        className={`absolute top-[calc(100%+0.5rem)] left-0 w-full min-w-[min(100vw-2rem,580px)] lg:min-w-[min(100vw-2rem,620px)] xl:min-w-[min(100vw-2rem,660px)] max-w-[calc(100vw-2rem)] z-50 bg-white dark:bg-[#0b1329] rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.6)] border border-slate-200/90 dark:border-white/10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 select-none ${className}`}
       >
         <div className="flex divide-x divide-slate-100 dark:divide-white/10 min-h-[220px]">
-          {/* Left Column: Recent Searches & Active Query Action (~225px width) */}
-          <div className="w-[215px] xl:w-[235px] shrink-0 p-4 xl:p-4.5 flex flex-col gap-3.5 bg-slate-50/60 dark:bg-slate-900/40">
+          {/* Left Column: Recent Searches & Active Query Action */}
+          <div className="w-[190px] xl:w-[215px] shrink-0 p-3.5 xl:p-4 flex flex-col gap-3 bg-slate-50/70 dark:bg-slate-900/50">
             {/* Active Query Quick Action Button */}
             {trimmedQ && (
               <button
                 type="button"
                 onClick={() => onSelectTerm(searchQuery)}
-                className="w-full flex items-center justify-between py-2 px-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[13px] font-bold transition-colors group cursor-pointer text-left focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-amber-500"
+                className="w-full flex items-center justify-between py-1.5 xl:py-2 px-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs xl:text-[13px] font-bold transition-colors group cursor-pointer text-left focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-amber-500"
               >
                 <span className="flex items-center gap-2 truncate">
                   <Search size={13} className="shrink-0" />
@@ -223,17 +250,17 @@ export default function SearchOverlay({
             {/* Recent Searches Panel */}
             <div className="flex-1 flex flex-col">
               <div className="flex items-center justify-between mb-2 px-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Recent Searches
+                <span className="text-[10.5px] xl:text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {t("search.recent_searches", "Recent Searches")}
                 </span>
                 {recentSearches.length > 0 && (
                   <button
                     type="button"
                     onClick={handleClearAllRecent}
-                    className="text-[10.5px] font-semibold text-muted-foreground/70 hover:text-rose-500 transition-colors cursor-pointer"
-                    title="Clear search history"
+                    className="text-[10px] xl:text-[10.5px] font-semibold text-muted-foreground/70 hover:text-rose-500 transition-colors cursor-pointer"
+                    title={t("search.clear", "Clear")}
                   >
-                    Clear
+                    {t("search.clear", "Clear")}
                   </button>
                 )}
               </div>
@@ -244,10 +271,10 @@ export default function SearchOverlay({
                     <div
                       key={term}
                       onClick={() => onSelectTerm(term)}
-                      className="group/item relative flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-left text-[13px] font-medium text-foreground transition-colors cursor-pointer"
+                      className="group/item relative flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-left text-xs xl:text-[13px] font-medium text-foreground transition-colors cursor-pointer"
                     >
                       <span className="flex items-center gap-2 truncate pr-6">
-                        <Clock size={12.5} className="text-muted-foreground/70 shrink-0" />
+                        <Clock size={12} className="text-muted-foreground/70 shrink-0" />
                         <span className="truncate">{term}</span>
                       </span>
 
@@ -256,8 +283,8 @@ export default function SearchOverlay({
                         type="button"
                         onClick={(e) => handleRemoveRecentItem(term, e)}
                         className="absolute right-1.5 p-1 rounded-md opacity-0 group-hover/item:opacity-100 hover:bg-slate-300/50 dark:hover:bg-slate-700/60 text-muted-foreground/80 hover:text-foreground transition-all duration-150 cursor-pointer focus-visible:opacity-100"
-                        aria-label={`Remove ${term} from recent searches`}
-                        title="Remove from history"
+                        aria-label={`Remove ${term}`}
+                        title="Remove"
                       >
                         <X size={12} strokeWidth={2.2} />
                       </button>
@@ -265,33 +292,33 @@ export default function SearchOverlay({
                   ))}
                 </div>
               ) : (
-                <div className="py-6 px-1 text-left text-[12px] text-muted-foreground/60 italic">
-                  {trimmedQ ? "No matching searches" : "No recent searches"}
+                <div className="py-6 px-1 text-left text-xs text-muted-foreground/60 italic">
+                  {trimmedQ ? t("search.no_matching", "No matching searches") : t("search.no_recent", "No recent searches")}
                 </div>
               )}
             </div>
           </div>
 
           {/* Right Column: Trending Brands (Empty Query) OR Matching Products (Active Query) */}
-          <div className="flex-1 p-4 xl:p-4.5 flex flex-col justify-between">
+          <div className="flex-1 min-w-0 p-3.5 xl:p-4 flex flex-col justify-between">
             {!trimmedQ ? (
               // ── EMPTY QUERY STATE: TRENDING BRANDS (Admin-ordered, capped at 3) ────
               <div>
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Trending Brands
+                <div className="flex items-center justify-between mb-2.5 px-1">
+                  <span className="text-[10.5px] xl:text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {t("search.trending_brands", "Trending Brands")}
                   </span>
                   <Link
                     href="/products"
                     onClick={onClose}
-                    className="text-[12px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                    className="text-xs xl:text-[12px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
                   >
-                    All Brands
+                    {t("search.all_brands", "All Brands")}
                   </Link>
                 </div>
 
                 {trendingBrands.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                  <div className="grid grid-cols-3 gap-2 xl:gap-2.5">
                     {trendingBrands.map((brand) => {
                       const logoUrl = getBrandLogoUrl(brand.name, brand.logo_url || brand.logo);
                       return (
@@ -299,11 +326,11 @@ export default function SearchOverlay({
                           key={brand.id}
                           type="button"
                           onClick={() => handleBrandClick(brand.name)}
-                          className="group relative flex flex-col items-center justify-center p-3 rounded-xl bg-slate-50/70 dark:bg-slate-900/40 hover:bg-slate-100/90 dark:hover:bg-slate-800/70 border border-slate-200/80 dark:border-white/10 transition-all duration-150 cursor-pointer text-center hover:border-amber-500/40 dark:hover:border-amber-500/40 hover:shadow-xs focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-amber-500"
+                          className="group relative flex flex-col items-center justify-center p-2.5 xl:p-3 rounded-xl bg-slate-50/70 dark:bg-slate-900/40 hover:bg-slate-100/90 dark:hover:bg-slate-800/70 border border-slate-200/80 dark:border-white/10 transition-all duration-150 cursor-pointer text-center hover:border-amber-500/40 dark:hover:border-amber-500/40 hover:shadow-xs focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-amber-500 min-w-0"
                           title={`Discover ${brand.name} collection`}
                         >
                           {/* Brand Logo Container */}
-                          <div className="relative w-14 h-12 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-white/5 flex items-center justify-center p-1.5 mb-2 overflow-hidden shadow-xs group-hover:scale-105 transition-transform duration-200">
+                          <div className="relative w-12 h-10 xl:w-14 xl:h-12 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-white/5 flex items-center justify-center p-1.5 mb-2 overflow-hidden shadow-xs group-hover:scale-105 transition-transform duration-200">
                             {logoUrl ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img
@@ -323,12 +350,12 @@ export default function SearchOverlay({
                           </div>
 
                           {/* Brand Name */}
-                          <span className="text-[12.5px] font-bold text-foreground line-clamp-1 leading-tight group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                          <span className="text-xs xl:text-[12.5px] font-bold text-foreground truncate w-full leading-tight group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                             {brand.name}
                           </span>
 
                           {/* Product Count / Discover Tag */}
-                          <span className="text-[10.5px] font-medium text-muted-foreground mt-0.5">
+                          <span className="text-[10px] xl:text-[10.5px] font-medium text-muted-foreground mt-0.5 truncate w-full">
                             {brand.products_count ? `${brand.products_count} Products` : "Explore"}
                           </span>
                         </button>
@@ -344,9 +371,9 @@ export default function SearchOverlay({
             ) : (
               // ── ACTIVE QUERY STATE: DYNAMIC PRODUCT MATCHES ────────────────────────
               <div>
-                <div className="flex items-center justify-between mb-2.5 px-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    Matching Products
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <span className="text-[10.5px] xl:text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    {t("search.matching_products", "Matching Products")}
                     {isLoading && <Loader2 size={12} className="animate-spin text-amber-500" />}
                     {!isLoading && matchingProducts.length > 0 && (
                       <span className="text-muted-foreground/70 font-normal">({matchingProducts.length})</span>
@@ -356,15 +383,15 @@ export default function SearchOverlay({
                     <button
                       type="button"
                       onClick={() => onSelectTerm(searchQuery)}
-                      className="text-[12.5px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                      className="text-xs xl:text-[12.5px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
                     >
-                      View all results
+                      {t("search.view_all_results", "View all results")}
                     </button>
                   )}
                 </div>
 
                 {isLoading && matchingProducts.length === 0 ? (
-                  <div className="grid grid-cols-3 gap-2.5 sm:gap-3 py-1">
+                  <div className="grid grid-cols-3 gap-2 xl:gap-2.5 py-1">
                     {[1, 2, 3].map((n) => (
                       <div
                         key={n}
@@ -373,16 +400,16 @@ export default function SearchOverlay({
                     ))}
                   </div>
                 ) : matchingProducts.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                  <div className="grid grid-cols-3 gap-2 xl:gap-2.5">
                     {matchingProducts.map((product) => (
                       <Link
                         key={product.id}
                         href={`/products/${product.slug}`}
                         onClick={onClose}
-                        className="group relative flex flex-col bg-slate-50/70 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-white/10 p-2 transition-all duration-150 text-left hover:shadow-xs hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-amber-500"
+                        className="group relative flex flex-col bg-slate-50/70 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-white/10 p-2 transition-all duration-150 text-left hover:shadow-xs hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-amber-500 min-w-0"
                       >
                         {/* Compact Image — Canonical 3:4 */}
-                        <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-2">
+                        <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-slate-200/50 dark:bg-slate-800/50 mb-1.5">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={product.image || "/placeholder.jpg"}
@@ -403,23 +430,23 @@ export default function SearchOverlay({
                         </div>
 
                         {/* Product Name */}
-                        <span className="text-[13px] font-semibold text-foreground line-clamp-1 leading-tight mb-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                        <span className="text-xs xl:text-[13px] font-semibold text-foreground truncate leading-tight mb-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                           {product.name}
                         </span>
 
                         {/* Price & MOQ */}
                         <div className="flex items-baseline justify-between gap-1 mt-auto pt-0.5">
                           {product.has_valid_price && product.price > 0 ? (
-                            <span className="text-[13px] font-bold text-foreground tabular-nums">
+                            <span className="text-xs xl:text-[13px] font-bold text-foreground tabular-nums truncate">
                               {formatPrice(product.price)}
                             </span>
                           ) : (
-                            <span className="text-[12px] font-semibold text-muted-foreground">
-                              Price on Request
+                            <span className="text-[11px] xl:text-[12px] font-semibold text-muted-foreground truncate">
+                              {t("product.price_on_request", "Price on Request")}
                             </span>
                           )}
-                          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-tight">
-                            MOQ {product.moq || 10}
+                          <span className="text-[10px] xl:text-[11px] font-medium text-muted-foreground uppercase tracking-tight shrink-0">
+                            {t("product.moq", "MOQ")} {product.moq || 10}
                           </span>
                         </div>
                       </Link>
@@ -427,20 +454,20 @@ export default function SearchOverlay({
                   </div>
                 ) : (
                   // ZERO MATCHES STATE
-                  <div className="py-10 text-center text-[13px] text-muted-foreground flex flex-col items-center justify-center gap-1.5">
+                  <div className="py-10 text-center text-xs xl:text-[13px] text-muted-foreground flex flex-col items-center justify-center gap-1.5">
                     <Search size={22} className="text-muted-foreground/40 mb-1" />
                     <p className="font-semibold text-foreground">
-                      No matching products found for &quot;{searchQuery}&quot;
+                      {t("search.no_results_for", "No matching products found for")} &quot;{searchQuery}&quot;
                     </p>
-                    <p className="text-[11.5px] max-w-xs">
-                      Try searching by product title, brand name (e.g. Nike, Zara), or category
+                    <p className="text-[11px] xl:text-[11.5px] max-w-xs">
+                      {t("search.no_results_help", "Try checking for spelling errors or searching for a general term like jacket, denim, or polo.")}
                     </p>
                     <button
                       type="button"
                       onClick={() => onSelectTerm(searchQuery)}
-                      className="mt-2 text-[12px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                      className="mt-2 text-xs xl:text-[12px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
                     >
-                      Search full catalog &rarr;
+                      {t("search.view_all_results", "View all results")} &rarr;
                     </button>
                   </div>
                 )}
@@ -483,14 +510,14 @@ export default function SearchOverlay({
           <div className="p-3.5 border-b border-slate-100 dark:border-white/10">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground block">
-                Recent Searches
+                {t("search.recent_searches", "Recent Searches")}
               </span>
               <button
                 type="button"
                 onClick={handleClearAllRecent}
                 className="text-[10px] font-semibold text-muted-foreground/70 hover:text-rose-500"
               >
-                Clear
+                {t("search.clear", "Clear")}
               </button>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -521,7 +548,7 @@ export default function SearchOverlay({
         {!trimmedQ && trendingBrands.length > 0 && (
           <div className="p-3.5">
             <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground block mb-2.5">
-              Trending Brands
+              {t("search.trending_brands", "Trending Brands")}
             </span>
             <div className="grid grid-cols-3 gap-2">
               {trendingBrands.map((brand) => {
@@ -563,7 +590,7 @@ export default function SearchOverlay({
           <div className="p-3.5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground block">
-                Matching Products
+                {t("search.matching_products", "Matching Products")}
               </span>
               {matchingProducts.length > 0 && (
                 <button
@@ -571,7 +598,7 @@ export default function SearchOverlay({
                   onClick={() => onSelectTerm(searchQuery)}
                   className="text-[11px] font-bold text-amber-600 dark:text-amber-400"
                 >
-                  View all
+                  {t("search.view_all_results", "View all")}
                 </button>
               )}
             </div>
@@ -606,10 +633,10 @@ export default function SearchOverlay({
                     </span>
                     <div className="flex items-baseline justify-between gap-1 mt-auto">
                       <span className="text-xs font-bold text-foreground tabular-nums">
-                        {product.has_valid_price && product.price > 0 ? formatPrice(product.price) : "Enquire"}
+                        {product.has_valid_price && product.price > 0 ? formatPrice(product.price) : t("product.price_on_request", "Price on Request")}
                       </span>
                       <span className="text-[10px] font-medium text-muted-foreground uppercase">
-                        MOQ {product.moq || 10}
+                        {t("product.moq", "MOQ")} {product.moq || 10}
                       </span>
                     </div>
                   </Link>
@@ -617,7 +644,7 @@ export default function SearchOverlay({
               </div>
             ) : (
               <div className="py-6 text-center text-xs text-muted-foreground">
-                No matching preview products
+                {t("search.no_matching", "No matching preview products")}
               </div>
             )}
           </div>

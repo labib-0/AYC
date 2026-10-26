@@ -846,7 +846,7 @@ export class ProductService {
         if (err?.name === "AbortError" || err?.message === "AbortError") {
           throw err;
         }
-        throw err;
+        // Fall through to local dataset when backend connection fails or offline
       }
     }
 
@@ -1545,23 +1545,139 @@ export class ProductService {
       return true;
     });
 
-    // Sorting
+    // Helper to resolve authoritative numerical unit price for sorting
+    const getSortPrice = (p: B2BProductInput): number | null => {
+      const lowest = getLowestValidCustomerUnitPrice(p);
+      if (lowest !== null && !isNaN(lowest) && lowest > 0) {
+        return lowest;
+      }
+      const candidates = [
+        p.price,
+        p.wholesalePrice,
+        p.wholesale_price,
+        p.standardPrice,
+        p.standard_price,
+        (p as any).lowestUnitPrice,
+        (p as any).effectiveCustomerUnitPrice,
+      ];
+      for (const c of candidates) {
+        if (c !== undefined && c !== null && !isNaN(Number(c)) && Number(c) > 0) {
+          return Number(c);
+        }
+      }
+      const rawTiers = p.pricingTiers || (p as any).pricing_tiers;
+      const tiers = Array.isArray(rawTiers)
+        ? rawTiers
+        : typeof rawTiers === "object" && rawTiers !== null
+        ? Object.values(rawTiers)
+        : [];
+      for (const t of tiers) {
+        const u = Number((t as any)?.unit_price);
+        if (!isNaN(u) && u > 0) return u;
+      }
+      return null;
+    };
+
+    // Helper to normalize product name for stable locale-appropriate comparison
+    const getNormalizedName = (p: B2BProductInput): string => {
+      return (p.name || "").trim().normalize("NFC");
+    };
+
+    // Helper to get authoritative product creation/publication timestamp
+    const getProductTimestamp = (p: B2BProductInput): number => {
+      const dateStr = p.createdAt || p.created_at || (p as any).publishedAt || (p as any).published_at || (p as any).addedAt;
+      if (dateStr) {
+        const parsed = Date.parse(dateStr);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+      const idStr = String(p.id ?? "");
+      const match = idStr.match(/\d+/);
+      if (match) {
+        return parseInt(match[0], 10);
+      }
+      return 0;
+    };
+
+    // Sorting across full filtered dataset
     const sort = options?.sort_by || options?.sort;
     if (sort) {
       if (sort === "manual" || sort === "sort_order") {
-        result.sort((a, b) => ((a.sort_order ?? a.sortOrder ?? 0) - (b.sort_order ?? b.sortOrder ?? 0)));
+        result.sort((a, b) => {
+          const sa = a.sort_order ?? a.sortOrder ?? 0;
+          const sb = b.sort_order ?? b.sortOrder ?? 0;
+          if (sa !== sb) return sa - sb;
+          return String(a.id || "").localeCompare(String(b.id || ""));
+        });
       } else if (sort === "price_asc") {
-        result.sort((a, b) => (a.standardPrice ?? a.wholesalePrice ?? 0) - (b.standardPrice ?? b.wholesalePrice ?? 0));
+        result.sort((a, b) => {
+          const priceA = getSortPrice(a);
+          const priceB = getSortPrice(b);
+          // Both priced: sort by numeric unit price ascending
+          if (priceA !== null && priceB !== null) {
+            if (priceA !== priceB) return priceA - priceB;
+            const nameComp = getNormalizedName(a).localeCompare(getNormalizedName(b), undefined, { sensitivity: "base", numeric: true });
+            if (nameComp !== 0) return nameComp;
+            return String(a.id || "").localeCompare(String(b.id || ""));
+          }
+          // Unpriced / price-on-request items placed after priced items
+          if (priceA !== null) return -1;
+          if (priceB !== null) return 1;
+          // Both unpriced: tie-break by name then id
+          const nameComp = getNormalizedName(a).localeCompare(getNormalizedName(b), undefined, { sensitivity: "base", numeric: true });
+          if (nameComp !== 0) return nameComp;
+          return String(a.id || "").localeCompare(String(b.id || ""));
+        });
       } else if (sort === "price_desc") {
-        result.sort((a, b) => (b.standardPrice ?? b.wholesalePrice ?? 0) - (a.standardPrice ?? a.wholesalePrice ?? 0));
-      } else if (sort === "newest") {
-        result.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0));
-      } else if (sort === "popular" || sort === "hot") {
-        result.sort((a, b) => (b.isHot ? 1 : 0) - (a.isHot ? 1 : 0));
+        result.sort((a, b) => {
+          const priceA = getSortPrice(a);
+          const priceB = getSortPrice(b);
+          // Both priced: sort by numeric unit price descending
+          if (priceA !== null && priceB !== null) {
+            if (priceA !== priceB) return priceB - priceA;
+            const nameComp = getNormalizedName(a).localeCompare(getNormalizedName(b), undefined, { sensitivity: "base", numeric: true });
+            if (nameComp !== 0) return nameComp;
+            return String(a.id || "").localeCompare(String(b.id || ""));
+          }
+          // Unpriced / price-on-request items placed after priced items (in both asc and desc)
+          if (priceA !== null) return -1;
+          if (priceB !== null) return 1;
+          // Both unpriced: tie-break by name then id
+          const nameComp = getNormalizedName(a).localeCompare(getNormalizedName(b), undefined, { sensitivity: "base", numeric: true });
+          if (nameComp !== 0) return nameComp;
+          return String(a.id || "").localeCompare(String(b.id || ""));
+        });
       } else if (sort === "name_asc") {
-        result.sort((a, b) => a.name.localeCompare(b.name));
+        result.sort((a, b) => {
+          const nameComp = getNormalizedName(a).localeCompare(getNormalizedName(b), undefined, { sensitivity: "base", numeric: true });
+          if (nameComp !== 0) return nameComp;
+          return String(a.id || "").localeCompare(String(b.id || ""));
+        });
       } else if (sort === "name_desc") {
-        result.sort((a, b) => b.name.localeCompare(a.name));
+        result.sort((a, b) => {
+          const nameComp = getNormalizedName(b).localeCompare(getNormalizedName(a), undefined, { sensitivity: "base", numeric: true });
+          if (nameComp !== 0) return nameComp;
+          return String(a.id || "").localeCompare(String(b.id || ""));
+        });
+      } else if (sort === "popular" || sort === "hot") {
+        result.sort((a, b) => {
+          const hotA = Boolean(a.isHot || (a as any).is_hot) ? 1 : 0;
+          const hotB = Boolean(b.isHot || (b as any).is_hot) ? 1 : 0;
+          if (hotA !== hotB) return hotB - hotA;
+          const timeA = getProductTimestamp(a);
+          const timeB = getProductTimestamp(b);
+          if (timeA !== timeB) return timeB - timeA;
+          return String(b.id || "").localeCompare(String(a.id || ""));
+        });
+      } else if (sort === "newest") {
+        result.sort((a, b) => {
+          const timeA = getProductTimestamp(a);
+          const timeB = getProductTimestamp(b);
+          if (timeA !== timeB) return timeB - timeA;
+          const newA = Boolean(a.isNew || (a as any).is_new) ? 1 : 0;
+          const newB = Boolean(b.isNew || (b as any).is_new) ? 1 : 0;
+          if (newA !== newB) return newB - newA;
+          return String(b.id || "").localeCompare(String(a.id || ""));
+        });
       }
     }
 

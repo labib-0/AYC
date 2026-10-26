@@ -66,7 +66,7 @@ function HeaderContent() {
   // Contexts
   const { totalItems, setIsCartOpen } = useCart();
   const { totalWishlistItems } = useWishlist();
-  const { preferences } = usePreferences();
+  const { preferences, t } = usePreferences();
   const { user, signOut } = useAuth();
   const { totalRfqCount } = useRfq();
   const { settings, getWhatsAppUrl } = useSiteSettings();
@@ -237,15 +237,16 @@ function HeaderContent() {
             : "bg-[#0b1329] border-b border-white/5"
         }`}
       >
-        {/* DESKTOP HEADER (Untouched, Full Desktop Bar) */}
-        <div className="hidden lg:flex items-center justify-between px-4 sm:px-6 lg:px-8 xl:px-8 py-3 gap-6 text-white max-w-[1728px] 2xl:max-w-[1760px] mx-auto">
+        {/* DESKTOP HEADER (Responsive, Balanced Proportions) */}
+        <div className="hidden lg:flex items-center justify-between px-3 sm:px-4 lg:px-5 xl:px-8 py-2.5 lg:py-3 gap-2.5 lg:gap-3.5 xl:gap-6 text-white max-w-[1728px] 2xl:max-w-[1760px] mx-auto">
           {/* Logo & Website Title */}
           <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 shrink-0 group" aria-label={`${settings.site_title} Home`}>
             <HeaderBranding
               siteTitle={settings.site_title}
               siteLogo={settings.site_logo}
-              className="flex items-center gap-3 shrink-0 group-hover:opacity-95 transition-opacity"
-              titleClassName="font-black text-2xl xl:text-3xl tracking-widest text-white group-hover:text-white/90 transition-colors"
+              className="flex items-center gap-2 lg:gap-2.5 xl:gap-3 shrink-0 group-hover:opacity-95 transition-opacity"
+              titleClassName="font-black text-lg lg:text-xl xl:text-2xl 2xl:text-3xl tracking-wide lg:tracking-wider xl:tracking-widest text-white group-hover:text-white/90 transition-colors whitespace-nowrap"
+              logoHeightClass="h-7 lg:h-8 xl:h-10"
             />
           </Link>
 
@@ -253,29 +254,29 @@ function HeaderContent() {
           <form 
             ref={desktopSearchRef}
             onSubmit={handleSearchSubmit}
-            className="flex-1 max-w-xl xl:max-w-2xl 2xl:max-w-3xl relative"
+            className="flex-1 min-w-[200px] lg:min-w-[240px] max-w-xl xl:max-w-2xl 2xl:max-w-3xl relative"
           >
             <div 
-              className={`flex items-center w-full rounded-full h-11 border transition-all duration-200 cursor-text ${
+              className={`flex items-center w-full rounded-full h-10 lg:h-11 border transition-all duration-200 cursor-text ${
                 isSearchOpen 
-                  ? "bg-white border-white text-slate-900 shadow-[0_0_20px_rgba(255,255,255,0.35)] ring-2 ring-white/30 pl-4 pr-1.5" 
-                  : "bg-white/[0.08] border-white/15 text-white hover:bg-white/[0.12] hover:border-white/30 px-4"
+                  ? "bg-white border-white text-slate-900 shadow-[0_0_20px_rgba(255,255,255,0.35)] ring-2 ring-white/30 pl-3.5 lg:pl-4 pr-1.5" 
+                  : "bg-white/[0.08] border-white/15 text-white hover:bg-white/[0.12] hover:border-white/30 px-3.5 lg:px-4"
               }`}
             >
               {!isSearchOpen && (
-                <Search size={18} className="mr-3 shrink-0 text-white/50" />
+                <Search size={17} className="mr-2 lg:mr-3 shrink-0 text-white/50" />
               )}
               <input 
                 type="text"
                 name="q"
                 id="header-desktop-search"
                 autoComplete="off"
-                className={`bg-transparent border-none outline-none w-full text-[13px] focus:ring-0 ${
+                className={`bg-transparent border-none outline-none w-full text-xs lg:text-[13px] focus:ring-0 ${
                   isSearchOpen 
                     ? "text-slate-900 placeholder:text-slate-400 font-medium pr-2" 
                     : "text-white placeholder:text-white/50"
                 }`}
-                placeholder="Search products..."
+                placeholder={t("nav.search_placeholder", "Search products...")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchOpen(true)}
@@ -283,11 +284,11 @@ function HeaderContent() {
               {isSearchOpen && (
                 <button 
                   type="submit"
-                  className="shrink-0 h-8 px-4 rounded-full bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-[13px] flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                  aria-label="Search"
+                  className="shrink-0 h-7 lg:h-8 px-3 lg:px-4 rounded-full bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs lg:text-[13px] flex items-center justify-center gap-1 lg:gap-1.5 shadow-sm transition-all"
+                  aria-label={t("nav.search_button", "Search")}
                 >
-                  <Search size={14} className="text-white" strokeWidth={2.5} />
-                  <span>Search</span>
+                  <Search size={13} className="text-white" strokeWidth={2.5} />
+                  <span>{t("nav.search_button", "Search")}</span>
                 </button>
               )}
             </div>
@@ -307,20 +308,22 @@ function HeaderContent() {
           </form>
 
           {/* Desktop Utilities */}
-          <div className="flex items-center gap-6 xl:gap-8 shrink-0">
+          <div className="flex items-center gap-2 lg:gap-3 xl:gap-5 2xl:gap-7 shrink-0">
             
             {/* Deliver To */}
             <button 
               type="button"
-              className="flex items-center gap-2 text-white/85 hover:text-white cursor-pointer transition-colors press-feedback focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg p-1"
+              className="flex items-center gap-1.5 xl:gap-2 text-white/85 hover:text-white cursor-pointer transition-colors press-feedback focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg p-1 shrink-0"
               onClick={() => setIsLocationOpen(true)}
-              aria-label={`Deliver to ${preferences.country}`}
+              aria-label={`${t("nav.deliver_to", "Deliver to")} ${preferences.country}`}
             >
-              <span className="text-xl leading-none">{preferences.flag}</span>
-              <div className="flex flex-col leading-none justify-center text-left">
-                <span className="text-[11px] text-white/50 mb-0.5 uppercase tracking-wide">Deliver to:</span>
-                <span className="font-bold tracking-wide text-[13px] truncate max-w-[90px]">
-                  {preferences.countryCode || "Select"}
+              <span className="text-lg xl:text-xl leading-none shrink-0">{preferences.flag}</span>
+              <div className="flex flex-col leading-tight justify-center text-left">
+                <span className="text-[10px] xl:text-[11px] text-white/50 uppercase tracking-wide whitespace-nowrap">
+                  {t("nav.deliver_to_colon", "Deliver to:")}
+                </span>
+                <span className="font-bold tracking-wide text-xs xl:text-[13px] whitespace-nowrap">
+                  {preferences.countryCode || t("nav.select_location", "Select")}
                 </span>
               </div>
             </button>
@@ -328,24 +331,25 @@ function HeaderContent() {
             {/* Language */}
             <button 
               type="button"
-              className="flex items-center gap-2 text-white/85 hover:text-white cursor-pointer transition-colors press-feedback focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg p-1"
+              id="header-language-btn"
+              className="flex items-center gap-1.5 xl:gap-2 text-white/85 hover:text-white cursor-pointer transition-colors press-feedback focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg p-1 shrink-0 whitespace-nowrap"
               onClick={() => setIsLanguageOpen(true)}
-              aria-label={`Language: ${preferences.language}`}
+              aria-label={`${t("nav.language", "Language")}: ${preferences.language}`}
             >
-              <Globe size={18} strokeWidth={1.5} />
-              <span className="font-bold tracking-wide text-[13px] uppercase">
-                {preferences.language}
+              <Globe size={16} strokeWidth={1.5} className="shrink-0 xl:w-[18px] xl:h-[18px]" />
+              <span className="font-bold tracking-wide text-xs xl:text-[13px] uppercase whitespace-nowrap">
+                {preferences.language === "Bengali" ? "বাংলা" : preferences.language === "Arabic" ? "العربية" : "English"}
               </span>
             </button>
 
             {/* Wishlist — accessible to customers and directs guests to login */}
             <Link 
               href={user ? "/dashboard/wishlist" : "/login?returnUrl=/dashboard/wishlist&notice=Please%20log%20in%20to%20view%20your%20saved%20items."}
-              className="relative flex items-center justify-center h-10 w-10 rounded-full border border-white/20 hover:bg-white/10 transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer" 
-              aria-label={`Saved Items (${totalWishlistItems})`}
-              title="Saved Items"
+              className="relative flex items-center justify-center h-9 w-9 xl:h-10 xl:w-10 rounded-full border border-white/20 hover:bg-white/10 transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer shrink-0" 
+              aria-label={`${t("nav.wishlist", "Saved Items")} (${totalWishlistItems})`}
+              title={t("nav.wishlist", "Saved Items")}
             >
-              <Heart size={18} strokeWidth={1.5} className={totalWishlistItems > 0 ? "text-rose-400" : ""} />
+              <Heart size={17} strokeWidth={1.5} className={totalWishlistItems > 0 ? "text-rose-400" : ""} />
               {totalWishlistItems > 0 && (
                 <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[0.6rem] font-bold w-[1.125rem] h-[1.125rem] flex items-center justify-center rounded-full shadow-sm">
                   {totalWishlistItems}
@@ -356,11 +360,11 @@ function HeaderContent() {
             {/* Cart */}
             <button 
               type="button"
-              className="relative flex items-center justify-center h-10 w-10 rounded-full border border-white/20 hover:bg-white/10 transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer" 
-              aria-label={`Shopping Cart (${totalItems} items)`}
+              className="relative flex items-center justify-center h-9 w-9 xl:h-10 xl:w-10 rounded-full border border-white/20 hover:bg-white/10 transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer shrink-0" 
+              aria-label={`${t("nav.cart", "Shopping Cart")} (${totalItems} items)`}
               onClick={() => setIsCartOpen(true)}
             >
-              <ShoppingCart size={18} strokeWidth={1.5} />
+              <ShoppingCart size={17} strokeWidth={1.5} />
               {totalItems > 0 && (
                 <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-900 text-[0.6rem] font-bold w-[1.125rem] h-[1.125rem] flex items-center justify-center rounded-full shadow-sm">
                   {totalItems}
@@ -371,12 +375,12 @@ function HeaderContent() {
             {/* RFQ Cart / Quote */}
             <Link
               href="/rfq"
-              className="relative inline-flex items-center justify-center h-10 px-3.5 rounded-full border border-white/20 hover:bg-white/10 text-white/90 hover:text-white transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer gap-2 text-xs font-semibold uppercase tracking-wider"
-              aria-label={`Request For Quotation (${totalRfqCount} items)`}
-              title="Request Wholesale Quotation"
+              className="relative inline-flex items-center justify-center h-9 xl:h-10 px-2.5 xl:px-3.5 rounded-full border border-white/20 hover:bg-white/10 text-white/90 hover:text-white transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer gap-1.5 xl:gap-2 text-[11px] xl:text-xs font-semibold uppercase tracking-wider shrink-0"
+              aria-label={`${t("nav.rfq_full", "Request For Quotation")} (${totalRfqCount} items)`}
+              title={t("nav.rfq_full", "Request Wholesale Quotation")}
             >
-              <FileText size={16} strokeWidth={1.5} className="text-white/80" />
-              <span>RFQ</span>
+              <FileText size={15} strokeWidth={1.5} className="text-white/80" />
+              <span>{t("nav.rfq", "RFQ")}</span>
               {totalRfqCount > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[0.625rem] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-xs">
                   {totalRfqCount}
@@ -388,21 +392,21 @@ function HeaderContent() {
             {user ? (
               <Link
                 href="/dashboard"
-                className="flex items-center gap-2 h-10 px-3 rounded-full border border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer"
-                aria-label={`My Dashboard: ${user.name || user.email}`}
+                className="flex items-center gap-1.5 xl:gap-2 h-9 xl:h-10 px-2.5 xl:px-3 rounded-full border border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer shrink-0"
+                aria-label={`${t("nav.dashboard", "My Dashboard")}: ${user.name || user.email}`}
               >
-                <User size={18} strokeWidth={1.5} />
-                <span className="text-xs font-semibold max-w-[100px] truncate">
-                  {user.name?.split(" ")[0] || "Dashboard"}
+                <User size={16} strokeWidth={1.5} />
+                <span className="text-[11px] xl:text-xs font-semibold max-w-[80px] xl:max-w-[100px] truncate">
+                  {user.name?.split(" ")[0] || t("nav.dashboard", "Dashboard")}
                 </span>
               </Link>
             ) : (
               <Link
                 href="/login"
-                className="flex items-center gap-2 h-10 px-3 rounded-full border border-white/20 hover:bg-white/10 text-white transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer"
-                aria-label="Sign In / Account"
+                className="flex items-center gap-1.5 xl:gap-2 h-9 xl:h-10 px-2.5 xl:px-3 rounded-full border border-white/20 hover:bg-white/10 text-white transition-colors press-feedback focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer shrink-0"
+                aria-label={t("nav.sign_in", "Sign In / Account")}
               >
-                <User size={18} strokeWidth={1.5} />
+                <User size={16} strokeWidth={1.5} />
               </Link>
             )}
 
@@ -430,6 +434,7 @@ function HeaderContent() {
               >
                 <button
                   type="button"
+                  id="header-mobile-menu-btn"
                   className="flex items-center justify-center h-10 w-10 -ml-1 rounded-full hover:bg-white/10 active:bg-white/20 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none cursor-pointer"
                   aria-label="Open navigation menu"
                   aria-expanded={isMobileMenuOpen}
@@ -531,14 +536,14 @@ function HeaderContent() {
                   <input
                     type="text"
                     name="q"
-                    id="header-mobile-expanded-search"
+                    id="header-mobile-search-compact"
                     autoComplete="off"
                     className={`bg-transparent border-none outline-none w-full min-w-0 focus:ring-0 transition-colors text-xs ${
                       isSearchOpen
                         ? "text-slate-900 placeholder:text-slate-400 font-medium pr-1"
                         : "text-white placeholder:text-white/40"
                     }`}
-                    placeholder="Search products..."
+                    placeholder={t("nav.search_placeholder", "Search products...")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setIsSearchOpen(true)}
@@ -548,8 +553,8 @@ function HeaderContent() {
                     <button
                       type="submit"
                       className="shrink-0 rounded-full bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold flex items-center justify-center shadow-sm transition-all duration-150 cursor-pointer animate-in fade-in zoom-in-90 h-6 px-2.5 text-[0.6875rem] gap-0.5"
-                      aria-label="Search"
-                      title="Search"
+                      aria-label={t("nav.search_button", "Search")}
+                      title={t("nav.search_button", "Search")}
                     >
                       <Search size={11} className="text-white" strokeWidth={2.5} />
                     </button>
@@ -639,14 +644,14 @@ function HeaderContent() {
               <input
                 type="text"
                 name="q"
-                id="header-mobile-compact-search"
+                id="header-mobile-search-expanded"
                 autoComplete="off"
                 className={`bg-transparent border-none outline-none w-full focus:ring-0 transition-colors text-[0.8125rem] ${
                   isSearchOpen
                     ? "text-slate-900 placeholder:text-slate-400 font-medium pr-1"
                     : "text-white placeholder:text-white/50"
                 }`}
-                placeholder="Search products..."
+                placeholder={t("nav.search_placeholder", "Search products...")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchOpen(true)}
@@ -656,10 +661,11 @@ function HeaderContent() {
                 <button
                   type="submit"
                   className="shrink-0 rounded-full bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold flex items-center justify-center shadow-sm transition-all duration-150 cursor-pointer animate-in fade-in zoom-in-90 h-7 px-3 text-xs gap-1"
-                  aria-label="Search"
-                  title="Search"
+                  aria-label={t("nav.search_button", "Search")}
+                  title={t("nav.search_button", "Search")}
                 >
                   <Search size={13} className="text-white" strokeWidth={2.5} />
+                  <span>{t("nav.search_button", "Search")}</span>
                 </button>
               )}
             </form>
@@ -682,6 +688,17 @@ function HeaderContent() {
         </div>
 
       </header>
+
+      {/* Search Dimmed Backdrop Overlay (Dims page content below header when search dropdown is active) */}
+      {isSearchOpen && (
+        <div 
+          id="header-search-backdrop"
+          data-search-backdrop="true"
+          className="fixed inset-0 top-[58px] sm:top-[106px] lg:top-[4.25rem] bg-black/45 backdrop-blur-[2px] z-40 transition-opacity animate-in fade-in duration-200"
+          onClick={() => setIsSearchOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Mobile Menu Overlay */}
       <div 
@@ -725,16 +742,16 @@ function HeaderContent() {
               closeMobileMenu();
               setIsLocationOpen(true);
             }}
-            aria-label={`Deliver to: ${preferences.country}`}
+            aria-label={`${t("nav.deliver_to", "Deliver to")}: ${preferences.country}`}
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl leading-none">{preferences.flag}</span>
               <div className="flex flex-col text-left">
-                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Deliver to</span>
-                <span className="font-bold text-sm tracking-wide text-white">{preferences.country || "Select Location"}</span>
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">{t("nav.deliver_to", "Deliver to")}</span>
+                <span className="font-bold text-sm tracking-wide text-white">{preferences.country || t("nav.select_location", "Select Location")}</span>
               </div>
             </div>
-            <span className="text-xs text-amber-400 font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20">Change</span>
+            <span className="text-xs text-amber-400 font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20">{t("nav.change", "Change")}</span>
           </button>
 
           {/* 2. Language */}
@@ -746,18 +763,18 @@ function HeaderContent() {
               closeMobileMenu();
               setIsLanguageOpen(true);
             }}
-            aria-label={`Language: ${preferences.language}`}
+            aria-label={`${t("nav.language", "Language")}: ${preferences.language}`}
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                 <Globe size={18} strokeWidth={1.75} className="text-white" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Language</span>
-                <span className="font-bold text-sm tracking-wide text-white uppercase">{preferences.language || "English"}</span>
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">{t("nav.language", "Language")}</span>
+                <span className="font-bold text-sm tracking-wide text-white uppercase">{preferences.language === "Bengali" ? "বাংলা" : preferences.language === "Arabic" ? "العربية" : "ENGLISH"}</span>
               </div>
             </div>
-            <span className="text-xs text-amber-400 font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20">Change</span>
+            <span className="text-xs text-amber-400 font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20">{t("nav.change", "Change")}</span>
           </button>
 
           {/* 3. Wishlist */}
@@ -766,15 +783,15 @@ function HeaderContent() {
             id="mobile-nav-wishlist"
             className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] transition-all text-white/90 min-h-[52px]"
             onClick={closeMobileMenu}
-            aria-label={`Wishlist (${totalWishlistItems} saved items)`}
+            aria-label={`${t("nav.wishlist", "Wishlist")} (${totalWishlistItems} saved items)`}
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                 <Heart size={18} strokeWidth={1.75} className={totalWishlistItems > 0 ? "text-rose-400" : "text-white"} />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Saved Items</span>
-                <span className="font-bold text-sm tracking-wide text-white">Wishlist</span>
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">{t("nav.saved_items", "Saved Items")}</span>
+                <span className="font-bold text-sm tracking-wide text-white">{t("nav.wishlist", "Wishlist")}</span>
               </div>
             </div>
             {totalWishlistItems > 0 ? (
@@ -795,15 +812,15 @@ function HeaderContent() {
               closeMobileMenu();
               setIsCartOpen(true);
             }}
-            aria-label={`Cart (${totalItems} items)`}
+            aria-label={`${t("nav.cart", "Cart")} (${totalItems} items)`}
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                 <ShoppingCart size={18} strokeWidth={1.75} className="text-white" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Shopping Bag</span>
-                <span className="font-bold text-sm tracking-wide text-white">Cart</span>
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">{t("nav.shopping_bag", "Shopping Bag")}</span>
+                <span className="font-bold text-sm tracking-wide text-white">{t("nav.cart", "Cart")}</span>
               </div>
             </div>
             {totalItems > 0 ? (
@@ -821,15 +838,15 @@ function HeaderContent() {
             id="mobile-nav-rfq"
             className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] transition-all text-white/90 min-h-[52px]"
             onClick={closeMobileMenu}
-            aria-label={`Request for Quotation (${totalRfqCount} items)`}
+            aria-label={`${t("nav.rfq_full", "Request for Quotation")} (${totalRfqCount} items)`}
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                 <FileText size={18} strokeWidth={1.75} className="text-white" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Wholesale Inquiries</span>
-                <span className="font-bold text-sm tracking-wide text-white">RFQ (Request for Quotation)</span>
+                <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">{t("nav.wholesale_inquiries", "Wholesale Inquiries")}</span>
+                <span className="font-bold text-sm tracking-wide text-white">{t("nav.rfq_full", "RFQ (Request for Quotation)")}</span>
               </div>
             </div>
             {totalRfqCount > 0 ? (
@@ -837,7 +854,7 @@ function HeaderContent() {
                 {totalRfqCount}
               </span>
             ) : (
-              <span className="text-xs text-white/40 font-medium">Inquire</span>
+              <span className="text-xs text-white/40 font-medium">{t("nav.rfq", "Inquire")}</span>
             )}
           </Link>
 
@@ -848,20 +865,20 @@ function HeaderContent() {
               id="mobile-nav-account"
               className="flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 active:bg-amber-500/25 transition-all text-amber-300 min-h-[52px]"
               onClick={closeMobileMenu}
-              aria-label={`Account Dashboard: ${user.name || user.email}`}
+              aria-label={`${t("nav.dashboard", "Account Dashboard")}: ${user.name || user.email}`}
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
                   <User size={18} strokeWidth={1.75} className="text-amber-400" />
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-[11px] text-amber-400/70 uppercase tracking-wider font-semibold">Account</span>
+                  <span className="text-[11px] text-amber-400/70 uppercase tracking-wider font-semibold">{t("nav.account", "Account")}</span>
                   <span className="font-bold text-sm tracking-wide text-white truncate max-w-[190px]">
                     {user.name || user.email}
                   </span>
                 </div>
               </div>
-              <span className="text-xs uppercase font-bold tracking-wider text-amber-400 px-2.5 py-1 rounded-lg bg-amber-400/10">Dashboard →</span>
+              <span className="text-xs uppercase font-bold tracking-wider text-amber-400 px-2.5 py-1 rounded-lg bg-amber-400/10">{t("nav.dashboard", "Dashboard")} →</span>
             </Link>
           ) : (
             <Link
@@ -869,18 +886,18 @@ function HeaderContent() {
               id="mobile-nav-account"
               className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] transition-all text-white/90 min-h-[52px]"
               onClick={closeMobileMenu}
-              aria-label="Sign In or Register"
+              aria-label={t("nav.sign_in_register", "Sign In or Register")}
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                   <User size={18} strokeWidth={1.75} className="text-white" />
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">Buyer Portal</span>
-                  <span className="font-bold text-sm tracking-wide text-white">Sign In / Register</span>
+                  <span className="text-[11px] text-white/50 uppercase tracking-wider font-semibold">{t("nav.buyer_portal", "Buyer Portal")}</span>
+                  <span className="font-bold text-sm tracking-wide text-white">{t("nav.sign_in_register", "Sign In / Register")}</span>
                 </div>
               </div>
-              <span className="text-xs uppercase font-bold tracking-wider text-white/70 px-2.5 py-1 rounded-lg bg-white/10">Account →</span>
+              <span className="text-xs uppercase font-bold tracking-wider text-white/70 px-2.5 py-1 rounded-lg bg-white/10">{t("nav.account", "Account")} →</span>
             </Link>
           )}
         </nav>

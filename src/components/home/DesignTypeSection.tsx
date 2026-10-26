@@ -3,6 +3,8 @@
 import React, { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
+import { translateDesignType } from "@/lib/translations";
 
 export const DESIGN_TYPE_OPTIONS = [
   { label: "ORIGINAL", value: "ORIGINAL" },
@@ -11,6 +13,7 @@ export const DESIGN_TYPE_OPTIONS = [
 
 function DesignTypeContent() {
   const searchParams = useSearchParams();
+  const { preferences } = usePreferences();
   const currentDesignType = (searchParams.get("design_type") || searchParams.get("designType") || "").toUpperCase();
 
   return (
@@ -22,6 +25,7 @@ function DesignTypeContent() {
       {DESIGN_TYPE_OPTIONS.map((dt) => {
         const param = encodeURIComponent(dt.value);
         const isSelected = currentDesignType === dt.value;
+        const displayLabel = translateDesignType(dt.value, preferences.language);
         return (
           <Link
             key={dt.value}
@@ -36,7 +40,7 @@ function DesignTypeContent() {
                 : "border-slate-900/20 dark:border-white/20 bg-card/90 dark:bg-card/60 hover:bg-secondary/70 dark:hover:bg-secondary/60 hover:border-slate-900/60 dark:hover:border-white/60 text-foreground/85 hover:text-foreground shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:scale-[0.98]"
             }`}
           >
-            <span className="whitespace-nowrap">{dt.label}</span>
+            <span className="whitespace-nowrap">{displayLabel}</span>
           </Link>
         );
       })}
@@ -45,6 +49,7 @@ function DesignTypeContent() {
 }
 
 export default function DesignTypeSection() {
+  const { t } = useTranslation();
   return (
     <section
       id="design-type"
@@ -56,7 +61,7 @@ export default function DesignTypeSection() {
         <div className="mb-2 sm:mb-2.5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-1">
           <div>
             <h2 className="text-xl sm:text-2xl font-display font-bold uppercase tracking-tight text-foreground leading-none">
-              DESIGN TYPE
+              {t("home.design_type", "DESIGN TYPE")}
             </h2>
           </div>
         </div>

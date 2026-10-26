@@ -45,6 +45,8 @@ import {
   RotateCcw,
   ChevronDown,
 } from "lucide-react";
+import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
+import { translateAudience, translateCategory } from "@/lib/translations";
 
 
 // ---------------------------------------------------------------------------
@@ -71,6 +73,8 @@ type SortValue = (typeof SORT_OPTIONS)[number]["value"];
 function SearchResultsContent() {
   const searchParams = useSearchParams();
   const router      = useRouter();
+  const { t } = useTranslation();
+  const { preferences } = usePreferences();
 
   // ── URL params ──────────────────────────────────────────────────────────
   const query               = searchParams.get("query") || searchParams.get("q") || "";
@@ -133,8 +137,9 @@ function SearchResultsContent() {
   const [currentPage, setCurrentPage] = useState(0);   // 0 = not yet fetched
   const [lastPage,    setLastPage]    = useState(1);
   const [total,       setTotal]       = useState(0);
-  const [loading,     setLoading]     = useState(true);  // initial load
-  const [loadingMore, setLoadingMore] = useState(false); // subsequent pages
+  const [loading,     setLoading]     = useState(true);     // initial page load
+  const [isUpdating,  setIsUpdating]  = useState(false);    // filter/category change reload (preserves layout)
+  const [loadingMore, setLoadingMore] = useState(false);    // subsequent pages
   const [error,       setError]       = useState<string | null>(null);
 
   // Duplicate guard
@@ -145,6 +150,39 @@ function SearchResultsContent() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   // Active AbortController for the current in-flight request
   const abortRef = useRef<AbortController | null>(null);
+  // Active AbortController for sequential infinite-scroll pagination requests
+  const scrollAbortRef = useRef<AbortController | null>(null);
+  // Ref tracking last active URL signature to prevent redundant fetches & support browser back/forward
+  const lastUrlSigRef = useRef<string>("");
+  // Flag indicating navigation was initiated internally by updateUrl, so the URL sync effect does not double-trigger
+  const isInternalNavRef = useRef(false);
+
+  // ── Stable Scroll Positioning to Product Listing Top ───────────────────────
+  const scrollToProductListing = useCallback((behavior: ScrollBehavior = "smooth") => {
+    requestAnimationFrame(() => {
+      const target = document.getElementById("product-listing-top");
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      const stickyHeaderOffset = 84; // clearance for sticky header (~64px) + breathing room
+      const currentScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      const targetScrollY = Math.max(0, currentScrollY + rect.top - stickyHeaderOffset);
+
+      // Only scroll if heading is scrolled above viewport or user is scrolled significantly below listing top
+      if (rect.top < 0 || currentScrollY > targetScrollY + 80) {
+        window.scrollTo({
+          top: targetScrollY,
+          behavior,
+        });
+      }
+    });
+  }, []);
+
+  // On initial mount / direct navigation to search route, ensure top of page/listing is visible
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+  }, []);
 
   // ── Available live brands and product categories ──────────────────────────
   const [liveBrands, setLiveBrands] = useState<BrandModel[]>([]);
@@ -187,7 +225,15 @@ function SearchResultsContent() {
       if (sortVal !== "newest") params.set("sort", sortVal);
       if (page > 1)          params.set("page",     page.toString());
       if (isFilterOpen)      params.set("filterOpen", "true");
-      router.replace(`/search?${params.toString()}`, { scroll: false });
+
+      const newSig = `${query}|${brands.join(",")}|${designTypes.join(",")}|${audiences.join(",")}|${categories.join(",")}|${sortVal}`;
+      lastUrlSigRef.current = newSig;
+      isInternalNavRef.current = true;
+      const targetUrl = `/search?${params.toString()}`;
+      if (typeof window !== "undefined") {
+        window.history.replaceState(null, "", targetUrl);
+      }
+      router.replace(targetUrl, { scroll: false });
     },
     [query, router, isFilterOpen, initialSubcategoryParam]
   );
@@ -218,7 +264,7 @@ function SearchResultsContent() {
 
       const isFirstPage = page === 1;
       if (isFirstPage) {
-        setLoading(true);
+        setIsUpdating(true);
         setError(null);
       } else {
         setLoadingMore(true);
@@ -258,6 +304,9 @@ function SearchResultsContent() {
 
         // Sync URL
         updateUrl(selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories, sort, result.meta.current_page);
+        if (isFirstPage) {
+          scrollToProductListing("smooth");
+        }
       } catch (err: any) {
         if (err?.name === "AbortError" || err?.message === "AbortError") return;
         if (gen !== genRef.current) return;
@@ -265,11 +314,12 @@ function SearchResultsContent() {
       } finally {
         if (gen === genRef.current) {
           setLoading(false);
+          setIsUpdating(false);
           setLoadingMore(false);
         }
       }
     },
-    [query, selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories, sort]
+    [query, selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories, sort, updateUrl, scrollToProductListing]
   );
 
   // ── Reset & reload on filter/sort/query change ────────────────────────────
@@ -282,14 +332,16 @@ function SearchResultsContent() {
       setLastPage(1);
       setTotal(0);
       setError(null);
+      updateUrl(brands, designTypes, audiences, categories, sortVal, 1);
 
       // Build params for fetchPage using latest filter values
       abortRef.current?.abort();
+      scrollAbortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       const gen = genRef.current;
 
-      setLoading(true);
+      setIsUpdating(true);
 
       productService
         .getProductsPaginated(
@@ -319,6 +371,7 @@ function SearchResultsContent() {
           setLastPage(result.meta.last_page);
           setTotal(result.meta.total);
           updateUrl(brands, designTypes, audiences, categories, sortVal, 1);
+          scrollToProductListing("smooth");
         })
         .catch((err) => {
           if (err?.name === "AbortError" || err?.message === "AbortError") return;
@@ -328,14 +381,15 @@ function SearchResultsContent() {
         .finally(() => {
           if (gen === genRef.current) {
             setLoading(false);
+            setIsUpdating(false);
             setLoadingMore(false);
           }
         });
     },
-    [query, updateUrl]
+    [query, updateUrl, scrollToProductListing]
   );
 
-  // ── Initial load (on mount and when query changes) ────────────────────────
+  // ── Initial load (on mount) ───────────────────────────────────────────────
   useEffect(() => {
     genRef.current += 1;
     loadedIdsRef.current = new Set();
@@ -386,15 +440,79 @@ function SearchResultsContent() {
         setError("Couldn't load products. Please try again.");
       })
       .finally(() => {
-        if (gen === genRef.current) setLoading(false);
+        if (gen === genRef.current) {
+          setLoading(false);
+          setIsUpdating(false);
+        }
       });
 
     return () => {
       controller.abort();
     };
-    // Only re-run on query change (filters have their own handlers)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, []);
+
+  // ── Reactively Sync with URL changes (Browser Back/Forward & External Category Links) ──
+  useEffect(() => {
+    const currentSig = `${query}|${initialBrandParam}|${initialDesignTypeParam}|${initialAudienceParam}|${initialCategoryParam}|${initialSortParam}`;
+    if (isInternalNavRef.current) {
+      if (currentSig === lastUrlSigRef.current) {
+        isInternalNavRef.current = false;
+      }
+      return;
+    }
+    if (lastUrlSigRef.current && lastUrlSigRef.current !== currentSig) {
+      lastUrlSigRef.current = currentSig;
+
+      const parsedBrands: string[] = [];
+      const seen = new Set<string>();
+      if (initialBrandParam) {
+        initialBrandParam.split(",").map((s) => s.trim()).filter(Boolean).forEach((b) => {
+          if (!seen.has(b.toLowerCase())) {
+            seen.add(b.toLowerCase());
+            parsedBrands.push(b);
+          }
+        });
+      }
+
+      const parsedDesignTypes = initialDesignTypeParam
+        ? initialDesignTypeParam.toUpperCase().split(",").map((s) => {
+            const item = s.trim();
+            if (item === "REPLICA" || item === "MASTER_COPY" || item === "MC") return "MASTER COPY";
+            return item;
+          }).filter(Boolean)
+        : [];
+
+      const parsedAudiences = initialAudienceParam
+        ? initialAudienceParam.toUpperCase().split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+
+      const parsedCategories = initialCategoryParam
+        ? initialCategoryParam.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+
+      const parsedSort = (searchParams.get("sort") || "newest") as SortValue;
+
+      setSelectedBrands(parsedBrands);
+      setSelectedDesignTypes(parsedDesignTypes);
+      setSelectedAudiences(parsedAudiences);
+      setSelectedCategories(parsedCategories);
+      setSort(parsedSort);
+
+      resetAndReload(parsedBrands, parsedDesignTypes, parsedAudiences, parsedCategories, parsedSort);
+    } else if (!lastUrlSigRef.current) {
+      lastUrlSigRef.current = currentSig;
+    }
+  }, [
+    searchParams,
+    query,
+    initialBrandParam,
+    initialDesignTypeParam,
+    initialAudienceParam,
+    initialCategoryParam,
+    initialSortParam,
+    resetAndReload,
+  ]);
 
   // ── IntersectionObserver: auto-load next page ─────────────────────────────
   useEffect(() => {
@@ -405,29 +523,33 @@ function SearchResultsContent() {
       (entries) => {
         if (
           entries[0].isIntersecting &&
-          isFilterOpen &&
           !loading &&
+          !isUpdating &&
           !loadingMore &&
           !error &&
           currentPage > 0 &&
           currentPage < lastPage
         ) {
           const nextPage = currentPage + 1;
+          scrollAbortRef.current?.abort();
+          const controller = new AbortController();
+          scrollAbortRef.current = controller;
           const gen = genRef.current;
           setLoadingMore(true);
 
           productService
             .getProductsPaginated(
               {
-                q:        query || undefined,
-                brand:    selectedBrands.join(",") || undefined,
-                audience: selectedAudiences.join(",") || undefined,
-                category: selectedCategories.join(",") || undefined,
+                q:           query || undefined,
+                brand:       selectedBrands.join(",") || undefined,
+                design_type: selectedDesignTypes.join(",") || undefined,
+                audience:    selectedAudiences.join(",") || undefined,
+                category:    selectedCategories.join(",") || undefined,
                 sort,
-                page:     nextPage,
-                per_page: PER_PAGE,
+                page:        nextPage,
+                per_page:    PER_PAGE,
               },
-              undefined // no abort for sequential scroll loads
+              controller.signal
             )
             .then((result) => {
               if (gen !== genRef.current) return;
@@ -458,8 +580,11 @@ function SearchResultsContent() {
     );
 
     observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [loading, loadingMore, error, currentPage, lastPage, query, selectedBrands, selectedAudiences, sort, updateUrl, isFilterOpen]);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [loading, isUpdating, loadingMore, error, currentPage, lastPage, query, selectedBrands, selectedDesignTypes, selectedAudiences, selectedCategories, sort, updateUrl]);
 
   // ── Retry failed page ─────────────────────────────────────────────────────
   const handleRetry = useCallback(() => {
@@ -549,8 +674,17 @@ function SearchResultsContent() {
   const hasMore           = currentPage < lastPage;
   const isEndOfResults    = currentPage >= lastPage && currentPage > 0 && products.length > 0;
 
-  const currentSortLabel =
-    SORT_OPTIONS.find((o) => o.value === sort)?.label ?? "Sort";
+  const currentSortLabel = useMemo(() => {
+    switch (sort) {
+      case "newest": return t("search.sort_newest", "Newest First");
+      case "price_asc": return t("search.sort_price_asc", "Price: Low → High");
+      case "price_desc": return t("search.sort_price_desc", "Price: High → Low");
+      case "popular": return t("search.sort_popular", "Most Popular");
+      case "name_asc": return t("search.sort_name_asc", "Name A → Z");
+      case "name_desc": return t("search.sort_name_desc", "Name Z → A");
+      default: return t("search.sort_newest", "Newest First");
+    }
+  }, [sort, t]);
 
   // ── Breadcrumbs & Page Heading ────────────────────────────────────────────
   const { crumbs, jsonLdItems } = useMemo(() => {
@@ -579,45 +713,48 @@ function SearchResultsContent() {
 
   const pageHeading = useMemo(() => {
     if (error && products.length === 0) {
-      if (query.trim()) return "SEARCH RESULTS";
+      if (query.trim()) return t("search.search_results", "SEARCH RESULTS");
       if (selectedBrands.length === 1) {
         const bName =
           liveBrands.find((b) => b.name.toLowerCase() === selectedBrands[0].toLowerCase())?.name ||
           selectedBrands[0];
-        return `${bName.toUpperCase()} COLLECTION`;
+        return `${bName.toUpperCase()} ${t("search.collection", "COLLECTION")}`;
       }
-      return "ALL PRODUCTS";
+      return t("home.all_products", "ALL PRODUCTS");
     }
 
     if (query.trim()) {
-      return "SEARCH RESULTS";
+      return t("search.search_results", "SEARCH RESULTS");
     }
     if (selectedBrands.length === 1 && selectedCategories.length === 0 && selectedAudiences.length === 0) {
       const bName =
         liveBrands.find((b) => b.name.toLowerCase() === selectedBrands[0].toLowerCase())?.name ||
         selectedBrands[0];
-      return `${bName.toUpperCase()} COLLECTION`;
+      return `${bName.toUpperCase()} ${t("search.collection", "COLLECTION")}`;
     }
     if (selectedCategories.length === 1 && selectedAudiences.length === 0 && selectedBrands.length === 0) {
       const cName =
         liveCategories.find((c) => c.name.toLowerCase() === selectedCategories[0].toLowerCase())?.name ||
         selectedCategories[0];
-      return cName.toUpperCase();
+      return translateCategory(cName, preferences.language).toUpperCase();
     }
     if (selectedCategories.length === 1 && selectedAudiences.length === 1 && selectedBrands.length === 0) {
       const cName =
         liveCategories.find((c) => c.name.toLowerCase() === selectedCategories[0].toLowerCase())?.name ||
         selectedCategories[0];
-      return `${selectedAudiences[0].toUpperCase()} ${cName.toUpperCase()}`;
+      const aud = translateAudience(selectedAudiences[0], preferences.language);
+      const cat = translateCategory(cName, preferences.language);
+      return `${aud.toUpperCase()} ${cat.toUpperCase()}`;
     }
     if (selectedAudiences.length === 1 && selectedCategories.length === 0 && selectedBrands.length === 0) {
-      return `${selectedAudiences[0].toUpperCase()} COLLECTION`;
+      const aud = translateAudience(selectedAudiences[0], preferences.language);
+      return `${aud.toUpperCase()} ${t("search.collection", "COLLECTION")}`;
     }
-    return "ALL PRODUCTS";
-  }, [error, products.length, query, selectedBrands, selectedCategories, selectedAudiences, liveBrands, liveCategories]);
+    return t("home.all_products", "ALL PRODUCTS");
+  }, [error, products.length, query, selectedBrands, selectedCategories, selectedAudiences, liveBrands, liveCategories, t, preferences.language]);
 
   // ── Initial loading skeleton (full grid) ──────────────────────────────────
-  if (loading) {
+  if (loading && products.length === 0 && currentPage === 0 && !isUpdating) {
     return (
       <div className="w-full bg-background min-h-[70vh] py-6 sm:py-8">
         <div className="mx-auto w-full max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
@@ -658,7 +795,10 @@ function SearchResultsContent() {
         <StorefrontBreadcrumbs items={crumbs} />
 
         {/* Header row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border/70 mb-6">
+        <div
+          id="product-listing-top"
+          className="scroll-mt-24 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border/70 mb-6"
+        >
           <div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
               {pageHeading}
@@ -690,7 +830,7 @@ function SearchResultsContent() {
               }`}
             >
               <SlidersHorizontal size={13} />
-              <span>FILTERS</span>
+              <span>{t("home.filters", "FILTERS")}</span>
               {hasActiveFilters && (
                 <span
                   className={`w-4 h-4 rounded-full text-[10px] font-mono font-bold flex items-center justify-center ${
@@ -708,6 +848,9 @@ function SearchResultsContent() {
             <div className="relative">
               <button
                 type="button"
+                id="storefront-sort-trigger"
+                aria-label="Sort products"
+                aria-expanded={isSortOpen}
                 onClick={() => setIsSortOpen((v) => !v)}
                 className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-border text-xs font-bold uppercase tracking-wider text-foreground bg-card hover:bg-secondary transition-colors cursor-pointer shadow-sm active:scale-95"
               >
@@ -715,21 +858,37 @@ function SearchResultsContent() {
                 <ChevronDown size={13} className={`transition-transform ${isSortOpen ? "rotate-180" : ""}`} />
               </button>
               {isSortOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-52 bg-card border border-border/80 rounded-xl shadow-xl z-40 py-1 animate-in fade-in zoom-in-95 duration-100">
-                  {SORT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => handleSortChange(opt.value)}
-                      className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors cursor-pointer ${
-                        sort === opt.value
-                          ? "text-primary bg-primary/[0.07]"
-                          : "text-foreground hover:bg-secondary"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+                <div 
+                  id="storefront-sort-menu"
+                  role="menu"
+                  className="absolute right-0 top-full mt-1.5 w-52 bg-card border border-border/80 rounded-xl shadow-xl z-40 py-1 animate-in fade-in zoom-in-95 duration-100"
+                >
+                  {SORT_OPTIONS.map((opt) => {
+                    const optLabel =
+                      opt.value === "newest" ? t("search.sort_newest", opt.label) :
+                      opt.value === "price_asc" ? t("search.sort_price_asc", opt.label) :
+                      opt.value === "price_desc" ? t("search.sort_price_desc", opt.label) :
+                      opt.value === "popular" ? t("search.sort_popular", opt.label) :
+                      opt.value === "name_asc" ? t("search.sort_name_asc", opt.label) :
+                      t("search.sort_name_desc", opt.label);
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        id={`sort-option-${opt.value}`}
+                        data-sort-value={opt.value}
+                        role="menuitem"
+                        onClick={() => handleSortChange(opt.value)}
+                        className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors cursor-pointer ${
+                          sort === opt.value
+                            ? "text-primary bg-primary/[0.07]"
+                            : "text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        {optLabel}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -741,7 +900,7 @@ function SearchResultsContent() {
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer self-start sm:self-auto active:scale-95 shadow-sm"
               >
                 <X size={14} />
-                <span>Clear</span>
+                <span>{t("action.clear", "Clear")}</span>
               </button>
             )}
           </div>
@@ -776,12 +935,24 @@ function SearchResultsContent() {
           <div className="flex-1 min-w-0 w-full flex flex-col gap-4">
 
             {/* Product grid */}
-            {products.length > 0 ? (
-              <div className={`grid gap-3 sm:gap-3.5 xl:gap-4 transition-all duration-200 ${
+            {isUpdating ? (
+              <div
+                className={`grid gap-3 sm:gap-3.5 xl:gap-4 transition-all duration-200 ${
                   isFilterOpen
                     ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5"
                     : "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-6"
-                }`}>
+                }`}
+              >
+                <ProductSkeletonRow count={isFilterOpen ? 10 : 12} />
+              </div>
+            ) : products.length > 0 ? (
+              <div
+                className={`grid gap-3 sm:gap-3.5 xl:gap-4 transition-all duration-200 ${
+                  isFilterOpen
+                    ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5"
+                    : "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-6"
+                }`}
+              >
                 {products.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
@@ -807,7 +978,7 @@ function SearchResultsContent() {
                   className="inline-flex items-center gap-2 px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-sm"
                 >
                   <RotateCcw size={14} />
-                  <span>Retry</span>
+                  <span>{t("action.retry", "Retry")}</span>
                 </button>
               </div>
             ) : (
@@ -817,7 +988,7 @@ function SearchResultsContent() {
                   <Search size={24} />
                 </div>
                 <h3 className="text-lg font-bold uppercase font-display mb-1 text-foreground">
-                  No Products Found
+                  {t("home.no_products", "No Products Found")}
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mb-6 leading-relaxed">
                   {query.trim() ? (
@@ -836,7 +1007,7 @@ function SearchResultsContent() {
                       }}
                       className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-xs"
                     >
-                      Clear All Criteria
+                      {t("action.clear_all", "Clear All Criteria")}
                     </button>
                   ) : hasActiveFilters ? (
                     <button
@@ -844,7 +1015,7 @@ function SearchResultsContent() {
                       onClick={handleClearFilters}
                       className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-xs"
                     >
-                      Clear Filters
+                      {t("home.clear_filters", "Clear Filters")}
                     </button>
                   ) : query.trim() ? (
                     <button
@@ -852,7 +1023,7 @@ function SearchResultsContent() {
                       onClick={handleClearSearch}
                       className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-xs"
                     >
-                      Clear Search
+                      {t("action.clear", "Clear Search")}
                     </button>
                   ) : (
                     <button

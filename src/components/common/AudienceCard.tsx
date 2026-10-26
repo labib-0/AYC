@@ -10,6 +10,8 @@ import {
   IconUnisex,
   IconProps,
 } from "./AudienceIcons";
+import { usePreferences } from "@/lib/PreferencesContext";
+import { translateAudience } from "@/lib/translations";
 
 export type AudienceIconComponent = React.ComponentType<IconProps> | LucideIcon;
 
@@ -79,6 +81,8 @@ export function AudienceTile({
   onClick,
   className = "",
 }: AudienceTileProps) {
+  const { preferences } = usePreferences();
+  const displayName = translateAudience(name, preferences.language);
   const isAllCategories = name === "ALL CATEGORIES" || (Icon as any) === LayoutGrid;
 
   return (
@@ -110,7 +114,7 @@ export function AudienceTile({
 
       {/* Label: tight gap beneath icon, bold uppercase font-display, identical typography across all 6 tiles */}
       <span className="font-display font-bold text-[10.5px] sm:text-[11.5px] lg:text-[12px] xl:text-[12.5px] uppercase tracking-wider leading-none text-center max-w-full px-0.5 text-foreground/85 group-hover:text-foreground transition-colors duration-150 truncate">
-        {name}
+        {displayName}
       </span>
 
       {/* Active Checkmark Badge */}

@@ -13,6 +13,8 @@ import {
   IconGirls,
   IconUnisex,
 } from "@/components/common/AudienceIcons";
+import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
+import { translateAudience, translateDesignType, translateCategory } from "@/lib/translations";
 
 export interface GlobalFilterRailProps {
   isOpen: boolean;
@@ -106,6 +108,7 @@ export function ProductCategoryFilterScroll({
   selectedCategories: string[];
   onToggleCategory: (name: string) => void;
 }) {
+  const { preferences } = usePreferences();
   // Deduplicate categories by normalized name/slug
   const uniqueCategories = useMemo(() => {
     const seen = new Set<string>();
@@ -128,6 +131,7 @@ export function ProductCategoryFilterScroll({
         const isSelected = selectedCategories.some(
           (c) => c.toLowerCase() === cat.name.toLowerCase()
         );
+        const displayName = translateCategory(cat.name, preferences.language);
         return (
           <button
             key={cat.id || cat.name}
@@ -140,7 +144,7 @@ export function ProductCategoryFilterScroll({
             }`}
             aria-pressed={isSelected}
           >
-            {cat.name}
+            {displayName}
           </button>
         );
       })}
@@ -163,6 +167,8 @@ export default function GlobalFilterRail({
   availableBrands,
   availableCategories,
 }: GlobalFilterRailProps) {
+  const { t } = useTranslation();
+  const { preferences } = usePreferences();
   const [brandSearchQuery, setBrandSearchQuery] = useState("");
 
   const totalActiveCount =
@@ -223,6 +229,7 @@ export default function GlobalFilterRail({
     className?: string;
   }) => {
     const isSelected = selectedAudiences.includes(key);
+    const displayAudience = translateAudience(label, preferences.language);
     return (
       <button
         key={key}
@@ -238,7 +245,7 @@ export default function GlobalFilterRail({
       >
         <Icon className="w-5 h-5 shrink-0" strokeWidth={isSelected ? 2.2 : 1.8} />
         <span className="text-[10.5px] sm:text-[11px] font-sans font-bold uppercase tracking-wider leading-none mt-1.5 truncate max-w-full">
-          {label}
+          {displayAudience}
         </span>
       </button>
     );
@@ -251,7 +258,7 @@ export default function GlobalFilterRail({
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans">
-            BRAND
+            {t("b2b.brand", "BRAND")}
           </h3>
           {availableBrands.length > 0 && (
             <span className="text-[10px] text-muted-foreground font-mono">
@@ -270,7 +277,7 @@ export default function GlobalFilterRail({
             type="text"
             value={brandSearchQuery}
             onChange={(e) => setBrandSearchQuery(e.target.value)}
-            placeholder="Search brands..."
+            placeholder={t("search.search_brands_placeholder", "Search brands...")}
             className="w-full bg-secondary/50 hover:bg-secondary/70 focus:bg-background border border-border/80 focus:border-foreground/40 rounded-lg pl-7 pr-7 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/70 transition-all outline-none"
             aria-label="Search brands"
           />
@@ -289,7 +296,7 @@ export default function GlobalFilterRail({
         {/* Bounded Scrollable Brand Area (Max 3 visible rows, internal scrollbar) */}
         {filteredBrands.length === 0 ? (
           <p className="py-4 text-center text-xs text-muted-foreground font-sans">
-            No brands found.
+            {t("search.no_products_found", "No brands found.")}
           </p>
         ) : (
           <BrandFilterGrid
@@ -306,7 +313,7 @@ export default function GlobalFilterRail({
       {/* ── 2. AUDIENCE — Two Deliberate Rows with Prominent Icons (Mobile: 2 cols + Unisex full-width) ── */}
       <div>
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans mb-2">
-          AUDIENCE
+          {t("home.audience", "AUDIENCE")}
         </h3>
 
         {/* Mobile: 2 columns, Unisex spans full width across both columns */}
@@ -337,7 +344,7 @@ export default function GlobalFilterRail({
       {/* ── 3. DESIGN TYPE — ORIGINAL / MASTER COPY with Equal Weight ── */}
       <div>
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans mb-2">
-          DESIGN TYPE
+          {t("home.design_type", "DESIGN TYPE")}
         </h3>
 
         <div
@@ -346,6 +353,7 @@ export default function GlobalFilterRail({
         >
           {DESIGN_TYPES.map(({ value, display, fullLabel }) => {
             const isSelected = selectedDesignTypes.includes(value);
+            const displayDt = translateDesignType(display, preferences.language);
             return (
               <button
                 key={value}
@@ -361,7 +369,7 @@ export default function GlobalFilterRail({
                 title={`Design Type: ${fullLabel}`}
               >
                 <span className="text-[10px] sm:text-[11px] font-sans font-extrabold uppercase tracking-wider leading-tight whitespace-nowrap">
-                  {display}
+                  {displayDt}
                 </span>
               </button>
             );
@@ -376,7 +384,7 @@ export default function GlobalFilterRail({
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground/70 font-sans">
-            PRODUCT CATEGORY
+            {t("home.categories", "PRODUCT CATEGORY")}
           </h3>
           {availableCategories.length > 0 && (
             <span className="text-[10px] text-muted-foreground font-mono">
@@ -411,7 +419,7 @@ export default function GlobalFilterRail({
           <X size={isMobile ? 16 : 14} />
         </button>
         <span className="text-[13px] font-bold uppercase tracking-wider text-foreground font-sans">
-          FILTERS
+          {t("home.filters", "FILTERS")}
         </span>
         {totalActiveCount > 0 && (
           <span className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full bg-foreground text-background text-[10px] font-bold flex items-center justify-center font-mono">
@@ -424,11 +432,13 @@ export default function GlobalFilterRail({
       {totalActiveCount > 0 && (
         <button
           type="button"
+          id={isMobile ? "mobile-filter-clear-all" : "global-filter-clear-all"}
+          data-testid="filter-clear-all"
           onClick={onClearAll}
           className="inline-flex items-center gap-1 text-[13px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
           <RotateCcw size={11} />
-          <span>CLEAR ALL</span>
+          <span>{t("action.clear_all", "CLEAR ALL")}</span>
         </button>
       )}
     </div>
@@ -475,7 +485,7 @@ export default function GlobalFilterRail({
                 onClick={onClose}
                 className="flex-1 py-3 rounded-full text-xs font-bold uppercase tracking-widest bg-foreground text-background hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-sm text-center"
               >
-                Show Results
+                {t("action.show_results", "Show Results")}
               </button>
             </div>
           </div>

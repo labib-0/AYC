@@ -114,6 +114,7 @@ export default function BrandLogoTile({
         onClick={onClick}
         aria-label={ariaLabel || `Explore ${name} wholesale collection`}
         title={title || name}
+        data-testid={`brand-tile-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
         className={tileClasses}
       >
         {content}
@@ -129,6 +130,7 @@ export default function BrandLogoTile({
       aria-pressed={isSelected}
       aria-label={ariaLabel || (isSelected ? `Deselect ${name} brand` : `Select ${name} brand`)}
       title={title || name}
+      data-testid={`brand-tile-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
       className={tileClasses}
     >
       {content}
