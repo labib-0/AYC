@@ -24,6 +24,38 @@ export default function ChangePasswordModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const resetForm = () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setError(null);
+  };
+
+  const handleDismiss = () => {
+    if (saving) return;
+    resetForm();
+    onClose();
+  };
+
+  // Clear sensitive fields when modal closes or opens
+  React.useEffect(() => {
+    if (!isOpen) {
+      resetForm();
+    }
+  }, [isOpen]);
+
+  // Handle Escape key to close modal safely
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !saving) {
+        handleDismiss();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, saving]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -72,6 +104,7 @@ export default function ChangePasswordModal({
         });
       }
 
+      resetForm();
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -82,12 +115,22 @@ export default function ChangePasswordModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="change-password-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving) {
+          handleDismiss();
+        }
+      }}
+      data-testid="change-password-modal-overlay"
+    >
       <div 
-        className="relative w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="change-password-title"
+        className="relative w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5 my-8"
+        onClick={(e) => e.stopPropagation()}
+        data-testid="change-password-modal-content"
       >
         <div className="flex items-center justify-between border-b border-border/80 pb-4">
           <div className="flex items-center gap-2.5">
@@ -100,8 +143,9 @@ export default function ChangePasswordModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+            onClick={handleDismiss}
+            disabled={saving}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer disabled:opacity-50"
             aria-label="Close"
           >
             <X size={16} />
@@ -172,8 +216,9 @@ export default function ChangePasswordModal({
           <div className="pt-2 flex items-center justify-end gap-2.5">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+              onClick={handleDismiss}
+              disabled={saving}
+              className="px-4 py-2 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>

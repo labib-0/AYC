@@ -17,6 +17,7 @@ import {
   Crown
 } from "lucide-react";
 import { AdminUserRecord } from "@/services/admin/admin-user.service";
+import AdminRowActionMenu from "./AdminRowActionMenu";
 
 export interface AdminTableProps {
   admins: AdminUserRecord[];
@@ -219,83 +220,21 @@ export default function AdminTable({
                           <Edit3 size={14} />
                         </button>
 
-                        {/* More Actions Dropdown Trigger */}
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => toggleMenu(admin.id)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                          >
-                            <MoreVertical size={14} />
-                          </button>
-
-                          {activeMenuId === admin.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-40"
-                                onClick={() => setActiveMenuId(null)}
-                              />
-                              <div className="absolute right-0 mt-1 w-48 rounded-xl border border-border/80 bg-card p-1.5 shadow-xl z-50 text-left space-y-0.5">
-                                {/* Assign Roles */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveMenuId(null);
-                                    onAssignRoles(admin);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-foreground hover:bg-secondary transition-colors"
-                                >
-                                  <Layers size={13} className="text-muted-foreground" />
-                                  <span>Assign RBAC Roles</span>
-                                </button>
-
-                                {/* Reset Password */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveMenuId(null);
-                                    onResetPassword(admin);
-                                  }}
-                                  disabled={isSuper && !isCurrentUserSuperAdmin}
-                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                                >
-                                  <KeyRound size={13} className="text-muted-foreground" />
-                                  <span>Reset Password</span>
-                                </button>
-
-                                {/* Toggle Status */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveMenuId(null);
-                                    onToggleStatus(admin);
-                                  }}
-                                  disabled={isSelf || (isSuper && !isCurrentUserSuperAdmin) || isToggling}
-                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                                >
-                                  <Power size={13} className={admin.status === "active" ? "text-amber-500" : "text-emerald-500"} />
-                                  <span>{admin.status === "active" ? "Deactivate Account" : "Activate Account"}</span>
-                                </button>
-
-                                <div className="border-t border-border/60 my-1" />
-
-                                {/* Delete */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveMenuId(null);
-                                    onDelete(admin);
-                                  }}
-                                  disabled={isSelf || isSuper}
-                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                                >
-                                  <Trash2 size={13} />
-                                  <span>Delete Administrator</span>
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                        {/* More Actions Dropdown Trigger with Viewport-Aware Positioning & Portal */}
+                        <AdminRowActionMenu
+                          admin={admin}
+                          isOpen={activeMenuId === admin.id}
+                          onToggle={() => toggleMenu(admin.id)}
+                          onClose={() => setActiveMenuId(null)}
+                          isSelf={Boolean(isSelf)}
+                          isSuper={isSuper}
+                          isCurrentUserSuperAdmin={isCurrentUserSuperAdmin}
+                          isToggling={isToggling}
+                          onAssignRoles={onAssignRoles}
+                          onResetPassword={onResetPassword}
+                          onToggleStatus={onToggleStatus}
+                          onDelete={onDelete}
+                        />
                       </div>
                     </td>
                   </tr>

@@ -149,14 +149,14 @@ export default function StorefrontBrandingSettings({ onNotify }: StorefrontBrand
 
       {/* Header Live Preview Banner */}
       <div className="p-5 sm:p-6 bg-[#0b1329] text-white rounded-2xl border border-white/10 space-y-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-[#EA580C]" />
-            <span className="text-xs font-bold uppercase tracking-wider text-white/80">
-              Customer Header Live Preview: [ LOGO CONTAINER ] [ WEBSITE TITLE ]
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles size={16} className="text-[#EA580C] shrink-0" />
+            <span className="text-xs font-bold uppercase tracking-wider text-white/80 truncate">
+              Customer Header Live Preview
             </span>
           </div>
-          <span className="text-[11px] text-white/50">Simulated Desktop & Mobile Header Bar</span>
+          <span className="text-[11px] text-white/50 shrink-0">Simulated Desktop &amp; Mobile Header Bar</span>
         </div>
 
         <div className="p-4 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
@@ -295,7 +295,7 @@ export default function StorefrontBrandingSettings({ onNotify }: StorefrontBrand
         <button
           type="submit"
           disabled={saving || uploadingLogo}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+          className="w-full sm:w-auto justify-center flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
         >
           {saving ? (
             <>

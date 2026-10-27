@@ -51,6 +51,18 @@ export default function AdminUserModal({
     setError(null);
   }, [user, isOpen]);
 
+  // Close on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !saving) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, saving, onClose]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,12 +118,22 @@ export default function AdminUserModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-user-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving) {
+          onClose();
+        }
+      }}
+      data-testid="admin-user-modal-overlay"
+    >
       <div 
-        className="relative w-full max-w-lg rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="admin-user-modal-title"
+        className="relative w-full max-w-lg rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+        data-testid="admin-user-modal-content"
       >
         <div className="flex items-center justify-between border-b border-border/80 pb-4">
           <div className="flex items-center gap-2.5">
@@ -125,7 +147,8 @@ export default function AdminUserModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+            disabled={saving}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer disabled:opacity-50"
             aria-label="Close"
           >
             <X size={16} />
@@ -262,7 +285,8 @@ export default function AdminUserModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+              disabled={saving}
+              className="px-4 py-2 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>

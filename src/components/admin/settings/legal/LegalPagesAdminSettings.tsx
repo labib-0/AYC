@@ -94,7 +94,7 @@ export default function LegalPagesAdminSettings({ onNotify }: LegalPagesAdminSet
   return (
     <div className="space-y-6">
       {/* Subtabs for Legal Pages */}
-      <div className="flex items-center gap-2 p-1 bg-secondary/50 rounded-xl border border-border/60 w-fit">
+      <div className="flex flex-wrap items-center gap-2 p-1 bg-secondary/50 rounded-xl border border-border/60 w-fit max-w-full">
         <button
           type="button"
           onClick={() => setActiveType("privacy_policy")}
@@ -195,7 +195,7 @@ export default function LegalPagesAdminSettings({ onNotify }: LegalPagesAdminSet
 
             {/* Editor Toolbar with Edit / Live Preview Tabs */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <label className="text-xs font-semibold text-foreground">
                   Document Content (Markdown / Structured Text)
                 </label>
@@ -285,7 +285,7 @@ export default function LegalPagesAdminSettings({ onNotify }: LegalPagesAdminSet
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+              className="w-full sm:w-auto justify-center flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
             >
               {saving ? (
                 <>

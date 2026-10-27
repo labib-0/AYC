@@ -57,6 +57,18 @@ export default function AdminFormModal({
     setError(null);
   }, [admin, isOpen]);
 
+  // Close on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !submitting) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, submitting, onClose]);
+
   if (!isOpen) return null;
 
   const toggleRole = (slug: string) => {
@@ -115,8 +127,23 @@ export default function AdminFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-xl rounded-2xl border border-border/80 bg-card p-6 shadow-2xl space-y-5 my-8">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-form-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !submitting) {
+          onClose();
+        }
+      }}
+      data-testid="admin-form-modal-overlay"
+    >
+      <div
+        className="relative w-full max-w-xl rounded-2xl border border-border/80 bg-card p-6 shadow-2xl space-y-5 my-8"
+        onClick={(e) => e.stopPropagation()}
+        data-testid="admin-form-modal-content"
+      >
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-border/60">
           <div className="flex items-center gap-2.5">
@@ -124,7 +151,7 @@ export default function AdminFormModal({
               <ShieldCheck size={16} />
             </div>
             <div>
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-foreground">
+              <h2 id="admin-form-modal-title" className="text-sm font-extrabold uppercase tracking-wider text-foreground">
                 {isEditing ? "Edit Administrator Account" : "Create New Administrator"}
               </h2>
               <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -138,7 +165,9 @@ export default function AdminFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            disabled={submitting}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+            aria-label="Close"
           >
             <X size={16} />
           </button>

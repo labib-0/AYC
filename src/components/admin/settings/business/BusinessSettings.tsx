@@ -419,7 +419,7 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full sm:w-auto">
           {lastSaved && (
             <span className="text-[11px] text-muted-foreground hidden sm:inline-flex items-center gap-1 font-mono">
               <CheckCircle2 size={13} className="text-emerald-500" />
@@ -429,7 +429,7 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm w-full sm:w-auto"
           >
             {saving ? (
               <RefreshCw size={14} className="animate-spin" />
@@ -450,19 +450,19 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
 
       {/* SECTION 1: COMPANY MASTER DATA */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-5">
-        <div className="border-b border-border/60 pb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+        <div className="border-b border-border/60 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <Building2 size={16} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-foreground">Company Identity &amp; Exporter Name</h3>
               <p className="text-xs text-muted-foreground">
                 Consumed by: CI, PI, Offer Sheet, Sales Invoice, RFQ Quotations.
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 uppercase tracking-wider font-mono">
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 uppercase tracking-wider font-mono self-start sm:self-auto shrink-0">
             PUBLIC WEBSITE &amp; DOCUMENTS
           </span>
         </div>
@@ -536,19 +536,19 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
 
       {/* SECTION 2: CONTACT & AUTHORITATIVE WHATSAPP */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-5">
-        <div className="border-b border-border/60 pb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+        <div className="border-b border-border/60 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
               <Phone size={16} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-foreground">Document &amp; Corporate Contact Details</h3>
               <p className="text-xs text-muted-foreground">
                 Authoritative source for document headers/footers and customer communications.
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 uppercase tracking-wider font-mono">
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 uppercase tracking-wider font-mono self-start sm:self-auto shrink-0">
             PUBLIC WEBSITE &amp; DOCUMENTS
           </span>
         </div>
@@ -623,14 +623,14 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
 
           {/* Authoritative WhatsApp Configuration */}
           <div className="sm:col-span-2 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <MessageSquare size={16} className="text-emerald-600 dark:text-emerald-400" />
                 <label className="text-xs font-bold text-foreground">
                   Authoritative WhatsApp Business Number
                 </label>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
                   PUBLIC WEBSITE
                 </span>
@@ -661,17 +661,17 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
               </div>
 
               <div className="p-3 rounded-lg bg-card border border-border/80 text-xs space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px]">
                   <span className="text-muted-foreground">Canonical Digits:</span>
-                  <span className="font-mono font-bold text-foreground">{canonicalWaDigits || "8801620853502"}</span>
+                  <span className="font-mono font-bold text-foreground self-start sm:self-auto">{canonicalWaDigits || "8801620853502"}</span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] truncate">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px]">
                   <span className="text-muted-foreground">Generated URL:</span>
                   <a
                     href={canonicalWaUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-mono text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 truncate max-w-[200px]"
+                    className="font-mono text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 truncate max-w-full sm:max-w-[200px] break-all self-start sm:self-auto"
                   >
                     <span>{canonicalWaUrl}</span>
                     <ExternalLink size={10} className="shrink-0" />
@@ -685,19 +685,19 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
 
       {/* SECTION 3: EXPORT & STATUTORY REGISTRATIONS */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-5">
-        <div className="border-b border-border/60 pb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+        <div className="border-b border-border/60 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
               <FileCheck2 size={16} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-foreground">Export &amp; Statutory Business Identifiers</h3>
               <p className="text-xs text-muted-foreground">
                 Embedded directly into Commercial Invoices (CI), Proforma Invoices (PI), and Customs declarations.
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 uppercase tracking-wider font-mono">
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 uppercase tracking-wider font-mono self-start sm:self-auto shrink-0">
             DOCUMENT ONLY
           </span>
         </div>
@@ -784,19 +784,19 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
 
       {/* SECTION 4: BENEFICIARY BANK DETAILS & MULTI-CURRENCY PROFILES */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-5">
-        <div className="border-b border-border/60 pb-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+        <div className="border-b border-border/60 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
               <Landmark size={16} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-foreground">Beneficiary Bank Wire Instructions</h3>
               <p className="text-xs text-muted-foreground">
                 Multi-currency export settlement accounts dynamically matched to Commercial Invoices (CI), Proforma Invoices (PI), and Quotations.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase tracking-wider font-mono">
               <ShieldCheck size={12} />
               <span>DOCUMENT ONLY / PRIVATE</span>
@@ -1049,8 +1049,8 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
                       : "bg-muted/30 border-dashed border-border/50 opacity-60"
                   }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-border/50">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/50">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
                       <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded-md border ${badgeColors}`}>
                         {cur}
                       </span>
@@ -1068,7 +1068,7 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
                       {!prof.is_default && prof.is_active && (
                         <button
                           type="button"
@@ -1177,19 +1177,19 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
 
       {/* SECTION 5: DOCUMENT & LOGISTICS DEFAULTS */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-5">
-        <div className="border-b border-border/60 pb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+        <div className="border-b border-border/60 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
               <Ship size={16} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-foreground">Document Logistics &amp; Legal Defaults</h3>
               <p className="text-xs text-muted-foreground">
                 Default fallback values used when individual orders or invoices do not specify custom logistics terms.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 uppercase tracking-wider font-mono">
               DOCUMENT ONLY
             </span>
@@ -1285,14 +1285,14 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
         </div>
 
         {/* Bottom Save Button Bar */}
-        <div className="pt-4 border-t border-border/60 flex items-center justify-between">
+        <div className="pt-4 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <p className="text-[11px] text-muted-foreground italic">
             Dynamic buyer details (Buyer Name, Order Items, Pricing) remain strictly customer- and order-specific.
           </p>
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm w-full sm:w-auto"
           >
             {saving ? (
               <RefreshCw size={14} className="animate-spin" />

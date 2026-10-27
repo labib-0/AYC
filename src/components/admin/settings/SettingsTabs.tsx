@@ -23,7 +23,7 @@ export default function SettingsTabs({
   ];
 
   return (
-    <div className="flex items-center gap-1.5 p-1 bg-secondary/50 rounded-2xl border border-border/60 overflow-x-auto">
+    <div className="flex items-center gap-1.5 p-1 bg-secondary/50 rounded-2xl border border-border/60 overflow-x-auto no-scrollbar max-w-full touch-pan-x">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;

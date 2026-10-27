@@ -428,15 +428,15 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
             <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
               Derived Machine &amp; Link Details
             </span>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
               <span className="text-muted-foreground">Derived Machine Number:</span>
-              <span className="font-mono font-bold text-foreground bg-background px-2 py-0.5 rounded border border-border/60">
+              <span className="font-mono font-bold text-foreground bg-background px-2 py-0.5 rounded border border-border/60 self-start sm:self-auto">
                 {derivedMachineNumber || "—"}
               </span>
             </div>
-            <div className="flex items-center justify-between text-xs pt-1 border-t border-border/40">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs pt-1 border-t border-border/40">
               <span className="text-muted-foreground">Derived URL:</span>
-              <span className="font-mono text-xs text-primary truncate max-w-[200px]">
+              <span className="font-mono text-xs text-primary truncate max-w-full sm:max-w-[200px] break-all">
                 {derivedWhatsAppUrl || "—"}
               </span>
             </div>
@@ -574,7 +574,7 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
                   }`}
                 >
                   {/* Card Top: Provider identity + Status Badge + Actions */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border/50">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/50">
                     <div className="flex items-center gap-3 min-w-0">
                       {/* SVG Icon Badge */}
                       <div className="w-9 h-9 rounded-full bg-[#0b1329] text-white flex items-center justify-center shrink-0 shadow-xs border border-white/10">
@@ -582,7 +582,7 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
                       </div>
 
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-bold text-sm text-foreground">{link.name || link.provider}</span>
                           <span className="text-[10px] uppercase font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded-md">
                             {link.provider}
@@ -592,7 +592,7 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
                     </div>
 
                     {/* Status Badge & Actions */}
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
                       {/* Live Status Badge */}
                       {statusInfo.badge}
 
@@ -708,7 +708,7 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
         <button
           type="submit"
           disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+          className="w-full sm:w-auto justify-center flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
         >
           {saving ? (
             <>

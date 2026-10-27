@@ -245,16 +245,16 @@ export function GoogleTagsManager({
       <div className="bg-card rounded-2xl border border-border/80 p-4 sm:p-6 shadow-2xs space-y-5">
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
-          <div className="flex items-start sm:items-center gap-3">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
               <Code2 size={18} />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center items-start gap-1.5 sm:gap-2">
-                <h2 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
-                  Google Tags & Tracking
+                <h2 className="text-sm sm:text-base font-semibold tracking-tight text-foreground truncate">
+                  Google Tags &amp; Tracking
                 </h2>
-                <div className="flex flex-col sm:flex-row sm:items-center items-start gap-1 sm:gap-1.5">
+                <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
                   {isHeadConfigured ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 w-fit shrink-0">
                       <CheckCircle2 size={10} />
@@ -284,13 +284,13 @@ export function GoogleTagsManager({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0 w-full sm:w-auto">
             {isDirty && (
               <button
                 type="button"
                 onClick={() => handleReset("all")}
                 disabled={isSaving || disabled}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 flex-1 sm:flex-none"
                 title="Cancel and revert unsaved changes"
               >
                 <RotateCcw size={13} />
@@ -303,7 +303,7 @@ export function GoogleTagsManager({
                 type="button"
                 onClick={handleClearAll}
                 disabled={isSaving || disabled}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-red-600 hover:border-red-500/30 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-red-600 hover:border-red-500/30 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 flex-1 sm:flex-none"
                 title="Clear both tracking snippets"
               >
                 <Trash2 size={13} />
@@ -315,7 +315,7 @@ export function GoogleTagsManager({
               type="button"
               onClick={() => handleSave("all")}
               disabled={isSaving || !isDirty || hasOversizedField || disabled}
-              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex-1 sm:flex-none ${
                 isDirty && !hasOversizedField
                   ? "bg-primary text-primary-foreground shadow-xs hover:opacity-95"
                   : "bg-secondary text-muted-foreground opacity-60 cursor-not-allowed"
@@ -438,8 +438,8 @@ export function GoogleTagsManager({
             )}
 
             {/* Tab-level Action Bar */}
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => handleSave("head")}
@@ -470,7 +470,7 @@ export function GoogleTagsManager({
                   type="button"
                   onClick={() => handleClearSnippet("head")}
                   disabled={isSaving || disabled}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-all cursor-pointer self-start sm:self-auto"
                 >
                   <Trash2 size={12} />
                   <span>Clear Head Code</span>
@@ -531,8 +531,8 @@ export function GoogleTagsManager({
             )}
 
             {/* Tab-level Action Bar */}
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => handleSave("body")}
@@ -563,7 +563,7 @@ export function GoogleTagsManager({
                   type="button"
                   onClick={() => handleClearSnippet("body")}
                   disabled={isSaving || disabled}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-all cursor-pointer self-start sm:self-auto"
                 >
                   <Trash2 size={12} />
                   <span>Clear Body Code</span>

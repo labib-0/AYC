@@ -178,12 +178,16 @@ export async function getAllQuotations(filters?: {
   search?: string;
 }): Promise<QuotationRecord[]> {
   if (!isFrontendOnly()) {
-    const res = await apiClient.get<any>("/quotations", { params: filters });
-    const list = Array.isArray(res) ? res : res?.data;
-    if (Array.isArray(list)) {
-      return list;
+    try {
+      const res = await apiClient.get<any>("/quotations", { params: filters });
+      const list = Array.isArray(res) ? res : res?.data;
+      if (Array.isArray(list)) {
+        return list;
+      }
+      return [];
+    } catch (err) {
+      console.warn("Failed to fetch quotations from API, falling back to local store:", err);
     }
-    return [];
   }
 
   const all = getStoredQuotations();

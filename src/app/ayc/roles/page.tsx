@@ -191,7 +191,7 @@ export default function RolesPage() {
       />
 
       {/* Roles & Permissions Integrated Sub-Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+      <div className="flex items-center gap-2 border-b border-border/80 pb-3 overflow-x-auto no-scrollbar">
         <Link
           href="/ayc/roles"
           className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-foreground text-background shadow-xs"

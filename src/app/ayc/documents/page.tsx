@@ -64,8 +64,14 @@ export default function AdminDocumentsHubPage() {
     setLoading(true);
     try {
       const [orderRes, quoteList] = await Promise.all([
-        adminOrderService.getOrders({ per_page: 100 }),
-        getAllQuotations(),
+        adminOrderService.getOrders({ per_page: 100 }).catch(() => ({
+          data: [],
+          current_page: 1,
+          last_page: 1,
+          total: 0,
+          per_page: 100,
+        })),
+        getAllQuotations().catch(() => []),
       ]);
       setOrders(orderRes.data || []);
       setQuotations(quoteList || []);
@@ -385,7 +391,7 @@ export default function AdminDocumentsHubPage() {
           />
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar touch-pan-x">
           {[
             { id: "ALL", label: "All Types" },
             { id: "OFFER_SHEET", label: "Offer Sheet" },
@@ -440,89 +446,146 @@ export default function AdminDocumentsHubPage() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-border bg-secondary/40 text-muted-foreground uppercase text-[10px] font-bold tracking-wider">
-                  <th className="py-3 px-4">Document / Number</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">Source Reference</th>
-                  <th className="py-3 px-4">Buyer / Company</th>
-                  <th className="py-3 px-4">Issue Date</th>
-                  <th className="py-3 px-4 text-right">Value (USD)</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {paginatedDocs.map((item) => {
-                  const badge = TYPE_BADGES[item.docType] || { label: item.docType, color: "bg-secondary text-muted-foreground border-border" };
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto subtle-scrollbar">
+              <table className="w-full text-left text-xs min-w-[760px]">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/40 text-muted-foreground uppercase text-[10px] font-bold tracking-wider">
+                    <th className="py-3 px-4">Document / Number</th>
+                    <th className="py-3 px-4">Type</th>
+                    <th className="py-3 px-4">Source Reference</th>
+                    <th className="py-3 px-4">Buyer / Company</th>
+                    <th className="py-3 px-4">Issue Date</th>
+                    <th className="py-3 px-4 text-right">Value (USD)</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {paginatedDocs.map((item) => {
+                    const badge = TYPE_BADGES[item.docType] || { label: item.docType, color: "bg-secondary text-muted-foreground border-border" };
 
-                  return (
-                    <tr key={item.id} className="hover:bg-secondary/20 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-secondary/70 flex items-center justify-center text-muted-foreground shrink-0">
-                            <FileText size={15} />
+                    return (
+                      <tr key={item.id} className="hover:bg-secondary/20 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-secondary/70 flex items-center justify-center text-muted-foreground shrink-0">
+                              <FileText size={15} />
+                            </div>
+                            <div>
+                              <span className="font-mono font-bold text-foreground block">
+                                {item.docNumber}
+                              </span>
+                              <span className="text-[11px] text-muted-foreground block">
+                                {item.title}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-mono font-bold text-foreground block">
-                              {item.docNumber}
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge.color}`}>
+                            {badge.label}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          {item.sourceType === "ORDER" ? (
+                            <Link
+                              href={`/ayc/orders/${item.sourceId}`}
+                              className="font-mono font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                            >
+                              <span>Order {item.sourceRef}</span>
+                              <ArrowUpRight size={11} />
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/ayc/quotations`}
+                              className="font-mono font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                            >
+                              <span>Quote {item.sourceRef}</span>
+                              <ArrowUpRight size={11} />
+                            </Link>
+                          )}
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span className="font-bold text-foreground block">
+                            {item.companyName}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {item.buyerName}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-muted-foreground">
+                          {item.date}
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right font-mono font-bold text-foreground">
+                          ${Number(item.amount || 0).toFixed(2)}
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          {item.isGated ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              <ShieldAlert size={11} />
+                              <span>Payment Pending</span>
                             </span>
-                            <span className="text-[11px] text-muted-foreground block">
-                              {item.title}
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              <span>Ready</span>
                             </span>
-                          </div>
+                          )}
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right">
+                          <Link
+                            href={item.href}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-xs font-semibold hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+                          >
+                            <span>View</span>
+                            <ChevronRight size={13} />
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Stacked Card View */}
+            <div className="md:hidden divide-y divide-border/60" data-testid="documents-mobile-cards">
+              {paginatedDocs.map((item) => {
+                const badge = TYPE_BADGES[item.docType] || { label: item.docType, color: "bg-secondary text-muted-foreground border-border" };
+
+                return (
+                  <div key={item.id} className="p-4 space-y-3" data-testid={`document-card-${item.id}`}>
+                    {/* Header Row: Document Number & Type/Status Badges */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="w-8 h-8 rounded-lg bg-secondary/70 flex items-center justify-center text-muted-foreground shrink-0">
+                          <FileText size={15} />
                         </div>
-                      </td>
+                        <div className="min-w-0 flex-1">
+                          <span className="font-mono font-bold text-xs text-foreground block truncate">
+                            {item.docNumber}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground block truncate">
+                            {item.title}
+                          </span>
+                        </div>
+                      </div>
 
-                      <td className="py-3.5 px-4">
+                      <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge.color}`}>
                           {badge.label}
                         </span>
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        {item.sourceType === "ORDER" ? (
-                          <Link
-                            href={`/ayc/orders/${item.sourceId}`}
-                            className="font-mono font-semibold text-primary hover:underline inline-flex items-center gap-1"
-                          >
-                            <span>Order {item.sourceRef}</span>
-                            <ArrowUpRight size={11} />
-                          </Link>
-                        ) : (
-                          <Link
-                            href={`/ayc/quotations`}
-                            className="font-mono font-semibold text-primary hover:underline inline-flex items-center gap-1"
-                          >
-                            <span>Quote {item.sourceRef}</span>
-                            <ArrowUpRight size={11} />
-                          </Link>
-                        )}
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        <span className="font-bold text-foreground block">
-                          {item.companyName}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {item.buyerName}
-                        </span>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-muted-foreground">
-                        {item.date}
-                      </td>
-
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-foreground">
-                        ${Number(item.amount || 0).toFixed(2)}
-                      </td>
-
-                      <td className="py-3.5 px-4">
                         {item.isGated ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                            <ShieldAlert size={11} />
+                            <ShieldAlert size={10} />
                             <span>Payment Pending</span>
                           </span>
                         ) : (
@@ -530,40 +593,100 @@ export default function AdminDocumentsHubPage() {
                             <span>Ready</span>
                           </span>
                         )}
-                      </td>
+                      </div>
+                    </div>
 
-                      <td className="py-3.5 px-4 text-right">
-                        <Link
-                          href={item.href}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-xs font-semibold hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
-                        >
-                          <span>View</span>
-                          <ChevronRight size={13} />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    {/* Meta Grid: Source, Value, Buyer & Date */}
+                    <div className="grid grid-cols-2 gap-2.5 p-3 rounded-xl bg-secondary/30 border border-border/60 text-xs">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground font-mono block">
+                          Source Reference
+                        </span>
+                        {item.sourceType === "ORDER" ? (
+                          <Link
+                            href={`/ayc/orders/${item.sourceId}`}
+                            className="font-mono font-semibold text-primary hover:underline inline-flex items-center gap-1 truncate text-xs mt-0.5"
+                          >
+                            <span className="truncate">Order {item.sourceRef}</span>
+                            <ArrowUpRight size={11} className="shrink-0" />
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/ayc/quotations`}
+                            className="font-mono font-semibold text-primary hover:underline inline-flex items-center gap-1 truncate text-xs mt-0.5"
+                          >
+                            <span className="truncate">Quote {item.sourceRef}</span>
+                            <ArrowUpRight size={11} className="shrink-0" />
+                          </Link>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 text-right">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground font-mono block">
+                          Value (USD)
+                        </span>
+                        <span className="font-mono font-bold text-xs text-foreground block mt-0.5">
+                          ${Number(item.amount || 0).toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground font-mono block">
+                          Buyer / Company
+                        </span>
+                        <span className="font-bold text-foreground text-xs block truncate mt-0.5">
+                          {item.companyName}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground block truncate">
+                          {item.buyerName}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0 text-right">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground font-mono block">
+                          Issue Date
+                        </span>
+                        <span className="text-xs text-muted-foreground block mt-0.5 font-mono">
+                          {item.date}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* View Action Button: Minimum 40px touch height */}
+                    <div>
+                      <Link
+                        href={item.href}
+                        data-testid="document-card-action-btn"
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-foreground text-xs font-bold transition-all min-h-[40px] border border-border/70 cursor-pointer shadow-xs"
+                      >
+                        <span>View Document</span>
+                        <ChevronRight size={14} />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {/* Pagination Footer */}
         {!loading && (
-          <AdminPagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredDocuments.length}
-            perPage={pageSize}
-            onPageChange={setCurrentPage}
-            onPerPageChange={(newSize) => {
-              setPageSize(newSize);
-              setCurrentPage(1);
-            }}
-            itemName="commercial documents"
-            idPrefix="commercial-documents-pagination"
-          />
+          <div className="p-3 sm:p-4 border-t border-border/70">
+            <AdminPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredDocuments.length}
+              perPage={pageSize}
+              onPageChange={setCurrentPage}
+              onPerPageChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+              itemName="commercial documents"
+              idPrefix="commercial-documents-pagination"
+            />
+          </div>
         )}
         </div>
       </div>

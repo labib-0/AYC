@@ -115,7 +115,7 @@ export default function ProfileSettings({ onNotify }: ProfileSettingsProps) {
         <button
           type="button"
           onClick={() => setPasswordModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-secondary transition-colors cursor-pointer shrink-0"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-secondary transition-colors cursor-pointer shrink-0 w-full sm:w-auto"
         >
           <KeyRound size={14} />
           <span>Change Password</span>
@@ -215,7 +215,7 @@ export default function ProfileSettings({ onNotify }: ProfileSettingsProps) {
           </div>
         </div>
 
-        <div className="pt-3 border-t border-border/60 flex items-center justify-between">
+        <div className="pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-xs text-muted-foreground">
             Role: <strong className="text-foreground uppercase">{user?.role || "ADMIN"}</strong> (Role modifications must be made via Admin User Management)
           </div>
@@ -223,7 +223,7 @@ export default function ProfileSettings({ onNotify }: ProfileSettingsProps) {
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm w-full sm:w-auto"
           >
             {saving ? (
               <div className="w-3.5 h-3.5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />

@@ -218,7 +218,7 @@ export default function AdminUsersSettings({ onNotify }: AdminUsersSettingsProps
       </div>
 
       {/* 3. Admin Overview KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="p-4 rounded-2xl border border-border/80 bg-card/70 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-[11px] font-bold uppercase tracking-wider">Total Administrators</span>
@@ -321,7 +321,7 @@ export default function AdminUsersSettings({ onNotify }: AdminUsersSettingsProps
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[640px]">
               <thead>
                 <tr className="border-b border-border bg-secondary/40 text-muted-foreground uppercase text-[10px] font-bold tracking-wider">
                   <th className="py-3 px-4">Administrator</th>

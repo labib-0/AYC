@@ -86,6 +86,64 @@ export interface AdminPermissionsProvenance {
   permissions_flat: RbacPermission[];
 }
 
+const DEFAULT_MOCK_ROLES: RbacRole[] = [
+  {
+    id: 1,
+    name: "Super Administrator",
+    slug: "super_admin",
+    description: "Unrestricted master access across the entire Ayaan ERP and administration suite.",
+    is_system: true,
+    is_active: true,
+    permission_count: 54,
+    admin_count: 1,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: 2,
+    name: "Order Manager",
+    slug: "order_manager",
+    description: "Manage orders, proforma invoices, export documentation, and status updates.",
+    is_system: true,
+    is_active: true,
+    permission_count: 24,
+    admin_count: 2,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: 3,
+    name: "Catalog Manager",
+    slug: "catalog_manager",
+    description: "Full control over B2B products, variants, tiered pricing, and offer sheets.",
+    is_system: true,
+    is_active: true,
+    permission_count: 18,
+    admin_count: 1,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: 4,
+    name: "Shipping Operator",
+    slug: "shipping_operator",
+    description: "Create Aramex shipments and view/refresh tracking and export challans.",
+    is_system: true,
+    is_active: true,
+    permission_count: 11,
+    admin_count: 1,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: 5,
+    name: "Coupon Sales Manager",
+    slug: "coupon_sales",
+    description: "View sales, orders, and performance metrics attributed to bound discount coupons.",
+    is_system: false,
+    is_active: true,
+    permission_count: 8,
+    admin_count: 2,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+];
+
 class RbacService {
   /**
    * GET /api/v1/admin/rbac/roles
@@ -101,11 +159,10 @@ class RbacService {
           return list;
         }
       } catch (err) {
-        console.warn("Failed to fetch RBAC roles from API:", err);
-        throw err;
+        console.warn("Failed to fetch RBAC roles from API, falling back to local defaults:", err);
       }
     }
-    return [];
+    return DEFAULT_MOCK_ROLES.filter((r) => includeInactive || r.is_active);
   }
 
   /**

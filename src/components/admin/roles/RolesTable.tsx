@@ -32,8 +32,9 @@ export default function RolesTable({
 }: RolesTableProps) {
   return (
     <div className="rounded-xl border border-border/80 bg-card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto subtle-scrollbar">
+        <table className="w-full text-left text-xs min-w-[760px]">
           <thead>
             <tr className="border-b border-border/80 bg-secondary/30 text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground font-mono">
               <th className="py-3 px-4">Role</th>
@@ -214,6 +215,164 @@ export default function RolesTable({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Stacked Card View */}
+      <div className="md:hidden divide-y divide-border/60" data-testid="roles-mobile-cards">
+        {roles.length === 0 ? (
+          <div className="py-12 text-center text-muted-foreground p-4">
+            <div className="flex flex-col items-center justify-center gap-2">
+              <Layers size={28} className="text-muted-foreground/60" />
+              <p className="font-semibold text-xs">No roles found.</p>
+              <p className="text-[11px] text-muted-foreground/80">
+                Try adjusting your filters or create a new custom role.
+              </p>
+            </div>
+          </div>
+        ) : (
+          roles.map((role) => {
+            const isSystem = Boolean(role.is_system);
+            const adminCount = role.admin_count ?? 0;
+            const canDelete = !isSystem && adminCount === 0;
+            const permCount = role.permission_count ?? role.permissions?.length ?? 0;
+
+            return (
+              <div key={role.id} className="p-4 space-y-3" data-testid={`role-card-${role.id}`}>
+                {/* Header Row: Role Icon, Name, Slug, Type & Status */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                        isSystem
+                          ? "bg-primary/10 border-primary/20 text-primary"
+                          : "bg-secondary border-border text-foreground"
+                      }`}
+                    >
+                      {isSystem ? <Lock size={15} /> : <Key size={15} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-foreground text-xs truncate">
+                        {role.name}
+                      </div>
+                      <div className="text-[10px] font-mono text-muted-foreground truncate">
+                        {role.slug}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    {isSystem ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 text-[9px] font-extrabold uppercase tracking-wider font-mono">
+                        <Lock size={9} />
+                        <span>System</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary text-foreground border border-border text-[9px] font-extrabold uppercase tracking-wider font-mono">
+                        <Key size={9} />
+                        <span>Custom</span>
+                      </span>
+                    )}
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider font-mono ${
+                        role.is_active
+                          ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                          : "bg-muted text-muted-foreground border border-border"
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          role.is_active ? "bg-emerald-500" : "bg-muted-foreground"
+                        }`}
+                      />
+                      {role.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Description: Stacked Below Role Name, Full Width, No Squashing */}
+                <div className="text-xs text-muted-foreground leading-relaxed break-words">
+                  {role.description || (
+                    <span className="italic text-muted-foreground/60 text-[11px]">
+                      No description provided
+                    </span>
+                  )}
+                </div>
+
+                {/* Meta Badges: Assigned Admins & Permissions Buttons */}
+                <div className="flex items-center gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => onViewDetails(role)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg border border-border/80 bg-secondary/30 hover:bg-secondary text-foreground text-[11px] font-mono font-bold transition-all cursor-pointer min-h-[34px]"
+                    title="View administrators holding this role"
+                  >
+                    <Users size={13} className="text-muted-foreground shrink-0" />
+                    <span>{adminCount} Admins</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onManagePermissions(role)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg border border-border/80 bg-secondary/30 hover:bg-secondary text-foreground hover:border-primary/40 text-[11px] font-mono font-bold transition-all cursor-pointer min-h-[34px]"
+                    title="Manage role permissions"
+                  >
+                    <SlidersHorizontal size={13} className="text-muted-foreground shrink-0" />
+                    <span>{permCount} Permissions</span>
+                  </button>
+                </div>
+
+                {/* Actions Bar: Permissions, Details, Edit, Delete */}
+                <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => onManagePermissions(role)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold text-foreground bg-secondary/70 hover:bg-secondary border border-border/80 transition-colors min-h-[38px] cursor-pointer"
+                  >
+                    <SlidersHorizontal size={13} />
+                    <span>Permissions</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onViewDetails(role)}
+                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground bg-secondary/40 hover:bg-secondary border border-border/60 transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center cursor-pointer"
+                    title="View Role Details"
+                    aria-label="View Details"
+                  >
+                    <Eye size={15} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onEdit(role)}
+                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground bg-secondary/40 hover:bg-secondary border border-border/60 transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center cursor-pointer"
+                    title="Edit Role"
+                    aria-label="Edit Role"
+                  >
+                    <Edit3 size={15} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onDelete(role)}
+                    disabled={!canDelete}
+                    className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 bg-secondary/40 border border-border/60 transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                    title={
+                      isSystem
+                        ? "System roles cannot be deleted"
+                        : adminCount > 0
+                        ? "Cannot delete role while administrators are assigned"
+                        : "Delete Role"
+                    }
+                    aria-label="Delete Role"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

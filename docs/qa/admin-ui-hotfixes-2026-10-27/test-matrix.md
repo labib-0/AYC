@@ -29,6 +29,15 @@
 | **#29** | Admin Google Tags & Tracking | On mobile, "Head: Configured" control is vertically stacked above "Body: Configured" control; desktop retains side-by-side presentation. | `tests/prompt3-mobile-settings-alignment.test.ts` (Part 2) | **PASS** | 5 tests passed. Nested `flex-col sm:flex-row`, `w-fit shrink-0` on badges, Head vertically above Body. |
 | **#30** | Admin Homepage FAQ Manager | On mobile, section action button ("+ Add New FAQ Entry") is positioned directly below section title and preceding section content; desktop preserves list first with button at bottom. | `tests/prompt3-mobile-settings-alignment.test.ts` (Part 3) | **PASS** | 6 tests passed. `flex-col gap-4`, button `order-1 sm:order-2`, list `order-2 sm:order-1`, `min-h-[40px]`. |
 | **#26** | Customer Auth & Checkout | Email verification optional for customer login, dashboard access, and order placement; verified & unverified both succeed; all order security invariants preserved. | `tests/prompt4-optional-email-verification.test.ts` | **PASS** | 19 tests passed. Removed `verified` middleware, unblocked `OrderController::store` and `CheckoutModal.tsx`, preserved auth, bot protection, MOQ, stock. |
+| **#31** | Admin Documents | Responsive document list adapts to mobile screens with dedicated cards under `md:hidden`, touch targets >= 40px, desktop table preserved under `hidden md:block min-w-[760px]`. | `tests/prompt2-documents-and-roles-mobile.test.ts` | **PASS** | 14 tests passed. Browser tested at 320px, 375px, 768px, 1440px with 0 overflow. |
+| **#32** | Admin Administrators | Action dropdown renders through portal to `document.body` (`fixed`, `zIndex: 9999`), escapes table clipping, flips upward dynamically, clamps horizontally, dismisses on Escape/outside click. | `tests/prompt3-admin-dropdown-positioning.test.ts` | **PASS** | 13 tests passed. Browser tested at 320px, 375px, 768px, 1440px; 46/46 browser checks passed. |
+| **#33** | Admin Administrators | Edit Administrator Account modal closes on clicking backdrop or pressing Escape; inside clicks stop propagation; submission safety preserved. | `tests/prompt1-admin-modal-dismissal.test.ts` (Part 1) | **PASS** | 7 tests passed. Verified in browser on `/ayc/administrators`. |
+| **#34** | Admin Roles | Edit Role modal closes on clicking backdrop or pressing Escape; inside clicks stop propagation; immutable slug rules preserved. | `tests/prompt1-admin-modal-dismissal.test.ts` (Part 2) | **PASS** | 6 tests passed. Verified in browser on `/ayc/roles`. |
+| **#35** | Admin Roles | Responsive roles list adapts to mobile screens with dedicated cards under `md:hidden`, vertically stacked descriptions, touch action buttons, and touch-panning sub-nav. | `tests/prompt2-documents-and-roles-mobile.test.ts` | **PASS** | 7 tests passed. Browser tested at 320px, 375px, 768px, 1440px with 0 overflow. |
+| **#36** | Admin Settings Profile | Change Admin Password modal closes on clicking backdrop or pressing Escape; clears password input fields on dismissal; never submits on dismissal. | `tests/prompt1-admin-modal-dismissal.test.ts` (Part 3) | **PASS** | 6 tests passed. Verified in browser on `/ayc/settings?tab=profile`. |
+| **#37** | Admin Settings | Settings sections stack or wrap cleanly at narrow viewport widths across all 7 tabs (`preferences`, `profile`, `branding`, `social`, `business`, `legal`, `users`). | `tests/prompt4-settings-mobile-responsiveness.test.ts` | **PASS** | 24 tests passed. Browser tested across all 7 tabs at 320px, 375px, 768px, 1440px. |
+| **#38** | Admin Settings | Settings controls, badges, toggles, select menus, and URLs remain within card and viewport boundaries with zero page-level horizontal overflow (`break-all`, `min-w-0`). | `tests/prompt4-settings-mobile-responsiveness.test.ts` | **PASS** | 52/52 browser checks passed across 4 viewports on all 7 tabs. |
+
 
 ---
 
@@ -68,4 +77,13 @@
 | `tests/product-gallery-4-5-size-and-overlays.test.ts` | Gallery 4:5 aspect ratio, compact sizing & overlays containment | 31 | 31 | 0 |
 | `tests/product-detail-refinement.test.ts` | Product detail refinement suites A through H | 8 | 8 | 0 |
 | `tests/product-detail-ui-hierarchy.test.ts` | Product detail page UI hierarchy suites 1 through 7 | 7 | 7 | 0 |
-| **TOTAL** | **Full Repository Regression Suite** | **463** | **463** | **0** |
+| `tests/prompt1-admin-modal-dismissal.test.ts` | Issues #33, #34, #36 (Admin modals outside-click & Escape) | 22 | 22 | 0 |
+| `tests/prompt2-documents-and-roles-mobile.test.ts` | Issues #31 & #35 (Documents & Roles mobile layouts) | 14 | 14 | 0 |
+| `tests/prompt3-admin-dropdown-positioning.test.ts` | Issue #32 (Admin action dropdown positioning & clipping) | 13 | 13 | 0 |
+| `tests/prompt4-settings-mobile-responsiveness.test.ts` | Issues #37 & #38 (Settings mobile responsiveness & overflow) | 24 | 24 | 0 |
+| `tests/cycle3-prompt5-master-integration.test.ts` | Cycle 3 Master Integration (#31–#38 reconciliation) | 16 | 16 | 0 |
+| `scripts/verify-admin-modals-browser.mjs` | Headless Chrome browser modal verification across pages | 21 | 21 | 0 |
+| `scripts/verify-documents-and-roles-browser.mjs` | Headless Chrome browser responsive verification across 4 viewports | 34 | 34 | 0 |
+| `scripts/verify-admin-dropdown-browser.mjs` | Headless Chrome browser dropdown verification across 4 viewports | 46 | 46 | 0 |
+| `scripts/verify-settings-mobile-browser.mjs` | Headless Chrome browser settings verification across 4 viewports on 7 tabs | 52 | 52 | 0 |
+| **TOTAL** | **Full Repository Regression Suite** | **705** | **705** | **0** |

@@ -78,19 +78,19 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
 
       {/* Shipping Method Administration Card */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <Plane size={16} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-foreground">Carrier &amp; Shipping Services</h3>
               <p className="text-xs text-muted-foreground">
                 Control active logistics options presented to international B2B buyers at checkout.
               </p>
             </div>
           </div>
-          <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+          <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full border self-start sm:self-auto shrink-0 ${
             aramexEnabled 
               ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" 
               : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
@@ -100,8 +100,8 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
         </div>
 
         <div className="p-4 rounded-xl bg-secondary/30 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-bold text-foreground">Aramex Priority Air Express</span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                 aramexEnabled ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"
@@ -113,12 +113,12 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
               When disabled, international buyers can only checkout using &quot;Discuss Directly&quot;. Aramex is rendered as unavailable and non-selectable in checkout.
             </p>
           </div>
-          <div className="shrink-0 flex items-center gap-3">
+          <div className="shrink-0 flex items-center gap-3 w-full sm:w-auto">
             <button
               type="button"
               onClick={handleToggleAramex}
               disabled={togglingAramex}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              className={`w-full sm:w-auto justify-center px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                 aramexEnabled
                   ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                   : "bg-secondary text-foreground hover:bg-secondary/80 border border-border/80"
@@ -132,27 +132,27 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
 
       {/* Currency Standard Card */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <DollarSign size={16} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-foreground">Operational Currency</h3>
               <p className="text-xs text-muted-foreground">
                 Base foreign exchange valuation standard used across wholesale pricing and invoices.
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 self-start sm:self-auto shrink-0">
             <ShieldCheck size={12} />
             <span>USD Export Standard</span>
           </span>
         </div>
 
         <div className="p-4 rounded-xl bg-secondary/30 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-lg font-black text-foreground font-mono">USD ($)</span>
               <span className="text-xs text-muted-foreground font-semibold">United States Dollar</span>
             </div>
@@ -160,8 +160,8 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
               All international commercial transactions, proforma invoices, wholesale catalog wholesale prices, and shipping valuations operate exclusively in USD. Multi-currency exchange rate conversions are handled at the buyer&apos;s settlement bank.
             </p>
           </div>
-          <div className="text-right shrink-0">
-            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-secondary text-foreground border border-border/80 uppercase tracking-wider">
+          <div className="self-start sm:self-center sm:text-right shrink-0">
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-secondary text-foreground border border-border/80 uppercase tracking-wider inline-block">
               Fixed USD Base
             </span>
           </div>
@@ -244,11 +244,11 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
           </div>
         </div>
 
-        <div className="pt-3 border-t border-border/60 flex items-center justify-end">
+        <div className="pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-end gap-3">
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
           >
             {saving ? (
               <div className="w-3.5 h-3.5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
