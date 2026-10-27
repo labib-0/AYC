@@ -1544,8 +1544,25 @@ class ProductController extends ApiController
             'warehouse_id' => $targetWarehouseId,
         ]);
 
-        if ($product->status === 'published') {
+        // Automatically initiate Offer Sheet generation and persistence for every newly created product
+        try {
+            $offerSheetService = app(\App\Services\Documents\ProductOfferSheetService::class);
+            $cleanSku = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($product->sku ?: "PROD-{$product->id}"));
+            \App\Models\ProductOfferSheet::updateOrCreate(
+                ['product_id' => $product->id],
+                [
+                    'sku' => $product->sku ?: "PROD-{$product->id}",
+                    'status' => \App\Models\ProductOfferSheet::STATUS_PENDING,
+                    'fingerprint' => $offerSheetService->computeFingerprint($product),
+                    'filename' => "Offer-Sheet-{$cleanSku}.pdf",
+                ]
+            );
+
             \App\Jobs\GenerateProductOfferSheetJob::dispatch($product->id);
+        } catch (\Throwable $e) {
+            Log::warning("Failed to queue Offer Sheet generation on product creation: " . $e->getMessage(), [
+                'product_id' => $product->id,
+            ]);
         }
 
         return $this->success(new ProductResource($product), 'Product created successfully', 201);
@@ -1565,7 +1582,7 @@ class ProductController extends ApiController
         }
 
         $offerSheetService = app(\App\Services\Documents\ProductOfferSheetService::class);
-        $oldOfferSheetFingerprint = $product->status === 'published' ? $offerSheetService->computeFingerprint($product) : null;
+        $oldOfferSheetFingerprint = $offerSheetService->computeFingerprint($product);
 
         $effectivePreorder = $request->has('is_preorder')
             ? $request->boolean('is_preorder')
@@ -2495,11 +2512,32 @@ class ProductController extends ApiController
             'cost_price' => $product->cost_price,
         ]);
 
-        if ($product->status === 'published') {
+        // Automatically detect Offer Sheet staleness and initiate fresh generation for the updated product
+        try {
             $newOfferSheetFingerprint = $offerSheetService->computeFingerprint($product);
-            if ($oldOfferSheetFingerprint !== $newOfferSheetFingerprint) {
-                \App\Jobs\GenerateProductOfferSheetJob::dispatch($product->id);
+            $hasReadyOfferSheet = \App\Models\ProductOfferSheet::where('product_id', $product->id)
+                ->where('status', \App\Models\ProductOfferSheet::STATUS_READY)
+                ->where('fingerprint', $newOfferSheetFingerprint)
+                ->exists();
+
+            if ($oldOfferSheetFingerprint !== $newOfferSheetFingerprint || !$hasReadyOfferSheet) {
+                $cleanSku = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($product->sku ?: "PROD-{$product->id}"));
+                \App\Models\ProductOfferSheet::updateOrCreate(
+                    ['product_id' => $product->id],
+                    [
+                        'sku' => $product->sku ?: "PROD-{$product->id}",
+                        'status' => \App\Models\ProductOfferSheet::STATUS_PROCESSING,
+                        'fingerprint' => $newOfferSheetFingerprint,
+                        'filename' => "Offer-Sheet-{$cleanSku}.pdf",
+                    ]
+                );
+
+                \App\Jobs\GenerateProductOfferSheetJob::dispatch($product->id, true);
             }
+        } catch (\Throwable $e) {
+            Log::warning("Failed to queue Offer Sheet regeneration on product update: " . $e->getMessage(), [
+                'product_id' => $product->id,
+            ]);
         }
 
         return $this->success(new ProductResource($product), 'Product updated successfully');
@@ -3446,10 +3484,10 @@ class ProductController extends ApiController
         $user = $request->user() ?: auth('sanctum')->user();
         $isAdmin = (bool) ($user && $user->isAdmin());
 
-        $query = Product::with(['brand', 'images', 'pricingTiers']);
+        $query = Product::with(['brand', 'images', 'pricingTiers', 'shippingPackageProfiles']);
         $product = is_numeric($slugOrId)
             ? $query->where('id', (int) $slugOrId)->first()
-            : $query->where('slug', $slugOrId)->orWhere('sku', $slugOrId)->first();
+            : $query->where('slug', $slugOrId)->orWhere('sku', $slugOrId)->orWhere('product_id', $slugOrId)->first();
 
         if (!$product) {
             return $this->notFound('Product not found');
@@ -3460,9 +3498,39 @@ class ProductController extends ApiController
         }
 
         $service = app(\App\Services\Documents\ProductOfferSheetService::class);
+
+        // Lightweight status check without initiating full PDF render
+        if ($request->boolean('status_only')) {
+            $record = \App\Models\ProductOfferSheet::where('product_id', $product->id)->first();
+            $currentFingerprint = $service->computeFingerprint($product);
+            $cleanSku = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($product->sku ?: "PROD-{$product->id}"));
+            $isStale = !$record || $record->fingerprint !== $currentFingerprint;
+
+            return $this->success([
+                'product_id' => $product->id,
+                'sku' => $product->sku,
+                'status' => $record ? $record->status : 'missing',
+                'is_stale' => $isStale,
+                'has_artifact' => (bool) ($record && $record->isReady() && \Illuminate\Support\Facades\Storage::disk('local')->exists($record->file_path)),
+                'filename' => $record?->filename ?: "Offer-Sheet-{$cleanSku}.pdf",
+                'filesize_bytes' => $record?->filesize_bytes ?? 0,
+                'checksum_sha256' => $record?->checksum_sha256,
+                'generated_at' => $record?->generated_at?->toIso8601String(),
+                'error_message' => $record?->error_message,
+                'download_url' => url("/api/v1/products/{$product->id}/offer-sheet?download=1"),
+            ], 'Product Offer Sheet status retrieved successfully');
+        }
+
         $artifact = $service->getOrGenerate($product, $request->boolean('force'));
 
-        if ($request->query('format') === 'pdf' || $request->has('pdf') || $request->has('download') || !$request->wantsJson()) {
+        $isPdfRequested = $request->query('format') === 'pdf'
+            || $request->has('pdf')
+            || $request->has('download')
+            || $request->is('*offer-sheet/pdf')
+            || str_contains((string) $request->header('Accept'), 'application/pdf')
+            || !$request->wantsJson();
+
+        if ($isPdfRequested) {
             return response($artifact['content'], 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => ($request->query('download') ? 'attachment' : 'inline') . "; filename=\"{$artifact['filename']}\"",
@@ -3470,6 +3538,7 @@ class ProductController extends ApiController
                 'X-PDF-Cache' => $artifact['is_hit'] ? 'HIT' : 'MISS',
                 'X-PDF-Hash' => $artifact['hash'],
                 'X-PDF-Size' => (string) $artifact['filesize'],
+                'X-Product-Version' => $service->computeFingerprint($product),
             ]);
         }
 

@@ -240,10 +240,12 @@ echo "  - Activating new build in PM2..."
 if [[ $(id -u) -eq 0 ]]; then
   su - ayaan -c "pm2 reload ayaan-customer"
   su - ayaan -c "pm2 reload ayaan-admin"
+  su - ayaan -c "php ${BACKEND_DIR}/artisan queue:restart"
   nginx -t && systemctl reload nginx
 else
   pm2 reload ayaan-customer
   pm2 reload ayaan-admin
+  php "${BACKEND_DIR}/artisan queue:restart"
   sudo nginx -t && sudo systemctl reload nginx
 fi
 

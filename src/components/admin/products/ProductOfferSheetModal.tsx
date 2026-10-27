@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { B2BProductInput } from "@/types/b2b";
 import { apiClient } from "@/services/api-client";
 import {
@@ -44,7 +44,78 @@ export default function ProductOfferSheetModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Fetch Offer Sheet PDF whenever product changes
+  // Fetch Offer Sheet PDF whenever product changes or on manual refresh
+  const fetchOfferSheet = useCallback(
+    async (forceRegenerate: boolean = false) => {
+      if (!product?.id) return;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const baseUrl = apiClient.getBaseUrl();
+        const token = apiClient.getToken();
+        const headers: Record<string, string> = {
+          Accept: "application/pdf",
+        };
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const forceParam = forceRegenerate ? "&force=1" : "";
+        const endpoint = `${baseUrl}/products/${product.id}/offer-sheet?format=pdf${forceParam}`;
+        const res = await fetch(endpoint, { headers });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error(
+            errData?.message || `Failed to generate Offer Sheet (HTTP ${res.status})`
+          );
+        }
+
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("application/pdf")) {
+          const errJson = await res.json().catch(() => null);
+          throw new Error(
+            errJson?.message || "Expected PDF binary from document service but received non-PDF response."
+          );
+        }
+
+        const blob = await res.blob();
+        if (blob.size === 0) {
+          throw new Error("Received empty PDF document from server.");
+        }
+
+        // Extract authoritative filename from Content-Disposition header if available
+        const disposition = res.headers.get("content-disposition") || "";
+        const filenameMatch = disposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?/i);
+        let resolvedFilename = filenameMatch?.[1] ? decodeURIComponent(filenameMatch[1]) : "";
+
+        if (!resolvedFilename) {
+          const cleanSku = (product.sku || product.name || `product_${product.id}`)
+            .replace(/[^a-zA-Z0-9_-]/g, "_")
+            .slice(0, 35);
+          resolvedFilename = `Offer-Sheet-${cleanSku}.pdf`;
+        }
+
+        if (pdfUrl) {
+          URL.revokeObjectURL(pdfUrl);
+        }
+
+        const objectUrl = URL.createObjectURL(blob);
+        setPdfBlob(blob);
+        setPdfUrl(objectUrl);
+        setFilename(resolvedFilename);
+        setLoading(false);
+      } catch (err: any) {
+        console.error("[AYC] Offer Sheet fetch error:", err);
+        setError(err?.message || "Failed to load product Offer Sheet.");
+        setLoading(false);
+      }
+    },
+    [product?.id, product?.sku, product?.name, pdfUrl]
+  );
+
   useEffect(() => {
     if (!isOpen || !product?.id) {
       setPdfBlob(null);
@@ -55,60 +126,9 @@ export default function ProductOfferSheetModal({
       return;
     }
 
-    let active = true;
-    setLoading(true);
-    setError(null);
-
-    const fetchOfferSheet = async () => {
-      try {
-        const baseUrl = apiClient.getBaseUrl();
-        const token = apiClient.getToken();
-        const headers: Record<string, string> = {
-          Accept: "application/pdf, application/json",
-        };
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-
-        const endpoint = `${baseUrl}/products/${product.id}/offer-sheet`;
-        const res = await fetch(endpoint, { headers });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => null);
-          throw new Error(
-            errData?.message || `Failed to generate Offer Sheet (HTTP ${res.status})`
-          );
-        }
-
-        const blob = await res.blob();
-        if (!active) return;
-
-        if (blob.size === 0) {
-          throw new Error("Received empty PDF document from server.");
-        }
-
-        const cleanSku = (product.sku || product.name || `product_${product.id}`)
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .slice(0, 35);
-        const resolvedFilename = `AYC_Offer_Sheet_${cleanSku}.pdf`;
-
-        const objectUrl = URL.createObjectURL(blob);
-        setPdfBlob(blob);
-        setPdfUrl(objectUrl);
-        setFilename(resolvedFilename);
-        setLoading(false);
-      } catch (err: any) {
-        if (!active) return;
-        console.error("[AYC] Offer Sheet fetch error:", err);
-        setError(err?.message || "Failed to load product Offer Sheet.");
-        setLoading(false);
-      }
-    };
-
-    fetchOfferSheet();
+    fetchOfferSheet(false);
 
     return () => {
-      active = false;
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
       }
@@ -211,6 +231,15 @@ export default function ProductOfferSheetModal({
               <>
                 <button
                   type="button"
+                  onClick={() => fetchOfferSheet(true)}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/70 hover:bg-secondary text-foreground text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                  title="Regenerate latest Offer Sheet from saved product data"
+                >
+                  <RefreshCw size={13} />
+                  <span>Refresh</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handlePrint}
                   className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/70 hover:bg-secondary text-foreground text-xs font-semibold transition-all cursor-pointer shadow-2xs"
                   title="Print Offer Sheet"
@@ -280,10 +309,7 @@ export default function ProductOfferSheetModal({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setError(null);
-                    setLoading(true);
-                  }}
+                  onClick={() => fetchOfferSheet(true)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-all cursor-pointer"
                 >
                   <RefreshCw size={13} />

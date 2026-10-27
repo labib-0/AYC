@@ -40,15 +40,15 @@ export default function ProductBrandLogoOverlay({
   }
 
   // Dimension classes based on size variant — Proportional aspect-[1.35/1] matching Shop By Brand tiles
-  // Scaled 1.5x larger for prominent, crystal-clear corner branding
-  let containerDimensions = "w-[60px] sm:w-[66px] aspect-[1.35/1] rounded-md p-1";
+  // Scaled 1.5x larger for prominent, crystal-clear corner branding; constrained to max-w-[42%] for narrow image safety
+  let containerDimensions = "max-w-[42%] w-[60px] sm:w-[66px] aspect-[1.35/1] rounded-md p-1";
 
   if (size === "detail") {
-    containerDimensions = "w-[72px] sm:w-[84px] aspect-[1.35/1] rounded-lg p-1 sm:p-1.5";
+    containerDimensions = "max-w-[42%] w-[72px] sm:w-[84px] aspect-[1.35/1] rounded-lg p-1 sm:p-1.5";
   } else if (size === "modal") {
-    containerDimensions = "w-[60px] sm:w-[72px] aspect-[1.35/1] rounded-lg p-1";
+    containerDimensions = "max-w-[42%] w-[60px] sm:w-[72px] aspect-[1.35/1] rounded-lg p-1";
   } else if (size === "thumb") {
-    containerDimensions = "w-12 aspect-[1.35/1] rounded p-0.5";
+    containerDimensions = "max-w-[42%] w-12 aspect-[1.35/1] rounded p-0.5";
   }
 
   return (

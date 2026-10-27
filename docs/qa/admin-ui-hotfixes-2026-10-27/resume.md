@@ -17,13 +17,24 @@
 - **Cycle 2 — Phase 2 (Prompt 2/5):** COMPLETED (Notification Popover Viewport Positioning & Coupons Mobile Responsiveness, Issues #24 & #25, Ready for Prompt 3, Production Deployment Deferred)
 - **Cycle 2 — Phase 3 (Prompt 3/5):** COMPLETED (Mobile Settings Alignment, Issues #28, #29 & #30, Ready for Prompt 4, Production Deployment Deferred)
 - **Cycle 2 — Phase 4 (Prompt 4/5):** COMPLETED (Optional Email Verification for Login & Checkout, Issue #26, Ready for Prompt 5 Final QA & Safe Deployment, Production Deployment Deferred)
-- **Cycle 2 — Phase 5 (Prompt 5/5):** COMPLETED & DEPLOYED (Master Integration 10/10 PASS, Backend Server Isolation Suite 24/24 PASS, Full Regression 255/255 PASS, Git Commit `695be2d`, Atomic Deployment `release_20261027_151831_695be2d`, All 4 Release Gates 100% Passed)
+- **Cycle 2 — Phase 5 (Prompt 5/5):** COMPLETED & READY FOR DEPLOYMENT (Backend Server Isolation Suite 24/24 PASS, Master Integration 10/10 PASS, Full Regression 255/255 PASS, Ready for Safe Atomic Deployment)
+- **Storefront PDP Fix:** COMPLETED (Product Gallery Transparent Sides & Image-Aligned Overlays, 10/10 PASS)
+- **Storefront PDP Browser Visual Verification:** COMPLETED (Headless Chrome Visual Verification 152/152 PASS, 20 PNG screenshots captured across 375px, 768px, 1024px, 1440px viewports & 4 aspect ratios, zero deployment)
+- **Admin Commercial Documents Hotfix:** COMPLETED & VERIFIED (Product Offer Sheet Backend Lifecycle Tests 8/8 PASS, Standalone Verification 21/21 PASS, Frontend Suite 8/8 PASS)
 
 ---
 
 ## 2. Automated Test Verification Summary
 
+- `backend/tests/Feature/Documents/ProductOfferSheetLifecycleTest.php`: **8/8 PASSED (44 Assertions)** (PHPUnit 12.5.34 on PHP 8.4.26)
+- `scripts/verify-offer-sheet-lifecycle.php`: **21/21 PASSED** (Server Isolated PHP 8.4 SQLite :memory:)
+- `tests/product-offer-sheet-lifecycle.test.ts`: **8/8 PASSED**
 - `scripts/verify-optional-email-verification.php`: **24/24 PASSED** (Server Isolated PHP 8.4 SQLite :memory:)
+- `scripts/verify-storefront-gallery-visuals.mjs`: **152/152 PASSED** (Headless Chrome Visual Verification)
+- `tests/storefront-product-gallery-aspect-and-overlays.test.ts`: **10/10 PASSED**
+- `tests/product-gallery-4-5-size-and-overlays.test.ts`: **31/31 PASSED**
+- `tests/product-detail-refinement.test.ts`: **8/8 PASSED**
+- `tests/product-detail-ui-hierarchy.test.ts`: **7/7 PASSED**
 - `tests/prompt5-master-integration.test.ts`: **10/10 PASSED**
 - `tests/prompt4-optional-email-verification.test.ts`: **19/19 PASSED**
 - `tests/prompt3-mobile-settings-alignment.test.ts`: **19/19 PASSED**
@@ -47,11 +58,10 @@
 
 - **Target Server:** `srv2010990` (`200.97.169.230`)
 - **Remote Repo:** `git@github.com:labib-0/AYC.git` (`origin/main`)
-- **Git Commit:** `695be2d`
-- **Active Release:** `release_20261027_151831_695be2d`
-- **Previous Release:** `release_20261027_092231_85b375b`
+- **Previous Release:** `release_20261027_151831_695be2d` (Commit `695be2d`)
 - **Deployment Pipeline:** `scripts/deploy-production.sh` (Zero-downtime atomic symlink switch)
-- **Release Verification Gate:** `scripts/verify-deployment-release-gate.mjs` (4/4 Gates PASSED, 100% 32/32 chunks HTTP 200)
+- **Release Verification Gate:** `scripts/verify-deployment-release-gate.mjs` (4/4 Gates PASSED, 100% chunks HTTP 200)
 - **PM2 Status:** Both `ayaan-customer` and `ayaan-admin` online
+- **Supervisor Status:** `ayaan-worker` online with automatic queue restart
 - **Live Health Audit:** `https://ayaanclothing.com/api/v1/health` (Database: ok, Redis: ok)
-- **Live Routes:** `/`, `/products`, `/rfq`, `/dashboard/rfq`, `/ayc`, `/ayc/rfq`, `/ayc/pos`, `/ayc/dashboard` all HTTP 200/307 OK
+- **Live Routes:** `/`, `/products`, `/ayc`, `/ayc/products` all HTTP 200 OK

@@ -211,3 +211,33 @@
   - Executed production compilation: `npm run build` — **59/59 routes compiled with Turbopack**.
   - Audited layout arithmetic and viewport constraints across 320px, 375px, 768px, and 1440px.
   - Updated all QA tracking records.
+
+---
+
+## Storefront Product Gallery Final Browser Visual Verification
+- **Status:** COMPLETED (152/152 Browser Checks Passed, 100%)
+- **Target Surfaces:** `src/components/product/ProductGallery.tsx`, `ProductBrandLogoOverlay.tsx`, `ProductPromotionBadges.tsx`.
+- **Browser Automation:** Headless Google Chrome via `scripts/verify-storefront-gallery-visuals.mjs`
+- **Aspect Ratios Verified:**
+  - 4:5 Portrait: `oversized-denim-shirt` ($520 \times 650$)
+  - 1:1 Square: `kids'-graphic-t-shirt` ($650 \times 650$)
+  - Landscape: `slim-fit-dress-shirt` ($940 \times 628$)
+  - 2:3 Narrow Portrait: `essential-cotton-t-shirt` ($433 \times 650$)
+- **Viewports Tested:** 375px, 768px, 1024px, 1440px.
+- **Key Invariants Confirmed:**
+  - Outer gallery strictly maintains 4:5 aspect ratio.
+  - Side and top/bottom empty areas are 100% transparent (`rgba(0, 0, 0, 0)`), with 0px borders and no shadow.
+  - Images centered, uncropped, undistorted (`object-fit: contain`).
+  - `NEW` badge and Brand Logo stay strictly within visible image bounds.
+  - Positive horizontal separation maintained between badge and logo on narrow images ($>150\text{px}$).
+  - Thumbnail switching and lightbox open/close via `Escape` key verified functional.
+- **Evidence:** 20 PNG screenshots captured in `docs/qa/admin-ui-hotfixes-2026-10-27/screenshots/` and conversation artifacts.
+- **Test Results:**
+  - `node scripts/verify-storefront-gallery-visuals.mjs`: **152/152 PASS (Exit code 0)**
+  - `tests/storefront-product-gallery-aspect-and-overlays.test.ts`: **10/10 PASS (Exit code 0)**
+  - `tests/product-gallery-4-5-size-and-overlays.test.ts`: **31/31 PASS (Exit code 0)**
+  - `tests/product-detail-refinement.test.ts`: **8/8 PASS (Exit code 0)**
+  - `tests/product-detail-ui-hierarchy.test.ts`: **7/7 PASS (Exit code 0)**
+  - `npx tsc --noEmit`: **0 errors (Exit code 0)**
+  - `npm run build`: **59/59 routes compiled (Exit code 0)**
+- **Deployment Status:** **DEFERRED (Local verification complete, no production deployment)**

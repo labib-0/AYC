@@ -63,4 +63,9 @@
 | `tests/prompt5-master-integration.test.ts` | Master Integration across all eight issues (#23–#30) & viewport math | 10 | 10 | 0 |
 | `tests/customer-signup-email-verification-lifecycle.test.ts` | Full customer lifecycle verification & rate limiting | 7 | 7 | 0 |
 | `scripts/verify-optional-email-verification.php` | Isolated backend PHP 8.4 SQLite :memory: suite (orders, auth, invariants) | 24 | 24 | 0 |
-| **TOTAL** | **Full Repository Regression Suite** | **255** | **255** | **0** |
+| `scripts/verify-storefront-gallery-visuals.mjs` | Headless Chrome browser visual verification of gallery transparency, overlays & viewports | 152 | 152 | 0 |
+| `tests/storefront-product-gallery-aspect-and-overlays.test.ts` | Multi-ratio aspect bounds, overlay constraints & insets | 10 | 10 | 0 |
+| `tests/product-gallery-4-5-size-and-overlays.test.ts` | Gallery 4:5 aspect ratio, compact sizing & overlays containment | 31 | 31 | 0 |
+| `tests/product-detail-refinement.test.ts` | Product detail refinement suites A through H | 8 | 8 | 0 |
+| `tests/product-detail-ui-hierarchy.test.ts` | Product detail page UI hierarchy suites 1 through 7 | 7 | 7 | 0 |
+| **TOTAL** | **Full Repository Regression Suite** | **463** | **463** | **0** |

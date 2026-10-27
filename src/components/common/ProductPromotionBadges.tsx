@@ -59,13 +59,13 @@ export default function ProductPromotionBadges({
       <div
         role="status"
         aria-label="Product promotional status"
-        className={`absolute top-2.5 left-2.5 sm:top-3 sm:left-3 flex flex-col gap-1.5 z-10 pointer-events-none select-none ${className}`}
+        className={`absolute top-2.5 left-2.5 sm:top-3 sm:left-3 flex flex-col gap-1.5 z-10 pointer-events-none select-none max-w-[50%] ${className}`}
       >
         {isSoldOut ? (
           <ProductBadge
             variant="soldout"
             aria-label="Sold out product"
-            className="text-[10px] sm:text-[10.5px] px-2 py-0.5 sm:px-2.5 w-fit"
+            className="text-[10px] sm:text-[10.5px] px-2 py-0.5 sm:px-2.5 w-fit max-w-full truncate"
           >
             SOLD OUT
           </ProductBadge>
@@ -73,7 +73,7 @@ export default function ProductPromotionBadges({
           <ProductBadge
             variant="preorder"
             aria-label="Preorder product"
-            className="text-[10px] sm:text-[10.5px] px-2 py-0.5 sm:px-2.5 w-fit"
+            className="text-[10px] sm:text-[10.5px] px-2 py-0.5 sm:px-2.5 w-fit max-w-full truncate"
           >
             PRE-ORDER
           </ProductBadge>
@@ -82,7 +82,7 @@ export default function ProductPromotionBadges({
           <ProductBadge
             variant="neutral"
             aria-label="New product"
-            className="text-[10px] sm:text-[10.5px] px-2 py-0.5 sm:px-2.5 w-fit"
+            className="text-[10px] sm:text-[10.5px] px-2 py-0.5 sm:px-2.5 w-fit max-w-full truncate"
           >
             NEW
           </ProductBadge>
@@ -91,7 +91,7 @@ export default function ProductPromotionBadges({
           <ProductBadge
             variant="hot"
             aria-label="Hot product"
-            className="text-[10px] sm:text-[10.5px] px-2 py-0.5 sm:px-2.5 w-fit"
+            className="text-[10px] sm:text-[10.5px] px-2 py-0.5 sm:px-2.5 w-fit max-w-full truncate"
           >
             HOT
           </ProductBadge>
@@ -105,13 +105,13 @@ export default function ProductPromotionBadges({
       <div
         role="status"
         aria-label="Product promotional status"
-        className={`absolute top-3 left-3 flex flex-col gap-1.5 z-10 pointer-events-none select-none ${className}`}
+        className={`absolute top-3 left-3 flex flex-col gap-1.5 z-10 pointer-events-none select-none max-w-[50%] ${className}`}
       >
         {isSoldOut ? (
           <ProductBadge
             variant="soldout"
             aria-label="Sold out product"
-            className="text-[9.5px] sm:text-[10px] px-2 py-0.5 w-fit"
+            className="text-[9.5px] sm:text-[10px] px-2 py-0.5 w-fit max-w-full truncate"
           >
             SOLD OUT
           </ProductBadge>
@@ -119,7 +119,7 @@ export default function ProductPromotionBadges({
           <ProductBadge
             variant="preorder"
             aria-label="Preorder product"
-            className="text-[9.5px] sm:text-[10px] px-2 py-0.5 w-fit"
+            className="text-[9.5px] sm:text-[10px] px-2 py-0.5 w-fit max-w-full truncate"
           >
             PRE-ORDER
           </ProductBadge>
@@ -128,7 +128,7 @@ export default function ProductPromotionBadges({
           <ProductBadge
             variant="neutral"
             aria-label="New product"
-            className="text-[9.5px] sm:text-[10px] px-2 py-0.5 w-fit"
+            className="text-[9.5px] sm:text-[10px] px-2 py-0.5 w-fit max-w-full truncate"
           >
             NEW
           </ProductBadge>
@@ -137,7 +137,7 @@ export default function ProductPromotionBadges({
           <ProductBadge
             variant="hot"
             aria-label="Hot product"
-            className="text-[9.5px] sm:text-[10px] px-2 py-0.5 w-fit"
+            className="text-[9.5px] sm:text-[10px] px-2 py-0.5 w-fit max-w-full truncate"
           >
             HOT
           </ProductBadge>

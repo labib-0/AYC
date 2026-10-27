@@ -318,6 +318,39 @@
         "turbopack_build_exit_code": 0,
         "turbopack_routes_generated": 59
       }
+    },
+    "cycle_2_prompt_gallery_visual_verification": {
+      "name": "Storefront Product Gallery Transparent Sides & Image-Aligned Overlays Visual Verification",
+      "status": "completed",
+      "tool": "puppeteer-core (Chrome Headless)",
+      "script": "scripts/verify-storefront-gallery-visuals.mjs",
+      "viewports_tested": [
+        "mobile_375px",
+        "tablet_768px",
+        "desktop_sm_1024px",
+        "desktop_wide_1440px"
+      ],
+      "aspect_ratios_tested": [
+        { "ratio": "4:5 Portrait", "product": "oversized-denim-shirt", "resolution": "520x650" },
+        { "ratio": "1:1 Square", "product": "kids'-graphic-t-shirt", "resolution": "650x650" },
+        { "ratio": "Landscape", "product": "slim-fit-dress-shirt", "resolution": "940x628" },
+        { "ratio": "2:3 Narrow Portrait", "product": "essential-cotton-t-shirt", "resolution": "433x650" }
+      ],
+      "verification_results": {
+        "total_browser_checks": 152,
+        "passed_browser_checks": 152,
+        "failed_browser_checks": 0,
+        "screenshots_captured": 20,
+        "screenshots_directory": "docs/qa/admin-ui-hotfixes-2026-10-27/screenshots/",
+        "lightbox_tested": true,
+        "thumbnail_switching_tested": true,
+        "aspect_and_overlays_suite_passed": 10,
+        "gallery_size_and_overlays_suite_passed": 31,
+        "product_detail_refinement_suite_passed": 8,
+        "product_detail_ui_hierarchy_suite_passed": 7,
+        "typescript_no_emit_exit_code": 0,
+        "turbopack_build_exit_code": 0
+      }
     }
   }
 }

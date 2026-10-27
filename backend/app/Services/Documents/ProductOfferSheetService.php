@@ -94,7 +94,7 @@ class ProductOfferSheetService
         $startTime = microtime(true);
         $fingerprint = $this->computeFingerprint($product);
         $cleanSku = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($product->sku ?: "PROD-{$product->id}"));
-        $filename = "AYC_Offer_Sheet_{$cleanSku}.pdf";
+        $filename = "Offer-Sheet-{$cleanSku}.pdf";
 
         $storageDisk = Storage::disk('local');
         $relativeDir = "product_offer_sheets/{$product->id}";

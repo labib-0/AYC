@@ -122,13 +122,119 @@ export default function ProductGallery({
 
   const setIndex = useCallback(
     (idx: number) => {
-      const clamped = Math.max(0, Math.min(idx, Math.max(0, images.length - 1)));
+      const clamped = Math.max(0, Math.min(idx, Math.max(0, cleanImages.length - 1)));
       setInternalIndex(clamped);
       setMediaMode("image");
       onImageChange?.(clamped);
     },
-    [images.length, onImageChange]
+    [cleanImages.length, onImageChange]
   );
+
+  // ── Image Aspect Ratio & Bounds Tracking for Transparent Side Panels ────
+  const [aspectMap, setAspectMap] = useState<Record<string, number>>({});
+  const [containerRatio, setContainerRatio] = useState<number>(4 / 5);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const activeImgRef = useRef<HTMLImageElement>(null);
+
+  // Dynamically observe main gallery frame aspect ratio (4:5 canonical, responsive to modal constraints)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const updateRatio = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w > 0 && h > 0) {
+        setContainerRatio(w / h);
+      }
+    };
+    updateRatio();
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(updateRatio);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+  }, []);
+
+  const currentSrc = cleanImages[currentIndex] || "";
+
+  // Measure active image on mount or index change if already loaded/cached
+  useEffect(() => {
+    if (!currentSrc) return;
+    const img = activeImgRef.current;
+    if (img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      const ratio = img.naturalWidth / img.naturalHeight;
+      setAspectMap((prev) => {
+        if (prev[currentSrc] && Math.abs(prev[currentSrc] - ratio) < 0.001) return prev;
+        return { ...prev, [currentSrc]: ratio };
+      });
+    }
+  }, [currentIndex, currentSrc]);
+
+  // Preload gallery images to cache aspect ratios in advance and eliminate overlay jumps
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    cleanImages.forEach((src) => {
+      if (!src || aspectMap[src]) return;
+      const img = new window.Image();
+      img.src = src;
+      const update = () => {
+        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+          const ratio = img.naturalWidth / img.naturalHeight;
+          setAspectMap((prev) => {
+            if (prev[src] && Math.abs(prev[src] - ratio) < 0.001) return prev;
+            return { ...prev, [src]: ratio };
+          });
+        }
+      };
+      if (img.complete) {
+        update();
+      } else {
+        img.onload = update;
+      }
+    });
+  }, [cleanImages, aspectMap]);
+
+  const handleActiveImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const target = e.currentTarget;
+      if (target.naturalWidth > 0 && target.naturalHeight > 0) {
+        const ratio = target.naturalWidth / target.naturalHeight;
+        setAspectMap((prev) => {
+          if (prev[currentSrc] && Math.abs(prev[currentSrc] - ratio) < 0.001) return prev;
+          return { ...prev, [currentSrc]: ratio };
+        });
+      }
+    },
+    [currentSrc]
+  );
+
+  // Exact visible image bounding box inside the 4:5 frame based on CSS object-contain mathematics
+  const imageBounds = useMemo<React.CSSProperties>(() => {
+    const cRatio = containerRatio > 0 ? containerRatio : 4 / 5;
+    const imgRatio = aspectMap[currentSrc] && aspectMap[currentSrc] > 0 ? aspectMap[currentSrc] : cRatio;
+
+    if (imgRatio >= cRatio) {
+      // Wider than (or equal to) container: fills full width, centered vertically
+      const heightPct = Number(((cRatio / imgRatio) * 100).toFixed(4));
+      const topPct = Number(((100 - heightPct) / 2).toFixed(4));
+      return {
+        top: `${topPct}%`,
+        left: "0%",
+        width: "100%",
+        height: `${heightPct}%`,
+      };
+    } else {
+      // Narrower than container (tall portrait): fills full height, centered horizontally
+      const widthPct = Number(((imgRatio / cRatio) * 100).toFixed(4));
+      const leftPct = Number(((100 - widthPct) / 2).toFixed(4));
+      return {
+        top: "0%",
+        left: `${leftPct}%`,
+        width: `${widthPct}%`,
+        height: "100%",
+      };
+    }
+  }, [aspectMap, currentSrc, containerRatio]);
 
   // ── Lightbox State ────────────────────────────────────────────────────
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -499,93 +605,99 @@ export default function ProductGallery({
         ) : (
           /* Image Mode: Main Image with Swipe + Click to Lightbox */
           <div
+            ref={containerRef}
             style={{ aspectRatio: "4 / 5" }}
-            className={`relative w-full aspect-[4/5] ${mainRadiusClass} ${maxHeightConstraint} overflow-hidden bg-secondary/25 border border-border/70 shadow-xs group`}
+            className={`relative w-full aspect-[4/5] ${maxHeightConstraint} bg-transparent flex items-center justify-center select-none group`}
           >
             <button
               ref={lightboxTriggerRef}
               type="button"
-              className={`w-full h-full cursor-zoom-in touch-pan-y select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${mainRadiusClass} flex items-center justify-center p-0`}
+              className="w-full h-full cursor-zoom-in touch-pan-y select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 flex items-center justify-center p-0 relative"
               aria-label={`View ${productName} image ${currentIndex + 1} of ${cleanImages.length} — click to enlarge`}
               {...mainSwipe}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                ref={activeImgRef}
                 key={currentIndex}
-                src={cleanImages[currentIndex] || "/placeholder.jpg"}
+                src={currentSrc || "/placeholder.jpg"}
                 alt={`${productName} — image ${currentIndex + 1}`}
                 loading={currentIndex === 0 ? "eager" : "lazy"}
                 decoding="async"
-                className="w-full h-full max-h-full max-w-full object-contain object-center pointer-events-none"
+                className="w-full h-full max-h-full max-w-full object-contain object-center pointer-events-none rounded-xl"
                 draggable={false}
+                onLoad={handleActiveImageLoad}
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = "/placeholder.jpg";
                 }}
               />
             </button>
 
-            {/* Overlays (badges, brand logo) strictly inside the 4:5 image area for EVERY gallery image */}
-            {overlayContent ? (
-              <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
-                {overlayContent}
-              </div>
-            ) : product ? (
-              <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
-                <ProductPromotionBadges product={product} variant={variant} />
-                <ProductBrandLogoOverlay
-                  brandName={product.brand}
-                  brandLogo={product.brandLogo || (product as any).brand_logo || (product as any).brand_data?.logo_url || (product as any).brand_data?.logo}
-                  brandData={(product as any).brand_data}
-                  size={variant}
-                  className="top-2.5 right-2.5 sm:top-3 sm:right-3"
-                />
-              </div>
-            ) : null}
-
-            {/* Prev/Next Arrows (desktop, multi-image) */}
-            {hasMultiple && (
-              <>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setIndex(currentIndex - 1); }}
-                  disabled={currentIndex === 0}
-                  aria-label="Previous image"
-                  className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center text-foreground shadow-sm transition-all cursor-pointer hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                    currentIndex === 0 ? "opacity-0 pointer-events-none" : "opacity-0 group-hover:opacity-100"
-                  }`}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setIndex(currentIndex + 1); }}
-                  disabled={currentIndex === images.length - 1}
-                  aria-label="Next image"
-                  className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center text-foreground shadow-sm transition-all cursor-pointer hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                    currentIndex === images.length - 1 ? "opacity-0 pointer-events-none" : "opacity-0 group-hover:opacity-100"
-                  }`}
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </>
-            )}
-
-            {/* Dot Indicators (mobile) */}
-            {hasMultiple && (
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 lg:hidden pointer-events-none">
-                {images.map((_, idx) => (
-                  <span
-                    key={idx}
-                    className={`block rounded-full transition-all duration-200 ${
-                      idx === currentIndex
-                        ? "w-5 h-1.5 bg-white shadow-sm"
-                        : "w-1.5 h-1.5 bg-white/50"
-                    }`}
-                    aria-hidden="true"
+            {/* Overlays strictly aligned to actual displayed image bounds */}
+            <div
+              style={imageBounds}
+              className="absolute pointer-events-none z-20 overflow-visible transition-[top,left,width,height] duration-200 ease-out"
+            >
+              {overlayContent ? (
+                overlayContent
+              ) : product ? (
+                <>
+                  <ProductPromotionBadges product={product} variant={variant} />
+                  <ProductBrandLogoOverlay
+                    brandName={product.brand}
+                    brandLogo={product.brandLogo || (product as any).brand_logo || (product as any).brand_data?.logo_url || (product as any).brand_data?.logo}
+                    brandData={(product as any).brand_data}
+                    size={variant}
+                    className="top-2.5 right-2.5 sm:top-3 sm:right-3"
                   />
-                ))}
-              </div>
-            )}
+                </>
+              ) : null}
+
+              {/* Prev/Next Arrows (desktop, multi-image) */}
+              {hasMultiple && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIndex(currentIndex - 1); }}
+                    disabled={currentIndex === 0}
+                    aria-label="Previous image"
+                    className={`pointer-events-auto absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center text-foreground shadow-sm transition-all cursor-pointer hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                      currentIndex === 0 ? "opacity-0 pointer-events-none" : "opacity-0 group-hover:opacity-100"
+                    }`}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIndex(currentIndex + 1); }}
+                    disabled={currentIndex === cleanImages.length - 1}
+                    aria-label="Next image"
+                    className={`pointer-events-auto absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 flex items-center justify-center text-foreground shadow-sm transition-all cursor-pointer hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                      currentIndex === cleanImages.length - 1 ? "opacity-0 pointer-events-none" : "opacity-0 group-hover:opacity-100"
+                    }`}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </>
+              )}
+
+              {/* Dot Indicators (mobile) */}
+              {hasMultiple && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 lg:hidden pointer-events-none">
+                  {cleanImages.map((_, idx) => (
+                    <span
+                      key={idx}
+                      className={`block rounded-full transition-all duration-200 ${
+                        idx === currentIndex
+                          ? "w-5 h-1.5 bg-white shadow-sm"
+                          : "w-1.5 h-1.5 bg-white/50"
+                      }`}
+                      aria-hidden="true"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -780,11 +892,11 @@ export default function ProductGallery({
               </button>
               <button
                 type="button"
-                onClick={() => setLightboxIndex((p) => Math.min(images.length - 1, p + 1))}
-                disabled={lightboxIndex === images.length - 1}
+                onClick={() => setLightboxIndex((p) => Math.min(cleanImages.length - 1, p + 1))}
+                disabled={lightboxIndex === cleanImages.length - 1}
                 aria-label="Next image"
                 className={`absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-white transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
-                  lightboxIndex === images.length - 1 ? "opacity-30 pointer-events-none" : "opacity-80 hover:opacity-100"
+                  lightboxIndex === cleanImages.length - 1 ? "opacity-30 pointer-events-none" : "opacity-80 hover:opacity-100"
                 }`}
               >
                 <ChevronRight size={20} />

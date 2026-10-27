@@ -35,15 +35,10 @@ class GenerateProductOfferSheetJob implements ShouldQueue
      */
     public function handle(ProductOfferSheetService $service): void
     {
-        $product = Product::with(['images', 'brand'])->find($this->productId);
+        $product = Product::with(['images', 'brand', 'pricingTiers', 'shippingPackageProfiles'])->find($this->productId);
 
         if (!$product) {
             Log::warning("GenerateProductOfferSheetJob: Product ID {$this->productId} not found. Skipping.");
-            return;
-        }
-
-        if ($product->status !== 'published') {
-            Log::info("GenerateProductOfferSheetJob: Product #{$product->id} is not published (status: '{$product->status}'). Skipping.");
             return;
         }
 

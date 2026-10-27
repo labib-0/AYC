@@ -454,7 +454,6 @@ class CommercialInvoiceService
             'document_defaults' => $docDefaults,
         ];
     }
-    }
 
     /**
      * Build Commercial Invoice representation from a Quotation
