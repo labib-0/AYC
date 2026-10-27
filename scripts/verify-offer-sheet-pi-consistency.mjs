@@ -6,7 +6,7 @@ import { buildOfferSheetData } from "../src/lib/offer-sheet.ts";
 
 const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const ARTIFACTS_DIR = "/Users/labibhasan/.gemini/antigravity-ide/brain/31cacd12-715a-409b-bae1-a43267ea2420";
-const TOKEN = "119|YLnaERwHnVZ7qFKneOYquGHdJFdjRlrZJnIAfGEvb2b26956";
+const TOKEN = process.env.TOKEN || "";
 
 async function run() {
   console.log("==========================================================");

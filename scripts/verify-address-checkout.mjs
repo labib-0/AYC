@@ -4,7 +4,7 @@ import path from "path";
 
 const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const ARTIFACTS_DIR = "/Users/labibhasan/.gemini/antigravity-ide/brain/31cacd12-715a-409b-bae1-a43267ea2420";
-const TOKEN = "119|YLnaERwHnVZ7qFKneOYquGHdJFdjRlrZJnIAfGEvb2b26956";
+const TOKEN = process.env.TOKEN || "";
 
 const VIEWPORTS = [
   { width: 320, height: 650, name: "320" },

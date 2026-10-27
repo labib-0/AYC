@@ -5,7 +5,7 @@ import path from "path";
 const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const ARTIFACTS_DIR = "/Users/labibhasan/.gemini/antigravity-ide/brain/c5793a78-8447-41c9-b41b-1a57da0c27ee";
 const LIVE_URL = "https://ayaanclothing.com";
-const LIVE_SANCTUM_TOKEN = "162|9vgBwHUBmCOtE5Jjgbuq2h2GlT1RKqGC9rFQxBk0c5ad4f33";
+const LIVE_SANCTUM_TOKEN = process.env.LIVE_SANCTUM_TOKEN || "";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,16 +46,18 @@ async function verifyLiveCustomerPortal() {
       }
     });
 
-    // Helper: Initialize real customer session using Sanctum token
+    // Helper: Initialize customer session using environment-supplied token or mock session
     async function initSession() {
       await page.goto(`${LIVE_URL}/`, { waitUntil: "domcontentloaded" });
       await page.evaluate((tok) => {
-        localStorage.removeItem("ayaan_frontend_only_mode");
-        localStorage.setItem("ayaan_auth_token", tok);
+        if (tok) {
+          localStorage.removeItem("ayaan_frontend_only_mode");
+          localStorage.setItem("ayaan_auth_token", tok);
+        }
         localStorage.setItem("ayaan_mock_active_user_v2", JSON.stringify({
-          id: 77,
-          name: "Labib Ul Hasan",
-          email: "mdlhjahin@gmail.com",
+          id: 9991,
+          name: "QA Automated Auditor",
+          email: "qa-audit@ayaanclothing.internal",
           role: "customer",
         }));
       }, LIVE_SANCTUM_TOKEN);
