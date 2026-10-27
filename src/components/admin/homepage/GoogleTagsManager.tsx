@@ -254,7 +254,7 @@ export function GoogleTagsManager({
                 <h2 className="text-sm sm:text-base font-semibold tracking-tight text-foreground truncate">
                   Google Tags &amp; Tracking
                 </h2>
-                <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
+                <div className="flex flex-col sm:flex-row sm:items-center items-start gap-1 sm:gap-1.5">
                   {isHeadConfigured ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 w-fit shrink-0">
                       <CheckCircle2 size={10} />

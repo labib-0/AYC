@@ -37,6 +37,11 @@
 | **#36** | Admin Settings Profile | Change Admin Password modal closes on clicking backdrop or pressing Escape; clears password input fields on dismissal; never submits on dismissal. | `tests/prompt1-admin-modal-dismissal.test.ts` (Part 3) | **PASS** | 6 tests passed. Verified in browser on `/ayc/settings?tab=profile`. |
 | **#37** | Admin Settings | Settings sections stack or wrap cleanly at narrow viewport widths across all 7 tabs (`preferences`, `profile`, `branding`, `social`, `business`, `legal`, `users`). | `tests/prompt4-settings-mobile-responsiveness.test.ts` | **PASS** | 24 tests passed. Browser tested across all 7 tabs at 320px, 375px, 768px, 1440px. |
 | **#38** | Admin Settings | Settings controls, badges, toggles, select menus, and URLs remain within card and viewport boundaries with zero page-level horizontal overflow (`break-all`, `min-w-0`). | `tests/prompt4-settings-mobile-responsiveness.test.ts` | **PASS** | 52/52 browser checks passed across 4 viewports on all 7 tabs. |
+| **#39** | Admin Settings Business | Beneficiary Bank Wire Instructions action buttons ('Add Currency Profile', 'Reset Bank', and card actions) stack vertically on mobile (320px/375px) with touch targets >= 36px; side-by-side on desktop. | `tests/cycle4-prompt1-settings-hotfix.test.ts` (Part 1) | **PASS** | 7 unit tests passed. Headless Chrome browser verified across 4 viewports with 0 horizontal overflow. |
+| **#41** | Admin Settings Users | Edit Administrator Account modal closes on clicking backdrop or pressing Escape; inside clicks stop propagation; submission safety and role assignment preserved. | `tests/cycle4-prompt1-settings-hotfix.test.ts` (Part 2) | **PASS** | 11 unit tests passed. Headless Chrome browser verified open, inside click, outside click, Escape, and Cancel. |
+| **#40** | Admin Settings Business | Document Logistics & Legal Defaults card header stacks title/description, status badge, and Reset Defaults button vertically on mobile with touch target >= 36px; side-by-side on desktop. | `tests/cycle4-prompt2-defaults-and-currency.test.ts` (Part 1) | **PASS** | 7 unit tests passed. Headless Chrome verified across 4 viewports with 0 horizontal overflow. |
+| **#42** | Admin Settings Preferences | Operational Currency 'USD Export Standard' badge is positioned below title/description on mobile within card padding; side-by-side on desktop without clipping or overflow. | `tests/cycle4-prompt2-defaults-and-currency.test.ts` (Part 2) | **PASS** | 5 unit tests passed. Headless Chrome verified across 4 viewports with 0 horizontal overflow. |
+| **#43** | Admin Settings Preferences | Google Tags & Tracking 'Head: Configured' and 'Body: Configured' status controls stack vertically on mobile (320px/375px) with Head preceding Body; side-by-side on desktop without clipping or overflow. | `tests/cycle4-prompt3-google-tags-mobile.test.ts` | **PASS** | 7 unit tests passed. Headless Chrome verified across 4 viewports with 0 horizontal overflow. |
 
 
 ---
@@ -86,4 +91,9 @@
 | `scripts/verify-documents-and-roles-browser.mjs` | Headless Chrome browser responsive verification across 4 viewports | 34 | 34 | 0 |
 | `scripts/verify-admin-dropdown-browser.mjs` | Headless Chrome browser dropdown verification across 4 viewports | 46 | 46 | 0 |
 | `scripts/verify-settings-mobile-browser.mjs` | Headless Chrome browser settings verification across 4 viewports on 7 tabs | 52 | 52 | 0 |
-| **TOTAL** | **Full Repository Regression Suite** | **705** | **705** | **0** |
+| `tests/cycle4-prompt1-settings-hotfix.test.ts` | Issues #39 & #41 (Bank buttons layout & Admin modal dismissal) | 18 | 18 | 0 |
+| `tests/cycle4-prompt2-defaults-and-currency.test.ts` | Issues #40 & #42 (Document defaults & Operational currency) | 12 | 12 | 0 |
+| `tests/cycle4-prompt3-google-tags-mobile.test.ts` | Issue #43 (Google Tags & Tracking Head/Body controls) | 7 | 7 | 0 |
+| `tests/cycle4-prompt4-integration.test.ts` | Cycle 4 Cross-Section Integration & Regression (#39–#43) | 29 | 29 | 0 |
+| `scripts/verify-cycle4-prompt4-browser.mjs` | Headless Chrome browser integration across 4 viewports (#39–#43) | 71 | 71 | 0 |
+| **TOTAL** | **Full Repository Regression Suite** | **842** | **842** | **0** |

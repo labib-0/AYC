@@ -132,22 +132,24 @@ export default function SystemPreferencesSettings({ onNotify }: SystemPreference
 
       {/* Currency Standard Card */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5">
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
               <DollarSign size={16} />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 space-y-0.5">
               <h3 className="text-sm font-bold text-foreground">Operational Currency</h3>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Base foreign exchange valuation standard used across wholesale pricing and invoices.
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 self-start sm:self-auto shrink-0">
-            <ShieldCheck size={12} />
-            <span>USD Export Standard</span>
-          </span>
+          <div className="flex items-center self-start sm:self-auto shrink-0 pt-1 sm:pt-0">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 max-w-full">
+              <ShieldCheck size={13} className="shrink-0" />
+              <span className="truncate">USD Export Standard</span>
+            </span>
+          </div>
         </div>
 
         <div className="p-4 rounded-xl bg-secondary/30 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

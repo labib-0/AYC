@@ -122,18 +122,30 @@ export default function AdminUserModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="admin-user-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200"
+      data-testid="admin-user-modal-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget && !saving) {
           onClose();
         }
       }}
-      data-testid="admin-user-modal-overlay"
     >
+      {/* Explicit backdrop layer for robust outside-click handling */}
+      <div
+        data-testid="admin-user-modal-backdrop"
+        className="fixed inset-0 bg-background/80 backdrop-blur-xs transition-opacity"
+        onClick={() => {
+          if (!saving) {
+            onClose();
+          }
+        }}
+        aria-hidden="true"
+      />
+
       <div 
-        className="relative w-full max-w-lg rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
         data-testid="admin-user-modal-content"
+        className="relative z-10 w-full max-w-lg rounded-2xl bg-card border border-border p-5 sm:p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border/80 pb-4">
           <div className="flex items-center gap-2.5">

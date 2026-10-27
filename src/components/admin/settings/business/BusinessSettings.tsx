@@ -796,15 +796,15 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase tracking-wider font-mono">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto self-start sm:self-auto">
+            <span className="inline-flex items-center justify-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase tracking-wider font-mono self-start sm:self-auto">
               <ShieldCheck size={12} />
               <span>DOCUMENT ONLY / PRIVATE</span>
             </span>
             <button
               type="button"
               onClick={handleStartAddProfile}
-              className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer shadow-xs"
+              className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3.5 py-2 sm:py-1 min-h-[38px] sm:min-h-0 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer shadow-xs w-full sm:w-auto"
             >
               <Plus size={13} />
               <span>Add Currency Profile</span>
@@ -812,10 +812,10 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
             <button
               type="button"
               onClick={handleResetBanking}
-              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer border border-border"
+              className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-[10px] font-medium px-3 sm:px-2 py-2 sm:py-1 min-h-[38px] sm:min-h-0 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer border border-border w-full sm:w-auto"
               title="Reset banking credentials to official Pubali Bank defaults"
             >
-              <RotateCcw size={10} />
+              <RotateCcw size={11} />
               <span>Reset Bank</span>
             </button>
           </div>
@@ -997,18 +997,18 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-border/40 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={handleCancelProfileForm}
-                className="px-3 py-1.5 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-foreground text-xs font-medium transition-colors cursor-pointer"
+                className="px-3 py-2 sm:py-1.5 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-foreground text-xs font-medium transition-colors cursor-pointer w-full sm:w-auto text-center"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleSaveProfileForm}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Check size={13} />
                 <span>Apply Profile Changes</span>
@@ -1068,44 +1068,47 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto self-start sm:self-auto shrink-0 pt-2 sm:pt-0">
                       {!prof.is_default && prof.is_active && (
                         <button
                           type="button"
                           onClick={() => handleSetDefaultProfile(prof.id)}
-                          className="text-[11px] font-medium px-2 py-0.5 rounded border border-border bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer"
+                          className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-[11px] font-medium px-3 sm:px-2 py-2 sm:py-0.5 min-h-[36px] sm:min-h-0 rounded-lg sm:rounded border border-border bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer w-full sm:w-auto"
                         >
-                          Make Default
+                          <Check size={12} className="sm:hidden" />
+                          <span>Make Default</span>
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => handleStartEditProfile(prof)}
-                        className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-[11px] font-medium px-3 sm:px-1.5 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg sm:rounded border border-border sm:border-transparent bg-secondary/50 sm:bg-transparent hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-full sm:w-auto"
                         title="Edit profile"
                       >
                         <Edit2 size={13} />
+                        <span className="sm:hidden">Edit Profile</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleToggleActiveProfile(prof.id)}
-                        className={`text-[11px] font-medium px-2 py-0.5 rounded border cursor-pointer transition-colors ${
+                        className={`inline-flex items-center justify-center gap-1.5 text-xs sm:text-[11px] font-medium px-3 sm:px-2 py-2 sm:py-0.5 min-h-[36px] sm:min-h-0 rounded-lg sm:rounded border cursor-pointer transition-colors w-full sm:w-auto ${
                           prof.is_active
                             ? "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
                             : "border-primary/40 text-primary bg-primary/10 hover:bg-primary/20"
                         }`}
                         title={prof.is_active ? "Deactivate profile" : "Activate profile"}
                       >
-                        {prof.is_active ? "Deactivate" : "Activate"}
+                        <span>{prof.is_active ? "Deactivate" : "Activate"}</span>
                       </button>
                       {!prof.is_default && currentProfiles.length > 1 && (
                         <button
                           type="button"
                           onClick={() => handleDeleteProfile(prof.id)}
-                          className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                          className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-[11px] font-medium px-3 sm:px-1.5 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg sm:rounded border border-destructive/20 sm:border-transparent bg-destructive/5 sm:bg-transparent hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer w-full sm:w-auto"
                           title="Delete profile"
                         >
                           <Trash2 size={13} />
+                          <span className="sm:hidden">Delete Profile</span>
                         </button>
                       )}
                     </div>
@@ -1177,29 +1180,29 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
 
       {/* SECTION 5: DOCUMENT & LOGISTICS DEFAULTS */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl shadow-xs space-y-5">
-        <div className="border-b border-border/60 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+        <div className="border-b border-border/60 pb-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
               <Ship size={16} />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 space-y-0.5">
               <h3 className="text-sm font-bold text-foreground">Document Logistics &amp; Legal Defaults</h3>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Default fallback values used when individual orders or invoices do not specify custom logistics terms.
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 uppercase tracking-wider font-mono">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto self-start sm:self-auto shrink-0 pt-1 sm:pt-0">
+            <span className="inline-flex items-center justify-center text-[10px] font-bold px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 uppercase tracking-wider font-mono self-start sm:self-auto">
               DOCUMENT ONLY
             </span>
             <button
               type="button"
               onClick={handleResetDefaults}
-              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer border border-border"
+              className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-[10px] font-medium px-3 sm:px-2 py-2 sm:py-1 min-h-[36px] sm:min-h-0 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer border border-border w-full sm:w-auto"
               title="Reset logistics and document defaults"
             >
-              <RotateCcw size={10} />
+              <RotateCcw size={12} className="shrink-0" />
               <span>Reset Defaults</span>
             </button>
           </div>

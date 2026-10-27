@@ -305,3 +305,93 @@
   - Cumulative Cycle 3 Browser Checks: **153/153 PASS**
   - `npx tsc --noEmit`: **0 errors (Exit code 0)**
   - `npm run build`: **59/59 routes compiled statically with Turbopack (Exit code 0)**
+
+---
+
+## Cycle 4 — Prompt 1/5: Mobile Button Layout & Admin Modal Dismissal (Issues #39 & #41)
+- **Status:** COMPLETED
+- **Issues Resolved:**
+  - **Issue #39:** Three bank-instruction action buttons display side by side on mobile (`BusinessSettings.tsx`).
+    - Section 4 header action container updated to `flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto`.
+    - 'Add Currency Profile' and 'Reset Bank' buttons expand to full width (`w-full sm:w-auto`) on mobile with practical touch targets (`min-h-[38px] sm:min-h-0`).
+    - Bank profile card action buttons (`Make Default`, `Edit profile`, `Activate/Deactivate`, `Delete profile`) stack vertically on mobile (`flex-col sm:flex-row w-full sm:w-auto`) with touch targets >= 36px, visible mobile labels, and consistent spacing; side-by-side layout strictly preserved on desktop (`sm:`).
+    - Inline profile form action buttons stack cleanly on mobile (`flex-col sm:flex-row w-full sm:w-auto`).
+    - All banking routing logic, Swift codes, account numbers, and handlers strictly preserved.
+  - **Issue #41:** Edit Administrator Account modal does not close on outside click (`AdminUserModal.tsx` & `AdminUserDeleteDialog.tsx` under Admin Settings).
+    - Added dedicated full-screen backdrop layer (`data-testid="admin-user-modal-backdrop"`) with outside-click detection and `!saving` guard.
+    - Outer dialog overlay supports genuine outside clicks with `e.target === e.currentTarget && !saving`.
+    - Content card calls `e.stopPropagation()` on `data-testid="admin-user-modal-content"` to isolate text inputs, email, phone, role select, password, and buttons.
+    - Added window `keydown` listener for `Escape` key with proper event cleanup on unmount and `!saving` guard.
+    - Cancel button and Close icon invoke `onClose()` directly without mutating administrator state.
+    - Applied identical backdrop and outside-click dismissal pattern to `AdminUserDeleteDialog.tsx`.
+- **Verifications:**
+  - `tests/cycle4-prompt1-settings-hotfix.test.ts`: **18/18 PASS**
+  - Cumulative Unit Suite: **64/64 PASS**
+  - `scripts/verify-cycle4-prompt1-browser.mjs`: **26/26 PASS** across 4 viewports (`320px`, `375px`, `768px`, `1440px`)
+  - `npx tsc --noEmit`: **0 errors (Exit code 0)**
+  - `npm run build`: **59/59 routes compiled statically with Turbopack (Exit code 0)**
+  - Production Deployment: **DEFERRED (Local verification only per prompt instructions)**
+
+---
+
+## Cycle 4 — Prompt 2/5: Document Defaults & Currency Badge Alignment (Issues #40 & #42)
+- **Status:** COMPLETED
+- **Issues Resolved:**
+  - **Issue #40:** Document & Legal Defaults controls are poorly aligned on mobile (`BusinessSettings.tsx`).
+    - Section 5 header updated to `flex flex-col sm:flex-row sm:items-center justify-between gap-3`.
+    - Left block uses `items-start sm:items-center` so the `Ship` icon is cleanly anchored at top with title/description.
+    - Status badge `DOCUMENT ONLY` and action button `Reset Defaults` housed in `flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto`.
+    - `Reset Defaults` button expands full-width on mobile with practical touch target (`min-h-[36px] sm:min-h-0`), icon `RotateCcw`, and preserved confirmation/reset flow.
+    - All document default form fields (POL, Country of Origin, Incoterm, Payment Terms, Legal Declaration) remain accessible, responsive, and within card bounds.
+    - Desktop side-by-side presentation strictly preserved via `sm:` breakpoints.
+  - **Issue #42:** Operational Currency badge is misaligned on mobile (`SystemPreferencesSettings.tsx`).
+    - Currency card header updated to `flex flex-col sm:flex-row sm:items-center justify-between gap-3`.
+    - Title and explanatory text are closely grouped with `items-start sm:items-center` and `space-y-0.5`.
+    - `USD Export Standard` badge moved into dedicated row container `flex items-center self-start sm:self-auto shrink-0 pt-1 sm:pt-0`.
+    - Badge is well padded inside card with `max-w-full`, preventing any clipping or competition with heading.
+    - Fixed USD base text and wholesale pricing invariants remain intact.
+    - Desktop side-by-side presentation strictly preserved.
+- **Verifications:**
+  - `tests/cycle4-prompt2-defaults-and-currency.test.ts`: **12/12 PASS**
+  - Cumulative Unit Suites (Cycle 3 & 4): **76/76 PASS**
+  - `scripts/verify-cycle4-prompt2-browser.mjs`: **36/36 PASS** across 4 viewports (`320px`, `375px`, `768px`, `1440px`)
+  - `npx tsc --noEmit`: **0 errors (Exit code 0)**
+  - `npm run build`: **59/59 routes compiled statically with Turbopack (Exit code 0)**
+  - Production Deployment: **DEFERRED (Local verification only per prompt instructions)**
+
+---
+
+## Cycle 4 — Prompt 3/5: Google Tags & Tracking Mobile Layout (Issue #43)
+- **Status:** COMPLETED
+- **Issues Resolved:**
+  - **Issue #43:** Head and Body configuration controls should stack vertically on mobile (`GoogleTagsManager.tsx`).
+    - Changed indicators container from `flex flex-wrap items-center gap-1 sm:gap-1.5` to `flex flex-col sm:flex-row sm:items-center items-start gap-1 sm:gap-1.5`.
+    - On mobile (`< sm:`): Head status control (`Head: Configured` / `Head: Empty`) appears first, and Body status control (`Body: Configured` / `Body: Empty`) appears directly below it with `gap-1` vertical spacing.
+    - Both controls maintain `w-fit shrink-0` and full padding without text clipping or overflowing card boundaries.
+    - Desktop side-by-side presentation next to the title is strictly preserved via `sm:flex-row sm:items-center`.
+    - Zero changes to tracking code injection, validation, 64KB limits, or save/reset actions.
+- **Verifications:**
+  - `tests/cycle4-prompt3-google-tags-mobile.test.ts`: **7/7 PASS**
+  - Cumulative Unit Suites (Cycle 3 & 4): **83/83 PASS**
+  - `scripts/verify-cycle4-prompt3-browser.mjs`: **18/18 PASS** across 4 viewports (`320px`, `375px`, `768px`, `1440px`)
+  - `npx tsc --noEmit`: **0 errors (Exit code 0)**
+  - `npm run build`: **59/59 routes compiled statically with Turbopack (Exit code 0)**
+  - Production Deployment: **DEFERRED (Local verification only per prompt instructions)**
+
+---
+
+## Cycle 4 — Prompt 4/5: Cross-Section Integration & Regression Verification (Issues #39–#43)
+- **Status:** COMPLETED & VERIFIED
+- **Issues Audited:**
+  - **Issue #39:** Beneficiary Bank Wire Instructions action buttons stack vertically on mobile ($320\text{px}$, $375\text{px}$) with full width and touch targets $\ge 38\text{px}$; side-by-side on desktop ($768\text{px}$, $1440\text{px}$). Inline profile form toggle verified.
+  - **Issue #40:** Document Logistics & Legal Defaults card header stacks title/description, status badge, and Reset Defaults button vertically on mobile with touch targets $\ge 36\text{px}$; side-by-side on desktop.
+  - **Issue #41:** Edit Administrator Account modal backdrop click, Escape key, Cancel button, and close icon dismiss modal without saving data; inside clicks isolated via stopPropagation; saving guard protects active mutations. Identical pattern verified in delete dialog.
+  - **Issue #42:** Operational Currency badge is positioned below title/description on mobile within card bounds; side-by-side on desktop without clipping or horizontal page overflow.
+  - **Issue #43:** Google Tags & Tracking 'Head: Configured' is strictly stacked above 'Body: Configured' on mobile ($320\text{px}$, $375\text{px}$) with `gap-1` spacing; side-by-side on desktop ($768\text{px}$, $1440\text{px}$).
+- **Verifications:**
+  - `tests/cycle4-prompt4-integration.test.ts`: **29/29 PASS**
+  - Cumulative Focused Regression Suites: **131/131 PASS** across 7 test suites
+  - `scripts/verify-cycle4-prompt4-browser.mjs`: **71/71 PASS** across 4 viewports (`320px`, `375px`, `768px`, `1440px`)
+  - `npx tsc --noEmit`: **0 errors (Exit code 0)**
+  - `npm run build`: **59/59 routes compiled statically with Turbopack in 869ms (Exit code 0)**
+  - Production Deployment: **DEFERRED (Ready for final review and release gate checks in Prompt 5/5)**

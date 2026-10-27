@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AlertTriangle, Trash2, X } from "lucide-react";
 import { AdminUserRecord } from "@/services/admin/admin-user.service";
 import { UserProfile } from "@/types/api";
@@ -22,6 +22,18 @@ export default function AdminUserDeleteDialog({
 }: AdminUserDeleteDialogProps) {
   const [deleting, setDeleting] = useState(false);
 
+  // Close on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !deleting) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, deleting, onClose]);
+
   if (!isOpen || !user) return null;
 
   const isSelf = currentUser && String(user.id) === String(currentUser.id);
@@ -38,12 +50,31 @@ export default function AdminUserDeleteDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-admin-title"
+      data-testid="admin-user-delete-dialog-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !deleting) {
+          onClose();
+        }
+      }}
+    >
+      {/* Explicit backdrop layer */}
+      <div
+        data-testid="admin-user-delete-dialog-backdrop"
+        className="fixed inset-0 bg-background/80 backdrop-blur-xs transition-opacity"
+        onClick={() => {
+          if (!deleting) onClose();
+        }}
+        aria-hidden="true"
+      />
       <div 
-        className="relative w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-4"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-admin-title"
+        data-testid="admin-user-delete-dialog-content"
+        className="relative z-10 w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-4"
+        onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
