@@ -175,9 +175,62 @@ export default function HomepageFaqManager({
         </div>
       </div>
 
-      <div className="p-5 sm:p-6 space-y-4">
-        {/* FAQ List */}
-        <div className="space-y-3">
+      <div className="p-5 sm:p-6 flex flex-col gap-4">
+        {/* Add FAQ Button / Form (order-1 on mobile so it appears directly beneath section title; sm:order-2 on desktop) */}
+        <div className="order-1 sm:order-2">
+          {isAdding ? (
+            <div className="p-4 rounded-xl border border-primary/40 bg-secondary/10 space-y-3">
+              <h4 className="text-xs font-bold text-foreground">Add New FAQ</h4>
+              <input
+                type="text"
+                value={newQuestion}
+                onChange={(e) => setNewQuestion(e.target.value)}
+                placeholder="Question (e.g. Can you supply custom fabric weights?)"
+                className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <textarea
+                rows={3}
+                value={newAnswer}
+                onChange={(e) => setNewAnswer(e.target.value)}
+                placeholder="Answer detailing your terms, lead time, or capabilities..."
+                className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAdding(false);
+                    setNewQuestion("");
+                    setNewAnswer("");
+                  }}
+                  className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddFaq}
+                  className="px-4 py-1.5 text-xs font-bold bg-primary text-primary-foreground rounded-xl flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Add Question</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsAdding(true)}
+              className="w-full py-2.5 min-h-[40px] rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-secondary/30 transition-all text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Plus size={14} />
+              <span>Add New FAQ Entry</span>
+            </button>
+          )}
+        </div>
+
+        {/* FAQ List (order-2 on mobile so it appears following action button; sm:order-1 on desktop) */}
+        <div className="space-y-3 order-2 sm:order-1">
           {faqs.map((faq, index) => {
             const isEditing = editingId === faq.id;
             return (
@@ -306,57 +359,6 @@ export default function HomepageFaqManager({
             );
           })}
         </div>
-
-        {/* Add FAQ Button / Form */}
-        {isAdding ? (
-          <div className="p-4 rounded-xl border border-primary/40 bg-secondary/10 space-y-3">
-            <h4 className="text-xs font-bold text-foreground">Add New FAQ</h4>
-            <input
-              type="text"
-              value={newQuestion}
-              onChange={(e) => setNewQuestion(e.target.value)}
-              placeholder="Question (e.g. Can you supply custom fabric weights?)"
-              className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <textarea
-              rows={3}
-              value={newAnswer}
-              onChange={(e) => setNewAnswer(e.target.value)}
-              placeholder="Answer detailing your terms, lead time, or capabilities..."
-              className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <div className="flex items-center gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAdding(false);
-                  setNewQuestion("");
-                  setNewAnswer("");
-                }}
-                className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleAddFaq}
-                className="px-4 py-1.5 text-xs font-bold bg-primary text-primary-foreground rounded-xl flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus size={14} />
-                <span>Add Question</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsAdding(true)}
-            className="w-full py-2.5 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-secondary/30 transition-all text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <Plus size={14} />
-            <span>Add New FAQ Entry</span>
-          </button>
-        )}
       </div>
     </div>
   );

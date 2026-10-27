@@ -5,6 +5,7 @@ import { Lock, Mail, AlertCircle, KeyRound, Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { securityService } from "@/services/security.service";
 import HoneypotField from "@/components/common/HoneypotField";
+import { setFlashToast } from "@/lib/flash-toast";
 
 interface AdminAuthModalProps {
   isOpen: boolean;
@@ -47,9 +48,12 @@ export default function AdminAuthModal({
       const res = await signInAdmin(email, password, honeypot, formToken || undefined);
       if (res?.error) {
         setError(res.error);
-      } else {
+      } else if (res?.user) {
+        setFlashToast("success", "Login successful. Welcome back!");
         onSuccess();
         onClose();
+      } else {
+        setError("Failed to authenticate administrator.");
       }
     } catch (err: any) {
       setError(err?.message || "Failed to authenticate administrator.");

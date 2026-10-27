@@ -8,6 +8,7 @@ import BrandName from "@/components/common/BrandName";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
+import { setFlashToast } from "@/lib/flash-toast";
 
 function CallbackHandler() {
   const router = useRouter();
@@ -107,6 +108,7 @@ function CallbackHandler() {
         }
 
         if (isMounted) {
+          setFlashToast("success", "Login successful. Welcome back!");
           router.replace(target);
         }
       } catch (err: any) {

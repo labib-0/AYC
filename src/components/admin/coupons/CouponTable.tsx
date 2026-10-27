@@ -93,10 +93,10 @@ export default function CouponTable({
 
   // 4. Main Table
   return (
-    <div className="bg-card rounded-2xl border border-border/80 shadow-2xs overflow-hidden">
+    <div className="bg-card rounded-2xl border border-border/80 shadow-2xs overflow-hidden min-w-0 w-full">
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="hidden md:block overflow-x-auto subtle-scrollbar">
+        <table className="w-full text-left border-collapse min-w-[680px]">
           <thead>
             <tr className="border-b border-border/80 bg-secondary/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               <th className="py-3 px-4">Coupon Code</th>
@@ -130,8 +130,8 @@ export default function CouponTable({
           return (
             <div key={coupon.id} className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-2">
-                <div className="space-y-1">
-                  <span className="font-mono font-bold text-xs text-foreground tracking-wider px-2 py-0.5 rounded bg-secondary border border-border">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <span className="font-mono font-bold text-xs text-foreground tracking-wider px-2 py-0.5 rounded bg-secondary border border-border break-all inline-block">
                     {coupon.code}
                   </span>
                   <p className="text-[11px] text-muted-foreground">
@@ -139,7 +139,7 @@ export default function CouponTable({
                   </p>
                 </div>
 
-                <div className="text-right space-y-0.5">
+                <div className="text-right space-y-0.5 shrink-0">
                   <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 block">
                     {isPercentage
                       ? `${coupon.discount_value}%`
@@ -158,22 +158,22 @@ export default function CouponTable({
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-[11px] bg-secondary/30 p-2.5 rounded-xl border border-border/60">
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Min. Order</span>
-                  <span className="font-mono font-medium text-foreground">
+                  <span className="font-mono font-medium text-foreground truncate block">
                     ${coupon.min_spend ? Number(coupon.min_spend).toFixed(2) : "0.00"}
                   </span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Usage</span>
-                  <span className="font-mono font-medium text-foreground">
+                  <span className="font-mono font-medium text-foreground truncate block">
                     {coupon.usage_count ?? 0} / {coupon.usage_limit ? coupon.usage_limit : "∞"}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/40">
-                <span>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground pt-1 border-t border-border/40">
+                <span className="text-[11px] text-muted-foreground">
                   {coupon.expires_at ? `Expires: ${new Date(coupon.expires_at).toLocaleDateString()}` : "No expiry"}
                 </span>
 
@@ -182,7 +182,7 @@ export default function CouponTable({
                     <button
                       type="button"
                       onClick={() => onToggleActive(coupon)}
-                      className="px-2.5 py-1 text-xs rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-foreground font-semibold cursor-pointer"
+                      className="px-3 py-1.5 min-h-[36px] text-xs rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-foreground font-semibold cursor-pointer inline-flex items-center justify-center transition-colors"
                     >
                       {coupon.is_active ? "Deactivate" : "Activate"}
                     </button>
@@ -191,7 +191,7 @@ export default function CouponTable({
                     <button
                       type="button"
                       onClick={() => onEdit(coupon)}
-                      className="p-1 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
+                      className="px-3 py-1.5 min-h-[36px] min-w-[36px] rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer inline-flex items-center justify-center transition-colors"
                       title="Edit"
                     >
                       Edit
@@ -201,7 +201,7 @@ export default function CouponTable({
                     <button
                       type="button"
                       onClick={() => onDelete(coupon)}
-                      className="p-1 rounded-lg border border-red-500/20 bg-card hover:bg-red-500/10 text-red-600 dark:text-red-400 cursor-pointer"
+                      className="px-3 py-1.5 min-h-[36px] min-w-[36px] rounded-lg border border-red-500/20 bg-card hover:bg-red-500/10 text-red-600 dark:text-red-400 cursor-pointer inline-flex items-center justify-center transition-colors"
                       title="Delete"
                     >
                       Delete

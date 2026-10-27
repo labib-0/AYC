@@ -165,7 +165,7 @@ export default function AdminCouponsPage() {
 
   return (
     <AdminPageGate permission="coupon.view" moduleName="Coupons Management">
-      <div className="space-y-6">
+      <div className="space-y-6 min-w-0 w-full max-w-full">
         {/* 1. Header */}
         <CouponHeader
           onAddCoupon={handleOpenAdd}
@@ -174,31 +174,31 @@ export default function AdminCouponsPage() {
         />
 
         {/* 2. Navigation Tabs */}
-        <div className="flex items-center gap-1.5 p-1 bg-secondary/50 border border-border/70 rounded-xl w-fit">
+        <div className="flex items-center gap-1.5 p-1 bg-secondary/50 border border-border/70 rounded-xl w-full sm:w-fit max-w-full overflow-x-auto subtle-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab("coupons")}
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            className={`inline-flex items-center justify-center gap-2 px-3.5 py-2 sm:py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex-1 sm:flex-initial whitespace-nowrap min-h-[38px] sm:min-h-0 ${
               activeTab === "coupons"
                 ? "bg-card text-foreground shadow-2xs border border-border/80"
                 : "text-muted-foreground hover:text-foreground"
             }`}
             id="tab-all-coupons"
           >
-            <Tag size={13} />
+            <Tag size={13} className="shrink-0" />
             <span>All Coupons ({coupons.length})</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("bindings")}
-            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            className={`inline-flex items-center justify-center gap-2 px-3.5 py-2 sm:py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex-1 sm:flex-initial whitespace-nowrap min-h-[38px] sm:min-h-0 ${
               activeTab === "bindings"
                 ? "bg-card text-foreground shadow-2xs border border-border/80"
                 : "text-muted-foreground hover:text-foreground"
             }`}
             id="tab-admin-bindings"
           >
-            <UserCheck size={13} />
+            <UserCheck size={13} className="shrink-0" />
             <span>Admin Bindings</span>
           </button>
         </div>

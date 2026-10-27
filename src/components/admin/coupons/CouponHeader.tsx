@@ -13,9 +13,9 @@ export default function CouponHeader({
   isRefreshing = false,
 }: CouponHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-display font-bold uppercase tracking-tight text-foreground">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60 min-w-0 w-full">
+      <div className="min-w-0">
+        <h1 className="text-2xl sm:text-3xl font-display font-bold uppercase tracking-tight text-foreground truncate">
           Coupons
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 leading-relaxed">
@@ -23,14 +23,14 @@ export default function CouponHeader({
         </p>
       </div>
 
-      <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+      <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
         <button
           type="button"
           onClick={onAddCoupon}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-all shadow-sm cursor-pointer"
+          className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 min-h-[40px] rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-all shadow-sm cursor-pointer whitespace-nowrap"
           id="btn-add-coupon"
         >
-          <Plus size={15} />
+          <Plus size={15} className="shrink-0" />
           <span>Add Coupon</span>
         </button>
 
@@ -38,7 +38,7 @@ export default function CouponHeader({
           type="button"
           onClick={onRefresh}
           disabled={isRefreshing}
-          className="p-2.5 rounded-full border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
+          className="h-10 w-10 shrink-0 inline-flex items-center justify-center rounded-full border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
           title="Refresh coupon data"
           aria-label="Refresh coupon data"
           id="btn-refresh-coupons"

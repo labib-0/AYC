@@ -276,7 +276,7 @@ function VerifyEmailContent() {
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Verify Your Email Address</h1>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
-              Account verification is required before placing an order. A verification link has been sent to your email.
+              A verification link has been sent to your email. Verifying your email secures your account and ensures you receive order updates.
             </p>
           </div>
 

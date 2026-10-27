@@ -1,0 +1,25 @@
+nav_id,section,label,route,component_path,required_permission,fallback_permission,is_sidebar_item,page_gate_enforced,evidence_ref
+NAV-01,OVERVIEW,Dashboard,/ayc/dashboard,src/app/ayc/dashboard/page.tsx,analytics.dashboard.view,,true,true,AdminSidebar.tsx:L53
+NAV-02,CATALOG,Products,/ayc/products,src/app/ayc/products/page.tsx,product.view,,true,true,AdminSidebar.tsx:L59
+NAV-03,CATALOG,Create Product,/ayc/products/new,src/app/ayc/products/new/page.tsx,product.create,,false,true,products/new/page.tsx:L27
+NAV-04,CATALOG,Edit Product,/ayc/products/[id]/edit,src/app/ayc/products/[id]/edit/page.tsx,product.edit,,false,true,products/[id]/edit/page.tsx:L117
+NAV-05,CATALOG,Inventory Overview,/ayc/inventory,src/app/ayc/inventory/page.tsx,inventory.view,product.view,true,true,AdminSidebar.tsx:L64
+NAV-06,CATALOG,Stock Management,/ayc/products/stock,src/app/ayc/products/stock/page.tsx,inventory.view,product.view,false,true,products/stock/page.tsx:L1110
+NAV-07,CATALOG,Categories,/ayc/categories,src/app/ayc/categories/page.tsx,category.view,,true,true,AdminSidebar.tsx:L67
+NAV-08,CATALOG,Brands,/ayc/brands,src/app/ayc/brands/page.tsx,brand.view,,true,true,AdminSidebar.tsx:L68
+NAV-09,COMMERCE,Orders,/ayc/orders,src/app/ayc/orders/page.tsx,order.view,,true,true,AdminSidebar.tsx:L74
+NAV-10,COMMERCE,Order Details,/ayc/orders/[id],src/app/ayc/orders/[id]/page.tsx,order.view,,false,true,orders/[id]/page.tsx:L216
+NAV-11,COMMERCE,RFQs,/ayc/rfq,src/app/ayc/rfq/page.tsx,rfq.view,,true,true,AdminSidebar.tsx:L75
+NAV-12,COMMERCE,RFQ Details,/ayc/rfq/[id],src/app/ayc/rfq/[id]/page.tsx,rfq.view,,false,true,rfq/[id]/page.tsx:L233
+NAV-13,COMMERCE,Point of Sale (POS),/ayc/pos,src/app/ayc/pos/page.tsx,pos.view,,true,true,AdminSidebar.tsx:L76
+NAV-14,COMMERCE,Customers,/ayc/customers,src/app/ayc/customers/page.tsx,customer.view,,true,true,AdminSidebar.tsx:L77
+NAV-15,COMMERCE,Customer Details,/ayc/customers/[id],src/app/ayc/customers/[id]/page.tsx,customer.view,,false,true,customers/[id]/page.tsx:L129
+NAV-16,MARKETING,Coupons,/ayc/coupons,src/app/ayc/coupons/page.tsx,coupon.view,,true,true,AdminSidebar.tsx:L83
+NAV-17,MARKETING,Coupon Sales,/ayc/coupon-sales,src/app/ayc/coupon-sales/page.tsx,analytics.sales.view,,true,true,AdminSidebar.tsx:L84
+NAV-18,STOREFRONT,Homepage Merchandising,/ayc/homepage,src/app/ayc/homepage/page.tsx,homepage.view,,true,true,AdminSidebar.tsx:L90
+NAV-19,DOCUMENTS,Commercial Documents,/ayc/documents,src/app/ayc/documents/page.tsx,document.view,,true,true,AdminSidebar.tsx:L96
+NAV-20,DOCUMENTS,Document Viewer,/ayc/documents/[type]/[id],src/app/ayc/documents/[type]/[id]/page.tsx,document.view,,false,true,documents/[type]/[id]/page.tsx:L53
+NAV-21,ADMINISTRATION,Administrators,/ayc/administrators,src/app/ayc/administrators/page.tsx,admin.view,,true,true,AdminSidebar.tsx:L102
+NAV-22,ADMINISTRATION,Roles & Permissions,/ayc/roles,src/app/ayc/roles/page.tsx,role.view,permission.view,true,true,AdminSidebar.tsx:L107
+NAV-23,ADMINISTRATION,Permission Catalog,/ayc/permissions,src/app/ayc/permissions/page.tsx,permission.view,,false,true,permissions/page.tsx:L174
+NAV-24,ADMINISTRATION,Settings & Config,/ayc/settings,src/app/ayc/settings/page.tsx,settings.view,,true,true,AdminSidebar.tsx:L111

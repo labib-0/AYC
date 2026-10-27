@@ -760,12 +760,6 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         return;
       }
 
-      if (user && !user.email_verified_at) {
-        setError("Please verify your email address before placing your order. Check your inbox for the verification email. Once your email is verified, return to checkout to continue.");
-        setLoading(false);
-        isSubmittingRef.current = false;
-        return;
-      }
       const orderUserId = String(user.id);
 
       // Build shipping title based on selected option (ARAMEX or DISCUSS DIRECTLY)
@@ -1291,16 +1285,16 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             )}
 
             {user && !user.email_verified_at && (
-              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
+              <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
                 <div className="flex items-start gap-2.5">
-                  <AlertCircle size={18} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                  <AlertCircle size={18} className="shrink-0 text-sky-600 dark:text-sky-400 mt-0.5" />
                   <div>
-                    <p className="font-bold text-slate-900 dark:text-white">Email Verification Required Before Ordering</p>
+                    <p className="font-bold text-slate-900 dark:text-white">Email Verification Pending (Optional)</p>
                     <p className="text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
-                      Please verify your email address before placing your order. Check your inbox for the verification email sent to <strong className="text-slate-800 dark:text-slate-200">{user.email}</strong>. Once your email is verified, return to checkout to continue.
+                      Your email (<strong className="text-slate-800 dark:text-slate-200">{user.email}</strong>) is unverified. You can complete your order now without interruption, or verify anytime for account recovery and order dispatch updates.
                     </p>
                     {verificationCheckStatus && (
-                      <p className="text-amber-600 dark:text-amber-400 font-semibold mt-1">
+                      <p className="text-sky-600 dark:text-sky-400 font-semibold mt-1">
                         {verificationCheckStatus}
                       </p>
                     )}
@@ -1311,10 +1305,10 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                     type="button"
                     onClick={handleCheckVerificationStatus}
                     disabled={checkingVerification}
-                    className="px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                    className="px-3.5 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                   >
                     <RefreshCw size={13} className={checkingVerification ? "animate-spin" : ""} />
-                    <span>{checkingVerification ? "Checking..." : "Check Status"}</span>
+                    <span>{checkingVerification ? "Checking..." : "Check Verification Status"}</span>
                   </button>
                   <Link
                     href={`/auth/verify-email?email=${encodeURIComponent(user.email)}&pending=1&returnUrl=${encodeURIComponent("/cart?openCheckout=true")}`}
@@ -1855,52 +1849,36 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               Proforma Invoice generated after order confirmation.
             </p>
 
-            {user && !user.email_verified_at ? (
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={handleCheckVerificationStatus}
-                  disabled={checkingVerification}
-                  className="w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md bg-amber-600 hover:bg-amber-700 text-white active:translate-y-0 disabled:opacity-60"
+            <button
+              type="submit"
+              disabled={loading || stockViolations.length > 0}
+              className={`w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
+                loading || stockViolations.length > 0
+                  ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60"
+                  : "bg-foreground text-background hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
+              }`}
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span>Confirm Order</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+
+            {user && !user.email_verified_at && (
+              <p className="text-[11px] text-center text-muted-foreground">
+                Email verification is optional for placing orders. You can{" "}
+                <Link
+                  href={`/auth/verify-email?email=${encodeURIComponent(user.email)}&pending=1&returnUrl=${encodeURIComponent("/cart?openCheckout=true")}`}
+                  className="text-primary hover:underline font-semibold"
                 >
-                  {checkingVerification ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <RefreshCw size={16} />
-                      <span>Check Verification Status</span>
-                    </>
-                  )}
-                </button>
-                <p className="text-xs text-center text-muted-foreground">
-                  Verification pending. Check your inbox or{" "}
-                  <Link
-                    href={`/auth/verify-email?email=${encodeURIComponent(user.email)}&pending=1&returnUrl=${encodeURIComponent("/cart?openCheckout=true")}`}
-                    className="text-amber-600 dark:text-amber-400 font-semibold underline hover:opacity-80"
-                  >
-                    open the verification screen
-                  </Link>
-                </p>
-              </div>
-            ) : (
-              <button
-                type="submit"
-                disabled={loading || stockViolations.length > 0}
-                className={`w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                  loading || stockViolations.length > 0
-                    ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60"
-                    : "bg-foreground text-background hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
-                }`}
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Confirm Order</span>
-                    <ArrowRight size={16} />
-                  </>
-                )}
-              </button>
+                  verify your email anytime
+                </Link>{" "}
+                to receive dispatch updates.
+              </p>
             )}
           </div>
         </form>

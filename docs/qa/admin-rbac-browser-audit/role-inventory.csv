@@ -1,0 +1,15 @@
+role_id,slug,display_name,is_system,is_active,direct_permission_count,assigned_accounts_count,intended_use,evidence_reference
+1,product_draft_editor,Product Draft Editor,true,true,16,0,"Can create, edit, and save draft products, variants, pricing tiers, packages, and upload images. Cannot publish or archive.",RbacPermissionCatalogSeeder.php:L108
+2,product_publisher,Product Publisher,true,true,22,0,"Full catalog management including publishing, archiving, supplier viewing, and image reordering.",RbacPermissionCatalogSeeder.php:L132
+3,order_manager,Order Manager,true,true,17,0,"Order lifecycle management including status updates, fulfillment, POS sales, and invoice generation.",RbacPermissionCatalogSeeder.php:L161
+4,payment_reviewer,Payment Reviewer,true,true,6,0,"Review, verify, or reject manual payment slips and wire receipts.",RbacPermissionCatalogSeeder.php:L185
+5,inventory_manager,Inventory Manager,true,true,6,0,"Full inventory and warehouse management including stock adjustments, audits, and supplier viewing.",RbacPermissionCatalogSeeder.php:L198
+6,merchandising_manager,Merchandising Manager,true,true,15,0,"Storefront homepage curation, promotional banners, featured brands/categories, and coupon management.",RbacPermissionCatalogSeeder.php:L211
+7,rfq_quotation_manager,RFQ & Quotation Manager,true,true,20,0,"RFQ message intake, customer negotiations, commercial quote lifecycle, and commercial document creation.",RbacPermissionCatalogSeeder.php:L233
+8,analytics_viewer,Analytics Viewer,true,true,5,0,"Read-only oversight of sales revenue, order volumes, gross profit margins, and COGS.",RbacPermissionCatalogSeeder.php:L260
+9,shipping_operator,Shipping Operator,true,true,11,0,"Shipping rate configuration, Aramex parcel creation, label retrieval, and tracking synchronization.",RbacPermissionCatalogSeeder.php:L272
+10,inventory_viewer,Inventory Viewer,true,true,3,0,"Read-only view of warehouse stock levels and product inventory balances without adjustment power.",RbacPermissionCatalogSeeder.php:L290
+11,order_viewer,Order Viewer,true,true,4,0,"Read-only view of order summaries, line items, and customer info without modification power.",RbacPermissionCatalogSeeder.php:L300
+12,sales_viewer,Sales Revenue Viewer,true,true,3,0,"High-level sales revenue and order volume visibility without COGS or gross margin access.",RbacPermissionCatalogSeeder.php:L311
+15,coupon_sales,Coupon Sales Manager,false,true,6,0,"Sales agent view: bound discount coupons, attributed order history, and coupon sales performance.",RbacPermissionCatalogSeeder.php:L321
+0,super_admin,Super Administrator,true,true,147,1,"Root administrator with unconditional bypass of RBAC gates, user governance, and role configuration.",AdminAuthorizationService.php:L53

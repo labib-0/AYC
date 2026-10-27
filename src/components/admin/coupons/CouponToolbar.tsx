@@ -23,36 +23,37 @@ export default function CouponToolbar({
   hasActiveFilters,
 }: CouponToolbarProps) {
   return (
-    <div className="bg-card rounded-2xl border border-border/80 p-3 sm:p-4 shadow-2xs space-y-3">
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+    <div className="bg-card rounded-2xl border border-border/80 p-3 sm:p-4 shadow-2xs space-y-3 min-w-0 w-full">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
         {/* Search Input */}
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <div className="relative flex-1 w-full min-w-0">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground shrink-0" />
           <input
             type="text"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search coupons by code..."
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-border bg-background text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-9 pr-8 py-2 min-h-[38px] text-xs rounded-xl border border-border bg-background text-foreground font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             id="input-search-coupons"
           />
           {search && (
             <button
               type="button"
               onClick={() => onSearchChange("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-1"
+              aria-label="Clear search"
             >
               <X size={13} />
             </button>
           )}
         </div>
 
-        {/* Status Filter */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Filters */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-1.5 w-full sm:w-auto">
           <select
             value={statusFilter}
             onChange={(e) => onStatusFilterChange(e.target.value as "all" | "active" | "inactive")}
-            className="px-3 py-2 text-xs rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+            className="flex-1 sm:flex-initial min-w-[110px] sm:min-w-0 px-3 py-2 min-h-[38px] text-xs rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             id="select-coupon-status"
           >
             <option value="all">All Status</option>
@@ -64,7 +65,7 @@ export default function CouponToolbar({
           <select
             value={typeFilter}
             onChange={(e) => onTypeFilterChange(e.target.value as "all" | "percentage" | "flat")}
-            className="px-3 py-2 text-xs rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+            className="flex-1 sm:flex-initial min-w-[110px] sm:min-w-0 px-3 py-2 min-h-[38px] text-xs rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
             id="select-coupon-type"
           >
             <option value="all">All Types</option>
@@ -76,7 +77,7 @@ export default function CouponToolbar({
             <button
               type="button"
               onClick={onResetFilters}
-              className="inline-flex items-center gap-1 px-3 py-2 text-xs rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-1 px-3 py-2 min-h-[38px] text-xs rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
               title="Clear all filters"
             >
               <Filter size={12} />

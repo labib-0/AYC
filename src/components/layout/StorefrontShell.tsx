@@ -6,6 +6,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import MiniCart from "@/components/cart/MiniCart";
 import ProductQuickAddModal from "@/components/product/ProductQuickAddModal";
+import GlobalToast from "@/components/common/GlobalToast";
 
 interface StorefrontShellProps {
   children: React.ReactNode;
@@ -44,6 +45,7 @@ export default function StorefrontShell({
       <ProductQuickAddModal />
       <main className="flex-1 min-h-[60vh] pb-safe">{children}</main>
       <Footer />
+      <GlobalToast />
     </div>
   );
 }

@@ -104,15 +104,6 @@ class OrderController extends ApiController
             return $this->forbidden('Only customer accounts may perform checkout.');
         }
 
-        if (!$user->hasVerifiedEmail()) {
-            return response()->json([
-                'success' => false,
-                'error_code' => 'EMAIL_VERIFICATION_REQUIRED',
-                'message' => 'Email verification is required before placing an order. Please verify your email address through the link sent to your inbox, or request a new verification link.',
-                'email' => $user->email,
-            ], 403);
-        }
-
         // Resolve Items to Process (from request items or active cart)
         $itemsToProcess = [];
         if ($request->filled('items') && is_array($request->input('items'))) {
@@ -191,15 +182,6 @@ class OrderController extends ApiController
 
         if ($user->isAdmin() || !$user->isCustomer()) {
             return $this->forbidden('Only customer accounts may perform checkout.');
-        }
-
-        if (!$user->hasVerifiedEmail()) {
-            return response()->json([
-                'success' => false,
-                'error_code' => 'EMAIL_VERIFICATION_REQUIRED',
-                'message' => 'Email verification is required before placing an order. Please verify your email address through the link sent to your inbox, or request a new verification link.',
-                'email' => $user->email,
-            ], 403);
         }
 
         $botError = app(\App\Services\Security\NativeBotProtectionService::class)

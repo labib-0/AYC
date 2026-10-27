@@ -109,27 +109,27 @@ export default function CouponAdminBindingsSection({
   return (
     <div className="space-y-4">
       {/* Section Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-card border border-border rounded-xl shadow-2xs">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-card border border-border rounded-xl shadow-2xs min-w-0 w-full">
+        <div className="relative w-full sm:max-w-sm min-w-0">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground shrink-0" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by admin name/email or coupon code..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-border bg-secondary/30 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+            className="w-full pl-9 pr-3 py-2 sm:py-1.5 min-h-[38px] text-xs rounded-lg border border-border bg-secondary/30 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
             id="input-search-bindings"
           />
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
           <button
             type="button"
             onClick={() => setIsBindModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer shadow-2xs"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-1.5 min-h-[38px] rounded-lg bg-primary text-primary-foreground font-semibold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer shadow-2xs whitespace-nowrap"
             id="btn-open-bind-modal"
           >
-            <Plus size={14} />
+            <Plus size={14} className="shrink-0" />
             <span>Bind Coupon</span>
           </button>
 
@@ -137,7 +137,7 @@ export default function CouponAdminBindingsSection({
             type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
+            className="h-[38px] w-[38px] sm:h-auto sm:w-auto p-2 sm:p-1.5 inline-flex items-center justify-center rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer shadow-2xs shrink-0"
             title="Refresh bindings"
             aria-label="Refresh bindings"
           >
@@ -147,9 +147,9 @@ export default function CouponAdminBindingsSection({
       </div>
 
       {/* Bindings Table */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-2xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-2xs min-w-0 w-full">
+        <div className="overflow-x-auto subtle-scrollbar w-full min-w-0">
+          <table className="w-full text-left border-collapse text-xs min-w-[560px]">
             <thead>
               <tr className="border-b border-border/80 bg-secondary/30 text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">
                 <th className="py-2.5 px-4">Administrator</th>
@@ -285,7 +285,7 @@ export default function CouponAdminBindingsSection({
                               type="button"
                               onClick={() => handleUnbind(binding.id)}
                               disabled={isUnbinding}
-                              className="px-2 py-1 text-[11px] font-bold rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                              className="px-2.5 py-1.5 min-h-[36px] text-[11px] font-bold rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center cursor-pointer"
                               id={`btn-confirm-unbind-${binding.id}`}
                             >
                               {isUnbinding ? <Loader2 size={12} className="animate-spin" /> : "Unbind"}
@@ -294,7 +294,7 @@ export default function CouponAdminBindingsSection({
                               type="button"
                               onClick={() => setConfirmUnbindId(null)}
                               disabled={isUnbinding}
-                              className="px-2 py-1 text-[11px] rounded-md border border-border text-muted-foreground hover:bg-secondary transition-colors"
+                              className="px-2.5 py-1.5 min-h-[36px] text-[11px] rounded-md border border-border text-muted-foreground hover:bg-secondary transition-colors inline-flex items-center justify-center cursor-pointer"
                             >
                               Cancel
                             </button>
@@ -303,7 +303,7 @@ export default function CouponAdminBindingsSection({
                           <button
                             type="button"
                             onClick={() => setConfirmUnbindId(binding.id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 min-h-[36px] text-xs font-medium rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer"
                             title="Unbind administrator from this coupon"
                             id={`btn-unbind-${binding.id}`}
                           >

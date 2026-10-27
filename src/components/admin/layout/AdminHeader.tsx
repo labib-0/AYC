@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { OFFICIAL_AYC_SITE_LOGO_PATH } from "@/lib/site-logo";
@@ -59,8 +60,70 @@ export default function AdminHeader({
   const [notifications, setNotifications] = useState<AdminNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [popoverPos, setPopoverPos] = useState<{
+    left: number;
+    top?: number;
+    bottom?: number;
+    width: number;
+    maxHeight: number;
+    placement: "bottom" | "top";
+  } | null>(null);
+
   const popoverRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const storefrontUrl = getCustomerAppUrl();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Responsive panel width: 384px on desktop, clamped on mobile with 12px viewport margins
+    const panelWidth = Math.min(384, Math.max(280, viewportWidth - 24));
+
+    // Align right edge of popover with right edge of trigger button
+    let left = rect.right - panelWidth;
+
+    // Strict viewport boundary clamping:
+    // Left edge must never bleed below 12px; right edge must never exceed viewportWidth - 12px
+    if (left < 12) {
+      left = 12;
+    } else if (left + panelWidth > viewportWidth - 12) {
+      left = Math.max(12, viewportWidth - panelWidth - 12);
+    }
+
+    // Vertical positioning: auto-flip upward when space below is cramped (< 280px)
+    const spaceBelow = viewportHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+    const openUpward = spaceBelow < 280 && spaceAbove > spaceBelow;
+
+    let top: number | undefined;
+    let bottom: number | undefined;
+    let maxHeight: number;
+
+    if (openUpward) {
+      bottom = viewportHeight - rect.top + 8;
+      maxHeight = Math.min(420, Math.max(160, spaceAbove - 8));
+    } else {
+      top = rect.bottom + 8;
+      maxHeight = Math.min(420, Math.max(160, spaceBelow - 8));
+    }
+
+    setPopoverPos({
+      left,
+      top,
+      bottom,
+      width: panelWidth,
+      maxHeight,
+      placement: openUpward ? "top" : "bottom",
+    });
+  }, []);
 
   const loadNotifications = useCallback(async () => {
     setLoadingNotifications(true);
@@ -89,19 +152,49 @@ export default function AdminHeader({
     };
   }, []);
 
-  // Load notification details when popover opens
+  // Load notification details when popover opens and update positioning
   useEffect(() => {
     if (showNotifications) {
       loadNotifications();
+      updatePosition();
     }
-  }, [showNotifications, loadNotifications]);
+  }, [showNotifications, loadNotifications, updatePosition]);
+
+  // Viewport resize and scroll tracking
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    const handleScrollOrResize = () => {
+      if (!buttonRef.current) return;
+      const rect = buttonRef.current.getBoundingClientRect();
+      // Auto-dismiss if trigger scrolls completely out of viewport
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        setShowNotifications(false);
+        return;
+      }
+      updatePosition();
+    };
+
+    window.addEventListener("resize", handleScrollOrResize);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    return () => {
+      window.removeEventListener("resize", handleScrollOrResize);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+    };
+  }, [showNotifications, updatePosition]);
 
   // Click outside and Escape key handler for popover dismissal
   useEffect(() => {
     if (!showNotifications) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
         setShowNotifications(false);
       }
     };
@@ -109,6 +202,7 @@ export default function AdminHeader({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setShowNotifications(false);
+        buttonRef.current?.focus();
       }
     };
 
@@ -193,13 +287,17 @@ export default function AdminHeader({
         </div>
 
         {/* Notifications Popover Toggle */}
-        <div className="relative" ref={popoverRef}>
+        <div className="relative">
           <button
+            ref={buttonRef}
             type="button"
             onClick={() => setShowNotifications((prev) => !prev)}
             className="p-2 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors relative cursor-pointer"
             aria-label="View system notifications"
+            aria-expanded={showNotifications}
+            aria-haspopup="dialog"
             title="Notifications"
+            id="btn-admin-notifications"
           >
             <Bell size={16} />
             {unreadCount > 0 && (
@@ -210,118 +308,136 @@ export default function AdminHeader({
             )}
           </button>
 
-          {showNotifications && (
-            <div
-              className="absolute right-0 mt-2 w-72 sm:w-96 max-w-[calc(100vw-24px)] bg-card border border-border rounded-2xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
-              role="region"
-              aria-label="Notifications panel"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border/80 bg-secondary/20">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-foreground">Notifications</span>
+          {showNotifications && (() => {
+            const popoverElement = (
+              <div
+                ref={popoverRef}
+                style={{
+                  position: "fixed",
+                  left: popoverPos?.left ?? 12,
+                  top: popoverPos?.top !== undefined ? popoverPos.top : undefined,
+                  bottom: popoverPos?.bottom !== undefined ? popoverPos.bottom : undefined,
+                  width: popoverPos?.width ?? "calc(100vw - 24px)",
+                  maxHeight: popoverPos?.maxHeight ?? 420,
+                  zIndex: 9999,
+                }}
+                data-placement={popoverPos?.placement || "bottom"}
+                className="bg-card border border-border rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-150 overflow-hidden flex flex-col max-w-[calc(100vw-24px)]"
+                role="region"
+                aria-label="Notifications panel"
+                id="admin-notifications-popover"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border/80 bg-secondary/20 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-foreground">Notifications</span>
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                        {unreadCount} new
+                      </span>
+                    )}
+                  </div>
                   {unreadCount > 0 && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                      {unreadCount} new
-                    </span>
+                    <button
+                      type="button"
+                      onClick={handleMarkAllAsRead}
+                      className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
+                    >
+                      <CheckCheck size={13} />
+                      <span>Mark all read</span>
+                    </button>
                   )}
                 </div>
-                {unreadCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleMarkAllAsRead}
-                    className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
-                  >
-                    <CheckCheck size={13} />
-                    <span>Mark all read</span>
-                  </button>
-                )}
-              </div>
 
-              {/* List / Empty State */}
-              <div className="max-h-80 overflow-y-auto divide-y divide-border/50 text-xs">
-                {loadingNotifications ? (
-                  <div className="py-8 px-4 text-center text-muted-foreground text-xs">
-                    Loading notifications...
-                  </div>
-                ) : notifications.length > 0 ? (
-                  notifications.map((notif) => {
-                    const isUnread = !notif.read_at;
-                    const orderId = notif.data?.order_id;
-                    const message =
-                      notif.data?.message ||
-                      (notif.data?.order_number
-                        ? `Order update: ${notif.data.order_number}`
-                        : "System Notification");
-                    const relativeTime = formatRelativeTime(notif.created_at);
+                {/* List / Empty State */}
+                <div className="overflow-y-auto subtle-scrollbar divide-y divide-border/50 text-xs flex-1 min-h-0">
+                  {loadingNotifications ? (
+                    <div className="py-8 px-4 text-center text-muted-foreground text-xs">
+                      Loading notifications...
+                    </div>
+                  ) : notifications.length > 0 ? (
+                    notifications.map((notif) => {
+                      const isUnread = !notif.read_at;
+                      const orderId = notif.data?.order_id;
+                      const message =
+                        notif.data?.message ||
+                        (notif.data?.order_number
+                          ? `Order update: ${notif.data.order_number}`
+                          : "System Notification");
+                      const relativeTime = formatRelativeTime(notif.created_at);
 
-                    const content = (
-                      <div
-                        key={notif.id}
-                        onClick={() => handleItemClick(notif)}
-                        className={`p-3.5 flex items-start gap-3 hover:bg-secondary/40 transition-colors cursor-pointer ${
-                          isUnread ? "bg-primary/5" : ""
-                        }`}
-                      >
+                      const content = (
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                            isUnread
-                              ? "bg-primary/10 text-primary"
-                              : "bg-secondary text-muted-foreground"
+                          key={notif.id}
+                          onClick={() => handleItemClick(notif)}
+                          className={`p-3.5 flex items-start gap-3 hover:bg-secondary/40 transition-colors cursor-pointer ${
+                            isUnread ? "bg-primary/5" : ""
                           }`}
                         >
-                          <Bell size={13} />
-                        </div>
-                        <div className="flex-1 min-w-0 space-y-0.5">
-                          <p
-                            className={`text-xs leading-snug line-clamp-2 ${
-                              isUnread ? "font-semibold text-foreground" : "text-muted-foreground"
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                              isUnread
+                                ? "bg-primary/10 text-primary"
+                                : "bg-secondary text-muted-foreground"
                             }`}
                           >
-                            {message}
-                          </p>
-                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                            {relativeTime && <span>{relativeTime}</span>}
-                            {Boolean(notif.data?.status) && (
-                              <span className="uppercase font-mono text-[9px] px-1.5 py-0.5 rounded bg-secondary">
-                                {String(notif.data?.status)}
-                              </span>
-                            )}
+                            <Bell size={13} />
                           </div>
+                          <div className="flex-1 min-w-0 space-y-0.5">
+                            <p
+                              className={`text-xs leading-snug line-clamp-2 break-words ${
+                                isUnread ? "font-semibold text-foreground" : "text-muted-foreground"
+                              }`}
+                            >
+                              {message}
+                            </p>
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                              {relativeTime && <span>{relativeTime}</span>}
+                              {Boolean(notif.data?.status) && (
+                                <span className="uppercase font-mono text-[9px] px-1.5 py-0.5 rounded bg-secondary">
+                                  {String(notif.data?.status)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {isUnread && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                          )}
                         </div>
-                        {isUnread && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                        )}
-                      </div>
-                    );
+                      );
 
-                    return orderId ? (
-                      <Link
-                        key={notif.id}
-                        href={`/ayc/orders/${orderId}`}
-                        onClick={() => handleItemClick(notif)}
-                        className="block"
-                      >
-                        {content}
-                      </Link>
-                    ) : (
-                      content
-                    );
-                  })
-                ) : (
-                  <div className="py-8 px-4 text-center space-y-2">
-                    <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
-                      <Bell size={16} />
+                      return orderId ? (
+                        <Link
+                          key={notif.id}
+                          href={`/ayc/orders/${orderId}`}
+                          onClick={() => handleItemClick(notif)}
+                          className="block"
+                        >
+                          {content}
+                        </Link>
+                      ) : (
+                        content
+                      );
+                    })
+                  ) : (
+                    <div className="py-8 px-4 text-center space-y-2">
+                      <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
+                        <Bell size={16} />
+                      </div>
+                      <p className="text-xs font-semibold text-foreground">No notifications</p>
+                      <p className="text-[11px] text-muted-foreground max-w-[200px] mx-auto">
+                        You have no pending alerts or unread notifications.
+                      </p>
                     </div>
-                    <p className="text-xs font-semibold text-foreground">No notifications</p>
-                    <p className="text-[11px] text-muted-foreground max-w-[200px] mx-auto">
-                      You have no pending alerts or unread notifications.
-                    </p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+
+            return mounted && typeof document !== "undefined"
+              ? createPortal(popoverElement, document.body)
+              : popoverElement;
+          })()}
         </div>
 
         {/* Admin User Profile Pill */}

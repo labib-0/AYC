@@ -568,6 +568,7 @@ class MockStore {
         b2b_approval_status: userData.b2b_approval_status || "approved",
         b2b_payment_terms: userData.b2b_payment_terms || "none",
         is_active: userData.is_active ?? true,
+        email_verified_at: userData.email_verified_at !== undefined ? userData.email_verified_at : null,
         created_at: new Date().toISOString(),
       };
       users.push(saved);

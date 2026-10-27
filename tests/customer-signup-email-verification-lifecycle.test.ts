@@ -167,15 +167,15 @@ assert(
 );
 
 // --------------------------------------------------------------------------
-// TEST 7: OrderController Continues Strict Server-Side Verification Gate
+// TEST 7: OrderController Allows Unverified Customers (Verification Optional)
 // --------------------------------------------------------------------------
-console.log("\n[7] Verifying OrderController rejects unverified customers with EMAIL_VERIFICATION_REQUIRED:");
+console.log("\n[7] Verifying OrderController allows unverified customers to place orders:");
 const orderControllerPath = resolve(projectRoot, "backend/app/Http/Controllers/Api/V1/OrderController.php");
 const orderControllerSrc = readFileSync(orderControllerPath, "utf-8");
 
 assert(
-  orderControllerSrc.includes("EMAIL_VERIFICATION_REQUIRED"),
-  "OrderController consistently gates orders with EMAIL_VERIFICATION_REQUIRED"
+  !orderControllerSrc.includes("EMAIL_VERIFICATION_REQUIRED"),
+  "OrderController no longer rejects unverified customers with EMAIL_VERIFICATION_REQUIRED"
 );
 
 console.log("\n======================================================================");

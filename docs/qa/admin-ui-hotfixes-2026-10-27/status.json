@@ -1,14 +1,14 @@
 {
-  "project": "AYC Admin & Storefront Hotfixes (Issues #15 - #22)",
+  "project": "AYC Admin & Storefront Hotfixes (Issues #15 - #27)",
   "started_at": "2026-10-27T14:00:00+06:00",
-  "updated_at": "2026-10-27T15:25:30+06:00",
+  "updated_at": "2026-10-27T16:11:00+06:00",
   "branch": "main",
   "commit": "85b375b",
   "active_release": "release_20261027_092231_85b375b",
   "previous_release": "release_20261026_225708_6b691db",
   "production_url": "https://ayaanclothing.com",
   "server": "srv2010990 (200.97.169.230)",
-  "deployment_status": "SUCCESSFUL",
+  "deployment_status": "DEPLOYED_CYCLE_1_TESTING_CYCLE_2",
   "phases": {
     "prompt_1": {
       "name": "Wishlist Refresh & Cart Badge",
@@ -119,7 +119,7 @@
       }
     },
     "prompt_5": {
-      "name": "Final QA, Cross-Feature Integration and Safe Deployment",
+      "name": "Final QA, Cross-Feature Integration and Safe Deployment (Cycle 1)",
       "status": "completed",
       "verification_results": {
         "suite": "tests/prompt5-master-integration.test.ts",
@@ -149,6 +149,163 @@
         "static_chunks_verified_ok": 32,
         "static_chunks_failed": 0,
         "exit_code": 0
+      }
+    },
+    "cycle_2_prompt_1": {
+      "name": "Auth Feedback & Coupon Edit Modal Outside Click",
+      "status": "completed",
+      "issues": {
+        "issue_23": {
+          "title": "Successful login and logout show no success message",
+          "customer_login": "src/app/login/page.tsx",
+          "google_oauth": "src/app/auth/callback/page.tsx",
+          "admin_login": "src/app/ayc/page.tsx",
+          "admin_logout": "src/app/ayc/AdminLayoutClient.tsx",
+          "customer_logout": [
+            "src/components/dashboard/DashboardSidebar.tsx",
+            "src/components/dashboard/DashboardMobileNav.tsx",
+            "src/components/account/CustomerAccountSidebar.tsx",
+            "src/components/account/CustomerAccountMobileNav.tsx",
+            "src/app/dashboard/settings/page.tsx",
+            "src/app/order-access/[reference]/page.tsx"
+          ],
+          "notification_utility": "src/lib/flash-toast.ts",
+          "toast_component": "src/components/common/GlobalToast.tsx",
+          "status": "PASS",
+          "verified_in_tests": true
+        },
+        "issue_27": {
+          "title": "Coupon Edit modal does not close when clicking outside",
+          "component": "src/components/admin/coupons/CouponModal.tsx",
+          "status": "PASS",
+          "verified_in_tests": true
+        }
+      },
+      "verification_results": {
+        "suite": "tests/prompt1-auth-feedback-and-coupon-modal.test.ts",
+        "total_tests": 16,
+        "passed_tests": 16,
+        "failed_tests": 0,
+        "typescript_no_emit_exit_code": 0,
+        "turbopack_build_exit_code": 0
+      }
+    },
+    "cycle_2_prompt_2": {
+      "name": "Notification Popover & Coupons Mobile Responsiveness",
+      "status": "completed",
+      "issues": {
+        "issue_24": {
+          "title": "Admin notifications popover is incorrectly positioned on mobile",
+          "component": "src/components/admin/layout/AdminHeader.tsx",
+          "status": "PASS",
+          "verified_in_tests": true
+        },
+        "issue_25": {
+          "title": "Admin Coupons page mobile responsiveness",
+          "page": "src/app/ayc/coupons/page.tsx",
+          "header": "src/components/admin/coupons/CouponHeader.tsx",
+          "toolbar": "src/components/admin/coupons/CouponToolbar.tsx",
+          "table": "src/components/admin/coupons/CouponTable.tsx",
+          "bindings": "src/components/admin/coupons/CouponAdminBindingsSection.tsx",
+          "bind_modal": "src/components/admin/coupons/CouponBindModal.tsx",
+          "status": "PASS",
+          "verified_in_tests": true
+        }
+      },
+      "verification_results": {
+        "suite": "tests/prompt2-notification-popover-and-coupons-mobile.test.ts",
+        "total_tests": 11,
+        "passed_tests": 11,
+        "failed_tests": 0,
+        "typescript_no_emit_exit_code": 0,
+        "turbopack_build_exit_code": 0
+      }
+    },
+    "cycle_2_prompt_3": {
+      "name": "Mobile Settings Alignment (Issues #28, #29, #30)",
+      "status": "completed",
+      "issues": {
+        "issue_28": {
+          "title": "SEO/Search Console status control should appear below its title on mobile",
+          "component": "src/components/admin/homepage/HomepageSeoManager.tsx",
+          "status": "PASS",
+          "verified_in_tests": true
+        },
+        "issue_29": {
+          "title": "Google Tags & Tracking Head/Body controls vertical stacking on mobile",
+          "component": "src/components/admin/homepage/GoogleTagsManager.tsx",
+          "status": "PASS",
+          "verified_in_tests": true
+        },
+        "issue_30": {
+          "title": "Homepage section action button position on mobile (FAQ Manager)",
+          "component": "src/components/admin/homepage/HomepageFaqManager.tsx",
+          "status": "PASS",
+          "verified_in_tests": true
+        }
+      },
+      "verification_results": {
+        "suite": "tests/prompt3-mobile-settings-alignment.test.ts",
+        "total_tests": 19,
+        "passed_tests": 19,
+        "failed_tests": 0,
+        "typescript_no_emit_exit_code": 0,
+        "turbopack_build_exit_code": 0
+      }
+    },
+    "cycle_2_prompt_4": {
+      "name": "Optional Email Verification for Login & Checkout (Issue #26)",
+      "status": "completed",
+      "issues": {
+        "issue_26": {
+          "title": "Email verification mandatory for login and order placement",
+          "routes": "backend/routes/api.php",
+          "controller": "backend/app/Http/Controllers/Api/V1/OrderController.php",
+          "checkout_modal": "src/components/cart/CheckoutModal.tsx",
+          "dashboard_layout": "src/app/dashboard/DashboardLayoutClient.tsx",
+          "signup_page": "src/app/signup/page.tsx",
+          "verify_email_page": "src/app/auth/verify-email/page.tsx",
+          "status": "PASS",
+          "verified_in_tests": true
+        }
+      },
+      "verification_results": {
+        "suite": "tests/prompt4-optional-email-verification.test.ts",
+        "total_tests": 19,
+        "passed_tests": 19,
+        "failed_tests": 0,
+        "typescript_no_emit_exit_code": 0,
+        "turbopack_build_exit_code": 0
+      }
+    },
+    "cycle_2_prompt_5": {
+      "name": "Final QA, Master Integration & Safe Deployment (Cycle 2, Issues #23-#30)",
+      "status": "ready_for_deployment",
+      "backend_isolated_suite": {
+        "script": "scripts/verify-optional-email-verification.php",
+        "php_version": "8.4.26",
+        "database": "sqlite :memory:",
+        "total_tests": 24,
+        "passed_tests": 24,
+        "failed_tests": 0,
+        "exit_code": 0
+      },
+      "verification_results": {
+        "master_integration_suite": "tests/prompt5-master-integration.test.ts",
+        "total_master_tests": 10,
+        "passed_master_tests": 10,
+        "failed_master_tests": 0,
+        "lifecycle_suite": "tests/customer-signup-email-verification-lifecycle.test.ts",
+        "total_lifecycle_tests": 7,
+        "passed_lifecycle_tests": 7,
+        "failed_lifecycle_tests": 0,
+        "prompt1_suite_passed": 16,
+        "prompt2_suite_passed": 11,
+        "prompt3_suite_passed": 19,
+        "prompt4_suite_passed": 19,
+        "typescript_no_emit_exit_code": 0,
+        "turbopack_build_exit_code": 0,
+        "turbopack_routes_generated": 59
       }
     }
   }

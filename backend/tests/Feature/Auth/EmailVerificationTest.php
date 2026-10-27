@@ -121,7 +121,7 @@ class EmailVerificationTest extends TestCase
         $this->assertNull($user->fresh()->email_verified_at, 'Repeated Google login must not bypass verification.');
     }
 
-    public function test_unverified_customer_cannot_place_order_and_leaves_zero_side_effects(): void
+    public function test_unverified_customer_can_place_order_successfully(): void
     {
         $unverifiedCustomer = User::factory()->create([
             'email' => 'unverified@example.com',
@@ -143,7 +143,6 @@ class EmailVerificationTest extends TestCase
 
         $initialStock = $variant->fresh()->stock;
         $initialOrderCount = Order::count();
-        $initialPaymentCount = Payment::count();
 
         $response = $this->actingAs($unverifiedCustomer, 'sanctum')->postJson('/api/v1/orders', [
             'email' => $unverifiedCustomer->email,
@@ -163,19 +162,20 @@ class EmailVerificationTest extends TestCase
             ],
         ]);
 
-        $response->assertStatus(403)
+        $response->assertStatus(201)
             ->assertJson([
-                'success' => false,
-                'error_code' => 'EMAIL_VERIFICATION_REQUIRED',
+                'success' => true,
             ]);
 
-        // Verify ZERO side-effects: no orders, no payments, stock untouched
-        $this->assertEquals($initialOrderCount, Order::count());
-        $this->assertEquals($initialPaymentCount, Payment::count());
-        $this->assertEquals($initialStock, $variant->fresh()->stock);
+        // Verify order created and inventory decremented
+        $this->assertEquals($initialOrderCount + 1, Order::count());
+        $this->assertEquals($initialStock - 2, $variant->fresh()->stock);
+
+        // Verification status MUST NOT be falsely mutated
+        $this->assertNull($unverifiedCustomer->fresh()->email_verified_at);
     }
 
-    public function test_unverified_customer_cannot_validate_checkout(): void
+    public function test_unverified_customer_can_validate_checkout(): void
     {
         $unverifiedCustomer = User::factory()->create([
             'email' => 'unverified_check@example.com',
@@ -198,10 +198,9 @@ class EmailVerificationTest extends TestCase
             ],
         ]);
 
-        $response->assertStatus(403)
+        $response->assertStatus(200)
             ->assertJson([
-                'success' => false,
-                'error_code' => 'EMAIL_VERIFICATION_REQUIRED',
+                'success' => true,
             ]);
     }
 
@@ -251,7 +250,7 @@ class EmailVerificationTest extends TestCase
         $this->assertEquals(1, Order::where('user_id', $verifiedCustomer->id)->count());
     }
 
-    public function test_user_can_verify_email_with_valid_challenge_and_unlock_order_placement(): void
+    public function test_user_can_verify_email_with_valid_challenge_and_maintain_verified_status(): void
     {
         Event::fake([Verified::class]);
 
@@ -264,11 +263,6 @@ class EmailVerificationTest extends TestCase
         /** @var EmailVerificationService $service */
         $service = app(EmailVerificationService::class);
         $challenge = $service->createChallenge($customer);
-
-        // Before verification: orders blocked
-        $this->actingAs($customer, 'sanctum')->postJson('/api/v1/checkout/validate', [
-            'items' => [['product_id' => 1, 'quantity' => 1]],
-        ])->assertStatus(403);
 
         // Perform verification via signed link
         $response = $this->getJson($challenge['verification_url']);
@@ -288,7 +282,7 @@ class EmailVerificationTest extends TestCase
         $tokenRecord = EmailVerificationToken::where('user_id', $customer->id)->first();
         $this->assertNotNull($tokenRecord->used_at);
 
-        // Now order validation succeeds
+        // Order validation succeeds
         $product = Product::factory()->create([
             'wholesale_price' => 25.00,
             'moq' => 1,
@@ -496,7 +490,7 @@ class EmailVerificationTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function test_unverified_order_placement_does_not_dispatch_email(): void
+    public function test_unverified_order_placement_does_not_dispatch_verification_email(): void
     {
         Notification::fake();
 
@@ -506,23 +500,40 @@ class EmailVerificationTest extends TestCase
             'role' => User::ROLE_CUSTOMER,
         ]);
 
+        $product = Product::factory()->create([
+            'wholesale_price' => 30.00,
+            'moq' => 1,
+            'status' => 'published',
+        ]);
+        $variant = ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'size' => 'M',
+            'stock' => 50,
+        ]);
+
         $response = $this->actingAs($unverifiedCustomer, 'sanctum')->postJson('/api/v1/orders', [
+            'email' => $unverifiedCustomer->email,
             'shipping_name' => 'Test User',
             'shipping_address1' => '123 Main St',
             'shipping_city' => 'Anytown',
             'shipping_postal_code' => '12345',
             'shipping_country_code' => 'US',
             'payment_method' => 'card',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'variant_id' => $variant->id,
+                    'size' => 'M',
+                    'quantity' => 1,
+                ],
+            ],
         ]);
 
-        $response->assertStatus(403)
-            ->assertJson([
-                'success' => false,
-                'error_code' => 'EMAIL_VERIFICATION_REQUIRED',
-            ]);
+        $response->assertStatus(201);
 
-        // Order placement failure MUST NOT trigger email verification notification
-        Notification::assertNothingSent();
+        // Order placement MUST NOT trigger email verification notification or falsely mutate verification status
+        Notification::assertNotSentTo($unverifiedCustomer, CustomerVerifyEmailNotification::class);
+        $this->assertNull($unverifiedCustomer->fresh()->email_verified_at);
     }
 
     public function test_verification_status_endpoint_works_for_both_auth_and_email_query(): void

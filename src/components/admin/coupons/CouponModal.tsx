@@ -75,6 +75,18 @@ export default function CouponModal({
     }
   }, [isOpen, coupon]);
 
+  // Close on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !saving) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, saving, onClose]);
+
   if (!isOpen) return null;
 
   const clearFieldError = (field: string) => {
@@ -202,9 +214,30 @@ export default function CouponModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="coupon-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving) {
+          onClose();
+        }
+      }}
     >
-      <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden my-8">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-stone-900/60 dark:bg-black/70 backdrop-blur-xs transition-opacity"
+        onClick={() => {
+          if (!saving) {
+            onClose();
+          }
+        }}
+        aria-hidden="true"
+        data-testid="coupon-modal-backdrop"
+      />
+
+      {/* Modal Dialog Content */}
+      <div
+        className="relative bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden my-8 z-10 animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border/80 bg-secondary/30">
           <div className="flex items-center gap-2.5">

@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { AdminAuthProvider, useAdminAuth } from "@/lib/AdminAuthContext";
 import { AdminHeader, AdminSidebar, AdminFooter, AdminBreadcrumbs } from "@/components/admin/layout";
 import AdminLoginPage from "./page";
+import GlobalToast from "@/components/common/GlobalToast";
+import { setFlashToast } from "@/lib/flash-toast";
 
 function AdminLayoutInner({
   children,
@@ -117,7 +119,12 @@ function AdminLayoutInner({
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={handleToggleCollapse}
         onSignOut={async () => {
-          await signOutAdmin();
+          try {
+            await signOutAdmin();
+            setFlashToast("success", "Logged out successfully.");
+          } catch (err) {
+            console.warn("Admin sign out failed:", err);
+          }
           router.push("/ayc");
         }}
       />
@@ -179,6 +186,7 @@ export default function AdminLayoutClient({
   return (
     <AdminAuthProvider>
       <AdminLayoutInner>{children}</AdminLayoutInner>
+      <GlobalToast />
     </AdminAuthProvider>
   );
 }

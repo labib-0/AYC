@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
+import { setFlashToast } from "@/lib/flash-toast";
 import {
   LayoutDashboard,
   Package,
@@ -72,7 +73,12 @@ export function DashboardMobileNav() {
   }, [pathname]);
 
   const handleConfirmSignOut = async () => {
-    await signOut();
+    try {
+      await signOut();
+      setFlashToast("success", "Logged out successfully.");
+    } catch (err) {
+      console.warn("Sign out failed:", err);
+    }
     setShowSignOutConfirm(false);
     router.push("/");
   };

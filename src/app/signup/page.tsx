@@ -110,14 +110,14 @@ export default function SignUpPage() {
             <strong className="text-slate-900 dark:text-white font-semibold">
               {maskEmail(verificationSentEmail)}
             </strong>
-            . Account verification is required before placing an order.
+            . Verifying your email secures your account and ensures you receive order updates.
           </p>
 
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-xs text-slate-500 dark:text-slate-400 text-left mb-6 space-y-1.5">
             <p className="font-semibold text-slate-700 dark:text-slate-300">Quick Tips:</p>
             <p>&bull; The verification link is time-limited and valid for 60 minutes.</p>
             <p>&bull; Be sure to check your spam or junk folder if the email does not appear in your inbox.</p>
-            <p>&bull; Email verification is required before placing an order or completing checkout.</p>
+            <p>&bull; You can sign in and complete orders even while email verification is pending.</p>
           </div>
 
           <div className="space-y-3">

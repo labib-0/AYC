@@ -10,6 +10,7 @@ import { isFrontendOnly } from "@/lib/frontend-mode";
 import BrandName from "@/components/common/BrandName";
 import { securityService } from "@/services/security.service";
 import HoneypotField from "@/components/common/HoneypotField";
+import { setFlashToast } from "@/lib/flash-toast";
 
 export type AuthView = "signin" | "signup" | "forgot-password";
 
@@ -144,6 +145,7 @@ export default function AuthModal({
             type: "success",
             text: "Signed in successfully!",
           });
+          setFlashToast("success", "Login successful. Welcome back!");
           setTimeout(() => {
             onClose();
           }, 600);

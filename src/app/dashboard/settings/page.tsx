@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
+import { setFlashToast } from "@/lib/flash-toast";
 import {
   User as UserIcon,
   Mail,
@@ -238,6 +239,7 @@ export default function SettingsPage() {
     setIsLoggingOut(true);
     try {
       await signOut();
+      setFlashToast("success", "Logged out successfully.");
       setShowSignOutModal(false);
       router.push("/login");
     } catch {

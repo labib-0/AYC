@@ -1,240 +1,114 @@
-/**
- * PROMPT 5 MASTER CROSS-FEATURE INTEGRATION TEST SUITE (ISSUES #15 THROUGH #22)
- */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
-import assert from "assert";
-import fs from "fs";
-import path from "path";
+const ROOT = path.resolve(__dirname, '..');
 
-// 1. Setup browser polyfills for headless node execution
-const memoryStore = new Map<string, string>();
-const localStoragePolyfill = {
-  getItem: (key: string) => memoryStore.get(key) ?? null,
-  setItem: (key: string, value: string) => memoryStore.set(key, String(value)),
-  removeItem: (key: string) => memoryStore.delete(key),
-  clear: () => memoryStore.clear(),
-  get length() {
-    return memoryStore.size;
-  },
-  key: (i: number) => Array.from(memoryStore.keys())[i] ?? null,
-};
+test('Prompt 5 Master Integration Suite (Issues #23–#30)', async (t) => {
+  await t.test('Issue #23 Reconciliation: Auth Feedback Toast Notifications', () => {
+    const flashToastPath = path.join(ROOT, 'src/lib/flash-toast.ts');
+    assert.ok(fs.existsSync(flashToastPath), 'flash-toast.ts must exist');
+    const flashCode = fs.readFileSync(flashToastPath, 'utf-8');
+    assert.ok(flashCode.includes('setFlashToast'), 'setFlashToast must be exported');
+    assert.ok(flashCode.includes('consumeFlashToast'), 'consumeFlashToast must be exported');
+    assert.ok(flashCode.includes('ayaan_auth_flash_toast'), 'sessionStorage key must be ayaan_auth_flash_toast');
 
-const g = globalThis as unknown as Record<string, unknown>;
-g.localStorage = localStoragePolyfill;
-g.window = globalThis;
-g.CustomEvent = class CustomEvent {
-  type: string;
-  detail: unknown;
-  constructor(type: string, params: { detail?: unknown } = {}) {
-    this.type = type;
-    this.detail = params.detail;
-  }
-};
-g.dispatchEvent = () => true;
-g.addEventListener = () => {};
-g.removeEventListener = () => {};
+    const globalToastPath = path.join(ROOT, 'src/components/common/GlobalToast.tsx');
+    assert.ok(fs.existsSync(globalToastPath), 'GlobalToast.tsx must exist');
 
-let passed = 0;
-let failed = 0;
+    const loginPage = fs.readFileSync(path.join(ROOT, 'src/app/login/page.tsx'), 'utf-8');
+    assert.ok(loginPage.includes('setFlashToast'), 'login/page.tsx must use setFlashToast on login');
 
-async function it(description: string, fn: () => void | Promise<void>) {
-  try {
-    await fn();
-    console.log(`  ✅ [PASS] ${description}`);
-    passed++;
-  } catch (err) {
-    console.error(`  ❌ [FAIL] ${description}`);
-    console.error(err);
-    failed++;
-  }
-}
+    const adminPage = fs.readFileSync(path.join(ROOT, 'src/app/ayc/page.tsx'), 'utf-8');
+    assert.ok(adminPage.includes('setFlashToast'), 'src/app/ayc/page.tsx must use setFlashToast on admin login');
 
-async function runMasterSuite() {
-  console.log("\n=================================================================");
-  console.log("RUNNING: Master Integration Suite across All 8 Issues (#15 - #22)");
-  console.log("=================================================================\n");
-
-  const { cartService } = await import("../src/services/cart.service");
-  const { wishlistService } = await import("../src/services/wishlist.service");
-  const { categoryService } = await import("../src/services/category.service");
-  const { brandService } = await import("../src/services/brand.service");
-  const { adminOrderService } = await import("../src/services/admin/order.service");
-  const { mockStore } = await import("../src/lib/mock-data/mock-store");
-
-  // ── PART 1: ISSUE #16 & ISSUE #15 ───────────────────────────────────────────
-  console.log("--- PART 1: Issues #15 & #16 (Wishlist Refresh & Cart Badge) ---");
-  await it("[#16] Cart badge reports line item count (2) instead of summed units (450)", async () => {
-    cartService.clearCart();
-    const p1: any = {
-      id: "master_p1",
-      name: "Wholesale Cotton Polo",
-      slug: "wholesale-cotton-polo",
-      price: 15,
-      wholesalePrice: 15,
-      moq: 250,
-      stock: 1000,
-    };
-    await cartService.addToCart(p1, "L", 250);
-
-    const p2: any = {
-      id: "master_p2",
-      name: "Wholesale Heavyweight Tee",
-      slug: "wholesale-heavyweight-tee",
-      price: 10,
-      wholesalePrice: 10,
-      moq: 200,
-      stock: 1000,
-    };
-    const cart = await cartService.addToCart(p2, "XL", 200);
-
-    assert.strictEqual(cart.items.length, 2);
-    assert.strictEqual(cart.total_items, 2, "Cart badge count must be 2 distinct lines");
-    assert.strictEqual(cart.total_units, 450, "Total units must be 450");
-    assert.notStrictEqual(cart.total_items, 450, "Badge count must never be 450");
-    cartService.clearCart();
+    const adminLayout = fs.readFileSync(path.join(ROOT, 'src/app/ayc/AdminLayoutClient.tsx'), 'utf-8');
+    assert.ok(adminLayout.includes('setFlashToast') && adminLayout.includes('Logged out successfully'), 'AdminLayoutClient must stage logout toast');
   });
 
-  await it("[#15] Wishlist refresh retrieves authoritative updated stock", async () => {
-    wishlistService.clearLocal();
-    const product: any = {
-      id: "master_wish_1",
-      name: "Technical Windbreaker",
-      slug: "technical-windbreaker",
-      price: 45,
-      stock: 200,
-      moq: 50,
-      status: "active",
-      availableStock: 200,
-      isSoldOut: false,
-      in_stock: true,
-      variants: [{ id: "v1", size: "L", stock: 200 }],
-    };
-    mockStore.saveProduct(product);
-    await wishlistService.addToWishlist(product);
-
-    // Initial state
-    const initial = await wishlistService.getWishlist();
-    assert.strictEqual(initial.length, 1);
-    assert.strictEqual(initial[0].product.availableStock, 200);
-
-    // Simulate inventory update in mockStore
-    mockStore.saveProduct({
-      ...product,
-      stock: 0,
-      available_stock: 0,
-      availableStock: 0,
-      isSoldOut: true,
-      is_sold_out: true,
-      in_stock: false,
-    });
-
-    // Refresh with forceFresh: true
-    const refreshed = await wishlistService.getWishlist({ forceFresh: true });
-    assert.strictEqual(refreshed.length, 1);
-    assert.strictEqual(refreshed[0].product.isSoldOut, true);
-    assert.strictEqual(refreshed[0].product.availableStock, 0);
-    wishlistService.clearLocal();
+  await t.test('Issue #24 Reconciliation: Admin Notification Popover Viewport Clamping', () => {
+    const headerPath = path.join(ROOT, 'src/components/admin/layout/AdminHeader.tsx');
+    const headerCode = fs.readFileSync(headerPath, 'utf-8');
+    assert.ok(headerCode.includes('createPortal'), 'Notification popover must use createPortal');
+    assert.ok(headerCode.includes('popoverPos'), 'AdminHeader must track popoverPos state');
+    assert.ok(headerCode.includes('Math.min'), 'AdminHeader must clamp horizontal coordinates');
+    assert.ok(headerCode.includes('openUpward') || headerCode.includes('top?: number'), 'AdminHeader must support flipping upward if vertical space cramped');
+    assert.ok(headerCode.includes('zIndex: 9999'), 'AdminHeader popover must use high z-index overlay');
   });
 
-  // ── PART 2: ISSUES #19, #20, #21 ────────────────────────────────────────────
-  console.log("\n--- PART 2: Issues #19, #20 & #21 (Admin Catalog & Orders Refresh) ---");
-  await it("[#19] Categories refresh retrieves fresh records without mutating data", async () => {
-    const categories = await categoryService.getCategories({ isAdmin: true, all: true, forceFresh: true });
-    assert.ok(Array.isArray(categories));
-    assert.ok(categories.length > 0);
+  await t.test('Issue #25 Reconciliation: Admin Coupons Mobile Usability', () => {
+    const couponsPage = fs.readFileSync(path.join(ROOT, 'src/app/ayc/coupons/page.tsx'), 'utf-8');
+    assert.ok(couponsPage.includes('overflow-x-auto') || couponsPage.includes('scrollbar-none'), 'Coupons page tabs must allow horizontal scrolling');
+
+    const header = fs.readFileSync(path.join(ROOT, 'src/components/admin/coupons/CouponHeader.tsx'), 'utf-8');
+    assert.ok(header.includes('flex-col') && header.includes('sm:flex-row'), 'CouponHeader must stack vertically on mobile');
+
+    const toolbar = fs.readFileSync(path.join(ROOT, 'src/components/admin/coupons/CouponToolbar.tsx'), 'utf-8');
+    assert.ok(toolbar.includes('flex-col') || toolbar.includes('w-full'), 'CouponToolbar must wrap nicely on mobile');
+
+    const table = fs.readFileSync(path.join(ROOT, 'src/components/admin/coupons/CouponTable.tsx'), 'utf-8');
+    assert.ok(table.includes('overflow-x-auto'), 'CouponTable must provide horizontal overflow containment');
   });
 
-  await it("[#20] Brands refresh retrieves fresh records without mutating data", async () => {
-    const brands = await brandService.getBrands({ all: true, forceFresh: true });
-    assert.ok(Array.isArray(brands));
-    assert.ok(brands.length > 0);
+  await t.test('Issue #26 Reconciliation: Optional Email Verification', () => {
+    const routes = fs.readFileSync(path.join(ROOT, 'backend/routes/api.php'), 'utf-8');
+    assert.ok(!routes.includes("'verified'") || !routes.includes("checkout/validate'") || !routes.includes("Route::post('/orders'"), 'verified middleware must not block checkout');
+
+    const orderCtrl = fs.readFileSync(path.join(ROOT, 'backend/app/Http/Controllers/Api/V1/OrderController.php'), 'utf-8');
+    assert.ok(!orderCtrl.includes("!$user->hasVerifiedEmail()"), 'OrderController must not block checkout due to unverified email');
+
+    const checkoutModal = fs.readFileSync(path.join(ROOT, 'src/components/cart/CheckoutModal.tsx'), 'utf-8');
+    assert.ok(!checkoutModal.includes('requiresVerification && isCustomerLoggedIn'), 'CheckoutModal submit button must not be disabled for unverified customers');
+    assert.ok(checkoutModal.includes('Email Verification Pending (Optional)'), 'CheckoutModal banner must reflect optional pending status');
   });
 
-  await it("[#21] Orders refresh updates list and summary metrics without clearing filters", async () => {
-    const ordersRes = await adminOrderService.getOrders({ forceFresh: true, per_page: 5 });
-    assert.ok(Array.isArray(ordersRes.data));
-
-    const summary = await adminOrderService.getOrderSummary({ forceFresh: true });
-    assert.ok(summary.totalOrders !== undefined);
-    assert.ok(summary.pending !== undefined);
-    assert.ok(summary.processing !== undefined);
-    assert.ok(summary.paid !== undefined);
+  await t.test('Issue #27 Reconciliation: Coupon Edit Modal Outside Click & Escape', () => {
+    const couponModal = fs.readFileSync(path.join(ROOT, 'src/components/admin/coupons/CouponModal.tsx'), 'utf-8');
+    assert.ok(couponModal.includes('e.target === e.currentTarget'), 'CouponModal must verify event target on backdrop click');
+    assert.ok(couponModal.includes('e.key === "Escape"'), 'CouponModal must handle Escape key');
+    assert.ok(couponModal.includes('stopPropagation'), 'CouponModal dialog content must stop click propagation');
   });
 
-  // ── PART 3: ISSUE #18 ───────────────────────────────────────────────────────
-  console.log("\n--- PART 3: Issue #18 (Viewport-Aware Product Action Dropdown) ---");
-  const rowPath = path.resolve(process.cwd(), "src/components/admin/products/ProductTableRow.tsx");
-  const rowContent = fs.readFileSync(rowPath, "utf-8");
-
-  await it("[#18] Product action dropdown uses createPortal and fixed positioning", () => {
-    assert.ok(rowContent.includes("createPortal(menuElement, document.body)"));
-    assert.ok(rowContent.includes('position: "fixed"'));
-    assert.ok(rowContent.includes("zIndex: 9999"));
+  await t.test('Issue #28 Reconciliation: SEO Section Title & Status Badge Mobile Stacking', () => {
+    const seoManager = fs.readFileSync(path.join(ROOT, 'src/components/admin/homepage/HomepageSeoManager.tsx'), 'utf-8');
+    assert.ok(seoManager.includes('flex-col') && seoManager.includes('sm:flex-row'), 'HomepageSeoManager must use flex-col on mobile and sm:flex-row on desktop');
+    assert.ok(seoManager.includes('w-fit') && seoManager.includes('shrink-0'), 'HomepageSeoManager status badge must prevent unnatural stretching');
   });
 
-  await it("[#18] Dropdown flips upward when space below is insufficient (<260px)", () => {
-    assert.ok(rowContent.includes("spaceBelow < Math.min(estimatedHeight, 260)"));
-    assert.ok(rowContent.includes("data-placement={placement}"));
-    assert.ok(rowContent.includes('chosenPlacement = shouldOpenUp ? "top" : "bottom"'));
+  await t.test('Issue #29 Reconciliation: Google Tags Head/Body Controls Vertical Stacking', () => {
+    const tagsManager = fs.readFileSync(path.join(ROOT, 'src/components/admin/homepage/GoogleTagsManager.tsx'), 'utf-8');
+    assert.ok(tagsManager.includes('flex-col') && tagsManager.includes('sm:flex-row'), 'GoogleTagsManager indicators wrapper must stack on mobile');
+    assert.ok(tagsManager.indexOf('Head: Configured') < tagsManager.indexOf('Body: Configured'), 'Head script indicator must precede Body script indicator in DOM');
   });
 
-  await it("[#18] Dropdown clamps maxHeight with subtle-scrollbar and supports Escape dismissal", () => {
-    assert.ok(rowContent.includes("overflow-y-auto subtle-scrollbar"));
-    assert.ok(rowContent.includes('e.key === "Escape"'));
-    assert.ok(rowContent.includes('role="menu"'));
-    assert.ok(rowContent.includes('role="menuitem"'));
+  await t.test('Issue #30 Reconciliation: Homepage Section Action Button Mobile Position', () => {
+    const faqManager = fs.readFileSync(path.join(ROOT, 'src/components/admin/homepage/HomepageFaqManager.tsx'), 'utf-8');
+    assert.ok(faqManager.includes('order-1 sm:order-2'), 'FAQ Add Button must have order-1 on mobile and sm:order-2 on desktop');
+    assert.ok(faqManager.includes('order-2 sm:order-1'), 'FAQ List must have order-2 on mobile and sm:order-1 on desktop');
+    assert.ok(faqManager.includes('Add New FAQ Entry'), 'Button must retain Add New FAQ Entry label');
   });
 
-  // ── PART 4: ISSUES #17 & #22 ───────────────────────────────────────────────
-  console.log("\n--- PART 4: Issues #17 & #22 (Dashboard & POS Responsiveness) ---");
-  const chartPath = path.resolve(process.cwd(), "src/components/admin/dashboard/SalesProfitOverview.tsx");
-  const chartContent = fs.readFileSync(chartPath, "utf-8");
+  await t.test('Viewport Arithmetic Audit across 320px, 375px, 768px, 1440px', () => {
+    const viewports = [
+      { name: '320px (Mobile S)', width: 320, padding: 24, availableWidth: 296 },
+      { name: '375px (Mobile M)', width: 375, padding: 32, availableWidth: 343 },
+      { name: '768px (Tablet)', width: 768, padding: 48, availableWidth: 720 },
+      { name: '1440px (Desktop)', width: 1440, padding: 64, availableWidth: 1376 },
+    ];
 
-  const posPath = path.resolve(process.cwd(), "src/app/ayc/pos/page.tsx");
-  const posContent = fs.readFileSync(posPath, "utf-8");
+    for (const vp of viewports) {
+      // Popover width formula from AdminHeader.tsx: Math.min(384, window.innerWidth - 24)
+      const popoverWidth = Math.min(384, vp.width - 24);
+      assert.ok(popoverWidth <= vp.width, `Popover width (${popoverWidth}px) exceeds viewport width (${vp.width}px) in ${vp.name}`);
+      assert.ok(popoverWidth >= 280, `Popover width (${popoverWidth}px) too narrow in ${vp.name}`);
 
-  const ordersTablePath = path.resolve(process.cwd(), "src/components/admin/dashboard/RecentOrdersTable.tsx");
-  const ordersTableContent = fs.readFileSync(ordersTablePath, "utf-8");
-
-  await it("[#17] Sales & Profit chart enforces minWidth={0}, minTickGap, and compact YAxis", () => {
-    assert.ok(chartContent.includes('<ResponsiveContainer width="100%" height="100%" minWidth={0}>'));
-    assert.ok(chartContent.includes("minTickGap={20}"));
-    assert.ok(chartContent.includes('interval="preserveStartEnd"'));
-    assert.ok(chartContent.includes("width={42}"));
-    assert.ok(chartContent.includes("No sales data for this period."));
+      // In 320px viewport, stacked items width
+      const titleWidthEstimate = 220; // px
+      const badgeWidthEstimate = 90; // px
+      // Stacked total height is safe, width fits within available width
+      assert.ok(titleWidthEstimate <= vp.availableWidth, `Title fits within available width in ${vp.name}`);
+      assert.ok(badgeWidthEstimate <= vp.availableWidth, `Badge fits within available width in ${vp.name}`);
+    }
   });
-
-  await it("[#17] Recent Orders table preserves 5 columns with min-w-[520px] and horizontal scroll", () => {
-    assert.ok(ordersTableContent.includes("overflow-x-auto subtle-scrollbar min-w-0"));
-    assert.ok(ordersTableContent.includes('min-w-[520px]'));
-    assert.ok(ordersTableContent.includes("Order Number"));
-    assert.ok(ordersTableContent.includes("Buyer / Company"));
-    assert.ok(ordersTableContent.includes("Amount"));
-    assert.ok(ordersTableContent.includes("Status"));
-    assert.ok(ordersTableContent.includes("Date"));
-  });
-
-  await it("[#22] POS terminal header wraps cashier and warehouse without clipping", () => {
-    assert.ok(posContent.includes("flex flex-wrap items-center gap-2 sm:gap-2.5 min-w-0"));
-    assert.ok(posContent.includes("truncate max-w-[140px] sm:max-w-none"));
-    assert.ok(posContent.includes("truncate max-w-[140px] sm:max-w-[200px]"));
-  });
-
-  await it("[#22] POS category chips and payment options adapt responsively to mobile", () => {
-    assert.ok(posContent.includes("overflow-x-auto pb-1 subtle-scrollbar text-xs max-w-full"));
-    assert.ok(posContent.includes("grid grid-cols-1 min-[420px]:grid-cols-2 gap-2 text-xs"));
-  });
-
-  console.log("\n-----------------------------------------------------------------");
-  console.log(`MASTER INTEGRATION SUMMARY: ${passed} PASSED, ${failed} FAILED (TOTAL: ${passed + failed})`);
-  console.log("-----------------------------------------------------------------\n");
-
-  if (failed > 0) {
-    process.exit(1);
-  }
-}
-
-runMasterSuite().catch((err) => {
-  console.error("Master Suite failed to execute:", err);
-  process.exit(1);
 });

@@ -102,9 +102,9 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
             <div className="flex items-start gap-2.5">
               <AlertCircle size={18} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
               <div>
-                <p className="font-bold text-slate-900 dark:text-white">Email Verification Required Before Placing Orders</p>
+                <p className="font-bold text-slate-900 dark:text-white">Verify Your Email Address</p>
                 <p className="text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
-                  Your account email (<strong>{user.email}</strong>) has not been verified yet. You can browse the catalog and save items, but email verification is required before placing an order.
+                  Your account email (<strong>{user.email}</strong>) has not been verified yet. You can browse, place orders, and manage quotes freely. Verifying your email ensures seamless account recovery and dispatch notifications.
                 </p>
               </div>
             </div>

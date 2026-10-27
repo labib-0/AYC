@@ -1,9 +1,9 @@
 # Test Matrix: AYC Admin & Storefront Hotfixes (Issues #15–#22)
 
 - **Date:** 2026-10-27
-- **Target Release:** `fix: resolve storefront and admin UI hotfixes`
-- **Total Test Cases Executed:** 149
-- **Total Passed:** 149
+- **Target Release:** `fix: resolve auth notifications, admin mobile responsiveness, and optional email verification (issues #23-#30)`
+- **Total Test Cases Executed:** 255
+- **Total Passed:** 255
 - **Total Failed:** 0
 - **Pass Rate:** 100%
 
@@ -21,6 +21,14 @@
 | **#18** | Admin Products | Action dropdown remains fully visible within viewport; escapes table clipping via Portal, flips upward when space below is cramped. | `tests/prompt3-viewport-aware-dropdown.test.ts` | **PASS** | 16 tests passed. `createPortal` to `document.body`, `fixed` positioning, vertical flipping, Escape dismissal. |
 | **#17** | Admin Dashboard | Dashboard chart, summary cards, and recent orders adapt responsively to mobile without overflowing or clipping labels. | `tests/prompt4-dashboard-pos-responsiveness.test.ts` (Parts 1 & 2) | **PASS** | 12 tests passed. `minWidth={0}`, `minTickGap={20}`, compact YAxis, min-w 520px on tables. |
 | **#22** | Admin POS | POS terminal header, cashier/warehouse info, search, category pills, and product catalog adapt cleanly to mobile. | `tests/prompt4-dashboard-pos-responsiveness.test.ts` (Part 3) | **PASS** | 8 tests passed. Responsive wrap, truncation on names, scrollable pills, stacked payments on < 420px. |
+| **#23** | Customer & Admin Auth | Successful login & logout display clear toast feedback across redirects; failed auth never triggers success message; zero duplicate notifications. | `tests/prompt1-auth-feedback-and-coupon-modal.test.ts` (Part 1) | **PASS** | 9 tests passed. `setFlashToast` in `sessionStorage`, `consumeFlashToast` single-read, `GlobalToast` in Shells. |
+| **#27** | Admin Coupons | Coupon Edit modal closes on clicking backdrop or pressing Escape; inside clicks stop propagation; backdrop clicks blocked during active saving. | `tests/prompt1-auth-feedback-and-coupon-modal.test.ts` (Part 2) | **PASS** | 7 tests passed. `coupon-modal-backdrop` with `!saving` guard, `e.stopPropagation()` on dialog, `Escape` key handler. |
+| **#24** | Admin Header | Notifications popover stays strictly within viewport across 320px–1440px via Portal (`document.body`), auto-flips upward on bottom space constraint, dismisses on scroll/resize/Escape/outside click. | `tests/prompt2-notification-popover-and-coupons-mobile.test.ts` (Part 1) | **PASS** | 5 tests passed. Mathematical clamping (`left >= 12px`, `left + width <= vw - 12px`), auto-flip upward when space below < 280px. |
+| **#25** | Admin Coupons | Coupons page header, navigation tabs, search/filters toolbar, bindings table, desktop table, and mobile cards adapt responsively to mobile with touch targets >= 36px–40px. | `tests/prompt2-notification-popover-and-coupons-mobile.test.ts` (Part 2) | **PASS** | 6 tests passed. Desktop table `min-w-[680px]`, bindings table `min-w-[560px]`, mobile cards `break-all` codes, `min-h-[36px]` buttons. |
+| **#28** | Admin SEO / Search Console | On mobile, section heading appears first and its status control ("Configured on Storefront") is positioned directly below title with zero horizontal overflow; desktop preserves side-by-side. | `tests/prompt3-mobile-settings-alignment.test.ts` (Part 1) | **PASS** | 5 tests passed. `flex-col sm:flex-row`, `w-fit shrink-0` on badges, zero overflow on 320px screen. |
+| **#29** | Admin Google Tags & Tracking | On mobile, "Head: Configured" control is vertically stacked above "Body: Configured" control; desktop retains side-by-side presentation. | `tests/prompt3-mobile-settings-alignment.test.ts` (Part 2) | **PASS** | 5 tests passed. Nested `flex-col sm:flex-row`, `w-fit shrink-0` on badges, Head vertically above Body. |
+| **#30** | Admin Homepage FAQ Manager | On mobile, section action button ("+ Add New FAQ Entry") is positioned directly below section title and preceding section content; desktop preserves list first with button at bottom. | `tests/prompt3-mobile-settings-alignment.test.ts` (Part 3) | **PASS** | 6 tests passed. `flex-col gap-4`, button `order-1 sm:order-2`, list `order-2 sm:order-1`, `min-h-[40px]`. |
+| **#26** | Customer Auth & Checkout | Email verification optional for customer login, dashboard access, and order placement; verified & unverified both succeed; all order security invariants preserved. | `tests/prompt4-optional-email-verification.test.ts` | **PASS** | 19 tests passed. Removed `verified` middleware, unblocked `OrderController::store` and `CheckoutModal.tsx`, preserved auth, bot protection, MOQ, stock. |
 
 ---
 
@@ -48,4 +56,11 @@
 | `tests/admin-orders-page-simplification.test.ts` | Admin orders workflow regression | 35 | 35 | 0 |
 | `tests/canonical-customer-order-lifecycle.test.ts` | Customer order lifecycle regression | 17 | 17 | 0 |
 | `tests/admin-reordering-and-category-button.test.ts` | Table reordering & catalog buttons | 16 | 16 | 0 |
-| **TOTAL** | **Full Repository Regression Suite** | **149** | **149** | **0** |
+| `tests/prompt1-auth-feedback-and-coupon-modal.test.ts` | Issues #23 & #27 (Auth feedback & Coupon modal) | 16 | 16 | 0 |
+| `tests/prompt2-notification-popover-and-coupons-mobile.test.ts` | Issues #24 & #25 (Notification popover & Coupons mobile) | 11 | 11 | 0 |
+| `tests/prompt3-mobile-settings-alignment.test.ts` | Issues #28, #29, #30 (Mobile settings alignment) | 19 | 19 | 0 |
+| `tests/prompt4-optional-email-verification.test.ts` | Issue #26 (Optional email verification for login & checkout) | 19 | 19 | 0 |
+| `tests/prompt5-master-integration.test.ts` | Master Integration across all eight issues (#23–#30) & viewport math | 10 | 10 | 0 |
+| `tests/customer-signup-email-verification-lifecycle.test.ts` | Full customer lifecycle verification & rate limiting | 7 | 7 | 0 |
+| `scripts/verify-optional-email-verification.php` | Isolated backend PHP 8.4 SQLite :memory: suite (orders, auth, invariants) | 24 | 24 | 0 |
+| **TOTAL** | **Full Repository Regression Suite** | **255** | **255** | **0** |

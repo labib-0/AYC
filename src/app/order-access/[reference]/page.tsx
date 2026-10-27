@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { orderService, OrderRecord } from "@/services/order.service";
+import { setFlashToast } from "@/lib/flash-toast";
 import BrandName from "@/components/common/BrandName";
 import {
   Lock,
@@ -122,7 +123,10 @@ export default function OrderAccessGatewayPage({ params }: Props) {
   }, [order, user, resolvingOrder, authLoading, router]);
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      await signOut();
+      setFlashToast("success", "Logged out successfully.");
+    } catch {}
     setUnauthorized(false);
     setRedirecting(false);
   };

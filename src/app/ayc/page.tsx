@@ -17,6 +17,7 @@ import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { getCustomerAppUrl } from "@/config/site-urls";
 import { securityService } from "@/services/security.service";
 import HoneypotField from "@/components/common/HoneypotField";
+import { setFlashToast } from "@/lib/flash-toast";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -67,8 +68,11 @@ export default function AdminLoginPage() {
       const res = await signInAdmin(email, password, honeypot, formToken || undefined);
       if (res?.error) {
         setError(res.error);
-      } else {
+      } else if (res?.user) {
+        setFlashToast("success", "Login successful. Welcome back!");
         router.push(getRedirectTarget());
+      } else {
+        setError("Failed to authenticate administrator.");
       }
     } catch (err: any) {
       setError(err?.message || "Failed to authenticate administrator.");

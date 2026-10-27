@@ -9,6 +9,7 @@ import { Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight } from "lucide-react";
 
 import BrandName from "@/components/common/BrandName";
 import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
+import { setFlashToast } from "@/lib/flash-toast";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -97,6 +98,7 @@ export default function LoginPage() {
       const errMsg = typeof res.error === "string" ? res.error : res.error.message || "These credentials cannot be used for customer login.";
       setError(errMsg);
     } else if (res.user && res.user.role === "customer") {
+      setFlashToast("success", "Login successful. Welcome back!");
       router.push(getRedirectUrl(res.user));
     } else {
       setError("These credentials cannot be used for customer login.");
