@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { brandService, BrandModel } from "@/services/brand.service";
 import { homepageService } from "@/services/homepage.service";
@@ -24,6 +24,8 @@ export default function AdminBrandsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const isRefreshingRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   // Filters & Pagination State
   const [search, setSearch] = useState("");
@@ -60,18 +62,51 @@ export default function AdminBrandsPage() {
     if (!isSilent) setLoading(true);
     else setIsRefreshing(true);
     setError(null);
+    const reqId = ++requestIdRef.current;
 
     try {
-      const data = await brandService.getBrands({ isAdmin: true, all: true });
-      setBrands(data);
+      const data = await brandService.getBrands({ isAdmin: true, all: true, forceFresh: isSilent });
+      if (reqId === requestIdRef.current) {
+        setBrands(data);
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unable to load brands. Please try again.";
-      setError(msg);
+      if (reqId === requestIdRef.current) {
+        const msg = err instanceof Error ? err.message : "Unable to load brands. Please try again.";
+        setError(msg);
+      }
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (reqId === requestIdRef.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshingRef.current || loading) return;
+    isRefreshingRef.current = true;
+    setIsRefreshing(true);
+    const reqId = ++requestIdRef.current;
+
+    try {
+      brandService.invalidateCache();
+      const freshBrands = await brandService.getBrands({ isAdmin: true, all: true, forceFresh: true });
+      if (reqId === requestIdRef.current) {
+        setBrands(freshBrands);
+        addToast("success", "Brand list refreshed successfully.");
+      }
+    } catch (err: unknown) {
+      if (reqId === requestIdRef.current) {
+        const msg = err instanceof Error ? err.message : "Failed to refresh brand list. Please try again.";
+        addToast("error", msg);
+      }
+    } finally {
+      if (reqId === requestIdRef.current) {
+        setIsRefreshing(false);
+        isRefreshingRef.current = false;
+      }
+    }
+  }, [loading, addToast]);
 
   useEffect(() => {
     loadBrands();
@@ -143,7 +178,7 @@ export default function AdminBrandsPage() {
     onItemsChange: setBrands,
     getItemId: (b) => b.id,
     getItemTitle: (b) => b.name,
-    isReorderDisabled: !isReorderEligible,
+    isReorderDisabled: !isReorderEligible, // isReorderDisabled: isFiltered
     disabledReason:
       "Reordering is disabled while search or status filters are active. Clear filters to return to manual sequence.",
     currentPage,
@@ -327,7 +362,7 @@ export default function AdminBrandsPage() {
               activeCount={activeCount}
               inactiveCount={inactiveCount}
               landingCount={landingCount}
-              onRefresh={() => loadBrands(true)}
+              onRefresh={handleRefresh}
               isRefreshing={isRefreshing}
             />
 

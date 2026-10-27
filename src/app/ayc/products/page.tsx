@@ -471,7 +471,7 @@ function AdminProductsContent() {
     },
     getItemId: (p) => p.id,
     getItemTitle: (p) => p.name,
-    isReorderDisabled: !isReorderEligible,
+    isReorderDisabled: !isReorderEligible, // isReorderDisabled: hasActiveFilters
     disabledReason:
       "Reordering is disabled while search or catalog filters are active. Clear filters to return to manual sequence.",
     currentPage: safePage,

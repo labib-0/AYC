@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -89,17 +90,130 @@ export default function ProductTableRow({
   const [menuOpen, setMenuOpen] = useState(initialMenuOpen);
   const [storefrontBase, setStorefrontBase] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const [placement, setPlacement] = useState<"bottom" | "top">("bottom");
 
-  // Close menu on outside click
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current || typeof window === "undefined") return;
+    const triggerRect = buttonRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Check if trigger button has scrolled offscreen
+    if (triggerRect.bottom < 0 || triggerRect.top > viewportHeight) {
+      setMenuOpen(false);
+      return;
+    }
+
+    const GAP = 4;
+    const PADDING = 8;
+    const MENU_WIDTH = 192; // w-48 = 192px
+    const menuEl = menuRef.current;
+    const estimatedHeight = menuEl && menuEl.offsetHeight > 0 ? menuEl.offsetHeight : 360;
+
+    const spaceBelow = viewportHeight - triggerRect.bottom - GAP - PADDING;
+    const spaceAbove = triggerRect.top - GAP - PADDING;
+
+    const shouldOpenUp = spaceBelow < Math.min(estimatedHeight, 260) && spaceAbove > spaceBelow;
+    const chosenPlacement = shouldOpenUp ? "top" : "bottom";
+    setPlacement(chosenPlacement);
+
+    let top: number | undefined;
+    let bottom: number | undefined;
+    let maxHeight: number;
+
+    if (shouldOpenUp) {
+      bottom = Math.round(viewportHeight - triggerRect.top + GAP);
+      maxHeight = Math.min(estimatedHeight, Math.max(120, Math.floor(spaceAbove)));
+    } else {
+      top = Math.round(triggerRect.bottom + GAP);
+      maxHeight = Math.min(estimatedHeight, Math.max(120, Math.floor(spaceBelow)));
+    }
+
+    // Horizontal positioning: align to right of trigger, or flip/clamp if near viewport boundary
+    let right: number | undefined = Math.round(viewportWidth - triggerRect.right);
+    let left: number | undefined;
+
+    if (triggerRect.right - MENU_WIDTH < PADDING) {
+      left = Math.max(PADDING, Math.round(triggerRect.left));
+      right = undefined;
+    } else if (right < PADDING) {
+      right = PADDING;
+    }
+
+    const style: React.CSSProperties = {
+      position: "fixed",
+      width: `${MENU_WIDTH}px`,
+      maxHeight: `${maxHeight}px`,
+      zIndex: 9999,
+    };
+
+    if (top !== undefined) style.top = `${top}px`;
+    if (bottom !== undefined) style.bottom = `${bottom}px`;
+    if (right !== undefined) style.right = `${right}px`;
+    if (left !== undefined) style.left = `${left}px`;
+
+    setMenuStyle(style);
+  }, []);
+
+  // Recalculate position on open, scroll, or resize
   useEffect(() => {
     if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    updatePosition();
+    const rafId = requestAnimationFrame(() => {
+      updatePosition();
+    });
+
+    const handleScroll = () => {
+      updatePosition();
+    };
+    const handleResize = () => {
+      updatePosition();
+    };
+
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [menuOpen, updatePosition]);
+
+  // Outside click and Escape key dismissal
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (buttonRef.current && buttonRef.current.contains(target)) {
+        return;
+      }
+      if (menuRef.current && menuRef.current.contains(target)) {
+        return;
+      }
+      setMenuOpen(false);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
         setMenuOpen(false);
+        buttonRef.current?.focus();
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [menuOpen]);
 
   // Determine storefront base URL (so admin website opens customer storefront correctly)
@@ -431,214 +545,253 @@ export default function ProductTableRow({
             />
           )}
 
-          <div className="relative inline-block" ref={menuRef}>
+          <div className="relative inline-block">
             <button
+              ref={buttonRef}
+              type="button"
+              id={`btn-product-actions-${product.id}`}
               onClick={() => setMenuOpen(!menuOpen)}
               className="w-7 h-7 rounded-lg border border-border/60 bg-card hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-all cursor-pointer mx-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-2xs"
               aria-label={`Actions for ${product.name}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-controls={menuOpen ? `menu-product-actions-${product.id}` : undefined}
               title="More actions"
             >
               <MoreHorizontal size={15} />
             </button>
 
-          {menuOpen && (
-            <div className="absolute right-0 top-8 z-50 w-48 rounded-xl border border-border/80 bg-card p-1 shadow-xl animate-in fade-in zoom-in-95 duration-100 text-left">
-              {can("product.edit") && (
-                <Link
-                  href={editHref}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <Edit size={13} />
-                  Edit Product
-                </Link>
-              )}
+          {menuOpen && (() => {
+            const menuElement = (
+              <div
+                ref={menuRef}
+                id={`menu-product-actions-${product.id}`}
+                role="menu"
+                aria-label={`Actions for ${product.name}`}
+                style={mounted && typeof document !== "undefined" ? menuStyle : undefined}
+                data-placement={placement}
+                data-testid={`menu-product-actions-${product.id}`}
+                className={`w-48 rounded-xl border border-border/80 bg-card p-1 shadow-xl text-left overflow-y-auto subtle-scrollbar ${
+                  mounted && typeof document !== "undefined"
+                    ? "animate-in fade-in zoom-in-95 duration-100"
+                    : "absolute right-0 top-8 z-50"
+                }`}
+              >
+                {can("product.edit") && (
+                  <Link
+                    href={editHref}
+                    role="menuitem"
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Edit size={13} />
+                    Edit Product
+                  </Link>
+                )}
 
-              {canAdjustStock && onAdjustStock && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onAdjustStock(product);
-                  }}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
-                >
-                  <SlidersHorizontal size={13} className="text-primary" />
-                  Adjust Stock
-                </button>
-              )}
-
-              {canViewHistory && onViewStockHistory && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onViewStockHistory(product);
-                  }}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
-                >
-                  <History size={13} className="text-muted-foreground" />
-                  Stock Movement History
-                </button>
-              )}
-
-              {canAdjustStock && onMarkSoldOut && (
-                <button
-                  type="button"
-                  id={`btn-mark-sold-out-${product.id}`}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onMarkSoldOut(product);
-                  }}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors w-full text-left cursor-pointer"
-                >
-                  <Ban size={13} />
-                  Mark as Sold Out
-                </button>
-              )}
-
-              {onViewOfferSheet && (
-                <button
-                  type="button"
-                  id={`btn-offer-sheet-${product.id}`}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onViewOfferSheet(product);
-                  }}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
-                  title={`View Offer Sheet for ${product.name || product.productId}`}
-                >
-                  <FileText size={13} className="text-primary" />
-                  Offer Sheet
-                </button>
-              )}
-
-              {isPublished && !isHiddenFromStorefront ? (
-                <a
-                  href={storefrontHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <ExternalLink size={13} />
-                  View Storefront
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    if (!isPublished) {
-                      alert(`Product "${product.name || product.productId}" is in Draft status and is not published on the public storefront. Publish the product first to view it live.`);
-                    } else {
-                      alert(`Product "${product.name || product.productId}" is currently hidden from the public storefront. Click "Show on Storefront" to make it visible.`);
-                    }
-                  }}
-                  className="flex items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer opacity-75"
-                  title={!isPublished ? "Unpublished draft is not visible on the public storefront." : "Product is hidden from storefront."}
-                >
-                  <span className="flex items-center gap-2.5">
-                    <ExternalLink size={13} />
-                    View Storefront
-                  </span>
-                  <span className="text-[9.5px] font-normal px-1 py-0.2 rounded bg-secondary text-amber-600 dark:text-amber-400 border border-border/50">
-                    {!isPublished ? "Draft" : "Hidden"}
-                  </span>
-                </button>
-              )}
-
-              {onToggleStorefrontVisibility && (
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onToggleStorefrontVisibility(product);
-                  }}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
-                >
-                  {isHiddenFromStorefront ? (
-                    <>
-                      <Eye size={13} className="text-emerald-600" />
-                      Show on Storefront
-                    </>
-                  ) : (
-                    <>
-                      <EyeOff size={13} className="text-amber-600" />
-                      Hide from Storefront
-                    </>
-                  )}
-                </button>
-              )}
-
-              {onToggleFeatured && (
-                <button
-                  type="button"
-                  id={`btn-toggle-featured-${product.id}`}
-                  data-testid={`btn-toggle-pin-${product.id}`}
-                  disabled={isPinLoading}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onToggleFeatured(product);
-                  }}
-                  className={`flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer ${
-                    isPinLoading ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                  title={isPinned ? "Unpin" : "Pin"}
-                >
-                  {isPinLoading ? (
-                    <Loader2 size={13} className="animate-spin text-muted-foreground shrink-0" />
-                  ) : (
-                    <Pin
-                      size={13}
-                      className={isPinned ? "text-primary fill-primary shrink-0" : "text-muted-foreground shrink-0"}
-                    />
-                  )}
-                  <span>{isPinLoading ? "Updating..." : (isPinned ? "Unpin" : "Pin")}</span>
-                </button>
-              )}
-
-              {can("product.publish") && (
-                <>
-                  <div className="h-px bg-border/60 my-1" />
+                {canAdjustStock && onAdjustStock && (
                   <button
+                    type="button"
+                    role="menuitem"
                     onClick={() => {
                       setMenuOpen(false);
-                      onTogglePublish(product);
+                      onAdjustStock(product);
                     }}
                     className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
                   >
-                    {isPublished ? (
+                    <SlidersHorizontal size={13} className="text-primary" />
+                    Adjust Stock
+                  </button>
+                )}
+
+                {canViewHistory && onViewStockHistory && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onViewStockHistory(product);
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
+                  >
+                    <History size={13} className="text-muted-foreground" />
+                    Stock Movement History
+                  </button>
+                )}
+
+                {canAdjustStock && onMarkSoldOut && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    id={`btn-mark-sold-out-${product.id}`}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onMarkSoldOut(product);
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors w-full text-left cursor-pointer"
+                  >
+                    <Ban size={13} />
+                    Mark as Sold Out
+                  </button>
+                )}
+
+                {onViewOfferSheet && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    id={`btn-offer-sheet-${product.id}`}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onViewOfferSheet(product);
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
+                    title={`View Offer Sheet for ${product.name || product.productId}`}
+                  >
+                    <FileText size={13} className="text-primary" />
+                    Offer Sheet
+                  </button>
+                )}
+
+                {isPublished && !isHiddenFromStorefront ? (
+                  <a
+                    href={storefrontHref}
+                    role="menuitem"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <ExternalLink size={13} />
+                    View Storefront
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      if (!isPublished) {
+                        alert(`Product "${product.name || product.productId}" is in Draft status and is not published on the public storefront. Publish the product first to view it live.`);
+                      } else {
+                        alert(`Product "${product.name || product.productId}" is currently hidden from the public storefront. Click "Show on Storefront" to make it visible.`);
+                      }
+                    }}
+                    className="flex items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer opacity-75"
+                    title={!isPublished ? "Unpublished draft is not visible on the public storefront." : "Product is hidden from storefront."}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <ExternalLink size={13} />
+                      View Storefront
+                    </span>
+                    <span className="text-[9.5px] font-normal px-1 py-0.2 rounded bg-secondary text-amber-600 dark:text-amber-400 border border-border/50">
+                      {!isPublished ? "Draft" : "Hidden"}
+                    </span>
+                  </button>
+                )}
+
+                {onToggleStorefrontVisibility && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onToggleStorefrontVisibility(product);
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
+                  >
+                    {isHiddenFromStorefront ? (
                       <>
-                        <ArrowDownCircle size={13} className="text-amber-600" />
-                        Unpublish
+                        <Eye size={13} className="text-emerald-600" />
+                        Show on Storefront
                       </>
                     ) : (
                       <>
-                        <ArrowUpCircle size={13} className="text-emerald-600" />
-                        Publish
+                        <EyeOff size={13} className="text-amber-600" />
+                        Hide from Storefront
                       </>
                     )}
                   </button>
-                </>
-              )}
+                )}
 
-              {can("product.delete") && (
-                <>
-                  <div className="h-px bg-border/60 my-1" />
+                {onToggleFeatured && (
                   <button
+                    type="button"
+                    role="menuitem"
+                    id={`btn-toggle-featured-${product.id}`}
+                    data-testid={`btn-toggle-pin-${product.id}`}
+                    disabled={isPinLoading}
                     onClick={() => {
                       setMenuOpen(false);
-                      onDelete(product);
+                      onToggleFeatured(product);
                     }}
-                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors w-full text-left"
+                    className={`flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer ${
+                      isPinLoading ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    title={isPinned ? "Unpin" : "Pin"}
                   >
-                    <Trash2 size={13} />
-                    Delete
+                    {isPinLoading ? (
+                      <Loader2 size={13} className="animate-spin text-muted-foreground shrink-0" />
+                    ) : (
+                      <Pin
+                        size={13}
+                        className={isPinned ? "text-primary fill-primary shrink-0" : "text-muted-foreground shrink-0"}
+                      />
+                    )}
+                    <span>{isPinLoading ? "Updating..." : (isPinned ? "Unpin" : "Pin")}</span>
                   </button>
-                </>
-              )}
-            </div>
-          )}
+                )}
+
+                {can("product.publish") && (
+                  <>
+                    <div className="h-px bg-border/60 my-1" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onTogglePublish(product);
+                      }}
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
+                    >
+                      {isPublished ? (
+                        <>
+                          <ArrowDownCircle size={13} className="text-amber-600" />
+                          Unpublish
+                        </>
+                      ) : (
+                        <>
+                          <ArrowUpCircle size={13} className="text-emerald-600" />
+                          Publish
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+
+                {can("product.delete") && (
+                  <>
+                    <div className="h-px bg-border/60 my-1" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onDelete(product);
+                      }}
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors w-full text-left"
+                    >
+                      <Trash2 size={13} />
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+
+            return mounted && typeof document !== "undefined"
+              ? createPortal(menuElement, document.body)
+              : menuElement;
+          })()}
         </div>
         </div>
       </td>

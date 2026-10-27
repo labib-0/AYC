@@ -24,6 +24,7 @@ export interface BrandQueryParams {
   landing?: boolean;
   search?: string;
   is_active?: boolean;
+  forceFresh?: boolean;
 }
 
 export class BrandService {
@@ -43,7 +44,12 @@ export class BrandService {
    * Fetch brands with in-flight request deduplication
    */
   async getBrands(options?: BrandQueryParams): Promise<BrandModel[]> {
-    const isDefaultQuery = !options?.search && !options?.isAdmin && (options?.all || options === undefined);
+    if (options?.forceFresh) {
+      this.invalidateCache();
+      mockStore.invalidateCache("ayaan_mock_brands_v2");
+    }
+
+    const isDefaultQuery = !options?.forceFresh && !options?.search && !options?.isAdmin && (options?.all || options === undefined);
     if (isDefaultQuery && this.cachedBrands && Date.now() - this.cachedBrands.timestamp < 30000) {
       return this.cachedBrands.data;
     }
@@ -62,7 +68,10 @@ export class BrandService {
             }
             return items;
           }
-        } catch {
+        } catch (err: unknown) {
+          if (options?.forceFresh) {
+            throw err;
+          }
           // Fall through
         }
       }

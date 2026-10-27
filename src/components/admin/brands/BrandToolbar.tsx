@@ -111,11 +111,12 @@ export default function BrandToolbar({
         {/* Refresh Button */}
         <button
           type="button"
+          id="btn-refresh-brands"
           onClick={onRefresh}
           disabled={isRefreshing}
           className="p-2 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-50 shrink-0"
-          title="Refresh brands list"
-          aria-label="Refresh brands"
+          title="Refresh brand list"
+          aria-label="Refresh brand list"
         >
           <RefreshCw
             size={14}

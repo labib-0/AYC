@@ -7,6 +7,8 @@ interface CommerceSectionHeaderProps {
   badge?: React.ReactNode;
   action?: React.ReactNode;
   className?: string;
+  titleClassName?: string;
+  iconClassName?: string;
 }
 
 /**
@@ -21,12 +23,14 @@ export default function CommerceSectionHeader({
   badge,
   action,
   className = "",
+  titleClassName = "text-foreground",
+  iconClassName = "text-primary",
 }: CommerceSectionHeaderProps) {
   return (
     <div className={`flex items-center justify-between gap-2 pb-1 ${className}`}>
       <div className="flex items-center gap-2 min-w-0">
-        {icon && <span className="text-primary shrink-0">{icon}</span>}
-        <h2 className="text-[12px] sm:text-[13px] font-display font-bold uppercase tracking-wider text-foreground truncate">
+        {icon && <span className={`shrink-0 ${iconClassName}`}>{icon}</span>}
+        <h2 className={`text-[12px] sm:text-[13px] font-display font-bold uppercase tracking-wider truncate ${titleClassName}`}>
           {title}
         </h2>
         {badge && <div className="shrink-0">{badge}</div>}

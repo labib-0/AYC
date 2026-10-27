@@ -74,15 +74,15 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* KPI Cards Skeleton */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4 min-w-0">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
-                className="h-24 p-4 rounded-xl bg-card border border-border/70 shadow-2xs space-y-2 animate-pulse"
+                className="h-24 p-3 sm:p-4 rounded-xl bg-card border border-border/70 shadow-2xs space-y-2 animate-pulse min-w-0"
               >
                 <div className="flex justify-between items-center">
                   <div className="h-3 w-16 bg-secondary/80 rounded" />
-                  <div className="h-5 w-5 bg-secondary/80 rounded-md" />
+                  <div className="h-5 w-5 bg-secondary/80 rounded-md shrink-0" />
                 </div>
                 <div className="h-6 w-12 bg-secondary rounded" />
               </div>
@@ -90,7 +90,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Tables Skeleton */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 min-w-0">
             <div className="h-64 rounded-xl bg-card border border-border/70 shadow-2xs animate-pulse" />
             <div className="h-64 rounded-xl bg-card border border-border/70 shadow-2xs animate-pulse" />
           </div>
@@ -131,8 +131,8 @@ export default function AdminDashboardPage() {
           <DashboardQuickActions />
 
           {/* 3. Primary KPI Area (Permission Gated Cards) */}
-          <section aria-label="Key Performance Indicators">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          <section aria-label="Key Performance Indicators" className="min-w-0">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4 min-w-0">
               {can("product.view") && (
                 <>
                   <DashboardMetricCard
@@ -205,7 +205,7 @@ export default function AdminDashboardPage() {
           {(can("order.view") || can("rfq.view")) && (
             <section
               aria-label="Recent Store Operations"
-              className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 items-stretch"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 items-stretch min-w-0"
             >
               {can("order.view") && <RecentOrdersTable orders={metrics.recent_orders} />}
               {can("rfq.view") && <RecentRfqsTable rfqs={metrics.recent_rfqs} />}

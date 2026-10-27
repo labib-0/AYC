@@ -23,14 +23,14 @@ export default function DashboardMetricCard({
 }: DashboardMetricCardProps) {
   const content = (
     <div
-      className={`p-4 rounded-xl bg-card border transition-all duration-200 shadow-2xs flex flex-col justify-between ${
+      className={`p-3 sm:p-4 rounded-xl bg-card border transition-all duration-200 shadow-2xs flex flex-col justify-between min-w-0 ${
         variant === "warning"
           ? "border-amber-500/30 hover:border-amber-500/50 bg-amber-500/[0.02]"
           : "border-border/80 hover:border-border"
       } ${href ? "group cursor-pointer hover:-translate-y-0.5" : ""}`}
     >
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-sans truncate">
+      <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
+        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-sans truncate">
           {label}
         </span>
         <div
@@ -46,13 +46,13 @@ export default function DashboardMetricCard({
         </div>
       </div>
 
-      <div className="space-y-1">
-        <div className="text-2xl sm:text-3xl font-bold font-mono text-foreground tracking-tight tabular-nums">
+      <div className="space-y-0.5 sm:space-y-1 min-w-0">
+        <div className="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-foreground tracking-tight tabular-nums truncate">
           {typeof value === "number" ? value.toLocaleString() : value}
         </div>
         {subtext && (
           <p
-            className={`text-[11px] font-sans truncate ${
+            className={`text-[10px] sm:text-[11px] font-sans truncate ${
               variant === "warning"
                 ? "text-amber-600/90 dark:text-amber-400/90 font-medium"
                 : "text-muted-foreground"

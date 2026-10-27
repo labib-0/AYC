@@ -216,26 +216,26 @@ export default function SalesProfitOverview() {
   return (
     <section
       aria-label="Sales and Profit Overview"
-      className="p-5 sm:p-6 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-6"
+      className="p-3.5 sm:p-6 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-5 sm:space-y-6 w-full min-w-0 overflow-hidden"
     >
       {/* ── Section Header with Filter Controls ───────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-border/60">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold uppercase tracking-wider text-foreground font-sans">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-border/60 min-w-0">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold uppercase tracking-wider text-foreground font-sans truncate">
               SALES &amp; PROFIT OVERVIEW
             </h2>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
               COMMERCIAL
             </span>
           </div>
-          <p className="text-xs text-muted-foreground font-sans mt-0.5">
+          <p className="text-xs text-muted-foreground font-sans mt-0.5 break-words">
             Real-time financial performance, product COGS snapshot, and margin overview
           </p>
         </div>
 
         {/* Filter Controls Strip */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
           {/* Period Selector (Daily, Weekly, Monthly, Quarterly, Yearly) */}
           <div className="relative">
             <label htmlFor="period-selector" className="sr-only">
@@ -301,30 +301,30 @@ export default function SalesProfitOverview() {
 
       {/* ── Optional Custom Date Range Inputs ───────────────────────────── */}
       {showCustomDates && (
-        <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/60 text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center flex-wrap gap-2.5 sm:gap-3 p-3 rounded-xl bg-secondary/30 border border-border/60 text-xs min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground font-medium">From:</span>
+            <span className="text-muted-foreground font-medium shrink-0">From:</span>
             <input
               type="date"
               value={customFrom}
               onChange={(e) => setCustomFrom(e.target.value)}
-              className="px-2.5 py-1 rounded-md bg-card border border-border/80 text-foreground text-xs font-mono"
+              className="px-2.5 py-1 rounded-md bg-card border border-border/80 text-foreground text-xs font-mono max-w-[140px] sm:max-w-none"
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground font-medium">To:</span>
+            <span className="text-muted-foreground font-medium shrink-0">To:</span>
             <input
               type="date"
               value={customTo}
               onChange={(e) => setCustomTo(e.target.value)}
-              className="px-2.5 py-1 rounded-md bg-card border border-border/80 text-foreground text-xs font-mono"
+              className="px-2.5 py-1 rounded-md bg-card border border-border/80 text-foreground text-xs font-mono max-w-[140px] sm:max-w-none"
             />
           </div>
           <button
             type="button"
             onClick={() => fetchAnalytics(false)}
             disabled={!customFrom || !customTo || loading}
-            className="px-3 py-1 rounded-md bg-foreground text-background text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-2xs"
+            className="px-3 py-1 rounded-md bg-foreground text-background text-xs font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-2xs self-start sm:self-auto"
           >
             Apply
           </button>
@@ -351,37 +351,37 @@ export default function SalesProfitOverview() {
       )}
 
       {/* ── Summary Metrics Strip (4 Cards) ───────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 min-w-0">
         {/* Total Sales */}
-        <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-sans">
+        <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-sans truncate">
               TOTAL SALES
             </span>
-            <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
               <DollarSign size={14} />
             </div>
           </div>
           {loading ? (
-            <div className="h-8 w-24 bg-secondary/80 rounded-md animate-pulse my-1" />
+            <div className="h-7 sm:h-8 w-20 sm:w-24 bg-secondary/80 rounded-md animate-pulse my-1" />
           ) : (
-            <div className="text-xl sm:text-2xl font-bold font-mono text-foreground tracking-tight tabular-nums">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold font-mono text-foreground tracking-tight tabular-nums truncate">
               {formatCurrency(data?.summary.total_sales ?? 0)}
             </div>
           )}
-          <p className="text-[10px] text-muted-foreground mt-1">
+          <p className="text-[10px] text-muted-foreground mt-1 truncate">
             Gross sales revenue in USD
           </p>
         </div>
 
         {/* Gross Profit */}
-        <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-sans">
+        <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-sans truncate">
               GROSS PROFIT
             </span>
             <div
-              className={`p-1.5 rounded-lg ${
+              className={`p-1.5 rounded-lg shrink-0 ${
                 (data?.summary.gross_profit ?? 0) < 0
                   ? "bg-destructive/10 text-destructive"
                   : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
@@ -391,10 +391,10 @@ export default function SalesProfitOverview() {
             </div>
           </div>
           {loading ? (
-            <div className="h-8 w-24 bg-secondary/80 rounded-md animate-pulse my-1" />
+            <div className="h-7 sm:h-8 w-20 sm:w-24 bg-secondary/80 rounded-md animate-pulse my-1" />
           ) : (
             <div
-              className={`text-xl sm:text-2xl font-bold font-mono tracking-tight tabular-nums ${
+              className={`text-lg sm:text-xl lg:text-2xl font-bold font-mono tracking-tight tabular-nums truncate ${
                 (data?.summary.gross_profit ?? 0) < 0
                   ? "text-destructive"
                   : "text-emerald-600 dark:text-emerald-400"
@@ -403,41 +403,41 @@ export default function SalesProfitOverview() {
               {formatCurrency(data?.summary.gross_profit ?? 0)}
             </div>
           )}
-          <p className="text-[10px] text-muted-foreground mt-1">
+          <p className="text-[10px] text-muted-foreground mt-1 truncate">
             Revenue minus COGS &amp; discounts
           </p>
         </div>
 
         {/* Units Sold */}
-        <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-sans">
+        <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-sans truncate">
               UNITS SOLD
             </span>
-            <div className="p-1.5 rounded-lg bg-secondary text-muted-foreground">
+            <div className="p-1.5 rounded-lg bg-secondary text-muted-foreground shrink-0">
               <Package size={14} />
             </div>
           </div>
           {loading ? (
-            <div className="h-8 w-16 bg-secondary/80 rounded-md animate-pulse my-1" />
+            <div className="h-7 sm:h-8 w-16 bg-secondary/80 rounded-md animate-pulse my-1" />
           ) : (
-            <div className="text-xl sm:text-2xl font-bold font-mono text-foreground tracking-tight tabular-nums">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold font-mono text-foreground tracking-tight tabular-nums truncate">
               {(data?.summary.units_sold ?? 0).toLocaleString()}
             </div>
           )}
-          <p className="text-[10px] text-muted-foreground mt-1">
+          <p className="text-[10px] text-muted-foreground mt-1 truncate">
             Total commercial pieces sold
           </p>
         </div>
 
         {/* Profit Margin */}
-        <div className="p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-sans">
+        <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/80 shadow-2xs flex flex-col justify-between min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-sans truncate">
               PROFIT MARGIN
             </span>
             <div
-              className={`p-1.5 rounded-lg ${
+              className={`p-1.5 rounded-lg shrink-0 ${
                 (data?.summary.profit_margin ?? 0) < 0
                   ? "bg-destructive/10 text-destructive"
                   : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
@@ -447,10 +447,10 @@ export default function SalesProfitOverview() {
             </div>
           </div>
           {loading ? (
-            <div className="h-8 w-16 bg-secondary/80 rounded-md animate-pulse my-1" />
+            <div className="h-7 sm:h-8 w-16 bg-secondary/80 rounded-md animate-pulse my-1" />
           ) : (
             <div
-              className={`text-xl sm:text-2xl font-bold font-mono tracking-tight tabular-nums ${
+              className={`text-lg sm:text-xl lg:text-2xl font-bold font-mono tracking-tight tabular-nums truncate ${
                 (data?.summary.profit_margin ?? 0) < 0
                   ? "text-destructive"
                   : "text-emerald-600 dark:text-emerald-400"
@@ -459,28 +459,28 @@ export default function SalesProfitOverview() {
               {(data?.summary.profit_margin ?? 0).toFixed(1)}%
             </div>
           )}
-          <p className="text-[10px] text-muted-foreground mt-1">
+          <p className="text-[10px] text-muted-foreground mt-1 truncate">
             Gross profit as % of revenue
           </p>
         </div>
       </div>
 
       {/* ── Chart Container Area ────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-xs font-sans">
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-xs bg-[#2563eb]" />
-              <span className="text-muted-foreground font-medium">Sales ($)</span>
+      <div className="space-y-3 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-w-0">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-sans">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="w-2.5 h-2.5 rounded-xs bg-[#2563eb]" />
+              <span className="text-muted-foreground font-medium text-[11px] sm:text-xs">Sales ($)</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-xs bg-[#10b981]" />
-              <span className="text-muted-foreground font-medium">Gross Profit ($)</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="w-2.5 h-2.5 rounded-xs bg-[#10b981]" />
+              <span className="text-muted-foreground font-medium text-[11px] sm:text-xs">Gross Profit ($)</span>
             </div>
           </div>
 
           {data && (
-            <span className="text-[11px] text-muted-foreground font-mono">
+            <span className="text-[10px] sm:text-[11px] text-muted-foreground font-mono truncate">
               {data.date_from} → {data.date_to} ({data.timezone})
             </span>
           )}
@@ -488,29 +488,40 @@ export default function SalesProfitOverview() {
 
         {/* Loading Skeleton */}
         {loading ? (
-          <div className="h-72 w-full rounded-xl bg-secondary/20 border border-border/60 animate-pulse flex items-center justify-center">
+          <div className="h-64 sm:h-80 w-full rounded-xl bg-secondary/20 border border-border/60 animate-pulse flex items-center justify-center min-w-0">
             <div className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
               Loading financial metrics...
             </div>
           </div>
         ) : isAllZero ? (
           /* Empty State Display with Baseline Chart */
-          <div className="relative">
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/70 backdrop-blur-2xs z-10 rounded-xl space-y-1">
-              <DollarSign size={24} className="text-muted-foreground/60" />
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-sans">
+          <div className="relative h-64 sm:h-80 w-full pt-2 sm:pt-4 min-w-0 overflow-hidden">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/85 backdrop-blur-2xs z-10 rounded-xl space-y-1.5 p-4 text-center">
+              <DollarSign size={24} className="text-muted-foreground/60 shrink-0" />
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-sans max-w-[280px] sm:max-w-none">
                 No sales data for this period.
               </p>
-              <p className="text-[11px] text-muted-foreground/80 font-sans">
+              <p className="text-[11px] text-muted-foreground/80 font-sans max-w-[280px] sm:max-w-none">
                 Try selecting a different date range or period granularity above.
               </p>
             </div>
-            <div className="h-72 w-full pt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data?.series || []} margin={{ top: 10, right: 20, left: 0, bottom: 25 }}>
+            <div className="h-full w-full">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <LineChart data={data?.series || []} margin={{ top: 10, right: 12, left: -10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={formatCompactYAxis} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10 }}
+                    minTickGap={20}
+                    interval="preserveStartEnd"
+                    dy={6}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={formatCompactYAxis}
+                    width={42}
+                    dx={-2}
+                  />
                   <Line type="monotone" dataKey="sales" stroke="#2563eb" strokeWidth={1} dot={false} />
                   <Line type="monotone" dataKey="gross_profit" stroke="#10b981" strokeWidth={1} dot={false} />
                 </LineChart>
@@ -519,11 +530,11 @@ export default function SalesProfitOverview() {
           </div>
         ) : (
           /* Active Dual Series Line Chart */
-          <div className="h-72 sm:h-80 w-full pt-4">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 sm:h-80 w-full pt-2 sm:pt-4 min-w-0 overflow-hidden">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <LineChart
                 data={data?.series || []}
-                margin={{ top: 10, right: 20, left: 0, bottom: 25 }}
+                margin={{ top: 10, right: 12, left: -10, bottom: 20 }}
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -533,16 +544,21 @@ export default function SalesProfitOverview() {
                 <XAxis
                   dataKey="label"
                   stroke="currentColor"
-                  className="text-[11px] text-muted-foreground font-mono"
+                  className="text-[10px] sm:text-[11px] text-muted-foreground font-mono"
                   tickLine={false}
-                  dy={8}
+                  dy={6}
+                  minTickGap={20}
+                  interval="preserveStartEnd"
+                  tick={{ fontSize: 10 }}
                 />
                 <YAxis
                   stroke="currentColor"
-                  className="text-[11px] text-muted-foreground font-mono"
+                  className="text-[10px] sm:text-[11px] text-muted-foreground font-mono"
                   tickLine={false}
                   tickFormatter={formatCompactYAxis}
-                  dx={-4}
+                  width={42}
+                  tick={{ fontSize: 10 }}
+                  dx={-2}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend
@@ -550,15 +566,15 @@ export default function SalesProfitOverview() {
                   align="right"
                   height={24}
                   iconType="plainline"
-                  wrapperStyle={{ fontSize: "11px", paddingBottom: "10px" }}
+                  wrapperStyle={{ fontSize: "10px", paddingBottom: "8px" }}
                 />
                 <Line
                   type="monotone"
                   name="Sales ($)"
                   dataKey="sales"
                   stroke="#2563eb"
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: "#2563eb", strokeWidth: 1 }}
+                  strokeWidth={2}
+                  dot={{ r: 2.5, fill: "#2563eb", strokeWidth: 1 }}
                   activeDot={{ r: 5, strokeWidth: 2 }}
                 />
                 <Line
@@ -566,8 +582,8 @@ export default function SalesProfitOverview() {
                   name="Gross Profit ($)"
                   dataKey="gross_profit"
                   stroke="#10b981"
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: "#10b981", strokeWidth: 1 }}
+                  strokeWidth={2}
+                  dot={{ r: 2.5, fill: "#10b981", strokeWidth: 1 }}
                   activeDot={{ r: 5, strokeWidth: 2 }}
                 />
               </LineChart>

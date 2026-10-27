@@ -72,6 +72,7 @@ interface CartContextType {
   isCartOpen: boolean;
   setIsCartOpen: (isOpen: boolean) => void;
   totalItems: number;
+  totalUnits?: number;
   subtotal: number;
   loading: boolean;
   error: string | null;
@@ -96,7 +97,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
   const [subtotal, setSubtotal] = useState<number>(0);
-  const [totalItems, setTotalItems] = useState<number>(0);
+  const totalItems = useMemo(() => items.length, [items]);
+  const totalUnits = useMemo(
+    () => items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0),
+    [items]
+  );
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +113,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const hasHydratedDeselectedRef = useRef(false);
 
-  const applyCartData = useCallback((data: { items: CartItemData[]; total_items: number; subtotal: number }) => {
+  const applyCartData = useCallback((data: { items: CartItemData[]; total_items?: number; subtotal: number }) => {
     const formatted: CartItem[] = data.items.map((i) => ({
       id: i.id,
       product: i.product,
@@ -121,7 +126,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       packageBreakdown: i.package_breakdown,
     }));
     setItems(formatted);
-    setTotalItems(data.total_items);
     setSubtotal(data.subtotal);
   }, []);
 
@@ -345,7 +349,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       persistDeselectedKeys(deselectedKeysRef.current);
       setSelectedKeys([]);
       setItems([]);
-      setTotalItems(0);
       setSubtotal(0);
       setStockViolations([]);
     } catch (err: any) {
@@ -364,6 +367,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         isCartOpen,
         setIsCartOpen,
         totalItems,
+        totalUnits,
         subtotal,
         loading,
         error,

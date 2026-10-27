@@ -34,18 +34,18 @@ export default function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
   };
 
   return (
-    <div className="bg-card border border-border/80 rounded-xl shadow-2xs overflow-hidden flex flex-col h-full">
+    <div className="bg-card border border-border/80 rounded-xl shadow-2xs overflow-hidden flex flex-col h-full min-w-0">
       {/* Table Header / Title */}
       <div className="px-4 py-3 border-b border-border/70 flex items-center justify-between bg-muted/20">
-        <div className="flex items-center gap-2">
-          <ShoppingBag size={14} className="text-muted-foreground" />
-          <h2 className="text-xs font-bold uppercase tracking-wider text-foreground font-sans">
+        <div className="flex items-center gap-2 min-w-0">
+          <ShoppingBag size={14} className="text-muted-foreground shrink-0" />
+          <h2 className="text-xs font-bold uppercase tracking-wider text-foreground font-sans truncate">
             Recent Orders
           </h2>
         </div>
         <Link
           href="/ayc/orders"
-          className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 font-sans"
+          className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 font-sans shrink-0 ml-2"
         >
           <span>View All</span>
           <ArrowUpRight size={12} />
@@ -53,16 +53,16 @@ export default function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
       </div>
 
       {/* Table Content */}
-      <div className="flex-1 overflow-x-auto">
+      <div className="flex-1 overflow-x-auto subtle-scrollbar min-w-0">
         {orders && orders.length > 0 ? (
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full min-w-[520px] text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-border/60 bg-secondary/30 text-muted-foreground font-semibold uppercase text-[10px] tracking-wider">
-                <th className="py-2.5 px-3.5">Order Number</th>
-                <th className="py-2.5 px-3.5">Buyer / Company</th>
-                <th className="py-2.5 px-3.5 text-right">Amount</th>
-                <th className="py-2.5 px-3.5 text-center">Status</th>
-                <th className="py-2.5 px-3.5 text-right">Date</th>
+                <th className="py-2.5 px-3.5 whitespace-nowrap">Order Number</th>
+                <th className="py-2.5 px-3.5 whitespace-nowrap">Buyer / Company</th>
+                <th className="py-2.5 px-3.5 text-right whitespace-nowrap">Amount</th>
+                <th className="py-2.5 px-3.5 text-center whitespace-nowrap">Status</th>
+                <th className="py-2.5 px-3.5 text-right whitespace-nowrap">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">

@@ -16,6 +16,7 @@ interface WishlistContextType {
   isProcessing: (productId: string | number) => boolean;
   totalWishlistItems: number;
   loading: boolean;
+  error: string | null;
   refreshWishlist: () => Promise<void>;
   addSelectedToCart: (
     itemIds: (string | number)[],
@@ -31,8 +32,11 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [items, setItems] = useState<WishlistItemData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [processingIds, setProcessingIds] = useState<string[]>([]);
   const syncingRef = useRef(false);
+  const isRefreshingRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   const isCustomer = Boolean(user && user.role === "customer");
 
@@ -57,14 +61,30 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       setItems([]);
       return;
     }
+    if (isRefreshingRef.current) {
+      return;
+    }
+    isRefreshingRef.current = true;
+    const currentRequestId = ++requestIdRef.current;
+
     try {
       setLoading(true);
-      const data = await wishlistService.getWishlist();
-      setItems(data);
-    } catch {
-      // Ignore
+      setError(null);
+      const data = await wishlistService.getWishlist({ forceFresh: true });
+      if (currentRequestId === requestIdRef.current) {
+        setItems(data);
+      }
+    } catch (err: any) {
+      if (currentRequestId === requestIdRef.current) {
+        const msg = err?.message || "Failed to refresh wishlist. Please try again.";
+        setError(msg);
+        throw err;
+      }
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false);
+        isRefreshingRef.current = false;
+      }
     }
   }, [isCustomer]);
 
@@ -191,6 +211,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         isProcessing,
         totalWishlistItems: isCustomer ? items.length : 0,
         loading,
+        error,
         refreshWishlist,
         addSelectedToCart,
       }}

@@ -32,7 +32,7 @@ export default function OrderListHeader({
           id="btn-refresh-orders"
         >
           <RefreshCw size={14} className={isLoading ? "animate-spin text-primary" : ""} />
-          <span>Refresh</span>
+          <span>{isLoading ? "Refreshing..." : "Refresh"}</span>
         </button>
       </div>
     </div>

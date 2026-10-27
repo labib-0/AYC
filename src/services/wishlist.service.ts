@@ -71,41 +71,85 @@ export class WishlistService {
     const resolvedName = canonical?.name || raw.name || "Product";
     const resolvedSlug = canonical?.slug || raw.slug || "";
 
+    const resolvedStock = canonical?.stock !== undefined
+      ? Number(canonical.stock)
+      : (raw.stock !== undefined ? Number(raw.stock) : 0);
+    const resolvedAvailableStock = canonical?.availableStock !== undefined
+      ? Number(canonical.availableStock)
+      : (canonical?.stock !== undefined
+        ? Number(canonical.stock)
+        : (raw.availableStock !== undefined
+          ? Number(raw.availableStock)
+          : (raw.stock !== undefined ? Number(raw.stock) : 0)));
+    const resolvedIsSoldOut = Boolean(
+      canonical?.isSoldOut ?? (canonical as any)?.is_sold_out ?? raw.isSoldOut ?? raw.is_sold_out
+    );
+    const resolvedIsPreorder = Boolean(
+      canonical?.isPreorder ?? (canonical as any)?.is_preorder ?? raw.isPreorder ?? raw.is_preorder
+    );
+    const resolvedPrice = canonical?.price !== undefined && canonical.price !== null
+      ? Number(canonical.price)
+      : (raw.price !== undefined && raw.price !== null ? Number(raw.price) : undefined);
+    const resolvedWholesalePrice = canonical?.wholesalePrice !== undefined && canonical.wholesalePrice !== null
+      ? Number(canonical.wholesalePrice)
+      : (canonical?.wholesale_price !== undefined && (canonical as any).wholesale_price !== null
+        ? Number((canonical as any).wholesale_price)
+        : (raw.wholesalePrice !== undefined && raw.wholesalePrice !== null
+          ? Number(raw.wholesalePrice)
+          : (raw.wholesale_price !== undefined ? Number(raw.wholesale_price) : undefined)));
+    const resolvedInStock = (canonical as any)?.in_stock !== undefined
+      ? Boolean((canonical as any).in_stock)
+      : (resolvedIsPreorder || resolvedAvailableStock > 0 || (raw.in_stock !== undefined ? Boolean(raw.in_stock) : false));
+    const resolvedMoq = canonical?.moq !== undefined ? Number(canonical.moq) : (raw.moq !== undefined ? Number(raw.moq) : 10);
+    const resolvedImages = Array.isArray(canonical?.images) && canonical.images.length > 0
+      ? canonical.images
+      : (Array.isArray(raw.images) ? raw.images : []);
+
     return {
       ...raw,
       id: pid,
       name: resolvedName,
       slug: resolvedSlug,
-      price: raw.price !== undefined && raw.price !== null ? Number(raw.price) : undefined,
-      wholesalePrice: raw.wholesalePrice !== undefined && raw.wholesalePrice !== null ? Number(raw.wholesalePrice) : undefined,
-      wholesale_price: raw.wholesale_price !== undefined && raw.wholesale_price !== null ? Number(raw.wholesale_price) : undefined,
-      images: Array.isArray(raw.images) ? raw.images : [],
-      isSoldOut: Boolean(raw.isSoldOut ?? raw.is_sold_out),
-      is_sold_out: Boolean(raw.isSoldOut ?? raw.is_sold_out),
-      isPreorder: Boolean(raw.isPreorder ?? raw.is_preorder),
-      is_preorder: Boolean(raw.isPreorder ?? raw.is_preorder),
-      stock: raw.stock !== undefined ? Number(raw.stock) : 0,
-      availableStock: raw.availableStock !== undefined ? Number(raw.availableStock) : (raw.stock !== undefined ? Number(raw.stock) : 0),
-      moq: raw.moq !== undefined ? Number(raw.moq) : 10,
-      in_stock: raw.in_stock !== undefined ? Boolean(raw.in_stock) : ((raw.availableStock ?? raw.stock ?? 0) > 0 || Boolean(raw.isPreorder ?? raw.is_preorder)),
+      price: resolvedPrice,
+      wholesalePrice: resolvedWholesalePrice,
+      wholesale_price: resolvedWholesalePrice,
+      images: resolvedImages,
+      isSoldOut: resolvedIsSoldOut,
+      is_sold_out: resolvedIsSoldOut,
+      isPreorder: resolvedIsPreorder,
+      is_preorder: resolvedIsPreorder,
+      stock: resolvedStock,
+      availableStock: resolvedAvailableStock,
+      moq: resolvedMoq,
+      in_stock: !resolvedIsSoldOut && resolvedInStock,
+      has_valid_price: Boolean(resolvedPrice || resolvedWholesalePrice || (canonical as any)?.has_valid_price || (raw as any)?.has_valid_price),
+      hasValidPrice: Boolean(resolvedPrice || resolvedWholesalePrice || (canonical as any)?.hasValidPrice || (raw as any)?.hasValidPrice),
     };
   }
 
   private normalizeItems(items: any[]): WishlistItemData[] {
     if (!Array.isArray(items)) return [];
-    return items.map((item) => ({
-      id: String(item.id || `w_${item.product_id}`),
-      wishlist_id: String(item.wishlist_id || "default"),
-      product_id: String(item.product_id || item.product?.id),
-      product: this.normalizeProduct(item.product),
-      created_at: item.created_at,
-    }));
+    const seenPids = new Set<string>();
+    const result: WishlistItemData[] = [];
+    for (const item of items) {
+      const pid = String(item.product_id || item.product?.id || "");
+      if (!pid || seenPids.has(pid)) continue;
+      seenPids.add(pid);
+      result.push({
+        id: String(item.id || `w_${pid}`),
+        wishlist_id: String(item.wishlist_id || "default"),
+        product_id: pid,
+        product: this.normalizeProduct(item.product || item),
+        created_at: item.created_at,
+      });
+    }
+    return result;
   }
 
   /**
    * Get user's wishlist from backend (if authenticated and not frontend-only) or local cache
    */
-  async getWishlist(): Promise<WishlistItemData[]> {
+  async getWishlist(options?: { forceFresh?: boolean }): Promise<WishlistItemData[]> {
     if (!isFrontendOnly() && this.hasCustomerAuth()) {
       try {
         const res = await apiClient.get<ApiResponse<WishlistData>>("/wishlist");
@@ -115,14 +159,21 @@ export class WishlistService {
           return items;
         }
       } catch (err: any) {
-        // Fall back to local cache if network error
+        if (options?.forceFresh) {
+          throw err;
+        }
+        // Fall back to local cache if network error on initial load
         if (err?.status !== 401 && err?.status !== 403) {
           return this.getLocal();
         }
       }
     }
 
-    return this.getLocal();
+    const localItems = this.getLocal();
+    if (options?.forceFresh && localItems.length > 0) {
+      this.saveLocal(localItems);
+    }
+    return localItems;
   }
 
   /**

@@ -939,42 +939,44 @@ export default function AdminPosPage() {
 
   return (
     <AdminPageGate permission={ADMIN_PERMISSIONS.POS_VIEW} moduleName="Point of Sale (POS)">
-      <div className="p-3 sm:p-5 max-w-[1720px] mx-auto min-h-screen">
+      <div className="p-3 sm:p-5 max-w-[1720px] mx-auto min-h-screen w-full min-w-0">
         {/* ── TOP HEADER: Terminal Identification & Operator Status ────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-border/70 mb-5">
-          <div className="flex items-center gap-3">
-            <span className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-sm">
-              <Store size={22} />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-border/70 mb-5 min-w-0">
+          <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
+            <span className="p-2 sm:p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-xs shrink-0 mt-0.5 sm:mt-0">
+              <Store size={20} className="sm:w-[22px] sm:h-[22px]" />
             </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h1 className="text-base sm:text-xl font-bold tracking-tight text-foreground truncate">
                   POS Cashier Terminal
                 </h1>
-                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold shrink-0">
                   Active
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                In-Store Checkout • Cash Tender & Change • Customer Record Association
+              <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug break-words">
+                In-Store Checkout • Cash Tender &amp; Change • Customer Record Association
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-1.5 text-xs bg-secondary/50 border border-border/80 px-3 py-1.5 rounded-xl">
-              <ShieldCheck size={14} className="text-primary" />
-              <span className="text-muted-foreground">Cashier:</span>
-              <span className="font-semibold text-foreground">{adminUser?.name || "Admin"}</span>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="flex items-center gap-1.5 text-xs bg-secondary/50 border border-border/80 px-2.5 sm:px-3 py-1.5 rounded-xl min-w-0 max-w-full">
+              <ShieldCheck size={14} className="text-primary shrink-0" />
+              <span className="text-muted-foreground shrink-0">Cashier:</span>
+              <span className="font-semibold text-foreground truncate max-w-[140px] sm:max-w-none" title={adminUser?.name || "Admin"}>
+                {adminUser?.name || "Admin"}
+              </span>
             </div>
 
             {warehouses.length > 0 && (
-              <div className="flex items-center gap-1.5 text-xs bg-secondary/50 border border-border/80 px-2.5 py-1.5 rounded-xl">
-                <WarehouseIcon size={14} className="text-muted-foreground" />
+              <div className="flex items-center gap-1.5 text-xs bg-secondary/50 border border-border/80 px-2 sm:px-2.5 py-1.5 rounded-xl min-w-0 max-w-full">
+                <WarehouseIcon size={14} className="text-muted-foreground shrink-0" />
                 <select
                   value={selectedWarehouseId || ""}
                   onChange={(e) => setSelectedWarehouseId(Number(e.target.value))}
-                  className="bg-transparent text-foreground font-medium text-xs focus:outline-none cursor-pointer"
+                  className="bg-transparent text-foreground font-medium text-xs focus:outline-none cursor-pointer truncate max-w-[140px] sm:max-w-[200px]"
                   aria-label="Select Warehouse"
                 >
                   {warehouses.map((wh) => (
@@ -1006,13 +1008,13 @@ export default function AdminPosPage() {
         )}
 
         {/* ── COHESIVE 2-COLUMN WORKSPACE: 60% Catalog | 40% Checkout Terminal ─── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start min-w-0">
           {/* ══════════════════════════════════════════════════════════════════════
               LEFT COLUMN (~60%): Product Search, Category Pills & Catalog Grid
              ══════════════════════════════════════════════════════════════════════ */}
-          <div className="lg:col-span-7 xl:col-span-7 space-y-4">
+          <div className="lg:col-span-7 xl:col-span-7 space-y-4 min-w-0 max-w-full">
             {/* Search Bar & Product Catalog Filter */}
-            <div className="p-3.5 rounded-2xl bg-card border border-border/80 shadow-sm space-y-3">
+            <div className="p-3.5 rounded-2xl bg-card border border-border/80 shadow-sm space-y-3 min-w-0">
               <div className="relative">
                 <Search
                   size={16}
@@ -1050,7 +1052,7 @@ export default function AdminPosPage() {
 
               {/* Category Filter Pills */}
               {categories.length > 0 && (
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin text-xs">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 subtle-scrollbar text-xs max-w-full">
                   <button
                     type="button"
                     onClick={() => setSelectedCategoryId(null)}
@@ -1083,25 +1085,25 @@ export default function AdminPosPage() {
             {/* Inline Product Configuration Panel (when product clicked) */}
             {activeProduct && (
               <div className="p-4 rounded-2xl bg-primary/5 border border-primary/30 shadow-sm space-y-3.5 animate-in fade-in duration-150">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-start justify-between gap-3 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <img
                       src={activeProduct.image_url}
                       alt={activeProduct.name}
                       className="w-12 h-12 rounded-lg object-cover border border-primary/20 shrink-0"
                     />
-                    <div>
-                      <h3 className="font-bold text-xs sm:text-sm text-foreground">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-xs sm:text-sm text-foreground truncate">
                         {activeProduct.name}
                       </h3>
-                      <p className="text-[11px] text-muted-foreground font-mono">
+                      <p className="text-[11px] text-muted-foreground font-mono break-words sm:truncate">
                         SKU: {activeProduct.sku} • Base: ${Number(activeProduct.unit_price).toFixed(2)} • Stock: {activeProduct.total_available_stock} pcs
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setActiveProduct(null)}
-                    className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+                    className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0"
                   >
                     <X size={16} />
                   </button>
@@ -1197,7 +1199,7 @@ export default function AdminPosPage() {
                   <button
                     type="button"
                     onClick={handleAddToCart}
-                    className="px-4 py-2 bg-primary text-primary-foreground font-bold rounded-xl text-xs hover:bg-primary/90 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                    className="w-full sm:w-auto px-4 py-2 bg-primary text-primary-foreground font-bold rounded-xl text-xs hover:bg-primary/90 transition-all flex items-center justify-center gap-1.5 shadow-sm"
                     id="btn-add-to-pos-cart"
                   >
                     <Plus size={14} /> Add to Cart
@@ -1332,8 +1334,8 @@ export default function AdminPosPage() {
           {/* ══════════════════════════════════════════════════════════════════════
               RIGHT COLUMN (~40%): Sticky Unified Checkout Register
              ══════════════════════════════════════════════════════════════════════ */}
-          <div className="lg:col-span-5 xl:col-span-5 space-y-4">
-            <div className="p-4 sm:p-5 rounded-2xl bg-card border border-border/80 shadow-md space-y-4 lg:sticky lg:top-4">
+          <div className="lg:col-span-5 xl:col-span-5 space-y-4 min-w-0 max-w-full">
+            <div className="p-3.5 sm:p-5 rounded-2xl bg-card border border-border/80 shadow-md space-y-4 lg:sticky lg:top-4 min-w-0">
               {/* ── 1. Register Header: Customer Assignment ───────────────────── */}
               <div className="space-y-3 pb-3 border-b border-border/60">
                 <div className="flex items-center justify-between">
@@ -1547,7 +1549,7 @@ export default function AdminPosPage() {
                         </div>
 
                         {/* Stepper & Line Total */}
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                           <div className="flex items-center border border-border rounded-md bg-background">
                             <button
                               type="button"
@@ -1556,7 +1558,7 @@ export default function AdminPosPage() {
                             >
                               <Minus size={11} />
                             </button>
-                            <span className="w-7 text-center font-mono font-bold text-[11px] text-foreground">
+                            <span className="w-6 sm:w-7 text-center font-mono font-bold text-[11px] text-foreground">
                               {item.quantity}
                             </span>
                             <button
@@ -1568,7 +1570,7 @@ export default function AdminPosPage() {
                             </button>
                           </div>
 
-                          <span className="font-mono font-bold text-foreground w-14 text-right">
+                          <span className="font-mono font-bold text-foreground w-12 sm:w-14 text-right">
                             ${Number(item.line_total).toFixed(2)}
                           </span>
 
@@ -1867,7 +1869,7 @@ export default function AdminPosPage() {
                 </div>
 
                 {/* Clean Two-Option Payment Selector: Cash vs Bank */}
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2 text-xs">
                   <button
                     type="button"
                     id="pos-payment-method-cash"
@@ -1878,8 +1880,8 @@ export default function AdminPosPage() {
                         : "bg-background border-border hover:bg-secondary/40 text-foreground font-medium"
                     }`}
                   >
-                    <Banknote size={16} />
-                    <span className="text-xs">Cash Payment</span>
+                    <Banknote size={16} className="shrink-0" />
+                    <span className="text-xs truncate">Cash Payment</span>
                   </button>
 
                   <button
@@ -1892,8 +1894,8 @@ export default function AdminPosPage() {
                         : "bg-background border-border hover:bg-secondary/40 text-foreground font-medium"
                     }`}
                   >
-                    <Landmark size={16} />
-                    <span className="text-xs">Bank Transfer (CI)</span>
+                    <Landmark size={16} className="shrink-0" />
+                    <span className="text-xs truncate">Bank Transfer (CI)</span>
                   </button>
                 </div>
 

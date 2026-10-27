@@ -25,6 +25,7 @@ export interface CategoryQueryParams {
   landing?: boolean;
   search?: string;
   is_active?: boolean;
+  forceFresh?: boolean;
 }
 
 export class CategoryService {
@@ -40,7 +41,12 @@ export class CategoryService {
    * Fetch categories with in-flight promise deduplication
    */
   async getCategories(options?: CategoryQueryParams): Promise<CategoryModel[]> {
-    const isDefaultQuery = !options?.search && !options?.isAdmin && (options?.all || options === undefined);
+    if (options?.forceFresh) {
+      this.invalidateCache();
+      mockStore.invalidateCache("ayaan_mock_categories_v3");
+    }
+
+    const isDefaultQuery = !options?.forceFresh && !options?.search && !options?.isAdmin && (options?.all || options === undefined);
     if (isDefaultQuery && this.cachedCategories && Date.now() - this.cachedCategories.timestamp < 30000) {
       return this.cachedCategories.data;
     }
@@ -67,7 +73,10 @@ export class CategoryService {
             }
             return mapped;
           }
-        } catch {
+        } catch (err: unknown) {
+          if (options?.forceFresh) {
+            throw err;
+          }
           // Fall through to mock store
         }
       }

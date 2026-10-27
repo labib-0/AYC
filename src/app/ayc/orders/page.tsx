@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { 
   adminOrderService, 
   OrderSummaryMetrics 
@@ -29,6 +29,8 @@ export default function AdminOrdersPage() {
   // UX & Loading State
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const isRefreshingRef = useRef(false);
+  const requestIdRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -100,7 +102,9 @@ export default function AdminOrdersPage() {
 
   const loadData = useCallback(async (isSilentRefresh = false) => {
     if (!isSilentRefresh) setLoading(true);
-    setError(null);
+    else setIsRefreshing(true);
+    if (!isSilentRefresh) setError(null);
+    const reqId = ++requestIdRef.current;
 
     try {
       const [orderRes, summaryRes] = await Promise.all([
@@ -114,31 +118,51 @@ export default function AdminOrdersPage() {
           date_preset: datePreset !== "all" ? datePreset : undefined,
           date_from: datePreset === "custom" ? dateFrom : undefined,
           date_to: datePreset === "custom" ? dateTo : undefined,
+          forceFresh: isSilentRefresh,
         }),
-        adminOrderService.getOrderSummary(),
+        adminOrderService.getOrderSummary({ forceFresh: isSilentRefresh }),
       ]);
 
-      setOrders(orderRes.data);
-      setTotal(orderRes.total);
-      setTotalPages(orderRes.last_page);
-      setMetrics(summaryRes);
+      if (reqId === requestIdRef.current) {
+        setOrders(orderRes.data);
+        setTotal(orderRes.total);
+        setTotalPages(orderRes.last_page);
+        setMetrics(summaryRes);
+        setError(null);
+      }
+      return { orderRes, summaryRes };
     } catch (err: unknown) {
-      console.error("Failed to load orders:", err);
-      setError((err as Error)?.message || "Unable to load orders. Please try again.");
+      if (reqId === requestIdRef.current) {
+        console.error("Failed to load orders:", err);
+        const msg = (err as Error)?.message || "Unable to load orders. Please try again.";
+        if (!isSilentRefresh) {
+          setError(msg);
+        }
+        throw err;
+      }
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (reqId === requestIdRef.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+        isRefreshingRef.current = false;
+      }
     }
   }, [page, perPage, search, customerStatus, status, paymentStatus, datePreset, dateFrom, dateTo]);
 
   useEffect(() => {
-    loadData();
+    loadData().catch(() => {});
   }, [loadData]);
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await loadData(true);
-    addToast("success", "Orders refreshed successfully.");
+    if (isRefreshingRef.current || loading) return;
+    isRefreshingRef.current = true;
+    try {
+      await loadData(true);
+      addToast("success", "Orders and summary metrics refreshed successfully.");
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message || "Failed to refresh orders. Please check your connection.";
+      addToast("error", msg);
+    }
   };
 
   const handleSearchChange = (val: string) => {

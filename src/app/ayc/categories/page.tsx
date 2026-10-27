@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Plus, AlertCircle, RefreshCw, Flame } from "lucide-react";
 import { categoryService, CategoryModel } from "@/services/category.service";
 import { homepageService } from "@/services/homepage.service";
@@ -25,6 +25,8 @@ export default function AdminCategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const isRefreshingRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   // Hot Sale Landing Section Visibility
   const [hotSaleVisible, setHotSaleVisible] = useState<boolean>(true);
@@ -65,18 +67,58 @@ export default function AdminCategoriesPage() {
     if (!isSilent) setLoading(true);
     else setIsRefreshing(true);
     setError(null);
+    const reqId = ++requestIdRef.current;
 
     try {
-      const data = await categoryService.getCategories({ isAdmin: true, all: true });
-      setCategories(data);
+      const data = await categoryService.getCategories({ isAdmin: true, all: true, forceFresh: isSilent });
+      if (reqId === requestIdRef.current) {
+        setCategories(data);
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unable to load product categories. Please try again.";
-      setError(msg);
+      if (reqId === requestIdRef.current) {
+        const msg = err instanceof Error ? err.message : "Unable to load product categories. Please try again.";
+        setError(msg);
+      }
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (reqId === requestIdRef.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshingRef.current || loading) return;
+    isRefreshingRef.current = true;
+    setIsRefreshing(true);
+    const reqId = ++requestIdRef.current;
+
+    try {
+      categoryService.invalidateCache();
+      const [freshCats, homepageData] = await Promise.all([
+        categoryService.getCategories({ isAdmin: true, all: true, forceFresh: true }),
+        homepageService.getAdminHomepageData(),
+      ]);
+
+      if (reqId === requestIdRef.current) {
+        setCategories(freshCats);
+        if (homepageData && homepageData.hot_sale_visible !== undefined) {
+          setHotSaleVisible(Boolean(homepageData.hot_sale_visible));
+        }
+        addToast("success", "Category list refreshed successfully.");
+      }
+    } catch (err: unknown) {
+      if (reqId === requestIdRef.current) {
+        const msg = err instanceof Error ? err.message : "Failed to refresh category list. Please try again.";
+        addToast("error", msg);
+      }
+    } finally {
+      if (reqId === requestIdRef.current) {
+        setIsRefreshing(false);
+        isRefreshingRef.current = false;
+      }
+    }
+  }, [loading, addToast]);
 
   useEffect(() => {
     loadCategories();
@@ -170,7 +212,7 @@ export default function AdminCategoriesPage() {
     onItemsChange: setCategories,
     getItemId: (c) => c.id,
     getItemTitle: (c) => c.name,
-    isReorderDisabled: !isReorderEligible,
+    isReorderDisabled: !isReorderEligible, // isReorderDisabled: isFiltered
     disabledReason:
       "Reordering is disabled while search or status filters are active. Clear filters to return to manual sequence.",
     currentPage,
@@ -426,7 +468,7 @@ export default function AdminCategoriesPage() {
               activeCount={activeCount}
               inactiveCount={inactiveCount}
               hotSaleCount={hotSaleCount}
-              onRefresh={() => loadCategories(true)}
+              onRefresh={handleRefresh}
               isRefreshing={isRefreshing}
             />
 

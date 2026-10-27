@@ -96,6 +96,14 @@ class MockStore {
     }
   }
 
+  invalidateCache(key?: string): void {
+    if (key) {
+      delete this.inMemoryCache[key];
+    } else {
+      this.inMemoryCache = {};
+    }
+  }
+
   // ==========================================
   // PRODUCTS
   // ==========================================

@@ -111,11 +111,12 @@ export default function CategoryToolbar({
         {/* Refresh Button */}
         <button
           type="button"
+          id="btn-refresh-categories"
           onClick={onRefresh}
           disabled={isRefreshing}
           className="p-2 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-50 shrink-0"
-          title="Refresh categories list"
-          aria-label="Refresh categories"
+          title="Refresh category list"
+          aria-label="Refresh category list"
         >
           <RefreshCw
             size={14}

@@ -19,6 +19,7 @@ export interface AdminOrderQueryParams {
   date_to?: string;
   sort?: string;
   direction?: "asc" | "desc";
+  forceFresh?: boolean;
 }
 
 export interface OrderSummaryMetrics {
@@ -62,9 +63,9 @@ export class AdminOrderService {
     return ORDER_STATUS_TRANSITIONS[normalized] || ["processing", "shipped", "delivered", "cancelled"];
   }
 
-  async getOrderSummary(): Promise<OrderSummaryMetrics> {
+  async getOrderSummary(options?: { forceFresh?: boolean }): Promise<OrderSummaryMetrics> {
     try {
-      const res = await this.getOrders({ per_page: 500 });
+      const res = await this.getOrders({ per_page: "all", forceFresh: options?.forceFresh });
       const list = res.data || [];
       return {
         totalOrders: res.total !== undefined ? res.total : list.length,
@@ -77,7 +78,10 @@ export class AdminOrderService {
         paid: list.filter((o) => o.payment_status === "paid").length,
         pendingPayment: list.filter((o) => o.payment_status === "pending").length,
       };
-    } catch {
+    } catch (err: unknown) {
+      if (options?.forceFresh) {
+        throw err;
+      }
       return {
         totalOrders: 0,
         pending: 0,
@@ -99,27 +103,102 @@ export class AdminOrderService {
     total: number;
     per_page: number | string;
   }> {
-    try {
-      const res = await apiClient.get<any>("/admin/orders", { params: params as any });
-      const data = res?.data || res;
-      const items = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
-      return {
-        data: items,
-        current_page: data?.current_page || 1,
-        last_page: data?.last_page || 1,
-        total: data?.total !== undefined ? Number(data.total) : items.length,
-        per_page: data?.per_page || (params?.per_page ?? 20),
-      };
-    } catch (err) {
-      console.warn("Failed to fetch orders from API, returning empty database state:", err);
-      return {
-        data: [],
-        current_page: 1,
-        last_page: 1,
-        total: 0,
-        per_page: params?.per_page ?? 20,
-      };
+    if (params?.forceFresh) {
+      mockStore.invalidateCache("ayaan_mock_orders_v2");
     }
+
+    if (!isFrontendOnly()) {
+      try {
+        const res = await apiClient.get<any>("/admin/orders", { params: params as any });
+        const data = res?.data || res;
+        const items = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+        return {
+          data: items,
+          current_page: data?.current_page || 1,
+          last_page: data?.last_page || 1,
+          total: data?.total !== undefined ? Number(data.total) : items.length,
+          per_page: data?.per_page || (params?.per_page ?? 20),
+        };
+      } catch (err: any) {
+        if (params?.forceFresh) {
+          throw err;
+        }
+        console.warn("Failed to fetch orders from API, checking fallback:", err);
+      }
+    }
+
+    // Mock store fallback / frontend-only mode with full filter support
+    let allOrders = mockStore.getOrders();
+    // 1. Search filter
+    if (params?.search) {
+      const q = params.search.toLowerCase().trim();
+      allOrders = allOrders.filter((o) => {
+        const onum = (o.order_number || "").toLowerCase();
+        const email = (o.email || "").toLowerCase();
+        const sname = (o.shipping_name || "").toLowerCase();
+        const uname = (o.user?.name || "").toLowerCase();
+        const ucomp = (o.user?.company_name || "").toLowerCase();
+        return onum.includes(q) || email.includes(q) || sname.includes(q) || uname.includes(q) || ucomp.includes(q);
+      });
+    }
+    // 2. Status filter
+    if (params?.status && params.status !== "all") {
+      allOrders = allOrders.filter((o) => o.status === params.status);
+    }
+    // 3. Payment status filter
+    if (params?.payment_status && params.payment_status !== "all") {
+      allOrders = allOrders.filter((o) => o.payment_status === params.payment_status);
+    }
+    // 4. Customer status filter
+    if (params?.customer_status && params.customer_status !== "all") {
+      const cStatus = params.customer_status.toUpperCase();
+      allOrders = allOrders.filter((o) => {
+        if (cStatus === "ON_SHIPMENT") {
+          return ["shipped", "delivered", "fulfilled", "partially_shipped"].includes(o.fulfillment_status || "") ||
+            ["shipped", "delivered", "completed", "partially_shipped", "on_shipment"].includes(o.status);
+        }
+        if (cStatus === "ORDER_CONFIRMED") {
+          return (o.payment_status === "paid" || ["confirmed", "in_production", "ready_to_ship", "order_confirmed"].includes(o.status)) &&
+            !["shipped", "delivered", "fulfilled", "partially_shipped"].includes(o.fulfillment_status || "") &&
+            !["shipped", "delivered", "completed", "partially_shipped", "on_shipment"].includes(o.status);
+        }
+        if (cStatus === "WAITING_FOR_APPROVAL") {
+          return (o.payment_status === "payment_submitted" || Boolean(o.payment_proof_url)) && o.payment_status !== "paid";
+        }
+        if (cStatus === "ORDER_PLACED") {
+          return ["order_placed", "placed"].includes(o.status);
+        }
+        if (cStatus === "PAYMENT_PENDING") {
+          return !["order_placed", "placed"].includes(o.status) && o.payment_status !== "paid" && o.payment_status !== "payment_submitted" && !o.payment_proof_url;
+        }
+        return true;
+      });
+    }
+    // 5. Date filters
+    if (params?.date_from || params?.start_date) {
+      const from = new Date(params.date_from || params.start_date!).getTime();
+      allOrders = allOrders.filter((o) => new Date(o.created_at).getTime() >= from);
+    }
+    if (params?.date_to || params?.end_date) {
+      const to = new Date(params.date_to || params.end_date!).getTime() + 86400000;
+      allOrders = allOrders.filter((o) => new Date(o.created_at).getTime() <= to);
+    }
+
+    const total = allOrders.length;
+    const isAll = params?.per_page === "all";
+    const perPageNum = isAll ? Math.max(1, total) : Math.max(1, Number(params?.per_page || 20));
+    const pageNum = Math.max(1, Number(params?.page || 1));
+    const lastPage = isAll ? 1 : Math.max(1, Math.ceil(total / perPageNum));
+    const start = isAll ? 0 : (pageNum - 1) * perPageNum;
+    const pagedData = isAll ? allOrders : allOrders.slice(start, start + perPageNum);
+
+    return {
+      data: pagedData,
+      current_page: pageNum,
+      last_page: lastPage,
+      total,
+      per_page: params?.per_page ?? 20,
+    };
   }
 
   async getOrderById(id: number | string): Promise<OrderRecord> {

@@ -109,6 +109,7 @@ export interface CartData {
   session_id?: string;
   items: CartItemData[];
   total_items: number;
+  total_units?: number;
   subtotal: number;
   currency: string;
 }
@@ -194,9 +195,10 @@ export class CartService {
               }
             }
 
-            const total_items = items.reduce((sum, item) => sum + item.quantity, 0);
+            const total_items = items.length;
+            const total_units = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
             const subtotal = items.reduce((sum, item) => sum + (((item.unit_price ?? item.product?.price) || 0) * item.quantity), 0);
-            return { items, total_items, subtotal, currency: "USD" };
+            return { items, total_items, total_units, subtotal, currency: "USD" };
           }
         }
       } catch {
@@ -204,7 +206,7 @@ export class CartService {
       }
     }
 
-    return { items: [], total_items: 0, subtotal: 0, currency: "USD" };
+    return { items: [], total_items: 0, total_units: 0, subtotal: 0, currency: "USD" };
   }
 
   /**
@@ -330,9 +332,10 @@ export class CartService {
     }
 
     this.saveLocal(items);
-    const total_items = items.reduce((sum, item) => sum + item.quantity, 0);
+    const total_items = items.length;
+    const total_units = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
     const subtotal = items.reduce((sum, item) => sum + (((item.unit_price ?? item.product?.price) || 0) * item.quantity), 0);
-    return { items, total_items, subtotal, currency: "USD" };
+    return { items, total_items, total_units, subtotal, currency: "USD" };
   }
 
   /**
@@ -423,9 +426,10 @@ export class CartService {
     }
 
     this.saveLocal(items);
-    const total_items = items.reduce((sum, item) => sum + item.quantity, 0);
+    const total_items = items.length;
+    const total_units = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
     const subtotal = items.reduce((sum, item) => sum + (((item.unit_price ?? item.product?.price) || 0) * item.quantity), 0);
-    return { items, total_items, subtotal, currency: "USD" };
+    return { items, total_items, total_units, subtotal, currency: "USD" };
   }
 
   /**
@@ -518,7 +522,7 @@ export class CartService {
       }
     }
 
-    return { items: [], total_items: 0, subtotal: 0, currency: "USD" };
+    return { items: [], total_items: 0, total_units: 0, subtotal: 0, currency: "USD" };
   }
 
   private normalizeCartItem(raw: any): CartItemData {

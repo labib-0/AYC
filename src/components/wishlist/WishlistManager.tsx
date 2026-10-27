@@ -38,7 +38,37 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
   const [filterTab, setFilterTab] = useState<"all" | "in_stock" | "unavailable">("all");
   const [isBulkAdding, setIsBulkAdding] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
+
+  // Prune selectedIds when items change (e.g. after refresh or removal) so valid selections are preserved without dangling IDs
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const currentItemIds = new Set(items.map((i) => String(i.id)));
+      const filtered = prev.filter((id) => currentItemIds.has(id));
+      if (filtered.length !== prev.length) {
+        return filtered;
+      }
+      return prev;
+    });
+  }, [items]);
+
+  const handleRefresh = async () => {
+    if (loading) return;
+    try {
+      setRefreshError(null);
+      await refreshWishlist();
+      setFeedback({
+        type: "success",
+        title: "Wishlist Refreshed",
+        message: "Product availability, stock information, and pricing have been updated.",
+        addedCount: 0,
+        unavailableItems: [],
+      });
+    } catch (err: any) {
+      setRefreshError(err?.message || "Unable to refresh wishlist. Please check your connection and try again.");
+    }
+  };
 
   // Helper to determine if a product is purchasable/eligible for cart
   const isItemEligible = (item: { product?: Product }) => {
@@ -284,13 +314,14 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             type="button"
-            onClick={() => refreshWishlist()}
+            id="wishlist-refresh-btn"
+            onClick={handleRefresh}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             title="Refresh availability"
           >
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-            <span>Refresh</span>
+            <span>{loading ? "Refreshing..." : "Refresh"}</span>
           </button>
 
           <Link
@@ -303,7 +334,42 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
         </div>
       </div>
 
-      {/* 2. Feedback Notification Banner */}
+      {/* 2. Refresh Error Notification Banner with Retry */}
+      {refreshError && (
+        <div
+          data-testid="wishlist-refresh-error"
+          className="p-4 rounded-2xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/30 text-rose-900 dark:text-rose-200 text-xs flex items-center justify-between gap-3 animate-in fade-in"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <AlertCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
+            <div className="min-w-0">
+              <span className="font-bold">Refresh failed: </span>
+              <span className="text-rose-700 dark:text-rose-300">{refreshError}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={loading}
+              className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+              <span>Retry</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRefreshError(null)}
+              className="p-1 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-500 transition-colors cursor-pointer"
+              aria-label="Dismiss error"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Feedback Notification Banner */}
       {feedback && (
         <div
           data-testid="wishlist-feedback"

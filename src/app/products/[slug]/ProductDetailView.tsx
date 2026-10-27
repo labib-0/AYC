@@ -1059,6 +1059,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   <CommerceSectionHeader
                     title="Package Assortment"
                     icon={<Package size={15} />}
+                    titleClassName="text-brand-orange"
+                    iconClassName="text-brand-orange"
                     badge={
                       <span className="text-[11px] font-sans font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-background border border-border/70 text-foreground tabular-nums">
                         {`${matrixData.grandTotal.toLocaleString()} PCS TOTAL`}
@@ -1078,6 +1080,8 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   <CommerceSectionHeader
                     title="Package Assortment"
                     icon={<Package size={15} />}
+                    titleClassName="text-brand-orange"
+                    iconClassName="text-brand-orange"
                   />
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {resolvedAssortmentMessage}

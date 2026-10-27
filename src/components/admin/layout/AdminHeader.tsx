@@ -140,14 +140,14 @@ export default function AdminHeader({
   };
 
   return (
-    <header className="sticky top-0 z-40 h-14 bg-card/95 backdrop-blur-md border-b border-border/80 px-4 sm:px-6 flex items-center justify-between shadow-xs shrink-0">
+    <header className="sticky top-0 z-40 h-14 bg-card/95 backdrop-blur-md border-b border-border/80 px-3 sm:px-6 flex items-center justify-between shadow-xs shrink-0 w-full min-w-0">
       {/* Left: Mobile Toggle & Admin Brand */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
           type="button"
           id="admin-mobile-menu-toggle"
           onClick={onToggleMobileMenu}
-          className="md:hidden p-2 rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer"
+          className="md:hidden p-2 rounded-xl border border-border bg-secondary hover:bg-secondary/80 text-foreground transition-colors cursor-pointer shrink-0"
           aria-label="Toggle navigation sidebar"
         >
           {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
@@ -155,10 +155,10 @@ export default function AdminHeader({
 
         <Link
           href="/ayc/dashboard"
-          className="flex items-center gap-2.5 group focus:outline-none"
+          className="flex items-center gap-2 sm:gap-2.5 group focus:outline-none min-w-0"
           aria-label="Ayaan Clothing Admin Portal Dashboard"
         >
-          <div className="relative w-8 h-8 sm:w-8.5 sm:h-8.5 shrink-0 flex items-center justify-center">
+          <div className="relative w-7 h-7 sm:w-8.5 sm:h-8.5 shrink-0 flex items-center justify-center">
             <Image
               src={OFFICIAL_AYC_SITE_LOGO_PATH}
               alt="Ayaan Clothing"
@@ -168,12 +168,12 @@ export default function AdminHeader({
               className="w-full h-full object-contain pointer-events-none drop-shadow-2xs"
             />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-sm sm:text-base tracking-wider text-foreground font-display uppercase">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-extrabold text-xs sm:text-base tracking-wider text-foreground font-display uppercase truncate max-w-[110px] min-[400px]:max-w-none">
                 AYAAN CLOTHING
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full">
+              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border border-primary/20 px-1.5 sm:px-2 py-0.5 rounded-full shrink-0">
                 ADMIN
               </span>
             </div>
@@ -212,7 +212,7 @@ export default function AdminHeader({
 
           {showNotifications && (
             <div
-              className="absolute right-0 mt-2 w-80 sm:w-96 bg-card border border-border rounded-2xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
+              className="absolute right-0 mt-2 w-72 sm:w-96 max-w-[calc(100vw-24px)] bg-card border border-border rounded-2xl shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
               role="region"
               aria-label="Notifications panel"
             >
