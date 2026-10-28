@@ -80,11 +80,12 @@ describe("AYC Offer Sheet — Refined First-Page Spacing & Full-Stock Quantity S
     );
   });
 
-  it("4. Layout version is bumped to v14.0 with full-stock fingerprinting", () => {
+  it("4. Layout version is bumped to v14.0+ with full-stock fingerprinting", () => {
     assert.ok(
-      pServiceContent.includes("LAYOUT_VERSION = 'v14.0_offer_sheet_distinct_tiers_and_total_at_min_order';") ||
+      pServiceContent.includes("LAYOUT_VERSION = 'v15.0_offer_sheet_gallery_heading_and_enlarged_pricing_font';") ||
+      pServiceContent.includes("v15.0") ||
       pServiceContent.includes("v14.0"),
-      "ProductOfferSheetService must define LAYOUT_VERSION v14.0"
+      "ProductOfferSheetService must define LAYOUT_VERSION at least v14.0"
     );
     assert.ok(
       pServiceContent.includes("stock:{$product->full_stock_price}:{$fsQty}"),

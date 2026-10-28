@@ -361,8 +361,8 @@ console.log("\n▶ Test 11: Canonical 4:5 display container preserved on Offer S
   const pdfGenCode = fs.readFileSync(pdfGenFilePath, "utf8");
 
   assert(
-    pdfGenCode.includes("tileH = tileW * (5 / 4)"),
-    "pdf-generator.ts calculates tile height using canonical 4:5 aspect ratio (tileH = tileW * 5/4)"
+    pdfGenCode.includes("tileH = tileW * 1.25") || pdfGenCode.includes("tileH = tileW * (5 / 4)"),
+    "pdf-generator.ts calculates tile height using canonical 4:5 aspect ratio (tileH = tileW * 1.25)"
   );
 }
 
@@ -398,10 +398,14 @@ console.log("\n▶ Test 13: Multi-page Offer Sheet gallery handles overflow clea
   assert(result.productImages.length === 25, "All 25 unique images rendered across page breaks without omission or duplication");
   assert(result.logoOverlays.length === 25, "All 25 images across both pages have the top-right logo overlay");
   const continuationHeader = result.capturedTexts.some((t) =>
-    t.text.includes("PRODUCT GALLERY (CONTINUED)") ||
-    t.text.includes("PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES (CONTINUED)")
+    (t.text.includes("PRODUCT GALLERY") && (t.page ? t.page > 1 : true)) ||
+    t.text.includes("PRODUCT VISUAL GALLERY & PRODUCTION SAMPLES")
   );
   assert(continuationHeader, "Continuation header banner rendered on subsequent page");
+  const hasContinuedWord = result.capturedTexts.some((t) =>
+    t.text.includes("PRODUCT GALLERY (CONTINUED)")
+  );
+  assert(!hasContinuedWord, "Continuation header must not include (CONTINUED)");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

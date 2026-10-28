@@ -239,7 +239,7 @@
         .pricing-table thead th {
             background-color: #0f172a;
             color: #ffffff;
-            font-size: 8pt;
+            font-size: 8.5pt;
             font-weight: bold;
             padding: 5px 8px;
             text-align: left;
@@ -254,7 +254,7 @@
             page-break-inside: avoid;
         }
         .pricing-table td {
-            font-size: 8pt;
+            font-size: 9pt;
             padding: 5px 8px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
@@ -270,11 +270,11 @@
         /* Compact Pricing for 3-row gallery */
         .pricing-compact thead th {
             padding: 4px 6px;
-            font-size: 7.5pt;
+            font-size: 8pt;
         }
         .pricing-compact td {
             padding: 4px 6px;
-            font-size: 7.5pt;
+            font-size: 8.5pt;
         }
         .text-right { text-align: right; }
         .font-mono { font-family: 'Courier New', Courier, monospace; }
@@ -522,7 +522,7 @@
                     </tr>
                 </table>
             </div>
-            <div class="section-heading" style="margin-top: 4px;">PRODUCT GALLERY (CONTINUED)</div>
+            <div class="section-heading" style="margin-top: 4px;">PRODUCT GALLERY</div>
             <table class="gallery-table gallery-table-continuation">
                 @foreach($contRows as $row)
                     <tr>

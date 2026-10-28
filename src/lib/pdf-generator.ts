@@ -668,7 +668,7 @@ export function generateOfferSheetPDFDoc(
           doc.setFont("helvetica", "bold");
           doc.setFontSize(9.5);
           doc.setTextColor(15, 23, 42);
-          doc.text("PRODUCT GALLERY (CONTINUED)", margin, y);
+          doc.text("PRODUCT GALLERY", margin, y);
           y += 4.5;
 
           const cRows = contPages[cpIdx];
@@ -865,12 +865,12 @@ export function generateOfferSheetPDFDoc(
         fillColor: [30, 41, 59],
         textColor: [255, 255, 255],
         fontStyle: "bold",
-        fontSize: 7.5,
-        cellPadding: 2,
+        fontSize: 8.5,
+        cellPadding: 2.2,
       },
       bodyStyles: {
-        fontSize: 7.5,
-        cellPadding: 2,
+        fontSize: 8.8,
+        cellPadding: 2.2,
         textColor: [30, 41, 59],
       },
       columnStyles: {

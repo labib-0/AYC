@@ -68,7 +68,8 @@ describe("AYC Offer Sheet — 4:5 Portrait Gallery Ratio and Image Maximization 
     assert.ok(bladeContent.includes("continuation-bar"), "Blade template must define continuation-bar");
     assert.ok(bladeContent.includes("$p1RowCount >= 3"), "Blade template must handle 3-row gallery pagination with page break");
     assert.ok(bladeContent.includes("gallery-table-continuation"), "Blade template must define continuation gallery table");
-    assert.ok(bladeContent.includes("PRODUCT GALLERY (CONTINUED)"), "Blade template must display continued gallery heading");
+    assert.ok(!bladeContent.includes("PRODUCT GALLERY (CONTINUED)"), "Blade template must NOT contain (CONTINUED) in gallery heading");
+    assert.ok(bladeContent.includes("PRODUCT GALLERY"), "Blade template must display PRODUCT GALLERY heading");
   });
 
   it("7. jsPDF generator produces valid uncorrupted PDF for 9-image product with 4:5 cards", () => {

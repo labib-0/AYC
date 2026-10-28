@@ -67,10 +67,11 @@ describe("AYC Offer Sheet — Distinct Pricing Tiers, Full-Stock Quantity & Prod
     );
   });
 
-  it("5. Layout version is bumped to v14.0 with pricing tiers in fingerprint", () => {
+  it("5. Layout version is bumped to v14.0+ with pricing tiers in fingerprint", () => {
     assert.ok(
+      pServiceContent.includes("v15.0_offer_sheet_gallery_heading_and_enlarged_pricing_font") ||
       pServiceContent.includes("v14.0_offer_sheet_distinct_tiers_and_total_at_min_order"),
-      "ProductOfferSheetService must define LAYOUT_VERSION v14.0"
+      "ProductOfferSheetService must define LAYOUT_VERSION at least v14.0"
     );
     assert.ok(
       pServiceContent.includes("$pricingTiersFingerprint"),

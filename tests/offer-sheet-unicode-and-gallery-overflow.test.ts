@@ -124,9 +124,7 @@ describe("AYC Offer Sheet — Unicode Normalization & Gallery Overflow Regressio
 
   it("5. Layout versions bumped to trigger transparent cache invalidation", () => {
     assert.ok(
-      pServiceContent.includes("v13.0_offer_sheet_refined_spacing_and_full_stock_quantity") ||
-      pServiceContent.includes("v12.0_offer_sheet_4_5_portrait_gallery_ratio") ||
-      pServiceContent.includes("v11.0_offer_sheet_fixed_7_day_validity_and_auto_gen"),
+      /v(1[0-9]|[2-9]\d)\./.test(pServiceContent),
       "ProductOfferSheetService must bump LAYOUT_VERSION"
     );
   });
