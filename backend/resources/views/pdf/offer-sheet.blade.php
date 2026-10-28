@@ -1,14 +1,8 @@
 @php
     $docNumber = $doc['doc_number'] ?? ($doc['docNumber'] ?? 'OS-AYN-OFFER');
     $issueDate = date('Y-m-d', strtotime($doc['date'] ?? now()));
-    $rawVal = $doc['validUntil'] ?? ($doc['valid_until'] ?? null);
-    if (empty($rawVal)) {
-        $validityText = '7 Days from date of issuance';
-    } elseif (is_numeric($rawVal)) {
-        $validityText = "{$rawVal} Days from date of issuance";
-    } else {
-        $validityText = (string) $rawVal;
-    }
+    // Permanently fixed authoritative validity: 7 Days from date of issuance
+    $validityText = \App\Services\Documents\OfferSheetService::VALIDITY_TEXT;
 
     $generatedDate = date('Y-m-d', strtotime($doc['date'] ?? now()));
     $items = $doc['items'] ?? [];

@@ -463,9 +463,7 @@ export function generateOfferSheetPDFDoc(
       { label: "Date of Issue", value: offerData.date },
       {
         label: "Validity",
-        value: offerData.validUntil.includes("(")
-          ? offerData.validUntil
-          : `30 Days (${offerData.validUntil})`,
+        value: offerData.validUntil || "7 Days from date of issuance",
         highlight: true,
         valueColor: [194, 65, 12],
       },

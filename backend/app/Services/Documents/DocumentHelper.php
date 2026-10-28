@@ -348,8 +348,6 @@ class DocumentHelper
             'signatory_title' => SystemSetting::get('signatory_title', 'Managing Director / Commercial Head'),
             'authorized_signatory_title' => SystemSetting::get('signatory_title', 'Managing Director / Commercial Head'),
             'signatory_division' => SystemSetting::get('signatory_division', 'Ayaan Clothing Export Division'),
-            'offer_sheet_validity_days' => (int) SystemSetting::get('default_offer_sheet_validity_days', 7),
-            'default_offer_sheet_validity_days' => (int) SystemSetting::get('default_offer_sheet_validity_days', 7),
         ];
     }
 

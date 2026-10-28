@@ -71,12 +71,14 @@ describe("AYC Offer Sheet — Content Removal Verification Suite", () => {
 
   it("4. Layout version constants bumped to invalidate cached PDFs", () => {
     assert.ok(
+      pServiceContent.includes("v11.0_offer_sheet_fixed_7_day_validity_and_auto_gen") ||
       pServiceContent.includes("v10.0_offer_sheet_unicode_normalization_and_balanced_gallery"),
-      "ProductOfferSheetService must have v10.0_offer_sheet_unicode_normalization_and_balanced_gallery"
+      "ProductOfferSheetService must have bumped version"
     );
     assert.ok(
+      cServiceContent.includes("v11.0_offer_sheet_fixed_7_day_validity_and_auto_gen") ||
       cServiceContent.includes("v10.3_offer_sheet_unicode_normalization_and_balanced_gallery"),
-      "CommercialPdfArtifactService must have v10.3_offer_sheet_unicode_normalization_and_balanced_gallery"
+      "CommercialPdfArtifactService must have bumped version"
     );
   });
 

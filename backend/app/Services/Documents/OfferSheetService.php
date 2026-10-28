@@ -9,6 +9,9 @@ use App\Models\Quotation;
 
 class OfferSheetService
 {
+    public const DEFAULT_VALIDITY_DAYS = 7;
+    public const VALIDITY_TEXT = '7 Days from date of issuance';
+
     /**
      * Build Offer Sheet document representation from an Order
      */
@@ -371,8 +374,8 @@ class OfferSheetService
         ];
 
         $docDefaults = DocumentHelper::getDocumentDefaults();
-        $validityDays = max(1, min(365, (int) ($docDefaults['offer_sheet_validity_days'] ?? 7)));
-        $validityLabel = "{$validityDays} Days from date of issuance";
+        $validityDays = self::DEFAULT_VALIDITY_DAYS;
+        $validityLabel = self::VALIDITY_TEXT;
 
         return [
             'id' => "doc_OFFER_SHEET_PROD_{$product->id}",
@@ -383,9 +386,9 @@ class OfferSheetService
             'document_type' => 'offer_sheet',
             'title' => 'COMMERCIAL OFFER SHEET',
             'date' => date('Y-m-d'),
-            'validUntil' => $validityLabel,
-            'valid_until' => $validityLabel,
-            'validity_days' => $validityDays,
+            'validUntil' => self::VALIDITY_TEXT,
+            'valid_until' => self::VALIDITY_TEXT,
+            'validity_days' => self::DEFAULT_VALIDITY_DAYS,
             'order_number' => 'CATALOG',
             'orderNumber' => 'CATALOG',
             'product_id' => (string) $product->id,

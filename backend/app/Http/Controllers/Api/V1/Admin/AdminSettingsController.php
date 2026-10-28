@@ -475,8 +475,6 @@ class AdminSettingsController extends Controller
             'document_defaults.signatory_title' => ['nullable', 'string', 'max:255'],
             'document_defaults.authorized_signatory_title' => ['nullable', 'string', 'max:255'],
             'document_defaults.signatory_division' => ['nullable', 'string', 'max:255'],
-            'document_defaults.offer_sheet_validity_days' => ['nullable', 'integer', 'min:1', 'max:365'],
-            'document_defaults.default_offer_sheet_validity_days' => ['nullable', 'integer', 'min:1', 'max:365'],
         ]);
 
         // 1. Company Information
@@ -806,15 +804,9 @@ class AdminSettingsController extends Controller
         if ($sigTitle !== null) SystemSetting::set('signatory_title', trim($sigTitle), 'string', 'document_defaults');
         if (isset($dd['signatory_division'])) SystemSetting::set('signatory_division', trim($dd['signatory_division']), 'string', 'document_defaults');
 
-        $validityDays = $dd['default_offer_sheet_validity_days'] ?? ($dd['offer_sheet_validity_days'] ?? null);
-        if ($validityDays !== null) {
-            SystemSetting::set('default_offer_sheet_validity_days', (int) $validityDays, 'integer', 'document_defaults');
-        }
-
         ActivityLogger::log('settings.business_updated', null, [
             'admin_id' => auth()->id(),
             'updated_at' => now()->toIso8601String(),
-            'offer_sheet_validity_days' => $validityDays !== null ? (int) $validityDays : null,
         ]);
 
         Cache::forget('site_settings_public');

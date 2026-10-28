@@ -4,6 +4,8 @@ import { deduplicateMediaUrls } from "@/lib/media";
 import { calculateCartonCbm } from "@/lib/services/shipping-package";
 import type { ShippingPackageProfile } from "@/types";
 
+export const OFFER_SHEET_FIXED_VALIDITY_TEXT = "7 Days from date of issuance";
+
 export interface OfferSheetPricingTier {
   tierName: "Standard" | "Bulk" | "Full Stock";
   quantityBasis: string;
@@ -816,7 +818,7 @@ export function buildOfferSheetData(source: any): OfferSheetData {
     signatoryDivision: exp?.signatory_division || source?.document_defaults?.signatory_division || "Ayaan Clothing Export Division",
   };
 
-  const validUntil = source?.validUntil || source?.valid_until || "30 Days from date of issuance";
+  const validUntil = OFFER_SHEET_FIXED_VALIDITY_TEXT;
   const priceBasis = "FOB Dhaka (Export)";
 
   const rawProducts: any[] = [];

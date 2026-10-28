@@ -178,8 +178,6 @@ export interface BusinessSettingsPayload {
     declaration_text?: string;
     authorized_signatory_name?: string;
     authorized_signatory_title?: string;
-    offer_sheet_validity_days?: number;
-    default_offer_sheet_validity_days?: number;
   };
 }
 

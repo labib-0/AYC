@@ -2520,7 +2520,9 @@ class ProductController extends ApiController
                 ->where('fingerprint', $newOfferSheetFingerprint)
                 ->exists();
 
-            if ($oldOfferSheetFingerprint !== $newOfferSheetFingerprint || !$hasReadyOfferSheet) {
+            $becamePublished = $isTransitionToPublished || ($product->status === 'published' && $product->wasChanged('status'));
+
+            if ($becamePublished || $oldOfferSheetFingerprint !== $newOfferSheetFingerprint || !$hasReadyOfferSheet) {
                 $cleanSku = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($product->sku ?: "PROD-{$product->id}"));
                 \App\Models\ProductOfferSheet::updateOrCreate(
                     ['product_id' => $product->id],

@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 
-test("Admin Offer Sheet Validity Setting & End-to-End Lifecycle Suite", async (t) => {
+test("AYC Offer Sheet — Fixed 7-Day Validity & Automatic PDF Generation Suite", async (t) => {
   const adminSettingsControllerPath = path.join(
     ROOT_DIR,
     "backend/app/Http/Controllers/Api/V1/Admin/AdminSettingsController.php"
@@ -23,6 +23,10 @@ test("Admin Offer Sheet Validity Setting & End-to-End Lifecycle Suite", async (t
     ROOT_DIR,
     "backend/app/Services/Documents/ProductOfferSheetService.php"
   );
+  const commercialArtifactServicePath = path.join(
+    ROOT_DIR,
+    "backend/app/Services/Documents/CommercialPdfArtifactService.php"
+  );
   const bladeTemplatePath = path.join(
     ROOT_DIR,
     "backend/resources/views/pdf/offer-sheet.blade.php"
@@ -36,209 +40,251 @@ test("Admin Offer Sheet Validity Setting & End-to-End Lifecycle Suite", async (t
     ROOT_DIR,
     "src/services/site-settings.service.ts"
   );
+  const productControllerPath = path.join(
+    ROOT_DIR,
+    "backend/app/Http/Controllers/Api/V1/ProductController.php"
+  );
+  const offerSheetLibPath = path.join(ROOT_DIR, "src/lib/offer-sheet.ts");
+  const pdfGeneratorLibPath = path.join(ROOT_DIR, "src/lib/pdf-generator.ts");
 
   const adminSettingsControllerCode = fs.readFileSync(adminSettingsControllerPath, "utf-8");
   const documentHelperCode = fs.readFileSync(documentHelperPath, "utf-8");
   const offerSheetServiceCode = fs.readFileSync(offerSheetServicePath, "utf-8");
   const productOfferSheetServiceCode = fs.readFileSync(productOfferSheetServicePath, "utf-8");
+  const commercialArtifactServiceCode = fs.readFileSync(commercialArtifactServicePath, "utf-8");
   const bladeTemplateCode = fs.readFileSync(bladeTemplatePath, "utf-8");
   const businessSettingsUiCode = fs.readFileSync(businessSettingsUiPath, "utf-8");
   const settingsTypesCode = fs.readFileSync(settingsTypesPath, "utf-8");
   const siteSettingsServiceCode = fs.readFileSync(siteSettingsServicePath, "utf-8");
+  const productControllerCode = fs.readFileSync(productControllerPath, "utf-8");
+  const offerSheetLibCode = fs.readFileSync(offerSheetLibPath, "utf-8");
+  const pdfGeneratorLibCode = fs.readFileSync(pdfGeneratorLibPath, "utf-8");
 
-  await t.test("1. Admin Controller & Routes Enforce Validation, Permissions, and Logging", () => {
-    // Check validation rules in AdminSettingsController
-    assert.match(
-      adminSettingsControllerCode,
-      /'document_defaults\.offer_sheet_validity_days'\s*=>\s*\[\s*'nullable',\s*'integer',\s*'min:1',\s*'max:365'\s*\]/,
-      "AdminSettingsController must enforce integer between 1 and 365 days"
+  await t.test("1. Admin Offer Sheet Validity Control Is Permanently Removed", () => {
+    // UI control must be absent
+    assert.ok(
+      !businessSettingsUiCode.includes('id="offer_sheet_validity_days"'),
+      "BusinessSettings UI input 'offer_sheet_validity_days' must be removed"
+    );
+    assert.ok(
+      !businessSettingsUiCode.includes("Offer Sheet Validity"),
+      "BusinessSettings UI label 'Offer Sheet Validity' must be removed"
+    );
+    assert.ok(
+      !businessSettingsUiCode.includes("offer_sheet_validity_days"),
+      "BusinessSettings UI must have no offer_sheet_validity_days references"
     );
 
-    // Check persistence of default_offer_sheet_validity_days
-    assert.match(
-      adminSettingsControllerCode,
-      /SystemSetting::set\('default_offer_sheet_validity_days',\s*\(int\)\s*\$validityDays,\s*'integer',\s*'document_defaults'\)/,
-      "AdminSettingsController must persist default_offer_sheet_validity_days as integer in document_defaults group"
+    // Controller validation & persistence must be absent
+    assert.ok(
+      !adminSettingsControllerCode.includes("offer_sheet_validity_days"),
+      "AdminSettingsController must not reference offer_sheet_validity_days"
+    );
+    assert.ok(
+      !adminSettingsControllerCode.includes("default_offer_sheet_validity_days"),
+      "AdminSettingsController must not persist default_offer_sheet_validity_days"
     );
 
-    // Check ActivityLogger records validity setting changes
-    assert.match(
-      adminSettingsControllerCode,
-      /'offer_sheet_validity_days'\s*=>/,
-      "AdminSettingsController must audit log offer_sheet_validity_days changes"
+    // Types and service defaults must not have offer_sheet_validity_days
+    assert.ok(
+      !settingsTypesCode.includes("offer_sheet_validity_days"),
+      "types/settings.ts must not define offer_sheet_validity_days"
     );
-
-    // Verify route middleware permissions
-    const routesApiCode = fs.readFileSync(path.join(ROOT_DIR, "backend/routes/api.php"), "utf-8");
-    assert.match(
-      routesApiCode,
-      /Route::put\('\/settings\/business',\s*\[AdminSettingsController::class,\s*'updateBusinessSettings'\]\)\s*->middleware\('permission:settings\.edit'\)/,
-      "updateBusinessSettings route must be guarded by permission:settings.edit"
+    assert.ok(
+      !siteSettingsServiceCode.includes("offer_sheet_validity_days"),
+      "site-settings.service.ts must not have offer_sheet_validity_days"
+    );
+    assert.ok(
+      !documentHelperCode.includes("offer_sheet_validity_days"),
+      "DocumentHelper::getDocumentDefaults must not define offer_sheet_validity_days"
     );
   });
 
-  await t.test("2. DocumentHelper & OfferSheetService Dynamically Resolve Validity", () => {
-    // Check DocumentHelper returns default 7 days
+  await t.test("2. Unrelated Document Defaults Remain Completely Intact", () => {
+    // Country of origin, port of loading, incoterm, payment terms, and signatory details must remain
     assert.match(
       documentHelperCode,
-      /'offer_sheet_validity_days'\s*=>\s*\(int\)\s*SystemSetting::get\('default_offer_sheet_validity_days',\s*7\)/,
-      "DocumentHelper::getDocumentDefaults must return offer_sheet_validity_days with fallback to 7"
+      /'country_of_origin'\s*=>/,
+      "DocumentHelper must retain country_of_origin default"
+    );
+    assert.match(
+      documentHelperCode,
+      /'incoterm'\s*=>/,
+      "DocumentHelper must retain incoterm default"
+    );
+    assert.match(
+      documentHelperCode,
+      /'payment_terms'\s*=>/,
+      "DocumentHelper must retain payment_terms default"
+    );
+    assert.match(
+      documentHelperCode,
+      /'signatory_name'\s*=>/,
+      "DocumentHelper must retain signatory_name default"
     );
 
-    // Check OfferSheetService resolves validity from document defaults and constructs validUntil label
+    // Frontend UI retains document defaults section
     assert.match(
-      offerSheetServiceCode,
-      /\$docDefaults\s*=\s*DocumentHelper::getDocumentDefaults\(\);/,
-      "OfferSheetService must read document defaults"
+      businessSettingsUiCode,
+      /Document Logistics &.*Legal Defaults/,
+      "BusinessSettings must retain Document Logistics & Legal Defaults section"
     );
     assert.match(
-      offerSheetServiceCode,
-      /\$validityDays\s*=\s*max\(1,\s*min\(365,\s*\(int\)\s*\(\$docDefaults\['offer_sheet_validity_days'\]\s*\?\?\s*7\)\)\);/,
-      "OfferSheetService must bound validity between 1 and 365 with fallback 7"
-    );
-    assert.match(
-      offerSheetServiceCode,
-      /\$validityLabel\s*=\s*"\{\$validityDays\}\s*Days from date of issuance";/,
-      "OfferSheetService must format label as '{validityDays} Days from date of issuance'"
+      businessSettingsUiCode,
+      /Authorized Signatory Name/,
+      "BusinessSettings must retain Authorized Signatory Name input"
     );
   });
 
-  await t.test("3. Fingerprint Cache Invalidation on Validity Change", () => {
-    // Check that computeFingerprint incorporates validity_days
+  await t.test("3. Single Authoritative Fixed 7-Day Validity Value Across Architecture", () => {
+    // OfferSheetService has authoritative constant
     assert.match(
-      productOfferSheetServiceCode,
-      /\$docDefaults\s*=\s*DocumentHelper::getDocumentDefaults\(\);/,
-      "ProductOfferSheetService::computeFingerprint must query document defaults"
+      offerSheetServiceCode,
+      /public const DEFAULT_VALIDITY_DAYS = 7;/,
+      "OfferSheetService must define public const DEFAULT_VALIDITY_DAYS = 7"
     );
     assert.match(
-      productOfferSheetServiceCode,
-      /"validity_days:\{\$validityDays\}"/,
-      "ProductOfferSheetService::computeFingerprint must include validity_days in core payload"
+      offerSheetServiceCode,
+      /public const VALIDITY_TEXT = '7 Days from date of issuance';/,
+      "OfferSheetService must define public const VALIDITY_TEXT = '7 Days from date of issuance'"
     );
 
-    // Simulate fingerprint calculation under different validity periods
-    const mockProductPayload = "prod_101~SKU-TEE-001~Classic Polo~Description~100% Cotton~100~10.00";
-    const fp7 = crypto
-      .createHash("sha256")
-      .update(`product_offer_sheet_v8.0_101_${mockProductPayload}~validity_days:7`)
-      .digest("hex");
-    const fp14 = crypto
-      .createHash("sha256")
-      .update(`product_offer_sheet_v8.0_101_${mockProductPayload}~validity_days:14`)
-      .digest("hex");
-    const fp30 = crypto
-      .createHash("sha256")
-      .update(`product_offer_sheet_v8.0_101_${mockProductPayload}~validity_days:30`)
-      .digest("hex");
+    // OfferSheetService::generateForProduct outputs fixed 7-day text
+    assert.match(
+      offerSheetServiceCode,
+      /'validUntil'\s*=>\s*self::VALIDITY_TEXT,/,
+      "generateForProduct must set validUntil to self::VALIDITY_TEXT"
+    );
 
-    assert.notEqual(fp7, fp14, "Changing validity from 7 to 14 days must generate a distinct fingerprint");
-    assert.notEqual(fp14, fp30, "Changing validity from 14 to 30 days must generate a distinct fingerprint");
-    assert.notEqual(fp7, fp30, "Changing validity from 7 to 30 days must generate a distinct fingerprint");
-  });
-
-  await t.test("4. PDF Template Formats Dynamic Validity in Information Strip", () => {
+    // Blade template outputs fixed 7-day validity unconditionally
     assert.match(
       bladeTemplateCode,
-      /\$rawVal\s*=\s*\$doc\['validUntil'\]\s*\?\?\s*\(\$doc\['valid_until'\]\s*\?\?\s*null\);/,
-      "offer-sheet.blade.php must extract validUntil / valid_until"
-    );
-    assert.match(
-      bladeTemplateCode,
-      /is_numeric\(\$rawVal\)/,
-      "offer-sheet.blade.php must handle numeric validity input"
+      /\$validityText\s*=\s*\\App\\Services\\Documents\\OfferSheetService::VALIDITY_TEXT;/,
+      "offer-sheet.blade.php must assign validityText directly from authoritative constant"
     );
     assert.match(
       bladeTemplateCode,
       /<div class="meta-label">VALIDITY<\/div>\s*<div class="meta-val meta-val-orange">\{\{\s*\$validityText\s*\}\}<\/div>/,
-      "offer-sheet.blade.php must display validity in orange under VALIDITY heading"
+      "offer-sheet.blade.php must render validityText in orange under VALIDITY"
+    );
+
+    // Frontend library exports fixed constant
+    assert.match(
+      offerSheetLibCode,
+      /export const OFFER_SHEET_FIXED_VALIDITY_TEXT = "7 Days from date of issuance";/,
+      "offer-sheet.ts must export OFFER_SHEET_FIXED_VALIDITY_TEXT"
+    );
+    assert.match(
+      offerSheetLibCode,
+      /const validUntil = OFFER_SHEET_FIXED_VALIDITY_TEXT;/,
+      "buildOfferSheetData must set validUntil to OFFER_SHEET_FIXED_VALIDITY_TEXT"
+    );
+
+    // pdf-generator.ts formats validity
+    assert.match(
+      pdfGeneratorLibCode,
+      /value:\s*offerData\.validUntil\s*\|\|\s*"7 Days from date of issuance",/,
+      "pdf-generator.ts must output 7 Days from date of issuance"
     );
   });
 
-  await t.test("5. Frontend BusinessSettings UI Includes Offer Sheet Validity Control", () => {
-    // Check type definition
+  await t.test("4. Layout Version Invalidation and Fingerprint Independence", () => {
+    // ProductOfferSheetService bumped to v11.0
     assert.match(
-      settingsTypesCode,
-      /offer_sheet_validity_days\?:\s*number;/,
-      "settings.ts must define offer_sheet_validity_days"
+      productOfferSheetServiceCode,
+      /public const LAYOUT_VERSION = 'v11\.0_offer_sheet_fixed_7_day_validity_and_auto_gen';/,
+      "ProductOfferSheetService::LAYOUT_VERSION must be bumped to v11.0"
     );
 
-    // Check service default
+    // CommercialPdfArtifactService bumped to v11.0
     assert.match(
-      siteSettingsServiceCode,
-      /offer_sheet_validity_days:\s*7,/,
-      "site-settings.service.ts must specify default 7 days"
+      commercialArtifactServiceCode,
+      /public const LAYOUT_VERSION = 'v11\.0_offer_sheet_fixed_7_day_validity_and_auto_gen';/,
+      "CommercialPdfArtifactService::LAYOUT_VERSION must be bumped to v11.0"
     );
 
-    // Check UI control attributes
+    // computeFingerprint must incorporate fixed validity and not dynamic admin settings
     assert.match(
-      businessSettingsUiCode,
-      /Offer Sheet Validity/,
-      "BusinessSettings UI must render 'Offer Sheet Validity' label"
+      productOfferSheetServiceCode,
+      /"fixed_validity:7_days",/,
+      "ProductOfferSheetService::computeFingerprint must incorporate 'fixed_validity:7_days'"
     );
-    assert.match(
-      businessSettingsUiCode,
-      /id="offer_sheet_validity_days"/,
-      "BusinessSettings UI input must have id 'offer_sheet_validity_days'"
-    );
-    assert.match(
-      businessSettingsUiCode,
-      /type="number"/,
-      "BusinessSettings UI input must be type 'number'"
-    );
-    assert.match(
-      businessSettingsUiCode,
-      /min=\{1\}\s*max=\{365\}/,
-      "BusinessSettings UI input must have min 1 and max 365"
-    );
-    assert.match(
-      businessSettingsUiCode,
-      /days/,
-      "BusinessSettings UI input must display 'days' suffix"
-    );
-
-    // Check client-side validation in handleSubmit
-    assert.match(
-      businessSettingsUiCode,
-      /validityNum\s*<\s*1\s*\|\|\s*validityNum\s*>\s*365/,
-      "BusinessSettings handleSubmit must reject validity outside 1..365"
-    );
-    assert.match(
-      businessSettingsUiCode,
-      /Offer Sheet Validity must be a whole number between 1 and 365 days\./,
-      "BusinessSettings handleSubmit must show clear error message"
-    );
-
-    // Check reset defaults handler
-    assert.match(
-      businessSettingsUiCode,
-      /offer_sheet_validity_days:\s*7,/,
-      "handleResetDefaults must reset offer_sheet_validity_days to 7"
+    assert.ok(
+      !productOfferSheetServiceCode.includes("validity_days:{$validityDays}"),
+      "computeFingerprint must not depend on dynamic validity_days variable"
     );
   });
 
-  await t.test("6. Validity Range & Invalid Input Handling Boundary Matrix", () => {
-    const isValidValidity = (val: unknown): boolean => {
-      if (val === null || val === undefined || val === "") return false;
-      const num = Number(val);
-      return Number.isInteger(num) && num >= 1 && num <= 365;
-    };
+  await t.test("5. Automatic Generation Dispatched on Creation and Publish Transition", () => {
+    // store() creates pending record and dispatches job
+    assert.match(
+      productControllerCode,
+      /ProductOfferSheet::updateOrCreate\(\s*\[\s*'product_id'\s*=>\s*\$product->id\s*\]/,
+      "ProductController::store must record pending offer sheet"
+    );
+    assert.match(
+      productControllerCode,
+      /GenerateProductOfferSheetJob::dispatch\(\$product->id\);/,
+      "ProductController::store must dispatch GenerateProductOfferSheetJob"
+    );
 
-    // Valid inputs
-    assert.equal(isValidValidity(7), true, "7 days is valid (default)");
-    assert.equal(isValidValidity(1), true, "1 day is valid (min boundary)");
-    assert.equal(isValidValidity(365), true, "365 days is valid (max boundary)");
-    assert.equal(isValidValidity(14), true, "14 days is valid");
-    assert.equal(isValidValidity(30), true, "30 days is valid");
-    assert.equal(isValidValidity("7"), true, "'7' numeric string is valid");
+    // update() detects transition to published or relevant changes
+    assert.match(
+      productControllerCode,
+      /\$becamePublished\s*=\s*\$isTransitionToPublished\s*\|\|\s*\(\$product->status === 'published' && \$product->wasChanged\('status'\)\);/,
+      "ProductController::update must detect transition to published status"
+    );
+    assert.match(
+      productControllerCode,
+      /if\s*\(\$becamePublished\s*\|\|\s*\$oldOfferSheetFingerprint !== \$newOfferSheetFingerprint\s*\|\|\s*!\$hasReadyOfferSheet\)/,
+      "ProductController::update must trigger regeneration if published or relevant fields changed or missing"
+    );
+    assert.match(
+      productControllerCode,
+      /GenerateProductOfferSheetJob::dispatch\(\$product->id,\s*true\);/,
+      "ProductController::update must dispatch forced regeneration job"
+    );
+  });
 
-    // Invalid inputs
-    assert.equal(isValidValidity(0), false, "0 must be rejected");
-    assert.equal(isValidValidity(-5), false, "Negative numbers must be rejected");
-    assert.equal(isValidValidity(366), false, "> 365 must be rejected");
-    assert.equal(isValidValidity(1000), false, "1000 must be rejected");
-    assert.equal(isValidValidity(7.5), false, "Decimals must be rejected");
-    assert.equal(isValidValidity("abc"), false, "Non-numeric strings must be rejected");
-    assert.equal(isValidValidity(null), false, "Null must be rejected");
-    assert.equal(isValidValidity(undefined), false, "Undefined must be rejected");
+  await t.test("6. Fast Retrieval from Cache without Synchronous Regeneration", () => {
+    // offerSheet endpoint checks status_only or serves ready artifact
+    assert.match(
+      productControllerCode,
+      /\$request->boolean\('status_only'\)/,
+      "ProductController::offerSheet must support lightweight status_only check"
+    );
+    assert.match(
+      productControllerCode,
+      /\$artifact = \$service->getOrGenerate\(\$product,\s*\$request->boolean\('force'\)\);/,
+      "ProductController::offerSheet must call getOrGenerate with force param"
+    );
+    assert.match(
+      productControllerCode,
+      /'X-PDF-Cache'\s*=>\s*\$artifact\['is_hit'\]\s*\?\s*'HIT'\s*:\s*'MISS'/,
+      "ProductController::offerSheet must return X-PDF-Cache HIT on cached retrieval"
+    );
+
+    // Fast path in ProductOfferSheetService
+    assert.match(
+      productOfferSheetServiceCode,
+      /if\s*\(!\$force\)\s*\{\s*\$sheetRecord = ProductOfferSheet::where\('product_id',\s*\$product->id\)->first\(\);/,
+      "ProductOfferSheetService must fast-path return when fingerprint matches"
+    );
+  });
+
+  await t.test("7. Removed Content Blocks (Product Description, CBM MOQ, Gross Weight MOQ) Remain Absent", () => {
+    // Assert absence in Blade template
+    assert.ok(
+      !bladeTemplateCode.includes("PRODUCT DESCRIPTION"),
+      "offer-sheet.blade.php must not contain PRODUCT DESCRIPTION"
+    );
+    assert.ok(
+      !bladeTemplateCode.includes("CBM (MOQ)"),
+      "offer-sheet.blade.php must not contain CBM (MOQ)"
+    );
+    assert.ok(
+      !bladeTemplateCode.includes("GROSS WEIGHT (MOQ)"),
+      "offer-sheet.blade.php must not contain GROSS WEIGHT (MOQ)"
+    );
   });
 });
