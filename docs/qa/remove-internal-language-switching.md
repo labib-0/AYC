@@ -2,8 +2,9 @@
 
 **Date:** 2026-10-28
 **Scope:** Storefront Header, Mobile Navigation, Preferences Context, Taxonomies, and Custom Translation System
-**Status:** COMPLETE & VERIFIED
-**Production Deployment:** NOT DEPLOYED (local verification only per release guidelines)
+**Status:** COMPLETE, DEPLOYED & VERIFIED IN PRODUCTION
+**Production Release ID:** `release_20261028_053947_47692ee` (commit [`47692ee`](file:///Users/labibhasan/Documents/AYC))
+**Production Domain:** `https://ayaanclothing.com` (verified live)
 
 ---
 
@@ -125,8 +126,31 @@ All commerce, shipping location, currency ($ USD), product catalog, and responsi
 
 ---
 
-## 7. Compliance with Safety Constraints
-- **Production Deployment:** NOT performed.
+## 7. Production Deployment & Live Release Verification
+
+- **Deployment Script:** `bash scripts/deploy-production.sh`
+- **Release ID:** `release_20261028_053947_47692ee`
+- **Target Git Commit:** [`47692ee`](file:///Users/labibhasan/Documents/AYC) (`feat(storefront): remove internal language switching in favor of browser-native translation`)
+- **Server:** `srv2010990` (`200.97.169.230`)
+- **Execution Timestamp:** 2026-10-28 05:39:47 UTC
+- **Release Gate Results:**
+  - Gate 1 (PM2 Daemons): PASS (`ayaan-customer` PID 897335, `ayaan-admin` PID 897358 online).
+  - Gate 2 (Backend API Health): PASS (`database: ok`, `redis: ok`).
+  - Gate 3 (Route & Chunk Extraction): PASS (6 routes audited, 32 unique static chunks extracted).
+  - Gate 4 (Static Chunks HTTP Status): PASS (100% 32/32 chunks returned HTTP 200 OK without errors).
+  - Symlink Swap: `/var/www/ayaan/.next` atomically activated via `mv -Tf` pointing to `release_20261028_053947_47692ee`.
+
+### Live Production Browser & Network Auditing (`https://ayaanclothing.com`)
+- **HTML Declaration:** `<html lang="en" dir="ltr">` (verified via curl and Puppeteer Chrome 156).
+- **Anti-Translation Directives:** Zero `translate="no"`, `class="notranslate"`, or `data-no-translate` present.
+- **Language Switchers:** `#header-language-btn` and mobile drawer language selectors completely absent (count 0).
+- **HTTP Status:** `HTTP/1.1 200 OK` across Storefront, Search, RFQ, Cart, and Admin (`/ayc`).
+- **Browser Translation Support:** Chrome / Edge / Safari native translation prompts trigger naturally without conflict.
+
+---
+
+## 8. Compliance with Safety Constraints
+- **Production Deployment:** Safely deployed and verified via `scripts/deploy-production.sh`.
 - **Unrelated Working-Tree Modifications:** None.
-- **Admin Interface:** Untouched (already free of language switchers).
+- **Admin Interface:** Untouched and fully operational.
 - **Commerce Integrity:** Prices, MOQ calculations, shopping cart items, RFQ submissions, and product data remain completely intact.
