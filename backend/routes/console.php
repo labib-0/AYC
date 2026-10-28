@@ -32,3 +32,10 @@ Schedule::command('geoip:update')
     ->name('update-maxmind-geoip-db')
     ->withoutOverlapping();
 
+// Periodic evaluation of scheduled CMS publication and expiration
+Schedule::command('pages:sync-scheduled')
+    ->everyMinute()
+    ->name('sync-scheduled-cms-pages')
+    ->withoutOverlapping();
+
+

@@ -324,4 +324,54 @@ export async function uploadBannerImage(file: File): Promise<UploadResult> {
   });
 }
 
+/**
+ * Upload a CMS page section image via REST API or persistent Data URL
+ */
+export async function uploadCmsPageImage(file: File): Promise<UploadResult> {
+  const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"];
+  const isImage = validTypes.includes(file.type) || file.type.startsWith("image/");
+
+  if (!isImage) {
+    throw new Error("Invalid file format. Please upload a valid image (PNG, JPG, WebP, or SVG).");
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", "pages");
+
+    const res = await apiClient.post<{ url?: string; data?: { url?: string; key?: string }; key?: string }>("/upload", formData);
+    const rawUrl = res?.url || res?.data?.url;
+    if (rawUrl && isValidImageUrl(rawUrl)) {
+      return {
+        url: normalizeImageUrl(rawUrl),
+        key: res.key || res.data?.key || file.name,
+      };
+    }
+  } catch (err: any) {
+    if (!isFrontendOnly()) {
+      throw new Error(err?.message || "CMS image upload failed. Please check network connection.");
+    }
+  }
+
+  // Offline / mock fallback
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve({
+        url: reader.result as string,
+        key: `page_img_${Date.now()}_${file.name}`,
+      });
+    };
+    reader.onerror = () => {
+      resolve({
+        url: typeof window !== "undefined" ? URL.createObjectURL(file) : "/placeholder.jpg",
+        key: `page_img_${Date.now()}_${file.name}`,
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+
 

@@ -229,3 +229,37 @@ export function buildBrandBreadcrumbs(brandName: string): BreadcrumbItem[] {
     },
   ];
 }
+
+/**
+ * Builds breadcrumb trail and Schema.org BreadcrumbItem array for a CMS page.
+ * Supports standalone pages and optional hierarchical parent pages.
+ */
+export function buildCmsBreadcrumbs(page: {
+  title: string;
+  slug: string;
+  breadcrumb_label?: string | null;
+  parent?: { title: string; slug: string; breadcrumb_label?: string | null } | null;
+}): { crumbs: Array<{ label: string; href?: string }>; jsonLdItems: BreadcrumbItem[] } {
+  const crumbs: Array<{ label: string; href?: string }> = [
+    { label: "Home", href: "/" },
+  ];
+
+  if (page.parent && page.parent.slug) {
+    crumbs.push({
+      label: page.parent.breadcrumb_label || page.parent.title,
+      href: `/${page.parent.slug}`,
+    });
+  }
+
+  crumbs.push({
+    label: page.breadcrumb_label || page.title,
+  });
+
+  const jsonLdItems: BreadcrumbItem[] = crumbs.map((crumb, idx) => ({
+    name: crumb.label,
+    url: absoluteUrl(crumb.href || `/${page.slug}`),
+    position: idx + 1,
+  }));
+
+  return { crumbs, jsonLdItems };
+}

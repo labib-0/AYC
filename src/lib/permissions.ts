@@ -93,6 +93,14 @@ export const ADMIN_PERMISSIONS = {
   HOMEPAGE_BANNER_EDIT: "homepage.banner.edit",
   HOMEPAGE_BANNER_PUBLISH: "homepage.banner.publish",
 
+  // CMS Pages
+  PAGE_VIEW: "page.view",
+  PAGE_CREATE: "page.create",
+  PAGE_EDIT: "page.edit",
+  PAGE_PUBLISH: "page.publish",
+  PAGE_DELETE: "page.delete",
+  PAGE_FOOTER_MANAGE: "page.footer.manage",
+
   // Documents
   DOCUMENT_VIEW: "document.view",
   DOCUMENT_GENERATE: "document.generate",

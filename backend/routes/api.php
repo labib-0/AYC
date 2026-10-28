@@ -37,6 +37,8 @@ use App\Http\Controllers\Api\V1\WishlistController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\PublicSettingsController;
 use App\Http\Controllers\Api\V1\Admin\AdminSettingsController;
+use App\Http\Controllers\Api\V1\PublicCmsPageController;
+use App\Http\Controllers\Api\V1\Admin\AdminCmsPageController;
 use App\Http\Controllers\Api\V1\GeolocationController;
 use App\Http\Controllers\Api\V1\Internal\InternalStorefrontAccessController;
 use Illuminate\Support\Facades\Route;
@@ -62,6 +64,11 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
     Route::get('/settings/public', [PublicSettingsController::class, 'getPublicSettings']);
     Route::get('/legal/{type}', [PublicSettingsController::class, 'getLegalPage']);
     Route::get('/faqs', [PublicSettingsController::class, 'getFaqs']);
+
+    // Public Storefront CMS Pages
+    Route::get('/pages/footer', [PublicCmsPageController::class, 'footer']);
+    Route::get('/pages/published', [PublicCmsPageController::class, 'published']);
+    Route::get('/pages/{slug}', [PublicCmsPageController::class, 'show']);
 
     // Public Storefront Geolocation Detection (Reusing stevebauman/location & MaxMind GeoLite2)
     Route::get('/geolocation/detect', [GeolocationController::class, 'detect']);
@@ -670,6 +677,34 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
                 ->middleware('permission:homepage.view');
             Route::post('/google-tags', [AdminHomepageManagementController::class, 'updateGoogleTags'])
                 ->middleware('permission:settings.edit');
+        });
+
+        // Admin Storefront CMS Pages Management
+        Route::prefix('pages')->group(function () {
+            Route::get('/', [AdminCmsPageController::class, 'index'])
+                ->middleware('permission:page.view');
+            Route::post('/', [AdminCmsPageController::class, 'store'])
+                ->middleware('permission:page.create');
+            Route::put('/reorder-footer', [AdminCmsPageController::class, 'reorderFooter'])
+                ->middleware('permission:page.footer.manage');
+            Route::get('/{id}', [AdminCmsPageController::class, 'show'])
+                ->middleware('permission:page.view');
+            Route::put('/{id}', [AdminCmsPageController::class, 'update'])
+                ->middleware('permission:page.edit');
+            Route::post('/{id}/publish', [AdminCmsPageController::class, 'publish'])
+                ->middleware('permission:page.publish');
+            Route::post('/{id}/unpublish', [AdminCmsPageController::class, 'unpublish'])
+                ->middleware('permission:page.publish');
+            Route::post('/{id}/archive', [AdminCmsPageController::class, 'archive'])
+                ->middleware('permission:page.delete');
+            Route::post('/{id}/restore', [AdminCmsPageController::class, 'restore'])
+                ->middleware('permission:page.delete');
+            Route::delete('/{id}', [AdminCmsPageController::class, 'destroy'])
+                ->middleware('permission:page.delete');
+            Route::patch('/{id}/footer', [AdminCmsPageController::class, 'updateFooter'])
+                ->middleware('permission:page.footer.manage');
+            Route::get('/{id}/preview', [AdminCmsPageController::class, 'preview'])
+                ->middleware('permission:page.view');
         });
 
         // ── RBAC Management (Phase 1 Foundation) ────────────────────────────

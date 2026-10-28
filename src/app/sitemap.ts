@@ -1,6 +1,7 @@
 import { MetadataRoute } from "next";
 import { productService } from "@/services/product.service";
 import { siteSettingsService } from "@/services/site-settings.service";
+import { cmsPageService } from "@/services/cms-page.service";
 import { getCanonicalBaseUrl, canonicalUrl } from "@/lib/seo";
 
 /**
@@ -150,5 +151,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.warn("Sitemap product fetch notice:", err);
   }
 
-  return [...staticRoutes, ...productRoutes];
+  // 4. Dynamic Canonical CMS Storefront Pages
+  let cmsRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const cmsPages = await cmsPageService.getPublishedPages();
+    if (Array.isArray(cmsPages)) {
+      cmsRoutes = cmsPages
+        .filter((p) => p && p.slug)
+        .map((p) => {
+          const lastmod = parseAuthoritativeDate(p.updated_at || p.published_at);
+          return {
+            url: canonicalUrl(`/${p.slug.trim()}`),
+            ...(lastmod ? { lastModified: lastmod } : {}),
+            changeFrequency: "weekly" as const,
+            priority: 0.7,
+          };
+        });
+    }
+  } catch (err) {
+    console.warn("Sitemap CMS pages fetch notice:", err);
+  }
+
+  return [...staticRoutes, ...productRoutes, ...cmsRoutes];
 }

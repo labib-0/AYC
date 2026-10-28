@@ -83,7 +83,7 @@ class UploadController extends ApiController
                     }
                 },
             ],
-            'folder' => ['nullable', 'string', 'in:products,brands,categories,banners'],
+            'folder' => ['nullable', 'string', 'in:products,brands,categories,banners,pages'],
         ], [
             'file.required' => 'Please select an image file to upload.',
             'file.file'     => 'The uploaded item must be a valid file.',
@@ -96,6 +96,7 @@ class UploadController extends ApiController
             'brands'     => $this->authorization->can($user, 'brand.edit') || $this->authorization->can($user, 'brand.create'),
             'categories' => $this->authorization->can($user, 'category.edit') || $this->authorization->can($user, 'category.create'),
             'banners'    => $this->authorization->can($user, 'homepage.banner.edit'),
+            'pages'      => $this->authorization->can($user, 'page.edit') || $this->authorization->can($user, 'page.create'),
             default      => false,
         };
 

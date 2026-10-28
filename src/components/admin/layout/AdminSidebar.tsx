@@ -24,7 +24,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   X,
-  Boxes
+  Boxes,
+  LayoutTemplate
 } from "lucide-react";
 
 import { useAdminAuth } from "@/lib/AdminAuthContext";
@@ -88,6 +89,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
     title: "STOREFRONT",
     items: [
       { label: "Homepage", href: "/ayc/homepage", icon: PanelTop, permission: ADMIN_PERMISSIONS.HOMEPAGE_VIEW },
+      { label: "Pages (CMS)", href: "/ayc/pages", icon: LayoutTemplate, permission: ADMIN_PERMISSIONS.PAGE_VIEW },
     ],
   },
   {

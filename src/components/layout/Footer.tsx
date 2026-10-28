@@ -9,6 +9,8 @@ import { useSiteSettings } from "@/lib/SiteSettingsContext";
 import BUSINESS_PROFILE, { normalizeWhatsAppNumber } from "@/config/business-profile";
 import { categoryService } from "@/services/category.service";
 import { brandService, BrandModel } from "@/services/brand.service";
+import { cmsPageService } from "@/services/cms-page.service";
+import { CmsPageFooterItem } from "@/types/cms";
 import {
   getStorefrontCategories,
   getStorefrontLandingBrands,
@@ -21,16 +23,18 @@ export default function Footer() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [categories, setCategories] = useState<StorefrontCategoryItem[]>([]);
   const [brands, setBrands] = useState<BrandModel[]>([]);
+  const [footerPages, setFooterPages] = useState<CmsPageFooterItem[]>([]);
 
-  // Load active storefront categories and landing brands matching homepage ordering
+  // Load active storefront categories, landing brands, and published CMS footer pages
   useEffect(() => {
     let isMounted = true;
 
     async function loadTaxonomies() {
       try {
-        const [rawCats, landingBrands] = await Promise.all([
+        const [rawCats, landingBrands, publicPages] = await Promise.all([
           categoryService.getCategories({ is_active: true, all: true }),
           getStorefrontLandingBrands(),
+          cmsPageService.getFooterPages(),
         ]);
 
         if (isMounted) {
@@ -40,6 +44,9 @@ export default function Footer() {
           }
           if (Array.isArray(landingBrands)) {
             setBrands(landingBrands.slice(0, 10));
+          }
+          if (Array.isArray(publicPages)) {
+            setFooterPages(publicPages);
           }
         }
       } catch (err) {
@@ -52,16 +59,21 @@ export default function Footer() {
     const handleUpdate = () => {
       brandService.invalidateCache();
       categoryService.invalidateCache();
+      cmsPageService.invalidateCache();
       loadTaxonomies();
     };
 
     window.addEventListener("ayaan:homepage-updated", handleUpdate);
+    window.addEventListener("ayaan:page-updated", handleUpdate);
+    window.addEventListener("ayaan:page-footer-updated", handleUpdate);
     window.addEventListener("ayaan:data-updated", handleUpdate);
     window.addEventListener("storage", handleUpdate);
 
     return () => {
       isMounted = false;
       window.removeEventListener("ayaan:homepage-updated", handleUpdate);
+      window.removeEventListener("ayaan:page-updated", handleUpdate);
+      window.removeEventListener("ayaan:page-footer-updated", handleUpdate);
       window.removeEventListener("ayaan:data-updated", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
     };
@@ -107,17 +119,22 @@ export default function Footer() {
   const activeSocialLinks = filterConfiguredSocialLinks(settings.social_links);
 
   const aboutUsContent = (settings as any).footer_description || `${BUSINESS_PROFILE.description}. Established in ${BUSINESS_PROFILE.establishedYear}, serving international retail chains and corporate apparel importers with export-grade ready-made garments.`;
+  const hasPages = footerPages.length > 0;
 
   return (
     <>
       <footer className="bg-[#0b1329] text-white/90 pt-14 pb-20 sm:pb-10 border-t border-white/10">
         <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
           
-          {/* Main 5-Column Structured IA Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-8 lg:gap-7 pb-12 border-b border-white/10">
+          {/* Main Structured IA Grid: Transitions from 5 to 6 columns when CMS pages are present */}
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${
+              hasPages ? "lg:grid-cols-6" : "lg:grid-cols-12"
+            } gap-8 lg:gap-7 pb-12 border-b border-white/10`}
+          >
             
-            {/* COLUMN 1 — BRANDING / ABOUT US (Col span 3) */}
-            <div className="lg:col-span-3 flex flex-col gap-4">
+            {/* COLUMN 1 — BRANDING / ABOUT US */}
+            <div className={`${hasPages ? "" : "lg:col-span-3"} flex flex-col gap-4`}>
               <Link href="/" className="flex items-center inline-block w-fit" aria-label={`${settings.site_title} Home`}>
                 <HeaderBranding
                   siteTitle={settings.site_title}
@@ -150,8 +167,8 @@ export default function Footer() {
               </div>
             </div>
 
-            {/* COLUMN 2 — SHOP & COLLECTIONS (Col span 2) */}
-            <div className="lg:col-span-2">
+            {/* COLUMN 2 — SHOP & COLLECTIONS */}
+            <div className={hasPages ? "" : "lg:col-span-2"}>
               <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                 SHOP
               </h3>
@@ -189,8 +206,8 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* COLUMN 3 — POPULAR CATEGORIES (Col span 2) */}
-            <div className="lg:col-span-2">
+            {/* COLUMN 3 — POPULAR CATEGORIES */}
+            <div className={hasPages ? "" : "lg:col-span-2"}>
               <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                 CATEGORIES
               </h3>
@@ -217,8 +234,8 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* COLUMN 4 — POPULAR BRANDS (Col span 2) */}
-            <div className="lg:col-span-2">
+            {/* COLUMN 4 — POPULAR BRANDS */}
+            <div className={hasPages ? "" : "lg:col-span-2"}>
               <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                 BRANDS
               </h3>
@@ -245,8 +262,30 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* COLUMN 5 — WHOLESALE SOURCING & CONTACT (Col span 3) */}
-            <div className="lg:col-span-3 flex flex-col gap-4">
+            {/* COLUMN 5 — DYNAMIC CMS PAGES (Third Column alongside Brand & Category) */}
+            {hasPages && (
+              <div>
+                <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
+                  PAGES
+                </h3>
+                <ul className="flex flex-col gap-2 text-[13px] text-white/75">
+                  {footerPages.map((page) => (
+                    <li key={page.id || page.slug}>
+                      <Link
+                        href={`/${page.slug}`}
+                        className="hover:text-white transition-colors truncate block max-w-full"
+                        title={page.footer_label || page.title}
+                      >
+                        {page.footer_label || page.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* COLUMN 6 — WHOLESALE SOURCING & CONTACT */}
+            <div className={`${hasPages ? "" : "lg:col-span-3"} flex flex-col gap-4`}>
               <div>
                 <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                   WHOLESALE SOURCING

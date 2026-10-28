@@ -170,6 +170,14 @@ class Permission extends Model
             'homepage.category.manage'   => ['name' => 'Manage Hot Sale Categories','module' => 'Merchandising','action' => 'category.manage','description' => 'Set and reorder hot sale categories',        'requires' => ['homepage.view', 'category.view']],
             'homepage.product.manage'    => ['name' => 'Manage Featured Products','module' => 'Merchandising', 'action' => 'product.manage', 'description' => 'Set and reorder featured products on homepage','requires' => ['homepage.view', 'product.view']],
 
+            // ── Storefront: Pages / CMS ────────────────────────────────────
+            'page.view'                  => ['name' => 'View CMS Pages',        'module' => 'Storefront', 'action' => 'view',               'description' => 'View list and details of CMS storefront pages', 'requires' => []],
+            'page.create'                => ['name' => 'Create CMS Page',       'module' => 'Storefront', 'action' => 'create',             'description' => 'Create new storefront CMS pages and drafts',    'requires' => ['page.view']],
+            'page.edit'                  => ['name' => 'Edit CMS Page',         'module' => 'Storefront', 'action' => 'edit',               'description' => 'Edit page sections, styling, and metadata',     'requires' => ['page.view']],
+            'page.publish'               => ['name' => 'Publish CMS Page',      'module' => 'Storefront', 'action' => 'publish',            'description' => 'Publish, unpublish, or schedule CMS pages',      'requires' => ['page.view', 'page.edit']],
+            'page.delete'                => ['name' => 'Delete CMS Page',       'module' => 'Storefront', 'action' => 'delete',             'description' => 'Archive or soft-delete CMS pages',              'requires' => ['page.view']],
+            'page.footer.manage'         => ['name' => 'Manage Footer Pages',   'module' => 'Storefront', 'action' => 'footer.manage',      'description' => 'Control page visibility and order in the footer','requires' => ['page.view']],
+
             // ── Orders ─────────────────────────────────────────────────────
             'order.view'              => ['name' => 'View Orders',           'module' => 'Orders', 'action' => 'view',               'description' => 'View order list and order details',     'requires' => []],
             'order.view_customer'     => ['name' => 'View Order Customer',   'module' => 'Orders', 'action' => 'view_customer',      'description' => 'View customer PII on orders',           'requires' => ['order.view']],
