@@ -86,7 +86,7 @@
             border: 1px solid #e2e8f0;
             border-radius: 4px;
             padding: 6px 12px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
         .meta-label {
             font-size: 7pt;
@@ -109,8 +109,8 @@
             font-size: 11pt;
             font-weight: bold;
             color: #172237;
-            margin-top: 8px;
-            margin-bottom: 5px;
+            margin-top: 10px;
+            margin-bottom: 7px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
@@ -126,6 +126,16 @@
         }
         .gallery-table tr {
             page-break-inside: avoid;
+        }
+        /* Modest vertical spacing increase for 3-row layout on Page 1 to balance vertical space */
+        .gallery-table-p1-3rows {
+            border-spacing: 2.5mm 4.5mm;
+            margin-bottom: 4px;
+        }
+        /* Continuation gallery table (up to 4 rows per continuation page) */
+        .gallery-table-continuation {
+            border-spacing: 2.5mm 3.0mm;
+            margin-bottom: 6px;
         }
         .gallery-cell {
             width: 25%;
@@ -322,10 +332,53 @@
             if (!$isMissingVal($brandName)) {
                 $validSpecs['Brand'] = $normalize($stripPrefix($brandName, ['Brand']));
             }
-            $moqDisplay = ($item['quantity'] ?? null) ?: ($product->moq ?? null);
-            if ($moqDisplay) {
-                $validSpecs['Quantity'] = $moqDisplay . ' pcs';
+
+            // ── SOURCING QUANTITY (STRICTLY FULL-STOCK QUANTITY, NEVER MOQ) ──
+            $fullStockQty = null;
+
+            // 1. Direct explicit full_stock_quantity on item payload
+            if (isset($item['full_stock_quantity']) && is_numeric($item['full_stock_quantity']) && (int) $item['full_stock_quantity'] > 0) {
+                $fullStockQty = (int) $item['full_stock_quantity'];
             }
+
+            // 2. Derive from pricing tiers (Full Stock tier)
+            if ($fullStockQty === null || $fullStockQty <= 0) {
+                $pricingTiers = $item['pricing_tiers'] ?? [];
+                foreach ($pricingTiers as $tier) {
+                    $tName = strtolower(trim((string) ($tier['tierName'] ?? '')));
+                    if ($tName === 'full stock' || str_contains($tName, 'full stock')) {
+                        if (isset($tier['quantity']) && (int) $tier['quantity'] > 0) {
+                            $fullStockQty = (int) $tier['quantity'];
+                            break;
+                        }
+                        if (!empty($tier['quantityBasis']) && preg_match('/^([0-9,]+)\s*pcs/i', trim($tier['quantityBasis']), $matches)) {
+                            $parsed = (int) str_replace(',', '', $matches[1]);
+                            if ($parsed > 0) {
+                                $fullStockQty = $parsed;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Fallback to product model if loaded in context
+            if (($fullStockQty === null || $fullStockQty <= 0) && isset($product) && is_object($product)) {
+                if (method_exists($product, 'getEligibleFullStockQuantity') && $product->getEligibleFullStockQuantity() > 0) {
+                    $fullStockQty = (int) $product->getEligibleFullStockQuantity();
+                } elseif (method_exists($product, 'getTotalAvailableStock') && $product->getTotalAvailableStock() > 0) {
+                    $fullStockQty = (int) $product->getTotalAvailableStock();
+                } elseif (isset($product->stock) && (int) $product->stock > 0) {
+                    $fullStockQty = (int) $product->stock;
+                }
+            }
+
+            // Output Quantity specification strictly when authoritative full-stock quantity exists
+            // Label must remain EXACTLY 'Quantity' (never renamed to Stock, MOQ, etc.)
+            if ($fullStockQty !== null && $fullStockQty > 0) {
+                $validSpecs['Quantity'] = number_format($fullStockQty) . ' pcs';
+            }
+
             if (!$isMissingVal($colourDesc)) {
                 $validSpecs['Colours'] = $normalize($stripPrefix($colourDesc, ['Colours?', 'Colors?']));
             }
@@ -356,9 +409,41 @@
                 ]
             ];
 
-            // Sizing and layout balancing based on gallery rows
-            $imageChunks = array_chunk($images, 4);
-            $rowCount = count($imageChunks);
+            // Multi-page gallery pagination policy:
+            // Page 1: Maximum 3 rows (up to 12 images)
+            // Continuation pages: Maximum 4 rows (up to 16 images per page)
+            $p1Images = array_slice($images, 0, 12);
+            $p1Chunks = array_chunk($p1Images, 4);
+            $p1RowCount = count($p1Chunks);
+
+            $remainingImages = array_slice($images, 12);
+            $continuationPages = [];
+            if (!empty($remainingImages)) {
+                // Chunk into continuation pages of up to 16 images (4 rows of 4 each)
+                $continuationPageImages = array_chunk($remainingImages, 16);
+                foreach ($continuationPageImages as $cPageImgs) {
+                    $continuationPages[] = array_chunk($cPageImgs, 4);
+                }
+            }
+
+            // Determine whether Specifications & Pricing need a page break:
+            // 1. If no continuation gallery pages exist:
+            //    - If Page 1 has 3 rows (9-12 images), Specs & Pricing MUST break to Page 2.
+            //    - If Page 1 has 1-2 rows (1-8 images), Specs & Pricing fit on Page 1.
+            // 2. If continuation gallery pages exist:
+            //    - If the last continuation page has >= 3 rows (3 or 4 rows), Specs & Pricing break to next page.
+            //    - If the last continuation page has <= 2 rows (1 or 2 rows), Specs & Pricing fit on that same page!
+            $specsNeedPageBreak = false;
+            if (empty($continuationPages)) {
+                if ($p1RowCount >= 3) {
+                    $specsNeedPageBreak = true;
+                }
+            } else {
+                $lastContPage = end($continuationPages);
+                if (count($lastContPage) >= 3) {
+                    $specsNeedPageBreak = true;
+                }
+            }
         @endphp
 
         @if($itemIdx > 0)
@@ -399,33 +484,11 @@
             </table>
         </div>
 
-        {{-- 5. Product Gallery: 4 Columns per Row with Storefront 4:5 Portrait Ratio --}}
-        @if(count($images) > 0)
+        {{-- 5. Product Gallery: Page 1 (Up to 3 Rows with Storefront 4:5 Portrait Ratio) --}}
+        @if(count($p1Images) > 0)
             <div class="section-heading">PRODUCT GALLERY</div>
-            <table class="gallery-table">
-                @foreach($imageChunks as $chunkIdx => $row)
-                    @if($chunkIdx === 3)
-                        </table>
-                        <div class="page-break"></div>
-                        <div class="continuation-bar">
-                            <table style="width: 100%; table-layout: fixed;">
-                                <tr>
-                                    <td style="width: 60%; vertical-align: middle;">
-                                        @if(!empty($brandName))
-                                            <span class="product-brand" style="font-size: 8.5pt;">{{ mb_strtoupper($brandName, 'UTF-8') }}</span>
-                                        @endif
-                                        <span class="product-sku" style="font-size: 8.5pt;">{{ $productName }} &bull; SKU: {{ $sku }}</span>
-                                    </td>
-                                    <td style="width: 40%; text-align: right; vertical-align: middle;">
-                                        <span class="meta-label">OFFER REF: </span>
-                                        <span class="meta-val" style="font-size: 8pt;">{{ $docNumber }}</span>
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                        <div class="section-heading" style="margin-top: 4px;">PRODUCT GALLERY (CONTINUED)</div>
-                        <table class="gallery-table">
-                    @endif
+            <table class="gallery-table {{ $p1RowCount >= 3 ? 'gallery-table-p1-3rows' : '' }}">
+                @foreach($p1Chunks as $row)
                     <tr>
                         @foreach($row as $rawImgUrl)
                             @php
@@ -445,8 +508,49 @@
             </table>
         @endif
 
-        {{-- Explicit clean page break with continuation header when gallery has 3 rows --}}
-        @if($rowCount == 3)
+        {{-- 5b. Subsequent Continuation Gallery Pages (Max 4 Rows per Page) --}}
+        @foreach($continuationPages as $contPageIdx => $contRows)
+            <div class="page-break"></div>
+            <div class="continuation-bar">
+                <table style="width: 100%; table-layout: fixed;">
+                    <tr>
+                        <td style="width: 60%; vertical-align: middle;">
+                            @if(!empty($brandName))
+                                <span class="product-brand" style="font-size: 8.5pt;">{{ mb_strtoupper($brandName, 'UTF-8') }}</span>
+                            @endif
+                            <span class="product-sku" style="font-size: 8.5pt;">{{ $productName }} &bull; SKU: {{ $sku }}</span>
+                        </td>
+                        <td style="width: 40%; text-align: right; vertical-align: middle;">
+                            <span class="meta-label">OFFER REF: </span>
+                            <span class="meta-val" style="font-size: 8pt;">{{ $docNumber }}</span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="section-heading" style="margin-top: 4px;">PRODUCT GALLERY (CONTINUED)</div>
+            <table class="gallery-table gallery-table-continuation">
+                @foreach($contRows as $row)
+                    <tr>
+                        @foreach($row as $rawImgUrl)
+                            @php
+                                $imgSrc = \App\Services\Documents\DocumentHelper::resolvePdfImageSource($rawImgUrl);
+                            @endphp
+                            <td class="gallery-cell">
+                                @if($imgSrc)
+                                    <img src="{{ $imgSrc }}" class="gallery-img" alt="Product" />
+                                @endif
+                            </td>
+                        @endforeach
+                        @for($k = count($row); $k < 4; $k++)
+                            <td class="gallery-cell-empty"></td>
+                        @endfor
+                    </tr>
+                @endforeach
+            </table>
+        @endforeach
+
+        {{-- Explicit clean page break with continuation header when required by printable dimensions --}}
+        @if($specsNeedPageBreak)
             <div class="page-break"></div>
             <div class="continuation-bar">
                 <table style="width: 100%; table-layout: fixed;">

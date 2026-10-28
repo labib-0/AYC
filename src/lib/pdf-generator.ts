@@ -557,9 +557,21 @@ export function generateOfferSheetPDFDoc(
     } else {
       // Exactly 4 columns per row with Storefront 4:5 portrait card ratio (Width:Height = 4:5 => Height = Width * 1.25)
       const cols = 4;
-      const gap = 2.5;
-      const tileW = (contentWidth - (cols - 1) * gap) / cols;
+      const gapX = 2.5;
+      const tileW = (contentWidth - (cols - 1) * gapX) / cols;
       const tileH = tileW * 1.25;
+
+      // Page 1 images: maximum 3 rows (up to 12 images)
+      const p1Images = galleryImages.slice(0, 12);
+      const remainingImages = galleryImages.slice(12);
+
+      const p1Chunks: string[][] = [];
+      for (let i = 0; i < p1Images.length; i += cols) {
+        p1Chunks.push(p1Images.slice(i, i + cols));
+      }
+      const p1RowCount = p1Chunks.length;
+      // Modestly increase vertical gap for 3-row layout on Page 1 to balance vertical space
+      const gapY_P1 = p1RowCount >= 3 ? 4.5 : 2.5;
 
       // Ensure gallery heading + first row fit together
       if (y + 10 + tileH > pageBottomSafeY) {
@@ -574,24 +586,12 @@ export function generateOfferSheetPDFDoc(
       doc.text("PRODUCT GALLERY", margin, y);
       y += 4.5;
 
-      for (let i = 0; i < galleryImages.length; i += cols) {
-        const row = galleryImages.slice(i, i + cols);
-
-        // Move entire complete row to next page when it cannot fit within safe content area
-        if (y + tileH > pageBottomSafeY) {
-          doc.addPage();
-          y = margin;
-          printContinuationHeader();
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(9.5);
-          doc.setTextColor(15, 23, 42);
-          doc.text("PRODUCT GALLERY (CONTINUED)", margin, y);
-          y += 4.5;
-        }
-
+      // Draw Page 1 gallery rows
+      for (let rIdx = 0; rIdx < p1Chunks.length; rIdx++) {
+        const row = p1Chunks[rIdx];
         for (let colIdx = 0; colIdx < row.length; colIdx++) {
           const imgData = row[colIdx];
-          const tileX = margin + colIdx * (tileW + gap);
+          const tileX = margin + colIdx * (tileW + gapX);
           const tileY = y;
 
           // Draw card background and subtle border matching approved styling
@@ -642,10 +642,112 @@ export function generateOfferSheetPDFDoc(
           }
         }
 
-        y += tileH + gap;
+        y += tileH + gapY_P1;
       }
 
-      y += 3;
+      // Draw Continuation Pages (Max 4 rows / 16 images per page)
+      let contPages: string[][][] = [];
+      if (remainingImages.length > 0) {
+        const contImagesByPage: string[][] = [];
+        for (let i = 0; i < remainingImages.length; i += 16) {
+          contImagesByPage.push(remainingImages.slice(i, i + 16));
+        }
+        contPages = contImagesByPage.map((pImgs) => {
+          const rows: string[][] = [];
+          for (let j = 0; j < pImgs.length; j += cols) {
+            rows.push(pImgs.slice(j, j + cols));
+          }
+          return rows;
+        });
+
+        const gapY_Cont = 3.0;
+        for (let cpIdx = 0; cpIdx < contPages.length; cpIdx++) {
+          doc.addPage();
+          y = margin;
+          printContinuationHeader();
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9.5);
+          doc.setTextColor(15, 23, 42);
+          doc.text("PRODUCT GALLERY (CONTINUED)", margin, y);
+          y += 4.5;
+
+          const cRows = contPages[cpIdx];
+          for (let rIdx = 0; rIdx < cRows.length; rIdx++) {
+            const row = cRows[rIdx];
+            for (let colIdx = 0; colIdx < row.length; colIdx++) {
+              const imgData = row[colIdx];
+              const tileX = margin + colIdx * (tileW + gapX);
+              const tileY = y;
+
+              doc.setFillColor(244, 246, 249);
+              doc.setDrawColor(226, 232, 240);
+              doc.setLineWidth(0.3);
+              doc.roundedRect(tileX, tileY, tileW, tileH, 1.2, 1.2, "FD");
+
+              const padding = 1.0;
+              const innerW = tileW - padding * 2;
+              const innerH = tileH - padding * 2;
+              const innerX = tileX + padding;
+              const innerY = tileY + padding;
+
+              try {
+                const props = (doc as any).getImageProperties(imgData);
+                const imgRatio = (props?.width || 1) / (props?.height || 1);
+                let drawW = innerW;
+                let drawH = drawW / imgRatio;
+                if (drawH > innerH) {
+                  drawH = innerH;
+                  drawW = drawH * imgRatio;
+                }
+                const drawX = innerX + (innerW - drawW) / 2;
+                const drawY = innerY + (innerH - drawH) / 2;
+                doc.addImage(imgData, "JPEG", drawX, drawY, drawW, drawH, undefined, "FAST");
+              } catch {
+                try {
+                  doc.addImage(imgData, "JPEG", innerX, innerY, innerW, innerH, undefined, "FAST");
+                } catch {}
+              }
+
+              const logoInset = 1.2;
+              const logoSize = 4.2;
+              const logoX = tileX + tileW - logoInset - logoSize;
+              const logoY = tileY + logoInset;
+
+              if (effectiveLogoDataUrl) {
+                try {
+                  doc.addImage(effectiveLogoDataUrl, "PNG", logoX, logoY, logoSize, logoSize, "AYC_LOGO", "FAST");
+                } catch {
+                  try {
+                    doc.addImage(effectiveLogoDataUrl, logoX, logoY, logoSize, logoSize, "AYC_LOGO", "FAST");
+                  } catch {}
+                }
+              }
+            }
+            y += tileH + gapY_Cont;
+          }
+        }
+      }
+
+      // Determine page break before Specifications:
+      let specsNeedPageBreak = false;
+      if (contPages.length === 0) {
+        if (p1RowCount >= 3) {
+          specsNeedPageBreak = true;
+        }
+      } else {
+        const lastPageRows = contPages[contPages.length - 1];
+        if (lastPageRows.length >= 3) {
+          specsNeedPageBreak = true;
+        }
+      }
+
+      if (specsNeedPageBreak) {
+        doc.addPage();
+        y = margin;
+        printContinuationHeader();
+      } else {
+        y += 3;
+      }
     }
 
     // 5. Product Specifications (Natural Flow)
@@ -670,8 +772,28 @@ export function generateOfferSheetPDFDoc(
       );
     };
 
+    let fullStockQty: number | null = null;
+    const fsTier = product.pricingTiers?.find((t: any) => t.tierName === "Full Stock");
+    if (fsTier && fsTier.quantityBasis) {
+      const match = fsTier.quantityBasis.match(/^([0-9,]+)/);
+      if (match) fullStockQty = Number(match[1].replace(/,/g, ""));
+    }
+    const rawProd = (product as any).rawProduct;
+    if ((!fullStockQty || fullStockQty <= 0) && (product as any).availableStock && Number((product as any).availableStock) > 0) {
+      fullStockQty = Number((product as any).availableStock);
+    }
+    if ((!fullStockQty || fullStockQty <= 0) && rawProd?.availableStock && Number(rawProd.availableStock) > 0) {
+      fullStockQty = Number(rawProd.availableStock);
+    }
+    if ((!fullStockQty || fullStockQty <= 0) && (product as any).full_stock_quantity && Number((product as any).full_stock_quantity) > 0) {
+      fullStockQty = Number((product as any).full_stock_quantity);
+    }
+
     const specRows: string[][] = [];
     if (!isMissingVal(product.brand)) specRows.push(["Brand", String(product.brand).trim()]);
+    if (fullStockQty !== null && fullStockQty > 0) {
+      specRows.push(["Quantity", `${fullStockQty.toLocaleString()} pcs`]);
+    }
     if (!isMissingVal(product.specificationTiles?.colour)) specRows.push(["Colours", String(product.specificationTiles?.colour).trim()]);
     if (!isMissingVal(product.specificationTiles?.size)) specRows.push(["Available Sizes", String(product.specificationTiles?.size).trim()]);
     if (!isMissingVal(product.specificationTiles?.material)) specRows.push(["Fabric / Composition", String(product.specificationTiles?.material).trim()]);

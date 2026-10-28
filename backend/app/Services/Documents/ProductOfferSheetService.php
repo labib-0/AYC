@@ -16,7 +16,7 @@ class ProductOfferSheetService
     public const TARGET_SIZE_BYTES = 1572864; // 1.5 MB target
     public const MAX_SIZE_BYTES = 2097152;    // 2.0 MB hard limit
 
-    public const LAYOUT_VERSION = 'v12.0_offer_sheet_4_5_portrait_gallery_ratio';
+    public const LAYOUT_VERSION = 'v13.0_offer_sheet_refined_spacing_and_full_stock_quantity';
 
     public function __construct(
         protected OfferSheetService $offerSheetService,
@@ -56,6 +56,8 @@ class ProductOfferSheetService
             $exporter['email'] ?? '',
         ]));
 
+        $fsQty = (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock);
+
         $corePayload = implode('~', [
             $product->id,
             $product->sku ?? '',
@@ -72,7 +74,7 @@ class ProductOfferSheetService
             $product->standard_price ?? '',
             $product->wholesale_price ?? '',
             $product->bulk_pricing_enabled ? "bulk:{$product->bulk_price}:{$product->bulk_threshold}" : 'no_bulk',
-            $product->full_stock_price ? "stock:{$product->full_stock_price}:{$product->available_stock}" : 'no_stock',
+            $product->full_stock_price ? "stock:{$product->full_stock_price}:{$fsQty}" : "stock:0:{$fsQty}",
             $brandName,
             $brandLogoUrl,
             $brandLogoChecksum,

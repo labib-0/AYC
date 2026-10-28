@@ -76,6 +76,7 @@ class OfferSheetService
             $gwMoq = self::formatGrossWeight($gwVal ? (float) $gwVal : null, $moqProfile);
 
             $tiers = self::buildPricingTiers($product, (float) $item->unit_price, (int) $item->quantity);
+            $eligibleFsQty = $product ? (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock) : null;
 
             $items[] = [
                 'id' => (string) $item->id,
@@ -97,6 +98,7 @@ class OfferSheetService
                 'sku' => ($item->sku ?? null) ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? ($item->product_image_url ?? null),
                 'product_images' => $gallery,
+                'full_stock_quantity' => $eligibleFsQty > 0 ? $eligibleFsQty : null,
                 'quantity' => (int) $item->quantity,
                 'unit_price' => (float) $item->unit_price,
                 'line_total' => (float) $item->line_total,
@@ -229,6 +231,7 @@ class OfferSheetService
             $gwMoq = self::formatGrossWeight($gwVal ? (float) $gwVal : null, $moqProfile);
 
             $tiers = self::buildPricingTiers($product, (float) $item->unit_price, (int) $item->quantity);
+            $eligibleFsQty = $product ? (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock) : null;
 
             $items[] = [
                 'id' => (string) $item->id,
@@ -250,6 +253,7 @@ class OfferSheetService
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? $item->product_image_url,
                 'product_images' => $gallery,
+                'full_stock_quantity' => $eligibleFsQty > 0 ? $eligibleFsQty : null,
                 'quantity' => (int) $item->quantity,
                 'unit_price' => (float) $item->unit_price,
                 'line_total' => (float) $item->line_total,
@@ -338,6 +342,7 @@ class OfferSheetService
 
         $tiers = self::buildPricingTiers($product);
         $stdPrice = (float) ($tiers[0]['unitPrice'] ?? $product->wholesale_price ?? 0);
+        $eligibleFsQty = (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock);
 
         $items = [
             [
@@ -360,6 +365,8 @@ class OfferSheetService
                 'sku' => $product->sku ?: "AYN-SKU-" . str_pad($product->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? null,
                 'product_images' => $gallery,
+                'full_stock_quantity' => $eligibleFsQty > 0 ? $eligibleFsQty : null,
+                'moq' => $moqQty,
                 'quantity' => $moqQty,
                 'unit_price' => $stdPrice,
                 'line_total' => round($stdPrice * $moqQty, 2),
@@ -597,6 +604,7 @@ class OfferSheetService
                     'quantityBasis' => number_format($fsQty) . " pcs (Available Stock)",
                     'unitPrice' => $fsPrice,
                     'totalPrice' => round($fsPrice * $fsQty, 2),
+                    'quantity' => $fsQty,
                     '_min_qty' => $fsQty,
                     '_max_qty' => null,
                     '_is_custom' => false,

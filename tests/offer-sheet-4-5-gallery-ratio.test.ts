@@ -57,17 +57,17 @@ describe("AYC Offer Sheet — 4:5 Portrait Gallery Ratio and Image Maximization 
     assert.ok(helperContent.includes("_photo_v12"), "DocumentHelper must bump cache hash key to _photo_v12");
   });
 
-  it("5. ProductOfferSheetService bumps LAYOUT_VERSION to v12.0 for automatic cache busting", () => {
+  it("5. ProductOfferSheetService bumps LAYOUT_VERSION for automatic cache busting", () => {
     assert.ok(
-      pServiceContent.includes("v12.0_offer_sheet_4_5_portrait_gallery_ratio"),
-      "ProductOfferSheetService must define LAYOUT_VERSION as v12.0_offer_sheet_4_5_portrait_gallery_ratio"
+      pServiceContent.includes("v13.0_offer_sheet_refined_spacing_and_full_stock_quantity"),
+      "ProductOfferSheetService must define LAYOUT_VERSION as v13.0_offer_sheet_refined_spacing_and_full_stock_quantity"
     );
   });
 
-  it("6. Multi-page pagination and continuation headers are supported for 3+ gallery rows", () => {
+  it("6. Multi-page pagination and continuation headers are supported for gallery rows", () => {
     assert.ok(bladeContent.includes("continuation-bar"), "Blade template must define continuation-bar");
-    assert.ok(bladeContent.includes("$rowCount == 3"), "Blade template must handle 3-row gallery pagination with page break");
-    assert.ok(bladeContent.includes("$chunkIdx === 3"), "Blade template must handle 4+ row gallery continuation header");
+    assert.ok(bladeContent.includes("$p1RowCount >= 3"), "Blade template must handle 3-row gallery pagination with page break");
+    assert.ok(bladeContent.includes("gallery-table-continuation"), "Blade template must define continuation gallery table");
     assert.ok(bladeContent.includes("PRODUCT GALLERY (CONTINUED)"), "Blade template must display continued gallery heading");
   });
 
@@ -364,7 +364,7 @@ describe("AYC Offer Sheet — 4:5 Portrait Gallery Ratio and Image Maximization 
 </html>
     `;
 
-    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+    await page.setContent(htmlContent, { waitUntil: "domcontentloaded" });
     const proofPath = path.join(ARTIFACT_DIR, "offer_sheet_4_5_gallery_proof.png");
     await page.screenshot({ path: proofPath, fullPage: false });
     await browser.close();
