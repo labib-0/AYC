@@ -12,6 +12,7 @@ import {
   AlertCircle,
   RefreshCw,
   Printer,
+  CheckCircle2,
 } from "lucide-react";
 
 interface ProductOfferSheetModalProps {
@@ -26,11 +27,24 @@ export default function ProductOfferSheetModal({
   product,
 }: ProductOfferSheetModalProps) {
   const [loading, setLoading] = useState(true);
+  const [statusMessage, setStatusMessage] = useState<string>("Loading Offer Sheet...");
+  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [filename, setFilename] = useState<string>("");
+  const [isCacheHit, setIsCacheHit] = useState<boolean>(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear timers on unmount or close
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+      }
+    };
+  }, []);
 
   // Close on ESC
   useEffect(() => {
@@ -44,76 +58,137 @@ export default function ProductOfferSheetModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Fetch Offer Sheet PDF whenever product changes or on manual refresh
+  // Fetch Offer Sheet PDF binary directly
+  const fetchPdfBinary = useCallback(
+    async (forceRegenerate: boolean = false) => {
+      if (!product?.id) return;
+
+      const baseUrl = apiClient.getBaseUrl();
+      const token = apiClient.getToken();
+      const headers: Record<string, string> = {
+        Accept: "application/pdf",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const forceParam = forceRegenerate ? "&force=1" : "";
+      const endpoint = `${baseUrl}/products/${product.id}/offer-sheet?format=pdf${forceParam}`;
+      const res = await fetch(endpoint, { headers });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(
+          errData?.message || `Failed to generate Offer Sheet (HTTP ${res.status})`
+        );
+      }
+
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/pdf")) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(
+          errJson?.message || "Expected PDF binary from document service but received non-PDF response."
+        );
+      }
+
+      const blob = await res.blob();
+      if (blob.size === 0) {
+        throw new Error("Received empty PDF document from server.");
+      }
+
+      const cacheHeader = res.headers.get("x-pdf-cache") || "";
+      setIsCacheHit(cacheHeader === "HIT");
+
+      // Extract authoritative filename from Content-Disposition header if available
+      const disposition = res.headers.get("content-disposition") || "";
+      const filenameMatch = disposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?/i);
+      let resolvedFilename = filenameMatch?.[1] ? decodeURIComponent(filenameMatch[1]) : "";
+
+      if (!resolvedFilename) {
+        const cleanSku = (product.sku || product.name || `product_${product.id}`)
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .slice(0, 35);
+        resolvedFilename = `Offer-Sheet-${cleanSku}.pdf`;
+      }
+
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      setPdfBlob(blob);
+      setPdfUrl(objectUrl);
+      setFilename(resolvedFilename);
+      setLoading(false);
+      setIsProcessing(false);
+    },
+    [product?.id, product?.sku, product?.name, pdfUrl]
+  );
+
+  // Coordinated fetch checking status first to handle processing and error states gracefully
   const fetchOfferSheet = useCallback(
     async (forceRegenerate: boolean = false) => {
       if (!product?.id) return;
 
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+      }
+
       setLoading(true);
       setError(null);
+      setIsProcessing(false);
+      setStatusMessage(forceRegenerate ? "Generating latest Offer Sheet..." : "Checking Offer Sheet status...");
 
       try {
         const baseUrl = apiClient.getBaseUrl();
         const token = apiClient.getToken();
         const headers: Record<string, string> = {
-          Accept: "application/pdf",
+          Accept: "application/json",
         };
         if (token) {
           headers["Authorization"] = `Bearer ${token}`;
         }
 
-        const forceParam = forceRegenerate ? "&force=1" : "";
-        const endpoint = `${baseUrl}/products/${product.id}/offer-sheet?format=pdf${forceParam}`;
-        const res = await fetch(endpoint, { headers });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => null);
-          throw new Error(
-            errData?.message || `Failed to generate Offer Sheet (HTTP ${res.status})`
-          );
+        // If forced, immediately proceed to PDF generation
+        if (forceRegenerate) {
+          await fetchPdfBinary(true);
+          return;
         }
 
-        const contentType = res.headers.get("content-type") || "";
-        if (!contentType.includes("application/pdf")) {
-          const errJson = await res.json().catch(() => null);
-          throw new Error(
-            errJson?.message || "Expected PDF binary from document service but received non-PDF response."
-          );
+        // Fast status check
+        const statusRes = await fetch(`${baseUrl}/products/${product.id}/offer-sheet?status_only=1`, { headers });
+        if (statusRes.ok) {
+          const statusJson = await statusRes.json();
+          const info = statusJson?.data;
+
+          if (info?.is_processing) {
+            setIsProcessing(true);
+            setStatusMessage("Generating latest Offer Sheet in background...");
+            // Poll after 1.5 seconds
+            pollTimerRef.current = setTimeout(() => {
+              fetchOfferSheet(false);
+            }, 1500);
+            return;
+          }
+
+          if (info?.status === "failed") {
+            setError(info.error_message || "Offer Sheet generation failed previously. Click Retry to generate.");
+            setLoading(false);
+            return;
+          }
         }
 
-        const blob = await res.blob();
-        if (blob.size === 0) {
-          throw new Error("Received empty PDF document from server.");
-        }
-
-        // Extract authoritative filename from Content-Disposition header if available
-        const disposition = res.headers.get("content-disposition") || "";
-        const filenameMatch = disposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?/i);
-        let resolvedFilename = filenameMatch?.[1] ? decodeURIComponent(filenameMatch[1]) : "";
-
-        if (!resolvedFilename) {
-          const cleanSku = (product.sku || product.name || `product_${product.id}`)
-            .replace(/[^a-zA-Z0-9_-]/g, "_")
-            .slice(0, 35);
-          resolvedFilename = `Offer-Sheet-${cleanSku}.pdf`;
-        }
-
-        if (pdfUrl) {
-          URL.revokeObjectURL(pdfUrl);
-        }
-
-        const objectUrl = URL.createObjectURL(blob);
-        setPdfBlob(blob);
-        setPdfUrl(objectUrl);
-        setFilename(resolvedFilename);
-        setLoading(false);
+        // Not processing; fetch and render PDF directly
+        setStatusMessage("Retrieving Offer Sheet...");
+        await fetchPdfBinary(false);
       } catch (err: any) {
         console.error("[AYC] Offer Sheet fetch error:", err);
         setError(err?.message || "Failed to load product Offer Sheet.");
         setLoading(false);
+        setIsProcessing(false);
       }
     },
-    [product?.id, product?.sku, product?.name, pdfUrl]
+    [product?.id, fetchPdfBinary]
   );
 
   useEffect(() => {
@@ -129,6 +204,9 @@ export default function ProductOfferSheetModal({
     fetchOfferSheet(false);
 
     return () => {
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+      }
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
       }
@@ -164,7 +242,6 @@ export default function ProductOfferSheetModal({
         iframeRef.current.contentWindow.focus();
         iframeRef.current.contentWindow.print();
       } catch {
-        // Fallback: open in new tab
         handleOpenNewTab();
       }
     } else {
@@ -215,6 +292,11 @@ export default function ProductOfferSheetModal({
                 ) : (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase tracking-wider">
                     Draft
+                  </span>
+                )}
+                {isCacheHit && !loading && (
+                  <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                    <CheckCircle2 size={10} /> Fast Persisted View
                   </span>
                 )}
               </div>
@@ -284,12 +366,14 @@ export default function ProductOfferSheetModal({
           {loading && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-card/85 backdrop-blur-xs gap-3">
               <Loader2 size={32} className="animate-spin text-primary" />
-              <div className="text-center">
+              <div className="text-center px-4">
                 <p className="text-sm font-semibold text-foreground">
-                  Preparing instant Offer Sheet...
+                  {statusMessage}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Rendering canonical vector layout and product specifications
+                  {isProcessing
+                    ? "Product data was updated. Assembling new 4:5 gallery and verified pricing tiers..."
+                    : "Retrieving canonical vector layout and verified product specifications"}
                 </p>
               </div>
             </div>
@@ -313,7 +397,7 @@ export default function ProductOfferSheetModal({
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-all cursor-pointer"
                 >
                   <RefreshCw size={13} />
-                  Retry
+                  Retry Generation
                 </button>
                 <button
                   type="button"

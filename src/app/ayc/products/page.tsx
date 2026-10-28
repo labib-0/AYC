@@ -19,6 +19,7 @@ import { productDraftService } from "@/lib/services/product-draft.service";
 import { toggleProductStorefrontVisibility, toggleProductFeatured, toggleProductPin } from "@/services/product.service";
 import { homepageService } from "@/services/homepage.service";
 import { sortBrandsAlphabetically } from "@/lib/brand-sort";
+import { apiClient } from "@/services/api-client";
 
 // Authoritative featured-pin detection (strictly pinned products, independent of promotional tags)
 export const isProductPinned = (p: B2BProductInput): boolean => {
@@ -203,6 +204,7 @@ function AdminProductsContent() {
 
   // ── Offer Sheet Preview Modal State ──
   const [offerSheetProduct, setOfferSheetProduct] = useState<B2BProductInput | null>(null);
+  const [bulkOfferSheetLoading, setBulkOfferSheetLoading] = useState(false);
 
   const handleViewOfferSheet = useCallback((product: B2BProductInput) => {
     setOfferSheetProduct(product);
@@ -750,6 +752,121 @@ function AdminProductsContent() {
     await Promise.all([loadProducts(), loadGlobalMetrics()]);
   };
 
+  const handleBulkOfferSheet = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    setBulkOfferSheetLoading(true);
+    addToast(
+      "success",
+      `Checking Offer Sheet readiness for ${ids.length} selected product${ids.length !== 1 ? "s" : ""}...`
+    );
+
+    try {
+      const baseUrl = apiClient.getBaseUrl();
+      const token = apiClient.getToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const numericIds = ids.map((id) => parseInt(id, 10)).filter((n) => !isNaN(n));
+
+      // 1. Initial readiness check (with check_only flag, which automatically queues background jobs for any pending items)
+      let isReady = false;
+      let attempts = 0;
+      const maxAttempts = 20;
+
+      while (!isReady && attempts < maxAttempts) {
+        attempts++;
+        const checkRes = await fetch(`${baseUrl}/products/bulk-offer-sheet`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            product_ids: numericIds,
+            check_only: true,
+          }),
+        });
+
+        if (!checkRes.ok) {
+          const errData = await checkRes.json().catch(() => null);
+          throw new Error(errData?.message || `Readiness check failed (HTTP ${checkRes.status})`);
+        }
+
+        const checkJson = await checkRes.json();
+        const data = checkJson?.data || {};
+
+        if (data.status === "ready") {
+          isReady = true;
+          break;
+        }
+
+        if (attempts === 1) {
+          addToast(
+            "success",
+            `Generating latest Offer Sheets for ${data.pending_ids?.length || 1} product(s)... Merging when ready.`
+          );
+        }
+
+        // Wait 1.5s between poll checks
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+
+      // 2. Fetch merged PDF binary
+      const pdfHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/pdf",
+      };
+      if (token) {
+        pdfHeaders["Authorization"] = `Bearer ${token}`;
+      }
+
+      const mergeRes = await fetch(`${baseUrl}/products/bulk-offer-sheet`, {
+        method: "POST",
+        headers: pdfHeaders,
+        body: JSON.stringify({
+          product_ids: numericIds,
+        }),
+      });
+
+      if (!mergeRes.ok) {
+        const errData = await mergeRes.json().catch(() => null);
+        throw new Error(errData?.message || `Failed to download combined Offer Sheet (HTTP ${mergeRes.status})`);
+      }
+
+      const blob = await mergeRes.blob();
+      if (blob.size === 0) {
+        throw new Error("Received empty combined PDF document from server.");
+      }
+
+      // Extract filename from disposition or construct clean name
+      const disposition = mergeRes.headers.get("content-disposition") || "";
+      const filenameMatch = disposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?/i);
+      const filename = filenameMatch?.[1]
+        ? decodeURIComponent(filenameMatch[1])
+        : `AYC_Combined_Offer_Sheets_${numericIds.length}_Products_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+
+      addToast("success", `Combined Offer Sheet successfully downloaded (${(blob.size / 1024 / 1024).toFixed(2)} MB).`);
+    } catch (err: any) {
+      console.error("[AYC] Bulk Offer Sheet error:", err);
+      addToast("error", err?.message || "Failed to generate combined Offer Sheet.");
+    } finally {
+      setBulkOfferSheetLoading(false);
+    }
+  };
+
   const handleClearFilters = () => {
     setFilters({
       search: "",
@@ -931,6 +1048,8 @@ function AdminProductsContent() {
       {/* Bulk Actions */}
       <ProductBulkActions
         selectedCount={selectedIds.size}
+        onBulkOfferSheet={handleBulkOfferSheet}
+        offerSheetLoading={bulkOfferSheetLoading}
         onBulkPublish={handleBulkPublish}
         onBulkUnpublish={handleBulkUnpublish}
         onBulkAdjustStock={canAdjustStock ? handleOpenBulkAdjust : undefined}

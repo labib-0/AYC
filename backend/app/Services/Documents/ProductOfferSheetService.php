@@ -143,6 +143,14 @@ class ProductOfferSheetService
         try {
             $lock->block(30);
 
+            // Reload fresh committed state from DB to guarantee latest saved product state wins
+            $product->refresh();
+            $product->load(['images', 'brand', 'pricingTiers', 'shippingPackageProfiles']);
+            $fingerprint = $this->computeFingerprint($product);
+            $cleanSku = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($product->sku ?: "PROD-{$product->id}"));
+            $filename = "Offer-Sheet-{$cleanSku}.pdf";
+            $canonicalPath = "{$relativeDir}/OFFER_SHEET_{$fingerprint}.pdf";
+
             // Double check cache in case concurrent worker completed generation
             if (!$force) {
                 $sheetRecord = ProductOfferSheet::where('product_id', $product->id)->first();
@@ -314,7 +322,8 @@ class ProductOfferSheetService
         $mergedFingerprint = hash('sha256', 'bulk_merged_' . implode('|', $hashes));
         $cacheDir = "documents_cache/bulk_offer_sheets";
         $cacheFile = "{$cacheDir}/bulk_{$mergedFingerprint}.pdf";
-        $filename = "AYC_Combined_Offer_Sheets_" . date('Ymd_His') . ".pdf";
+        $count = $productList->count();
+        $filename = "AYC_Combined_Offer_Sheets_{$count}_Products_" . date('Ymd_His') . ".pdf";
 
         $storageDisk = Storage::disk('local');
 
@@ -360,6 +369,40 @@ class ProductOfferSheetService
             'hash' => hash('sha256', $mergedBinary),
             'filesize' => strlen($mergedBinary),
             'time_ms' => $totalTimeMs,
+        ];
+    }
+
+    /**
+     * Check readiness of Offer Sheets for a set of products.
+     * Returns count of ready products and non-ready products.
+     *
+     * @param Collection|array<Product> $products
+     * @return array{ready_count: int, total_count: int, all_ready: bool, pending_products: array<Product>}
+     */
+    public function checkReadiness($products): array
+    {
+        $productList = $products instanceof Collection ? $products->values() : collect($products)->values();
+        $readyCount = 0;
+        $pendingProducts = [];
+        $storageDisk = Storage::disk('local');
+
+        foreach ($productList as $product) {
+            $fingerprint = $this->computeFingerprint($product);
+            $sheetRecord = ProductOfferSheet::where('product_id', $product->id)->first();
+            $canonicalPath = "product_offer_sheets/{$product->id}/OFFER_SHEET_{$fingerprint}.pdf";
+
+            if ($sheetRecord && $sheetRecord->fingerprint === $fingerprint && $sheetRecord->isReady() && $storageDisk->exists($canonicalPath)) {
+                $readyCount++;
+            } else {
+                $pendingProducts[] = $product;
+            }
+        }
+
+        return [
+            'ready_count' => $readyCount,
+            'total_count' => $productList->count(),
+            'all_ready' => $readyCount === $productList->count(),
+            'pending_products' => $pendingProducts,
         ];
     }
 

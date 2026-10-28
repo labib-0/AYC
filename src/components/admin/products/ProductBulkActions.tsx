@@ -1,14 +1,16 @@
 "use client";
 
-import { CheckSquare, ArrowUpCircle, ArrowDownCircle, SlidersHorizontal, X } from "lucide-react";
+import { CheckSquare, ArrowUpCircle, ArrowDownCircle, SlidersHorizontal, FileText, Loader2, X } from "lucide-react";
 
 interface ProductBulkActionsProps {
   selectedCount: number;
   onBulkPublish: () => void;
   onBulkUnpublish: () => void;
   onBulkAdjustStock?: () => void;
+  onBulkOfferSheet?: () => void;
   onClearSelection: () => void;
   loading?: boolean;
+  offerSheetLoading?: boolean;
 }
 
 export default function ProductBulkActions({
@@ -16,13 +18,15 @@ export default function ProductBulkActions({
   onBulkPublish,
   onBulkUnpublish,
   onBulkAdjustStock,
+  onBulkOfferSheet,
   onClearSelection,
   loading,
+  offerSheetLoading,
 }: ProductBulkActionsProps) {
   if (selectedCount === 0) return null;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 bg-foreground/5 border border-border/80 rounded-xl animate-[scaleIn_150ms_ease]">
+    <div className="flex items-center gap-3 px-4 py-2.5 bg-foreground/5 border border-border/80 rounded-xl animate-[scaleIn_150ms_ease] flex-wrap">
       <div className="flex items-center gap-2 text-xs font-bold text-foreground">
         <CheckSquare size={14} className="text-primary" />
         <span className="tabular-nums">{selectedCount}</span>
@@ -31,7 +35,25 @@ export default function ProductBulkActions({
         </span>
       </div>
 
-      <div className="w-px h-5 bg-border/80 mx-1" />
+      <div className="w-px h-5 bg-border/80 mx-1 hidden sm:block" />
+
+      {onBulkOfferSheet && (
+        <button
+          type="button"
+          id="btn-bulk-offer-sheet"
+          onClick={onBulkOfferSheet}
+          disabled={loading || offerSheetLoading}
+          className="h-7 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-black dark:hover:bg-white transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
+          title={`Download single merged PDF containing Offer Sheets for all ${selectedCount} selected product${selectedCount !== 1 ? "s" : ""}`}
+        >
+          {offerSheetLoading ? (
+            <Loader2 size={12} className="animate-spin text-amber-400 dark:text-amber-600" />
+          ) : (
+            <FileText size={12} className="text-amber-400 dark:text-amber-600" />
+          )}
+          <span>Download Combined Offer Sheet</span>
+        </button>
+      )}
 
       <button
         onClick={onBulkPublish}
@@ -64,7 +86,7 @@ export default function ProductBulkActions({
 
       <button
         onClick={onClearSelection}
-        className="h-7 px-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors ml-auto"
+        className="h-7 px-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors ml-auto cursor-pointer"
         aria-label="Clear selection"
       >
         <X size={14} />

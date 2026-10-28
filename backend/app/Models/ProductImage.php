@@ -23,6 +23,21 @@ class ProductImage extends Model
         'is_primary' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (ProductImage $image) {
+            if ($image->product_id) {
+                Product::scheduleOfferSheetRegeneration((int) $image->product_id);
+            }
+        });
+
+        static::deleted(function (ProductImage $image) {
+            if ($image->product_id) {
+                Product::scheduleOfferSheetRegeneration((int) $image->product_id);
+            }
+        });
+    }
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);

@@ -273,6 +273,14 @@ class Product extends Model
             }
         });
 
+        static::saved(function (Product $product) {
+            // Requirement 1 & 2: Automatically generate or schedule regeneration of Offer Sheet
+            // Every successful edit and save of an already published product, or initial publication
+            if ($product->status === 'published') {
+                static::scheduleOfferSheetRegeneration((int) $product->id);
+            }
+        });
+
         static::deleting(function (Product $product) {
             // When soft-deleting, release the slug and SKU so they can be immediately reused
             if (!$product->isForceDeleting()) {
@@ -307,6 +315,52 @@ class Product extends Model
                 }
             }
         });
+    }
+
+    protected static array $offerSheetScheduledIds = [];
+
+    /**
+     * Schedule Offer Sheet regeneration strictly after active DB transaction commits.
+     * Guaranteed transactional safety: failed or rolled-back saves never dispatch jobs.
+     */
+    public static function scheduleOfferSheetRegeneration(int $productId): void
+    {
+        if (in_array($productId, static::$offerSheetScheduledIds, true)) {
+            return;
+        }
+        static::$offerSheetScheduledIds[] = $productId;
+
+        \Illuminate\Support\Facades\DB::afterCommit(function () use ($productId) {
+            try {
+                $p = Product::find($productId);
+                if (!$p || $p->status !== 'published') {
+                    return;
+                }
+
+                $service = app(\App\Services\Documents\ProductOfferSheetService::class);
+                $cleanSku = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($p->sku ?: "PROD-{$p->id}"));
+                $fingerprint = $service->computeFingerprint($p);
+
+                \App\Models\ProductOfferSheet::updateOrCreate(
+                    ['product_id' => $p->id],
+                    [
+                        'sku' => $p->sku ?: "PROD-{$p->id}",
+                        'status' => \App\Models\ProductOfferSheet::STATUS_PROCESSING,
+                        'fingerprint' => $fingerprint,
+                        'filename' => "Offer-Sheet-{$cleanSku}.pdf",
+                    ]
+                );
+
+                \App\Jobs\GenerateProductOfferSheetJob::dispatch($p->id, true);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Failed to dispatch Offer Sheet regeneration for Product #{$productId}: " . $e->getMessage());
+            }
+        });
+    }
+
+    public static function clearOfferSheetScheduledIds(): void
+    {
+        static::$offerSheetScheduledIds = [];
     }
 
     public function supplier(): BelongsTo

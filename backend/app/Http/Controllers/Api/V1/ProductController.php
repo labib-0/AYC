@@ -2512,29 +2512,10 @@ class ProductController extends ApiController
             'cost_price' => $product->cost_price,
         ]);
 
-        // Automatically detect Offer Sheet staleness and initiate fresh generation for the updated product
+        // Automatically schedule Offer Sheet regeneration for every successful published product update
         try {
-            $newOfferSheetFingerprint = $offerSheetService->computeFingerprint($product);
-            $hasReadyOfferSheet = \App\Models\ProductOfferSheet::where('product_id', $product->id)
-                ->where('status', \App\Models\ProductOfferSheet::STATUS_READY)
-                ->where('fingerprint', $newOfferSheetFingerprint)
-                ->exists();
-
-            $becamePublished = $isTransitionToPublished || ($product->status === 'published' && $product->wasChanged('status'));
-
-            if ($becamePublished || $oldOfferSheetFingerprint !== $newOfferSheetFingerprint || !$hasReadyOfferSheet) {
-                $cleanSku = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($product->sku ?: "PROD-{$product->id}"));
-                \App\Models\ProductOfferSheet::updateOrCreate(
-                    ['product_id' => $product->id],
-                    [
-                        'sku' => $product->sku ?: "PROD-{$product->id}",
-                        'status' => \App\Models\ProductOfferSheet::STATUS_PROCESSING,
-                        'fingerprint' => $newOfferSheetFingerprint,
-                        'filename' => "Offer-Sheet-{$cleanSku}.pdf",
-                    ]
-                );
-
-                \App\Jobs\GenerateProductOfferSheetJob::dispatch($product->id, true);
+            if ($product->status === 'published') {
+                Product::scheduleOfferSheetRegeneration((int) $product->id);
             }
         } catch (\Throwable $e) {
             Log::warning("Failed to queue Offer Sheet regeneration on product update: " . $e->getMessage(), [
@@ -3513,6 +3494,7 @@ class ProductController extends ApiController
                 'sku' => $product->sku,
                 'status' => $record ? $record->status : 'missing',
                 'is_stale' => $isStale,
+                'is_processing' => (bool) ($record && in_array($record->status, ['processing', 'pending'], true)),
                 'has_artifact' => (bool) ($record && $record->isReady() && \Illuminate\Support\Facades\Storage::disk('local')->exists($record->file_path)),
                 'filename' => $record?->filename ?: "Offer-Sheet-{$cleanSku}.pdf",
                 'filesize_bytes' => $record?->filesize_bytes ?? 0,
@@ -3564,16 +3546,16 @@ class ProductController extends ApiController
     public function bulkOfferSheet(Request $request): \Illuminate\Http\Response|JsonResponse
     {
         $validated = $request->validate([
-            'product_ids' => ['required_without:skus', 'array'],
+            'product_ids' => ['required_without:skus', 'array', 'min:1', 'max:100'],
             'product_ids.*' => ['integer'],
-            'skus' => ['required_without:product_ids', 'array'],
+            'skus' => ['required_without:product_ids', 'array', 'min:1', 'max:100'],
             'skus.*' => ['string'],
         ]);
 
         $productIds = $validated['product_ids'] ?? [];
         $skus = $validated['skus'] ?? [];
 
-        $query = Product::with(['brand', 'images', 'pricingTiers'])->where('status', 'published');
+        $query = Product::with(['brand', 'images', 'pricingTiers', 'shippingPackageProfiles'])->where('status', 'published');
         if (!empty($productIds)) {
             $products = $query->whereIn('id', $productIds)->get()->keyBy('id');
             $orderedProducts = [];
@@ -3597,6 +3579,34 @@ class ProductController extends ApiController
         }
 
         $service = app(\App\Services\Documents\ProductOfferSheetService::class);
+        $readiness = $service->checkReadiness($orderedProducts);
+
+        // If client only checks readiness, or if any product needs generation and client requested JSON
+        if ($request->boolean('check_only') || $request->boolean('status_only')) {
+            if (!$readiness['all_ready']) {
+                // Queue background generation for any pending/stale products
+                foreach ($readiness['pending_products'] as $pendingProduct) {
+                    \App\Jobs\GenerateProductOfferSheetJob::dispatch($pendingProduct->id, true);
+                }
+
+                return $this->success([
+                    'status' => 'processing',
+                    'ready_count' => $readiness['ready_count'],
+                    'total_count' => $readiness['total_count'],
+                    'pending_ids' => array_map(fn($p) => $p->id, $readiness['pending_products']),
+                    'pending_skus' => array_map(fn($p) => $p->sku, $readiness['pending_products']),
+                    'message' => "Generating Offer Sheets for " . count($readiness['pending_products']) . " product(s)...",
+                ], 'Bulk Offer Sheet generation in progress');
+            }
+
+            return $this->success([
+                'status' => 'ready',
+                'ready_count' => $readiness['ready_count'],
+                'total_count' => $readiness['total_count'],
+                'message' => "All {$readiness['total_count']} product Offer Sheets are ready for merging.",
+            ], 'All product Offer Sheets are ready');
+        }
+
         $artifact = $service->mergeProductsOfferSheets($orderedProducts);
 
         if ($request->query('format') === 'pdf' || $request->has('pdf') || $request->has('download') || !$request->wantsJson()) {
@@ -3607,6 +3617,7 @@ class ProductController extends ApiController
                 'X-PDF-Cache' => $artifact['is_hit'] ? 'HIT' : 'MISS',
                 'X-PDF-Hash' => $artifact['hash'],
                 'X-PDF-Size' => (string) $artifact['filesize'],
+                'X-Product-Count' => (string) count($orderedProducts),
             ]);
         }
 

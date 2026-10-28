@@ -19,6 +19,21 @@ class ProductPricingTier extends Model
         'unit_price' => 'decimal:2',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (ProductPricingTier $tier) {
+            if ($tier->product_id) {
+                Product::scheduleOfferSheetRegeneration((int) $tier->product_id);
+            }
+        });
+
+        static::deleted(function (ProductPricingTier $tier) {
+            if ($tier->product_id) {
+                Product::scheduleOfferSheetRegeneration((int) $tier->product_id);
+            }
+        });
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);
