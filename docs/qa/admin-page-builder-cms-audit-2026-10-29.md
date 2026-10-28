@@ -502,4 +502,64 @@ All architectural components specified in the Prompt 1 blueprint have been fully
 - **Admin Sidebar Test (`tests/admin-sidebar-collapse-expand.test.ts`):** 11/11 tests PASSED.
 - **Strict Scope Boundaries Observed:** Zero commits, pushes, or deployments executed during Prompt 2. No changes made to production database or settings.
 
+---
+
+## 13. Prompt 3 — Final End-to-End QA, Database Migration, Production Deployment & Live Verification
+
+### 13.1 Production Deployment & Migration Execution
+- **Deployment Pipeline:** Executed atomic zero-downtime deployment script `scripts/deploy-production.sh`.
+- **Pre-Migration Database Backup:** Verified at `/var/www/ayaan/backend/storage/app/backups/db_backup_pre_cms_migration_20261028_200346.sql.gz` (330 KB).
+- **Migration Execution:** Safely executed `2026_10_29_000000_create_cms_pages_table.php` (123.95 ms) with zero schema conflicts.
+- **RBAC Seeder:** Seeded and verified all 6 page permissions (`page.view`, `page.create`, `page.edit`, `page.publish`, `page.delete`, `page.footer.manage`) across all 13 administrative roles via `RbacPermissionCatalogSeeder`.
+- **Active Release:** `release_20261028_202354_6e816aa` (Git Commit `6e816aa`).
+- **Daemon Health:** Verified PM2 customer daemon (`ayaan-customer`, PID 963248) and admin daemon (`ayaan-admin`, PID 963259) online with 0 restarts.
+
+### 13.2 Backend API Integration Test Results
+Ran `backend/tests/run-cms-api-integration-tests.php` inside an isolated database transaction with automatic rollback:
+- **Test 1: Unauthenticated visitor denied access to admin index:** PASSED (HTTP 401).
+- **Test 2: Unprivileged admin denied access to create page:** PASSED (HTTP 403).
+- **Test 3: Authorized admin can create CMS page draft:** PASSED (HTTP 201).
+- **Test 4: Reserved slug is strictly rejected with 422:** PASSED (HTTP 422).
+- **Test 5: Duplicate slug is strictly rejected with 422:** PASSED (HTTP 422).
+- **Test 6: Unauthenticated visitor receives 404 for draft slug:** PASSED (HTTP 404).
+- **Test 7: Authorized admin can update working draft:** PASSED (HTTP 200).
+- **Test 8: Publishing promotes draft to published status:** PASSED (HTTP 200).
+- **Test 9: Public visitor can view published page:** PASSED (HTTP 200).
+- **Test 10: Slug rename creates previous_slugs record and returns 301:** PASSED (HTTP 200 / 301).
+- **Test 11: Public footer endpoint returns published footer pages:** PASSED (HTTP 200).
+- **Test 12: Footer reordering updates sort order:** PASSED (HTTP 200).
+- **Test 13: Scheduled draft publishing console command activates page:** PASSED (Console exit 0).
+- **Test 14: Soft deletion and restore lifecycle:** PASSED (HTTP 200).
+- **Summary:** 14/14 tests PASSED (0 failed).
+
+### 13.3 Live Browser E2E Lifecycle Matrix
+Headless Chrome verification against `https://ayaanclothing.com`:
+1. Authenticated Admin Session via Admin Token.
+2. Verified Admin CMS Pages List View (`/ayc/pages`).
+3. Created temporary QA Draft with 3 typed sections (Hero, Rich Text, FAQ).
+4. Verified Admin Page Editor (`/ayc/pages/{id}`) with section forms and live preview.
+5. Confirmed unauthenticated visitor receives HTTP 404 for draft slug.
+6. Published page via `POST /api/v1/admin/pages/{id}/publish`.
+7. Navigated to live public URL (`https://ayaanclothing.com/{slug}`):
+   - Rendered H1: `"Traceable Global Apparel Manufacturing"`.
+   - Verified breadcrumb navigation and Schema.org JSON-LD.
+8. Verified Storefront Footer:
+   - Dynamic 6th column (`PAGES`) present alongside `SHOP`, `CATEGORIES`, `BRANDS`, `WHOLESALE SOURCING`.
+   - QA page link present and clickable.
+9. Tested all 7 responsive viewports (320px, 360px, 390px, 768px, 1024px, 1280px, 1440px):
+   - **Zero horizontal overflow detected on any viewport.**
+10. Tested working draft modification isolation:
+    - Modified working draft while page was published; verified public page retained original published snapshot.
+11. Tested footer visibility toggle:
+    - Successfully toggled footer visibility off; link cleanly vanished from footer without affecting page availability.
+12. Unpublished page:
+    - Reverted page to draft; verified public route immediately returns HTTP 404.
+13. Teardown:
+    - Deleted temporary QA page and permanently purged test record from production database.
+
+### 13.4 Final Release Status
+**STATUS: PASSED — PRODUCTION CERTIFIED**  
+The AYC Admin Page Builder / Storefront CMS and dynamic footer system are live and operational on `https://ayaanclothing.com`.
+
+
 
