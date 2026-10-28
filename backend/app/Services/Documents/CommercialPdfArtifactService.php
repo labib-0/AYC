@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CommercialPdfArtifactService
 {
-    public const LAYOUT_VERSION = 'v10.2_offer_sheet_clean_layout_no_desc_no_logistics';
+    public const LAYOUT_VERSION = 'v10.3_offer_sheet_unicode_normalization_and_balanced_gallery';
 
     /**
      * Retrieve a cached commercial PDF artifact or render and persist it atomically.

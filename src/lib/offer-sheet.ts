@@ -129,13 +129,28 @@ export function formatPackageBreakdownText(breakdown?: any): string | null {
 }
 
 /**
+ * Normalizes Unicode text using Compatibility Decomposition & Canonical Composition (NFKC).
+ * Converts formatting variants (such as Mathematical Bold/Sans/Italic alphanumerics and fullwidth forms)
+ * to standard clean UTF-8 characters, preventing font glyph corruption or '????' rendering.
+ */
+export function normalizeOfferSheetUnicode(text: string | undefined | null): string {
+  if (!text || typeof text !== "string") return "";
+  try {
+    return text.normalize("NFKC").trim();
+  } catch {
+    return text.trim();
+  }
+}
+
+/**
  * Cleans the product title for Offer Sheet display by removing automatically appended
  * size and assortment suffixes (e.g., "(Size: Standard Assorted)" or "(Assorted Package)").
  * Never alters the database product, SKU, or actual product description/attributes.
  */
 export function cleanOfferSheetProductTitle(title: string | undefined | null): string {
   if (!title || typeof title !== "string") return "Garment Product";
-  return title
+  const normalized = normalizeOfferSheetUnicode(title);
+  return normalized
     .replace(/\s*\((?:Size|Assorted)[^)]*\)/gi, "")
     .replace(/\s*-\s*Size:\s*[^-,]+/gi, "")
     .replace(/\s*\(Assorted(?:\s+Package)?\)/gi, "")
@@ -882,9 +897,9 @@ export function buildOfferSheetData(source: any): OfferSheetData {
     if (seenProductKeys.has(key)) continue;
     seenProductKeys.add(key);
 
-    const name = cleanOfferSheetProductTitle(raw.name || raw.title || raw.product_name || "Garment Product");
-    const sku = (raw.sku || "AYN-PROD").toUpperCase();
-    const brand = raw.brand || raw.brandName || "AYAAN CLOTHING";
+    const name = normalizeOfferSheetUnicode(cleanOfferSheetProductTitle(raw.name || raw.title || raw.product_name || "Garment Product"));
+    const sku = normalizeOfferSheetUnicode(raw.sku || "AYN-PROD").toUpperCase();
+    const brand = normalizeOfferSheetUnicode(raw.brand || raw.brandName || "AYAAN CLOTHING");
 
     // Build deduplicated image list: primary first, followed by gallery images
     const rawImagesList: string[] = [];

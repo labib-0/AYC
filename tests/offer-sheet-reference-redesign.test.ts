@@ -106,7 +106,7 @@ describe("AYC Offer Sheet Reference-Matched Redesign & Complete Pricing Tiers Su
   });
 
   it("7. Layout Version Bumped to Guarantee Cache Invalidation", () => {
-    assert.ok(pServiceContent.includes("LAYOUT_VERSION = 'v9.0_offer_sheet_clean_layout_no_desc_no_logistics'"), "ProductOfferSheetService must bump LAYOUT_VERSION to invalidate obsolete cached PDFs");
+    assert.ok(pServiceContent.includes("LAYOUT_VERSION = 'v10.0_offer_sheet_unicode_normalization_and_balanced_gallery'"), "ProductOfferSheetService must bump LAYOUT_VERSION to invalidate obsolete cached PDFs");
   });
 
   it("8. Render Simulated Reference-Parity HTML & Capture Full-Page Screenshot via Chrome", async () => {

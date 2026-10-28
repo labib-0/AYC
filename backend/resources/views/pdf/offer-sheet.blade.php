@@ -23,6 +23,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <meta charset="UTF-8">
     <title>OFFER SHEET - {{ $docNumber }}</title>
     <style>
@@ -119,22 +120,44 @@
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
-        /* Gallery — 4 per row, 2 rows for 8 images */
+
+        /* Gallery Styles by Row Count */
         .gallery-table {
             width: 100%;
-            margin-bottom: 8px;
             border-collapse: separate;
-            border-spacing: 3mm 3mm;
             table-layout: fixed;
             page-break-inside: avoid;
         }
         .gallery-table tr {
             page-break-inside: avoid;
         }
+
+        /* 1 row (1-4 images) */
+        .gallery-r1 { border-spacing: 2.5mm 2.5mm; margin-bottom: 8px; }
+        .gallery-r1 .gallery-cell { height: 44mm; max-height: 44mm; }
+        .gallery-r1 .gallery-cell-empty { height: 44mm; }
+        .gallery-r1 .gallery-img { max-height: 40mm; }
+
+        /* 2 rows (5-8 images) — standard reference */
+        .gallery-r2 { border-spacing: 2.5mm 2.5mm; margin-bottom: 8px; }
+        .gallery-r2 .gallery-cell { height: 39mm; max-height: 39mm; }
+        .gallery-r2 .gallery-cell-empty { height: 39mm; }
+        .gallery-r2 .gallery-img { max-height: 35mm; }
+
+        /* 3 rows (9-12 images) — balanced single-page fit */
+        .gallery-r3 { border-spacing: 2mm 2mm; margin-bottom: 6px; }
+        .gallery-r3 .gallery-cell { height: 32mm; max-height: 32mm; padding: 1.5mm; }
+        .gallery-r3 .gallery-cell-empty { height: 32mm; }
+        .gallery-r3 .gallery-img { max-height: 28mm; }
+
+        /* 4+ rows (13+ images) — multi-page pagination */
+        .gallery-multi { border-spacing: 2mm 2mm; margin-bottom: 8px; }
+        .gallery-multi .gallery-cell { height: 36mm; max-height: 36mm; padding: 2mm; }
+        .gallery-multi .gallery-cell-empty { height: 36mm; }
+        .gallery-multi .gallery-img { max-height: 32mm; }
+
         .gallery-cell {
             width: 25%;
-            height: 48mm;
-            max-height: 48mm;
             text-align: center;
             vertical-align: middle;
             background: #f4f6f9;
@@ -145,13 +168,11 @@
         }
         .gallery-cell-empty {
             width: 25%;
-            height: 48mm;
             border: none;
             background: transparent;
         }
         .gallery-img {
             max-width: 100%;
-            max-height: 44mm;
             width: auto;
             height: auto;
             display: inline-block;
@@ -195,6 +216,20 @@
             border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
         }
+
+        /* Compact Specs for 3-row gallery */
+        .spec-compact tr {
+            height: 18pt;
+        }
+        .spec-compact .spec-label {
+            padding: 2.5px 8px;
+            font-size: 8.5pt;
+        }
+        .spec-compact .spec-val {
+            padding: 2.5px 8px;
+            font-size: 8.5pt;
+        }
+
         /* Pricing Table */
         .pricing-section {
             margin-top: 6px;
@@ -239,6 +274,16 @@
         .pricing-table td.text-right {
             text-align: right;
         }
+
+        /* Compact Pricing for 3-row gallery */
+        .pricing-compact thead th {
+            padding: 4px 6px;
+            font-size: 7.5pt;
+        }
+        .pricing-compact td {
+            padding: 4px 6px;
+            font-size: 7.5pt;
+        }
         .text-right { text-align: right; }
         .font-mono { font-family: 'Courier New', Courier, monospace; }
         .font-bold { font-weight: bold; }
@@ -251,19 +296,29 @@
 
     @foreach($items as $itemIdx => $item)
         @php
+            // Normalization helper for Unicode compatibility (NFKC)
+            $normalize = function (?string $val) {
+                if ($val === null || $val === '') return '';
+                if (class_exists(\Normalizer::class)) {
+                    $norm = \Normalizer::normalize($val, \Normalizer::FORM_KC);
+                    if ($norm !== false && $norm !== null) return trim($norm);
+                }
+                return trim($val);
+            };
+
             $rawImages = $item['product_images'] ?? ($item['product_image_url'] ? [$item['product_image_url']] : []);
             $images = $rawImages;
-            $brandName = $item['brand'] ?? '';
-            $sku = $item['sku'] ?? 'AYN-SKU';
-            $productName = $item['product_name'] ?? 'Garment Product';
+            $brandName = $normalize($item['brand'] ?? '');
+            $sku = $normalize($item['sku'] ?? 'AYN-SKU');
+            $productName = $normalize($item['product_name'] ?? 'Garment Product');
             $rawDescription = trim((string)($item['product_description'] ?? ($item['description'] ?? '')));
-            $designType = $item['design_type'] ?? '';
-            $material = $item['material'] ?? ($item['fabric'] ?? '');
-            $sizeDesc = $item['size_description'] ?? '';
-            $colourDesc = $item['colour_description'] ?? '';
+            $designType = $normalize($item['design_type'] ?? '');
+            $material = $normalize($item['material'] ?? ($item['fabric'] ?? ''));
+            $sizeDesc = $normalize($item['size_description'] ?? '');
+            $colourDesc = $normalize($item['colour_description'] ?? '');
             $cbmMoq = $item['cbm_moq'] ?? '';
             $gwMoq = $item['gross_weight_moq'] ?? '';
-            $packageAssortment = $item['package_assortment_message'] ?? ($product->package_assortment_message ?? '');
+            $packageAssortment = $normalize($item['package_assortment_message'] ?? ($product->package_assortment_message ?? ''));
 
             // Helper to strip redundant field prefixes
             $stripPrefix = function ($val, $prefixPatterns) {
@@ -283,31 +338,31 @@
                 $validSpecs['Item'] = $productName;
             }
             if (!$isMissingVal($brandName)) {
-                $validSpecs['Brand'] = $stripPrefix($brandName, ['Brand']);
+                $validSpecs['Brand'] = $normalize($stripPrefix($brandName, ['Brand']));
             }
             $moqDisplay = ($item['quantity'] ?? null) ?: ($product->moq ?? null);
             if ($moqDisplay) {
                 $validSpecs['Quantity'] = $moqDisplay . ' pcs';
             }
             if (!$isMissingVal($colourDesc)) {
-                $validSpecs['Colours'] = $stripPrefix($colourDesc, ['Colours?', 'Colors?']);
+                $validSpecs['Colours'] = $normalize($stripPrefix($colourDesc, ['Colours?', 'Colors?']));
             }
             if (!$isMissingVal($sizeDesc)) {
-                $validSpecs['Available Sizes'] = $stripPrefix($sizeDesc, ['(?:Available\s+)?Sizes?']);
+                $validSpecs['Available Sizes'] = $normalize($stripPrefix($sizeDesc, ['(?:Available\s+)?Sizes?']));
             }
             if (!$isMissingVal($material)) {
                 $cleanMat = $stripPrefix($material, ['Fabric\s*\/\s*Composition', 'Materials?', 'Fabric']);
-                $validSpecs['Fabric / Composition'] = $cleanMat;
+                $validSpecs['Fabric / Composition'] = $normalize($cleanMat);
             }
             if (!$isMissingVal($designType)) {
-                $validSpecs['Design Type'] = $stripPrefix($designType, ['Design\s*Type', 'Design']);
+                $validSpecs['Design Type'] = $normalize($stripPrefix($designType, ['Design\s*Type', 'Design']));
             }
             $fitStyle = $item['fit'] ?? ($item['style'] ?? ($item['fit_style'] ?? ''));
             if (!$isMissingVal($fitStyle)) {
-                $validSpecs['Fit / Style'] = $stripPrefix($fitStyle, ['Fit\s*\/\s*Style', 'Fit', 'Style']);
+                $validSpecs['Fit / Style'] = $normalize($stripPrefix($fitStyle, ['Fit\s*\/\s*Style', 'Fit', 'Style']));
             }
             if (!$isMissingVal($packageAssortment)) {
-                $validSpecs['Package Assortment'] = $stripPrefix($packageAssortment, ['Package\s*Assortment', 'Assortment']);
+                $validSpecs['Package Assortment'] = $normalize($stripPrefix($packageAssortment, ['Package\s*Assortment', 'Assortment']));
             }
 
             $tiers = $item['pricing_tiers'] ?? [
@@ -318,6 +373,27 @@
                     'totalPrice' => ($item['unit_price'] ?? 2.50) * ($item['quantity'] ?? 100),
                 ]
             ];
+
+            // Sizing and layout balancing based on gallery rows
+            $imageChunks = array_chunk($images, 4);
+            $rowCount = count($imageChunks);
+            if ($rowCount <= 1) {
+                $galleryClass = 'gallery-r1';
+                $specClass = '';
+                $pricingClass = '';
+            } elseif ($rowCount == 2) {
+                $galleryClass = 'gallery-r2';
+                $specClass = '';
+                $pricingClass = '';
+            } elseif ($rowCount == 3) {
+                $galleryClass = 'gallery-r3';
+                $specClass = 'spec-compact';
+                $pricingClass = 'pricing-compact';
+            } else {
+                $galleryClass = 'gallery-multi';
+                $specClass = '';
+                $pricingClass = '';
+            }
         @endphp
 
         @if($itemIdx > 0)
@@ -333,7 +409,7 @@
         {{-- 3. Orange Brand & Navy SKU --}}
         <div class="product-meta-row">
             @if(!empty($brandName))
-                <span class="product-brand">{{ strtoupper($brandName) }}</span>
+                <span class="product-brand">{{ mb_strtoupper($brandName, 'UTF-8') }}</span>
             @endif
             <span class="product-sku">SKU: {{ $sku }}</span>
         </div>
@@ -358,11 +434,11 @@
             </table>
         </div>
 
-        {{-- 5. Product Gallery: 4 Columns per Row, 2 Rows for 8 Images --}}
+        {{-- 5. Product Gallery: 4 Columns per Row with dynamic height balancing --}}
         @if(count($images) > 0)
             <div class="section-heading">PRODUCT GALLERY</div>
-            <table class="gallery-table">
-                @foreach(array_chunk($images, 4) as $row)
+            <table class="gallery-table {{ $galleryClass }}">
+                @foreach($imageChunks as $row)
                     <tr>
                         @foreach($row as $rawImgUrl)
                             @php
@@ -386,7 +462,7 @@
         @if(count($validSpecs) > 0)
             <div class="spec-section">
                 <div class="section-heading">SPECIFICATIONS</div>
-                <table class="spec-table">
+                <table class="spec-table {{ $specClass }}">
                     <tbody>
                         @foreach($validSpecs as $sLabel => $sVal)
                             <tr>
@@ -402,7 +478,7 @@
         {{-- 7. Pricing Table: Dark Navy Header, Exact Reference Columns --}}
         <div class="pricing-section">
             <div class="section-heading">PRICING</div>
-            <table class="pricing-table">
+            <table class="pricing-table {{ $pricingClass }}">
                 <colgroup>
                     <col style="width: 24%;">
                     <col style="width: 38%;">

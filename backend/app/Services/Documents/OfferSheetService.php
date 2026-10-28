@@ -311,18 +311,20 @@ class OfferSheetService
         $gallery = DocumentHelper::getProductGallery($product);
 
         $brandModel = $product->brand;
-        $brand = $brandModel?->name ?? (is_string($product->brand) ? $product->brand : 'AYAAN CLOTHING');
+        $rawBrand = $brandModel?->name ?? (is_string($product->brand) ? $product->brand : 'AYAAN CLOTHING');
+        $brand = DocumentHelper::normalizeUnicode($rawBrand);
         $brandLogoRaw = $brandModel?->logo_url;
         $brandLogo = $brandLogoRaw ? DocumentHelper::resolvePdfImageSource($brandLogoRaw, true) : null;
         if ($brandLogo && !file_exists($brandLogo)) {
             $brandLogo = null;
         }
 
-        $prodDesc = $product->description ?: ($product->short_description ?? '');
-        $designType = !empty(trim($product->design_type ?? '')) ? trim($product->design_type) : 'See Description';
-        $material = !empty(trim($product->material ?? ($product->fabric ?? ''))) ? trim($product->material ?? $product->fabric) : 'See Description';
-        $sizeDesc = !empty(trim($product->size_description ?? '')) ? trim($product->size_description) : 'See Description';
-        $colourDesc = !empty(trim($product->colour_description ?? '')) ? trim($product->colour_description) : 'See Description';
+        $productName = DocumentHelper::normalizeUnicode($product->name);
+        $prodDesc = DocumentHelper::normalizeUnicode($product->description ?: ($product->short_description ?? ''));
+        $designType = DocumentHelper::normalizeUnicode(!empty(trim($product->design_type ?? '')) ? trim($product->design_type) : 'See Description');
+        $material = DocumentHelper::normalizeUnicode(!empty(trim($product->material ?? ($product->fabric ?? ''))) ? trim($product->material ?? $product->fabric) : 'See Description');
+        $sizeDesc = DocumentHelper::normalizeUnicode(!empty(trim($product->size_description ?? '')) ? trim($product->size_description) : 'See Description');
+        $colourDesc = DocumentHelper::normalizeUnicode(!empty(trim($product->colour_description ?? '')) ? trim($product->colour_description) : 'See Description');
 
         $moqQty = $product->moq ?: 1;
         $moqProfile = $product->findShippingPackageProfileForQuantity($moqQty);
@@ -339,7 +341,7 @@ class OfferSheetService
                 'id' => (string) $product->id,
                 'item_no' => 1,
                 'product_id' => (string) $product->id,
-                'product_name' => $product->name,
+                'product_name' => $productName,
                 'brand' => $brand,
                 'brand_logo' => $brandLogo,
                 'brand_logo_url' => $brandLogo,
@@ -351,7 +353,7 @@ class OfferSheetService
                 'cbm_moq' => $cbmMoq,
                 'gross_weight_moq' => $gwMoq,
                 'pricing_tiers' => $tiers,
-                'description' => $product->name,
+                'description' => $productName,
                 'sku' => $product->sku ?: "AYN-SKU-" . str_pad($product->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? null,
                 'product_images' => $gallery,

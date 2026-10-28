@@ -11,6 +11,7 @@ import {
   extractProductLogistics,
   extractProductPricingTiers,
   cleanOfferSheetProductTitle,
+  normalizeOfferSheetUnicode,
   CONSOLIDATED_OFFER_SHEET_COMMERCIAL_TERMS,
   lookupProductRecord,
   buildOfferSheetData,
@@ -495,7 +496,8 @@ export function generateOfferSheetPDFDoc(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(17);
     doc.setTextColor(15, 23, 42);
-    const splitTitle = doc.splitTextToSize(product.name, contentWidth);
+    const cleanProdName = normalizeOfferSheetUnicode(product.name);
+    const splitTitle = doc.splitTextToSize(cleanProdName, contentWidth);
 
     // Ensure product title block fits comfortably before page bottom
     if (y + splitTitle.length * 7 + 25 > pageBottomSafeY) {
@@ -511,7 +513,7 @@ export function generateOfferSheetPDFDoc(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.setTextColor(234, 88, 12); // Brand Orange
-    const brandStr = (product.brand || "AYAAN CLOTHING").toUpperCase();
+    const brandStr = normalizeOfferSheetUnicode(product.brand || "AYAAN CLOTHING").toUpperCase();
     doc.text(brandStr, margin, y);
     const brandWidth = doc.getTextWidth(brandStr);
 
@@ -528,7 +530,7 @@ export function generateOfferSheetPDFDoc(
 
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42); // slate-900
-    doc.text(product.sku, margin + brandWidth + sepWidth + skuLabelWidth, y);
+    doc.text(normalizeOfferSheetUnicode(product.sku), margin + brandWidth + sepWidth + skuLabelWidth, y);
     y += 7.5;
 
     // 4. Product Gallery — Four Images Per Row, plain background, contain-style scaling
@@ -557,9 +559,17 @@ export function generateOfferSheetPDFDoc(
     } else {
       // Exactly 4 columns per row maximum on standard document pages
       const cols = 4;
-      const gap = 3;
+      const gap = 2.5;
       const tileW = (contentWidth - (cols - 1) * gap) / cols;
-      const tileH = tileW * (5 / 4); // Canonical 4:5 ratio matching website gallery
+      const rowCount = Math.ceil(galleryImages.length / cols);
+      let tileH = tileW * 1.0;
+      if (rowCount === 2) {
+        tileH = tileW * 0.88;
+      } else if (rowCount === 3) {
+        tileH = tileW * 0.70;
+      } else if (rowCount > 3) {
+        tileH = tileW * 0.80;
+      }
 
       // Ensure gallery heading + first row fit together
       if (y + 10 + tileH > pageBottomSafeY) {

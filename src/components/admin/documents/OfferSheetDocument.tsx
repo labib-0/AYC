@@ -2,7 +2,7 @@ import React from "react";
 import { CommercialDocument } from "@/types/b2b";
 import DocumentHeader from "./DocumentHeader";
 import DocumentSignatory from "./DocumentSignatory";
-import { buildOfferSheetData, cleanOfferSheetProductTitle, OfferSheetData } from "@/lib/offer-sheet";
+import { buildOfferSheetData, cleanOfferSheetProductTitle, normalizeOfferSheetUnicode, OfferSheetData } from "@/lib/offer-sheet";
 import { OFFICIAL_AYC_SITE_LOGO_PATH } from "@/lib/site-logo";
 
 export interface OfferSheetDocumentProps {
@@ -59,12 +59,12 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
                 <div className="flex items-center gap-2 flex-wrap text-xs">
                   {product.brand && (
                     <span className="font-bold uppercase tracking-wider text-primary font-mono">
-                      {product.brand}
+                      {normalizeOfferSheetUnicode(product.brand)}
                     </span>
                   )}
                   {product.brand && <span className="text-muted-foreground/60">•</span>}
                   <span className="text-muted-foreground font-mono">
-                    SKU: <strong className="text-foreground font-bold">{product.sku}</strong>
+                    SKU: <strong className="text-foreground font-bold">{normalizeOfferSheetUnicode(product.sku)}</strong>
                   </span>
                 </div>
               </div>

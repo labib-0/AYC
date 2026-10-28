@@ -635,5 +635,28 @@ class DocumentHelper
             return $sourceFile;
         }
     }
+
+    /**
+     * Normalize Unicode string using Compatibility Decomposition and Canonical Composition (NFKC).
+     * Converts formatting glyphs (such as Mathematical Bold/Sans/Italic alphanumerics, fullwidth forms,
+     * and decorative typography) to standard readable UTF-8 characters, preventing '????' font glyph
+     * corruption in PDF rendering engines like Dompdf and jsPDF.
+     * Preserves genuine international characters, accents, numbers, punctuation, and currency symbols.
+     */
+    public static function normalizeUnicode(?string $text): string
+    {
+        if ($text === null || $text === '') {
+            return '';
+        }
+
+        if (class_exists(\Normalizer::class)) {
+            $normalized = \Normalizer::normalize($text, \Normalizer::FORM_KC);
+            if ($normalized !== false && $normalized !== null) {
+                return trim($normalized);
+            }
+        }
+
+        return trim($text);
+    }
 }
 
