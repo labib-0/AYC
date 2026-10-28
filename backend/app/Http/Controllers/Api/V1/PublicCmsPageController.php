@@ -48,6 +48,7 @@ class PublicCmsPageController extends ApiController
                 'id'               => $page->id,
                 'title'            => $page->title,
                 'slug'             => $page->slug,
+                'status'           => $page->status,
                 'sections'         => $page->sections ?? [],
                 'parent'           => $page->parent ? [
                     'id'               => $page->parent->id,

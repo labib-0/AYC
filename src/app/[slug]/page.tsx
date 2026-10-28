@@ -95,7 +95,7 @@ export default async function DynamicCmsPage({ params }: DynamicCmsPageProps) {
   const page = pageOrRedirect as CmsPage;
 
   // Enforce published status for public route
-  if (page.status !== "published") {
+  if (page.status && page.status !== "published") {
     notFound();
   }
 
