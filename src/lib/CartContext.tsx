@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { Product } from "@/types";
 import { cartService, CartItemData, CartStockViolation } from "@/services/cart.service";
 import { useAuth } from "./AuthContext";
+import { trackAddToCartConversion } from "@/lib/analytics/google-ads";
 
 export interface CartItem {
   id?: string;
@@ -301,6 +302,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       applyCartData(data);
       revalidateCart();
+
+      // Google Ads Add to Cart Conversion Tracking (guarded strictly inside successful addition block)
+      try {
+        trackAddToCartConversion({ value: 1.0, currency: "USD" });
+      } catch (trackErr) {
+        // Non-blocking: tracking errors must never fail cart operations
+        console.warn("[Google Ads] Non-fatal add to cart tracking error:", trackErr);
+      }
     } catch (err: any) {
       setError(err?.message || "Failed to add item to cart");
       throw err;

@@ -138,7 +138,7 @@ describe("AYC Offer Sheet — Distinct Pricing Tiers, Full-Stock Quantity & Prod
     // Known 0 stock
     const doc0 = generateOfferSheetPDFDoc({
       docNumber: "TEST-0",
-      issueDate: "2026-10-28",
+      date: "2026-10-28",
       validUntil: "7 Days from date of issuance",
       products: [
         {
@@ -158,13 +158,13 @@ describe("AYC Offer Sheet — Distinct Pricing Tiers, Full-Stock Quantity & Prod
           ],
         } as any,
       ],
-    });
+    } as any);
     assert.ok(doc0, "Should generate PDF for 0 stock");
 
     // Unknown stock
     const docNull = generateOfferSheetPDFDoc({
       docNumber: "TEST-NULL",
-      issueDate: "2026-10-28",
+      date: "2026-10-28",
       validUntil: "7 Days from date of issuance",
       products: [
         {
@@ -182,7 +182,7 @@ describe("AYC Offer Sheet — Distinct Pricing Tiers, Full-Stock Quantity & Prod
           ],
         } as any,
       ],
-    });
+    } as any);
     assert.ok(docNull, "Should generate PDF for unknown stock");
   });
 });

@@ -27,7 +27,11 @@ import { sanitizeRedirectUrl } from "@/lib/safe-redirect";
 import { securityService } from "@/services/security.service";
 import { authService } from "@/services/auth.service";
 import HoneypotField from "@/components/common/HoneypotField";
-import { trackOrderSuccessConversion } from "@/lib/analytics/google-ads";
+import {
+  trackBeginCheckoutConversion,
+  trackPurchaseConversion,
+  trackOrderSuccessConversion,
+} from "@/lib/analytics/google-ads";
 import {
   X,
   FileText,
@@ -122,6 +126,11 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const formTokenRef = useRef<string | null>(null);
   const [honeypot, setHoneypot] = useState("");
 
+  // Google Ads Begin Checkout Conversion Tracking
+  // Triggered strictly when an authenticated customer enters an active checkout flow with items.
+  // Deduplicated across React Strict Mode, modal re-renders, and step changes via session key.
+  const hasTrackedBeginCheckoutRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (isOpen) {
       setHoneypot("");
@@ -137,8 +146,30 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       idempotencyKeyRef.current = "";
       formTokenRef.current = null;
       setHoneypot("");
+      hasTrackedBeginCheckoutRef.current = null;
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      hasTrackedBeginCheckoutRef.current = null;
+      return;
+    }
+
+    if (authLoading) return;
+
+    // Eligible customer checkout with non-empty cart
+    if (user && user.role === "customer" && items.length > 0 && idempotencyKeyRef.current) {
+      if (hasTrackedBeginCheckoutRef.current !== idempotencyKeyRef.current) {
+        hasTrackedBeginCheckoutRef.current = idempotencyKeyRef.current;
+        try {
+          trackBeginCheckoutConversion({ value: 1.0, currency: "USD" });
+        } catch (err) {
+          console.warn("[Google Ads] Non-fatal begin checkout tracking error:", err);
+        }
+      }
+    }
+  }, [isOpen, authLoading, user, items.length]);
 
   // Saved Addresses State
   const [savedAddresses, setSavedAddresses] = useState<UserAddress[]>([]);
@@ -875,9 +906,23 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       setPromoInput("");
       setConfirmedOrder(newOrder);
 
-      // Google Ads Conversion Tracking (Canonical order success state)
-      // Note: Configured as "Submit lead form conversion page" (AW-18504838697/kNbLCMPd86EdEKnc5fdE).
-      trackOrderSuccessConversion(newOrder);
+      // Google Ads Purchase Conversion Tracking (Canonical order success state)
+      // Destination: AW-18504838697/60nhCPWW56YdEKnc5fdE
+      try {
+        const orderNum = (newOrder?.order_number || (newOrder?.id ? String(newOrder.id) : "")).trim();
+        const totalVal = Number(newOrder?.total_amount);
+        const curr = newOrder?.currency || "USD";
+
+        if (orderNum) {
+          trackPurchaseConversion({
+            transaction_id: orderNum,
+            value: !isNaN(totalVal) && totalVal >= 0 ? totalVal : 1.0,
+            currency: curr,
+          });
+        }
+      } catch (trackErr) {
+        console.warn("[Google Ads] Non-fatal purchase conversion tracking error:", trackErr);
+      }
     } catch (err: any) {
       if (err?.status === 401 || err?.isAuthError) {
         setError("Please log in to continue to checkout.");
