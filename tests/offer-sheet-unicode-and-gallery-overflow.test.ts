@@ -57,13 +57,11 @@ describe("AYC Offer Sheet — Unicode Normalization & Gallery Overflow Regressio
     assert.strictEqual(normalizeOfferSheetUnicode(symbols), symbols);
   });
 
-  it("3. Blade template incorporates dynamic gallery row height and compact table styling", () => {
-    assert.ok(bladeContent.includes("gallery-r1"), "Must define gallery-r1 styling for 1 row (1-4 images)");
-    assert.ok(bladeContent.includes("gallery-r2"), "Must define gallery-r2 styling for 2 rows (5-8 images)");
-    assert.ok(bladeContent.includes("gallery-r3"), "Must define gallery-r3 styling for 3 rows (9-12 images)");
-    assert.ok(bladeContent.includes("gallery-multi"), "Must define gallery-multi styling for 4+ rows");
-    assert.ok(bladeContent.includes("spec-compact"), "Must define spec-compact styling for balanced layout");
-    assert.ok(bladeContent.includes("pricing-compact"), "Must define pricing-compact styling for balanced layout");
+  it("3. Blade template incorporates 4:5 portrait gallery card ratio and continuation styling", () => {
+    assert.ok(bladeContent.includes("gallery-table"), "Must define gallery-table styling");
+    assert.ok(bladeContent.includes("55.5mm"), "Must define 55.5mm 4:5 portrait height for gallery-cell");
+    assert.ok(bladeContent.includes("53.5mm"), "Must define 53.5mm max-height for gallery-img");
+    assert.ok(bladeContent.includes("continuation-bar"), "Must define continuation-bar for balanced multi-page pagination");
     assert.ok(bladeContent.includes("mb_strtoupper"), "Must use mb_strtoupper for UTF-8 brand heading");
   });
 
@@ -126,8 +124,8 @@ describe("AYC Offer Sheet — Unicode Normalization & Gallery Overflow Regressio
 
   it("5. Layout versions bumped to trigger transparent cache invalidation", () => {
     assert.ok(
-      pServiceContent.includes("v11.0_offer_sheet_fixed_7_day_validity_and_auto_gen") ||
-      pServiceContent.includes("v10.0_offer_sheet_unicode_normalization_and_balanced_gallery"),
+      pServiceContent.includes("v12.0_offer_sheet_4_5_portrait_gallery_ratio") ||
+      pServiceContent.includes("v11.0_offer_sheet_fixed_7_day_validity_and_auto_gen"),
       "ProductOfferSheetService must bump LAYOUT_VERSION"
     );
   });

@@ -16,7 +16,7 @@ class ProductOfferSheetService
     public const TARGET_SIZE_BYTES = 1572864; // 1.5 MB target
     public const MAX_SIZE_BYTES = 2097152;    // 2.0 MB hard limit
 
-    public const LAYOUT_VERSION = 'v11.0_offer_sheet_fixed_7_day_validity_and_auto_gen';
+    public const LAYOUT_VERSION = 'v12.0_offer_sheet_4_5_portrait_gallery_ratio';
 
     public function __construct(
         protected OfferSheetService $offerSheetService,

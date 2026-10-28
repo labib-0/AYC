@@ -563,7 +563,7 @@ class DocumentHelper
                 @mkdir($cacheDir, 0755, true);
             }
 
-            $hash = md5($sourceFile . '_' . $mtime . ($detectLogo ? '_logo' : '_photo'));
+            $hash = md5($sourceFile . '_' . $mtime . ($detectLogo ? '_logo' : '_photo_v12'));
             $ext = $detectLogo ? 'png' : 'jpg';
             $targetPath = "{$cacheDir}/{$hash}.{$ext}";
 
@@ -603,8 +603,8 @@ class DocumentHelper
                             imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
                             imagepng($dstImg, $targetPath, 8);
                         } else {
-                            // Product photo: resize to max 480x480, JPEG quality 82 for photographic sharpness & light file
-                            $maxDim = 480;
+                            // Product photo: resize to max 800x800, JPEG quality 86 for photographic sharpness & light file
+                            $maxDim = 800;
                             if ($origW > $maxDim || $origH > $maxDim) {
                                 $ratio = min($maxDim / $origW, $maxDim / $origH);
                                 $newW = (int) max(1, round($origW * $ratio));
@@ -618,7 +618,7 @@ class DocumentHelper
                             $white = imagecolorallocate($dstImg, 255, 255, 255);
                             imagefilledrectangle($dstImg, 0, 0, $newW, $newH, $white);
                             imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
-                            imagejpeg($dstImg, $targetPath, 82);
+                            imagejpeg($dstImg, $targetPath, 86);
                         }
 
                         imagedestroy($srcImg);

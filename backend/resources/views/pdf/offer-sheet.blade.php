@@ -115,62 +115,50 @@
             letter-spacing: 0.3px;
         }
 
-        /* Gallery Styles by Row Count */
+        /* 4:5 Portrait Gallery Cards (Storefront Parity: Width:Height = 4:5) */
         .gallery-table {
             width: 100%;
             border-collapse: separate;
+            border-spacing: 2.5mm 2.5mm;
             table-layout: fixed;
-            page-break-inside: avoid;
+            margin-bottom: 8px;
+            page-break-inside: auto;
         }
         .gallery-table tr {
             page-break-inside: avoid;
         }
-
-        /* 1 row (1-4 images) */
-        .gallery-r1 { border-spacing: 2.5mm 2.5mm; margin-bottom: 8px; }
-        .gallery-r1 .gallery-cell { height: 44mm; max-height: 44mm; }
-        .gallery-r1 .gallery-cell-empty { height: 44mm; }
-        .gallery-r1 .gallery-img { max-height: 40mm; }
-
-        /* 2 rows (5-8 images) — standard reference */
-        .gallery-r2 { border-spacing: 2.5mm 2.5mm; margin-bottom: 8px; }
-        .gallery-r2 .gallery-cell { height: 39mm; max-height: 39mm; }
-        .gallery-r2 .gallery-cell-empty { height: 39mm; }
-        .gallery-r2 .gallery-img { max-height: 35mm; }
-
-        /* 3 rows (9-12 images) — balanced single-page fit */
-        .gallery-r3 { border-spacing: 2mm 2mm; margin-bottom: 6px; }
-        .gallery-r3 .gallery-cell { height: 32mm; max-height: 32mm; padding: 1.5mm; }
-        .gallery-r3 .gallery-cell-empty { height: 32mm; }
-        .gallery-r3 .gallery-img { max-height: 28mm; }
-
-        /* 4+ rows (13+ images) — multi-page pagination */
-        .gallery-multi { border-spacing: 2mm 2mm; margin-bottom: 8px; }
-        .gallery-multi .gallery-cell { height: 36mm; max-height: 36mm; padding: 2mm; }
-        .gallery-multi .gallery-cell-empty { height: 36mm; }
-        .gallery-multi .gallery-img { max-height: 32mm; }
-
         .gallery-cell {
             width: 25%;
+            height: 55.5mm;
+            max-height: 55.5mm;
             text-align: center;
             vertical-align: middle;
             background: #f4f6f9;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 2mm;
+            padding: 1mm;
             overflow: hidden;
         }
         .gallery-cell-empty {
             width: 25%;
+            height: 55.5mm;
             border: none;
             background: transparent;
         }
         .gallery-img {
             max-width: 100%;
+            max-height: 53.5mm;
             width: auto;
             height: auto;
             display: inline-block;
             vertical-align: middle;
+        }
+        .continuation-bar {
+            background: #f4f6f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 5px 10px;
+            margin-bottom: 8px;
         }
         /* Specifications Table */
         .spec-section {
@@ -371,23 +359,6 @@
             // Sizing and layout balancing based on gallery rows
             $imageChunks = array_chunk($images, 4);
             $rowCount = count($imageChunks);
-            if ($rowCount <= 1) {
-                $galleryClass = 'gallery-r1';
-                $specClass = '';
-                $pricingClass = '';
-            } elseif ($rowCount == 2) {
-                $galleryClass = 'gallery-r2';
-                $specClass = '';
-                $pricingClass = '';
-            } elseif ($rowCount == 3) {
-                $galleryClass = 'gallery-r3';
-                $specClass = 'spec-compact';
-                $pricingClass = 'pricing-compact';
-            } else {
-                $galleryClass = 'gallery-multi';
-                $specClass = '';
-                $pricingClass = '';
-            }
         @endphp
 
         @if($itemIdx > 0)
@@ -428,11 +399,33 @@
             </table>
         </div>
 
-        {{-- 5. Product Gallery: 4 Columns per Row with dynamic height balancing --}}
+        {{-- 5. Product Gallery: 4 Columns per Row with Storefront 4:5 Portrait Ratio --}}
         @if(count($images) > 0)
             <div class="section-heading">PRODUCT GALLERY</div>
-            <table class="gallery-table {{ $galleryClass }}">
-                @foreach($imageChunks as $row)
+            <table class="gallery-table">
+                @foreach($imageChunks as $chunkIdx => $row)
+                    @if($chunkIdx === 3)
+                        </table>
+                        <div class="page-break"></div>
+                        <div class="continuation-bar">
+                            <table style="width: 100%; table-layout: fixed;">
+                                <tr>
+                                    <td style="width: 60%; vertical-align: middle;">
+                                        @if(!empty($brandName))
+                                            <span class="product-brand" style="font-size: 8.5pt;">{{ mb_strtoupper($brandName, 'UTF-8') }}</span>
+                                        @endif
+                                        <span class="product-sku" style="font-size: 8.5pt;">{{ $productName }} &bull; SKU: {{ $sku }}</span>
+                                    </td>
+                                    <td style="width: 40%; text-align: right; vertical-align: middle;">
+                                        <span class="meta-label">OFFER REF: </span>
+                                        <span class="meta-val" style="font-size: 8pt;">{{ $docNumber }}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="section-heading" style="margin-top: 4px;">PRODUCT GALLERY (CONTINUED)</div>
+                        <table class="gallery-table">
+                    @endif
                     <tr>
                         @foreach($row as $rawImgUrl)
                             @php
@@ -452,11 +445,32 @@
             </table>
         @endif
 
+        {{-- Explicit clean page break with continuation header when gallery has 3 rows --}}
+        @if($rowCount == 3)
+            <div class="page-break"></div>
+            <div class="continuation-bar">
+                <table style="width: 100%; table-layout: fixed;">
+                    <tr>
+                        <td style="width: 60%; vertical-align: middle;">
+                            @if(!empty($brandName))
+                                <span class="product-brand" style="font-size: 8.5pt;">{{ mb_strtoupper($brandName, 'UTF-8') }}</span>
+                            @endif
+                            <span class="product-sku" style="font-size: 8.5pt;">{{ $productName }} &bull; SKU: {{ $sku }}</span>
+                        </td>
+                        <td style="width: 40%; text-align: right; vertical-align: middle;">
+                            <span class="meta-label">OFFER REF: </span>
+                            <span class="meta-val" style="font-size: 8pt;">{{ $docNumber }}</span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        @endif
+
         {{-- 6. Specifications: Two-Column Table with Alternating Light-Grey Rows --}}
         @if(count($validSpecs) > 0)
             <div class="spec-section">
                 <div class="section-heading">SPECIFICATIONS</div>
-                <table class="spec-table {{ $specClass }}">
+                <table class="spec-table">
                     <tbody>
                         @foreach($validSpecs as $sLabel => $sVal)
                             <tr>
@@ -472,7 +486,7 @@
         {{-- 7. Pricing Table: Dark Navy Header, Exact Reference Columns --}}
         <div class="pricing-section">
             <div class="section-heading">PRICING</div>
-            <table class="pricing-table {{ $pricingClass }}">
+            <table class="pricing-table">
                 <colgroup>
                     <col style="width: 24%;">
                     <col style="width: 38%;">

@@ -555,19 +555,11 @@ export function generateOfferSheetPDFDoc(
       doc.text("No product images available.", margin + 4, y + 7.5);
       y += 16;
     } else {
-      // Exactly 4 columns per row maximum on standard document pages
+      // Exactly 4 columns per row with Storefront 4:5 portrait card ratio (Width:Height = 4:5 => Height = Width * 1.25)
       const cols = 4;
       const gap = 2.5;
       const tileW = (contentWidth - (cols - 1) * gap) / cols;
-      const rowCount = Math.ceil(galleryImages.length / cols);
-      let tileH = tileW * 1.0;
-      if (rowCount === 2) {
-        tileH = tileW * 0.88;
-      } else if (rowCount === 3) {
-        tileH = tileW * 0.70;
-      } else if (rowCount > 3) {
-        tileH = tileW * 0.80;
-      }
+      const tileH = tileW * 1.25;
 
       // Ensure gallery heading + first row fit together
       if (y + 10 + tileH > pageBottomSafeY) {
@@ -601,8 +593,18 @@ export function generateOfferSheetPDFDoc(
           const imgData = row[colIdx];
           const tileX = margin + colIdx * (tileW + gap);
           const tileY = y;
-          const innerW = tileW;
-          const innerH = tileH;
+
+          // Draw card background and subtle border matching approved styling
+          doc.setFillColor(244, 246, 249);
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(tileX, tileY, tileW, tileH, 1.2, 1.2, "FD");
+
+          const padding = 1.0;
+          const innerW = tileW - padding * 2;
+          const innerH = tileH - padding * 2;
+          const innerX = tileX + padding;
+          const innerY = tileY + padding;
 
           try {
             const props = (doc as any).getImageProperties(imgData);
@@ -613,12 +615,12 @@ export function generateOfferSheetPDFDoc(
               drawH = innerH;
               drawW = drawH * imgRatio;
             }
-            const drawX = tileX + (innerW - drawW) / 2;
-            const drawY = tileY + (innerH - drawH) / 2;
+            const drawX = innerX + (innerW - drawW) / 2;
+            const drawY = innerY + (innerH - drawH) / 2;
             doc.addImage(imgData, "JPEG", drawX, drawY, drawW, drawH, undefined, "FAST");
           } catch {
             try {
-              doc.addImage(imgData, "JPEG", tileX, tileY, innerW, innerH, undefined, "FAST");
+              doc.addImage(imgData, "JPEG", innerX, innerY, innerW, innerH, undefined, "FAST");
             } catch {
               // safe fallback
             }
