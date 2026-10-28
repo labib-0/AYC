@@ -16,7 +16,6 @@ import {
   notifyExplorerActive,
   subscribeToExplorerActive,
 } from "@/lib/services/explorer-coordinator";
-import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
 
 
 const INITIAL_PRODUCT_LIMIT = 24; // Maximum 24 products displayed initially
@@ -24,8 +23,6 @@ const FIRST_LOAD_MORE_LIMIT = 24; // Next batch loaded upon first explicit click
 const CONTINUOUS_BATCH_LIMIT = 24; // Batch size on every subsequent automatic pagination request
 
 export default function FeaturedProducts() {
-  const { t } = useTranslation();
-  const { preferences } = usePreferences();
   const searchParams = useSearchParams();
   const sectionRef = useRef<HTMLElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -578,7 +575,7 @@ export default function FeaturedProducts() {
           {/* Top Heading */}
           <div>
             <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none">
-              {t("home.featured_products", "FEATURED PRODUCTS")}
+              FEATURED PRODUCTS
             </h2>
           </div>
 
@@ -597,7 +594,7 @@ export default function FeaturedProducts() {
                 }`}
               >
                 <SlidersHorizontal size={13} />
-                <span>{t("home.filters", "FILTERS")}</span>
+                <span>FILTERS</span>
                 {totalActiveFilters > 0 && (
                   <span
                     className={`w-4 h-4 rounded-full text-[10px] font-mono font-bold flex items-center justify-center ${
@@ -617,7 +614,7 @@ export default function FeaturedProducts() {
         {totalActiveFilters > 0 && (
           <div className="flex flex-wrap items-center gap-2 mb-6 pb-3 border-b border-border/60">
             <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider font-sans mr-1">
-              {t("home.active_filters", "Active Filters:")}
+              Active Filters:
             </span>
 
             {selectedBrands.map((b) => (
@@ -820,12 +817,12 @@ export default function FeaturedProducts() {
               <div className="text-center py-10 px-4 border border-dashed border-border/80 rounded-2xl">
                 <p className="text-[13px] font-bold uppercase tracking-wider text-foreground mb-1 font-sans">
                   {totalActiveFilters > 0
-                    ? t("home.no_products", "No products found")
+                    ? "No products found"
                     : featuredMode === "best_deals"
                     ? "No best deals found"
                     : featuredMode === "new_arrivals"
                     ? "No new arrivals found"
-                    : t("home.no_products", "No featured products yet")}
+                    : "No featured products yet"}
                 </p>
                 <p className="text-[13px] text-muted-foreground mb-4 font-sans">
                   {totalActiveFilters > 0
@@ -842,7 +839,7 @@ export default function FeaturedProducts() {
                     onClick={handleClearAllFilters}
                     className="px-5 py-2.5 rounded-full text-[13px] font-bold uppercase tracking-wider bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
                   >
-                    {t("home.clear_filters", "Clear Filters")}
+                    Clear Filters
                   </button>
                 )}
               </div>
@@ -862,7 +859,7 @@ export default function FeaturedProducts() {
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold uppercase tracking-wider bg-secondary text-foreground hover:bg-secondary/80 border border-border transition-colors cursor-pointer"
                     >
                       <RotateCcw size={14} />
-                      <span>{t("action.retry", "Retry")}</span>
+                      <span>Retry</span>
                     </button>
                   </div>
                 ) : hasMore && totalCount > products.length ? (
@@ -880,10 +877,10 @@ export default function FeaturedProducts() {
                     {isLoadingMore ? (
                       <span className="inline-flex items-center gap-2">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>{t("home.loading", "LOADING…")}</span>
+                        <span>LOADING…</span>
                       </span>
                     ) : (
-                      <span>{t("home.load_more", "LOAD MORE")}</span>
+                      <span>LOAD MORE</span>
                     )}
                   </button>
                 ) : products.length > 0 ? (

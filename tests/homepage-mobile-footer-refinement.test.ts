@@ -104,8 +104,8 @@ async function runTestSuite() {
     "Mobile drawer retains Deliver To action with location modal selector"
   );
   assert(
-    headerContent.includes("Language") && headerContent.includes("setIsLanguageOpen(true)"),
-    "Mobile drawer retains Language action with language modal selector"
+    !headerContent.includes("mobile-nav-language") && !headerContent.includes("setIsLanguageOpen"),
+    "Mobile drawer has removed internal Language selector action"
   );
   assert(
     headerContent.includes("Wishlist") && headerContent.includes("totalWishlistItems"),

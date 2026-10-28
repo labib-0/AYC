@@ -2,11 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { AudienceTiles } from "@/components/common/AudienceCard";
-import { useTranslation } from "@/lib/PreferencesContext";
 
 export default function AudienceSection() {
   const router = useRouter();
-  const { t } = useTranslation();
 
   const handleAudienceToggle = (audienceName: string) => {
     router.push("/search?audience=" + encodeURIComponent(audienceName.toLowerCase()));
@@ -20,7 +18,7 @@ export default function AudienceSection() {
         <div className="mb-2 sm:mb-2.5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-1">
           <div>
             <h2 className="text-xl sm:text-2xl font-display font-bold uppercase tracking-tight text-foreground leading-none">
-              {t("home.audience", "AUDIENCE")}
+              AUDIENCE
             </h2>
           </div>
         </div>

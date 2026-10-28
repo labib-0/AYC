@@ -15,12 +15,8 @@ import {
   StorefrontCategoryItem,
 } from "@/lib/storefront-taxonomies";
 import { filterConfiguredSocialLinks } from "@/lib/social-links";
-import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
-import { translateCategory } from "@/lib/translations";
 
 export default function Footer() {
-  const { t } = useTranslation();
-  const { preferences } = usePreferences();
   const { settings, getWhatsAppUrl } = useSiteSettings();
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [categories, setCategories] = useState<StorefrontCategoryItem[]>([]);
@@ -136,7 +132,7 @@ export default function Footer() {
                   href="/#top-banner"
                   className="text-xs font-bold uppercase tracking-[0.15em] text-white hover:text-white/80 transition-colors text-left inline-flex items-center gap-1 group"
                 >
-                  <span>{t("footer.about_us", "ABOUT US")}</span>
+                  <span>ABOUT US</span>
                   <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
                 </Link>
                 <p className="text-[13px] text-white/70 leading-relaxed mt-2.5 max-w-sm">
@@ -149,7 +145,7 @@ export default function Footer() {
                   href="/faq"
                   className="inline-flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wider text-white/80 hover:text-white transition-colors underline underline-offset-4"
                 >
-                  {t("footer.faq", "FAQ")} →
+                  FAQ →
                 </Link>
               </div>
             </div>
@@ -157,37 +153,37 @@ export default function Footer() {
             {/* COLUMN 2 — SHOP & COLLECTIONS (Col span 2) */}
             <div className="lg:col-span-2">
               <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
-                {t("footer.shop", "SHOP")}
+                SHOP
               </h3>
               <ul className="flex flex-col gap-2 text-[13px] text-white/75">
                 <li>
                   <Link href="/search" className="hover:text-white transition-colors">
-                    {t("footer.all_products", "All Products")}
+                    All Products
                   </Link>
                 </li>
                 <li>
                   <Link href="/search?audience=MEN" className="hover:text-white transition-colors">
-                    {t("footer.mens_collection", "Men's Collection")}
+                    Men's Collection
                   </Link>
                 </li>
                 <li>
                   <Link href="/search?audience=WOMEN" className="hover:text-white transition-colors">
-                    {t("footer.womens_apparel", "Women's Apparel")}
+                    Women's Apparel
                   </Link>
                 </li>
                 <li>
                   <Link href="/search?audience=BOYS" className="hover:text-white transition-colors">
-                    {t("footer.boys_fashion", "Boys Fashion")}
+                    Boys Fashion
                   </Link>
                 </li>
                 <li>
                   <Link href="/search?audience=GIRLS" className="hover:text-white transition-colors">
-                    {t("footer.girls_wear", "Girls Wear")}
+                    Girls Wear
                   </Link>
                 </li>
                 <li>
                   <Link href="/search?audience=UNISEX" className="hover:text-white transition-colors">
-                    {t("footer.unisex_essentials", "Unisex Essentials")}
+                    Unisex Essentials
                   </Link>
                 </li>
               </ul>
@@ -196,7 +192,7 @@ export default function Footer() {
             {/* COLUMN 3 — POPULAR CATEGORIES (Col span 2) */}
             <div className="lg:col-span-2">
               <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
-                {t("home.categories", "CATEGORIES")}
+                CATEGORIES
               </h3>
               <ul className="flex flex-col gap-2 text-[13px] text-white/75">
                 {categories.slice(0, 10).map((cat) => (
@@ -205,7 +201,7 @@ export default function Footer() {
                       href={`/search?category=${encodeURIComponent((cat.slug || cat.name).toLowerCase())}`}
                       className="hover:text-white transition-colors"
                     >
-                      {translateCategory(cat.name, preferences.language)}
+                      {cat.name}
                     </Link>
                   </li>
                 ))}
@@ -214,7 +210,7 @@ export default function Footer() {
                     href="/search"
                     className="hover:text-white text-amber-400 font-semibold transition-colors flex items-center gap-1 text-[13px]"
                   >
-                    <span>{t("footer.all_categories", "All Categories")}</span>
+                    <span>All Categories</span>
                     <span>→</span>
                   </Link>
                 </li>
@@ -224,7 +220,7 @@ export default function Footer() {
             {/* COLUMN 4 — POPULAR BRANDS (Col span 2) */}
             <div className="lg:col-span-2">
               <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
-                {t("footer.brands", "BRANDS")}
+                BRANDS
               </h3>
               <ul className="flex flex-col gap-2 text-[13px] text-white/75">
                 {brands.slice(0, 10).map((b) => (
@@ -242,7 +238,7 @@ export default function Footer() {
                     href="/search"
                     className="hover:text-white text-amber-400 font-semibold transition-colors flex items-center gap-1 text-[13px]"
                   >
-                    <span>{t("footer.all_brands", "All Brands")}</span>
+                    <span>All Brands</span>
                     <span>→</span>
                   </Link>
                 </li>
@@ -253,12 +249,12 @@ export default function Footer() {
             <div className="lg:col-span-3 flex flex-col gap-4">
               <div>
                 <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
-                  {t("footer.wholesale_sourcing", "WHOLESALE SOURCING")}
+                  WHOLESALE SOURCING
                 </h3>
                 <ul className="flex flex-col gap-2 text-[13px] text-white/75 mb-4">
                   <li>
                     <Link href="/rfq" className="hover:text-white transition-colors font-medium text-white/90">
-                      {t("b2b.rfq", "Request for Quotation (RFQ)")} →
+                      Request for Quotation (RFQ) →
                     </Link>
                   </li>
                   <li>
@@ -266,7 +262,7 @@ export default function Footer() {
                       href="/compliance"
                       className="hover:text-white transition-colors text-left"
                     >
-                      {t("footer.compliance", "Compliance & Certifications")}
+                      Compliance &amp; Certifications
                     </Link>
                   </li>
                 </ul>
@@ -364,7 +360,7 @@ export default function Footer() {
 
           {/* Bottom Copyright & Legal Row */}
           <div className="flex flex-col sm:flex-row items-center justify-between pt-6 gap-4 text-[13px] text-white/40">
-            <p>© {new Date().getFullYear()} {settings.site_title}. {t("footer.rights_reserved", "All rights reserved.")}</p>
+            <p>© {new Date().getFullYear()} {settings.site_title}. All rights reserved.</p>
             <div className="flex items-center gap-6">
               {settings.legal_pages && settings.legal_pages.length > 0 ? (
                 settings.legal_pages.map((page) => (
@@ -379,10 +375,10 @@ export default function Footer() {
               ) : (
                 <>
                   <Link href="/privacy-policy" className="hover:text-white/70 transition-colors">
-                    {t("footer.privacy_policy", "Privacy Policy")}
+                    Privacy Policy
                   </Link>
                   <Link href="/terms-and-conditions" className="hover:text-white/70 transition-colors">
-                    {t("footer.terms_conditions", "Terms & Conditions")}
+                    Terms & Conditions
                   </Link>
                 </>
               )}
@@ -398,8 +394,8 @@ export default function Footer() {
           type="button"
           onClick={scrollToTop}
           className="fixed bottom-20 right-6 z-40 w-11 h-11 rounded-full bg-white text-[#111827] shadow-xl flex items-center justify-center hover:bg-white/90 hover:scale-105 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label={t("footer.back_to_top", "Back to top")}
-          title={t("footer.back_to_top", "Back to top")}
+          aria-label="Back to top"
+          title="Back to top"
         >
           <ArrowUp size={18} strokeWidth={2.5} />
         </button>

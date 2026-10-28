@@ -379,47 +379,24 @@ async function verify() {
       record("T3.13", "Direct URL and page refresh preserve selected sort", "FAIL", `Label: "${refreshedLabel}", First: ${refreshedFirstPrice}, Last: ${refreshedLastPrice}`);
     }
 
-    // ── SCENARIO 14: Bengali Language Switching retains sort order ───────────
-    console.log("\n--- Testing Scenario 14: Bengali language compatibility ---");
-    // Switch to Bengali
-    await page.click("#header-language-btn");
-    await sleep(500);
-    await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll("form button[type='button']"));
-      const bnBtn = buttons.find((b) => b.textContent?.includes("বাংলা") || b.textContent?.includes("Bengali"));
-      if (bnBtn) bnBtn.click();
-      const submit = document.querySelector("form button[type='submit']");
-      if (submit) submit.click();
-    });
-    await sleep(1200);
-
-    const bnLabel = await page.evaluate(() => {
+    // ── SCENARIO 14: Internal language switcher removed, sorting remains canonical English ───────────
+    console.log("\n--- Testing Scenario 14: Language switcher removal & canonical English sorting ---");
+    const hasLanguageBtn = await page.$("#header-language-btn");
+    const currentSortLabel = await page.evaluate(() => {
       const trigger = document.querySelector("#storefront-sort-trigger");
       return trigger?.textContent?.trim();
     });
 
-    const bnProducts = await getRenderedProducts();
-    const bnFirstPrice = bnProducts[0]?.price;
-    const bnLastPrice = bnProducts[bnProducts.length - 1]?.price;
-    const isBnSortIntact = bnFirstPrice >= bnLastPrice;
+    const products = await getRenderedProducts();
+    const firstPrice = products[0]?.price;
+    const lastPrice = products[products.length - 1]?.price;
+    const isSortIntact = firstPrice >= lastPrice;
 
-    if (isBnSortIntact) {
-      record("T3.14", "Switching to Bengali preserves product sorting order and localizes dropdown label", "PASS", `Label: "${bnLabel}", Sorting intact (Max $${bnFirstPrice} >= Min $${bnLastPrice})`);
+    if (!hasLanguageBtn && isSortIntact) {
+      record("T3.14", "Internal language switcher removed and canonical English sorting intact", "PASS", `No #header-language-btn, Label: "${currentSortLabel}", Sorting intact`);
     } else {
-      record("T3.14", "Switching to Bengali preserves product sorting order and localizes dropdown label", "FAIL", `Max $${bnFirstPrice} < Min $${bnLastPrice}`);
+      record("T3.14", "Internal language switcher removed and canonical English sorting intact", "FAIL", `hasLanguageBtn=${Boolean(hasLanguageBtn)}, isSortIntact=${isSortIntact}`);
     }
-
-    // Switch back to English
-    await page.click("#header-language-btn");
-    await sleep(500);
-    await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll("form button[type='button']"));
-      const enBtn = buttons.find((b) => b.textContent?.includes("English"));
-      if (enBtn) enBtn.click();
-      const submit = document.querySelector("form button[type='submit']");
-      if (submit) submit.click();
-    });
-    await sleep(1000);
 
     // ── SCENARIO 15: Empty results handling ──────────────────────────────────
     console.log("\n--- Testing Scenario 15: Empty search results ---");

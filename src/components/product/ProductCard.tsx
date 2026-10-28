@@ -14,8 +14,6 @@ import ProductBadge from "@/components/common/ProductBadge";
 import { generateProductImageAlt } from "@/lib/seo";
 import { getLowestValidCustomerUnitPrice } from "@/lib/product-pricing";
 import ProductImageFrame from "./ProductImageFrame";
-import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
-import { translateDesignType, formatMoq } from "@/lib/translations";
 
 interface ProductCardProps {
   product: Product;
@@ -23,8 +21,6 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, priority = false }: ProductCardProps) {
-  const { t } = useTranslation();
-  const { preferences } = usePreferences();
   const { openProductModal } = useProductModal();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { user } = useAuth();
@@ -111,7 +107,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
                 : "Original"
             }`}
           >
-            {translateDesignType((product.designType || "").toUpperCase(), preferences.language)}
+            {(product.designType || "ORIGINAL").toUpperCase()}
           </ProductBadge>
         </div>
 
@@ -154,7 +150,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
             }`}
             onClick={handleQuickAdd}
           >
-            {isSoldOut ? t("product.sold_out", "Sold Out") : isOutOfStock ? t("product.out_of_stock", "Out of Stock") : !hasValidPrice ? t("product.inquire_quote", "Inquire / Quote") : isPreorder ? t("product.pre_order", "Pre-Order") : t("product.quick_add", "Quick Add")}
+            {isSoldOut ? "Sold Out" : isOutOfStock ? "Out of Stock" : !hasValidPrice ? "Inquire / Quote" : isPreorder ? "Pre-Order" : "Quick Add"}
           </button>
         </div>
       </div>
@@ -178,12 +174,12 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
                     {formatPrice(lowestUnitPrice)}
                   </span>
                   <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
-                    {t("product.per_pc", "/ pc")}
+                    / pc
                   </span>
                 </>
               ) : (
                 <span className="text-[14px] sm:text-[15px] font-semibold text-muted-foreground leading-tight">
-                  {t("product.price_on_request", "Price on Request")}
+                  Price on Request
                 </span>
               )}
             </div>
@@ -194,7 +190,7 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
                 aria-label="Sold out"
                 className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-[10.5px] font-sans font-bold tracking-wider uppercase bg-red-900 text-white border border-red-700/80 dark:bg-red-950 dark:border-red-700/80 shadow-2xs leading-none select-none shrink-0"
               >
-                {t("product.sold_out", "SOLD OUT")}
+                SOLD OUT
               </span>
             )}
           </div>
@@ -208,15 +204,15 @@ export default function ProductCard({ product, priority = false }: ProductCardPr
 
           <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
             <p className="text-[13px] font-body text-muted-foreground font-medium">
-              {formatMoq(effectiveMoq, preferences.language)}
+              {`MOQ: ${effectiveMoq} PCS`}
             </p>
             {isSoldOut ? null : isPreorder ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                · {t("product.pre_order", "Pre-Order")}
+                · Pre-Order
               </span>
             ) : isOutOfStock ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
-                · {t("product.out_of_stock", "Out of Stock")}
+                · Out of Stock
               </span>
             ) : availableMoqs <= 2 ? (
               <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">

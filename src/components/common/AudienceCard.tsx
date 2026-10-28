@@ -10,8 +10,6 @@ import {
   IconUnisex,
   IconProps,
 } from "./AudienceIcons";
-import { usePreferences } from "@/lib/PreferencesContext";
-import { translateAudience } from "@/lib/translations";
 
 export type AudienceIconComponent = React.ComponentType<IconProps> | LucideIcon;
 
@@ -81,8 +79,7 @@ export function AudienceTile({
   onClick,
   className = "",
 }: AudienceTileProps) {
-  const { preferences } = usePreferences();
-  const displayName = translateAudience(name, preferences.language);
+  const displayName = name;
   const isAllCategories = name === "ALL CATEGORIES" || (Icon as any) === LayoutGrid;
 
   return (

@@ -3,8 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { categoryService, CategoryModel } from "@/services/category.service";
-import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
-import { translateCategory } from "@/lib/translations";
 
 export const AUDIENCE_IDS = new Set([
   "c_men",
@@ -93,8 +91,6 @@ export function getStorefrontCategories(categories: CategoryModel[]): Storefront
 }
 
 export default function CategoriesSection() {
-  const { t } = useTranslation();
-  const { preferences } = usePreferences();
   const [categories, setCategories] = useState<CategoryModel[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -148,7 +144,7 @@ export default function CategoriesSection() {
         <div className="mb-2 sm:mb-2.5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-1">
           <div>
             <h2 className="text-fluid-h2 font-display font-bold uppercase tracking-tight text-foreground leading-none">
-              {t("home.categories", "CATEGORIES")}
+              CATEGORIES
             </h2>
           </div>
         </div>
@@ -174,13 +170,13 @@ export default function CategoriesSection() {
               aria-label="Browse all categories"
               className="group inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl border border-foreground bg-foreground text-background hover:bg-foreground/90 text-[11px] sm:text-[12px] font-sans font-bold uppercase tracking-wider leading-none shadow-xs hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 cursor-pointer text-center min-h-[38px] sm:min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
-              <span className="whitespace-nowrap">{t("home.all_categories", "ALL CATEGORIES")}</span>
+              <span className="whitespace-nowrap">ALL CATEGORIES</span>
             </Link>
 
             {productCategories.map((cat) => {
               const categoryName = cat.name.trim();
               const categoryParam = encodeURIComponent(categoryName.toLowerCase());
-              const displayCategory = translateCategory(categoryName, preferences.language);
+              const displayCategory = categoryName;
               return (
                 <Link
                   key={cat.id || categoryName}

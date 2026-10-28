@@ -1,14 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { TRANSLATIONS, LanguageCode } from "./translations";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { ISO_COUNTRIES, findCountry, getCountryFlag } from "./data/countries";
 
 export interface CountryInfo {
   code: string;
   name: string;
   flag: string;
-  defaultLanguage?: LanguageCode;
   postalCodePlaceholder?: string;
   postalCodeRequired?: boolean;
 }
@@ -20,21 +18,13 @@ export const SUPPORTED_COUNTRIES: CountryInfo[] = ISO_COUNTRIES.map((c) => ({
   code: c.code,
   name: c.name,
   flag: getCountryFlag(c.code),
-  defaultLanguage: "English",
 }));
-
-export const SUPPORTED_LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
-  { code: "English", label: "English", native: "English" },
-  { code: "Bengali", label: "Bengali", native: "বাংলা" },
-  { code: "Arabic", label: "Arabic", native: "العربية" },
-];
 
 export interface UserPreferences {
   country: string;
   countryCode: string;
   flag: string;
   postalCode: string;
-  language: LanguageCode;
   currency: "USD";
   currencySymbol: "$";
   lastUpdated: number;
@@ -48,7 +38,6 @@ export const NEUTRAL_PREFERENCES: UserPreferences = {
   countryCode: "",
   flag: "🌐",
   postalCode: "",
-  language: "English",
   currency: "USD",
   currencySymbol: "$",
   lastUpdated: 0,
@@ -60,29 +49,24 @@ export interface PreferencesContextType {
   isLoaded: boolean;
   updateLocation: (countryCode: string, postalCode?: string) => void;
   clearLocation: () => void;
-  updateLanguage: (language: LanguageCode) => void;
-  updateLanguageCurrency: (language: string, currency?: string) => void;
   updateAllPreferences: (newPrefs: Partial<UserPreferences>) => void;
-  t: (key: string, fallback?: string) => string;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);
 
-export function PreferencesProvider({
-  children,
-  initialLanguage = "English",
-}: {
-  children: React.ReactNode;
-  initialLanguage?: LanguageCode;
-}) {
+export function PreferencesProvider({ children }: { children: React.ReactNode }) {
   const [preferences, setPreferences] = useState<UserPreferences>(() => ({
     ...NEUTRAL_PREFERENCES,
-    language: initialLanguage,
   }));
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
+
+    // Proactively clean up legacy language cookie if present
+    if (typeof document !== "undefined" && document.cookie.includes("ayaan_locale")) {
+      document.cookie = "ayaan_locale=; path=/; max-age=0; SameSite=Lax";
+    }
 
     async function initializePreferences() {
       let savedPrefs: UserPreferences | null = null;
@@ -93,11 +77,14 @@ export function PreferencesProvider({
           if (parsed && typeof parsed === "object") {
             savedPrefs = {
               ...NEUTRAL_PREFERENCES,
-              language: initialLanguage,
               ...parsed,
               currency: "USD",
               currencySymbol: "$",
             };
+            // Clean legacy language field if present
+            if (savedPrefs && "language" in (savedPrefs as any)) {
+              delete (savedPrefs as any).language;
+            }
           }
         }
       } catch {
@@ -129,7 +116,7 @@ export function PreferencesProvider({
             const flag = getCountryFlag(countryCode);
 
             const detectedPrefs: UserPreferences = {
-              ...(savedPrefs || { ...NEUTRAL_PREFERENCES, language: initialLanguage }),
+              ...(savedPrefs || NEUTRAL_PREFERENCES),
               country: countryName,
               countryCode: countryCode,
               flag: flag,
@@ -155,10 +142,7 @@ export function PreferencesProvider({
         if (savedPrefs) {
           setPreferences(savedPrefs);
         } else {
-          setPreferences({
-            ...NEUTRAL_PREFERENCES,
-            language: initialLanguage,
-          });
+          setPreferences(NEUTRAL_PREFERENCES);
         }
         setIsLoaded(true);
       }
@@ -173,7 +157,7 @@ export function PreferencesProvider({
     return () => {
       isMounted = false;
     };
-  }, [initialLanguage]);
+  }, []);
 
   const updateLocation = (countryCode: string, postalCode = "") => {
     const item = findCountry(countryCode);
@@ -204,10 +188,7 @@ export function PreferencesProvider({
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {}
-    setPreferences((prev) => ({
-      ...NEUTRAL_PREFERENCES,
-      language: prev.language,
-    }));
+    setPreferences(NEUTRAL_PREFERENCES);
 
     // Re-detect country via IP
     fetch("/ayc/api/v1/geolocation/detect")
@@ -218,13 +199,12 @@ export function PreferencesProvider({
           const item = findCountry(code);
           const name = data.country_name || (item ? item.name : code);
           const flag = getCountryFlag(code);
-          setPreferences((prev) => {
+          setPreferences(() => {
             const detectedPrefs: UserPreferences = {
               ...NEUTRAL_PREFERENCES,
               country: name,
               countryCode: code,
               flag: flag,
-              language: prev.language,
               isManual: false,
               lastUpdated: Date.now(),
             };
@@ -238,31 +218,6 @@ export function PreferencesProvider({
       .catch(() => {});
   };
 
-  const updateLanguage = (language: LanguageCode) => {
-    const langObj = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
-
-    setPreferences((prev) => {
-      const updated: UserPreferences = {
-        ...prev,
-        language: langObj.code,
-        currency: "USD",
-        currencySymbol: "$",
-        lastUpdated: Date.now(),
-      };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {}
-      if (typeof document !== "undefined") {
-        document.cookie = `ayaan_locale=${encodeURIComponent(langObj.code)}; path=/; max-age=31536000; SameSite=Lax`;
-      }
-      return updated;
-    });
-  };
-
-  const updateLanguageCurrency = (language: string, _currency?: string) => {
-    updateLanguage(language as LanguageCode);
-  };
-
   const updateAllPreferences = (newPrefs: Partial<UserPreferences>) => {
     setPreferences((prev) => {
       const updated: UserPreferences = {
@@ -272,30 +227,15 @@ export function PreferencesProvider({
         currencySymbol: "$",
         lastUpdated: Date.now(),
       };
+      if ("language" in updated) {
+        delete (updated as any).language;
+      }
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch {}
-      if (typeof document !== "undefined" && updated.language) {
-        document.cookie = `ayaan_locale=${encodeURIComponent(updated.language)}; path=/; max-age=31536000; SameSite=Lax`;
-      }
       return updated;
     });
   };
-
-  const t = useCallback(
-    (key: string, fallback?: string): string => {
-      const lang = preferences.language || "English";
-      const dict = TRANSLATIONS[lang] || TRANSLATIONS.English;
-      if (dict && dict[key]) {
-        return dict[key];
-      }
-      if (TRANSLATIONS.English && TRANSLATIONS.English[key]) {
-        return TRANSLATIONS.English[key];
-      }
-      return fallback !== undefined ? fallback : key;
-    },
-    [preferences.language]
-  );
 
   return (
     <PreferencesContext.Provider
@@ -304,10 +244,7 @@ export function PreferencesProvider({
         isLoaded,
         updateLocation,
         clearLocation,
-        updateLanguage,
-        updateLanguageCurrency,
         updateAllPreferences,
-        t,
       }}
     >
       {children}
@@ -321,15 +258,4 @@ export function usePreferences() {
     throw new Error("usePreferences must be used within a PreferencesProvider");
   }
   return context;
-}
-
-export function useTranslation() {
-  const { t, preferences, updateLanguage } = usePreferences();
-  return {
-    t,
-    language: preferences.language,
-    isBengali: preferences.language === "Bengali",
-    isEnglish: preferences.language === "English",
-    updateLanguage,
-  };
 }

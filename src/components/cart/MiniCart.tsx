@@ -18,10 +18,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { formatPrice } from "@/lib/formatters";
 import { useRouter } from "next/navigation";
 import CheckoutModal from "./CheckoutModal";
-import { useTranslation } from "@/lib/PreferencesContext";
 
 export default function MiniCart() {
-  const { t } = useTranslation();
   const {
     isCartOpen,
     setIsCartOpen,
@@ -209,7 +207,7 @@ export default function MiniCart() {
           <div className="flex items-center gap-2.5">
             <ShoppingBag className="w-5 h-5 text-foreground" />
             <h2 className="font-display font-bold text-base sm:text-lg uppercase tracking-wider text-foreground">
-              {t("cart.shopping_cart", "Shopping Cart")}
+              Shopping Cart
             </h2>
             {items.length > 0 && (
               <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-secondary text-foreground tabular-nums">
@@ -293,9 +291,9 @@ export default function MiniCart() {
               <div className="w-14 h-14 rounded-full bg-secondary/60 flex items-center justify-center mb-3">
                 <ShoppingBag className="w-7 h-7 text-muted-foreground stroke-1" />
               </div>
-              <p className="text-base font-semibold text-foreground">{t("cart.empty", "Your cart is empty")}</p>
+              <p className="text-base font-semibold text-foreground">Your cart is empty</p>
               <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">
-                {t("cart.empty_subtitle", "Add items or request a wholesale quote to get started.")}
+                Add items or request a wholesale quote to get started.
               </p>
               <button
                 type="button"
@@ -305,7 +303,7 @@ export default function MiniCart() {
                 }}
                 className="mt-5 px-5 py-2.5 rounded-full bg-foreground text-background font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
               >
-                {t("cart.browse_products", "Browse Products")}
+                Browse Products
               </button>
             </div>
           ) : (
@@ -525,7 +523,7 @@ export default function MiniCart() {
         {items.length > 0 && (
           <div className="p-4 sm:p-5 border-t border-border bg-card/60 backdrop-blur-xs space-y-2.5">
             <div className="flex items-center justify-between text-xs sm:text-sm font-body font-bold uppercase tracking-wider">
-              <span className="text-muted-foreground">{t("cart.estimated_subtotal", "Estimated Subtotal")}</span>
+              <span className="text-muted-foreground">Estimated Subtotal</span>
               <span className="text-base sm:text-lg font-bold text-foreground tabular-nums">
                 {formatPrice(selectedSubtotal)}
               </span>
@@ -544,7 +542,7 @@ export default function MiniCart() {
               onClick={handleProceedToCheckout}
               className="w-full py-3 rounded-full bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>{t("cart.proceed_to_checkout", "Proceed to Checkout")}</span>
+              <span>Proceed to Checkout</span>
               <ArrowRight size={15} />
             </button>
 
@@ -554,7 +552,7 @@ export default function MiniCart() {
               className="w-full py-2.5 rounded-full bg-foreground text-background font-bold text-xs sm:text-sm uppercase tracking-wider hover:opacity-90 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-xs"
             >
               <FileText size={14} />
-              <span>{t("cart.request_quote_rfq", "Request Wholesale Quote (RFQ)")}</span>
+              <span>Request Wholesale Quote (RFQ)</span>
             </button>
           </div>
         )}

@@ -45,8 +45,6 @@ import {
   RotateCcw,
   ChevronDown,
 } from "lucide-react";
-import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
-import { translateAudience, translateCategory } from "@/lib/translations";
 
 
 // ---------------------------------------------------------------------------
@@ -73,8 +71,6 @@ type SortValue = (typeof SORT_OPTIONS)[number]["value"];
 function SearchResultsContent() {
   const searchParams = useSearchParams();
   const router      = useRouter();
-  const { t } = useTranslation();
-  const { preferences } = usePreferences();
 
   // ── URL params ──────────────────────────────────────────────────────────
   const query               = searchParams.get("query") || searchParams.get("q") || "";
@@ -676,15 +672,15 @@ function SearchResultsContent() {
 
   const currentSortLabel = useMemo(() => {
     switch (sort) {
-      case "newest": return t("search.sort_newest", "Newest First");
-      case "price_asc": return t("search.sort_price_asc", "Price: Low → High");
-      case "price_desc": return t("search.sort_price_desc", "Price: High → Low");
-      case "popular": return t("search.sort_popular", "Most Popular");
-      case "name_asc": return t("search.sort_name_asc", "Name A → Z");
-      case "name_desc": return t("search.sort_name_desc", "Name Z → A");
-      default: return t("search.sort_newest", "Newest First");
+      case "newest": return "Newest First";
+      case "price_asc": return "Price: Low → High";
+      case "price_desc": return "Price: High → Low";
+      case "popular": return "Most Popular";
+      case "name_asc": return "Name A → Z";
+      case "name_desc": return "Name Z → A";
+      default: return "Newest First";
     }
-  }, [sort, t]);
+  }, [sort]);
 
   // ── Breadcrumbs & Page Heading ────────────────────────────────────────────
   const { crumbs, jsonLdItems } = useMemo(() => {
@@ -713,45 +709,44 @@ function SearchResultsContent() {
 
   const pageHeading = useMemo(() => {
     if (error && products.length === 0) {
-      if (query.trim()) return t("search.search_results", "SEARCH RESULTS");
+      if (query.trim()) return "SEARCH RESULTS";
       if (selectedBrands.length === 1) {
         const bName =
           liveBrands.find((b) => b.name.toLowerCase() === selectedBrands[0].toLowerCase())?.name ||
           selectedBrands[0];
-        return `${bName.toUpperCase()} ${t("search.collection", "COLLECTION")}`;
+        return `${bName.toUpperCase()} COLLECTION`;
       }
-      return t("home.all_products", "ALL PRODUCTS");
+      return "ALL PRODUCTS";
     }
 
     if (query.trim()) {
-      return t("search.search_results", "SEARCH RESULTS");
+      return "SEARCH RESULTS";
     }
     if (selectedBrands.length === 1 && selectedCategories.length === 0 && selectedAudiences.length === 0) {
       const bName =
         liveBrands.find((b) => b.name.toLowerCase() === selectedBrands[0].toLowerCase())?.name ||
         selectedBrands[0];
-      return `${bName.toUpperCase()} ${t("search.collection", "COLLECTION")}`;
+      return `${bName.toUpperCase()} COLLECTION`;
     }
     if (selectedCategories.length === 1 && selectedAudiences.length === 0 && selectedBrands.length === 0) {
       const cName =
         liveCategories.find((c) => c.name.toLowerCase() === selectedCategories[0].toLowerCase())?.name ||
         selectedCategories[0];
-      return translateCategory(cName, preferences.language).toUpperCase();
+      return cName.toUpperCase();
     }
     if (selectedCategories.length === 1 && selectedAudiences.length === 1 && selectedBrands.length === 0) {
       const cName =
         liveCategories.find((c) => c.name.toLowerCase() === selectedCategories[0].toLowerCase())?.name ||
         selectedCategories[0];
-      const aud = translateAudience(selectedAudiences[0], preferences.language);
-      const cat = translateCategory(cName, preferences.language);
-      return `${aud.toUpperCase()} ${cat.toUpperCase()}`;
+      const aud = selectedAudiences[0];
+      return `${aud.toUpperCase()} ${cName.toUpperCase()}`;
     }
     if (selectedAudiences.length === 1 && selectedCategories.length === 0 && selectedBrands.length === 0) {
-      const aud = translateAudience(selectedAudiences[0], preferences.language);
-      return `${aud.toUpperCase()} ${t("search.collection", "COLLECTION")}`;
+      const aud = selectedAudiences[0];
+      return `${aud.toUpperCase()} COLLECTION`;
     }
-    return t("home.all_products", "ALL PRODUCTS");
-  }, [error, products.length, query, selectedBrands, selectedCategories, selectedAudiences, liveBrands, liveCategories, t, preferences.language]);
+    return "ALL PRODUCTS";
+  }, [error, products.length, query, selectedBrands, selectedCategories, selectedAudiences, liveBrands, liveCategories]);
 
   // ── Initial loading skeleton (full grid) ──────────────────────────────────
   if (loading && products.length === 0 && currentPage === 0 && !isUpdating) {
@@ -830,7 +825,7 @@ function SearchResultsContent() {
               }`}
             >
               <SlidersHorizontal size={13} />
-              <span>{t("home.filters", "FILTERS")}</span>
+              <span>FILTERS</span>
               {hasActiveFilters && (
                 <span
                   className={`w-4 h-4 rounded-full text-[10px] font-mono font-bold flex items-center justify-center ${
@@ -864,13 +859,7 @@ function SearchResultsContent() {
                   className="absolute right-0 top-full mt-1.5 w-52 bg-card border border-border/80 rounded-xl shadow-xl z-40 py-1 animate-in fade-in zoom-in-95 duration-100"
                 >
                   {SORT_OPTIONS.map((opt) => {
-                    const optLabel =
-                      opt.value === "newest" ? t("search.sort_newest", opt.label) :
-                      opt.value === "price_asc" ? t("search.sort_price_asc", opt.label) :
-                      opt.value === "price_desc" ? t("search.sort_price_desc", opt.label) :
-                      opt.value === "popular" ? t("search.sort_popular", opt.label) :
-                      opt.value === "name_asc" ? t("search.sort_name_asc", opt.label) :
-                      t("search.sort_name_desc", opt.label);
+                    const optLabel = opt.label;
                     return (
                       <button
                         key={opt.value}
@@ -900,7 +889,7 @@ function SearchResultsContent() {
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-border text-foreground hover:bg-secondary text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer self-start sm:self-auto active:scale-95 shadow-sm"
               >
                 <X size={14} />
-                <span>{t("action.clear", "Clear")}</span>
+                <span>Clear</span>
               </button>
             )}
           </div>
@@ -978,7 +967,7 @@ function SearchResultsContent() {
                   className="inline-flex items-center gap-2 px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-sm"
                 >
                   <RotateCcw size={14} />
-                  <span>{t("action.retry", "Retry")}</span>
+                  <span>Retry</span>
                 </button>
               </div>
             ) : (
@@ -988,7 +977,7 @@ function SearchResultsContent() {
                   <Search size={24} />
                 </div>
                 <h3 className="text-lg font-bold uppercase font-display mb-1 text-foreground">
-                  {t("home.no_products", "No Products Found")}
+                  No Products Found
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mb-6 leading-relaxed">
                   {query.trim() ? (
@@ -1007,7 +996,7 @@ function SearchResultsContent() {
                       }}
                       className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-xs"
                     >
-                      {t("action.clear_all", "Clear All Criteria")}
+                      Clear All Criteria
                     </button>
                   ) : hasActiveFilters ? (
                     <button
@@ -1015,7 +1004,7 @@ function SearchResultsContent() {
                       onClick={handleClearFilters}
                       className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-xs"
                     >
-                      {t("home.clear_filters", "Clear Filters")}
+                      Clear Filters
                     </button>
                   ) : query.trim() ? (
                     <button
@@ -1023,7 +1012,7 @@ function SearchResultsContent() {
                       onClick={handleClearSearch}
                       className="px-6 py-2.5 bg-foreground text-background text-xs font-bold uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity cursor-pointer active:scale-95 shadow-xs"
                     >
-                      {t("action.clear", "Clear Search")}
+                      Clear Search
                     </button>
                   ) : (
                     <button

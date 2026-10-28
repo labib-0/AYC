@@ -7,8 +7,7 @@ import { RfqProvider } from "@/lib/RfqContext";
 import { ProductModalProvider } from "@/lib/ProductModalContext";
 import { PreferencesProvider } from "@/lib/PreferencesContext";
 import { SiteSettingsProvider } from "@/lib/SiteSettingsContext";
-import { headers, cookies } from "next/headers";
-import { LanguageCode } from "@/lib/translations";
+import { headers } from "next/headers";
 import StorefrontShell from "@/components/layout/StorefrontShell";
 import GlobalNumberInputWheelGuard from "@/components/common/GlobalNumberInputWheelGuard";
 import { generateOrganizationJsonLd, generateWebSiteJsonLd, SITE_URL } from "@/lib/seo";
@@ -111,19 +110,12 @@ export default async function RootLayout({
   const jsonLdOrg = generateOrganizationJsonLd();
   const jsonLdWebSite = generateWebSiteJsonLd();
 
-  const [headersList, cookieStore] = await Promise.all([headers(), cookies()]);
+  const headersList = await headers();
   const host = headersList.get("host") || "";
   const pathname = headersList.get("x-pathname") || "";
   const isAdminHeader = headersList.get("x-is-admin-host") === "1" || headersList.get("x-admin-app") === "true";
   const isAdminHost = isAdminHeader || host.includes(":3001") || host.startsWith("admin.") || host === "admin.localhost";
   const isAdminRoute = isAdminHost || pathname.startsWith("/ayc") || pathname.startsWith("/admin");
-
-  const rawLocale = cookieStore.get("ayaan_locale")?.value;
-  const initialLanguage: LanguageCode =
-    rawLocale === "Bengali" || rawLocale === "Arabic" || rawLocale === "English"
-      ? (rawLocale as LanguageCode)
-      : "English";
-  const htmlLang = initialLanguage === "Bengali" ? "bn" : initialLanguage === "Arabic" ? "ar" : "en";
 
   let publicSettings: PublicSiteSettings | null = null;
   if (!isAdminRoute) {
@@ -135,7 +127,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang={htmlLang} dir={initialLanguage === "Arabic" ? "rtl" : "ltr"}>
+    <html lang="en" dir="ltr">
       <head>
         <script
           type="application/ld+json"
@@ -156,7 +148,7 @@ export default async function RootLayout({
         <GlobalNumberInputWheelGuard />
         <AuthProvider>
           <SiteSettingsProvider>
-            <PreferencesProvider initialLanguage={initialLanguage}>
+            <PreferencesProvider>
               <CartProvider>
                 <WishlistProvider>
                   <RfqProvider>

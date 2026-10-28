@@ -21,7 +21,7 @@ export default function LocationModal({
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
-  const { preferences, updateLocation, t } = usePreferences();
+  const { preferences, updateLocation } = usePreferences();
 
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
@@ -88,7 +88,7 @@ export default function LocationModal({
   // Selected or detected country resolution
   const currentCode = preferences.countryCode ? preferences.countryCode.toUpperCase() : "";
   const matchedCountry = currentCode ? findCountry(currentCode) : undefined;
-  const currentName = matchedCountry ? matchedCountry.name : preferences.country || t("modal.select_country", "Select your country");
+  const currentName = matchedCountry ? matchedCountry.name : preferences.country || "Select your country";
   const currentFlag = currentCode ? (preferences.flag || getCountryFlag(currentCode)) : "🌐";
 
   // Filter countries by query (name or code)
@@ -146,10 +146,10 @@ export default function LocationModal({
                 id="location-modal-title"
                 className="text-xl sm:text-2xl font-bold font-display text-slate-900 dark:text-white tracking-tight"
               >
-                {t("modal.location_title", "Specify Your Location")}
+                Specify Your Location
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                {t("modal.location_subtitle", "Shipping options and fees vary based on your location")}
+                Shipping options and fees vary based on your location
               </p>
             </div>
             <button
@@ -166,7 +166,7 @@ export default function LocationModal({
             {/* Country Selector Dropdown */}
             <div className="relative" ref={dropdownRef}>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                {t("modal.ship_to_country", "Ship to Country / Region")}
+                Ship to Country / Region
               </label>
 
               <button
@@ -214,7 +214,7 @@ export default function LocationModal({
                         type="text"
                         value={countrySearch}
                         onChange={(e) => setCountrySearch(e.target.value)}
-                        placeholder={t("modal.search_country_placeholder", "Search country or code...")}
+                        placeholder="Search country or code..."
                         className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-amber-500"
                       />
                     </div>
@@ -254,7 +254,7 @@ export default function LocationModal({
                       })
                     ) : (
                       <div className="py-4 text-center text-xs text-slate-400">
-                        {t("modal.no_countries_found", "No countries found")}
+                        No countries found
                       </div>
                     )}
                   </div>
@@ -270,7 +270,7 @@ export default function LocationModal({
               className="w-full min-h-[48px] bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold py-3.5 px-4 rounded-xl text-xs sm:text-sm uppercase tracking-wider shadow-md hover:shadow-lg transition-all press-feedback flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
             >
               <MapPin size={16} />
-              <span>{t("modal.signin_add_address", "Sign in to add address")}</span>
+              <span>Sign in to add address</span>
             </button>
           </div>
         </div>

@@ -344,13 +344,13 @@ export async function runDynamicSearchAudit(): Promise<{ passed: number; failed:
   const hasCartInHeader = headerCode.includes("setIsCartOpen");
   const hasWishlistInHeader = headerCode.includes("/dashboard/wishlist");
   const hasLocationInHeader = headerCode.includes("LocationModal");
-  const hasLanguageInHeader = headerCode.includes("LanguageCurrencyModal");
+  const languageModalRemoved = !headerCode.includes("LanguageCurrencyModal") && !headerCode.includes("header-language-btn");
 
   assert(
-    hasCartInHeader && hasWishlistInHeader && hasLocationInHeader && hasLanguageInHeader,
+    hasCartInHeader && hasWishlistInHeader && hasLocationInHeader && languageModalRemoved,
     20,
-    "Existing navigation, favorites, cart, RFQ and product-detail functionality remains intact",
-    "Global navigation utilities must remain completely functional."
+    "Existing navigation, favorites, cart, RFQ and location functionality remains intact with language modal removed",
+    "Global navigation utilities must remain completely functional and internal language switcher removed."
   );
 
   // Clean up test history

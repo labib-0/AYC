@@ -3,8 +3,6 @@
 import React, { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
-import { translateDesignType } from "@/lib/translations";
 
 export const DESIGN_TYPE_OPTIONS = [
   { label: "ORIGINAL", value: "ORIGINAL" },
@@ -13,7 +11,6 @@ export const DESIGN_TYPE_OPTIONS = [
 
 function DesignTypeContent() {
   const searchParams = useSearchParams();
-  const { preferences } = usePreferences();
   const currentDesignType = (searchParams.get("design_type") || searchParams.get("designType") || "").toUpperCase();
 
   return (
@@ -25,7 +22,7 @@ function DesignTypeContent() {
       {DESIGN_TYPE_OPTIONS.map((dt) => {
         const param = encodeURIComponent(dt.value);
         const isSelected = currentDesignType === dt.value;
-        const displayLabel = translateDesignType(dt.value, preferences.language);
+        const displayLabel = dt.label;
         return (
           <Link
             key={dt.value}
@@ -49,7 +46,6 @@ function DesignTypeContent() {
 }
 
 export default function DesignTypeSection() {
-  const { t } = useTranslation();
   return (
     <section
       id="design-type"
@@ -61,7 +57,7 @@ export default function DesignTypeSection() {
         <div className="mb-2 sm:mb-2.5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-1">
           <div>
             <h2 className="text-xl sm:text-2xl font-display font-bold uppercase tracking-tight text-foreground leading-none">
-              {t("home.design_type", "DESIGN TYPE")}
+              DESIGN TYPE
             </h2>
           </div>
         </div>

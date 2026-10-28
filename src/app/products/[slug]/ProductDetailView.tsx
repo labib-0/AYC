@@ -41,7 +41,6 @@ import PackageAssortmentMatrix from "@/components/product/PackageAssortmentMatri
 import ProductSelectedLogisticsRow from "@/components/product/ProductSelectedLogisticsRow";
 import SpecificationCard from "@/components/product/SpecificationCard";
 import ProductBreadcrumbs from "@/components/product/ProductBreadcrumbs";
-import { useTranslation, usePreferences } from "@/lib/PreferencesContext";
 
 interface ProductDetailViewProps {
   initialProduct?: B2BProductInput | null;
@@ -50,8 +49,6 @@ interface ProductDetailViewProps {
 
 export default function ProductDetailView({ initialProduct, slug }: ProductDetailViewProps) {
   const router = useRouter();
-  const { t } = useTranslation();
-  const { preferences } = usePreferences();
   const { user } = useAuth();
   const { addToCart, setIsCartOpen } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
@@ -1121,7 +1118,7 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   }`}
                 >
                   <ShoppingCart size={17} className={!isSoldOut && (availableInventory > 0 || isPreorder) ? "group-hover:scale-110 transition-transform" : ""} />
-                  <span>{isSoldOut ? t("product.sold_out", "Sold Out") : (availableInventory <= 0 && !isPreorder) ? t("product.out_of_stock", "Out of Stock") : currentPrice <= 0 ? t("product.quote_only", "Quote Only") : t("b2b.add_to_cart", "Add to Cart")}</span>
+                  <span>{isSoldOut ? "Sold Out" : (availableInventory <= 0 && !isPreorder) ? "Out of Stock" : currentPrice <= 0 ? "Quote Only" : "Add to Cart"}</span>
                 </button>
 
                 <button
@@ -1138,12 +1135,12 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                   {addedRfqSuccess ? (
                     <>
                       <Check size={17} />
-                      <span>{t("b2b.added_to_rfq", "Added to RFQ")}</span>
+                      <span>Added to RFQ</span>
                     </>
                   ) : (
                     <>
                       <FileText size={17} className="text-amber-500" />
-                      <span>{t("b2b.request_quote", "Request Quote (RFQ)")}</span>
+                      <span>Request Quote (RFQ)</span>
                     </>
                   )}
                 </button>
@@ -1187,12 +1184,12 @@ export default function ProductDetailView({ initialProduct, slug }: ProductDetai
                     {copyStatus === "copied" ? (
                       <>
                         <Check size={18} className="text-emerald-600 dark:text-emerald-400" />
-                        <span className="hidden sm:inline text-[11px] font-bold">{t("action.copied", "Link copied")}</span>
+                        <span className="hidden sm:inline text-[11px] font-bold">Link copied</span>
                       </>
                     ) : (
                       <>
                         <Link2 size={18} />
-                        <span className="hidden sm:inline text-[11px] font-bold">{t("b2b.copy_link", "Copy Link")}</span>
+                        <span className="hidden sm:inline text-[11px] font-bold">Copy Link</span>
                       </>
                     )}
                   </button>
