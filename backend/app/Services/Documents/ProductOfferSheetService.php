@@ -16,7 +16,7 @@ class ProductOfferSheetService
     public const TARGET_SIZE_BYTES = 1572864; // 1.5 MB target
     public const MAX_SIZE_BYTES = 2097152;    // 2.0 MB hard limit
 
-    public const LAYOUT_VERSION = 'v7.8_offer_sheet_pricing_alignment_and_headings_cleanup';
+    public const LAYOUT_VERSION = 'v8.0_offer_sheet_reference_parity_and_pricing_tiers';
 
     public function __construct(
         protected OfferSheetService $offerSheetService,
@@ -56,6 +56,9 @@ class ProductOfferSheetService
             $exporter['email'] ?? '',
         ]));
 
+        $docDefaults = DocumentHelper::getDocumentDefaults();
+        $validityDays = (int) ($docDefaults['offer_sheet_validity_days'] ?? 7);
+
         $corePayload = implode('~', [
             $product->id,
             $product->sku ?? '',
@@ -79,6 +82,7 @@ class ProductOfferSheetService
             $galleryFingerprint,
             $primaryChecksum,
             $exporterFingerprint,
+            "validity_days:{$validityDays}",
         ]);
 
         return hash('sha256', "product_offer_sheet_" . self::LAYOUT_VERSION . "_{$product->id}_{$corePayload}");

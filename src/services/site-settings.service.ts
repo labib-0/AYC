@@ -380,6 +380,8 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettingsPayload = {
     declaration_text: "We certify that the goods mentioned in this invoice are of Bangladesh origin and the particulars provided are true and correct.",
     authorized_signatory_name: "Authorized Representative",
     authorized_signatory_title: "Managing Director / Commercial Head",
+    offer_sheet_validity_days: 7,
+    default_offer_sheet_validity_days: 7,
   },
 };
 

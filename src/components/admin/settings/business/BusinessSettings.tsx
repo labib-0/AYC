@@ -76,7 +76,7 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
   const handleChange = (
     section: keyof BusinessSettingsPayload,
     field: string,
-    value: string
+    value: string | number
   ) => {
     setData((prev) => ({
       ...prev,
@@ -312,6 +312,7 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
         incoterm_default: "FOB Chattogram",
         payment_terms_default: "100% Irrevocable Confirmed Letter of Credit (L/C) at sight or 30% TT advance, balance upon copy BL",
         declaration_text: "We certify that the goods mentioned in this invoice are of Bangladesh origin and the particulars provided are true and correct.",
+        offer_sheet_validity_days: 7,
       },
     }));
     onNotify("Logistics & document defaults reset to baseline specifications");
@@ -339,6 +340,14 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
       return;
     }
 
+    // Validate Offer Sheet Validity
+    const rawValidity = data.document_defaults?.offer_sheet_validity_days;
+    const validityNum = Number(rawValidity ?? 7);
+    if (isNaN(validityNum) || !Number.isInteger(validityNum) || validityNum < 1 || validityNum > 365) {
+      setError("Offer Sheet Validity must be a whole number between 1 and 365 days.");
+      return;
+    }
+
     // Validate bank profiles
     if (!currentProfiles.some((p) => p.is_default && p.is_active)) {
       setError("At least one active beneficiary bank profile must be designated as the default settlement account.");
@@ -350,6 +359,11 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
       const payloadToSave: BusinessSettingsPayload = {
         ...data,
         bank_profiles: currentProfiles,
+        document_defaults: {
+          ...data.document_defaults,
+          offer_sheet_validity_days: validityNum,
+          default_offer_sheet_validity_days: validityNum,
+        },
       };
       const updated = await siteSettingsService.updateBusinessSettings(payloadToSave);
       if (updated) {
@@ -1284,6 +1298,35 @@ export default function BusinessSettings({ onNotify }: BusinessSettingsProps) {
               placeholder="Managing Director / Commercial Head"
               className="w-full px-3.5 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
             />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <label htmlFor="offer_sheet_validity_days" className="text-xs font-semibold text-foreground flex items-center justify-between">
+              <span>Offer Sheet Validity</span>
+              <span className="text-[11px] font-normal text-muted-foreground">Default: 7 days</span>
+            </label>
+            <div className="relative flex items-center max-w-xs">
+              <input
+                id="offer_sheet_validity_days"
+                type="number"
+                min={1}
+                max={365}
+                step={1}
+                value={data.document_defaults?.offer_sheet_validity_days ?? 7}
+                onChange={(e) => {
+                  const val = e.target.value === "" ? "" : Number(e.target.value);
+                  handleChange("document_defaults", "offer_sheet_validity_days", val as any);
+                }}
+                placeholder="7"
+                className="w-full pl-3.5 pr-14 py-2 bg-secondary/40 border border-border rounded-xl text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono"
+              />
+              <span className="absolute right-3.5 text-xs text-muted-foreground font-medium pointer-events-none select-none">
+                days
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Default validity period displayed on generated commercial Offer Sheet PDFs (1–365 days).
+            </p>
           </div>
         </div>
 

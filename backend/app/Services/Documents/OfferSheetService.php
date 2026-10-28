@@ -368,6 +368,10 @@ class OfferSheetService
             ]
         ];
 
+        $docDefaults = DocumentHelper::getDocumentDefaults();
+        $validityDays = max(1, min(365, (int) ($docDefaults['offer_sheet_validity_days'] ?? 7)));
+        $validityLabel = "{$validityDays} Days from date of issuance";
+
         return [
             'id' => "doc_OFFER_SHEET_PROD_{$product->id}",
             'docNumber' => $docNumber,
@@ -377,8 +381,9 @@ class OfferSheetService
             'document_type' => 'offer_sheet',
             'title' => 'COMMERCIAL OFFER SHEET',
             'date' => date('Y-m-d'),
-            'validUntil' => '30 Days from date of issuance',
-            'valid_until' => '30 Days from date of issuance',
+            'validUntil' => $validityLabel,
+            'valid_until' => $validityLabel,
+            'validity_days' => $validityDays,
             'order_number' => 'CATALOG',
             'orderNumber' => 'CATALOG',
             'product_id' => (string) $product->id,
@@ -412,7 +417,7 @@ class OfferSheetService
             'paymentTerms' => '100% Advance Bank Wire Transfer (T/T) or Confirmed L/C at Sight',
             'shippingTerms' => 'FOB Dhaka (Port / Airport) Export',
             'incoterm' => 'FOB',
-            'notes' => 'Commercial Merchandising Offer Sheet. Quotation pricing valid for order placement within 30 calendar days from date of receipt / issuance.',
+            'notes' => 'Commercial Merchandising Offer Sheet. Quotation pricing valid for order placement within 7 calendar days from date of receipt / issuance.',
             'bankDetails' => DocumentHelper::getBankDetails('USD'),
             'bank_details' => DocumentHelper::getBankDetails('USD'),
             'show_all_pricing_tiers' => true,
