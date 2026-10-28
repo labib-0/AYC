@@ -38,6 +38,15 @@ function runTest(string $name, callable $fn) {
     }
 }
 
+function makeFormRequest(string $class, string $method, string $uri, array $data, $user) {
+    global $app;
+    $req = $class::create($uri, $method, $data);
+    $req->setUserResolver(fn() => $user);
+    $req->setContainer($app);
+    $req->validateResolved();
+    return $req;
+}
+
 echo "==================================================================\n";
 echo "AYC CMS 14 MANDATORY API & DATABASE INTEGRATION TESTS\n";
 echo "==================================================================\n";
@@ -67,9 +76,7 @@ try {
 
     // Test 1: Create a draft
     runTest("1. Create draft via Admin API", function () use ($adminController, $superAdmin, $testSlug, &$pageId) {
-        $storeReq = new StoreCmsPageRequest();
-        $storeReq->setUserResolver(fn() => $superAdmin);
-        $storeReq->replace([
+        $storeReq = makeFormRequest(StoreCmsPageRequest::class, 'POST', '/api/v1/admin/pages', [
             'title' => 'QA Sustainability & Ethics',
             'slug' => $testSlug,
             'status' => 'draft',
@@ -87,7 +94,7 @@ try {
             'meta_description' => 'Our wholesale sustainability roadmap.',
             'is_indexable' => true,
             'show_in_footer' => false,
-        ]);
+        ], $superAdmin);
 
         $res = $adminController->store($storeReq);
         $data = $res->getData(true);
@@ -102,7 +109,7 @@ try {
     });
 
     // Test 2: Save and retrieve draft content
-    runTest("2. Save and retrieve draft content", function () use ($adminController, $superAdmin, $pageId) {
+    runTest("2. Save and retrieve draft content", function () use ($adminController, $superAdmin, &$pageId) {
         $req = Request::create("/api/v1/admin/pages/{$pageId}", 'GET');
         $req->setUserResolver(fn() => $superAdmin);
         $res = $adminController->show($req, $pageId);
@@ -118,10 +125,8 @@ try {
     });
 
     // Test 3: Update an existing draft
-    runTest("3. Update existing draft content and add sections", function () use ($adminController, $superAdmin, $pageId) {
-        $updateReq = new UpdateCmsPageRequest();
-        $updateReq->setUserResolver(fn() => $superAdmin);
-        $updateReq->replace([
+    runTest("3. Update existing draft content and add sections", function () use ($adminController, $superAdmin, &$pageId) {
+        $updateReq = makeFormRequest(UpdateCmsPageRequest::class, 'PUT', "/api/v1/admin/pages/{$pageId}", [
             'title' => 'QA Sustainability & Circular Ethics',
             'draft_sections' => [
                 [
@@ -139,7 +144,7 @@ try {
                     ]
                 ]
             ],
-        ]);
+        ], $superAdmin);
 
         $res = $adminController->update($updateReq, $pageId);
         $data = $res->getData(true);
@@ -150,7 +155,7 @@ try {
     });
 
     // Test 4: Retrieve editable version of page
-    runTest("4. Retrieve editable version (draft_sections) via show and preview", function () use ($adminController, $superAdmin, $pageId) {
+    runTest("4. Retrieve editable version (draft_sections) via show and preview", function () use ($adminController, $superAdmin, &$pageId) {
         $req = Request::create("/api/v1/admin/pages/{$pageId}/preview", 'GET');
         $req->setUserResolver(fn() => $superAdmin);
         $res = $adminController->preview($req, $pageId);
@@ -165,7 +170,7 @@ try {
     });
 
     // Test 5: Publish draft and verify public API returns published snapshot
-    runTest("5. Publish draft and verify public API returns published snapshot", function () use ($adminController, $publicController, $superAdmin, $pageId, $testSlug) {
+    runTest("5. Publish draft and verify public API returns published snapshot", function () use ($adminController, $publicController, $superAdmin, &$pageId, $testSlug) {
         $pubReq = Request::create("/api/v1/admin/pages/{$pageId}/publish", 'POST');
         $pubReq->setUserResolver(fn() => $superAdmin);
         $pubRes = $adminController->publish($pubReq, $pageId);
@@ -186,10 +191,8 @@ try {
     });
 
     // Test 6: Modify published page draft and verify live page remains unchanged until republished
-    runTest("6. Modify published page draft; verify live page remains unchanged until republished", function () use ($adminController, $publicController, $superAdmin, $pageId, $testSlug) {
-        $updateReq = new UpdateCmsPageRequest();
-        $updateReq->setUserResolver(fn() => $superAdmin);
-        $updateReq->replace([
+    runTest("6. Modify published page draft; verify live page remains unchanged until republished", function () use ($adminController, $publicController, $superAdmin, &$pageId, $testSlug) {
+        $updateReq = makeFormRequest(UpdateCmsPageRequest::class, 'PUT', "/api/v1/admin/pages/{$pageId}", [
             'draft_sections' => [
                 [
                     'id' => 'sec_hero_1',
@@ -197,7 +200,7 @@ try {
                     'title' => 'UNPUBLISHED DRAFT TITLE (MUST NOT LEAK)',
                 ]
             ],
-        ]);
+        ], $superAdmin);
         $adminController->update($updateReq, $pageId);
 
         // Verify live public page still shows previous title
@@ -214,7 +217,7 @@ try {
     });
 
     // Test 7: Unpublish a page and verify that it disappears from public retrieval
-    runTest("7. Unpublish page and verify it disappears from public retrieval (HTTP 404)", function () use ($adminController, $publicController, $superAdmin, $pageId, $testSlug) {
+    runTest("7. Unpublish page and verify it disappears from public retrieval (HTTP 404)", function () use ($adminController, $publicController, $superAdmin, &$pageId, $testSlug) {
         $unpubReq = Request::create("/api/v1/admin/pages/{$pageId}/unpublish", 'POST');
         $unpubReq->setUserResolver(fn() => $superAdmin);
         $unpubRes = $adminController->unpublish($unpubReq, $pageId);
@@ -229,7 +232,7 @@ try {
     });
 
     // Test 8: Archive and delete pages according to implemented rules
-    runTest("8. Archive and soft-delete page", function () use ($adminController, $superAdmin, $pageId) {
+    runTest("8. Archive and soft-delete page", function () use ($adminController, $superAdmin, &$pageId) {
         // Archive
         $archReq = Request::create("/api/v1/admin/pages/{$pageId}/archive", 'POST');
         $archReq->setUserResolver(fn() => $superAdmin);
@@ -261,7 +264,7 @@ try {
     });
 
     // Test 9: Enable, disable, and reorder footer visibility
-    runTest("9. Enable, disable, and reorder footer visibility", function () use ($adminController, $publicController, $superAdmin, $pageId) {
+    runTest("9. Enable, disable, and reorder footer visibility", function () use ($adminController, $publicController, $superAdmin, &$pageId) {
         // Publish first so footer query can see it
         $page = CmsPage::find($pageId);
         $page->publishDraft();
@@ -361,14 +364,12 @@ try {
     });
 
     // Test 12: Previous-slug redirect behavior (HTTP 301) and prevent redirect loops
-    runTest("12. Verify previous-slug redirect behavior (HTTP 301)", function () use ($adminController, $publicController, $superAdmin, $pageId, $testSlug) {
+    runTest("12. Verify previous-slug redirect behavior (HTTP 301)", function () use ($adminController, $publicController, $superAdmin, &$pageId, $testSlug) {
         $newSlug = $testSlug . '-updated';
 
-        $updateReq = new UpdateCmsPageRequest();
-        $updateReq->setUserResolver(fn() => $superAdmin);
-        $updateReq->replace([
+        $updateReq = makeFormRequest(UpdateCmsPageRequest::class, 'PUT', "/api/v1/admin/pages/{$pageId}", [
             'slug' => $newSlug,
-        ]);
+        ], $superAdmin);
         $adminController->update($updateReq, $pageId);
 
         // Make sure page is published
@@ -386,7 +387,7 @@ try {
     });
 
     // Test 13: Public API never exposes drafts or unpublished metadata
-    runTest("13. Verify public API never exposes drafts or internal audit columns", function () use ($publicController, $pageId) {
+    runTest("13. Verify public API never exposes drafts or internal audit columns", function () use ($publicController, &$pageId) {
         $page = CmsPage::find($pageId);
         $res = $publicController->show($page->slug);
         $data = $res->getData(true)['data'] ?? [];
@@ -400,11 +401,12 @@ try {
     });
 
     // Test 14: All privileged API actions enforce authorization server-side
-    runTest("14. Enforce server-side authorization boundaries for unprivileged admin", function () use ($adminController, $unprivilegedAdmin, $pageId) {
+    runTest("14. Enforce server-side authorization boundaries for unprivileged admin", function () use ($adminController, $unprivilegedAdmin, &$pageId) {
         // Attempt to create page with unprivileged admin
-        $storeReq = new StoreCmsPageRequest();
-        $storeReq->setUserResolver(fn() => $unprivilegedAdmin);
-        $storeReq->replace(['title' => 'Unauthorized Page', 'slug' => 'unauth-page']);
+        $storeReq = makeFormRequest(StoreCmsPageRequest::class, 'POST', '/api/v1/admin/pages', [
+            'title' => 'Unauthorized Page',
+            'slug' => 'unauth-page-' . time(),
+        ], $unprivilegedAdmin);
         $res1 = $adminController->store($storeReq);
         if ($res1->getStatusCode() !== 403) {
             throw new \Exception("Unprivileged store did not return HTTP 403 (got {$res1->getStatusCode()})");
