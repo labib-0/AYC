@@ -638,52 +638,7 @@ export function generateOfferSheetPDFDoc(
       y += 3;
     }
 
-    // 5. PRODUCT DESCRIPTION
-    if (y + 25 > pageBottomSafeY) {
-      doc.addPage();
-      y = margin;
-      printContinuationHeader();
-    }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text("PRODUCT DESCRIPTION", margin, y);
-    y += 4;
-
-    const descText = product.description && product.description.trim().length > 0
-      ? product.description.trim()
-      : "Standard commercial garment specifications apply.";
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(51, 65, 85);
-    const splitDesc = doc.splitTextToSize(descText, contentWidth);
-    doc.text(splitDesc, margin, y);
-    y += splitDesc.length * 3.8 + 2.5;
-
-    // Populated descriptive attributes if present
-    if (product.descriptionAttributes && product.descriptionAttributes.length > 0) {
-      const attrRows = product.descriptionAttributes.map((a: any) => [a.label, a.value]);
-      applyAutoTable(doc, {
-        startY: y,
-        margin: { left: margin, right: margin },
-        body: attrRows,
-        theme: "plain",
-        pageBreak: "auto",
-        styles: {
-          fontSize: 7.2,
-          cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 },
-        },
-        columnStyles: {
-          0: { cellWidth: 44, fontStyle: "bold", textColor: [100, 116, 139] },
-          1: { cellWidth: contentWidth - 44, fontStyle: "normal", textColor: [15, 23, 42] },
-        },
-      });
-      y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 4.5 : y + 14;
-    }
-
-    // 6. Product Specifications (Natural Flow)
+    // 5. Product Specifications (Natural Flow)
     if (y + 35 > pageBottomSafeY) {
       doc.addPage();
       y = margin;
@@ -749,67 +704,7 @@ export function generateOfferSheetPDFDoc(
       y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 5 : y + 26;
     }
 
-    // 7. Packing & Logistics Cards (MOQ)
-    if (y + 18 > pageBottomSafeY) {
-      doc.addPage();
-      y = margin;
-      printContinuationHeader();
-    }
-
-    const logBoxH = 12;
-    const logGap = 3;
-    const logColW = (contentWidth - logGap) / 2;
-
-    // Left: CBM (MOQ)
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(margin, y, logColW, logBoxH, 1.5, 1.5, "FD");
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(100, 116, 139);
-    doc.text("CBM (MOQ)", margin + 3.5, y + 4.2);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    const cbmVal = product.logistics?.cbmMoq || product.logistics?.cbm;
-    if (cbmVal && !isMissingVal(cbmVal)) {
-      doc.setTextColor(15, 23, 42);
-      doc.text(cbmVal, margin + 3.5, y + 9);
-    } else {
-      doc.setTextColor(148, 163, 184);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.text("See Description", margin + 3.5, y + 9);
-    }
-
-    // Right: GROSS WEIGHT (MOQ)
-    const rightLogX = margin + logColW + logGap;
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(rightLogX, y, logColW, logBoxH, 1.5, 1.5, "FD");
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(100, 116, 139);
-    doc.text("GROSS WEIGHT (MOQ)", rightLogX + 3.5, y + 4.2);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    const gwVal = product.logistics?.grossWeightMoq || product.logistics?.grossWeight;
-    if (gwVal && !isMissingVal(gwVal)) {
-      doc.setTextColor(15, 23, 42);
-      doc.text(gwVal, rightLogX + 3.5, y + 9);
-    } else {
-      doc.setTextColor(148, 163, 184);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.text("See Description", rightLogX + 3.5, y + 9);
-    }
-
-    y += logBoxH + 5;
-
-    // 8. Pricing Schedule Table
+    // 6. Pricing Schedule Table
     if (y + 20 > pageBottomSafeY) {
       doc.addPage();
       y = margin;

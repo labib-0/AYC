@@ -239,45 +239,6 @@
         .pricing-table td.text-right {
             text-align: right;
         }
-        /* Description & Logistics Optional/Overflow Sections */
-        .desc-section {
-            margin-top: 8px;
-            margin-bottom: 6px;
-            page-break-inside: avoid;
-        }
-        .desc-box {
-            font-size: 8.5pt;
-            color: #334155;
-            line-height: 1.35;
-            padding: 6px 10px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
-        }
-        .logistics-section {
-            margin-top: 6px;
-            margin-bottom: 6px;
-            page-break-inside: avoid;
-        }
-        .logistics-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
-            padding: 5px 8px;
-        }
-        .logistics-label {
-            font-size: 7.5pt;
-            font-weight: bold;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .logistics-val {
-            font-size: 8.5pt;
-            font-weight: bold;
-            color: #172237;
-            margin-top: 2px;
-        }
         .text-right { text-align: right; }
         .font-mono { font-family: 'Courier New', Courier, monospace; }
         .font-bold { font-weight: bold; }
@@ -348,22 +309,6 @@
             if (!$isMissingVal($packageAssortment)) {
                 $validSpecs['Package Assortment'] = $stripPrefix($packageAssortment, ['Package\s*Assortment', 'Assortment']);
             }
-
-            // Presentation logic matching storefront
-            $formattedDescription = '';
-            if (!empty($rawDescription)) {
-                $desc = preg_replace('/([a-z0-9])\.([A-Z])/', '$1. $2', $rawDescription);
-                $desc = preg_replace('/<(script|style|iframe|object|embed)[^>]*?>.*?<\/\1>/is', '', $desc);
-                $desc = preg_replace('/<(script|style|iframe|object|embed|img|svg|input|form|button)[^>]*?>/i', '', $desc);
-                $desc = preg_replace('/<([a-z0-9]+)\s+[^>]*>/i', '<$1>', $desc);
-                $desc = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $desc);
-                $desc = preg_replace('/(?<=\s|^|[([{"\'])\*([^\s*][^*\n]*?)\*(?=\s|$|[.,!?:;)\]}"\'])/', '<em>$1</em>', $desc);
-                $desc = nl2br($desc);
-                $formattedDescription = trim($desc);
-            }
-
-            $hasCbm = !$isMissingVal($cbmMoq);
-            $hasGw = !$isMissingVal($gwMoq);
 
             $tiers = $item['pricing_tiers'] ?? [
                 [
@@ -502,36 +447,6 @@
                 </tbody>
             </table>
         </div>
-
-        {{-- Optional / Extended Content (Preserved for products with explicit long descriptions or package specs) --}}
-        @if(!empty($formattedDescription))
-            <div class="desc-section">
-                <div class="section-heading">PRODUCT DESCRIPTION</div>
-                <div class="desc-box">{!! $formattedDescription !!}</div>
-            </div>
-        @endif
-
-        @if($hasCbm || $hasGw)
-            <div class="logistics-section">
-                <table style="width: 100%; table-layout: fixed;">
-                    <tr>
-                        <td style="width: 49.5%; vertical-align: top;">
-                            <div class="logistics-card">
-                                <div class="logistics-label">CBM (MOQ)</div>
-                                <div class="logistics-val">{{ $hasCbm ? $cbmMoq : 'Standard Export Packing' }}</div>
-                            </div>
-                        </td>
-                        <td style="width: 1%;"></td>
-                        <td style="width: 49.5%; vertical-align: top;">
-                            <div class="logistics-card">
-                                <div class="logistics-label">GROSS WEIGHT (MOQ)</div>
-                                <div class="logistics-val">{{ $hasGw ? $gwMoq : 'Standard Export Packing' }}</div>
-                            </div>
-                        </td>
-                    </tr>
-                </table>
-            </div>
-        @endif
 
     @endforeach
 

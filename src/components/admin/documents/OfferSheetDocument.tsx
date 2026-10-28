@@ -112,29 +112,7 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
                 )}
               </div>
 
-              {/* 5. Product Description */}
-              <div>
-                <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2">
-                  PRODUCT DESCRIPTION
-                </h3>
-                <div className="rounded-xl border border-border/60 bg-secondary/15 p-3.5 space-y-3">
-                  <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap break-words">
-                    {product.description || "Standard commercial garment specifications apply."}
-                  </p>
-                  {product.descriptionAttributes && product.descriptionAttributes.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-2 border-t border-border/40 text-xs">
-                      {product.descriptionAttributes.map((attr, aIdx) => (
-                        <div key={aIdx} className="flex items-baseline gap-2">
-                          <span className="font-bold text-muted-foreground min-w-[120px]">{attr.label}:</span>
-                          <span className="text-foreground font-medium">{attr.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 6. Product Specifications - Four Clean Horizontal Rows */}
+              {/* 5. Product Specifications - Four Clean Horizontal Rows */}
               <div>
                 <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono mb-2.5">
                   PRODUCT SPECIFICATIONS
@@ -179,29 +157,7 @@ export default function OfferSheetDocument({ doc }: OfferSheetDocumentProps) {
                 </div>
               </div>
 
-              {/* 7. Packing & Logistics (MOQ) */}
-              <div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                      CBM (MOQ)
-                    </span>
-                    <span className="text-xs font-bold text-foreground block">
-                      {product.logistics?.cbmMoq || product.logistics?.cbm || "See Description"}
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                      Gross Weight (MOQ)
-                    </span>
-                    <span className="text-xs font-bold text-foreground block">
-                      {product.logistics?.grossWeightMoq || product.logistics?.grossWeight || "See Description"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 8. Complete Product Pricing Chart (Standard, Bulk, Full Stock) */}
+              {/* 6. Complete Product Pricing Chart (Standard, Bulk, Full Stock) */}
               <div>
                 {product.pricingTiers.length === 0 ? (
                   <div className="rounded-xl border border-border/60 bg-secondary/20 p-3 text-muted-foreground text-xs">

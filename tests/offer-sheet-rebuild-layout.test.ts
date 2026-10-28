@@ -100,7 +100,7 @@ describe("Offer Sheet Layout Rebuild & Unified PDF Pipeline Tests", () => {
 
     const pdfOutput = doc.output();
     assert.ok(pdfOutput.startsWith("%PDF-"), "Generated document must be a valid PDF");
-    assert.ok(pdfOutput.length > 5000, "PDF size must be realistic for complete offer sheet");
+    assert.ok(pdfOutput.length > 3000, "PDF size must be realistic for complete offer sheet");
   });
 
   it("3. generateCommercialDocumentPDFBlob creates authoritative PDF blob for View & Download parity", async () => {
@@ -109,7 +109,7 @@ describe("Offer Sheet Layout Rebuild & Unified PDF Pipeline Tests", () => {
     const { blob, doc, filename } = await generateCommercialDocumentPDFBlob(offerData as any);
     assert.ok(blob, "Blob must be generated");
     assert.strictEqual(blob.type, "application/pdf");
-    assert.ok(blob.size > 5000, "Blob must have substantial byte size");
+    assert.ok(blob.size > 3000, "Blob must have substantial byte size");
     assert.ok(filename.endsWith(".pdf"), "Filename must have .pdf extension");
     assert.ok(doc, "jsPDF instance must be returned");
   });
@@ -125,10 +125,10 @@ describe("Offer Sheet Layout Rebuild & Unified PDF Pipeline Tests", () => {
     assert.ok(pdfGenCode.includes("const MAX_PER_ROW = 4") || pdfGenCode.includes("const cols = 4"), "Gallery must strictly limit images to 4 per row");
 
     // Check Sections
-    assert.ok(pdfGenCode.includes("PRODUCT DESCRIPTION"), "Section 5: PRODUCT DESCRIPTION must exist");
-    assert.ok(pdfGenCode.includes("PRODUCT SPECIFICATIONS"), "Section 6: PRODUCT SPECIFICATIONS must exist");
-    assert.ok(pdfGenCode.includes("CBM (MOQ)"), "CBM (MOQ) card must exist");
-    assert.ok(pdfGenCode.includes("GROSS WEIGHT (MOQ)"), "GROSS WEIGHT (MOQ) card must exist");
+    assert.ok(!pdfGenCode.includes("PRODUCT DESCRIPTION"), "Section 5: PRODUCT DESCRIPTION must be completely removed");
+    assert.ok(pdfGenCode.includes("PRODUCT SPECIFICATIONS"), "Section: PRODUCT SPECIFICATIONS must exist");
+    assert.ok(!pdfGenCode.includes("CBM (MOQ)"), "CBM (MOQ) card must be completely removed");
+    assert.ok(!pdfGenCode.includes("GROSS WEIGHT (MOQ)"), "GROSS WEIGHT (MOQ) card must be completely removed");
     assert.ok(pdfGenCode.includes("Unit Price (USD)"), "Unit Price (USD) column must exist");
     assert.ok(pdfGenCode.includes("Total Price (USD)"), "Total Price (USD) column must exist");
     assert.ok(!pdfGenCode.includes("doc.text(\"PACKING & LOGISTICS (MOQ)"), "PACKING & LOGISTICS heading must be removed");
