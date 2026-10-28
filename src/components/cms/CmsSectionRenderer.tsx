@@ -20,22 +20,25 @@ export default function CmsSectionRenderer({ section }: CmsSectionRendererProps)
   }
 
   const { type, data } = section;
+  const sectionData = (data && typeof data === "object" && Object.keys(data).length > 0)
+    ? { ...(section as any), ...data }
+    : (section as any);
 
   switch (type) {
     case "hero_banner":
-      return <HeroBannerSection data={data} />;
+      return <HeroBannerSection data={sectionData} />;
     case "rich_text":
-      return <RichTextSection data={data} />;
+      return <RichTextSection data={sectionData} />;
     case "image_text":
-      return <ImageTextSection data={data} />;
+      return <ImageTextSection data={sectionData} />;
     case "feature_grid":
-      return <FeatureGridSection data={data} />;
+      return <FeatureGridSection data={sectionData} />;
     case "faq_accordion":
-      return <FaqAccordionSection data={data} />;
+      return <FaqAccordionSection data={sectionData} />;
     case "gallery_grid":
-      return <GalleryGridSection data={data} />;
+      return <GalleryGridSection data={sectionData} />;
     case "call_to_action":
-      return <CtaSection data={data} />;
+      return <CtaSection data={sectionData} />;
     default:
       console.warn(`[CMS] Unknown section type encountered: ${type}`);
       return null;

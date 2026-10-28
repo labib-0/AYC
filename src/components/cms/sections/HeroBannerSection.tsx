@@ -11,19 +11,20 @@ interface HeroBannerSectionProps {
 }
 
 export default function HeroBannerSection({ data }: HeroBannerSectionProps) {
+  const safeData = data || {};
   const {
     title,
     subtitle,
     badge,
-    imageUrl,
+    imageUrl = (safeData as any).image_url,
     alignment = "center",
-    ctaText,
-    ctaUrl,
+    ctaText = (safeData as any).cta_primary_label,
+    ctaUrl = (safeData as any).cta_primary_url,
     ctaVariant = "primary",
-    secondaryCtaText,
-    secondaryCtaUrl,
-    overlayOpacity = 60,
-  } = data;
+    secondaryCtaText = (safeData as any).cta_secondary_label,
+    secondaryCtaUrl = (safeData as any).cta_secondary_url,
+    overlayOpacity = (safeData as any).overlay_opacity ?? 60,
+  } = safeData;
 
   const alignClasses = {
     left: "text-left items-start",

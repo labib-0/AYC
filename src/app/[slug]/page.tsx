@@ -5,6 +5,9 @@ import CmsPageView from "@/components/cms/CmsPageView";
 import { CmsPage, RESERVED_SLUGS } from "@/types/cms";
 import { canonicalUrl } from "@/lib/seo/config";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 interface DynamicCmsPageProps {
   params: Promise<{ slug: string }>;
 }

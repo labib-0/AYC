@@ -65,3 +65,4 @@ class SyncScheduledCmsPagesCommand extends Command
         return 0;
     }
 }
+

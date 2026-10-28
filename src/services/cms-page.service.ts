@@ -106,7 +106,9 @@ export class CmsPageService {
 
     if (!isFrontendOnly()) {
       try {
-        const res = await apiClient.get<any>(`/pages/${clean}`);
+        const res = await apiClient.get<any>(`/pages/${clean}`, {
+          cache: "no-store",
+        });
         if (res?.redirect && res?.canonical_slug) {
           return res as CmsPageRedirectResponse;
         }

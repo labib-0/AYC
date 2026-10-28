@@ -123,18 +123,18 @@ export default function Footer() {
 
   return (
     <>
-      <footer className="bg-[#0b1329] text-white/90 pt-14 pb-20 sm:pb-10 border-t border-white/10">
+      <footer className="bg-[#0b1329] text-white/90 pt-14 pb-20 sm:pb-10 border-t border-white/10 overflow-x-clip">
         <div className="mx-auto max-w-[1728px] 2xl:max-w-[1760px] px-4 sm:px-6 lg:px-8 xl:px-8">
           
           {/* Main Structured IA Grid: Transitions from 5 to 6 columns when CMS pages are present */}
           <div
             className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${
               hasPages ? "lg:grid-cols-6" : "lg:grid-cols-12"
-            } gap-8 lg:gap-7 pb-12 border-b border-white/10`}
+            } gap-8 lg:gap-5 xl:gap-7 pb-12 border-b border-white/10`}
           >
             
             {/* COLUMN 1 — BRANDING / ABOUT US */}
-            <div className={`${hasPages ? "" : "lg:col-span-3"} flex flex-col gap-4`}>
+            <div className={`${hasPages ? "" : "lg:col-span-3"} min-w-0 flex flex-col gap-4`}>
               <Link href="/" className="flex items-center inline-block w-fit" aria-label={`${settings.site_title} Home`}>
                 <HeaderBranding
                   siteTitle={settings.site_title}
@@ -152,7 +152,7 @@ export default function Footer() {
                   <span>ABOUT US</span>
                   <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
                 </Link>
-                <p className="text-[13px] text-white/70 leading-relaxed mt-2.5 max-w-sm">
+                <p className="text-[13px] text-white/70 leading-relaxed mt-2.5 max-w-full">
                   {aboutUsContent}
                 </p>
               </div>
@@ -168,7 +168,7 @@ export default function Footer() {
             </div>
 
             {/* COLUMN 2 — SHOP & COLLECTIONS */}
-            <div className={hasPages ? "" : "lg:col-span-2"}>
+            <div className={`${hasPages ? "" : "lg:col-span-2"} min-w-0`}>
               <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                 SHOP
               </h3>
@@ -207,7 +207,7 @@ export default function Footer() {
             </div>
 
             {/* COLUMN 3 — POPULAR CATEGORIES */}
-            <div className={hasPages ? "" : "lg:col-span-2"}>
+            <div className={`${hasPages ? "" : "lg:col-span-2"} min-w-0`}>
               <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                 CATEGORIES
               </h3>
@@ -235,7 +235,7 @@ export default function Footer() {
             </div>
 
             {/* COLUMN 4 — POPULAR BRANDS */}
-            <div className={hasPages ? "" : "lg:col-span-2"}>
+            <div className={`${hasPages ? "" : "lg:col-span-2"} min-w-0`}>
               <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                 BRANDS
               </h3>
@@ -264,7 +264,7 @@ export default function Footer() {
 
             {/* COLUMN 5 — DYNAMIC CMS PAGES (Third Column alongside Brand & Category) */}
             {hasPages && (
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                   PAGES
                 </h3>
@@ -285,21 +285,21 @@ export default function Footer() {
             )}
 
             {/* COLUMN 6 — WHOLESALE SOURCING & CONTACT */}
-            <div className={`${hasPages ? "" : "lg:col-span-3"} flex flex-col gap-4`}>
+            <div className={`${hasPages ? "" : "lg:col-span-3"} min-w-0 flex flex-col gap-4`}>
               <div>
                 <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] mb-4 text-white/50">
                   WHOLESALE SOURCING
                 </h3>
                 <ul className="flex flex-col gap-2 text-[13px] text-white/75 mb-4">
                   <li>
-                    <Link href="/rfq" className="hover:text-white transition-colors font-medium text-white/90">
+                    <Link href="/rfq" className="hover:text-white transition-colors font-medium text-white/90 break-words">
                       Request for Quotation (RFQ) →
                     </Link>
                   </li>
                   <li>
                     <Link
                       href="/compliance"
-                      className="hover:text-white transition-colors text-left"
+                      className="hover:text-white transition-colors text-left break-words"
                     >
                       Compliance &amp; Certifications
                     </Link>
@@ -335,10 +335,10 @@ export default function Footer() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`View ${settings.site_title} office on Google Maps`}
-                      className="flex items-start gap-2.5 text-white/75 hover:text-white transition-colors group"
+                      className="flex items-start gap-2.5 text-white/75 hover:text-white transition-colors group min-w-0"
                     >
                       <MapPin size={15} className="text-white/60 group-hover:text-white shrink-0 mt-0.5 transition-colors" />
-                      <span className="leading-relaxed group-hover:underline underline-offset-4">
+                      <span className="leading-relaxed group-hover:underline underline-offset-4 break-words">
                         {businessAddress}
                       </span>
                     </a>
@@ -346,12 +346,12 @@ export default function Footer() {
                 ) : null}
 
                 {businessEmail ? (
-                  <div className="flex items-start gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0">
                     <Mail size={15} className="text-white/60 shrink-0 mt-0.5" />
                     <a
                       href={`mailto:${businessEmail}`}
                       aria-label={`Email ${settings.site_title} at ${businessEmail}`}
-                      className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
+                      className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline break-all"
                     >
                       {businessEmail}
                     </a>
@@ -359,12 +359,12 @@ export default function Footer() {
                 ) : null}
 
                 {rawPhone ? (
-                  <div className="flex items-start gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0">
                     <Phone size={15} className="text-white/60 shrink-0 mt-0.5" />
                     <a
                       href={`tel:+${telDigits}`}
                       aria-label={`Call ${settings.site_title} at ${rawPhone}`}
-                      className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
+                      className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline break-words"
                     >
                       Call: {rawPhone}
                     </a>
@@ -372,14 +372,14 @@ export default function Footer() {
                 ) : null}
 
                 {rawWhatsApp ? (
-                  <div className="flex items-start gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0">
                     <MessageCircle size={15} className="text-[#25D366] shrink-0 mt-0.5" />
                     <a
                       href={getWhatsAppUrl(`Hi ${settings.site_title}, I have an inquiry regarding wholesale apparel sourcing.`)}
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`Chat with ${settings.site_title} on WhatsApp`}
-                      className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline"
+                      className="text-white/75 hover:text-white transition-colors underline-offset-4 hover:underline break-words"
                     >
                       WhatsApp: {settings.whatsapp?.display || "+880 1620-853502"}
                     </a>

@@ -8,7 +8,11 @@ interface RichTextSectionProps {
 }
 
 export default function RichTextSection({ data }: RichTextSectionProps) {
-  const { heading, subheading, content, maxWidth = "normal" } = data;
+  const safeData = data || {};
+  const heading = safeData.heading || (safeData as any).title;
+  const subheading = safeData.subheading || (safeData as any).subtitle;
+  const content = safeData.content || "";
+  const maxWidth = safeData.maxWidth || "normal";
 
   const maxWidthClass = {
     narrow: "max-w-3xl",

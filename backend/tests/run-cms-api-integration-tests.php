@@ -440,3 +440,4 @@ echo "SUMMARY: {$passed} PASSED, {$failed} FAILED\n";
 echo "==================================================================\n";
 
 exit($failed > 0 ? 1 : 0);
+
