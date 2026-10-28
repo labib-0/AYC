@@ -113,11 +113,12 @@ function HeaderContent() {
     };
   }, [pathname]);
 
-  // Outside click & Escape key dismissal for active search state
+  // Outside click & Escape key dismissal for active search & mobile menu states
   useEffect(() => {
-    if (!isSearchOpen) return;
+    if (!isSearchOpen && !isMobileMenuOpen) return;
 
     const handleOutsideInteraction = (e: MouseEvent | TouchEvent) => {
+      if (!isSearchOpen) return;
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
@@ -155,7 +156,7 @@ function HeaderContent() {
 
     // Close search dropdown when scrolling deeply
     const handleScrollClose = () => {
-      if (window.scrollY > 120) {
+      if (isSearchOpen && window.scrollY > 120) {
         setIsSearchOpen(false);
       }
     };

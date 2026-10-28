@@ -8,6 +8,7 @@ import { productService, SearchSuggestionsProductItem } from "@/services/product
 import { searchHistoryService } from "@/services/search-history.service";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
 import { formatPrice } from "@/lib/formatters";
+import { getLowestValidCustomerUnitPrice } from "@/lib/product-pricing";
 import ProductBrandLogoOverlay from "@/components/common/ProductBrandLogoOverlay";
 
 export interface SearchOverlayProps {
@@ -433,15 +434,18 @@ export default function SearchOverlay({
 
                         {/* Price & MOQ */}
                         <div className="flex items-baseline justify-between gap-1 mt-auto pt-0.5">
-                          {product.has_valid_price && product.price > 0 ? (
-                            <span className="text-xs xl:text-[13px] font-bold text-foreground tabular-nums truncate">
-                              {formatPrice(product.price)}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] xl:text-[12px] font-semibold text-muted-foreground truncate">
-                              Price on Request
-                            </span>
-                          )}
+                          {(() => {
+                            const unitPrice = getLowestValidCustomerUnitPrice(product) ?? (product.has_valid_price && product.price > 0 ? product.price : null);
+                            return unitPrice !== null && unitPrice > 0 ? (
+                              <span className="text-xs xl:text-[13px] font-bold text-foreground tabular-nums truncate">
+                                {formatPrice(unitPrice)}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] xl:text-[12px] font-semibold text-muted-foreground truncate">
+                                Price on Request
+                              </span>
+                            );
+                          })()}
                           <span className="text-[10px] xl:text-[11px] font-medium text-muted-foreground uppercase tracking-tight shrink-0">
                             MOQ {product.moq || 10}
                           </span>
@@ -629,9 +633,18 @@ export default function SearchOverlay({
                       {product.name}
                     </span>
                     <div className="flex items-baseline justify-between gap-1 mt-auto">
-                      <span className="text-xs font-bold text-foreground tabular-nums">
-                        {product.has_valid_price && product.price > 0 ? formatPrice(product.price) : "Price on Request"}
-                      </span>
+                      {(() => {
+                        const unitPrice = getLowestValidCustomerUnitPrice(product) ?? (product.has_valid_price && product.price > 0 ? product.price : null);
+                        return unitPrice !== null && unitPrice > 0 ? (
+                          <span className="text-xs font-bold text-foreground tabular-nums">
+                            {formatPrice(unitPrice)}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-muted-foreground">
+                            Price on Request
+                          </span>
+                        );
+                      })()}
                       <span className="text-[10px] font-medium text-muted-foreground uppercase">
                         MOQ {product.moq || 10}
                       </span>

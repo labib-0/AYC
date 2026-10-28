@@ -91,6 +91,8 @@ export const BRAND_LOGO_MAP: Record<string, string> = {
   "salomon": "/brands/salomon.png",
 };
 
+const VERIFIED_STATIC_BRAND_LOGOS = new Set(Object.values(BRAND_LOGO_MAP));
+
 /**
  * Resolves the authentic brand logo asset path for a given brand name and explicit logo.
  * Follows Rule 92: The admin-uploaded logo is authoritative, with fallback to verified SVG/PNG assets.
@@ -103,7 +105,13 @@ export function getBrandLogoUrl(brandName?: string, explicitLogo?: string | null
     !norm.includes("/brands/generic.png") &&
     !norm.includes("mAv2AJEVxxyQRDk9mI0Z6pdK.webp")
   ) {
-    return norm;
+    if (norm.startsWith("/brands/")) {
+      if (VERIFIED_STATIC_BRAND_LOGOS.has(norm)) {
+        return norm;
+      }
+    } else {
+      return norm;
+    }
   }
   if (!brandName) return null;
   const key = brandName.toLowerCase().trim();

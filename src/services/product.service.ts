@@ -9,6 +9,7 @@ import { isFrontendOnly } from "@/lib/frontend-mode";
 import { productDraftService } from "@/lib/services/product-draft.service";
 import { normalizeImageUrl, isValidImageUrl } from "@/lib/media";
 import { homepageService } from "./homepage.service";
+import { getBrandLogoUrl } from "@/lib/brand-logos";
 
 export interface ProductQueryParams {
   page?: number;
@@ -270,7 +271,8 @@ export function normalizeToB2BProduct(p: any): B2BProductInput {
     : Math.round(fullStockQuantity * resolvedFullStockPrice * 100) / 100;
 
   const brandName = typeof p.brand === "string" ? p.brand : p.brand?.name || "";
-  const brandLogo = p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo || (p.brand?.slug ? `/brands/${p.brand.slug}.svg` : undefined);
+  const rawBrandLogo = p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo;
+  const brandLogo = getBrandLogoUrl(brandName, rawBrandLogo) || undefined;
 
   const rawVideoUrl = (p.videoUrl || p.video_url || "").trim();
   let youtubeVideoId: string | undefined = p.youtubeVideoId || p.youtube_video_id || undefined;
@@ -642,8 +644,8 @@ export function toStorefrontProduct(p: any): Product {
     availableMoqs: p.availableMoqs !== undefined ? Number(p.availableMoqs) : (p.available_moqs !== undefined ? Number(p.available_moqs) : ((p.moq && Number(p.moq) > 0) ? Math.floor((Number(p.availableStock ?? p.stock ?? 0)) / Number(p.moq)) : 0)),
     onHandStock: p.onHandStock !== undefined ? Number(p.onHandStock) : (p.on_hand_stock !== undefined ? Number(p.on_hand_stock) : undefined),
     brand: typeof p.brand === "string" ? p.brand : p.brand?.name || "Ayaan",
-    brandLogo: p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo || (p.brand?.slug ? `/brands/${p.brand.slug}.svg` : undefined),
-    brand_logo: p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo || (p.brand?.slug ? `/brands/${p.brand.slug}.svg` : undefined),
+    brandLogo: getBrandLogoUrl(typeof p.brand === "string" ? p.brand : p.brand?.name, p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo) || undefined,
+    brand_logo: getBrandLogoUrl(typeof p.brand === "string" ? p.brand : p.brand?.name, p.brandLogo || p.brand_logo || p.brand_data?.logo_url || p.brand_data?.logo || p.brand?.logo_url || p.brand?.logo) || undefined,
     color: p.colorName || p.color_name,
     description: p.description || p.shortDescription || p.short_description,
     seoTitle: p.seoTitle || p.seo_title,

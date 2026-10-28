@@ -58,6 +58,18 @@ export default function MiniCart() {
     }
   }, [user, setIsCartOpen]);
 
+  // Handle Escape key dismissal when cart drawer is open
+  useEffect(() => {
+    if (!isCartOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsCartOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isCartOpen, setIsCartOpen]);
+
   // Helper to reliably identify cart items
   const getItemKey = (item: CartItem) => getCartItemKey(item);
 

@@ -92,8 +92,8 @@ export default function ShopByBrand() {
           id: String(b.slug || b.id),
           name: b.name,
           slug: b.slug,
-          logo_url: b.logo_url || b.logo || (b.slug ? `/brands/${b.slug}.svg` : undefined),
-          logo: b.logo || b.logo_url || (b.slug ? `/brands/${b.slug}.svg` : undefined),
+          logo_url: getBrandLogoUrl(b.name, b.logo_url || b.logo) || undefined,
+          logo: getBrandLogoUrl(b.name, b.logo || b.logo_url) || undefined,
           sort_order: b.landing_sort_order ?? b.sort_order,
         }));
         setDbBrands(formatted);
