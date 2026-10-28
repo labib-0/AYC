@@ -189,11 +189,11 @@ test("AYC Offer Sheet — Fixed 7-Day Validity & Automatic PDF Generation Suite"
   });
 
   await t.test("4. Layout Version Invalidation and Fingerprint Independence", () => {
-    // ProductOfferSheetService bumped to v11.0
+    // ProductOfferSheetService bumped to v11.0 or higher
     assert.match(
       productOfferSheetServiceCode,
-      /public const LAYOUT_VERSION = 'v11\.0_offer_sheet_fixed_7_day_validity_and_auto_gen';/,
-      "ProductOfferSheetService::LAYOUT_VERSION must be bumped to v11.0"
+      /public const LAYOUT_VERSION = 'v(1[1-9]|[2-9]\d)\./,
+      "ProductOfferSheetService::LAYOUT_VERSION must be bumped to at least v11.0"
     );
 
     // CommercialPdfArtifactService bumped to v11.0

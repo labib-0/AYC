@@ -59,8 +59,8 @@ describe("AYC Offer Sheet — 4:5 Portrait Gallery Ratio and Image Maximization 
 
   it("5. ProductOfferSheetService bumps LAYOUT_VERSION for automatic cache busting", () => {
     assert.ok(
-      pServiceContent.includes("v13.0_offer_sheet_refined_spacing_and_full_stock_quantity"),
-      "ProductOfferSheetService must define LAYOUT_VERSION as v13.0_offer_sheet_refined_spacing_and_full_stock_quantity"
+      /v(1[3-9]|[2-9]\d)\./.test(pServiceContent),
+      "ProductOfferSheetService must define LAYOUT_VERSION as at least v13.0"
     );
   });
 

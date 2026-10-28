@@ -791,7 +791,7 @@ export function generateOfferSheetPDFDoc(
 
     const specRows: string[][] = [];
     if (!isMissingVal(product.brand)) specRows.push(["Brand", String(product.brand).trim()]);
-    if (fullStockQty !== null && fullStockQty > 0) {
+    if (fullStockQty !== null && fullStockQty >= 0) {
       specRows.push(["Quantity", `${fullStockQty.toLocaleString()} pcs`]);
     }
     if (!isMissingVal(product.specificationTiles?.colour)) specRows.push(["Colours", String(product.specificationTiles?.colour).trim()]);
@@ -853,7 +853,7 @@ export function generateOfferSheetPDFDoc(
     applyAutoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [["Pricing Tier", "Minimum Quantity / Basis", "Unit Price (USD)", "Total Price (USD)"]],
+      head: [["Pricing Tier", "Minimum Quantity / Basis", "Unit Price (USD)", "Total at Min Order (USD)"]],
       body:
         pricingRows.length > 0
           ? pricingRows

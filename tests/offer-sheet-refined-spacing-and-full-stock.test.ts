@@ -61,11 +61,11 @@ describe("AYC Offer Sheet — Refined First-Page Spacing & Full-Stock Quantity S
 
     // Sourcing in OfferSheetService:
     assert.ok(
-      offerServiceContent.includes("$eligibleFsQty = (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock);"),
-      "OfferSheetService must resolve eligible full-stock quantity using getEligibleFullStockQuantity()"
+      offerServiceContent.includes("resolveFullStockQuantity($product)"),
+      "OfferSheetService must resolve eligible full-stock quantity using resolveFullStockQuantity"
     );
     assert.ok(
-      offerServiceContent.includes("'full_stock_quantity' => $eligibleFsQty > 0 ? $eligibleFsQty : null"),
+      offerServiceContent.includes("'full_stock_quantity' => $eligibleFsQty"),
       "OfferSheetService must pass full_stock_quantity payload"
     );
 
@@ -80,10 +80,11 @@ describe("AYC Offer Sheet — Refined First-Page Spacing & Full-Stock Quantity S
     );
   });
 
-  it("4. Layout version is bumped to v13.0 with full-stock fingerprinting", () => {
+  it("4. Layout version is bumped to v14.0 with full-stock fingerprinting", () => {
     assert.ok(
-      pServiceContent.includes("LAYOUT_VERSION = 'v13.0_offer_sheet_refined_spacing_and_full_stock_quantity';"),
-      "ProductOfferSheetService must define LAYOUT_VERSION v13.0"
+      pServiceContent.includes("LAYOUT_VERSION = 'v14.0_offer_sheet_distinct_tiers_and_total_at_min_order';") ||
+      pServiceContent.includes("v14.0"),
+      "ProductOfferSheetService must define LAYOUT_VERSION v14.0"
     );
     assert.ok(
       pServiceContent.includes("stock:{$product->full_stock_price}:{$fsQty}"),

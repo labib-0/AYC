@@ -76,7 +76,7 @@ class OfferSheetService
             $gwMoq = self::formatGrossWeight($gwVal ? (float) $gwVal : null, $moqProfile);
 
             $tiers = self::buildPricingTiers($product, (float) $item->unit_price, (int) $item->quantity);
-            $eligibleFsQty = $product ? (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock) : null;
+            $eligibleFsQty = self::resolveFullStockQuantity($product);
 
             $items[] = [
                 'id' => (string) $item->id,
@@ -98,7 +98,7 @@ class OfferSheetService
                 'sku' => ($item->sku ?? null) ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? ($item->product_image_url ?? null),
                 'product_images' => $gallery,
-                'full_stock_quantity' => $eligibleFsQty > 0 ? $eligibleFsQty : null,
+                'full_stock_quantity' => $eligibleFsQty,
                 'quantity' => (int) $item->quantity,
                 'unit_price' => (float) $item->unit_price,
                 'line_total' => (float) $item->line_total,
@@ -231,7 +231,7 @@ class OfferSheetService
             $gwMoq = self::formatGrossWeight($gwVal ? (float) $gwVal : null, $moqProfile);
 
             $tiers = self::buildPricingTiers($product, (float) $item->unit_price, (int) $item->quantity);
-            $eligibleFsQty = $product ? (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock) : null;
+            $eligibleFsQty = self::resolveFullStockQuantity($product);
 
             $items[] = [
                 'id' => (string) $item->id,
@@ -253,7 +253,7 @@ class OfferSheetService
                 'sku' => $item->sku ?: "AYN-SKU-" . str_pad($item->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? $item->product_image_url,
                 'product_images' => $gallery,
-                'full_stock_quantity' => $eligibleFsQty > 0 ? $eligibleFsQty : null,
+                'full_stock_quantity' => $eligibleFsQty,
                 'quantity' => (int) $item->quantity,
                 'unit_price' => (float) $item->unit_price,
                 'line_total' => (float) $item->line_total,
@@ -342,7 +342,7 @@ class OfferSheetService
 
         $tiers = self::buildPricingTiers($product);
         $stdPrice = (float) ($tiers[0]['unitPrice'] ?? $product->wholesale_price ?? 0);
-        $eligibleFsQty = (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock);
+        $eligibleFsQty = self::resolveFullStockQuantity($product);
 
         $items = [
             [
@@ -365,7 +365,7 @@ class OfferSheetService
                 'sku' => $product->sku ?: "AYN-SKU-" . str_pad($product->id, 3, '0', STR_PAD_LEFT),
                 'product_image_url' => $gallery[0] ?? null,
                 'product_images' => $gallery,
-                'full_stock_quantity' => $eligibleFsQty > 0 ? $eligibleFsQty : null,
+                'full_stock_quantity' => $eligibleFsQty,
                 'moq' => $moqQty,
                 'quantity' => $moqQty,
                 'unit_price' => $stdPrice,
@@ -469,6 +469,37 @@ class OfferSheetService
     }
 
     /**
+     * Resolve authoritative full-stock quantity for a product.
+     * Returns null strictly if stock is untracked/unknown, or the non-negative integer stock (including 0).
+     */
+    public static function resolveFullStockQuantity(?Product $product): ?int
+    {
+        if (!$product) {
+            return null;
+        }
+
+        if (method_exists($product, 'getEligibleFullStockQuantity')) {
+            $eligible = (int) $product->getEligibleFullStockQuantity();
+            if ($eligible > 0) {
+                return $eligible;
+            }
+        }
+
+        if (method_exists($product, 'getTotalAvailableStock')) {
+            $avail = $product->getTotalAvailableStock();
+            if ($avail !== null) {
+                return max(0, (int) $avail);
+            }
+        }
+
+        if (isset($product->stock) && $product->stock !== null) {
+            return max(0, (int) $product->stock);
+        }
+
+        return null;
+    }
+
+    /**
      * Build the full configured pricing schedule for a product.
      * Includes all active tiers: Standard (MOQ), Bulk (if enabled), Full Stock (if configured & stock available),
      * and any distinct breaks from product_pricing_tiers.
@@ -482,37 +513,24 @@ class OfferSheetService
             return [
                 [
                     'tierName' => 'Standard',
-                    'quantityBasis' => "{$qty} pcs (Minimum Order)",
+                    'quantityBasis' => "{$qty}+ pcs (Minimum Order)",
                     'unitPrice' => $uPrice,
                     'totalPrice' => round($uPrice * $qty, 2),
                 ],
             ];
         }
 
-        $tiers = [];
         $moq = max(1, (int) ($product->moq ?: ($fallbackMoq ?: 100)));
         $stdPrice = (float) ($product->wholesale_price ?? $product->standard_price ?? ($fallbackUnitPrice ?: 0));
         $hasBulkTier = (bool) ($product->bulk_pricing_enabled && $product->bulk_price && (float) $product->bulk_price > 0 && $product->bulk_threshold && (int) $product->bulk_threshold > $moq);
         $bulkThreshold = $hasBulkTier ? (int) $product->bulk_threshold : null;
+        $bulkPrice = $hasBulkTier ? (float) $product->bulk_price : null;
 
-        // 1. Standard Tier
-        $standardBasis = ($hasBulkTier && $bulkThreshold > $moq)
-            ? "{$moq}–" . ($bulkThreshold - 1) . " pcs"
-            : "{$moq}+ pcs (Minimum Order)";
-        $tiers[] = [
-            'tierName' => 'Standard',
-            'quantityBasis' => $standardBasis,
-            'unitPrice' => $stdPrice,
-            'totalPrice' => round($stdPrice * $moq, 2),
-            '_min_qty' => $moq,
-            '_max_qty' => ($hasBulkTier && $bulkThreshold > $moq) ? ($bulkThreshold - 1) : null,
-            '_is_custom' => false,
-        ];
-
-        // 2. Custom Pricing Tiers from product_pricing_tiers (if any)
-        $customTiers = $product->relationLoaded('pricingTiers') ? $product->pricingTiers : $product->pricingTiers()->get();
-        if ($customTiers && $customTiers->isNotEmpty()) {
-            foreach ($customTiers as $cTier) {
+        // Collect and normalize custom tiers from product_pricing_tiers
+        $rawCustomTiers = $product->relationLoaded('pricingTiers') ? $product->pricingTiers : $product->pricingTiers()->get();
+        $customTiers = [];
+        if ($rawCustomTiers && $rawCustomTiers->isNotEmpty()) {
+            foreach ($rawCustomTiers as $cTier) {
                 $cMin = (int) $cTier->min_quantity;
                 $cMax = $cTier->max_quantity !== null ? (int) $cTier->max_quantity : null;
                 $cPrice = (float) $cTier->unit_price;
@@ -521,50 +539,112 @@ class OfferSheetService
                     continue;
                 }
 
-                // Check for demonstrably redundant duplicate of Standard:
-                // Only redundant if both quantity basis and price are identical to Standard
-                $isDuplicateOfStandard = ($cMin === $moq && $cMax === null && abs($cPrice - $stdPrice) < 0.001);
-                if ($isDuplicateOfStandard) {
-                    continue;
-                }
-
-                // Check for demonstrably redundant duplicate of another already added custom tier (equal price and equal quantity)
-                $isDuplicateCustom = false;
-                foreach ($tiers as $existingTier) {
-                    if (!empty($existingTier['_is_custom'])
-                        && ($existingTier['_min_qty'] ?? 0) === $cMin
-                        && ($existingTier['_max_qty'] ?? null) === $cMax
-                        && abs(($existingTier['unitPrice'] ?? 0) - $cPrice) < 0.001) {
-                        $isDuplicateCustom = true;
-                        break;
-                    }
-                }
-                if ($isDuplicateCustom) {
-                    continue;
-                }
-
-                // Distinct custom tier: preserve even if different price at same quantity, or overlapping thresholds
-                $cBasis = $cMax ? "{$cMin}–{$cMax} pcs" : "{$cMin}+ pcs";
-                $tierLabel = (!empty($cTier->tier_name) && is_string($cTier->tier_name)) ? $cTier->tier_name : 'Volume Tier';
-                $tiers[] = [
-                    'tierName' => $tierLabel,
-                    'quantityBasis' => $cBasis,
-                    'unitPrice' => $cPrice,
-                    'totalPrice' => round($cPrice * $cMin, 2),
-                    '_min_qty' => $cMin,
-                    '_max_qty' => $cMax,
-                    '_is_custom' => true,
+                $customTiers[] = [
+                    'id' => $cTier->id ?? null,
+                    'min' => $cMin,
+                    'max' => $cMax,
+                    'price' => $cPrice,
+                    'label' => (!empty($cTier->tier_name) && is_string($cTier->tier_name)) ? $cTier->tier_name : 'Volume Tier',
                 ];
             }
         }
 
-        // 3. Bulk Tier (if enabled)
+        // Deduplicate custom tiers that are identical to each other
+        $uniqueCustomTiers = [];
+        foreach ($customTiers as $c) {
+            $isDupe = false;
+            foreach ($uniqueCustomTiers as $u) {
+                if ($u['min'] === $c['min'] && $u['max'] === $c['max'] && abs($u['price'] - $c['price']) < 0.001) {
+                    $isDupe = true;
+                    break;
+                }
+            }
+            if (!$isDupe) {
+                $uniqueCustomTiers[] = $c;
+            }
+        }
+
+        // Identify custom tier that corresponds to the MOQ bracket
+        $standardMaxQty = null;
+        $filteredCustomTiers = [];
+        foreach ($uniqueCustomTiers as $c) {
+            if ($c['min'] === $moq) {
+                // This custom tier represents the standard MOQ tier
+                if ($c['max'] !== null && $c['max'] >= $moq) {
+                    $standardMaxQty = $c['max'];
+                }
+                // If custom tier has price matching or overriding standard price, absorb it
+                if (abs($c['price'] - $stdPrice) < 0.001) {
+                    // Exact price match: absorb into Standard tier without adding as Volume Tier
+                    continue;
+                }
+            }
+            $filteredCustomTiers[] = $c;
+        }
+
+        // Determine lowest higher tier threshold above MOQ to bound Standard tier if not already bounded
+        $higherThresholds = [];
+        if ($hasBulkTier && $bulkThreshold > $moq) {
+            $higherThresholds[] = $bulkThreshold;
+        }
+        foreach ($filteredCustomTiers as $c) {
+            if ($c['min'] > $moq) {
+                $higherThresholds[] = $c['min'];
+            }
+        }
+
+        if (!empty($higherThresholds)) {
+            $lowestHigherMin = min($higherThresholds);
+            if ($standardMaxQty === null || $standardMaxQty >= $lowestHigherMin) {
+                $standardMaxQty = $lowestHigherMin - 1;
+            }
+        }
+
+        // 1. Standard Tier
+        $standardBasis = $standardMaxQty
+            ? "{$moq}–{$standardMaxQty} pcs"
+            : "{$moq}+ pcs (Minimum Order)";
+
+        $tiers = [];
+        $tiers[] = [
+            'tierName' => 'Standard',
+            'quantityBasis' => $standardBasis,
+            'unitPrice' => $stdPrice,
+            'totalPrice' => round($stdPrice * $moq, 2),
+            '_min_qty' => $moq,
+            '_max_qty' => $standardMaxQty,
+            '_is_custom' => false,
+        ];
+
+        // 2. Custom Pricing Tiers
+        foreach ($filteredCustomTiers as $c) {
+            $cMin = $c['min'];
+            $cMax = $c['max'];
+            $cPrice = $c['price'];
+            $tierLabel = $c['label'];
+
+            // Deduplicate if identical in min and price to Standard
+            if ($cMin === $moq && abs($cPrice - $stdPrice) < 0.001) {
+                continue;
+            }
+
+            $cBasis = $cMax ? "{$cMin}–{$cMax} pcs" : "{$cMin}+ pcs";
+            $tiers[] = [
+                'tierName' => $tierLabel,
+                'quantityBasis' => $cBasis,
+                'unitPrice' => $cPrice,
+                'totalPrice' => round($cPrice * $cMin, 2),
+                '_min_qty' => $cMin,
+                '_max_qty' => $cMax,
+                '_is_custom' => true,
+            ];
+        }
+
+        // 3. Bulk Tier (if enabled and not already covered by a custom tier)
         if ($hasBulkTier) {
-            $bPrice = (float) $product->bulk_price;
-            // Deduplicate if a custom tier already configured exact same threshold and price
             $isDuplicateBulk = false;
             foreach ($tiers as $existingTier) {
-                if (($existingTier['_min_qty'] ?? 0) === $bulkThreshold && abs(($existingTier['unitPrice'] ?? 0) - $bPrice) < 0.001) {
+                if (($existingTier['_min_qty'] ?? 0) === $bulkThreshold && abs(($existingTier['unitPrice'] ?? 0) - $bulkPrice) < 0.001) {
                     $isDuplicateBulk = true;
                     break;
                 }
@@ -573,8 +653,8 @@ class OfferSheetService
                 $tiers[] = [
                     'tierName' => 'Bulk',
                     'quantityBasis' => "{$bulkThreshold}+ pcs",
-                    'unitPrice' => $bPrice,
-                    'totalPrice' => round($bPrice * $bulkThreshold, 2),
+                    'unitPrice' => $bulkPrice,
+                    'totalPrice' => round($bulkPrice * $bulkThreshold, 2),
                     '_min_qty' => $bulkThreshold,
                     '_max_qty' => null,
                     '_is_custom' => false,
@@ -583,7 +663,7 @@ class OfferSheetService
         }
 
         // 4. Full Stock Tier
-        $fsQty = (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock);
+        $fsQty = (int) (self::resolveFullStockQuantity($product) ?? 0);
         if ($product->full_stock_price !== null && (float) $product->full_stock_price > 0 && $fsQty > 0) {
             $fsPrice = (float) $product->getResolvedFullStockPrice($fsQty);
             // Prevent emitting redundant derived Full Stock row when quantity basis and unit price are identical to the Standard row
@@ -627,4 +707,3 @@ class OfferSheetService
         }, $tiers);
     }
 }
-

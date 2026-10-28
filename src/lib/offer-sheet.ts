@@ -657,7 +657,22 @@ export function extractProductPricingTiers(product: any): OfferSheetPricingTier[
     }
   }
 
-  // ── 1. STANDARD TIER ────────────────────────────────────────────────────────
+  // ── 1. BULK TIER EVALUATION ────────────────────────────────────────────────
+  const rawBulkMin = product.bulkThreshold ?? product.bulk_threshold ?? product.bulkMinimumQuantity ?? product.bulk_minimum_quantity;
+  const bulkMin = rawBulkMin !== undefined && rawBulkMin !== null && !isNaN(Number(rawBulkMin)) && Number(rawBulkMin) > 0 ? Number(rawBulkMin) : null;
+  const rawBulkPrice = product.bulkPrice ?? product.bulk_price ?? product.bulkUnitPrice ?? product.bulk_unit_price;
+  const bulkPrice = rawBulkPrice !== undefined && rawBulkPrice !== null && !isNaN(Number(rawBulkPrice)) && Number(rawBulkPrice) > 0 ? Number(rawBulkPrice) : null;
+
+  const bulkEnabled =
+    product.bulkPricingEnabled === true ||
+    product.bulk_pricing_enabled === true ||
+    product.bulk_pricing_enabled === 1 ||
+    product.bulk_pricing_enabled === "1" ||
+    (Boolean((product.bulkThreshold || product.bulk_threshold) && (product.bulkPrice || product.bulk_price)));
+
+  const isBulkValid = bulkEnabled && bulkPrice !== null && bulkPrice > 0;
+
+  // ── 2. STANDARD TIER ────────────────────────────────────────────────────────
   const standardPrice =
     product.standardPrice !== undefined && product.standardPrice !== null && !isNaN(Number(product.standardPrice)) && Number(product.standardPrice) > 0
       ? Number(product.standardPrice)
@@ -683,9 +698,11 @@ export function extractProductPricingTiers(product: any): OfferSheetPricingTier[
 
   if (standardPrice !== null && standardPrice > 0) {
     if (rawMoq !== null) {
+      const hasHigherBulk = isBulkValid && bulkMin !== null && bulkMin > rawMoq;
+      const basis = hasHigherBulk ? `${rawMoq}–${bulkMin - 1} ${unit}` : `${rawMoq}+ ${unit} (Minimum Order)`;
       tiers.push({
         tierName: "Standard",
-        quantityBasis: `${rawMoq} ${unit} (Minimum Order)`,
+        quantityBasis: basis,
         unitPrice: standardPrice,
         totalPrice: Math.round(standardPrice * rawMoq * 100) / 100,
         isAvailable: true,
@@ -702,20 +719,7 @@ export function extractProductPricingTiers(product: any): OfferSheetPricingTier[
     }
   }
 
-  // ── 2. BULK TIER ────────────────────────────────────────────────────────────
-  const rawBulkMin = product.bulkThreshold ?? product.bulk_threshold ?? product.bulkMinimumQuantity ?? product.bulk_minimum_quantity;
-  const bulkMin = rawBulkMin !== undefined && rawBulkMin !== null && !isNaN(Number(rawBulkMin)) && Number(rawBulkMin) > 0 ? Number(rawBulkMin) : null;
-  const rawBulkPrice = product.bulkPrice ?? product.bulk_price ?? product.bulkUnitPrice ?? product.bulk_unit_price;
-  const bulkPrice = rawBulkPrice !== undefined && rawBulkPrice !== null && !isNaN(Number(rawBulkPrice)) && Number(rawBulkPrice) > 0 ? Number(rawBulkPrice) : null;
-
-  const bulkEnabled =
-    product.bulkPricingEnabled === true ||
-    product.bulk_pricing_enabled === true ||
-    product.bulk_pricing_enabled === 1 ||
-    product.bulk_pricing_enabled === "1" ||
-    (Boolean((product.bulkThreshold || product.bulk_threshold) && (product.bulkPrice || product.bulk_price)));
-
-  const isBulkValid = bulkEnabled && bulkPrice !== null && bulkPrice > 0;
+  // ── 3. BULK TIER ────────────────────────────────────────────────────────────
   if (isBulkValid && bulkPrice !== null) {
     if (bulkMin !== null && bulkMin > 0) {
       tiers.push({

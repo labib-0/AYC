@@ -16,7 +16,7 @@ class ProductOfferSheetService
     public const TARGET_SIZE_BYTES = 1572864; // 1.5 MB target
     public const MAX_SIZE_BYTES = 2097152;    // 2.0 MB hard limit
 
-    public const LAYOUT_VERSION = 'v13.0_offer_sheet_refined_spacing_and_full_stock_quantity';
+    public const LAYOUT_VERSION = 'v14.0_offer_sheet_distinct_tiers_and_total_at_min_order';
 
     public function __construct(
         protected OfferSheetService $offerSheetService,
@@ -56,7 +56,10 @@ class ProductOfferSheetService
             $exporter['email'] ?? '',
         ]));
 
-        $fsQty = (int) ($product->getEligibleFullStockQuantity() ?: $product->getTotalAvailableStock() ?: $product->stock);
+        $fsQty = (int) (OfferSheetService::resolveFullStockQuantity($product) ?? 0);
+
+        $customPricingTiers = $product->relationLoaded('pricingTiers') ? $product->pricingTiers : $product->pricingTiers()->get();
+        $pricingTiersFingerprint = $customPricingTiers ? $customPricingTiers->map(fn($t) => "{$t->id}_{$t->min_quantity}_{$t->max_quantity}_{$t->unit_price}")->join(',') : '';
 
         $corePayload = implode('~', [
             $product->id,
@@ -73,6 +76,7 @@ class ProductOfferSheetService
             $product->moq ?? '',
             $product->standard_price ?? '',
             $product->wholesale_price ?? '',
+            $pricingTiersFingerprint,
             $product->bulk_pricing_enabled ? "bulk:{$product->bulk_price}:{$product->bulk_threshold}" : 'no_bulk',
             $product->full_stock_price ? "stock:{$product->full_stock_price}:{$fsQty}" : "stock:0:{$fsQty}",
             $brandName,

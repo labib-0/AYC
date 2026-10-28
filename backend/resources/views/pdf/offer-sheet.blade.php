@@ -337,23 +337,23 @@
             $fullStockQty = null;
 
             // 1. Direct explicit full_stock_quantity on item payload
-            if (isset($item['full_stock_quantity']) && is_numeric($item['full_stock_quantity']) && (int) $item['full_stock_quantity'] > 0) {
+            if (isset($item['full_stock_quantity']) && is_numeric($item['full_stock_quantity'])) {
                 $fullStockQty = (int) $item['full_stock_quantity'];
             }
 
             // 2. Derive from pricing tiers (Full Stock tier)
-            if ($fullStockQty === null || $fullStockQty <= 0) {
+            if ($fullStockQty === null) {
                 $pricingTiers = $item['pricing_tiers'] ?? [];
                 foreach ($pricingTiers as $tier) {
                     $tName = strtolower(trim((string) ($tier['tierName'] ?? '')));
                     if ($tName === 'full stock' || str_contains($tName, 'full stock')) {
-                        if (isset($tier['quantity']) && (int) $tier['quantity'] > 0) {
+                        if (isset($tier['quantity']) && is_numeric($tier['quantity'])) {
                             $fullStockQty = (int) $tier['quantity'];
                             break;
                         }
                         if (!empty($tier['quantityBasis']) && preg_match('/^([0-9,]+)\s*pcs/i', trim($tier['quantityBasis']), $matches)) {
                             $parsed = (int) str_replace(',', '', $matches[1]);
-                            if ($parsed > 0) {
+                            if ($parsed >= 0) {
                                 $fullStockQty = $parsed;
                                 break;
                             }
@@ -363,19 +363,14 @@
             }
 
             // 3. Fallback to product model if loaded in context
-            if (($fullStockQty === null || $fullStockQty <= 0) && isset($product) && is_object($product)) {
-                if (method_exists($product, 'getEligibleFullStockQuantity') && $product->getEligibleFullStockQuantity() > 0) {
-                    $fullStockQty = (int) $product->getEligibleFullStockQuantity();
-                } elseif (method_exists($product, 'getTotalAvailableStock') && $product->getTotalAvailableStock() > 0) {
-                    $fullStockQty = (int) $product->getTotalAvailableStock();
-                } elseif (isset($product->stock) && (int) $product->stock > 0) {
-                    $fullStockQty = (int) $product->stock;
-                }
+            if ($fullStockQty === null && isset($product) && is_object($product)) {
+                $fullStockQty = \App\Services\Documents\OfferSheetService::resolveFullStockQuantity($product);
             }
 
             // Output Quantity specification strictly when authoritative full-stock quantity exists
             // Label must remain EXACTLY 'Quantity' (never renamed to Stock, MOQ, etc.)
-            if ($fullStockQty !== null && $fullStockQty > 0) {
+            // Zero-stock products: explicitly show Quantity: 0 pcs when stock is known to be zero, omit if untracked/null.
+            if ($fullStockQty !== null && $fullStockQty >= 0) {
                 $validSpecs['Quantity'] = number_format($fullStockQty) . ' pcs';
             }
 
@@ -592,17 +587,17 @@
             <div class="section-heading">PRICING</div>
             <table class="pricing-table">
                 <colgroup>
-                    <col style="width: 24%;">
-                    <col style="width: 38%;">
+                    <col style="width: 22%;">
+                    <col style="width: 36%;">
                     <col style="width: 18%;">
-                    <col style="width: 20%;">
+                    <col style="width: 24%;">
                 </colgroup>
                 <thead>
                     <tr>
                         <th>TIER</th>
                         <th>MINIMUM ORDER</th>
                         <th>UNIT PRICE</th>
-                        <th class="text-right">TOTAL</th>
+                        <th class="text-right">TOTAL AT MINIMUM ORDER</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -610,7 +605,7 @@
                         @php
                             $tName = $tier['tierName'] ?? 'Standard';
                             $qBasis = $tier['quantityBasis'] ?? ($tier['minimum_order'] ?? (($tier['min_qty'] ?? 100) . '+ pcs'));
-                            if ($tName === 'Standard' && !str_contains($qBasis, '(Minimum Order)')) {
+                            if ($tName === 'Standard' && !str_contains($qBasis, '–') && !str_contains($qBasis, '-') && !str_contains($qBasis, '(Minimum Order)')) {
                                 $qBasis = preg_replace('/(\+?\s*pcs)$/i', '', $qBasis);
                                 $qBasis = trim($qBasis) . '+ pcs (Minimum Order)';
                             }
