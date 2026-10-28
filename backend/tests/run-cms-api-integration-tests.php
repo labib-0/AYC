@@ -55,6 +55,7 @@ try {
     $unprivilegedAdmin = new User([
         'name' => 'Restricted Admin Fixture',
         'email' => 'restricted_qa_' . time() . '@ayaanclothing.com',
+        'password' => bcrypt('Secret123!'),
         'role' => 'admin',
         'is_super_admin' => false,
         'status' => 'active',
