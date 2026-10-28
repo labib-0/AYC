@@ -7,7 +7,7 @@ import type { ShippingPackageProfile } from "@/types";
 export const OFFER_SHEET_FIXED_VALIDITY_TEXT = "7 Days from date of issuance";
 
 export interface OfferSheetPricingTier {
-  tierName: "Standard" | "Bulk" | "Full Stock";
+  tierName: "Standard" | "Bulk" | "Full Stock" | "Volume Tier" | string;
   quantityBasis: string;
   unitPrice: number;
   totalPrice: number | null;
@@ -620,127 +620,200 @@ export function extractProductSpecifications(product: any): OfferSheetSpecificat
  */
 export function extractProductPricingTiers(product: any): OfferSheetPricingTier[] {
   if (!product) return [];
-  const tiers: OfferSheetPricingTier[] = [];
   const unit = (product.unit || product.purchaseUnit || product.purchase_unit || "PCS").trim().toUpperCase();
+  const unitLabel = unit.toLowerCase() === "pcs" ? "pcs" : unit.toLowerCase();
 
-  // Check if product already has explicit pricing tiers array (e.g. custom tiers or tests)
-  const explicitTiers = product.pricingTiers || product.pricing_tiers;
-  if (Array.isArray(explicitTiers) && explicitTiers.length > 0) {
-    // If objects already follow OfferSheetPricingTier structure
-    if (explicitTiers[0]?.tierName && explicitTiers[0]?.unitPrice !== undefined) {
-      return explicitTiers.filter((t: any) => t.isAvailable !== false && Number(t.unitPrice) > 0);
-    }
-    // If objects have { minQuantity, maxQuantity?, price }
-    if (explicitTiers[0]?.minQuantity !== undefined && explicitTiers[0]?.price !== undefined) {
-      explicitTiers.forEach((pt: any, idx: number) => {
-        const minQ = Number(pt.minQuantity) || 1;
-        const price = Number(pt.price);
-        if (price > 0) {
-          const tierName: "Standard" | "Bulk" | "Full Stock" =
-            idx === 0 ? "Standard" : idx === 1 ? "Bulk" : "Full Stock";
-          const label =
-            idx === 0
-              ? `${minQ} ${unit} (Minimum Order)`
-              : idx === 1
-              ? `${minQ} ${unit} (Minimum Quantity)`
-              : `${minQ}+ ${unit} (Volume Basis)`;
-          tiers.push({
-            tierName,
-            quantityBasis: label,
-            unitPrice: price,
-            totalPrice: Math.round(price * minQ * 100) / 100,
-            isAvailable: true,
-          });
-        }
-      });
-      if (tiers.length > 0) return tiers;
+  // 1. If explicitTiers already contains pre-formatted OfferSheetPricingTier objects
+  const rawExplicit = product.pricingTiers || product.pricing_tiers;
+  if (Array.isArray(rawExplicit) && rawExplicit.length > 0) {
+    const first = rawExplicit[0];
+    if (
+      first &&
+      typeof first === "object" &&
+      first.tierName &&
+      first.quantityBasis &&
+      (first.unitPrice !== undefined || first.unit_price !== undefined)
+    ) {
+      return rawExplicit
+        .filter((t: any) => t.isAvailable !== false && Number(t.unitPrice ?? t.unit_price) > 0)
+        .map((t: any) => ({
+          tierName: t.tierName,
+          quantityBasis: t.quantityBasis,
+          unitPrice: Number(t.unitPrice ?? t.unit_price),
+          totalPrice: t.totalPrice !== undefined && t.totalPrice !== null
+            ? Number(t.totalPrice)
+            : (t.total_price !== undefined && t.total_price !== null ? Number(t.total_price) : null),
+          isAvailable: t.isAvailable !== false,
+        }));
     }
   }
 
-  // ── 1. BULK TIER EVALUATION ────────────────────────────────────────────────
-  const rawBulkMin = product.bulkThreshold ?? product.bulk_threshold ?? product.bulkMinimumQuantity ?? product.bulk_minimum_quantity;
-  const bulkMin = rawBulkMin !== undefined && rawBulkMin !== null && !isNaN(Number(rawBulkMin)) && Number(rawBulkMin) > 0 ? Number(rawBulkMin) : null;
-  const rawBulkPrice = product.bulkPrice ?? product.bulk_price ?? product.bulkUnitPrice ?? product.bulk_unit_price;
-  const bulkPrice = rawBulkPrice !== undefined && rawBulkPrice !== null && !isNaN(Number(rawBulkPrice)) && Number(rawBulkPrice) > 0 ? Number(rawBulkPrice) : null;
-
-  const bulkEnabled =
-    product.bulkPricingEnabled === true ||
-    product.bulk_pricing_enabled === true ||
-    product.bulk_pricing_enabled === 1 ||
-    product.bulk_pricing_enabled === "1" ||
-    (Boolean((product.bulkThreshold || product.bulk_threshold) && (product.bulkPrice || product.bulk_price)));
-
-  const isBulkValid = bulkEnabled && bulkPrice !== null && bulkPrice > 0;
-
-  // ── 2. STANDARD TIER ────────────────────────────────────────────────────────
-  const standardPrice =
-    product.standardPrice !== undefined && product.standardPrice !== null && !isNaN(Number(product.standardPrice)) && Number(product.standardPrice) > 0
-      ? Number(product.standardPrice)
-      : product.standard_price !== undefined && product.standard_price !== null && !isNaN(Number(product.standard_price)) && Number(product.standard_price) > 0
-      ? Number(product.standard_price)
-      : product.wholesalePrice !== undefined && product.wholesalePrice !== null && !isNaN(Number(product.wholesalePrice)) && Number(product.wholesalePrice) > 0
-      ? Number(product.wholesalePrice)
-      : product.wholesale_price !== undefined && product.wholesale_price !== null && !isNaN(Number(product.wholesale_price)) && Number(product.wholesale_price) > 0
-      ? Number(product.wholesale_price)
-      : product.price !== undefined && product.price !== null && !isNaN(Number(product.price)) && Number(product.price) > 0
-      ? Number(product.price)
-      : null;
-
+  // 2. Extract standard MOQ and wholesale/standard price
   const rawMoq = product.moq !== undefined && product.moq !== null && !isNaN(Number(product.moq)) && Number(product.moq) > 0
     ? Number(product.moq)
     : product.minOrderQuantity !== undefined && product.minOrderQuantity !== null && !isNaN(Number(product.minOrderQuantity)) && Number(product.minOrderQuantity) > 0
     ? Number(product.minOrderQuantity)
     : product.min_order_quantity !== undefined && product.min_order_quantity !== null && !isNaN(Number(product.min_order_quantity)) && Number(product.min_order_quantity) > 0
     ? Number(product.min_order_quantity)
-    : product.minimum_order_quantity !== undefined && product.minimum_order_quantity !== null && !isNaN(Number(product.minimum_order_quantity)) && Number(product.minimum_order_quantity) > 0
-    ? Number(product.minimum_order_quantity)
-    : null;
+    : 100;
+  const moq = Math.max(1, rawMoq);
 
-  if (standardPrice !== null && standardPrice > 0) {
-    if (rawMoq !== null) {
-      const hasHigherBulk = isBulkValid && bulkMin !== null && bulkMin > rawMoq;
-      const basis = hasHigherBulk ? `${rawMoq}–${bulkMin - 1} ${unit}` : `${rawMoq}+ ${unit} (Minimum Order)`;
-      tiers.push({
-        tierName: "Standard",
-        quantityBasis: basis,
-        unitPrice: standardPrice,
-        totalPrice: Math.round(standardPrice * rawMoq * 100) / 100,
-        isAvailable: true,
-      });
-    } else {
-      // Valid unit price exists but quantity basis not specified; do NOT fabricate a fake MOQ!
-      tiers.push({
-        tierName: "Standard",
-        quantityBasis: `Per ${unit} (Minimum Order)`,
-        unitPrice: standardPrice,
-        totalPrice: null,
-        isAvailable: true,
+  const rawStdPrice = product.standardPrice ?? product.standard_price ?? product.wholesalePrice ?? product.wholesale_price ?? product.price ?? product.unitPrice ?? product.unit_price;
+  const stdPrice = rawStdPrice !== undefined && rawStdPrice !== null && !isNaN(Number(rawStdPrice)) && Number(rawStdPrice) > 0
+    ? Number(rawStdPrice)
+    : 0;
+
+  // 3. Evaluate Bulk Tier (legacy or explicit bulk configuration)
+  const rawBulkMin = product.bulkThreshold ?? product.bulk_threshold ?? product.bulkMinimumQuantity ?? product.bulk_minimum_quantity;
+  const bulkMin = rawBulkMin !== undefined && rawBulkMin !== null && !isNaN(Number(rawBulkMin)) && Number(rawBulkMin) > moq ? Number(rawBulkMin) : null;
+  const rawBulkPrice = product.bulkPrice ?? product.bulk_price ?? product.bulkUnitPrice ?? product.bulk_unit_price;
+  const bulkPrice = rawBulkPrice !== undefined && rawBulkPrice !== null && !isNaN(Number(rawBulkPrice)) && Number(rawBulkPrice) > 0 ? Number(rawBulkPrice) : null;
+
+  const bulkEnabled = Boolean(
+    product.bulkPricingEnabled === true ||
+    product.bulk_pricing_enabled === true ||
+    product.bulk_pricing_enabled === 1 ||
+    product.bulk_pricing_enabled === "1" ||
+    (bulkMin !== null && bulkPrice !== null)
+  );
+
+  const hasBulkTier = bulkEnabled && bulkPrice !== null && bulkPrice > 0 && bulkMin !== null && bulkMin > moq;
+
+  // 4. Collect and normalize custom tiers from rawExplicit
+  interface NormalizedCustomTier {
+    id?: any;
+    min: number;
+    max: number | null;
+    price: number;
+    label: string;
+  }
+  const customTiers: NormalizedCustomTier[] = [];
+  if (Array.isArray(rawExplicit) && rawExplicit.length > 0) {
+    for (const cTier of rawExplicit) {
+      if (!cTier || typeof cTier !== "object") continue;
+      const cMin = Number(cTier.min_quantity ?? cTier.minQuantity ?? cTier.min_qty ?? cTier.minQty ?? 0);
+      const rawMax = cTier.max_quantity ?? cTier.maxQuantity ?? cTier.max_qty ?? cTier.maxQty;
+      const cMax = rawMax !== undefined && rawMax !== null && !isNaN(Number(rawMax)) ? Number(rawMax) : null;
+      const cPrice = Number(cTier.unit_price ?? cTier.unitPrice ?? cTier.price ?? 0);
+      const cLabel = (cTier.tier_name || cTier.tierName || cTier.label || "Volume Tier").toString().trim() || "Volume Tier";
+
+      if (cMin <= 0 || cPrice <= 0) continue;
+
+      customTiers.push({
+        id: cTier.id,
+        min: cMin,
+        max: cMax,
+        price: cPrice,
+        label: cLabel,
       });
     }
   }
 
-  // ── 3. BULK TIER ────────────────────────────────────────────────────────────
-  if (isBulkValid && bulkPrice !== null) {
-    if (bulkMin !== null && bulkMin > 0) {
-      tiers.push({
+  // Deduplicate identical custom tiers
+  const uniqueCustomTiers: NormalizedCustomTier[] = [];
+  for (const c of customTiers) {
+    const isDupe = uniqueCustomTiers.some(
+      (u) => u.min === c.min && u.max === c.max && Math.abs(u.price - c.price) < 0.001
+    );
+    if (!isDupe) {
+      uniqueCustomTiers.push(c);
+    }
+  }
+
+  // Identify custom tier that corresponds to the MOQ bracket
+  let standardMaxQty: number | null = null;
+  const filteredCustomTiers: NormalizedCustomTier[] = [];
+  for (const c of uniqueCustomTiers) {
+    if (c.min === moq) {
+      if (c.max !== null && c.max >= moq) {
+        standardMaxQty = c.max;
+      }
+      if (Math.abs(c.price - stdPrice) < 0.001) {
+        // Absorb into Standard tier without adding as duplicate Volume Tier
+        continue;
+      }
+    }
+    filteredCustomTiers.push(c);
+  }
+
+  // Determine lowest higher tier threshold above MOQ to bound Standard tier if not already bounded
+  const higherThresholds: number[] = [];
+  if (hasBulkTier && bulkMin !== null && bulkMin > moq) {
+    higherThresholds.push(bulkMin);
+  }
+  for (const c of filteredCustomTiers) {
+    if (c.min > moq) {
+      higherThresholds.push(c.min);
+    }
+  }
+
+  if (higherThresholds.length > 0) {
+    const lowestHigherMin = Math.min(...higherThresholds);
+    if (standardMaxQty === null || standardMaxQty >= lowestHigherMin) {
+      standardMaxQty = lowestHigherMin - 1;
+    }
+  }
+
+  // Build working tiers array
+  interface WorkingTier extends OfferSheetPricingTier {
+    _min_qty: number;
+    _max_qty: number | null;
+  }
+  const workingTiers: WorkingTier[] = [];
+
+  // Tier 1: Standard Tier
+  if (stdPrice > 0) {
+    const standardBasis = standardMaxQty
+      ? `${moq}–${standardMaxQty} ${unitLabel}`
+      : `${moq}+ ${unitLabel} (Minimum Order)`;
+
+    workingTiers.push({
+      tierName: "Standard",
+      quantityBasis: standardBasis,
+      unitPrice: stdPrice,
+      totalPrice: Math.round(stdPrice * moq * 100) / 100,
+      isAvailable: true,
+      _min_qty: moq,
+      _max_qty: standardMaxQty,
+    });
+  }
+
+  // Tier 2: Custom Volume Tiers
+  for (const c of filteredCustomTiers) {
+    if (c.min === moq && Math.abs(c.price - stdPrice) < 0.001) {
+      continue;
+    }
+    const cBasis = c.max ? `${c.min}–${c.max} ${unitLabel}` : `${c.min}+ ${unitLabel}`;
+    workingTiers.push({
+      tierName: c.label,
+      quantityBasis: cBasis,
+      unitPrice: c.price,
+      totalPrice: Math.round(c.price * c.min * 100) / 100,
+      isAvailable: true,
+      _min_qty: c.min,
+      _max_qty: c.max,
+    });
+  }
+
+  // Tier 3: Bulk Tier
+  if (hasBulkTier && bulkMin !== null && bulkPrice !== null) {
+    const isDuplicateBulk = workingTiers.some(
+      (t) => t._min_qty === bulkMin && Math.abs(t.unitPrice - bulkPrice) < 0.001
+    );
+    if (!isDuplicateBulk) {
+      workingTiers.push({
         tierName: "Bulk",
-        quantityBasis: `${bulkMin} ${unit} (Minimum Quantity)`,
+        quantityBasis: `${bulkMin}+ ${unitLabel}`,
         unitPrice: bulkPrice,
         totalPrice: Math.round(bulkPrice * bulkMin * 100) / 100,
         isAvailable: true,
-      });
-    } else {
-      tiers.push({
-        tierName: "Bulk",
-        quantityBasis: `Per ${unit} (Bulk Basis)`,
-        unitPrice: bulkPrice,
-        totalPrice: null,
-        isAvailable: true,
+        _min_qty: bulkMin,
+        _max_qty: null,
       });
     }
   }
 
-  // ── 3. FULL STOCK TIER ──────────────────────────────────────────────────────
+  // Tier 4: Full Stock Tier
   const availableStock = product.availableStock !== undefined && product.availableStock !== null
     ? Number(product.availableStock)
     : product.available_stock !== undefined && product.available_stock !== null
@@ -749,26 +822,35 @@ export function extractProductPricingTiers(product: any): OfferSheetPricingTier[
 
   const rawFsPrice = product.configuredFullStockPrice ?? product.fullStockPrice ?? product.full_stock_price;
   const fsPrice = rawFsPrice !== undefined && rawFsPrice !== null && !isNaN(Number(rawFsPrice)) && Number(rawFsPrice) > 0 ? Number(rawFsPrice) : null;
-  const isExplicitlyEligible = product.isFullStockEligible ?? product.is_full_stock_eligible;
 
-  let isFullStockValid = false;
-  if (isExplicitlyEligible !== undefined) {
-    isFullStockValid = Boolean(isExplicitlyEligible) && fsPrice !== null && availableStock !== null && availableStock > 0;
-  } else if (fsPrice !== null && availableStock !== null && availableStock > 0) {
-    isFullStockValid = true;
+  if (fsPrice !== null && availableStock !== null && availableStock > 0) {
+    const isRedundantWithStandard = availableStock <= moq && Math.abs(fsPrice - stdPrice) < 0.001;
+    const isDuplicateOfExisting = workingTiers.some(
+      (t) => t._min_qty === availableStock && Math.abs(t.unitPrice - fsPrice) < 0.001
+    );
+
+    if (!isRedundantWithStandard && !isDuplicateOfExisting) {
+      workingTiers.push({
+        tierName: "Full Stock",
+        quantityBasis: `${availableStock.toLocaleString()} ${unitLabel} (Available Stock)`,
+        unitPrice: fsPrice,
+        totalPrice: Math.round(fsPrice * availableStock * 100) / 100,
+        isAvailable: true,
+        _min_qty: availableStock,
+        _max_qty: null,
+      });
+    }
   }
 
-  if (isFullStockValid && fsPrice !== null && availableStock !== null && availableStock > 0) {
-    tiers.push({
-      tierName: "Full Stock",
-      quantityBasis: `${availableStock.toLocaleString()} ${unit} (Available Stock)`,
-      unitPrice: fsPrice,
-      totalPrice: Math.round(fsPrice * availableStock * 100) / 100,
-      isAvailable: true,
-    });
-  }
+  // Sort by _min_qty ascending, then unitPrice descending for ties
+  workingTiers.sort((a, b) => {
+    if (a._min_qty !== b._min_qty) {
+      return a._min_qty - b._min_qty;
+    }
+    return b.unitPrice - a.unitPrice;
+  });
 
-  return tiers;
+  return workingTiers.map(({ _min_qty, _max_qty, ...rest }) => rest);
 }
 
 /**
